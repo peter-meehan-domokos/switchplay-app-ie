@@ -223,7 +223,9 @@ button {
   left: -14px;
   height: 218px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.04));
+  background:
+    radial-gradient(ellipse at 42% 22%, rgba(255, 255, 255, 0.045), transparent 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.04));
 }
 
 .deck-card {
@@ -351,11 +353,32 @@ button {
 }
 
 .deck-card.is-future {
-  filter: brightness(0.9);
+  filter:
+    brightness(var(--future-brightness, 0.9))
+    contrast(var(--future-contrast, 0.94))
+    saturate(var(--future-saturation, 0.96))
+    blur(calc(var(--future-softness, 0) * 1px));
+}
+
+.deck-card.is-future::before {
+  opacity: var(--future-highlight-opacity, 0.82);
+}
+
+.deck-card.is-future .card-title-anchor h2,
+.deck-card.is-future .deck-card-date {
+  opacity: var(--future-text-opacity, 0.9);
+}
+
+.deck-card.is-future .completion-strip {
+  opacity: var(--future-progress-opacity, 0.96);
 }
 
 .deck-card.is-past {
-  filter: brightness(0.82) saturate(0.9);
+  filter: brightness(var(--past-brightness, 0.82)) saturate(var(--past-saturation, 0.9));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.045) inset,
+    calc(var(--past-plane-shadow-x, -1) * 1px) 2px 4px rgba(0, 0, 0, calc(var(--past-shadow-alpha, 0.24) + 0.04)),
+    calc(var(--past-plane-shadow-x, -1) * 1px) calc(var(--past-plane-shadow-y, 8) * 1px) 18px rgba(0, 0, 0, var(--past-shadow-alpha, 0.24));
   transform-origin: top left;
 }
 
