@@ -44,7 +44,7 @@ export default function AppShell({ decks, userName }: AppShellProps) {
         <AnimatePresence mode="popLayout" initial={false}>
           {selectedDeck ? (
             <DeckDetail
-              key="deck-detail"
+              key={`deck-detail-${selectedDeck.id}`}
               deck={selectedDeck}
               onBack={() => setSelectedDeckId(null)}
               transition={springTransition}
