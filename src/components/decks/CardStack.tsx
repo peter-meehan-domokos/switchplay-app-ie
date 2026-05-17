@@ -14,6 +14,9 @@ import {
   PAST_CARD_OPACITY_STEP,
   PAST_CARD_SCALE_STEP,
   PAST_TABLE_CARD_WIDTH,
+  PAST_TABLE_COMPRESSED_MAX_X_OFFSET,
+  PAST_TABLE_COMPRESSED_X_OFFSET,
+  PAST_TABLE_COMPRESSION_THRESHOLD,
   PAST_TABLE_MAX_X_OFFSET,
   PAST_TABLE_X_OFFSET,
   PAST_TABLE_Y_OFFSET,
@@ -43,7 +46,8 @@ export type CardTransitionPhase = {
 type CardStackStyle = {
   zone: CardStackZone;
   showHeader: boolean;
-  style: MotionStyle;
+  showProgress: boolean;
+  style: MotionStyle & { "--past-depth"?: number };
 };
 
 function getFutureDepth(relativeIndex: number) {
@@ -62,8 +66,12 @@ function getOpacity(depthIndex: number, opacityStep: number) {
   return Math.max(1 - depthIndex * opacityStep, MIN_STACK_OPACITY);
 }
 
-function getPastTableX(index: number) {
-  return Math.min(index * PAST_TABLE_X_OFFSET, PAST_TABLE_MAX_X_OFFSET);
+function getPastTableX(index: number, activeCardIndex: number) {
+  const shouldCompressHistory = activeCardIndex >= PAST_TABLE_COMPRESSION_THRESHOLD;
+  const offset = shouldCompressHistory ? PAST_TABLE_COMPRESSED_X_OFFSET : PAST_TABLE_X_OFFSET;
+  const maxOffset = shouldCompressHistory ? PAST_TABLE_COMPRESSED_MAX_X_OFFSET : PAST_TABLE_MAX_X_OFFSET;
+
+  return Math.min(index * offset, maxOffset);
 }
 
 function getCardStackStyle(index: number, activeCardIndex: number, totalCards: number): CardStackStyle {
@@ -75,6 +83,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
     return {
       zone: "active",
       showHeader: true,
+      showProgress: true,
       style: {
         top: activeTop,
         right: 0,
@@ -97,6 +106,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
     return {
       zone: "future",
       showHeader: relativeIndex <= VISIBLE_CONTEXT_CARDS,
+      showProgress: relativeIndex <= VISIBLE_CONTEXT_CARDS,
       style: {
         top: activeTop,
         right: 0,
@@ -114,21 +124,22 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
   }
 
   const pastIndex = Math.abs(relativeIndex);
-  const isRecentPast = index >= activeCardIndex - VISIBLE_CONTEXT_CARDS;
 
   return {
     zone: "past",
-    showHeader: isRecentPast,
+    showHeader: true,
+    showProgress: true,
     style: {
       top: TABLE_ZONE_TOP,
       right: "auto",
       left: 0,
       width: PAST_TABLE_CARD_WIDTH,
       aspectRatio: CARD_ASPECT_RATIO,
-      x: getPastTableX(index),
+      x: getPastTableX(index, activeCardIndex),
       y: (activeCardIndex - index - 1) * PAST_TABLE_Y_OFFSET,
       scale: getScale(pastIndex, PAST_CARD_SCALE_STEP),
       opacity: getOpacity(pastIndex, PAST_CARD_OPACITY_STEP),
+      "--past-depth": pastIndex,
       // Keep the just-completed card above the incoming active card during
       // layout projection so the same visible card travels into the table.
       zIndex: isMostRecentPast ? totalCards * 3 + 1 : totalCards + index,
@@ -161,6 +172,7 @@ export default function CardStack({ cards, activeCardIndex, transitionPhase, onF
               card={card}
               stackZone={baseStackStyle.zone}
               showHeader={baseStackStyle.showHeader}
+              showProgress={baseStackStyle.showProgress}
               onActivate={!transitionPhase && index === activeCardIndex ? () => onFocusCard(index) : undefined}
               style={{
                 ...positionStackStyle.style,

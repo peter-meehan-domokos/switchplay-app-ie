@@ -60,3 +60,50 @@ This should feel like:
 - moving forward through stages over time
 
 Past cards may gradually compress and reduce detail as the completed stack grows.
+
+## Semantic Anchor Stability
+
+Cards should preserve stable semantic anchor regions across all zoom levels and interaction states.
+
+Core identity elements should remain spatially consistent:
+- week number
+- date
+- completion/progress strip
+
+Cards should reveal or suppress detail through semantic zooming rather than reflowing or reorganising identity regions.
+
+The user should perceive:
+- the same object
+- at different scales of information density
+
+NOT:
+- different UI layouts replacing one another.
+
+## Card Progress Strip
+
+Each card has a compact progress strip under the week label.
+
+The strip represents rough completion progress for that card.
+
+Initial calculation:
+- completed items / total items
+- completed means `completionStatus === "done"`
+- rounded to nearest whole percentage
+
+The strip should be a single compact horizontal indicator, not a full-width dashboard bar and not separate task segments.
+
+It should function as a persistent semantic anchor across card states.
+
+## Stable Card Anatomy
+
+All cards should render the same core anchor structure across states:
+
+- week label in the top-left
+- compact progress strip below the week label
+- date in the top-right
+
+These elements should remain part of the card anatomy even when they become partially hidden, scaled down, overlapped, clipped, or difficult to read.
+
+Semantic zoom should happen through scale, opacity, clipping, overlap, and progressive reduction of detail layers — not by changing the core card layout.
+
+Detailed content may fade or disappear, but core identity anchors should remain structurally present.

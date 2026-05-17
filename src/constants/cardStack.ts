@@ -1,6 +1,8 @@
 export const VISIBLE_CONTEXT_CARDS = 2;
 
 export const CARD_ASPECT_RATIO = "1 / 1.45";
+export const CARD_CORNER_RADIUS = 22;
+export const FOCUSED_CARD_CORNER_RADIUS = 30;
 
 export const PROGRESSION_CARD_WIDTH = "min(72vw, 280px)";
 export const FOCUSED_CARD_WIDTH = "min(92vw, 430px)";
@@ -16,6 +18,9 @@ export const FUTURE_COMPRESSED_OFFSET = 14;
 
 export const PAST_TABLE_X_OFFSET = 48;
 export const PAST_TABLE_MAX_X_OFFSET = 176;
+export const PAST_TABLE_COMPRESSED_X_OFFSET = 34;
+export const PAST_TABLE_COMPRESSED_MAX_X_OFFSET = 156;
+export const PAST_TABLE_COMPRESSION_THRESHOLD = 5;
 export const PAST_TABLE_Y_OFFSET = 9;
 
 export const FUTURE_X_OFFSET = 10;

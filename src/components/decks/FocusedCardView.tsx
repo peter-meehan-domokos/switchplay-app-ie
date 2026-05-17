@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { WeeklyCard } from "@/components/decks/types";
 import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
 
@@ -25,21 +26,20 @@ export default function FocusedCardView({ card, onClose, transition }: FocusedCa
     >
       <motion.button type="button" className="focused-card-scrim" onClick={onClose} aria-label="Close focused card" />
       <motion.article
-        className="focused-card"
+        className="physical-card focused-card"
         layout
         layoutId={`week-card-${card.id}`}
         style={{ width: FOCUSED_CARD_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
         transition={transition}
       >
         <div className="focused-card-topbar">
-          <p className="deck-card-date">{dateFormatter.format(new Date(card.targetDate))}</p>
+          <CardSemanticAnchors card={card} dateLabel={dateFormatter.format(new Date(card.targetDate))} />
           <motion.button type="button" className="focused-close-button" onClick={onClose} whileTap={{ scale: 0.94 }}>
             Close
           </motion.button>
         </div>
 
         <header className="focused-card-header">
-          <h2>{card.title}</h2>
           <p>{card.subtitle}</p>
         </header>
 

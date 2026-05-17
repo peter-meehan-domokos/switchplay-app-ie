@@ -1,10 +1,12 @@
 import { motion, type MotionStyle } from "motion/react";
+import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { WeeklyCard } from "@/components/decks/types";
 
 type DeckCardProps = {
   card: WeeklyCard;
   stackZone: "past" | "active" | "future";
   showHeader: boolean;
+  showProgress: boolean;
   onActivate?: () => void;
   style: MotionStyle;
   transition: object;
@@ -15,8 +17,8 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   month: "short",
 });
 
-export default function DeckCard({ card, stackZone, showHeader, onActivate, style, transition }: DeckCardProps) {
-  const cardStateClass = showHeader ? `is-${stackZone}` : `is-${stackZone} is-compressed`;
+export default function DeckCard({ card, stackZone, showHeader, showProgress, onActivate, style, transition }: DeckCardProps) {
+  const cardStateClass = showHeader || showProgress ? `is-${stackZone}` : `is-${stackZone} is-compressed`;
   const previewItems = card.items.slice(0, 2);
   const primaryStat = card.stats[0];
 
@@ -33,7 +35,7 @@ export default function DeckCard({ card, stackZone, showHeader, onActivate, styl
 
   return (
     <motion.article
-      className={`deck-card ${cardStateClass}`}
+      className={`physical-card deck-card ${cardStateClass}`}
       layout
       layoutId={`week-card-${card.id}`}
       role={onActivate ? "button" : undefined}
@@ -44,20 +46,16 @@ export default function DeckCard({ card, stackZone, showHeader, onActivate, styl
       transition={transition}
     >
       <div className="deck-card-content">
-        {showHeader ? (
-          <header className="deck-card-header">
-            <p className="deck-card-date">{dateFormatter.format(new Date(card.targetDate))}</p>
-            <h2>{card.title}</h2>
-          </header>
+        {showHeader || showProgress ? (
+          <CardSemanticAnchors
+            card={card}
+            dateLabel={dateFormatter.format(new Date(card.targetDate))}
+            showText={showHeader}
+          />
         ) : null}
         {stackZone === "active" ? (
           <div className="deck-card-preview">
             <p className="deck-card-subtitle">{card.subtitle}</p>
-            <div className="preview-marker-row" aria-label="Progress preview">
-              {card.items.slice(0, 4).map((item) => (
-                <span className={`preview-marker is-${item.completionStatus}`} key={item.id} />
-              ))}
-            </div>
             <div className="preview-list">
               {previewItems.map((item) => (
                 <p key={item.id}>{item.description}</p>
