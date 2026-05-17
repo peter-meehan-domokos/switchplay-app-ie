@@ -246,6 +246,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/calisthenics/muscle-up-single.mp4",
                   "title": "Single Attempt Checklist"
                 }
+              },
+              {
+                "id": "item-026",
+                "description": "Warm up with 3 sets of explosive chest-height pulls.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-027",
+                "description": "Review one filmed attempt with a teammate.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -296,6 +306,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/squat-depth.jpg",
                   "alt": "Back squat depth reference"
                 }
+              },
+              {
+                "id": "item-028",
+                "description": "Record three countermovement jump attempts after the squat test.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-029",
+                "description": "Log warm-up loads and RPE notes for the baseline session.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -338,6 +358,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/explosive-jump.mp4",
                   "title": "Explosive Jump Cue"
                 }
+              },
+              {
+                "id": "item-030",
+                "description": "Pair each jump set with 20 metres of acceleration mechanics.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-031",
+                "description": "Upload one slow-motion jump clip for landing review.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -392,6 +422,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/split-squat.mp4",
                   "title": "Split Squat Form"
                 }
+              },
+              {
+                "id": "item-032",
+                "description": "Add single-leg pogos for 3 sets of 20 contacts.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-033",
+                "description": "Compare left and right leg jump quality from video.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -434,6 +474,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/vertical-jump-test.jpg",
                   "alt": "Vertical jump measurement"
                 }
+              },
+              {
+                "id": "item-034",
+                "description": "Retest 5-rep squat at controlled depth.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-035",
+                "description": "Summarise the block with one recovery and training note.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -496,6 +546,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/wall-pass-two-touch.mp4",
                   "title": "Two-Touch Wall Passing"
                 }
+              },
+              {
+                "id": "item-036",
+                "description": "Film 20 receives with body shape open to the pitch.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-037",
+                "description": "Log five touches where the first touch set up the next pass.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -539,6 +599,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/rondo-scanning.mp4",
                   "title": "Rondo Scanning Drill"
                 }
+              },
+              {
+                "id": "item-038",
+                "description": "Complete 40 wall-pass receives with a shoulder check before contact.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-039",
+                "description": "Ask a teammate to call the open colour before each receive.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -593,6 +663,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/half-turn-body-shape.jpg",
                   "alt": "Half-turn receiving body shape"
                 }
+              },
+              {
+                "id": "item-040",
+                "description": "Complete 20 half-turn exits into a forward pass.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-041",
+                "description": "Review one clip where your first touch opened the next action.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -635,6 +715,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/pressure-receive.mp4",
                   "title": "Pressure Receiving Drill"
                 }
+              },
+              {
+                "id": "item-042",
+                "description": "Complete two rounds with contact pressure from behind.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-043",
+                "description": "Clip three moments where pressure changed your first touch.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -689,6 +779,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/clip-review-guide.mp4",
                   "title": "Clip Review Guide"
                 }
+              },
+              {
+                "id": "item-044",
+                "description": "Track first-touch decisions in one full training game.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-045",
+                "description": "Share two positive first-touch clips with the group.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -701,6 +801,52 @@ export const switchplayMockData ={
                 "endValue": 0,
                 "targetValue": 18,
                 "unit": "actions"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-023",
+            "title": "Week 6",
+            "subtitle": "Retain first touch quality under fatigue",
+            "targetDate": "2026-06-01",
+            "intro": {
+              "description": "Finish the block by checking whether scanning, body shape and first-touch choices hold late in training.",
+              "mediaItem": {
+                "id": "media-049",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/football/fatigue-first-touch.mp4",
+                "title": "First Touch Under Fatigue"
+              }
+            },
+            "items": [
+              {
+                "id": "item-046",
+                "description": "Complete a 12-minute receiving circuit after conditioning work.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-047",
+                "description": "Clip three late-session first touches and compare them with Week 1.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-048",
+                "description": "Write one match target for first-touch decisions next week.",
+                "completionStatus": "todo"
+              }
+            ],
+            "stats": [
+              {
+                "id": "stat-023",
+                "title": "Late-session clean touches",
+                "description": "Clean first touches after fatigue block",
+                "order": "increasing",
+                "startValue": 0,
+                "endValue": 0,
+                "targetValue": 30,
+                "unit": "touches"
               }
             ],
             "mediaItems": [],
@@ -739,6 +885,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/nutrition/protein-tracker.jpg",
                   "alt": "Protein tracking template"
                 }
+              },
+              {
+                "id": "item-049",
+                "description": "Complete two controlled full-body lifting sessions.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-050",
+                "description": "Set a sleep and hydration target for the block.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -781,6 +937,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/row-technique.mp4",
                   "title": "Row Technique"
                 }
+              },
+              {
+                "id": "item-051",
+                "description": "Add shoulder prehab work after each upper-body lift.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-052",
+                "description": "Record posture check photos before and after the week.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -835,6 +1001,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/finisher-board.jpg",
                   "alt": "Conditioning finisher board"
                 }
+              },
+              {
+                "id": "item-053",
+                "description": "Complete one lower-body strength session without missing target loads.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-054",
+                "description": "Log body weight and readiness across three mornings.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -877,6 +1053,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/gym/submax-retest.mp4",
                   "title": "Submax Retest"
                 }
+              },
+              {
+                "id": "item-055",
+                "description": "Compare Week 1 and Week 4 pull-up quality.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-056",
+                "description": "Write one maintenance target for the next block.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -927,6 +1113,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/slow-fast-dribble.jpg",
                   "alt": "Slow-fast dribble cone setup"
                 }
+              },
+              {
+                "id": "item-057",
+                "description": "Film 10 take-ons showing the speed change.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-058",
+                "description": "Use the move twice in a small-sided game.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -970,6 +1166,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/body-feint-outside.mp4",
                   "title": "Body Feint Outside Push"
                 }
+              },
+              {
+                "id": "item-059",
+                "description": "Complete 20 feints into inside carries.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-060",
+                "description": "Clip one match action where the defender bites on the feint.",
+                "completionStatus": "done"
               }
             ],
             "stats": [
@@ -1024,6 +1230,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/winger-lane-setup.jpg",
                   "alt": "Winger 1v1 lane setup"
                 }
+              },
+              {
+                "id": "item-061",
+                "description": "Use three weaker-side attacks in a possession game.",
+                "completionStatus": "done"
+              },
+              {
+                "id": "item-062",
+                "description": "Review whether the defender over-protects one side.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -1078,6 +1294,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/cutback-reps.mp4",
                   "title": "Cutback Repetition Drill"
                 }
+              },
+              {
+                "id": "item-063",
+                "description": "Hit five low crosses after beating a passive defender.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-064",
+                "description": "Film two end-product reps from each side.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -1120,6 +1346,16 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/football/match-clip-review.mp4",
                   "title": "Match Clip Review"
                 }
+              },
+              {
+                "id": "item-065",
+                "description": "Tag every 1v1 as inside, outside or recycle.",
+                "completionStatus": "todo"
+              },
+              {
+                "id": "item-066",
+                "description": "Choose one decision-making target for the next match.",
+                "completionStatus": "todo"
               }
             ],
             "stats": [
@@ -1131,6 +1367,364 @@ export const switchplayMockData ={
                 "startValue": 4,
                 "endValue": 0,
                 "targetValue": 7,
+                "unit": "actions"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          }
+        ]
+      },
+      {
+        "id": "deck-006",
+        "title": "10 Week Performance Test",
+        "category": "football",
+        "status": "inProgress",
+        "cards": [
+          {
+            "id": "card-024",
+            "title": "Week 1",
+            "subtitle": "Acceleration baseline",
+            "targetDate": "2026-06-03",
+            "intro": {
+              "description": "Establish first-step speed, sprint posture and repeatable acceleration markers.",
+              "mediaItem": {
+                "id": "media-050",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/football/acceleration-baseline.mp4",
+                "title": "Acceleration Baseline"
+              }
+            },
+            "items": [
+              { "id": "item-067", "description": "Record three 10-metre sprint times after a full warm-up.", "completionStatus": "done" },
+              { "id": "item-068", "description": "Film two starts from side-on for shin angle review.", "completionStatus": "done" },
+              { "id": "item-069", "description": "Log best time, average time and recovery between efforts.", "completionStatus": "done" },
+              { "id": "item-070", "description": "Write one acceleration cue to carry into Week 2.", "completionStatus": "done" }
+            ],
+            "stats": [
+              {
+                "id": "stat-024",
+                "title": "10m sprint",
+                "description": "Best acceleration time",
+                "order": "decreasing",
+                "startValue": 1.92,
+                "endValue": 1.88,
+                "targetValue": 1.85,
+                "unit": "s"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-025",
+            "title": "Week 2",
+            "subtitle": "Repeat sprint quality",
+            "targetDate": "2026-06-10",
+            "intro": {
+              "description": "Improve the ability to repeat high-quality sprints with consistent recovery and technique.",
+              "mediaItem": {
+                "id": "media-051",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/football/repeat-sprint-quality.mp4",
+                "title": "Repeat Sprint Quality"
+              }
+            },
+            "items": [
+              { "id": "item-071", "description": "Complete 2 sets of 5 repeat 20-metre sprints.", "completionStatus": "done" },
+              { "id": "item-072", "description": "Track drop-off between fastest and slowest sprint.", "completionStatus": "done" },
+              { "id": "item-073", "description": "Review one clip for posture change under fatigue.", "completionStatus": "done" },
+              { "id": "item-074", "description": "Add recovery breathing notes after each set.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-025",
+                "title": "Sprint drop-off",
+                "description": "Difference across repeat sprint set",
+                "order": "decreasing",
+                "startValue": 8,
+                "endValue": 5,
+                "targetValue": 4,
+                "unit": "%"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-026",
+            "title": "Week 3",
+            "subtitle": "Change of direction entry",
+            "targetDate": "2026-06-17",
+            "intro": {
+              "description": "Build cleaner deceleration shapes before changing direction at speed.",
+              "mediaItem": {
+                "id": "media-052",
+                "mediaType": "img",
+                "url": "s3://switchplay-media/football/cod-entry.jpg",
+                "alt": "Change of direction entry shape"
+              }
+            },
+            "items": [
+              { "id": "item-075", "description": "Complete 4 sets of 5 deceleration entries each side.", "completionStatus": "done" },
+              { "id": "item-076", "description": "Film one set from front-on and review foot placement.", "completionStatus": "done" },
+              { "id": "item-077", "description": "Add ball-carry exits after the final two sets.", "completionStatus": "inProgress" },
+              { "id": "item-078", "description": "Log which side feels less stable.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-026",
+                "title": "Clean COD entries",
+                "description": "Controlled entries out of 20 reps",
+                "order": "increasing",
+                "startValue": 10,
+                "endValue": 14,
+                "targetValue": 16,
+                "unit": "reps"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-027",
+            "title": "Week 4",
+            "subtitle": "Strength support",
+            "targetDate": "2026-06-24",
+            "intro": {
+              "description": "Support on-pitch speed with lower-body strength, trunk control and hamstring robustness.",
+              "mediaItem": {
+                "id": "media-053",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/gym/football-strength-support.mp4",
+                "title": "Football Strength Support"
+              }
+            },
+            "items": [
+              { "id": "item-079", "description": "Complete trap-bar deadlift and split squat working sets.", "completionStatus": "done" },
+              { "id": "item-080", "description": "Add Copenhagen plank holds after the main lift.", "completionStatus": "inProgress" },
+              { "id": "item-081", "description": "Complete two Nordic hamstring progressions.", "completionStatus": "todo" },
+              { "id": "item-082", "description": "Log soreness and readiness the next morning.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-027",
+                "title": "Split squat load",
+                "description": "Top working set per hand",
+                "order": "increasing",
+                "startValue": 22,
+                "endValue": 24,
+                "targetValue": 28,
+                "unit": "kg"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-028",
+            "title": "Week 5",
+            "subtitle": "High-speed ball carries",
+            "targetDate": "2026-07-01",
+            "intro": {
+              "description": "Connect sprint mechanics to carrying the ball at pace without losing control.",
+              "mediaItem": {
+                "id": "media-054",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/football/high-speed-ball-carry.mp4",
+                "title": "High-Speed Ball Carries"
+              }
+            },
+            "items": [
+              { "id": "item-083", "description": "Complete 8 high-speed carries over 25 metres.", "completionStatus": "inProgress" },
+              { "id": "item-084", "description": "Measure touch count during each carry.", "completionStatus": "todo" },
+              { "id": "item-085", "description": "Film two carries from behind to review ball path.", "completionStatus": "todo" },
+              { "id": "item-086", "description": "Add one passive defender for the final reps.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-028",
+                "title": "Controlled carries",
+                "description": "Fast carries completed without heavy touch",
+                "order": "increasing",
+                "startValue": 3,
+                "endValue": 0,
+                "targetValue": 6,
+                "unit": "carries"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-029",
+            "title": "Week 6",
+            "subtitle": "Pressing repeatability",
+            "targetDate": "2026-07-08",
+            "intro": {
+              "description": "Test repeated pressing actions and recovery between high-intensity defensive efforts.",
+              "mediaItem": {
+                "id": "media-055",
+                "mediaType": "img",
+                "url": "s3://switchplay-media/football/pressing-repeatability.jpg",
+                "alt": "Pressing repeatability drill"
+              }
+            },
+            "items": [
+              { "id": "item-087", "description": "Complete 6 pressing waves with 30 seconds recovery.", "completionStatus": "todo" },
+              { "id": "item-088", "description": "Track whether first step and body angle stay sharp.", "completionStatus": "todo" },
+              { "id": "item-089", "description": "Clip one successful press and one late press.", "completionStatus": "todo" },
+              { "id": "item-090", "description": "Review recovery between pressing waves.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-029",
+                "title": "Effective presses",
+                "description": "Presses that force backward or rushed play",
+                "order": "increasing",
+                "startValue": 0,
+                "endValue": 0,
+                "targetValue": 8,
+                "unit": "presses"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-030",
+            "title": "Week 7",
+            "subtitle": "Power maintenance",
+            "targetDate": "2026-07-15",
+            "intro": {
+              "description": "Maintain jump and sprint qualities while training volume increases.",
+              "mediaItem": {
+                "id": "media-056",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/gym/power-maintenance.mp4",
+                "title": "Power Maintenance"
+              }
+            },
+            "items": [
+              { "id": "item-091", "description": "Complete two low-volume jump sessions.", "completionStatus": "todo" },
+              { "id": "item-092", "description": "Retest standing vertical jump after warm-up.", "completionStatus": "todo" },
+              { "id": "item-093", "description": "Add two sprint exposures after the first lift.", "completionStatus": "todo" },
+              { "id": "item-094", "description": "Log fatigue and freshness before each session.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-030",
+                "title": "Vertical jump",
+                "description": "Best weekly jump height",
+                "order": "increasing",
+                "startValue": 51,
+                "endValue": 0,
+                "targetValue": 55,
+                "unit": "cm"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-031",
+            "title": "Week 8",
+            "subtitle": "Match-speed decisions",
+            "targetDate": "2026-07-22",
+            "intro": {
+              "description": "Bring physical improvements into match-speed choices with and without the ball.",
+              "mediaItem": {
+                "id": "media-057",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/football/match-speed-decisions.mp4",
+                "title": "Match-Speed Decisions"
+              }
+            },
+            "items": [
+              { "id": "item-095", "description": "Complete a 4v4 transition game with sprint triggers.", "completionStatus": "todo" },
+              { "id": "item-096", "description": "Track three decisions made immediately after a sprint.", "completionStatus": "todo" },
+              { "id": "item-097", "description": "Clip one good decision and one rushed decision.", "completionStatus": "todo" },
+              { "id": "item-098", "description": "Write a cue for slowing the decision without slowing the run.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-031",
+                "title": "Positive transition decisions",
+                "description": "Decisions after high-speed actions",
+                "order": "increasing",
+                "startValue": 0,
+                "endValue": 0,
+                "targetValue": 6,
+                "unit": "decisions"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-032",
+            "title": "Week 9",
+            "subtitle": "Retest week",
+            "targetDate": "2026-07-29",
+            "intro": {
+              "description": "Retest sprint, jump and repeat-effort markers with clean recovery and consistent warm-up.",
+              "mediaItem": {
+                "id": "media-058",
+                "mediaType": "img",
+                "url": "s3://switchplay-media/football/performance-retest.jpg",
+                "alt": "Performance retest checklist"
+              }
+            },
+            "items": [
+              { "id": "item-099", "description": "Retest 10-metre sprint after the standard warm-up.", "completionStatus": "todo" },
+              { "id": "item-100", "description": "Retest vertical jump and compare with Week 1.", "completionStatus": "todo" },
+              { "id": "item-101", "description": "Complete one repeat sprint set with drop-off tracking.", "completionStatus": "todo" },
+              { "id": "item-102", "description": "Summarise the biggest physical change from the block.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-032",
+                "title": "Retest readiness",
+                "description": "Completed retest components",
+                "order": "increasing",
+                "startValue": 0,
+                "endValue": 0,
+                "targetValue": 4,
+                "unit": "tests"
+              }
+            ],
+            "mediaItems": [],
+            "chats": []
+          },
+          {
+            "id": "card-033",
+            "title": "Week 10",
+            "subtitle": "Performance review",
+            "targetDate": "2026-08-05",
+            "intro": {
+              "description": "Use the final week to review progress, pick the next focus and preserve the most useful routines.",
+              "mediaItem": {
+                "id": "media-059",
+                "mediaType": "video",
+                "url": "s3://switchplay-media/football/performance-review.mp4",
+                "title": "Performance Review"
+              }
+            },
+            "items": [
+              { "id": "item-103", "description": "Choose three clips that show improved physical output.", "completionStatus": "todo" },
+              { "id": "item-104", "description": "Compare Week 1 and Week 9 test numbers.", "completionStatus": "todo" },
+              { "id": "item-105", "description": "Write the next 4-week performance priority.", "completionStatus": "todo" },
+              { "id": "item-106", "description": "Share one training habit that should remain weekly.", "completionStatus": "todo" }
+            ],
+            "stats": [
+              {
+                "id": "stat-033",
+                "title": "Review actions",
+                "description": "Completed review tasks",
+                "order": "increasing",
+                "startValue": 0,
+                "endValue": 0,
+                "targetValue": 4,
                 "unit": "actions"
               }
             ],
