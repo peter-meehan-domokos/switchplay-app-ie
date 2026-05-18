@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
+import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import type { WeeklyCard } from "@/components/decks/types";
 import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
 
@@ -32,31 +32,15 @@ export default function FocusedCardView({ card, onClose, transition }: FocusedCa
         style={{ width: FOCUSED_CARD_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
         transition={transition}
       >
-        <div className="focused-card-topbar">
-          <CardSemanticAnchors card={card} dateLabel={dateFormatter.format(new Date(card.targetDate))} />
-          <motion.button type="button" className="focused-close-button" onClick={onClose} whileTap={{ scale: 0.94 }}>
-            Close
-          </motion.button>
-        </div>
-
-        <header className="focused-card-header">
-          <p>{card.subtitle}</p>
-        </header>
-
-        <div className="focused-card-body">
-          <section className="focused-section">
-            <h3>Week focus</h3>
-            <p>{card.intro.description}</p>
-          </section>
-
-          <section className="focused-section">
-            <h3>Preview actions</h3>
-            <div className="focused-action-list">
-              {card.items.slice(0, 3).map((item) => (
-                <p key={item.id}>{item.description}</p>
-              ))}
-            </div>
-          </section>
+        <motion.button type="button" className="focused-close-button" onClick={onClose} whileTap={{ scale: 0.94 }}>
+          Close
+        </motion.button>
+        <div className="focused-card-content">
+          <ActiveCardFront
+            card={card}
+            dateLabel={dateFormatter.format(new Date(card.targetDate))}
+            variant="focused"
+          />
         </div>
       </motion.article>
     </motion.div>

@@ -91,3 +91,16 @@ Visible headers should include:
 The week title and date should feel like compact metadata, not large page headings.
 
 Cards beyond the next two context cards may compress into visual slivers and do not need readable text.
+
+## Focus Mode Continuity
+
+Focus mode should preserve the same semantic anatomy as active mode.
+
+The focused card is not a separate modal or different content view. It is the same authored card entering attention.
+
+Active and focused states should share the same core card structure wherever possible:
+- card header
+- intro media/title
+- progression fragments
+
+Focus mode may increase space, clarity, and interaction depth, but it should not replace the card’s internal content structure.
