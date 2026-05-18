@@ -1,3 +1,5 @@
+// Switchplay cards intentionally use exactly 3 primary progression items.
+// This design constraint preserves clarity, calmness, and authored progression structure.
 export const switchplayMockData ={
   "connections": [
     { "id": "user-002", "name": "Leo Murphy" },
@@ -34,7 +36,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-001",
-                "description": "Complete 4 sets of strict pull-ups, stopping 1 rep before failure.",
+                "description": "Complete strict pull-up strength sets",
                 "completionStatus": "done",
                 "mediaItem": {
                   "id": "media-002",
@@ -53,6 +55,17 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/calisthenics/hollow-hold.mp4",
                   "title": "Hollow Body Position"
                 }
+              },
+              {
+                "id": "item-107",
+                "description": "Film one clean top-position hold",
+                "completionStatus": "done",
+                "mediaItem": {
+                  "id": "media-060",
+                  "mediaType": "img",
+                  "url": "s3://switchplay-media/calisthenics/top-hold.jpg",
+                  "alt": "Pull-up top hold"
+                }
               }
             ],
             "stats": [
@@ -70,7 +83,7 @@ export const switchplayMockData ={
             "mediaItems": [
               {
                 "id": "media-004",
-                "mediaType": "embeddedVideo",
+                "mediaType": "video",
                 "provider": "youtube",
                 "url": "https://www.youtube.com/embed/example-pullup-technique",
                 "title": "Pull-Up Technique Breakdown"
@@ -118,13 +131,24 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-004",
-                "description": "Practise band-assisted transition drills for 10 minutes.",
+                "description": "Practise band-assisted transitions",
                 "completionStatus": "done",
                 "mediaItem": {
                   "id": "media-007",
                   "mediaType": "img",
                   "url": "s3://switchplay-media/calisthenics/band-transition.jpg",
                   "alt": "Band-assisted muscle-up transition"
+                }
+              },
+              {
+                "id": "item-108",
+                "description": "Film 3 high pulls from side angle",
+                "completionStatus": "done",
+                "mediaItem": {
+                  "id": "media-061",
+                  "mediaType": "video",
+                  "url": "s3://switchplay-media/calisthenics/high-pull-side.mp4",
+                  "title": "High Pull Side View"
                 }
               }
             ],
@@ -191,6 +215,17 @@ export const switchplayMockData ={
                   "url": "s3://switchplay-media/calisthenics/elbow-path.jpg",
                   "alt": "Muscle-up elbow path reference"
                 }
+              },
+              {
+                "id": "item-109",
+                "description": "Hold false-grip support for 20 seconds",
+                "completionStatus": "todo",
+                "mediaItem": {
+                  "id": "media-062",
+                  "mediaType": "img",
+                  "url": "s3://switchplay-media/calisthenics/false-grip-support.jpg",
+                  "alt": "False-grip support hold"
+                }
               }
             ],
             "stats": [
@@ -229,7 +264,7 @@ export const switchplayMockData ={
               "description": "Bring the pieces together with controlled singles and good recovery between attempts.",
               "mediaItem": {
                 "id": "media-011",
-                "mediaType": "embeddedVideo",
+                "mediaType": "video",
                 "provider": "youtube",
                 "url": "https://www.youtube.com/embed/example-muscleup",
                 "title": "Clean Bar Muscle-Up Example"
@@ -238,7 +273,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-007",
-                "description": "Attempt 6 high-quality muscle-up singles with full rest.",
+                "description": "Attempt 6 controlled muscle-up singles",
                 "completionStatus": "todo",
                 "mediaItem": {
                   "id": "media-012",
@@ -249,7 +284,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-026",
-                "description": "Warm up with 3 sets of explosive chest-height pulls.",
+                "description": "Warm up with explosive high pulls",
                 "completionStatus": "todo"
               },
               {
@@ -309,12 +344,12 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-028",
-                "description": "Record three countermovement jump attempts after the squat test.",
+                "description": "Record 3 countermovement jumps",
                 "completionStatus": "done"
               },
               {
                 "id": "item-029",
-                "description": "Log warm-up loads and RPE notes for the baseline session.",
+                "description": "Log warm-up loads and RPE notes",
                 "completionStatus": "done"
               }
             ],
@@ -361,7 +396,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-030",
-                "description": "Pair each jump set with 20 metres of acceleration mechanics.",
+                "description": "Pair jumps with acceleration mechanics",
                 "completionStatus": "done"
               },
               {
@@ -414,7 +449,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-010",
-                "description": "Complete Bulgarian split squats for 4 sets of 8 each leg.",
+                "description": "Complete split squats each leg",
                 "completionStatus": "done",
                 "mediaItem": {
                   "id": "media-018",
@@ -482,7 +517,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-035",
-                "description": "Summarise the block with one recovery and training note.",
+                "description": "Write one recovery and training note",
                 "completionStatus": "done"
               }
             ],
@@ -554,7 +589,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-037",
-                "description": "Log five touches where the first touch set up the next pass.",
+                "description": "Log 5 touches that opened the pass",
                 "completionStatus": "done"
               }
             ],
@@ -582,7 +617,7 @@ export const switchplayMockData ={
               "description": "Add scanning before the ball arrives so the first touch matches the next action.",
               "mediaItem": {
                 "id": "media-023",
-                "mediaType": "embeddedVideo",
+                "mediaType": "video",
                 "provider": "youtube",
                 "url": "https://www.youtube.com/embed/example-scanning-midfielder",
                 "title": "Scanning Before Receiving"
@@ -591,7 +626,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-013",
-                "description": "Complete 3 scanning rondo clips and review head checks.",
+                "description": "Review 3 scanning rondo clips",
                 "completionStatus": "done",
                 "mediaItem": {
                   "id": "media-024",
@@ -602,12 +637,12 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-038",
-                "description": "Complete 40 wall-pass receives with a shoulder check before contact.",
+                "description": "Add shoulder checks before receiving",
                 "completionStatus": "done"
               },
               {
                 "id": "item-039",
-                "description": "Ask a teammate to call the open colour before each receive.",
+                "description": "React to teammate colour calls",
                 "completionStatus": "done"
               }
             ],
@@ -671,7 +706,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-041",
-                "description": "Review one clip where your first touch opened the next action.",
+                "description": "Review one touch that opened play",
                 "completionStatus": "done"
               }
             ],
@@ -707,7 +742,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-015",
-                "description": "Complete 5 rounds of pressure receiving with a teammate.",
+                "description": "Complete pressure receiving rounds",
                 "completionStatus": "inProgress",
                 "mediaItem": {
                   "id": "media-028",
@@ -723,7 +758,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-043",
-                "description": "Clip three moments where pressure changed your first touch.",
+                "description": "Clip 3 pressure first-touch moments",
                 "completionStatus": "todo"
               }
             ],
@@ -771,7 +806,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-016",
-                "description": "Clip 5 match moments where your first touch created space.",
+                "description": "Clip 5 first touches that created space",
                 "completionStatus": "todo",
                 "mediaItem": {
                   "id": "media-030",
@@ -823,17 +858,17 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-046",
-                "description": "Complete a 12-minute receiving circuit after conditioning work.",
+                "description": "Complete post-conditioning receiving",
                 "completionStatus": "todo"
               },
               {
                 "id": "item-047",
-                "description": "Clip three late-session first touches and compare them with Week 1.",
+                "description": "Compare late touches with Week 1",
                 "completionStatus": "todo"
               },
               {
                 "id": "item-048",
-                "description": "Write one match target for first-touch decisions next week.",
+                "description": "Write one first-touch match target",
                 "completionStatus": "todo"
               }
             ],
@@ -929,7 +964,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-018",
-                "description": "Complete bench press and row sessions with matched volume.",
+                "description": "Match bench and row volume",
                 "completionStatus": "done",
                 "mediaItem": {
                   "id": "media-034",
@@ -993,7 +1028,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-019",
-                "description": "Complete two 12-minute conditioning finishers after lifting.",
+                "description": "Complete 2 short conditioning finishers",
                 "completionStatus": "inProgress",
                 "mediaItem": {
                   "id": "media-036",
@@ -1004,7 +1039,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-053",
-                "description": "Complete one lower-body strength session without missing target loads.",
+                "description": "Hit all lower-body target loads",
                 "completionStatus": "done"
               },
               {
@@ -1149,7 +1184,7 @@ export const switchplayMockData ={
               "description": "Use shoulders, hips and eyes to move the defender before touching the ball past them.",
               "mediaItem": {
                 "id": "media-041",
-                "mediaType": "embeddedVideo",
+                "mediaType": "video",
                 "provider": "youtube",
                 "url": "https://www.youtube.com/embed/example-body-feints",
                 "title": "Body Feints for Wide Players"
@@ -1174,7 +1209,7 @@ export const switchplayMockData ={
               },
               {
                 "id": "item-060",
-                "description": "Clip one match action where the defender bites on the feint.",
+                "description": "Clip one defender biting on the feint",
                 "completionStatus": "done"
               }
             ],
@@ -1222,7 +1257,7 @@ export const switchplayMockData ={
             "items": [
               {
                 "id": "item-023",
-                "description": "Complete 20 inside cuts and 20 outside bursts under passive pressure.",
+                "description": "Mix inside cuts and outside bursts",
                 "completionStatus": "inProgress",
                 "mediaItem": {
                   "id": "media-044",
@@ -1396,10 +1431,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-067", "description": "Record three 10-metre sprint times after a full warm-up.", "completionStatus": "done" },
-              { "id": "item-068", "description": "Film two starts from side-on for shin angle review.", "completionStatus": "done" },
-              { "id": "item-069", "description": "Log best time, average time and recovery between efforts.", "completionStatus": "done" },
-              { "id": "item-070", "description": "Write one acceleration cue to carry into Week 2.", "completionStatus": "done" }
+              { "id": "item-067", "description": "Record 3 10-metre sprint times", "completionStatus": "done" },
+              { "id": "item-068", "description": "Film 2 starts from side angle", "completionStatus": "done" },
+              { "id": "item-069", "description": "Log best time and recovery gaps", "completionStatus": "done" }
             ],
             "stats": [
               {
@@ -1431,10 +1465,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-071", "description": "Complete 2 sets of 5 repeat 20-metre sprints.", "completionStatus": "done" },
+              { "id": "item-071", "description": "Complete repeat 20-metre sprints", "completionStatus": "done" },
               { "id": "item-072", "description": "Track drop-off between fastest and slowest sprint.", "completionStatus": "done" },
-              { "id": "item-073", "description": "Review one clip for posture change under fatigue.", "completionStatus": "done" },
-              { "id": "item-074", "description": "Add recovery breathing notes after each set.", "completionStatus": "todo" }
+              { "id": "item-073", "description": "Review posture under fatigue", "completionStatus": "done" }
             ],
             "stats": [
               {
@@ -1466,10 +1499,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-075", "description": "Complete 4 sets of 5 deceleration entries each side.", "completionStatus": "done" },
-              { "id": "item-076", "description": "Film one set from front-on and review foot placement.", "completionStatus": "done" },
-              { "id": "item-077", "description": "Add ball-carry exits after the final two sets.", "completionStatus": "inProgress" },
-              { "id": "item-078", "description": "Log which side feels less stable.", "completionStatus": "todo" }
+              { "id": "item-075", "description": "Complete decel entries each side", "completionStatus": "done" },
+              { "id": "item-076", "description": "Film front-on foot placement", "completionStatus": "done" },
+              { "id": "item-077", "description": "Add ball-carry exits after decels", "completionStatus": "inProgress" }
             ],
             "stats": [
               {
@@ -1501,10 +1533,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-079", "description": "Complete trap-bar deadlift and split squat working sets.", "completionStatus": "done" },
+              { "id": "item-079", "description": "Complete trap-bar and split squat sets", "completionStatus": "done" },
               { "id": "item-080", "description": "Add Copenhagen plank holds after the main lift.", "completionStatus": "inProgress" },
-              { "id": "item-081", "description": "Complete two Nordic hamstring progressions.", "completionStatus": "todo" },
-              { "id": "item-082", "description": "Log soreness and readiness the next morning.", "completionStatus": "todo" }
+              { "id": "item-081", "description": "Complete Nordic hamstring progressions", "completionStatus": "todo" }
             ],
             "stats": [
               {
@@ -1536,10 +1567,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-083", "description": "Complete 8 high-speed carries over 25 metres.", "completionStatus": "inProgress" },
+              { "id": "item-083", "description": "Complete high-speed ball carries", "completionStatus": "inProgress" },
               { "id": "item-084", "description": "Measure touch count during each carry.", "completionStatus": "todo" },
-              { "id": "item-085", "description": "Film two carries from behind to review ball path.", "completionStatus": "todo" },
-              { "id": "item-086", "description": "Add one passive defender for the final reps.", "completionStatus": "todo" }
+              { "id": "item-085", "description": "Film carries from behind", "completionStatus": "todo" }
             ],
             "stats": [
               {
@@ -1571,10 +1601,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-087", "description": "Complete 6 pressing waves with 30 seconds recovery.", "completionStatus": "todo" },
-              { "id": "item-088", "description": "Track whether first step and body angle stay sharp.", "completionStatus": "todo" },
-              { "id": "item-089", "description": "Clip one successful press and one late press.", "completionStatus": "todo" },
-              { "id": "item-090", "description": "Review recovery between pressing waves.", "completionStatus": "todo" }
+              { "id": "item-087", "description": "Complete 6 pressing waves", "completionStatus": "todo" },
+              { "id": "item-088", "description": "Track first step and body angle", "completionStatus": "todo" },
+              { "id": "item-089", "description": "Clip one sharp press and one late press", "completionStatus": "todo" }
             ],
             "stats": [
               {
@@ -1606,10 +1635,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-091", "description": "Complete two low-volume jump sessions.", "completionStatus": "todo" },
+              { "id": "item-091", "description": "Complete 2 low-volume jump sessions", "completionStatus": "todo" },
               { "id": "item-092", "description": "Retest standing vertical jump after warm-up.", "completionStatus": "todo" },
-              { "id": "item-093", "description": "Add two sprint exposures after the first lift.", "completionStatus": "todo" },
-              { "id": "item-094", "description": "Log fatigue and freshness before each session.", "completionStatus": "todo" }
+              { "id": "item-093", "description": "Add sprint exposures after first lift", "completionStatus": "todo" }
             ],
             "stats": [
               {
@@ -1641,10 +1669,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-095", "description": "Complete a 4v4 transition game with sprint triggers.", "completionStatus": "todo" },
-              { "id": "item-096", "description": "Track three decisions made immediately after a sprint.", "completionStatus": "todo" },
-              { "id": "item-097", "description": "Clip one good decision and one rushed decision.", "completionStatus": "todo" },
-              { "id": "item-098", "description": "Write a cue for slowing the decision without slowing the run.", "completionStatus": "todo" }
+              { "id": "item-095", "description": "Play 4v4 with sprint triggers", "completionStatus": "todo" },
+              { "id": "item-096", "description": "Track decisions after sprint actions", "completionStatus": "todo" },
+              { "id": "item-097", "description": "Clip one calm and one rushed choice", "completionStatus": "todo" }
             ],
             "stats": [
               {
@@ -1676,10 +1703,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-099", "description": "Retest 10-metre sprint after the standard warm-up.", "completionStatus": "todo" },
+              { "id": "item-099", "description": "Retest 10-metre sprint", "completionStatus": "todo" },
               { "id": "item-100", "description": "Retest vertical jump and compare with Week 1.", "completionStatus": "todo" },
-              { "id": "item-101", "description": "Complete one repeat sprint set with drop-off tracking.", "completionStatus": "todo" },
-              { "id": "item-102", "description": "Summarise the biggest physical change from the block.", "completionStatus": "todo" }
+              { "id": "item-101", "description": "Complete one repeat sprint retest", "completionStatus": "todo" }
             ],
             "stats": [
               {
@@ -1711,10 +1737,9 @@ export const switchplayMockData ={
               }
             },
             "items": [
-              { "id": "item-103", "description": "Choose three clips that show improved physical output.", "completionStatus": "todo" },
+              { "id": "item-103", "description": "Choose 3 improved output clips", "completionStatus": "todo" },
               { "id": "item-104", "description": "Compare Week 1 and Week 9 test numbers.", "completionStatus": "todo" },
-              { "id": "item-105", "description": "Write the next 4-week performance priority.", "completionStatus": "todo" },
-              { "id": "item-106", "description": "Share one training habit that should remain weekly.", "completionStatus": "todo" }
+              { "id": "item-105", "description": "Write the next 4-week priority", "completionStatus": "todo" }
             ],
             "stats": [
               {
