@@ -1,15 +1,29 @@
-type CompletionStatus = "todo" | "inProgress" | "done";
+import type { CompletionStatus } from "@/components/decks/types";
 
 type ProgressItem = {
-  completionStatus: CompletionStatus;
+  completionStatus: string;
 };
 
-export function getCardProgressPercentage(items: ProgressItem[]): number {
-  if (!items.length) return 0;
+export function normalizeCompletionStatus(completionStatus: string): CompletionStatus {
+  if (
+    completionStatus === "inProgress" ||
+    completionStatus === "done" ||
+    completionStatus === "skipped"
+  ) {
+    return completionStatus;
+  }
 
-  const completedCount = items.filter(
+  return "todo";
+}
+
+export function getCardProgressPercentage(items: ProgressItem[]): number {
+  const includedItems = items.filter((item) => item.completionStatus !== "skipped");
+
+  if (!includedItems.length) return 0;
+
+  const completedCount = includedItems.filter(
     (item) => item.completionStatus === "done"
   ).length;
 
-  return Math.round((completedCount / items.length) * 100);
+  return Math.round((completedCount / includedItems.length) * 100);
 }

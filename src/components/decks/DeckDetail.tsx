@@ -6,8 +6,9 @@ import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
-import type { Deck } from "@/components/decks/types";
+import type { CompletionStatus, Deck } from "@/components/decks/types";
 import { ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
+import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
   deck: Deck;
@@ -15,13 +16,21 @@ type DeckDetailProps = {
   transition: object;
 };
 
+const itemProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
+
+function getNextCompletionStatus(currentStatus: CompletionStatus) {
+  const currentIndex = itemProgressCycle.indexOf(currentStatus);
+  return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
+}
+
 export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps) {
+  const [cards, setCards] = useState(deck.cards);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const finalCardIndex = deck.cards.length - 1;
+  const finalCardIndex = cards.length - 1;
 
   useEffect(() => {
     return () => {
@@ -87,6 +96,25 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
     moveFocusedCard(Math.min(activeCardIndex + 1, finalCardIndex));
   };
 
+  const cycleFocusedItemStatus = (itemId: string) => {
+    setCards((currentCards) =>
+      currentCards.map((card, cardIndex) => {
+        if (cardIndex !== activeCardIndex) {
+          return card;
+        }
+
+        return {
+          ...card,
+          items: card.items.map((item) =>
+            item.id === itemId
+              ? { ...item, completionStatus: getNextCompletionStatus(normalizeCompletionStatus(item.completionStatus)) }
+              : item
+          ),
+        };
+      })
+    );
+  };
+
   return (
     <motion.section
       className="deck-detail"
@@ -104,7 +132,7 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
         </motion.button>
         <div className="detail-tools">
           <span className="stack-position">
-            {activeCardIndex + 1} / {deck.cards.length}
+            {activeCardIndex + 1} / {cards.length}
           </span>
           <motion.button
             type="button"
@@ -135,7 +163,7 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
       </motion.div>
 
       <CardStack
-        cards={deck.cards}
+        cards={cards}
         activeCardIndex={activeCardIndex}
         transitionPhase={transitionPhase}
         onFocusCard={openFocusMode}
@@ -145,12 +173,13 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
       <AnimatePresence>
         {isFocusModeOpen ? (
           <FocusedCardView
-            card={deck.cards[activeCardIndex]}
+            card={cards[activeCardIndex]}
             cardIndex={activeCardIndex}
-            totalCards={deck.cards.length}
+            totalCards={cards.length}
             onClose={closeFocusMode}
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}
+            onCycleItemStatus={cycleFocusedItemStatus}
             traversalDirection={focusedTraversalDirection}
             transition={transition}
           />

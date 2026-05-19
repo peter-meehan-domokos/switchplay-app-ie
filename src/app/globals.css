@@ -16,6 +16,16 @@ body {
   line-height: 1.5;
 }
 
+:root {
+  --progress-todo: rgba(255, 255, 255, 0.14);
+  --progress-todo-hover: rgba(255, 255, 255, 0.2);
+  --progress-accent: rgba(168, 214, 228, 0.9);
+  --progress-accent-soft: rgba(154, 194, 209, 0.74);
+  --progress-skipped: rgba(185, 194, 204, 0.68);
+  --progress-skipped-track: rgba(185, 194, 204, 0.16);
+  --progress-active-polish: 0 0 4px rgba(168, 214, 228, 0.18);
+}
+
 button {
   font: inherit;
 }
@@ -259,7 +269,7 @@ button {
   z-index: 1;
   display: block;
   height: 5px;
-  background: linear-gradient(90deg, #efe0bf, #79a8a9, #8d98b6);
+  background: linear-gradient(90deg, #efe0bf, var(--progress-accent), #8d98b6);
 }
 
 .deck-card.is-active::after {
@@ -307,7 +317,7 @@ button {
 .card-title-anchor h2 {
   min-width: 0;
   max-width: 100%;
-  color: #fffaf0;
+  color: var(--progress-accent-soft);
   font-size: 1rem;
   font-weight: 800;
   line-height: 1.05;
@@ -323,7 +333,7 @@ button {
   height: 4px;
   margin-top: 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--progress-todo);
   overflow: hidden;
 }
 
@@ -331,7 +341,8 @@ button {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: #79a8a9;
+  background: var(--progress-accent);
+  transition: width 180ms ease, background-color 180ms ease, opacity 180ms ease;
 }
 
 .deck-card-subtitle {
@@ -474,7 +485,8 @@ button {
 
 .step-copy {
   display: grid;
-  gap: 7px;
+  gap: 4px;
+  align-items: start;
   min-width: 0;
 }
 
@@ -504,15 +516,145 @@ button {
   width: 24px;
   height: 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--progress-todo);
   overflow: hidden;
+  transform-origin: left center;
+  transition:
+    background-color 180ms ease,
+    opacity 180ms ease,
+    transform 160ms ease;
+}
+
+.step-progress-strip::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 250, 240, 0.42), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-115%);
+}
+
+.step-progress-strip--skipped {
+  background: var(--progress-skipped-track);
 }
 
 .step-progress-strip-fill {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: rgba(121, 168, 169, 0.88);
+  background: var(--progress-accent);
+  box-shadow: var(--progress-active-polish);
+  transition:
+    width 180ms ease,
+    background-color 180ms ease,
+    opacity 180ms ease;
+}
+
+.step-progress-strip-fill--todo {
+  opacity: 0;
+}
+
+.step-progress-strip-fill--inProgress {
+  background: var(--progress-accent);
+}
+
+.step-progress-strip-fill--done {
+  background: var(--progress-accent);
+}
+
+.step-progress-strip-fill--skipped {
+  background: var(--progress-skipped);
+  box-shadow: none;
+}
+
+.step-progress-hit-area {
+  display: grid;
+  align-items: center;
+  justify-items: start;
+  width: 52px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  margin: 0 0 -5px;
+  padding: 0 14px 0 0;
+  text-align: left;
+}
+
+.step-progress-hit-area:hover .step-progress-strip {
+  background: var(--progress-todo-hover);
+}
+
+.step-progress-hit-area:hover .step-progress-strip--skipped {
+  background: var(--progress-skipped-track);
+}
+
+.step-progress-hit-area:active .step-progress-strip {
+  transform: scaleX(0.94);
+}
+
+.step-progress-hit-area:focus-visible {
+  outline: 2px solid rgba(239, 224, 191, 0.34);
+  outline-offset: 2px;
+}
+
+.active-card-front--focused .step-progress-hit-area .step-progress-strip::after {
+  animation: step-progress-entry-sheen 760ms ease-out both;
+}
+
+.active-card-front--focused .step-progress-hit-area .step-progress-strip-fill {
+  animation: step-progress-entry-settle 680ms ease-out both;
+}
+
+.active-card-front--focused .active-step-item:nth-child(1) .step-progress-strip::after,
+.active-card-front--focused .active-step-item:nth-child(1) .step-progress-strip-fill {
+  animation-delay: 120ms;
+}
+
+.active-card-front--focused .active-step-item:nth-child(2) .step-progress-strip::after,
+.active-card-front--focused .active-step-item:nth-child(2) .step-progress-strip-fill {
+  animation-delay: 210ms;
+}
+
+.active-card-front--focused .active-step-item:nth-child(3) .step-progress-strip::after,
+.active-card-front--focused .active-step-item:nth-child(3) .step-progress-strip-fill {
+  animation-delay: 300ms;
+}
+
+@keyframes step-progress-entry-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-115%);
+  }
+
+  28% {
+    opacity: 0.52;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(115%);
+  }
+}
+
+@keyframes step-progress-entry-settle {
+  0% {
+    filter: brightness(1);
+    transform: scaleX(0.94);
+  }
+
+  42% {
+    filter: brightness(1.18);
+  }
+
+  100% {
+    filter: brightness(1);
+    transform: scaleX(1);
+  }
 }
 
 .deck-card.is-future {

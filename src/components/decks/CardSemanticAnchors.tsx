@@ -1,4 +1,4 @@
-import type { WeeklyCard } from "@/components/decks/types";
+import type { WeeklyCardItem, WeeklyCard } from "@/components/decks/types";
 import { getCardProgressPercentage } from "@/lib/progress";
 
 type CardSemanticAnchorsProps = {
@@ -8,9 +8,8 @@ type CardSemanticAnchorsProps = {
 };
 
 export default function CardSemanticAnchors({ card, dateLabel, showText = true }: CardSemanticAnchorsProps) {
-  const progressItems: Array<{ completionStatus: "todo" | "inProgress" | "done" }> = card.items.map((item) => ({
-    completionStatus:
-      item.completionStatus === "done" || item.completionStatus === "inProgress" ? item.completionStatus : "todo",
+  const progressItems: Array<Pick<WeeklyCardItem, "completionStatus">> = card.items.map((item) => ({
+    completionStatus: item.completionStatus,
   }));
   const progressPercentage = getCardProgressPercentage(progressItems);
 
