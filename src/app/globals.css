@@ -765,12 +765,142 @@ button {
   background: rgba(5, 7, 11, 0.72);
 }
 
-.focused-card {
+.focused-card-stage {
   position: relative;
   z-index: 1;
+  border-radius: 30px;
+  perspective: 1200px;
+  perspective-origin: 52% 48%;
+}
+
+.focused-card-object {
+  position: absolute;
+  inset: 0;
+  border-radius: 30px;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.focused-card-surface {
+  position: absolute;
+  inset: 0;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 30px;
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58);
+  backface-visibility: hidden;
+  box-shadow: none;
+  transform-style: preserve-3d;
+}
+
+.focused-card-surface--front {
+  pointer-events: auto;
+}
+
+.focused-card-surface--back {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 80% 12%, rgba(168, 214, 228, 0.06), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.022)),
+    #1c222d;
+  pointer-events: none;
+  transform: rotateY(180deg);
+}
+
+.focused-card-object.is-flipped .focused-card-surface--front {
+  pointer-events: none;
+}
+
+.focused-card-object.is-flipped .focused-card-surface--back {
+  pointer-events: auto;
+}
+
+.focused-card-surface--back::after {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border: 1px solid rgba(255, 250, 240, 0.055);
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+.focused-card-back-content {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  color: rgba(255, 250, 240, 0.42);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.focused-card-back-mark {
+  width: 44px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--progress-accent-soft);
+  opacity: 0.52;
+}
+
+.focused-card-flip-affordance {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 92px;
+  height: 92px;
+  border: 0;
+  border-bottom-right-radius: 30px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.focused-card-flip-affordance::before {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  width: 58px;
+  height: 42px;
+  border-bottom-right-radius: 26px;
+  background: radial-gradient(ellipse at 100% 100%, rgba(0, 0, 0, 0.2), transparent 68%);
+  filter: blur(7px);
+  opacity: 0.42;
+}
+
+.focused-card-flip-affordance::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 82px;
+  height: 82px;
+  border-bottom-right-radius: 30px;
+  background:
+    radial-gradient(circle at 100% 100%, rgba(168, 214, 228, 0.12), transparent 58%),
+    linear-gradient(135deg, transparent 55%, rgba(255, 250, 240, 0.035) 59%, rgba(255, 250, 240, 0.075) 66%, rgba(168, 214, 228, 0.04) 74%, transparent 82%),
+    linear-gradient(135deg, transparent 61%, rgba(0, 0, 0, 0.18) 67%, rgba(0, 0, 0, 0.02) 100%);
+  box-shadow:
+    -11px -11px 24px rgba(0, 0, 0, 0.1) inset,
+    -1px -1px 0 rgba(255, 250, 240, 0.052) inset;
+  filter: blur(0.18px);
+  opacity: 0.74;
+  transition:
+    opacity 180ms ease,
+    filter 180ms ease;
+}
+
+.focused-card-flip-affordance:hover::after,
+.focused-card-flip-affordance:focus-visible::after {
+  filter: blur(0.3px) brightness(1.08);
+  opacity: 0.86;
+}
+
+.focused-card-flip-affordance:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.22);
+  outline-offset: -14px;
 }
 
 .focused-close-button {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
@@ -50,12 +51,18 @@ export default function FocusedCardView({
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
+  const [flipState, setFlipState] = useState({ cardId: card.id, isFlipped: false });
+  const isFlipped = flipState.cardId === card.id && flipState.isFlipped;
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
   const focusedCardTransition: Transition = {
     layout: transition,
     opacity: { duration: 0.22, ease: "easeOut" },
     y: { duration: 0.24, ease: "easeOut" },
+  };
+  const flipTransition: Transition = {
+    duration: 0.68,
+    ease: [0.22, 0.72, 0.18, 1],
   };
 
   return (
@@ -77,7 +84,7 @@ export default function FocusedCardView({
       <AnimatePresence mode="popLayout" initial={false} custom={traversalDirection}>
         <motion.article
           key={card.id}
-          className="physical-card focused-card"
+          className="focused-card-stage"
           layout
           layoutId={`week-card-${card.id}`}
           style={{ width: FOCUSED_CARD_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
@@ -88,14 +95,45 @@ export default function FocusedCardView({
           exit="exit"
           transition={focusedCardTransition}
         >
-          <div className="focused-card-content">
-            <ActiveCardFront
-              card={card}
-              dateLabel={dateFormatter.format(new Date(card.targetDate))}
-              variant="focused"
-              onCycleItemStatus={onCycleItemStatus}
-            />
-          </div>
+          <motion.div
+            className={`focused-card-object${isFlipped ? " is-flipped" : ""}`}
+            animate={{
+              rotateY: isFlipped ? 180 : 0,
+              boxShadow: isFlipped
+                ? "0 30px 96px rgba(0, 0, 0, 0.6)"
+                : "0 28px 90px rgba(0, 0, 0, 0.58)",
+            }}
+            transition={flipTransition}
+          >
+            <div className="physical-card focused-card-surface focused-card-surface--front" aria-hidden={isFlipped} inert={isFlipped}>
+              <div className="focused-card-content">
+                <ActiveCardFront
+                  card={card}
+                  dateLabel={dateFormatter.format(new Date(card.targetDate))}
+                  variant="focused"
+                  onCycleItemStatus={onCycleItemStatus}
+                />
+              </div>
+              <button
+                type="button"
+                className="focused-card-flip-affordance"
+                onClick={() => setFlipState({ cardId: card.id, isFlipped: true })}
+                aria-label="Turn card over"
+              />
+            </div>
+            <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
+              <div className="focused-card-back-content">
+                <span className="focused-card-back-mark" aria-hidden="true" />
+                <p>{card.title}</p>
+              </div>
+              <button
+                type="button"
+                className="focused-card-flip-affordance focused-card-flip-affordance--back"
+                onClick={() => setFlipState({ cardId: card.id, isFlipped: false })}
+                aria-label="Return to card front"
+              />
+            </div>
+          </motion.div>
         </motion.article>
       </AnimatePresence>
       <div className="focused-traversal-controls" aria-label="Focused card traversal">
