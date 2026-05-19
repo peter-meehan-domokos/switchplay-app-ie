@@ -25,6 +25,12 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
+const backsideSignalPlaceholders = [
+  "Recovery state",
+  "Movement confidence",
+  "Load tolerance",
+];
+
 const focusedTraversalVariants = {
   enter: (direction: FocusedTraversalDirection) => ({
     opacity: 0.84,
@@ -122,9 +128,19 @@ export default function FocusedCardView({
               />
             </div>
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
-              <div className="focused-card-back-content">
-                <span className="focused-card-back-mark" aria-hidden="true" />
-                <p>{card.title}</p>
+              <div className="focused-card-back-shell">
+                <section className="focused-card-back-media" hidden aria-hidden="true" />
+                <section className="focused-card-back-signals" aria-label="Reflective card signals">
+                  {backsideSignalPlaceholders.map((signalTitle) => (
+                    <div className="focused-card-signal-slot" key={signalTitle}>
+                      <p>{signalTitle}</p>
+                      <span className="focused-card-signal-trace" aria-hidden="true">
+                        <span />
+                      </span>
+                    </div>
+                  ))}
+                </section>
+                <section className="focused-card-back-reflection" hidden aria-hidden="true" />
               </div>
               <button
                 type="button"
