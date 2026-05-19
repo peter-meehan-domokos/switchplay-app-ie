@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import type { WeeklyCard } from "@/components/decks/types";
+import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
 import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
 
 type FocusedCardViewProps = {
@@ -26,9 +27,9 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 });
 
 const backsideSignalPlaceholders = [
-  "Recovery state",
-  "Movement confidence",
-  "Load tolerance",
+  { title: "Recovery state", value: 0.6 },
+  { title: "Movement confidence", value: 0.45 },
+  { title: "Load tolerance", value: 0.7 },
 ];
 
 const focusedTraversalVariants = {
@@ -131,12 +132,10 @@ export default function FocusedCardView({
               <div className="focused-card-back-shell">
                 <section className="focused-card-back-media" hidden aria-hidden="true" />
                 <section className="focused-card-back-signals" aria-label="Reflective card signals">
-                  {backsideSignalPlaceholders.map((signalTitle) => (
-                    <div className="focused-card-signal-slot" key={signalTitle}>
-                      <p>{signalTitle}</p>
-                      <span className="focused-card-signal-trace" aria-hidden="true">
-                        <span />
-                      </span>
+                  {backsideSignalPlaceholders.map((signal) => (
+                    <div className="focused-card-signal-slot" key={signal.title}>
+                      <p>{signal.title}</p>
+                      <PulseFieldSignal value={signal.value} className="focused-card-signal-trace" />
                     </div>
                   ))}
                 </section>
