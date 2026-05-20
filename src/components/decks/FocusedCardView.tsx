@@ -2,6 +2,8 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
+import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
+import type { BackCardMediaTraceItem } from "@/components/decks/BackCardMediaTrace";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { WeeklyCard } from "@/components/decks/types";
 import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
@@ -32,6 +34,13 @@ const backsideSignalPlaceholders: Array<{ title: string; value: number; reading:
   { title: "Movement confidence", value: 0.45, reading: 4, variant: "movement" },
   { title: "Load tolerance", value: 0.7, reading: 118, variant: "load" },
 ];
+
+const backsideMediaTracePlaceholder: BackCardMediaTraceItem = {
+  id: "trace-001",
+  mediaType: "image",
+  description: "Retained weekly media trace",
+  src: "/images/media-traces/gym-trace-01.png",
+};
 
 const focusedTraversalVariants = {
   enter: (direction: FocusedTraversalDirection) => ({
@@ -133,7 +142,7 @@ export default function FocusedCardView({
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
               <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
               <div className="focused-card-back-shell">
-                <section className="focused-card-back-media" hidden aria-hidden="true" />
+                <BackCardMediaTrace trace={backsideMediaTracePlaceholder} />
                 <section className="focused-card-back-signals" aria-label="Reflective card signals">
                   {backsideSignalPlaceholders.map((signal) => (
                     <div className="focused-card-signal-slot" key={signal.title}>
