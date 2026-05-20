@@ -314,6 +314,34 @@ button {
   text-transform: uppercase;
 }
 
+.card-semantic-anchors--back {
+  position: absolute;
+  top: 25px;
+  right: 29px;
+  left: 30px;
+  z-index: 2;
+  min-height: 0;
+  align-items: center;
+  opacity: 0.84;
+  pointer-events: none;
+}
+
+.card-semantic-anchors--back .card-title-anchor h2 {
+  color: rgba(168, 214, 228, 0.54);
+  font-size: 0.76rem;
+  font-weight: 680;
+  line-height: 1.05;
+  text-shadow: 0 0 18px rgba(168, 214, 228, 0.06);
+}
+
+.card-semantic-anchors--back .deck-card-date {
+  color: rgba(255, 250, 240, 0.42);
+  font-size: 0.64rem;
+  font-weight: 680;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 16px rgba(255, 250, 240, 0.05);
+}
+
 .card-title-anchor h2 {
   min-width: 0;
   max-width: 100%;
@@ -849,6 +877,7 @@ button {
 .focused-card-signal-slot {
   display: grid;
   gap: 13px;
+  justify-items: start;
 }
 
 .focused-card-signal-slot:nth-child(2) {
@@ -874,6 +903,32 @@ button {
   height: 24px;
   color: rgba(255, 255, 255, 0.52);
   overflow: visible;
+}
+
+.focused-card-signal-value {
+  margin-top: -11px;
+  color: rgba(255, 250, 240, 0.3);
+  font-size: 0.68rem;
+  font-weight: 560;
+  letter-spacing: 0;
+  line-height: 1;
+  opacity: 0.92;
+  text-shadow:
+    0 0 8px rgba(168, 214, 228, 0.07),
+    0 0 18px rgba(255, 250, 240, 0.045),
+    0 1px 9px rgba(13, 18, 24, 0.18);
+}
+
+.focused-card-signal-value--recovery {
+  transform: translate(142px, 0);
+}
+
+.focused-card-signal-value--movement {
+  transform: translate(132px, -1px);
+}
+
+.focused-card-signal-value--load {
+  transform: translate(151px, 0);
 }
 
 .focused-card-flip-affordance {

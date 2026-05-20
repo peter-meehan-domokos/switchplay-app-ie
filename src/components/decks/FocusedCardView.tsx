@@ -2,8 +2,10 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
+import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { WeeklyCard } from "@/components/decks/types";
 import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
+import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSignal";
 import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
 
 type FocusedCardViewProps = {
@@ -23,13 +25,12 @@ export type FocusedTraversalDirection = "next" | "previous";
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
-  year: "numeric",
 });
 
-const backsideSignalPlaceholders = [
-  { title: "Recovery state", value: 0.6 },
-  { title: "Movement confidence", value: 0.45 },
-  { title: "Load tolerance", value: 0.7 },
+const backsideSignalPlaceholders: Array<{ title: string; value: number; reading: number; variant: PulseFieldSignalVariant }> = [
+  { title: "Recovery state", value: 0.6, reading: 72, variant: "recovery" },
+  { title: "Movement confidence", value: 0.45, reading: 4, variant: "movement" },
+  { title: "Load tolerance", value: 0.7, reading: 118, variant: "load" },
 ];
 
 const focusedTraversalVariants = {
@@ -60,6 +61,7 @@ export default function FocusedCardView({
 }: FocusedCardViewProps) {
   const [flipState, setFlipState] = useState({ cardId: card.id, isFlipped: false });
   const isFlipped = flipState.cardId === card.id && flipState.isFlipped;
+  const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
   const focusedCardTransition: Transition = {
@@ -116,7 +118,7 @@ export default function FocusedCardView({
               <div className="focused-card-content">
                 <ActiveCardFront
                   card={card}
-                  dateLabel={dateFormatter.format(new Date(card.targetDate))}
+                  dateLabel={dateLabel}
                   variant="focused"
                   onCycleItemStatus={onCycleItemStatus}
                 />
@@ -129,13 +131,17 @@ export default function FocusedCardView({
               />
             </div>
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
+              <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
               <div className="focused-card-back-shell">
                 <section className="focused-card-back-media" hidden aria-hidden="true" />
                 <section className="focused-card-back-signals" aria-label="Reflective card signals">
                   {backsideSignalPlaceholders.map((signal) => (
                     <div className="focused-card-signal-slot" key={signal.title}>
                       <p>{signal.title}</p>
-                      <PulseFieldSignal value={signal.value} className="focused-card-signal-trace" />
+                      <PulseFieldSignal value={signal.value} variant={signal.variant} className="focused-card-signal-trace" />
+                      <span className={`focused-card-signal-value focused-card-signal-value--${signal.variant}`}>
+                        {signal.reading}
+                      </span>
                     </div>
                   ))}
                 </section>
