@@ -2,8 +2,11 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
+import BackCardExternalComment from "@/components/decks/BackCardExternalComment";
+import type { BackCardExternalCommentItem } from "@/components/decks/BackCardExternalComment";
 import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
 import type { BackCardMediaTraceItem } from "@/components/decks/BackCardMediaTrace";
+import BackCardReflectionFragment from "@/components/decks/BackCardReflectionFragment";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { WeeklyCard } from "@/components/decks/types";
 import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
@@ -40,6 +43,14 @@ const backsideMediaTracePlaceholder: BackCardMediaTraceItem = {
   mediaType: "image",
   description: "Retained weekly media trace",
   src: "/images/media-traces/gym-trace-01.png",
+};
+
+const backsideReflectionPlaceholder = "Still rushing under fatigue";
+
+const backsideExternalCommentPlaceholder: BackCardExternalCommentItem = {
+  id: "external-comment-001",
+  text: "Much calmer transition",
+  author: "Liam",
 };
 
 const focusedTraversalVariants = {
@@ -154,7 +165,8 @@ export default function FocusedCardView({
                     </div>
                   ))}
                 </section>
-                <section className="focused-card-back-reflection" hidden aria-hidden="true" />
+                <BackCardExternalComment comment={backsideExternalCommentPlaceholder} />
+                <BackCardReflectionFragment text={backsideReflectionPlaceholder} />
               </div>
               <button
                 type="button"
