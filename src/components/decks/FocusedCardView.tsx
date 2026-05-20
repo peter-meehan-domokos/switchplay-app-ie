@@ -2,19 +2,16 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
+import type { CardLayout } from "@/components/cards/cardLayout";
 import BackCardExternalComment from "@/components/decks/BackCardExternalComment";
-import type { BackCardExternalCommentItem } from "@/components/decks/BackCardExternalComment";
 import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
-import type { BackCardMediaTraceItem } from "@/components/decks/BackCardMediaTrace";
 import BackCardReflectionFragment from "@/components/decks/BackCardReflectionFragment";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
-import type { WeeklyCard } from "@/components/decks/types";
 import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
-import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSignal";
 import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
 
 type FocusedCardViewProps = {
-  card: WeeklyCard;
+  card: CardLayout;
   cardIndex: number;
   totalCards: number;
   onClose: () => void;
@@ -31,27 +28,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
 });
-
-const backsideSignalPlaceholders: Array<{ title: string; value: number; reading: number; variant: PulseFieldSignalVariant }> = [
-  { title: "Recovery state", value: 0.6, reading: 72, variant: "recovery" },
-  { title: "Movement confidence", value: 0.45, reading: 4, variant: "movement" },
-  { title: "Load tolerance", value: 0.7, reading: 118, variant: "load" },
-];
-
-const backsideMediaTracePlaceholder: BackCardMediaTraceItem = {
-  id: "trace-001",
-  mediaType: "image",
-  description: "Retained weekly media trace",
-  src: "/images/media-traces/gym-trace-01.png",
-};
-
-const backsideReflectionPlaceholder = "Still rushing under fatigue";
-
-const backsideExternalCommentPlaceholder: BackCardExternalCommentItem = {
-  id: "external-comment-001",
-  text: "Much calmer transition",
-  author: "Liam",
-};
 
 const focusedTraversalVariants = {
   enter: (direction: FocusedTraversalDirection) => ({
@@ -84,6 +60,15 @@ export default function FocusedCardView({
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
+  const hasBackMediaTrace = Boolean(card.backMediaTrace);
+  const backSignalsClassName = [
+    "focused-card-back-signals",
+    !hasBackMediaTrace ? "focused-card-back-signals--no-media" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const externalCommentClassName =
+    !hasBackMediaTrace && card.externalComment ? "focused-card-back-external-comment--no-media" : undefined;
   const focusedCardTransition: Transition = {
     layout: transition,
     opacity: { duration: 0.22, ease: "easeOut" },
@@ -153,9 +138,9 @@ export default function FocusedCardView({
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
               <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
               <div className="focused-card-back-shell">
-                <BackCardMediaTrace trace={backsideMediaTracePlaceholder} />
-                <section className="focused-card-back-signals" aria-label="Reflective card signals">
-                  {backsideSignalPlaceholders.map((signal) => (
+                <BackCardMediaTrace trace={card.backMediaTrace} />
+                <section className={backSignalsClassName} aria-label="Reflective card signals">
+                  {card.signals.map((signal) => (
                     <div className="focused-card-signal-slot" key={signal.title}>
                       <p>{signal.title}</p>
                       <PulseFieldSignal value={signal.value} variant={signal.variant} className="focused-card-signal-trace" />
@@ -165,8 +150,8 @@ export default function FocusedCardView({
                     </div>
                   ))}
                 </section>
-                <BackCardExternalComment comment={backsideExternalCommentPlaceholder} />
-                <BackCardReflectionFragment text={backsideReflectionPlaceholder} />
+                <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
+                <BackCardReflectionFragment text={card.reflection} />
               </div>
               <button
                 type="button"

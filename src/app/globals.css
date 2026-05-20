@@ -947,6 +947,11 @@ button {
   transform: translateX(5px);
 }
 
+.focused-card-back-signals--no-media {
+  gap: 48px;
+  padding-top: 8px;
+}
+
 .focused-card-signal-slot {
   display: grid;
   gap: 13px;
@@ -960,6 +965,10 @@ button {
 .focused-card-signal-slot:nth-child(3) {
   margin-left: 1px;
   margin-top: 3px;
+}
+
+.focused-card-back-signals--no-media .focused-card-signal-slot:nth-child(3) {
+  margin-top: 0;
 }
 
 .focused-card-signal-slot p {
@@ -1009,9 +1018,14 @@ button {
   top: 350px;
   right: 44px;
   max-width: 104px;
-  color: rgba(255, 250, 240, 0.25);
+  color: rgba(255, 250, 240, 0.235);
   text-align: left;
   pointer-events: none;
+}
+
+.focused-card-back-external-comment--no-media {
+  top: 270px;
+  right: 72px;
 }
 
 .focused-card-back-external-comment p {
@@ -1024,14 +1038,24 @@ button {
     0 1px 8px rgba(10, 14, 20, 0.14);
 }
 
+.focused-card-back-external-comment--no-media p {
+  line-height: 1.34;
+}
+
 .focused-card-back-external-comment span {
   display: block;
   margin-top: 5px;
-  color: rgba(255, 250, 240, 0.18);
+  color: rgba(255, 250, 240, 0.16);
   font-size: 0.52rem;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1;
+}
+
+.focused-card-back-external-comment--no-media span {
+  margin-top: 3px;
+  color: rgba(255, 250, 240, 0.145);
+  font-size: 0.5rem;
 }
 
 .focused-card-back-reflection-fragment {
@@ -1039,7 +1063,7 @@ button {
   right: 34px;
   bottom: 52px;
   max-width: 92px;
-  color: rgba(255, 250, 240, 0.29);
+  color: rgba(255, 250, 240, 0.275);
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0;

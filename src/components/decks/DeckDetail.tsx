@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
-import type { CompletionStatus, Deck } from "@/components/decks/types";
+import type { CompletionStatus } from "@/components/decks/types";
 import { ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
-  deck: Deck;
+  deck: DeckLayout;
   onBack: () => void;
   transition: object;
 };

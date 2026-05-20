@@ -5,10 +5,14 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import DeckDetail from "@/components/decks/DeckDetail";
 import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
+import { buildDeckLayout } from "@/components/decks/deckLayout";
+import type { LayoutUser } from "@/components/cards/cardLayout";
 
 type AppShellProps = {
+  currentUserId: string;
   decks: Deck[];
   userName: string;
+  users: LayoutUser[];
 };
 
 const springTransition = {
@@ -18,9 +22,10 @@ const springTransition = {
   mass: 0.9,
 } as const;
 
-export default function AppShell({ decks, userName }: AppShellProps) {
+export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
+  const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
-  const selectedDeck = decks.find((deck) => deck.id === selectedDeckId) ?? null;
+  const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
 
   return (
     <LayoutGroup>
@@ -36,7 +41,7 @@ export default function AppShell({ decks, userName }: AppShellProps) {
             >
               <p className="eyebrow">{userName}</p>
               <h1>Your decks</h1>
-              <p className="overview-summary">{decks.length} active skill paths</p>
+              <p className="overview-summary">{deckLayouts.length} active skill paths</p>
             </motion.header>
           ) : null}
         </AnimatePresence>
@@ -58,7 +63,7 @@ export default function AppShell({ decks, userName }: AppShellProps) {
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
             >
-              <DeckGrid decks={decks} onSelectDeck={setSelectedDeckId} transition={springTransition} />
+              <DeckGrid decks={deckLayouts} onSelectDeck={setSelectedDeckId} transition={springTransition} />
             </motion.section>
           )}
         </AnimatePresence>

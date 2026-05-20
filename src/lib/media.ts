@@ -1,21 +1,25 @@
-type MediaItemLike = {
-  alt?: string;
-  mediaType?: string;
-  provider?: string;
-  title?: string;
+export type MediaItem = {
+  id: string;
+  mediaType: "image" | "video";
+  description: string;
+  src: string;
 };
 
-export function getMediaKindLabel(mediaItem?: MediaItemLike): string {
+type MediaKindLike = {
+  mediaType?: string;
+};
+
+type MediaTitleLike = {
+  description?: string;
+};
+
+export function getMediaKindLabel(mediaItem?: MediaKindLike): string {
   if (!mediaItem) {
     return "Guide";
   }
 
-  if (mediaItem.mediaType === "img") {
+  if (mediaItem.mediaType === "image") {
     return "Image";
-  }
-
-  if (mediaItem.mediaType === "embeddedVideo") {
-    return mediaItem.provider === "youtube" ? "YouTube" : "Embed";
   }
 
   if (mediaItem.mediaType === "video") {
@@ -25,6 +29,6 @@ export function getMediaKindLabel(mediaItem?: MediaItemLike): string {
   return "Media";
 }
 
-export function getMediaTitle(mediaItem: MediaItemLike | undefined, fallback: string): string {
-  return mediaItem?.title ?? mediaItem?.alt ?? fallback;
+export function getMediaTitle(mediaItem: MediaTitleLike | undefined, fallback: string): string {
+  return mediaItem?.description ?? fallback;
 }

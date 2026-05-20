@@ -1,9 +1,6 @@
-export type BackCardMediaTraceItem = {
-  id: string;
-  mediaType: "image" | "video";
-  description: string;
-  src: string;
-};
+import type { MediaItem } from "@/lib/media";
+
+export type BackCardMediaTraceItem = MediaItem;
 
 type BackCardMediaTraceProps = {
   trace?: BackCardMediaTraceItem | null;
