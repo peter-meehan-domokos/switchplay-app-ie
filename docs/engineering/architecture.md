@@ -70,3 +70,230 @@ The component structure is:
 - `DeckCard`
 
 Do not introduce global state until real cross-component state pressure emerges.
+
+
+# Layout Architecture Principles
+
+## Core Principle
+
+A major architectural principle of the system is the separation between:
+- raw authored data
+- layout-derived presentation state
+- rendering/UI concerns
+
+The goal is to preserve:
+- conceptual clarity
+- future extensibility
+- ecological flexibility
+- presentation independence
+
+while avoiding presentation logic leaking into authored content.
+
+---
+
+# Layout Functions as the Seam
+
+The introduction of:
+- `buildDeckLayout`
+- `buildCardLayout`
+
+creates a dedicated layout seam between domain data and rendering.
+
+The layout layer is responsible for:
+- deriving presentation-ready state
+- ecological interpretation
+- spatial/contextual preparation
+- future temporal interpretation
+- signal normalization
+- sparse-state interpretation
+- retained-content selection
+
+The raw authored data should remain presentation-agnostic wherever possible.
+
+---
+
+# Ownership Boundaries
+
+## Raw Data Responsibilities
+
+Raw authored/mock data should contain:
+- authored progression content
+- reflections
+- comments
+- media references
+- signal readings
+- authored metadata
+- temporal sequencing
+- human meaning
+
+Raw data should NOT contain:
+- layout positioning
+- backside placement logic
+- spatial offsets
+- retained-selection logic
+- normalized values
+- ecological redistribution rules
+- component-specific presentation state
+
+---
+
+## Layout Responsibilities
+
+The layout layer is responsible for:
+- converting authored data into presentation-ready state
+- ecological interpretation
+- spatial adaptation
+- normalized signal value derivation
+- sparse-state handling
+- retained artifact selection
+- contextual composition logic
+
+Examples:
+- selecting retained comments
+- selecting retained media
+- calculating signal value positions
+- redistributing sparse backside spacing
+- future temporal interpretation
+
+The layout layer should become the single source of truth for derived presentation state.
+
+---
+
+## Rendering Responsibilities
+
+Rendering/components should primarily:
+- display layout-derived state
+- animate
+- compose
+- transition
+- respond to interaction
+
+Rendering should avoid:
+- deriving ecological meaning
+- performing normalization
+- selecting retained content
+- implementing layout interpretation rules
+
+---
+
+# Important Principle
+
+Presentation concepts should not leak into raw authored data.
+
+Examples of concepts that belong in layout rather than raw data:
+- backside positioning
+- normalized signal values
+- sparse-state redistribution
+- retained comment selection
+- retained media selection
+- ecological composition adjustments
+- future temporal continuity interpretation
+
+This separation preserves:
+- conceptual cleanliness
+- future flexibility
+- easier experimentation
+- easier redesign
+- safer rendering iteration
+
+---
+
+# Ecological Rather Than Component-Driven Thinking
+
+The backside is treated as an ecological composition system rather than a fixed UI template.
+
+The emotional role of each artifact matters:
+- signals
+- reflection
+- retained comment
+- media trace
+
+Sparse weeks are not considered broken or incomplete layouts.
+
+They are meaningful emotional/ecological states.
+
+As a result:
+- layout adjustments are driven by emotional balance
+- not rigid component symmetry
+
+Example:
+When no media exists but a retained comment does, the comment shifts into a more central ecological bridge role between signals and reflection rather than leaving an empty visual cavity.
+
+---
+
+# Layout Objects as Canonical Presentation State
+
+Once data has passed through layout functions:
+- layout objects become the canonical presentation state for the UI
+
+Examples:
+- `deckLayout`
+- `cardLayout`
+
+The rendering layer should consume layout objects rather than raw authored objects wherever possible.
+
+This allows:
+- presentation refactors without authored-data changes
+- ecological reinterpretation
+- future animation systems
+- future temporal systems
+- future adaptive composition systems
+
+without corrupting the authored domain model.
+
+---
+
+# Future Architectural Directions
+
+Potential future responsibilities for the layout layer may include:
+- temporal continuity interpretation
+- historical ecological state
+- progression rhythm adaptation
+- gesture-aware composition
+- viewport-aware redistribution
+- social density interpretation
+- emotional weighting systems
+
+These should continue following the same principle:
+- authored meaning remains in raw data
+- interpretation lives in layout
+- rendering focuses on display and interaction
+
+---
+
+# Important Constraint
+
+Avoid turning the layout layer into:
+- arbitrary business logic
+- persistence state
+- interaction state
+- backend/domain orchestration
+
+The layout layer should remain focused on:
+- interpretation
+- ecological composition
+- presentation preparation
+
+rather than application control flow.
+
+---
+
+# Current Philosophy
+
+The current architecture intentionally favours:
+- flexibility over premature abstraction
+- ecological interpretation over rigid schemas
+- authored richness over dashboard reduction
+- atmospheric continuity over analytic explicitness
+
+The system should remain:
+- human
+- authored
+- spatial
+- emotionally literate
+
+rather than:
+- enterprise-structured
+- metric-centric
+- productivity-oriented
+- mechanically deterministic
