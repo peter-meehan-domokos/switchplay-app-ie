@@ -8,6 +8,10 @@ type PulseFieldSignalProps = {
   className?: string;
 };
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 const fieldStart = 12;
 const fieldWidth = 216;
 const fieldY = 8.6;
@@ -86,11 +90,21 @@ const fieldCharacters = {
 export default function PulseFieldSignal({ value, variant = "movement", className }: PulseFieldSignalProps) {
   const character = fieldCharacters[variant];
   const id = useId().replace(/:/g, "");
-  const clampedValue = Math.min(Math.max(value, 0), 1);
+  const clampedValue = clamp(value, 0, 1);
+  const nearRightCoherence = clamp((clampedValue - 0.74) / 0.26, 0, 1);
   const pulseX = fieldStart + clampedValue * fieldWidth;
   const wakeExtent = pulseX - fieldStart;
   const wakeCenterX = fieldStart + wakeExtent * 0.42;
-  const wakeRadiusX = Math.max(46, wakeExtent * 0.56 + 34) * character.wakeScale;
+  const wakeRadiusX = Math.max(46, wakeExtent * 0.56 + 34) * character.wakeScale * (1 + nearRightCoherence * 0.045);
+  const residueOpacity = character.residueOpacity * (1 - nearRightCoherence * 0.3);
+  const backwardOpacity = character.backwardOpacity * (1 - nearRightCoherence * 0.22);
+  const outerRx = character.outerRx * (1 + nearRightCoherence * 0.08);
+  const outerRy = character.outerRy * (1 + nearRightCoherence * 0.05);
+  const innerRx = character.innerRx * (1 + nearRightCoherence * 0.07);
+  const coreRx = character.coreRx * (1 + nearRightCoherence * 0.04);
+  const coreOpacity = character.coreOpacity * (1 - nearRightCoherence * 0.24);
+  const coherentOpacity = character.coherentOpacity * (1 + nearRightCoherence * 0.14);
+  const surfaceOpacity = character.surfaceOpacity * (1 + nearRightCoherence * 0.22);
   const endFadeId = `${id}-end-fade`;
   const directionId = `${id}-direction`;
   const wakeId = `${id}-wake`;
@@ -163,7 +177,7 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           opacity={character.directionOpacity}
           filter={`url(#${fieldBlurId})`}
         />
-        <ellipse cx={120 + character.fieldDrift * 0.5} cy={fieldCenterY} rx="112" ry="5.8" fill={`url(#${directionId})`} opacity={character.coherentOpacity} />
+        <ellipse cx={120 + character.fieldDrift * 0.5} cy={fieldCenterY} rx="112" ry="5.8" fill={`url(#${directionId})`} opacity={coherentOpacity} />
         <ellipse
           cx={wakeCenterX}
           cy={fieldCenterY + 0.9}
@@ -179,14 +193,14 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           rx="78"
           ry="7.8"
           fill="var(--progress-accent)"
-          opacity={character.residueOpacity}
+          opacity={residueOpacity}
           filter={`url(#${fieldBlurId})`}
         />
         <ellipse
           cx={pulseX + character.outerOffset}
           cy={fieldCenterY - 0.4}
-          rx={character.outerRx}
-          ry={character.outerRy}
+          rx={outerRx}
+          ry={outerRy}
           fill="var(--progress-accent)"
           opacity={character.outerOpacity}
           filter={`url(#${pulseBlurId})`}
@@ -197,20 +211,20 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           rx={character.backwardRx}
           ry="9.1"
           fill="var(--progress-accent)"
-          opacity={character.backwardOpacity}
+          opacity={backwardOpacity}
           filter={`url(#${fieldBlurId})`}
         />
         <ellipse
           cx={pulseX + 6}
           cy={fieldCenterY - 0.5}
-          rx={character.innerRx}
+          rx={innerRx}
           ry="8.4"
           fill="var(--progress-accent)"
           opacity={character.innerOpacity}
           filter={`url(#${fieldBlurId})`}
         />
-        <ellipse cx={pulseX - 1} cy={fieldCenterY + 0.2} rx={character.coreRx} ry="5.9" fill="var(--progress-accent)" opacity={character.coreOpacity} />
-        <ellipse cx={120 + character.fieldDrift * 0.4} cy={fieldCenterY + 0.8} rx="116" ry="7.4" fill="rgba(255, 250, 240, 0.26)" opacity={character.surfaceOpacity} />
+        <ellipse cx={pulseX - 1} cy={fieldCenterY + 0.2} rx={coreRx} ry="5.9" fill="var(--progress-accent)" opacity={coreOpacity} />
+        <ellipse cx={120 + character.fieldDrift * 0.4} cy={fieldCenterY + 0.8} rx="116" ry="7.4" fill="rgba(255, 250, 240, 0.26)" opacity={surfaceOpacity} />
       </g>
     </svg>
   );
