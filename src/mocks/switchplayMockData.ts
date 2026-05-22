@@ -1610,10 +1610,10 @@ export const switchplayMockData = {
                 "title": "Resting body weight",
                 "description": "Average morning weight",
                 "order": "decreasing",
-                "reading": 75.8,
+                "reading": 75.79,
                 "targetValue": 75.5,
-                "minValue": 0,
-                "maxValue": 96,
+                "minValue": 72,
+                "maxValue": 76.8,
                 "unit": "kg",
                 "dimension": "execution"
               },
@@ -2232,12 +2232,7 @@ export const switchplayMockData = {
             "targetDate": "2026-06-03",
             "intro": {
               "description": "Establish first-step speed, sprint posture and repeatable acceleration markers.",
-              "mediaItem": {
-                "id": "media-050",
-                "mediaType": "image",
-                "description": "Acceleration Baseline",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2262,10 +2257,10 @@ export const switchplayMockData = {
                 "title": "10m sprint",
                 "description": "Best acceleration time",
                 "order": "decreasing",
-                "reading": 1.88,
+                "reading": 5,
                 "targetValue": 1.85,
-                "minValue": 0,
-                "maxValue": 2.17,
+                "minValue": 1.6,
+                "maxValue": 5,
                 "unit": "s",
                 "dimension": "execution"
               },
@@ -2274,7 +2269,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 4.6,
+                "reading": 1,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2286,7 +2281,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 148,
+                "reading": 0,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2296,7 +2291,7 @@ export const switchplayMockData = {
             ],
             "mediaItems": [],
             "chats": [],
-            "reflection": ""
+            "reflection": "Felt flat, but I stayed present."
           },
           {
             "id": "card-025",
@@ -2305,12 +2300,7 @@ export const switchplayMockData = {
             "targetDate": "2026-06-10",
             "intro": {
               "description": "Improve the ability to repeat high-quality sprints with consistent recovery and technique.",
-              "mediaItem": {
-                "id": "media-051",
-                "mediaType": "image",
-                "description": "Repeat Sprint Quality",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2335,10 +2325,10 @@ export const switchplayMockData = {
                 "title": "Sprint drop-off",
                 "description": "Difference across repeat sprint set",
                 "order": "decreasing",
-                "reading": 5,
+                "reading": 18.8,
                 "targetValue": 4,
-                "minValue": 0,
-                "maxValue": 100,
+                "minValue": 2,
+                "maxValue": 30,
                 "unit": "%",
                 "dimension": "adaptation"
               },
@@ -2347,7 +2337,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 4.6,
+                "reading": 1,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2359,7 +2349,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 151,
+                "reading": 0,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2369,7 +2359,7 @@ export const switchplayMockData = {
             ],
             "mediaItems": [],
             "chats": [],
-            "reflection": ""
+            "reflection": "A small signal started to return."
           },
           {
             "id": "card-026",
@@ -2378,12 +2368,7 @@ export const switchplayMockData = {
             "targetDate": "2026-06-17",
             "intro": {
               "description": "Build cleaner deceleration shapes before changing direction at speed.",
-              "mediaItem": {
-                "id": "media-052",
-                "mediaType": "image",
-                "description": "Change of direction entry shape",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2408,7 +2393,7 @@ export const switchplayMockData = {
                 "title": "Clean COD entries",
                 "description": "Controlled entries out of 20 reps",
                 "order": "increasing",
-                "reading": 14,
+                "reading": 9,
                 "targetValue": 16,
                 "minValue": 0,
                 "maxValue": 20,
@@ -2420,7 +2405,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 4.3,
+                "reading": 2.6,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2432,7 +2417,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 144,
+                "reading": 9,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2442,7 +2427,7 @@ export const switchplayMockData = {
             ],
             "mediaItems": [],
             "chats": [],
-            "reflection": ""
+            "reflection": "Still tentative, but movement continued."
           },
           {
             "id": "card-027",
@@ -2451,12 +2436,7 @@ export const switchplayMockData = {
             "targetDate": "2026-06-24",
             "intro": {
               "description": "Support on-pitch speed with lower-body strength, trunk control and hamstring robustness.",
-              "mediaItem": {
-                "id": "media-053",
-                "mediaType": "image",
-                "description": "Football Strength Support",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2481,7 +2461,7 @@ export const switchplayMockData = {
                 "title": "Split squat load",
                 "description": "Top working set per hand",
                 "order": "increasing",
-                "reading": 24,
+                "reading": 0,
                 "targetValue": 28,
                 "minValue": 0,
                 "maxValue": 34,
@@ -2493,7 +2473,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 3.7,
+                "reading": 1,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2505,7 +2485,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 118,
+                "reading": 0,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2513,9 +2493,29 @@ export const switchplayMockData = {
                 "dimension": "adaptation"
               }
             ],
-            "mediaItems": [],
-            "chats": [],
-            "reflection": ""
+            "mediaItems": [
+              {
+                "id": "trace-card-027-1",
+                "mediaType": "image",
+                "description": "Retained weekly media trace",
+                "src": "/images/media-traces/gym-trace-01.png"
+              }
+            ],
+            "chats": [
+              {
+                "id": "chat-card-027",
+                "comments": [
+                  {
+                    "id": "comment-card-027-1",
+                    "creatorId": "user-005",
+                    "createdAt": "2026-06-24T17:30:00Z",
+                    "text": "You stayed with it.",
+                    "isRetained": true
+                  }
+                ]
+              }
+            ],
+            "reflection": "The work felt quiet and heavy."
           },
           {
             "id": "card-028",
@@ -2524,12 +2524,7 @@ export const switchplayMockData = {
             "targetDate": "2026-07-01",
             "intro": {
               "description": "Connect sprint mechanics to carrying the ball at pace without losing control.",
-              "mediaItem": {
-                "id": "media-054",
-                "mediaType": "image",
-                "description": "High-Speed Ball Carries",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2554,7 +2549,7 @@ export const switchplayMockData = {
                 "title": "Controlled carries",
                 "description": "Fast carries completed without heavy touch",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 3.2,
                 "targetValue": 6,
                 "minValue": 0,
                 "maxValue": 8,
@@ -2566,7 +2561,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 3,
+                "reading": 1,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2578,7 +2573,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 101,
+                "reading": 0,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2586,9 +2581,29 @@ export const switchplayMockData = {
                 "dimension": "adaptation"
               }
             ],
-            "mediaItems": [],
-            "chats": [],
-            "reflection": ""
+            "mediaItems": [
+              {
+                "id": "trace-card-028-1",
+                "mediaType": "image",
+                "description": "Retained weekly media trace",
+                "src": "/images/media-traces/gym-trace-01.png"
+              }
+            ],
+            "chats": [
+              {
+                "id": "chat-card-028",
+                "comments": [
+                  {
+                    "id": "comment-card-028-1",
+                    "creatorId": "user-005",
+                    "createdAt": "2026-07-01T17:30:00Z",
+                    "text": "Looked calmer this week.",
+                    "isRetained": true
+                  }
+                ]
+              }
+            ],
+            "reflection": "One part felt easier to access."
           },
           {
             "id": "card-029",
@@ -2597,12 +2612,7 @@ export const switchplayMockData = {
             "targetDate": "2026-07-08",
             "intro": {
               "description": "Test repeated pressing actions and recovery between high-intensity defensive efforts.",
-              "mediaItem": {
-                "id": "media-055",
-                "mediaType": "image",
-                "description": "Pressing repeatability drill",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2627,7 +2637,7 @@ export const switchplayMockData = {
                 "title": "Effective presses",
                 "description": "Presses that force backward or rushed play",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 4.5,
                 "targetValue": 8,
                 "minValue": 0,
                 "maxValue": 10,
@@ -2639,7 +2649,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.7,
+                "reading": 2.6,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2651,7 +2661,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 94,
+                "reading": 9,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2659,9 +2669,29 @@ export const switchplayMockData = {
                 "dimension": "adaptation"
               }
             ],
-            "mediaItems": [],
-            "chats": [],
-            "reflection": ""
+            "mediaItems": [
+              {
+                "id": "trace-card-029-1",
+                "mediaType": "image",
+                "description": "Retained weekly media trace",
+                "src": "/images/media-traces/gym-trace-01.png"
+              }
+            ],
+            "chats": [
+              {
+                "id": "chat-card-029",
+                "comments": [
+                  {
+                    "id": "comment-card-029-1",
+                    "creatorId": "user-005",
+                    "createdAt": "2026-07-08T17:30:00Z",
+                    "text": "Movement felt more natural.",
+                    "isRetained": true
+                  }
+                ]
+              }
+            ],
+            "reflection": "Some rhythm returned, still uneven underneath."
           },
           {
             "id": "card-030",
@@ -2670,12 +2700,7 @@ export const switchplayMockData = {
             "targetDate": "2026-07-15",
             "intro": {
               "description": "Maintain jump and sprint qualities while training volume increases.",
-              "mediaItem": {
-                "id": "media-056",
-                "mediaType": "image",
-                "description": "Power Maintenance",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2700,7 +2725,7 @@ export const switchplayMockData = {
                 "title": "Vertical jump",
                 "description": "Best weekly jump height",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 34.32,
                 "targetValue": 55,
                 "minValue": 0,
                 "maxValue": 66,
@@ -2712,7 +2737,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.8,
+                "reading": 2.92,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2724,7 +2749,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 88,
+                "reading": 99,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2734,7 +2759,7 @@ export const switchplayMockData = {
             ],
             "mediaItems": [],
             "chats": [],
-            "reflection": ""
+            "reflection": "Felt steady without needing much around it."
           },
           {
             "id": "card-031",
@@ -2743,12 +2768,7 @@ export const switchplayMockData = {
             "targetDate": "2026-07-22",
             "intro": {
               "description": "Bring physical improvements into match-speed choices with and without the ball.",
-              "mediaItem": {
-                "id": "media-057",
-                "mediaType": "image",
-                "description": "Match-Speed Decisions",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2773,7 +2793,7 @@ export const switchplayMockData = {
                 "title": "Positive transition decisions",
                 "description": "Decisions after high-speed actions",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 4.16,
                 "targetValue": 6,
                 "minValue": 0,
                 "maxValue": 8,
@@ -2785,7 +2805,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.8,
+                "reading": 2.92,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2797,7 +2817,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 91,
+                "reading": 99,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2805,9 +2825,29 @@ export const switchplayMockData = {
                 "dimension": "adaptation"
               }
             ],
-            "mediaItems": [],
-            "chats": [],
-            "reflection": ""
+            "mediaItems": [
+              {
+                "id": "trace-card-031-1",
+                "mediaType": "image",
+                "description": "Retained weekly media trace",
+                "src": "/images/media-traces/gym-trace-01.png"
+              }
+            ],
+            "chats": [
+              {
+                "id": "chat-card-031",
+                "comments": [
+                  {
+                    "id": "comment-card-031-1",
+                    "creatorId": "user-005",
+                    "createdAt": "2026-07-22T17:30:00Z",
+                    "text": "More settled overall.",
+                    "isRetained": true
+                  }
+                ]
+              }
+            ],
+            "reflection": "Support made the same steadiness feel warmer."
           },
           {
             "id": "card-032",
@@ -2816,12 +2856,7 @@ export const switchplayMockData = {
             "targetDate": "2026-07-29",
             "intro": {
               "description": "Retest sprint, jump and repeat-effort markers with clean recovery and consistent warm-up.",
-              "mediaItem": {
-                "id": "media-058",
-                "mediaType": "image",
-                "description": "Performance retest checklist",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2846,7 +2881,7 @@ export const switchplayMockData = {
                 "title": "Retest readiness",
                 "description": "Completed retest components",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 5,
                 "targetValue": 4,
                 "minValue": 0,
                 "maxValue": 5,
@@ -2858,7 +2893,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.8,
+                "reading": 4.8,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2870,7 +2905,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 94,
+                "reading": 171,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2880,7 +2915,7 @@ export const switchplayMockData = {
             ],
             "mediaItems": [],
             "chats": [],
-            "reflection": ""
+            "reflection": "The work felt available and composed."
           },
           {
             "id": "card-033",
@@ -2889,12 +2924,7 @@ export const switchplayMockData = {
             "targetDate": "2026-08-05",
             "intro": {
               "description": "Use the final week to review progress, pick the next focus and preserve the most useful routines.",
-              "mediaItem": {
-                "id": "media-059",
-                "mediaType": "image",
-                "description": "Performance Review",
-                "src": "/images/media-traces/gym-trace-01.png"
-              }
+              "mediaItem": undefined
             },
             "items": [
               {
@@ -2919,7 +2949,7 @@ export const switchplayMockData = {
                 "title": "Review actions",
                 "description": "Completed review tasks",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 5,
                 "targetValue": 4,
                 "minValue": 0,
                 "maxValue": 5,
@@ -2931,7 +2961,7 @@ export const switchplayMockData = {
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.9,
+                "reading": 4.76,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2943,7 +2973,7 @@ export const switchplayMockData = {
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 88,
+                "reading": 176,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2951,9 +2981,29 @@ export const switchplayMockData = {
                 "dimension": "adaptation"
               }
             ],
-            "mediaItems": [],
-            "chats": [],
-            "reflection": ""
+            "mediaItems": [
+              {
+                "id": "trace-card-033-1",
+                "mediaType": "image",
+                "description": "Retained weekly media trace",
+                "src": "/images/media-traces/gym-trace-01.png"
+              }
+            ],
+            "chats": [
+              {
+                "id": "chat-card-033",
+                "comments": [
+                  {
+                    "id": "comment-card-033-1",
+                    "creatorId": "user-005",
+                    "createdAt": "2026-08-05T17:30:00Z",
+                    "text": "Timing looked cleaner.",
+                    "isRetained": true
+                  }
+                ]
+              }
+            ],
+            "reflection": "Strong signals, still grounded in the work."
           }
         ]
       }
