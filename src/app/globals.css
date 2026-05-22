@@ -1015,10 +1015,10 @@ button {
 
 .focused-card-back-external-comment {
   position: absolute;
-  top: 350px;
-  right: 44px;
-  max-width: 104px;
-  color: rgba(255, 250, 240, 0.235);
+  top: 346px;
+  right: 48px;
+  max-width: 110px;
+  color: rgba(255, 250, 240, 0.205);
   text-align: left;
   pointer-events: none;
 }
@@ -1030,12 +1030,12 @@ button {
 
 .focused-card-back-external-comment p {
   font-size: 0.64rem;
-  font-weight: 480;
+  font-weight: 450;
   letter-spacing: 0;
-  line-height: 1.28;
+  line-height: 1.32;
   text-shadow:
-    0 0 12px rgba(168, 214, 228, 0.04),
-    0 1px 8px rgba(10, 14, 20, 0.14);
+    0 0 10px rgba(168, 214, 228, 0.026),
+    0 1px 7px rgba(10, 14, 20, 0.12);
 }
 
 .focused-card-back-external-comment--no-media p {
@@ -1045,9 +1045,9 @@ button {
 .focused-card-back-external-comment span {
   display: block;
   margin-top: 5px;
-  color: rgba(255, 250, 240, 0.16);
+  color: rgba(255, 250, 240, 0.13);
   font-size: 0.52rem;
-  font-weight: 500;
+  font-weight: 470;
   letter-spacing: 0;
   line-height: 1;
 }
@@ -1060,18 +1060,19 @@ button {
 
 .focused-card-back-reflection-fragment {
   position: absolute;
-  right: 34px;
-  bottom: 52px;
-  max-width: 92px;
+  right: 38px;
+  bottom: 62px;
+  max-width: 102px;
   color: rgba(255, 250, 240, 0.275);
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0;
-  line-height: 1.34;
+  line-height: 1.38;
   text-align: right;
   text-shadow:
     0 0 14px rgba(168, 214, 228, 0.052),
     0 1px 10px rgba(10, 14, 20, 0.18);
+  transform: translateY(var(--reflection-y-offset, 0));
 }
 
 .focused-card-flip-affordance {

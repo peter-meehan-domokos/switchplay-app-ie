@@ -151,7 +151,7 @@ export default function FocusedCardView({
                   ))}
                 </section>
                 <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
-                <BackCardReflectionFragment text={card.reflection} />
+                <BackCardReflectionFragment reflectionVerticalOffset={card.reflectionVerticalOffset} text={card.reflection} />
               </div>
               <button
                 type="button"

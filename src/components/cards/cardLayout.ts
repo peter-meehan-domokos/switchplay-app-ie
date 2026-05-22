@@ -43,10 +43,14 @@ export type CardLayoutSignal = {
 export type CardLayout = WeeklyCard & {
   backMediaTrace: MediaItem | null;
   externalComment: CardLayoutExternalComment | null;
+  ecologicalOccupancy: number;
+  ecologicalOccupancyRatio: number;
+  reflectionVerticalOffset: number;
   signals: CardLayoutSignal[];
 };
 
 const signalVariants: SignalVariant[] = ["recovery", "movement", "load"];
+const sparseReflectionOffset = -10;
 
 function clampSignalValue(value: number) {
   return Math.min(Math.max(value, 0), 1);
@@ -137,10 +141,23 @@ function normalizeExternalComment(card: WeeklyCard, options: CardLayoutOptions):
 }
 
 export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): CardLayout {
+  const backMediaTrace = normalizeMediaItem(card.mediaItems[0]);
+  const externalComment = normalizeExternalComment(card, options);
+  const hasReflection = Boolean(card.reflection);
+  const ecologicalOccupancy =
+    Number(Boolean(backMediaTrace)) +
+    Number(Boolean(externalComment)) +
+    Number(hasReflection);
+  const ecologicalOccupancyRatio = ecologicalOccupancy / 3;
+  const reflectionVerticalOffset = backMediaTrace ? 0 : sparseReflectionOffset;
+
   return {
     ...card,
-    backMediaTrace: normalizeMediaItem(card.mediaItems[0]),
-    externalComment: normalizeExternalComment(card, options),
+    backMediaTrace,
+    externalComment,
+    ecologicalOccupancy,
+    ecologicalOccupancyRatio,
+    reflectionVerticalOffset,
     signals: card.stats.map(normalizeStatToSignal),
   };
 }

@@ -1780,10 +1780,11 @@ export const switchplayMockData = {
             "stats": [
               {
                 "id": "stat-018",
+                "signalKey": "oneVOneEffectiveness",
                 "title": "Successful take-ons",
                 "description": "Successful 1v1s in training game",
                 "order": "increasing",
-                "reading": 5,
+                "reading": 5.2,
                 "targetValue": 5,
                 "minValue": 0,
                 "maxValue": 6,
@@ -1792,10 +1793,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-018-confidence",
+                "signalKey": "confidenceStability",
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 4.6,
+                "reading": 4.1,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -1804,10 +1806,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-018-pressure",
+                "signalKey": "pressureTolerance",
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 148,
+                "reading": 130,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -1821,12 +1824,6 @@ export const switchplayMockData = {
                 "mediaType": "image",
                 "description": "Retained weekly media trace",
                 "src": "/images/media-traces/gym-trace-01.png"
-              },
-              {
-                "id": "trace-card-018-2",
-                "mediaType": "image",
-                "description": "Retained weekly media trace",
-                "src": "/images/media-traces/gym-trace-01.png"
               }
             ],
             "chats": [
@@ -1837,13 +1834,13 @@ export const switchplayMockData = {
                     "id": "comment-card-018-1",
                     "creatorId": "user-005",
                     "createdAt": "2026-05-01T17:30:00Z",
-                    "text": "Held shape longer",
+                    "text": "Way more settled lately.",
                     "isRetained": true
                   }
                 ]
               }
             ],
-            "reflection": "Less forced than before"
+            "reflection": "Felt smoother without forcing it."
           },
           {
             "id": "card-019",
@@ -1885,10 +1882,11 @@ export const switchplayMockData = {
             "stats": [
               {
                 "id": "stat-019",
+                "signalKey": "oneVOneEffectiveness",
                 "title": "Defender wrong-footed",
                 "description": "Times defender shifts weight before touch",
                 "order": "increasing",
-                "reading": 8,
+                "reading": 7,
                 "targetValue": 8,
                 "minValue": 0,
                 "maxValue": 10,
@@ -1897,10 +1895,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-019-confidence",
+                "signalKey": "confidenceStability",
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 4.6,
+                "reading": 3.6,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -1909,10 +1908,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-019-pressure",
+                "signalKey": "pressureTolerance",
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 151,
+                "reading": 117,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -1926,28 +1926,10 @@ export const switchplayMockData = {
                 "mediaType": "image",
                 "description": "Retained weekly media trace",
                 "src": "/images/media-traces/gym-trace-01.png"
-              },
-              {
-                "id": "trace-card-019-2",
-                "mediaType": "image",
-                "description": "Retained weekly media trace",
-                "src": "/images/media-traces/gym-trace-01.png"
-              },
-              {
-                "id": "trace-card-019-3",
-                "mediaType": "image",
-                "description": "Retained weekly media trace",
-                "src": "/images/media-traces/gym-trace-01.png"
-              },
-              {
-                "id": "trace-card-019-4",
-                "mediaType": "image",
-                "description": "Retained weekly media trace",
-                "src": "/images/media-traces/gym-trace-01.png"
               }
             ],
             "chats": [],
-            "reflection": ""
+            "reflection": "Calmer when things got difficult."
           },
           {
             "id": "card-020",
@@ -1989,10 +1971,11 @@ export const switchplayMockData = {
             "stats": [
               {
                 "id": "stat-020",
+                "signalKey": "oneVOneEffectiveness",
                 "title": "Inside/outside balance",
                 "description": "Percentage of attacks going weaker side",
                 "order": "increasing",
-                "reading": 35,
+                "reading": 73,
                 "targetValue": 45,
                 "minValue": 0,
                 "maxValue": 100,
@@ -2001,6 +1984,7 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-020-confidence",
+                "signalKey": "confidenceStability",
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
@@ -2013,10 +1997,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-020-pressure",
+                "signalKey": "pressureTolerance",
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 124,
+                "reading": 112,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2030,18 +2015,6 @@ export const switchplayMockData = {
                 "mediaType": "image",
                 "description": "Retained weekly media trace",
                 "src": "/images/media-traces/gym-trace-01.png"
-              },
-              {
-                "id": "trace-card-020-2",
-                "mediaType": "image",
-                "description": "Retained weekly media trace",
-                "src": "/images/media-traces/gym-trace-01.png"
-              },
-              {
-                "id": "trace-card-020-3",
-                "mediaType": "image",
-                "description": "Retained weekly media trace",
-                "src": "/images/media-traces/gym-trace-01.png"
               }
             ],
             "chats": [
@@ -2050,15 +2023,15 @@ export const switchplayMockData = {
                 "comments": [
                   {
                     "id": "comment-card-020-1",
-                    "creatorId": "user-001",
+                    "creatorId": "user-005",
                     "createdAt": "2026-05-15T17:30:00Z",
-                    "text": "Need another pass",
+                    "text": "Massive difference from a few weeks ago.",
                     "isRetained": true
                   }
                 ]
               }
             ],
-            "reflection": "Found the next cue"
+            "reflection": "Still feels fragile underneath."
           },
           {
             "id": "card-021",
@@ -2100,10 +2073,11 @@ export const switchplayMockData = {
             "stats": [
               {
                 "id": "stat-021",
+                "signalKey": "oneVOneEffectiveness",
                 "title": "Chance creation after take-on",
                 "description": "Shots or dangerous passes after beating defender",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 7.2,
                 "targetValue": 6,
                 "minValue": 0,
                 "maxValue": 8,
@@ -2112,10 +2086,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-021-confidence",
+                "signalKey": "confidenceStability",
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.7,
+                "reading": 4.2,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2124,10 +2099,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-021-pressure",
+                "signalKey": "pressureTolerance",
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 88,
+                "reading": 126,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2135,9 +2111,29 @@ export const switchplayMockData = {
                 "dimension": "adaptation"
               }
             ],
-            "mediaItems": [],
-            "chats": [],
-            "reflection": ""
+            "mediaItems": [
+              {
+                "id": "trace-card-021-1",
+                "mediaType": "image",
+                "description": "Retained weekly media trace",
+                "src": "/images/media-traces/gym-trace-01.png"
+              }
+            ],
+            "chats": [
+              {
+                "id": "chat-card-021",
+                "comments": [
+                  {
+                    "id": "comment-card-021-1",
+                    "creatorId": "user-005",
+                    "createdAt": "2026-05-22T17:30:00Z",
+                    "text": "Much cleaner under pressure.",
+                    "isRetained": true
+                  }
+                ]
+              }
+            ],
+            "reflection": "I could feel the timing settling."
           },
           {
             "id": "card-022",
@@ -2179,10 +2175,11 @@ export const switchplayMockData = {
             "stats": [
               {
                 "id": "stat-022",
+                "signalKey": "oneVOneEffectiveness",
                 "title": "Effective 1v1 actions",
                 "description": "Take-ons leading to advantage",
                 "order": "increasing",
-                "reading": 0,
+                "reading": 4,
                 "targetValue": 7,
                 "minValue": 0,
                 "maxValue": 9,
@@ -2191,10 +2188,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-022-confidence",
+                "signalKey": "confidenceStability",
                 "title": "Confidence stability",
                 "description": "Composure held across this week's technical work",
                 "order": "increasing",
-                "reading": 2.7,
+                "reading": 1.9,
                 "targetValue": 4.4,
                 "minValue": 1,
                 "maxValue": 5,
@@ -2203,10 +2201,11 @@ export const switchplayMockData = {
               },
               {
                 "id": "stat-022-pressure",
+                "signalKey": "pressureTolerance",
                 "title": "Pressure tolerance",
                 "description": "Ability to keep shape and choice under pressure",
                 "order": "increasing",
-                "reading": 91,
+                "reading": 12,
                 "targetValue": 144,
                 "minValue": 0,
                 "maxValue": 180,
@@ -2216,7 +2215,7 @@ export const switchplayMockData = {
             ],
             "mediaItems": [],
             "chats": [],
-            "reflection": ""
+            "reflection": "Low energy, but I didn't disappear."
           }
         ]
       },
