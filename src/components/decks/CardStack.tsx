@@ -68,6 +68,7 @@ type CardStackStyle = {
   style: MotionStyle & {
     "--past-depth"?: number;
     "--past-brightness"?: number;
+    "--past-contrast"?: number;
     "--past-saturation"?: number;
     "--past-shadow-alpha"?: number;
     "--past-plane-shadow-x"?: number;
@@ -271,6 +272,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
       opacity: getOpacity(pastIndex, PAST_CARD_OPACITY_STEP),
       "--past-depth": pastIndex,
       "--past-brightness": Math.max(0.72, 0.9 - pastDepthForTone * 0.035),
+      "--past-contrast": Math.max(0.86, 0.96 - pastDepthForTone * 0.018),
       "--past-saturation": Math.max(0.72, 0.98 - pastDepthForTone * 0.035),
       "--past-shadow-alpha": Math.max(0.16, 0.3 - pastDepthForTone * 0.025),
       "--past-plane-shadow-x": Math.max(-2.4, -0.35 - pastDepthForTone * 0.22),
@@ -290,6 +292,7 @@ export default function CardStack({ cards, activeCardIndex, transitionPhase, onF
       layout
     >
       <div className="table-surface" aria-hidden="true" />
+      <div className="active-contact-atmosphere" aria-hidden="true" />
       {cards
         .map((card, index) => {
           const baseStackStyle = getCardStackStyle(index, displayedActiveCardIndex, cards.length);
