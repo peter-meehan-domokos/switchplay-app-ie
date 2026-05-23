@@ -45,7 +45,7 @@ export default function DeckCard({ card, stackZone, showHeader, showProgress, on
       transition={transition}
     >
       <div className="deck-card-content">
-        {stackZone === "active" ? (
+        {stackZone === "active" || stackZone === "past" ? (
           <ActiveCardFront card={card} dateLabel={dateFormatter.format(new Date(card.targetDate))} />
         ) : showHeader || showProgress ? (
           <CardSemanticAnchors
