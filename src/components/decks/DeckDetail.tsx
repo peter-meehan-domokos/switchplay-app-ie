@@ -126,12 +126,31 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
       animate={{ borderRadius: 28 }}
       exit={{ borderRadius: 16 }}
     >
-      <div className="detail-topbar">
-        <motion.button type="button" className="back-button" onClick={onBack} whileTap={{ scale: 0.96 }}>
-          <span aria-hidden="true">←</span>
-          <span>Back</span>
-        </motion.button>
-        <div className="detail-tools">
+      <motion.button
+        type="button"
+        className="back-button deck-back-overlay"
+        onClick={onBack}
+        whileTap={{ scale: 0.96 }}
+      >
+        <span aria-hidden="true">←</span>
+        <span>Back</span>
+      </motion.button>
+
+      <motion.div className="detail-heading" layout>
+        <p className="eyebrow">{deck.status}</p>
+        <h1>{deck.title}</h1>
+      </motion.div>
+
+      <CardStack
+        cards={cards}
+        activeCardIndex={activeCardIndex}
+        transitionPhase={transitionPhase}
+        onFocusCard={openFocusMode}
+        transition={transition}
+      />
+
+      <nav className="temporary-stack-controls" aria-label="Deck card navigation">
+        <div className="detail-tools detail-tools--footer">
           <span className="stack-position">
             {activeCardIndex + 1} / {cards.length}
           </span>
@@ -156,20 +175,7 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
             →
           </motion.button>
         </div>
-      </div>
-
-      <motion.div className="detail-heading" layout>
-        <p className="eyebrow">{deck.status}</p>
-        <h1>{deck.title}</h1>
-      </motion.div>
-
-      <CardStack
-        cards={cards}
-        activeCardIndex={activeCardIndex}
-        transitionPhase={transitionPhase}
-        onFocusCard={openFocusMode}
-        transition={transition}
-      />
+      </nav>
 
       <AnimatePresence>
         {isFocusModeOpen ? (

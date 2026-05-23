@@ -3,32 +3,42 @@ import type { MotionStyle } from "motion/react";
 import DeckCard from "@/components/decks/DeckCard";
 import type { WeeklyCard } from "@/components/decks/types";
 import {
+  ACTIVE_CARD_OCCLUSION_RELIEF,
   CARD_ASPECT_RATIO,
   CARD_OPACITY_STEP,
   CARD_SCALE_STEP,
-  FUTURE_DEEP_INITIAL_OFFSET,
-  FUTURE_DEEP_MIN_OFFSET,
-  FUTURE_DEEP_OFFSET_DECAY,
-  FUTURE_DEEP_MAX_X_OFFSET,
-  FUTURE_DEEP_X_INITIAL_OFFSET,
-  FUTURE_DEEP_X_MIN_OFFSET,
-  FUTURE_DEEP_X_OFFSET_DECAY,
-  FUTURE_HEADER_OFFSET,
+  FUTURE_CONTINUATION_MAX_X_OFFSET,
+  FUTURE_CONTINUATION_ROTATION_INITIAL_OFFSET,
+  FUTURE_CONTINUATION_ROTATION_MIN_OFFSET,
+  FUTURE_CONTINUATION_ROTATION_OFFSET_DECAY,
+  FUTURE_CONTINUATION_X_INITIAL_OFFSET,
+  FUTURE_CONTINUATION_X_MIN_OFFSET,
+  FUTURE_CONTINUATION_X_OFFSET_DECAY,
+  FUTURE_CONTINUATION_Y_INITIAL_OFFSET,
+  FUTURE_CONTINUATION_Y_MIN_OFFSET,
+  FUTURE_CONTINUATION_Y_OFFSET_DECAY,
+  FUTURE_FIRST_REVEAL_OFFSET,
+  FUTURE_FIRST_ROTATION_DEGREES,
   FUTURE_MAX_STACK_DEPTH,
   FUTURE_READABLE_COUNT,
+  FUTURE_ROTATION_MAX_DEGREES,
+  FUTURE_ROTATION_MAX_X_DRIFT,
+  FUTURE_ROTATION_MAX_Y_LIFT,
+  FUTURE_ROTATION_X_DRIFT,
+  FUTURE_ROTATION_Y_LIFT,
+  FUTURE_SECOND_REVEAL_OFFSET,
+  FUTURE_SECOND_ROTATION_DEGREES,
   FUTURE_X_OFFSET,
   MIN_STACK_OPACITY,
   MAX_SCALE_REDUCTION,
   PAST_CARD_OPACITY_STEP,
   PAST_CARD_SCALE_STEP,
   PAST_TABLE_CARD_WIDTH,
-  PAST_TABLE_ARCHIVE_DECAY,
-  PAST_TABLE_ARCHIVE_INITIAL_X_OFFSET,
-  PAST_TABLE_ARCHIVE_MIN_X_OFFSET,
-  PAST_TABLE_MAX_X_OFFSET,
-  PAST_TABLE_READABLE_COUNT,
+  PAST_TABLE_MIN_X_OFFSET,
+  PAST_TABLE_THIRD_X_OFFSET,
+  PAST_TABLE_TRACE_INITIAL_X_OFFSET,
   PAST_TABLE_X_OFFSET,
-  PAST_TABLE_Y_OFFSET,
+  PAST_TABLE_X_OFFSET_DECAY,
   FUTURE_ZONE_HEIGHT,
   PROGRESSION_CARD_WIDTH,
   PROGRESSION_SCENE_HEIGHT,
@@ -73,41 +83,76 @@ type CardStackStyle = {
 };
 
 function getFutureDepth(relativeIndex: number) {
-  if (relativeIndex <= FUTURE_READABLE_COUNT) {
-    return relativeIndex * FUTURE_HEADER_OFFSET;
+  if (relativeIndex === 1) {
+    return FUTURE_FIRST_REVEAL_OFFSET;
   }
 
-  const deepFutureRank = relativeIndex - FUTURE_READABLE_COUNT;
-  const compressedDepth = Array.from({ length: deepFutureRank }, (_, depth) =>
+  if (relativeIndex === 2) {
+    return FUTURE_SECOND_REVEAL_OFFSET;
+  }
+
+  const continuationRank = relativeIndex - 2;
+  const compressedDepth = Array.from({ length: continuationRank }, (_, depth) =>
     Math.max(
-      FUTURE_DEEP_MIN_OFFSET,
-      FUTURE_DEEP_INITIAL_OFFSET * FUTURE_DEEP_OFFSET_DECAY ** depth
+      FUTURE_CONTINUATION_Y_MIN_OFFSET,
+      FUTURE_CONTINUATION_Y_INITIAL_OFFSET * FUTURE_CONTINUATION_Y_OFFSET_DECAY ** depth
     )
   ).reduce((total, offset) => total + offset, 0);
 
   return Math.min(
     FUTURE_MAX_STACK_DEPTH,
-    FUTURE_READABLE_COUNT * FUTURE_HEADER_OFFSET + compressedDepth
+    FUTURE_SECOND_REVEAL_OFFSET + compressedDepth
   );
 }
 
 function getFutureX(relativeIndex: number) {
-  if (relativeIndex <= FUTURE_READABLE_COUNT) {
+  if (relativeIndex <= 2) {
     return relativeIndex * FUTURE_X_OFFSET;
   }
 
-  const deepFutureRank = relativeIndex - FUTURE_READABLE_COUNT;
-  const deepSpread = Array.from({ length: deepFutureRank }, (_, depth) =>
+  const continuationRank = relativeIndex - 2;
+  const continuationSpread = Array.from({ length: continuationRank }, (_, depth) =>
     Math.max(
-      FUTURE_DEEP_X_MIN_OFFSET,
-      FUTURE_DEEP_X_INITIAL_OFFSET * FUTURE_DEEP_X_OFFSET_DECAY ** depth
+      FUTURE_CONTINUATION_X_MIN_OFFSET,
+      FUTURE_CONTINUATION_X_INITIAL_OFFSET * FUTURE_CONTINUATION_X_OFFSET_DECAY ** depth
     )
   ).reduce((total, offset) => total + offset, 0);
 
   return Math.min(
-    FUTURE_DEEP_MAX_X_OFFSET,
-    FUTURE_READABLE_COUNT * FUTURE_X_OFFSET + deepSpread
+    FUTURE_CONTINUATION_MAX_X_OFFSET,
+    2 * FUTURE_X_OFFSET + continuationSpread
   );
+}
+
+function getFutureRotation(relativeIndex: number) {
+  if (relativeIndex === 1) {
+    return FUTURE_FIRST_ROTATION_DEGREES;
+  }
+
+  if (relativeIndex === 2) {
+    return FUTURE_SECOND_ROTATION_DEGREES;
+  }
+
+  const continuationRank = relativeIndex - 2;
+  const compressedRotation = Array.from({ length: continuationRank }, (_, depth) =>
+    Math.max(
+      FUTURE_CONTINUATION_ROTATION_MIN_OFFSET,
+      FUTURE_CONTINUATION_ROTATION_INITIAL_OFFSET * FUTURE_CONTINUATION_ROTATION_OFFSET_DECAY ** depth
+    )
+  ).reduce((total, offset) => total + offset, 0);
+
+  return Math.min(
+    FUTURE_ROTATION_MAX_DEGREES,
+    FUTURE_SECOND_ROTATION_DEGREES + compressedRotation
+  );
+}
+
+function getFutureRotationXDrift(relativeIndex: number) {
+  return Math.min(FUTURE_ROTATION_MAX_X_DRIFT, relativeIndex * FUTURE_ROTATION_X_DRIFT);
+}
+
+function getFutureRotationYLift(relativeIndex: number) {
+  return Math.min(FUTURE_ROTATION_MAX_Y_LIFT, relativeIndex * FUTURE_ROTATION_Y_LIFT);
 }
 
 function getScale(depthIndex: number, scaleStep: number) {
@@ -118,30 +163,37 @@ function getOpacity(depthIndex: number, opacityStep: number) {
   return Math.max(1 - depthIndex * opacityStep, MIN_STACK_OPACITY);
 }
 
-function getPastTableX(index: number, activeCardIndex: number) {
-  const pastRank = activeCardIndex - index;
-  const newestPastX = Math.min((activeCardIndex - 1) * PAST_TABLE_X_OFFSET, PAST_TABLE_MAX_X_OFFSET);
-
-  if (pastRank <= PAST_TABLE_READABLE_COUNT) {
-    return Math.max(0, newestPastX - (pastRank - 1) * PAST_TABLE_X_OFFSET);
+function getPastTableGap(newerPastRank: number) {
+  if (newerPastRank === 1) {
+    return PAST_TABLE_X_OFFSET;
   }
 
-  const readableEdgeX = Math.max(0, newestPastX - (PAST_TABLE_READABLE_COUNT - 1) * PAST_TABLE_X_OFFSET);
-  const archiveRank = pastRank - PAST_TABLE_READABLE_COUNT;
-  const archiveCompression = Array.from({ length: archiveRank }, (_, depth) =>
-    Math.max(
-      PAST_TABLE_ARCHIVE_MIN_X_OFFSET,
-      PAST_TABLE_ARCHIVE_INITIAL_X_OFFSET * PAST_TABLE_ARCHIVE_DECAY ** depth
-    )
-  ).reduce((total, offset) => total + offset, 0);
+  if (newerPastRank === 2) {
+    return PAST_TABLE_THIRD_X_OFFSET;
+  }
 
-  return Math.max(0, readableEdgeX - archiveCompression);
+  return Math.max(
+    PAST_TABLE_MIN_X_OFFSET,
+    PAST_TABLE_TRACE_INITIAL_X_OFFSET * PAST_TABLE_X_OFFSET_DECAY ** (newerPastRank - 3)
+  );
+}
+
+function getPastTableX(index: number, activeCardIndex: number) {
+  if (activeCardIndex <= 2) {
+    return index * PAST_TABLE_X_OFFSET;
+  }
+
+  return Array.from({ length: index }, (_, gapIndex) => {
+    const newerCardIndex = gapIndex + 1;
+    const newerPastRank = activeCardIndex - newerCardIndex;
+
+    return getPastTableGap(newerPastRank);
+  }).reduce((total, gap) => total + gap, 0);
 }
 
 function getCardStackStyle(index: number, activeCardIndex: number, totalCards: number): CardStackStyle {
   const relativeIndex = index - activeCardIndex;
   const activeTop = FUTURE_ZONE_HEIGHT;
-  const isMostRecentPast = relativeIndex === -1;
 
   if (relativeIndex === 0) {
     return {
@@ -156,7 +208,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
         aspectRatio: CARD_ASPECT_RATIO,
         marginInline: "auto",
         x: 0,
-        y: 0,
+        y: ACTIVE_CARD_OCCLUSION_RELIEF,
         scale: 1,
         opacity: 1,
         zIndex: totalCards * 3,
@@ -167,6 +219,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
   if (relativeIndex > 0) {
     const futureDepth = getFutureDepth(relativeIndex);
     const futureAtmosphericDepth = relativeIndex;
+    const futureRotation = getFutureRotation(relativeIndex);
 
     return {
       zone: "future",
@@ -179,8 +232,10 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
         width: PROGRESSION_CARD_WIDTH,
         aspectRatio: CARD_ASPECT_RATIO,
         marginInline: "auto",
-        x: getFutureX(relativeIndex),
-        y: -futureDepth,
+        x: getFutureX(relativeIndex) + getFutureRotationXDrift(relativeIndex),
+        y: -futureDepth - getFutureRotationYLift(relativeIndex),
+        rotate: futureRotation,
+        transformOrigin: "100% 0%",
         scale: getScale(relativeIndex, CARD_SCALE_STEP),
         opacity: getOpacity(relativeIndex, CARD_OPACITY_STEP),
         "--future-brightness": Math.max(0.74, 0.9 - futureAtmosphericDepth * 0.04),
@@ -209,10 +264,10 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
       width: PAST_TABLE_CARD_WIDTH,
       aspectRatio: CARD_ASPECT_RATIO,
       x: getPastTableX(index, activeCardIndex),
-      y: (activeCardIndex - index - 1) * PAST_TABLE_Y_OFFSET,
+      y: 0,
       scale: getScale(pastIndex, PAST_CARD_SCALE_STEP),
-      rotate: Math.max(-0.72, -0.14 - pastDepthForTone * 0.08),
-      transformOrigin: "14% 88%",
+      rotate: 0,
+      transformOrigin: "50% 50%",
       opacity: getOpacity(pastIndex, PAST_CARD_OPACITY_STEP),
       "--past-depth": pastIndex,
       "--past-brightness": Math.max(0.72, 0.9 - pastDepthForTone * 0.035),
@@ -220,9 +275,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
       "--past-shadow-alpha": Math.max(0.16, 0.3 - pastDepthForTone * 0.025),
       "--past-plane-shadow-x": Math.max(-2.4, -0.35 - pastDepthForTone * 0.22),
       "--past-plane-shadow-y": Math.min(12, 6 + pastDepthForTone * 0.65),
-      // Keep the just-completed card above the incoming active card during
-      // layout projection so the same visible card travels into the table.
-      zIndex: isMostRecentPast ? totalCards * 3 + 1 : totalCards + index,
+      zIndex: totalCards + index,
     },
   };
 }

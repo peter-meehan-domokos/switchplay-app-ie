@@ -29,7 +29,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
 
   return (
     <LayoutGroup>
-      <main className="app-shell">
+      <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
         <AnimatePresence initial={false}>
           {!selectedDeck ? (
             <motion.header

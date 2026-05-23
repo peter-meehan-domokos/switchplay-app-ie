@@ -39,6 +39,10 @@ button {
   padding: 22px 16px 32px;
 }
 
+.app-shell--deck {
+  padding-block: 12px 0;
+}
+
 .overview-header {
   margin: 0 auto 22px;
   max-width: 720px;
@@ -158,6 +162,9 @@ button {
 }
 
 .deck-detail {
+  --deck-atmosphere-inset: clamp(16px, 4vw, 20px);
+
+  position: relative;
   min-height: calc(100svh - 44px);
   max-width: 720px;
   margin: 0 auto;
@@ -170,25 +177,28 @@ button {
   padding: 14px;
 }
 
-.detail-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .back-button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 6px;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.052);
   color: #fffaf0;
   cursor: pointer;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 800;
-  padding: 9px 12px;
+  padding: 7px 11px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.deck-back-overlay {
+  position: absolute;
+  top: calc(var(--deck-atmosphere-inset) + env(safe-area-inset-top));
+  left: var(--deck-atmosphere-inset);
+  z-index: 12;
+  backdrop-filter: blur(14px);
 }
 
 .detail-chip {
@@ -208,8 +218,21 @@ button {
   padding: 4px;
 }
 
+.temporary-stack-controls {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 calc(8px + env(safe-area-inset-bottom));
+}
+
+.detail-tools--footer {
+  background: rgba(8, 10, 15, 0.24);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  opacity: 0.84;
+}
+
 .detail-heading {
-  padding: 28px 4px 18px;
+  padding: calc(44px + env(safe-area-inset-top)) 4px 14px;
 }
 
 .detail-heading h1 {
@@ -219,7 +242,7 @@ button {
 
 .card-stack {
   position: relative;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .card-progression-scene {
@@ -229,9 +252,9 @@ button {
 .table-surface {
   position: absolute;
   right: -14px;
-  bottom: 0;
+  bottom: 24px;
   left: -14px;
-  height: 218px;
+  height: 172px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   background:
     radial-gradient(ellipse at 42% 22%, rgba(255, 255, 255, 0.045), transparent 58%),
@@ -289,15 +312,15 @@ button {
 .deck-card-content {
   position: relative;
   z-index: 1;
-  padding: 18px 20px;
+  padding: 14px 20px 18px;
 }
 
 .card-semantic-anchors {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 14px;
-  min-height: 34px;
+  gap: 10px;
+  min-height: 22px;
 }
 
 .card-title-anchor {
@@ -346,9 +369,9 @@ button {
   min-width: 0;
   max-width: 100%;
   color: var(--progress-accent-soft);
-  font-size: 1rem;
+  font-size: 0.88rem;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -356,10 +379,10 @@ button {
 
 .completion-strip {
   position: relative;
-  width: 3.25rem;
+  width: 3.05rem;
   max-width: 100%;
-  height: 4px;
-  margin-top: 7px;
+  height: 2.25px;
+  margin-top: 2px;
   border-radius: 999px;
   background: var(--progress-todo);
   overflow: hidden;
@@ -411,7 +434,7 @@ button {
 
 .active-card-front {
   display: grid;
-  gap: 15px;
+  gap: 13px;
 }
 
 .active-card-identity {
