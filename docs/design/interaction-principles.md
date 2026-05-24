@@ -32,6 +32,19 @@ Prioritise:
 
 Delay advanced gesture complexity until layout and interaction structure are stable.
 
+## Navigation Gesture Philosophy
+
+Deck gestures should interpret user intent rather than simulate every frame of card physics.
+
+The intended interaction model is:
+- user drag provides a light preview
+- crossing a conservative threshold commits intent
+- the authored cinematic transition completes the action
+
+Distance matters more than velocity. Velocity may assist a nearly committed gesture, but should not overpower short accidental flicks.
+
+Keep gesture logic out of deck/card rendering components. Components render card state; gesture hooks interpret intent; motion files define how state changes feel.
+
 ## Active Card Principle
 
 At any moment, one weekly card is considered the active card.
@@ -107,3 +120,57 @@ These elements should remain part of the card anatomy even when they become part
 Semantic zoom should happen through scale, opacity, clipping, overlap, and progressive reduction of detail layers — not by changing the core card layout.
 
 Detailed content may fade or disappear, but core identity anchors should remain structurally present.
+
+## Gesture Interaction Principles
+
+The deck is not a generic swipe interface. Gestures should preserve the feeling of handling memory objects in an atmospheric physical space.
+
+### Core principle
+
+**Gestures suggest intent → authored cinematic transition completes the action.**
+
+The gesture should not feel like throwing cards away or flicking through disposable content. It should feel like moving through a personal journey.
+
+### Swipe down on active card
+
+Swipe down means the present card settles into history.
+
+It should feel:
+
+* weighted
+* calm
+* slightly resistant
+* intentional
+* absorptive rather than ejective
+
+It should not feel like:
+
+* dismissal
+* rejection
+* closing a modal
+* Tinder-style card throwing
+* mechanical pagination
+
+For MVP:
+
+* use partial drag follow, not 1:1 finger tracking
+* use a follow ratio around 35–50%
+* use a commitment threshold around 120–180px or 18–28% of viewport height
+* prioritise distance over velocity
+* allow velocity to assist slightly, but not dominate
+
+### Swipe up on active card
+
+Swipe up should feel like drawing the next future card into presence. It can be slightly lighter than swipe down, because moving forward should feel less heavy than settling a card into history.
+
+### Focus
+
+Focusing a card should feel like deepening attention on the same object, not opening a separate modal. The card should remain continuous with the deck world.
+
+### Defocus
+
+Defocus should feel like releasing attention back into the deck environment, not closing a window.
+
+### Flip
+
+Flip should feel intimate and intentional. It is a transition between action and reflection, not a card trick. Avoid overly playful 3D rotation or velocity-driven flipping.

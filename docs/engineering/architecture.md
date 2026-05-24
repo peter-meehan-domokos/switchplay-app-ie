@@ -53,6 +53,19 @@ Use Context only for genuinely shared application state such as:
 
 Avoid introducing global state prematurely.
 
+## Deck Gesture And Motion Boundary
+
+Deck navigation is split across three small ownership areas:
+- components render card state
+- gesture hooks interpret user intent
+- motion modules define transition feel
+
+`src/components/decks/gestures/` owns gesture phases, intent, vectors, commitment thresholds, and reusable pointer handlers.
+
+`src/components/decks/motion/` owns calm transition constants and small transition-state helpers for active card index, focus mode, side, traversal locks, and transition direction.
+
+Gesture constants should not be mixed into layout constants such as `src/constants/cardStack.ts`. Layout constants describe geometry and stack choreography; gesture constants describe input interpretation.
+
 
 ## Phase 1 Implementation State
 
@@ -297,3 +310,57 @@ rather than:
 - metric-centric
 - productivity-oriented
 - mechanically deterministic
+
+## Gesture and Motion Code Ownership
+
+A.3 introduces a dedicated gesture and motion layer so deck components do not become overloaded with interaction logic.
+
+### Folder structure
+
+Gesture files live in:
+
+`src/components/decks/gestures/`
+
+Motion files live in:
+
+`src/components/decks/motion/`
+
+### Responsibility boundaries
+
+Deck/card components should render state.
+
+Gesture hooks should interpret user intent.
+
+Motion modules should define how state changes feel.
+
+Layout constants should remain separate from gesture constants.
+
+### File ownership
+
+`gestureTypes.ts`
+
+Owns shared gesture type definitions.
+
+`gestureThresholds.ts`
+
+Owns gesture-specific numbers such as swipe thresholds, dead zones, axis locking, drag resistance, and velocity assist limits.
+
+`useDeckGestures.ts`
+
+Owns pointer/touch gesture interpretation. It should expose clean callbacks such as swipe up, swipe down, flip, focus, and defocus rather than embedding component-specific transition logic.
+
+`deckMotion.ts`
+
+Owns motion timings, easing presets, and transition feel constants.
+
+`transitionState.ts`
+
+Owns small shared helpers/types for transition state, animation lock, active/focused/flipped state, and traversal direction.
+
+### Guardrails
+
+Do not place gesture thresholds in `src/constants/cardStack.ts`. That file should remain focused on stack layout and geometry.
+
+Do not let `DeckDetail.tsx`, `CardStack.tsx`, or `DeckCard.tsx` become gesture/state dumping grounds.
+
+If a component starts accumulating gesture interpretation logic, move that logic into the gesture layer.

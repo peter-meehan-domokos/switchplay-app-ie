@@ -136,21 +136,8 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
         <span>Back</span>
       </motion.button>
 
-      <motion.div className="detail-heading" layout>
-        <p className="eyebrow">{deck.status}</p>
-        <h1>{deck.title}</h1>
-      </motion.div>
-
-      <CardStack
-        cards={cards}
-        activeCardIndex={activeCardIndex}
-        transitionPhase={transitionPhase}
-        onFocusCard={openFocusMode}
-        transition={transition}
-      />
-
       <nav className="temporary-stack-controls" aria-label="Deck card navigation">
-        <div className="detail-tools detail-tools--footer">
+        <div className="detail-tools detail-tools--top">
           <span className="stack-position">
             {activeCardIndex + 1} / {cards.length}
           </span>
@@ -176,6 +163,19 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
           </motion.button>
         </div>
       </nav>
+
+      <motion.div className="detail-heading" layout>
+        <p className="eyebrow">{deck.status}</p>
+        <h1>{deck.title}</h1>
+      </motion.div>
+
+      <CardStack
+        cards={cards}
+        activeCardIndex={activeCardIndex}
+        transitionPhase={transitionPhase}
+        onFocusCard={openFocusMode}
+        transition={transition}
+      />
 
       <AnimatePresence>
         {isFocusModeOpen ? (
