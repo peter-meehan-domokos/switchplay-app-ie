@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import type { MotionStyle } from "motion/react";
 import DeckCard from "@/components/decks/DeckCard";
+import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
 import type { WeeklyCard } from "@/components/decks/types";
 import {
   ACTIVE_CARD_OCCLUSION_RELIEF,
@@ -50,6 +51,10 @@ type CardStackProps = {
   activeCardIndex: number;
   transitionPhase: CardTransitionPhase | null;
   onFocusCard: (cardIndex: number) => void;
+  activeGestureHandlers?: DeckGestureHandlers;
+  latestPastGestureHandlers?: DeckGestureHandlers;
+  activeGesturePreviewY?: number;
+  suppressActiveCardActivation?: boolean;
   transition: object;
 };
 
@@ -282,7 +287,17 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
   };
 }
 
-export default function CardStack({ cards, activeCardIndex, transitionPhase, onFocusCard, transition }: CardStackProps) {
+export default function CardStack({
+  cards,
+  activeCardIndex,
+  transitionPhase,
+  onFocusCard,
+  activeGestureHandlers,
+  latestPastGestureHandlers,
+  activeGesturePreviewY = 0,
+  suppressActiveCardActivation = false,
+  transition,
+}: CardStackProps) {
   const displayedActiveCardIndex = transitionPhase?.fromIndex ?? activeCardIndex;
 
   return (
@@ -296,6 +311,8 @@ export default function CardStack({ cards, activeCardIndex, transitionPhase, onF
       {cards
         .map((card, index) => {
           const baseStackStyle = getCardStackStyle(index, displayedActiveCardIndex, cards.length);
+          const isActiveInteractionCard = !transitionPhase && index === activeCardIndex;
+          const isLatestPastInteractionCard = !transitionPhase && index === activeCardIndex - 1;
           const outgoingTargetStyle =
             transitionPhase && index === transitionPhase.fromIndex
               ? getCardStackStyle(index, transitionPhase.toIndex, cards.length)
@@ -309,9 +326,21 @@ export default function CardStack({ cards, activeCardIndex, transitionPhase, onF
               stackZone={baseStackStyle.zone}
               showHeader={baseStackStyle.showHeader}
               showProgress={baseStackStyle.showProgress}
-              onActivate={!transitionPhase && index === activeCardIndex ? () => onFocusCard(index) : undefined}
+              onActivate={isActiveInteractionCard ? () => onFocusCard(index) : undefined}
+              gestureHandlers={
+                isActiveInteractionCard
+                  ? activeGestureHandlers
+                  : isLatestPastInteractionCard
+                    ? latestPastGestureHandlers
+                    : undefined
+              }
+              suppressActivation={isActiveInteractionCard ? suppressActiveCardActivation : false}
               style={{
                 ...positionStackStyle.style,
+                y:
+                  isActiveInteractionCard && typeof positionStackStyle.style.y === "number"
+                    ? positionStackStyle.style.y + activeGesturePreviewY
+                    : positionStackStyle.style.y,
                 // During a phase, the stack stays anchored to fromIndex while
                 // only that outgoing card receives the target geometry. This
                 // prevents the incoming card occupying the active slot early.

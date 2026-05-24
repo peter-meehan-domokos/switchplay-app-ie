@@ -4,7 +4,7 @@ export type GesturePhase = "idle" | "tracking" | "dragging" | "committed" | "can
 
 export type SwipeDirection = "up" | "down" | "left" | "right";
 
-export type GestureIntent = "none" | "swipeDown" | "swipeUp" | "flip" | "focus" | "defocus";
+export type GestureIntent = "none" | "settleToPast" | "restoreFromPast" | "flip" | "focus" | "defocus";
 
 export type DeckGestureMode = "deck" | "focus";
 
@@ -28,8 +28,8 @@ export type GestureCommitment = {
 };
 
 export type DeckGestureCallbacks = {
-  onSwipeDown?: (commitment: GestureCommitment, vector: GestureVector) => void;
-  onSwipeUp?: (commitment: GestureCommitment, vector: GestureVector) => void;
+  onSettleToPast?: (commitment: GestureCommitment, vector: GestureVector) => void;
+  onRestoreFromPast?: (commitment: GestureCommitment, vector: GestureVector) => void;
   onFlip?: (commitment: GestureCommitment, vector: GestureVector) => void;
   onFocus?: (commitment: GestureCommitment, vector: GestureVector) => void;
   onDefocus?: (commitment: GestureCommitment, vector: GestureVector) => void;

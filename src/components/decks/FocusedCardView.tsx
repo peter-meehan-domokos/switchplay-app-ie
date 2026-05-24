@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
@@ -7,6 +7,8 @@ import BackCardExternalComment from "@/components/decks/BackCardExternalComment"
 import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
 import BackCardReflectionFragment from "@/components/decks/BackCardReflectionFragment";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
+import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
+import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
 import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
 
@@ -24,10 +26,21 @@ type FocusedCardViewProps = {
 
 export type FocusedTraversalDirection = "next" | "previous";
 
+type FocusedFlipSide = "front" | "back";
+
+type FocusedFlipState = {
+  cardId: string;
+  side: FocusedFlipSide;
+  rotationY: number;
+};
+
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
 });
+
+const FOCUSED_FLIP_LOCK_MS = 680;
+const FOCUSED_TRAVERSAL_LOCK_MS = 280;
 
 const focusedTraversalVariants = {
   enter: (direction: FocusedTraversalDirection) => ({
@@ -55,8 +68,11 @@ export default function FocusedCardView({
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
-  const [flipState, setFlipState] = useState({ cardId: card.id, isFlipped: false });
-  const isFlipped = flipState.cardId === card.id && flipState.isFlipped;
+  const [flipState, setFlipState] = useState<FocusedFlipState>({ cardId: card.id, side: "front", rotationY: 0 });
+  const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
+  const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardFlipState = flipState.cardId === card.id ? flipState : { cardId: card.id, side: "front", rotationY: 0 };
+  const isFlipped = cardFlipState.side === "back";
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
@@ -78,6 +94,74 @@ export default function FocusedCardView({
     duration: 0.68,
     ease: [0.22, 0.72, 0.18, 1],
   };
+  const lockFocusedGestures = (durationMs: number) => {
+    if (focusedGestureLockTimeoutRef.current) {
+      clearTimeout(focusedGestureLockTimeoutRef.current);
+    }
+
+    setIsFocusedGestureLocked(true);
+    focusedGestureLockTimeoutRef.current = setTimeout(() => {
+      setIsFocusedGestureLocked(false);
+      focusedGestureLockTimeoutRef.current = null;
+    }, durationMs);
+  };
+  const toggleFocusedCardSide = (commitment: GestureCommitment, vector: GestureVector) => {
+    if (isFocusedGestureLocked) {
+      return;
+    }
+
+    lockFocusedGestures(FOCUSED_FLIP_LOCK_MS);
+    setFlipState((currentFlipState) => {
+      const currentCardFlipState =
+        currentFlipState.cardId === card.id ? currentFlipState : { cardId: card.id, side: "front" as const, rotationY: 0 };
+      const directionDelta =
+        commitment.direction === "right" || (!commitment.direction && vector.x > 0)
+          ? 180
+          : -180;
+
+      return {
+        cardId: card.id,
+        side: currentCardFlipState.side === "front" ? "back" : "front",
+        rotationY: currentCardFlipState.rotationY + directionDelta,
+      };
+    });
+  };
+  const settleFocusedCardToPast = () => {
+    if (isFocusedGestureLocked || isFinalCard) {
+      return;
+    }
+
+    lockFocusedGestures(FOCUSED_TRAVERSAL_LOCK_MS);
+    onNext();
+  };
+  const restoreFocusedCardFromPast = () => {
+    if (isFocusedGestureLocked || isFirstCard) {
+      return;
+    }
+
+    lockFocusedGestures(FOCUSED_TRAVERSAL_LOCK_MS);
+    onPrevious();
+  };
+  const focusedGestures = useDeckGestures({
+    mode: "focus",
+    allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
+    locked: isFocusedGestureLocked,
+    onSettleToPast: settleFocusedCardToPast,
+    onRestoreFromPast: restoreFocusedCardFromPast,
+    onFlip: toggleFocusedCardSide,
+  });
+
+  useEffect(() => {
+    setFlipState({ cardId: card.id, side: "front", rotationY: 0 });
+  }, [card.id]);
+
+  useEffect(() => {
+    return () => {
+      if (focusedGestureLockTimeoutRef.current) {
+        clearTimeout(focusedGestureLockTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <motion.div
@@ -88,13 +172,6 @@ export default function FocusedCardView({
       transition={{ duration: 0.18 }}
     >
       <motion.button type="button" className="focused-card-scrim" onClick={onClose} aria-label="Close focused card" />
-      <motion.button
-        type="button"
-        className="focused-close-button"
-        onClick={onClose}
-        aria-label="Exit focus mode"
-        whileTap={{ scale: 0.97 }}
-      />
       <AnimatePresence mode="popLayout" initial={false} custom={traversalDirection}>
         <motion.article
           key={card.id}
@@ -111,11 +188,12 @@ export default function FocusedCardView({
         >
           <motion.div
             className={`focused-card-object${isFlipped ? " is-flipped" : ""}`}
+            {...focusedGestures.handlers}
             animate={{
-              rotateY: isFlipped ? 180 : 0,
+              rotateY: cardFlipState.rotationY,
               boxShadow: isFlipped
-                ? "0 30px 96px rgba(0, 0, 0, 0.6)"
-                : "0 28px 90px rgba(0, 0, 0, 0.58)",
+                ? "0 34px 112px rgba(0, 0, 0, 0.66)"
+                : "0 32px 104px rgba(0, 0, 0, 0.64)",
             }}
             transition={flipTransition}
           >
@@ -128,12 +206,6 @@ export default function FocusedCardView({
                   onCycleItemStatus={onCycleItemStatus}
                 />
               </div>
-              <button
-                type="button"
-                className="focused-card-flip-affordance"
-                onClick={() => setFlipState({ cardId: card.id, isFlipped: true })}
-                aria-label="Turn card over"
-              />
             </div>
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
               <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
@@ -153,38 +225,10 @@ export default function FocusedCardView({
                 <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
                 <BackCardReflectionFragment reflectionVerticalOffset={card.reflectionVerticalOffset} text={card.reflection} />
               </div>
-              <button
-                type="button"
-                className="focused-card-flip-affordance focused-card-flip-affordance--back"
-                onClick={() => setFlipState({ cardId: card.id, isFlipped: false })}
-                aria-label="Return to card front"
-              />
             </div>
           </motion.div>
         </motion.article>
       </AnimatePresence>
-      <div className="focused-traversal-controls" aria-label="Focused card traversal">
-        <motion.button
-          type="button"
-          className="focused-traversal-button"
-          onClick={onPrevious}
-          disabled={isFirstCard}
-          aria-label="Previous focused card"
-          whileTap={{ scale: isFirstCard ? 1 : 0.96 }}
-        >
-          ←
-        </motion.button>
-        <motion.button
-          type="button"
-          className="focused-traversal-button"
-          onClick={onNext}
-          disabled={isFinalCard}
-          aria-label="Next focused card"
-          whileTap={{ scale: isFinalCard ? 1 : 0.96 }}
-        >
-          →
-        </motion.button>
-      </div>
     </motion.div>
   );
 }

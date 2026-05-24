@@ -219,32 +219,6 @@ button {
   white-space: nowrap;
 }
 
-.detail-tools {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  background: rgba(8, 10, 15, 0.34);
-  padding: 4px;
-}
-
-.temporary-stack-controls {
-  position: absolute;
-  top: calc(var(--deck-atmosphere-inset) + env(safe-area-inset-top) + 2px);
-  right: var(--deck-atmosphere-inset);
-  z-index: 12;
-}
-
-.detail-tools--top {
-  background: rgba(8, 10, 15, 0.24);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
-  opacity: 0.78;
-  padding: 2px;
-  backdrop-filter: blur(14px);
-}
-
 .detail-heading {
   padding: calc(44px + env(safe-area-inset-top)) 4px 14px;
 }
@@ -899,37 +873,6 @@ button {
   opacity: 0;
 }
 
-.stack-control-button {
-  display: grid;
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fffaf0;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 800;
-  line-height: 1;
-  padding: 0;
-}
-
-.stack-control-button:disabled {
-  color: rgba(255, 250, 240, 0.38);
-  cursor: default;
-  opacity: 0.55;
-}
-
-.stack-position {
-  color: #aeb5c1;
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 0 3px 0 6px;
-  white-space: nowrap;
-}
-
 .focused-card-layer {
   position: fixed;
   inset: 0;
@@ -939,16 +882,32 @@ button {
   padding: 18px;
 }
 
+.focused-card-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 50% 48%, transparent 0%, transparent 36%, rgba(2, 3, 6, 0.18) 62%, rgba(2, 3, 6, 0.32) 100%),
+    linear-gradient(180deg, rgba(2, 3, 6, 0.22), transparent 22%, transparent 76%, rgba(2, 3, 6, 0.24));
+  pointer-events: none;
+}
+
 .focused-card-scrim {
   position: absolute;
   inset: 0;
+  z-index: 0;
   border: 0;
-  background: rgba(5, 7, 11, 0.72);
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(12, 15, 22, 0.46), rgba(5, 7, 11, 0.72) 54%, rgba(3, 4, 8, 0.84) 100%),
+    linear-gradient(180deg, rgba(3, 4, 8, 0.82), rgba(7, 9, 14, 0.72) 45%, rgba(2, 3, 6, 0.84));
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .focused-card-stage {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   border-radius: 30px;
   perspective: 1200px;
   perspective-origin: 52% 48%;
@@ -1226,184 +1185,6 @@ button {
     0 0 14px rgba(168, 214, 228, 0.052),
     0 1px 10px rgba(10, 14, 20, 0.18);
   transform: translateY(var(--reflection-y-offset, 0));
-}
-
-.focused-card-flip-affordance {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 4;
-  width: 92px;
-  height: 92px;
-  border: 0;
-  border-bottom-right-radius: 30px;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
-}
-
-.focused-card-flip-affordance::before {
-  content: "";
-  position: absolute;
-  right: 4px;
-  bottom: 3px;
-  width: 58px;
-  height: 42px;
-  border-bottom-right-radius: 26px;
-  background: radial-gradient(ellipse at 100% 100%, rgba(0, 0, 0, 0.2), transparent 68%);
-  filter: blur(7px);
-  opacity: 0.42;
-}
-
-.focused-card-flip-affordance::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 82px;
-  height: 82px;
-  border-bottom-right-radius: 30px;
-  background:
-    radial-gradient(circle at 100% 100%, rgba(168, 214, 228, 0.12), transparent 58%),
-    linear-gradient(135deg, transparent 55%, rgba(255, 250, 240, 0.035) 59%, rgba(255, 250, 240, 0.075) 66%, rgba(168, 214, 228, 0.04) 74%, transparent 82%),
-    linear-gradient(135deg, transparent 61%, rgba(0, 0, 0, 0.18) 67%, rgba(0, 0, 0, 0.02) 100%);
-  box-shadow:
-    -11px -11px 24px rgba(0, 0, 0, 0.1) inset,
-    -1px -1px 0 rgba(255, 250, 240, 0.052) inset;
-  filter: blur(0.18px);
-  opacity: 0.74;
-  transition:
-    opacity 180ms ease,
-    filter 180ms ease;
-}
-
-.focused-card-flip-affordance:hover::after,
-.focused-card-flip-affordance:focus-visible::after {
-  filter: blur(0.3px) brightness(1.08);
-  opacity: 0.86;
-}
-
-.focused-card-flip-affordance:focus-visible {
-  outline: 2px solid rgba(168, 214, 228, 0.22);
-  outline-offset: -14px;
-}
-
-.focused-close-button {
-  position: absolute;
-  top: max(14px, calc(50% - min(133.4vw, 623.5px) / 2 - 22px));
-  right: max(14px, calc(50% - min(92vw, 430px) / 2 - 64px));
-  z-index: 2;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(255, 250, 240, 0.065);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.035);
-  backdrop-filter: blur(14px);
-  color: rgba(255, 250, 240, 0.58);
-  cursor: pointer;
-  opacity: 0.62;
-  padding: 0;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    opacity 160ms ease,
-    transform 160ms ease;
-}
-
-.focused-close-button::before,
-.focused-close-button::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 11px;
-  height: 1px;
-  border-radius: 999px;
-  background: currentColor;
-  transform-origin: center;
-}
-
-.focused-close-button::before {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.focused-close-button::after {
-  transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.focused-close-button:hover {
-  border-color: rgba(255, 250, 240, 0.1);
-  background: rgba(255, 250, 240, 0.055);
-  opacity: 0.82;
-  transform: translateY(-0.5px);
-}
-
-.focused-close-button:focus-visible {
-  outline: 2px solid rgba(255, 250, 240, 0.32);
-  outline-offset: 3px;
-}
-
-.focused-traversal-controls {
-  position: absolute;
-  left: 50%;
-  bottom: max(16px, calc(50% - min(133.4vw, 623.5px) / 2 - 48px));
-  z-index: 2;
-  display: flex;
-  gap: 9px;
-  transform: translateX(-50%);
-}
-
-.focused-traversal-button {
-  display: grid;
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid rgba(255, 250, 240, 0.085);
-  border-radius: 50%;
-  background: rgba(255, 250, 240, 0.045);
-  backdrop-filter: blur(12px);
-  color: rgba(255, 250, 240, 0.68);
-  cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 800;
-  line-height: 1;
-  opacity: 0.74;
-  padding: 0;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    opacity 160ms ease,
-    transform 160ms ease;
-}
-
-.focused-traversal-button:hover {
-  border-color: rgba(255, 250, 240, 0.13);
-  background: rgba(255, 250, 240, 0.065);
-  color: rgba(255, 250, 240, 0.78);
-  opacity: 0.9;
-  transform: translateY(-0.5px);
-}
-
-.focused-traversal-button:disabled {
-  color: rgba(255, 250, 240, 0.28);
-  cursor: default;
-  opacity: 0.42;
-}
-
-.focused-traversal-button:disabled:hover {
-  border-color: rgba(255, 250, 240, 0.085);
-  background: rgba(255, 250, 240, 0.045);
-  color: rgba(255, 250, 240, 0.28);
-  opacity: 0.42;
-  transform: none;
-}
-
-.focused-traversal-button:focus-visible {
-  outline: 2px solid rgba(255, 250, 240, 0.28);
-  outline-offset: 3px;
 }
 
 .focused-card-content {

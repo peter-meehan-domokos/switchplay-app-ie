@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { DECK_GESTURE_THRESHOLDS, getVerticalCommitmentDistance } from "@/components/decks/gestures/gestureThresholds";
 import type {
@@ -33,6 +33,7 @@ type UseDeckGesturesOptions = DeckGestureCallbacks & {
   mode?: DeckGestureMode;
   disabled?: boolean;
   locked?: boolean;
+  allowedIntents?: GestureIntent[];
   viewportHeight?: number;
 };
 
@@ -92,12 +93,14 @@ function getLockedAxis(vector: GestureVector, previousAxis: GestureAxis): Gestur
   const { axisLockRatio, diagonalTolerancePx } = DECK_GESTURE_THRESHOLDS;
   const horizontalLead = vector.absoluteX - vector.absoluteY;
   const verticalLead = vector.absoluteY - vector.absoluteX;
+  const hasClearHorizontalLead = horizontalLead >= diagonalTolerancePx || vector.absoluteY <= DECK_GESTURE_THRESHOLDS.deadZonePx / 2;
+  const hasClearVerticalLead = verticalLead >= diagonalTolerancePx || vector.absoluteX <= DECK_GESTURE_THRESHOLDS.deadZonePx / 2;
 
-  if (vector.absoluteX >= vector.absoluteY * axisLockRatio || horizontalLead >= diagonalTolerancePx) {
+  if (vector.absoluteX >= vector.absoluteY * axisLockRatio && hasClearHorizontalLead) {
     return "x";
   }
 
-  if (vector.absoluteY >= vector.absoluteX * axisLockRatio || verticalLead >= diagonalTolerancePx) {
+  if (vector.absoluteY >= vector.absoluteX * axisLockRatio && hasClearVerticalLead) {
     return "y";
   }
 
@@ -117,12 +120,13 @@ function getDirection(axis: GestureAxis, vector: GestureVector): SwipeDirection 
 }
 
 function getIntent(mode: DeckGestureMode, direction: SwipeDirection | null): GestureIntent {
+  // Raw direction becomes semantic deck intent here; parent components decide the transition.
   if (direction === "down") {
-    return mode === "focus" ? "defocus" : "swipeDown";
+    return "settleToPast";
   }
 
   if (direction === "up") {
-    return mode === "deck" ? "focus" : "swipeUp";
+    return "restoreFromPast";
   }
 
   if (direction === "left" || direction === "right") {
@@ -163,6 +167,10 @@ function getCommitment(intent: GestureIntent, direction: SwipeDirection | null, 
   };
 }
 
+function isIntentAllowed(intent: GestureIntent, allowedIntents?: GestureIntent[]) {
+  return !allowedIntents || allowedIntents.includes(intent);
+}
+
 function getPreviewVector(mode: DeckGestureMode, vector: GestureVector): GestureVector {
   const resistance =
     mode === "focus"
@@ -186,11 +194,11 @@ function dispatchCommittedGesture(
   callbacks: DeckGestureCallbacks
 ) {
   switch (intent) {
-    case "swipeDown":
-      callbacks.onSwipeDown?.(commitment, vector);
+    case "settleToPast":
+      callbacks.onSettleToPast?.(commitment, vector);
       break;
-    case "swipeUp":
-      callbacks.onSwipeUp?.(commitment, vector);
+    case "restoreFromPast":
+      callbacks.onRestoreFromPast?.(commitment, vector);
       break;
     case "focus":
       callbacks.onFocus?.(commitment, vector);
@@ -211,9 +219,10 @@ export function useDeckGestures({
   mode = "deck",
   disabled = false,
   locked = false,
+  allowedIntents,
   viewportHeight,
-  onSwipeDown,
-  onSwipeUp,
+  onSettleToPast,
+  onRestoreFromPast,
   onFlip,
   onFocus,
   onDefocus,
@@ -224,9 +233,9 @@ export function useDeckGestures({
   const [intent, setIntent] = useState<GestureIntent>("none");
   const [direction, setDirection] = useState<SwipeDirection | null>(null);
   const [commitment, setCommitment] = useState<GestureCommitment>(emptyCommitment);
-  const callbacksRef = useRef({ onSwipeDown, onSwipeUp, onFlip, onFocus, onDefocus });
+  const callbacksRef = useRef({ onSettleToPast, onRestoreFromPast, onFlip, onFocus, onDefocus });
 
-  callbacksRef.current = { onSwipeDown, onSwipeUp, onFlip, onFocus, onDefocus };
+  callbacksRef.current = { onSettleToPast, onRestoreFromPast, onFlip, onFocus, onDefocus };
 
   const resetGesture = useCallback((nextPhase: GesturePhase) => {
     sessionRef.current = null;
@@ -236,6 +245,12 @@ export function useDeckGestures({
     setDirection(null);
     setCommitment(nextPhase === "cancelled" ? { ...emptyCommitment, reason: "cancelled" } : emptyCommitment);
   }, []);
+
+  useEffect(() => {
+    if (disabled || locked) {
+      resetGesture("idle");
+    }
+  }, [disabled, locked, resetGesture]);
 
   const updateGesture = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
@@ -250,7 +265,13 @@ export function useDeckGestures({
       const nextAxis = getLockedAxis(nextVector, session.axis);
       const nextDirection = getDirection(nextAxis, nextVector);
       const nextIntent = getIntent(mode, nextDirection);
-      const nextCommitment = getCommitment(nextIntent, nextDirection, nextVector, viewportHeight);
+      const nextCommitment = isIntentAllowed(nextIntent, allowedIntents)
+        ? getCommitment(nextIntent, nextDirection, nextVector, viewportHeight)
+        : emptyCommitment;
+
+      if (nextAxis) {
+        event.preventDefault();
+      }
 
       sessionRef.current = {
         ...session,
@@ -264,7 +285,7 @@ export function useDeckGestures({
       setCommitment(nextCommitment);
       setPhase(nextAxis ? "dragging" : "tracking");
     },
-    [mode, viewportHeight]
+    [allowedIntents, mode, viewportHeight]
   );
 
   const handlers = useMemo(
@@ -282,6 +303,10 @@ export function useDeckGestures({
           axis: null,
         };
         event.currentTarget.setPointerCapture?.(event.pointerId);
+        setVector(emptyVector);
+        setDirection(null);
+        setIntent("none");
+        setCommitment(emptyCommitment);
         setPhase("tracking");
       },
       onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
@@ -298,10 +323,17 @@ export function useDeckGestures({
         event.currentTarget.releasePointerCapture?.(event.pointerId);
 
         const finalVector = buildVector(session.start, getPoint(event));
-        const finalAxis = getLockedAxis(finalVector, session.axis);
+        const finalSession = sessionRef.current ?? session;
+        const finalAxis = getLockedAxis(finalVector, finalSession.axis);
         const finalDirection = getDirection(finalAxis, finalVector);
         const finalIntent = getIntent(mode, finalDirection);
-        const finalCommitment = getCommitment(finalIntent, finalDirection, finalVector, viewportHeight);
+        const finalCommitment = isIntentAllowed(finalIntent, allowedIntents)
+          ? getCommitment(finalIntent, finalDirection, finalVector, viewportHeight)
+          : emptyCommitment;
+
+        if (finalVector.distance >= DECK_GESTURE_THRESHOLDS.deadZonePx) {
+          event.preventDefault();
+        }
 
         if (finalCommitment.isCommitted) {
           setPhase("committed");
@@ -320,7 +352,7 @@ export function useDeckGestures({
         resetGesture("cancelled");
       },
     }),
-    [disabled, locked, mode, resetGesture, updateGesture, viewportHeight]
+    [allowedIntents, disabled, locked, mode, resetGesture, updateGesture, viewportHeight]
   );
 
   return {

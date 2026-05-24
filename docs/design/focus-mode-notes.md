@@ -142,4 +142,4 @@ When the user moves to another card while in focus mode, that card becomes the c
 Why:
 A card must never exist in two places at once. If Week 2 is focused, it cannot also remain visible as a past card underneath.
 
-This also prepares the system for future gesture consistency: swipe-down should mean the same progression action whether the user is in deck mode or focus mode.
+Focus-mode gesture semantics should be defined separately from deck-mode traversal when needed. In deck mode, swipe-down means `settleToPast`; in focus mode, swipe-down may remain reserved for `defocus` unless the focused traversal model is deliberately changed.

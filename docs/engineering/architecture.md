@@ -347,7 +347,7 @@ Owns gesture-specific numbers such as swipe thresholds, dead zones, axis locking
 
 `useDeckGestures.ts`
 
-Owns pointer/touch gesture interpretation. It should expose clean callbacks such as swipe up, swipe down, flip, focus, and defocus rather than embedding component-specific transition logic.
+Owns pointer/touch gesture interpretation. It should expose semantic callbacks such as settle to past, restore from past, flip, focus, and defocus rather than embedding component-specific transition logic.
 
 `deckMotion.ts`
 

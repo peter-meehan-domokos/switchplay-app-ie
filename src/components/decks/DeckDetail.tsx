@@ -7,6 +7,8 @@ import type { CardTransitionPhase } from "@/components/decks/CardStack";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
+import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
+import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { CompletionStatus } from "@/components/decks/types";
 import { ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
 import { normalizeCompletionStatus } from "@/lib/progress";
@@ -115,6 +117,34 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
       })
     );
   };
+  const deckGestures = useDeckGestures({
+    mode: "deck",
+    allowedIntents: ["settleToPast", "restoreFromPast"],
+    locked: transitionPhase !== null || isFocusModeOpen,
+    onSettleToPast: goToNextCard,
+    onRestoreFromPast: goToPreviousCard,
+  });
+  const latestPastGestures = useDeckGestures({
+    mode: "deck",
+    allowedIntents: ["restoreFromPast"],
+    locked: transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
+    onRestoreFromPast: goToPreviousCard,
+  });
+  const activeGesturePreviewY =
+    deckGestures.phase === "dragging" &&
+    deckGestures.intent === "settleToPast" &&
+    deckGestures.direction === "down" &&
+    activeCardIndex < finalCardIndex
+      ? Math.min(72, Math.max(0, deckGestures.previewVector.y))
+      : deckGestures.phase === "dragging" &&
+          deckGestures.intent === "restoreFromPast" &&
+          deckGestures.direction === "up" &&
+          activeCardIndex > 0
+        ? Math.max(-72, Math.min(0, deckGestures.previewVector.y))
+      : 0;
+  const suppressActiveCardActivation =
+    (deckGestures.phase === "dragging" || deckGestures.phase === "committed" || deckGestures.phase === "cancelled") &&
+    deckGestures.vector.distance >= DECK_GESTURE_THRESHOLDS.deadZonePx;
 
   return (
     <motion.section
@@ -136,34 +166,6 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
         <span>Back</span>
       </motion.button>
 
-      <nav className="temporary-stack-controls" aria-label="Deck card navigation">
-        <div className="detail-tools detail-tools--top">
-          <span className="stack-position">
-            {activeCardIndex + 1} / {cards.length}
-          </span>
-          <motion.button
-            type="button"
-            className="stack-control-button"
-            onClick={goToPreviousCard}
-            disabled={activeCardIndex === 0 || transitionPhase !== null}
-            aria-label="Previous card"
-            whileTap={{ scale: activeCardIndex === 0 ? 1 : 0.94 }}
-          >
-            ←
-          </motion.button>
-          <motion.button
-            type="button"
-            className="stack-control-button"
-            onClick={goToNextCard}
-            disabled={activeCardIndex === finalCardIndex || transitionPhase !== null}
-            aria-label="Next card"
-            whileTap={{ scale: activeCardIndex === finalCardIndex ? 1 : 0.94 }}
-          >
-            →
-          </motion.button>
-        </div>
-      </nav>
-
       <motion.div className="detail-heading" layout>
         <p className="eyebrow">{deck.status}</p>
         <h1>{deck.title}</h1>
@@ -174,6 +176,10 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
         activeCardIndex={activeCardIndex}
         transitionPhase={transitionPhase}
         onFocusCard={openFocusMode}
+        activeGestureHandlers={deckGestures.handlers}
+        latestPastGestureHandlers={latestPastGestures.handlers}
+        activeGesturePreviewY={activeGesturePreviewY}
+        suppressActiveCardActivation={suppressActiveCardActivation}
         transition={transition}
       />
 

@@ -159,9 +159,11 @@ For MVP:
 * prioritise distance over velocity
 * allow velocity to assist slightly, but not dominate
 
+In deck mode, this gesture maps to the semantic intent `settleToPast` and advances to the next card in deck order.
+
 ### Swipe up on active card
 
-Swipe up should feel like drawing the next future card into presence. It can be slightly lighter than swipe down, because moving forward should feel less heavy than settling a card into history.
+Swipe up should feel like restoring a past/table card into presence. In deck mode, this maps to the semantic intent `restoreFromPast` and moves to the previous card in deck order.
 
 ### Focus
 
