@@ -10,7 +10,7 @@ import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import PulseFieldSignal from "@/components/decks/PulseFieldSignal";
-import { CARD_ASPECT_RATIO, FOCUSED_CARD_WIDTH } from "@/constants/cardStack";
+import { CARD_ASPECT_RATIO, PROGRESSION_CARD_WIDTH } from "@/constants/cardStack";
 
 type FocusedCardViewProps = {
   card: CardLayout;
@@ -41,6 +41,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 
 const FOCUSED_FLIP_LOCK_MS = 680;
 const FOCUSED_TRAVERSAL_LOCK_MS = 280;
+const FOCUSED_CARD_OBJECT_SCALE = 1.56;
 
 const focusedTraversalVariants = {
   enter: (direction: FocusedTraversalDirection) => ({
@@ -178,7 +179,7 @@ export default function FocusedCardView({
           className="focused-card-stage"
           layout
           layoutId={`week-card-${card.id}`}
-          style={{ width: FOCUSED_CARD_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
+          style={{ width: PROGRESSION_CARD_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
           custom={traversalDirection}
           variants={focusedTraversalVariants}
           initial="enter"
@@ -191,6 +192,7 @@ export default function FocusedCardView({
             {...focusedGestures.handlers}
             animate={{
               rotateY: cardFlipState.rotationY,
+              scale: FOCUSED_CARD_OBJECT_SCALE,
               boxShadow: isFlipped
                 ? "0 34px 112px rgba(0, 0, 0, 0.66)"
                 : "0 32px 104px rgba(0, 0, 0, 0.64)",
