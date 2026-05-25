@@ -761,6 +761,10 @@ button {
   animation: step-progress-entry-sheen 760ms ease-out both;
 }
 
+.active-card-front--focused .step-progress-strip {
+  top: -4px;
+}
+
 .active-card-front--focused .step-progress-hit-area .step-progress-strip-fill {
   animation: step-progress-entry-settle 680ms ease-out both;
 }
