@@ -4,22 +4,40 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
-import type { Deck } from "@/components/decks/types";
+import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
+import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
+import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
+import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
+import type { CompletionStatus } from "@/components/decks/types";
 import { ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
+import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
-  deck: Deck;
+  deck: DeckLayout;
+  isDeckFlipped: boolean;
+  deckFlipRotationY: number;
   onBack: () => void;
+  onToggleDeckFlip: (rotationDelta?: number) => void;
   transition: object;
 };
 
-export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps) {
+const itemProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
+
+function getNextCompletionStatus(currentStatus: CompletionStatus) {
+  const currentIndex = itemProgressCycle.indexOf(currentStatus);
+  return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
+}
+
+export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
+  const [cards, setCards] = useState(deck.cards);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
-  const [focusedCardIndex, setFocusedCardIndex] = useState<number | null>(null);
+  const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
+  const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const finalCardIndex = deck.cards.length - 1;
+  const finalCardIndex = cards.length - 1;
 
   useEffect(() => {
     return () => {
@@ -59,6 +77,85 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
     moveActiveCard(Math.min(activeCardIndex + 1, finalCardIndex));
   };
 
+  const openFocusMode = (cardIndex: number) => {
+    setActiveCardIndex(cardIndex);
+    setIsFocusModeOpen(true);
+  };
+
+  const closeFocusMode = () => {
+    setIsFocusModeOpen(false);
+  };
+
+  const moveFocusedCard = (nextCardIndex: number) => {
+    if (nextCardIndex === activeCardIndex) {
+      return;
+    }
+
+    setFocusedTraversalDirection(nextCardIndex > activeCardIndex ? "next" : "previous");
+    setActiveCardIndex(nextCardIndex);
+  };
+
+  const goToPreviousFocusedCard = () => {
+    moveFocusedCard(Math.max(activeCardIndex - 1, 0));
+  };
+
+  const goToNextFocusedCard = () => {
+    moveFocusedCard(Math.min(activeCardIndex + 1, finalCardIndex));
+  };
+
+  const cycleFocusedItemStatus = (itemId: string) => {
+    setCards((currentCards) =>
+      currentCards.map((card, cardIndex) => {
+        if (cardIndex !== activeCardIndex) {
+          return card;
+        }
+
+        return {
+          ...card,
+          items: card.items.map((item) =>
+            item.id === itemId
+              ? { ...item, completionStatus: getNextCompletionStatus(normalizeCompletionStatus(item.completionStatus)) }
+              : item
+          ),
+        };
+      })
+    );
+  };
+  const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
+    const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
+
+    onToggleDeckFlip(directionDelta);
+  };
+  const deckGestures = useDeckGestures({
+    mode: "deck",
+    allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
+    locked: transitionPhase !== null || isFocusModeOpen,
+    onSettleToPast: goToNextCard,
+    onRestoreFromPast: goToPreviousCard,
+    onFlip: toggleDeckSide,
+  });
+  const latestPastGestures = useDeckGestures({
+    mode: "deck",
+    allowedIntents: ["restoreFromPast"],
+    locked: transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
+    onRestoreFromPast: goToPreviousCard,
+  });
+  const activeGesturePreviewY =
+    deckGestures.phase === "dragging" &&
+    deckGestures.intent === "settleToPast" &&
+    deckGestures.direction === "down" &&
+    activeCardIndex < finalCardIndex
+      ? Math.min(72, Math.max(0, deckGestures.previewVector.y))
+      : deckGestures.phase === "dragging" &&
+          deckGestures.intent === "restoreFromPast" &&
+          deckGestures.direction === "up" &&
+          activeCardIndex > 0
+        ? Math.max(-72, Math.min(0, deckGestures.previewVector.y))
+      : 0;
+  const suppressActiveCardActivation =
+    (deckGestures.phase === "dragging" || deckGestures.phase === "committed" || deckGestures.phase === "cancelled") &&
+    deckGestures.vector.distance >= DECK_GESTURE_THRESHOLDS.deadZonePx;
+
   return (
     <motion.section
       className="deck-detail"
@@ -69,37 +166,15 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
       animate={{ borderRadius: 28 }}
       exit={{ borderRadius: 16 }}
     >
-      <div className="detail-topbar">
-        <motion.button type="button" className="back-button" onClick={onBack} whileTap={{ scale: 0.96 }}>
-          <span aria-hidden="true">←</span>
-          <span>Back</span>
-        </motion.button>
-        <div className="detail-tools">
-          <span className="stack-position">
-            {activeCardIndex + 1} / {deck.cards.length}
-          </span>
-          <motion.button
-            type="button"
-            className="stack-control-button"
-            onClick={goToPreviousCard}
-            disabled={activeCardIndex === 0 || transitionPhase !== null}
-            aria-label="Previous card"
-            whileTap={{ scale: activeCardIndex === 0 ? 1 : 0.94 }}
-          >
-            ←
-          </motion.button>
-          <motion.button
-            type="button"
-            className="stack-control-button"
-            onClick={goToNextCard}
-            disabled={activeCardIndex === finalCardIndex || transitionPhase !== null}
-            aria-label="Next card"
-            whileTap={{ scale: activeCardIndex === finalCardIndex ? 1 : 0.94 }}
-          >
-            →
-          </motion.button>
-        </div>
-      </div>
+      <motion.button
+        type="button"
+        className="back-button deck-back-overlay"
+        onClick={onBack}
+        whileTap={{ scale: 0.96 }}
+      >
+        <span aria-hidden="true">←</span>
+        <span>Back</span>
+      </motion.button>
 
       <motion.div className="detail-heading" layout>
         <p className="eyebrow">{deck.status}</p>
@@ -107,19 +182,31 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
       </motion.div>
 
       <CardStack
-        cards={deck.cards}
+        cards={cards}
         activeCardIndex={activeCardIndex}
+        isDeckFlipped={isDeckFlipped}
+        deckFlipRotationY={deckFlipRotationY}
         transitionPhase={transitionPhase}
-        onFocusCard={setFocusedCardIndex}
+        onFocusCard={openFocusMode}
+        activeGestureHandlers={deckGestures.handlers}
+        latestPastGestureHandlers={latestPastGestures.handlers}
+        activeGesturePreviewY={activeGesturePreviewY}
+        suppressActiveCardActivation={suppressActiveCardActivation}
         transition={transition}
       />
 
       <AnimatePresence>
-        {focusedCardIndex !== null ? (
+        {isFocusModeOpen ? (
           <FocusedCardView
-            key={deck.cards[focusedCardIndex].id}
-            card={deck.cards[focusedCardIndex]}
-            onClose={() => setFocusedCardIndex(null)}
+            card={cards[activeCardIndex]}
+            cardIndex={activeCardIndex}
+            totalCards={cards.length}
+            onClose={closeFocusMode}
+            onPrevious={goToPreviousFocusedCard}
+            onNext={goToNextFocusedCard}
+            onCycleItemStatus={cycleFocusedItemStatus}
+            isDeckFlipped={isDeckFlipped}
+            traversalDirection={focusedTraversalDirection}
             transition={transition}
           />
         ) : null}
