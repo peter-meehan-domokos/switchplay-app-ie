@@ -531,9 +531,9 @@ button {
 
 .active-step-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 10px minmax(0, 1fr);
   align-items: start;
-  gap: 0;
+  gap: 8px;
   min-height: 37px;
 }
 
@@ -551,19 +551,19 @@ button {
 
 .step-play-icon {
   justify-self: center;
-  margin-top: 4px;
+  margin-top: 2.75px;
   border-block-width: 3.5px;
   border-left-width: 5px;
   opacity: 0.56;
 }
 
 .active-step-item:nth-child(2) .step-play-icon {
-  margin-top: 4.5px;
+  margin-top: 4px;
   opacity: 0.47;
 }
 
 .active-step-item:nth-child(3) .step-play-icon {
-  margin-top: 5px;
+  margin-top: 4.25px;
   opacity: 0.39;
 }
 

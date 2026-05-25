@@ -41,8 +41,7 @@ export default function StepItem({ index, item, onCycleStatus }: StepItemProps) 
 
   return (
     <li className="active-step-item">
-      {/* Step-leading play icon intentionally paused; media semantics now live in the trace lane. */}
-      {/* <span className="step-play-icon" aria-hidden="true" /> */}
+      <span className="step-play-icon" aria-hidden="true" />
       <span className="step-copy">
         <span className="step-description">{item.description}</span>
         <StepProgressStrip
