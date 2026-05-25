@@ -9,8 +9,8 @@ type StepListProps = {
 export default function StepList({ items, onCycleItemStatus }: StepListProps) {
   return (
     <ol className="active-step-list">
-      {items.map((item) => (
-        <StepItem key={item.id} item={item} onCycleStatus={onCycleItemStatus} />
+      {items.map((item, index) => (
+        <StepItem key={item.id} index={index} item={item} onCycleStatus={onCycleItemStatus} />
       ))}
     </ol>
   );
