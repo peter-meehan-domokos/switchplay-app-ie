@@ -1,11 +1,13 @@
 import { motion, type MotionStyle } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
+import type { CardLayout } from "@/components/cards/cardLayout";
+import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
-import type { WeeklyCard } from "@/components/decks/types";
 
 type DeckCardProps = {
-  card: WeeklyCard;
+  card: CardLayout;
+  isDeckFlipped: boolean;
   stackZone: "past" | "active" | "future";
   showHeader: boolean;
   showProgress: boolean;
@@ -21,8 +23,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   month: "short",
 });
 
+const deckFlipTransition = {
+  duration: 0.68,
+  ease: [0.22, 0.72, 0.18, 1],
+} as const;
+
 export default function DeckCard({
   card,
+  isDeckFlipped,
   stackZone,
   showHeader,
   showProgress,
@@ -33,6 +41,8 @@ export default function DeckCard({
   transition,
 }: DeckCardProps) {
   const cardStateClass = showHeader || showProgress ? `is-${stackZone}` : `is-${stackZone} is-compressed`;
+  const dateLabel = dateFormatter.format(new Date(card.targetDate));
+  const backFaceVariant = stackZone === "past" ? "preview" : "deck";
   const handleActivate = () => {
     if (!suppressActivation) {
       onActivate?.();
@@ -52,7 +62,8 @@ export default function DeckCard({
 
   return (
     <motion.article
-      className={`physical-card deck-card ${cardStateClass}`}
+      className={`deck-card-slot deck-card ${cardStateClass}`}
+      data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
       layoutId={`week-card-${card.id}`}
       role={onActivate ? "button" : undefined}
@@ -63,17 +74,25 @@ export default function DeckCard({
       transition={transition}
       {...gestureHandlers}
     >
-      <div className="deck-card-content">
-        {stackZone === "active" || stackZone === "past" ? (
-          <ActiveCardFront card={card} dateLabel={dateFormatter.format(new Date(card.targetDate))} />
-        ) : showHeader || showProgress ? (
-          <CardSemanticAnchors
-            card={card}
-            dateLabel={dateFormatter.format(new Date(card.targetDate))}
-            showText={showHeader}
-          />
-        ) : null}
-      </div>
+      <motion.div
+        className="physical-card deck-card-object"
+        initial={{ rotateY: isDeckFlipped ? 180 : 0 }}
+        animate={{ rotateY: isDeckFlipped ? 180 : 0 }}
+        transition={deckFlipTransition}
+      >
+        <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped}>
+          <div className="deck-card-content">
+            {stackZone === "active" || stackZone === "past" ? (
+              <ActiveCardFront card={card} dateLabel={dateLabel} />
+            ) : showHeader || showProgress ? (
+              <CardSemanticAnchors card={card} dateLabel={dateLabel} showText={showHeader} />
+            ) : null}
+          </div>
+        </div>
+        <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
+          {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} variant={backFaceVariant} /> : null}
+        </div>
+      </motion.div>
     </motion.article>
   );
 }

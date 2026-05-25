@@ -25,7 +25,15 @@ const springTransition = {
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, boolean>>({});
   const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
+  const isSelectedDeckFlipped = selectedDeck ? (deckFlipStateById[selectedDeck.id] ?? false) : false;
+  const toggleSelectedDeckFlip = (deckId: string) => {
+    setDeckFlipStateById((current) => ({
+      ...current,
+      [deckId]: !(current[deckId] ?? false),
+    }));
+  };
 
   return (
     <LayoutGroup>
@@ -51,7 +59,9 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
             <DeckDetail
               key={`deck-detail-${selectedDeck.id}`}
               deck={selectedDeck}
+              isDeckFlipped={isSelectedDeckFlipped}
               onBack={() => setSelectedDeckId(null)}
+              onToggleDeckFlip={() => toggleSelectedDeckFlip(selectedDeck.id)}
               transition={springTransition}
             />
           ) : (

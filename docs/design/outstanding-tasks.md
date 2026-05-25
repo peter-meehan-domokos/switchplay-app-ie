@@ -599,8 +599,7 @@ But again: this is advanced polish.
 ## 1. Deck Flipped Mode Implementation Plan
 
 ### 1.1 Decide state architecture
-- Add deck-level `isFlipped: boolean`
-- Store it in session state, keyed by `deckId`
+- Add isSelectedDeckFlipped boolean and deckFlipStateById array to AppShell
 - Do not make it card-specific
 - Do not reset active card, focus state, or navigation index when toggled
 

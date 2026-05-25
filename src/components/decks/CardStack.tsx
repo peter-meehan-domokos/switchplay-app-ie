@@ -1,8 +1,8 @@
 import { motion } from "motion/react";
 import type { MotionStyle } from "motion/react";
+import type { CardLayout } from "@/components/cards/cardLayout";
 import DeckCard from "@/components/decks/DeckCard";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
-import type { WeeklyCard } from "@/components/decks/types";
 import {
   ACTIVE_CARD_OCCLUSION_RELIEF,
   CARD_ASPECT_RATIO,
@@ -47,8 +47,9 @@ import {
 } from "@/constants/cardStack";
 
 type CardStackProps = {
-  cards: WeeklyCard[];
+  cards: CardLayout[];
   activeCardIndex: number;
+  isDeckFlipped: boolean;
   transitionPhase: CardTransitionPhase | null;
   onFocusCard: (cardIndex: number) => void;
   activeGestureHandlers?: DeckGestureHandlers;
@@ -290,6 +291,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
 export default function CardStack({
   cards,
   activeCardIndex,
+  isDeckFlipped,
   transitionPhase,
   onFocusCard,
   activeGestureHandlers,
@@ -323,6 +325,7 @@ export default function CardStack({
             <DeckCard
               key={card.id}
               card={card}
+              isDeckFlipped={isDeckFlipped}
               stackZone={baseStackStyle.zone}
               showHeader={baseStackStyle.showHeader}
               showProgress={baseStackStyle.showProgress}

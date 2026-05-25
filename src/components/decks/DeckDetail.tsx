@@ -15,7 +15,9 @@ import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
   deck: DeckLayout;
+  isDeckFlipped: boolean;
   onBack: () => void;
+  onToggleDeckFlip: () => void;
   transition: object;
 };
 
@@ -26,7 +28,7 @@ function getNextCompletionStatus(currentStatus: CompletionStatus) {
   return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
 }
 
-export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps) {
+export default function DeckDetail({ deck, isDeckFlipped, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
   const [cards, setCards] = useState(deck.cards);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
@@ -171,9 +173,14 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
         <h1>{deck.title}</h1>
       </motion.div>
 
+      <button type="button" className="deck-flip-debug-toggle" onClick={onToggleDeckFlip}>
+        {isDeckFlipped ? "Show fronts" : "Show backs"}
+      </button>
+
       <CardStack
         cards={cards}
         activeCardIndex={activeCardIndex}
+        isDeckFlipped={isDeckFlipped}
         transitionPhase={transitionPhase}
         onFocusCard={openFocusMode}
         activeGestureHandlers={deckGestures.handlers}
@@ -193,6 +200,7 @@ export default function DeckDetail({ deck, onBack, transition }: DeckDetailProps
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}
             onCycleItemStatus={cycleFocusedItemStatus}
+            isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}
           />
