@@ -1046,6 +1046,15 @@ button {
   transform: rotateY(180deg);
 }
 
+.focused-card-back-layout {
+  position: absolute;
+  inset: 0;
+  width: 156%;
+  height: 156%;
+  transform: scale(0.641025641);
+  transform-origin: top left;
+}
+
 .focused-card-object.is-flipped .focused-card-surface--front {
   pointer-events: none;
 }

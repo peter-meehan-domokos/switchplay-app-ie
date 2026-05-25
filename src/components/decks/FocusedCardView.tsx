@@ -210,22 +210,24 @@ export default function FocusedCardView({
               </div>
             </div>
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
-              <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
-              <div className="focused-card-back-shell">
-                <BackCardMediaTrace trace={card.backMediaTrace} />
-                <section className={backSignalsClassName} aria-label="Reflective card signals">
-                  {card.signals.map((signal) => (
-                    <div className="focused-card-signal-slot" key={signal.title}>
-                      <p>{signal.title}</p>
-                      <PulseFieldSignal value={signal.value} variant={signal.variant} className="focused-card-signal-trace" />
-                      <span className={`focused-card-signal-value focused-card-signal-value--${signal.variant}`}>
-                        {signal.reading}
-                      </span>
-                    </div>
-                  ))}
-                </section>
-                <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
-                <BackCardReflectionFragment reflectionVerticalOffset={card.reflectionVerticalOffset} text={card.reflection} />
+              <div className="focused-card-back-layout">
+                <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
+                <div className="focused-card-back-shell">
+                  <BackCardMediaTrace trace={card.backMediaTrace} />
+                  <section className={backSignalsClassName} aria-label="Reflective card signals">
+                    {card.signals.map((signal) => (
+                      <div className="focused-card-signal-slot" key={signal.title}>
+                        <p>{signal.title}</p>
+                        <PulseFieldSignal value={signal.value} variant={signal.variant} className="focused-card-signal-trace" />
+                        <span className={`focused-card-signal-value focused-card-signal-value--${signal.variant}`}>
+                          {signal.reading}
+                        </span>
+                      </div>
+                    ))}
+                  </section>
+                  <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
+                  <BackCardReflectionFragment reflectionVerticalOffset={card.reflectionVerticalOffset} text={card.reflection} />
+                </div>
               </div>
             </div>
           </motion.div>
