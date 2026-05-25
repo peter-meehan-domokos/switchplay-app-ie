@@ -602,56 +602,60 @@ button {
   color: rgba(199, 207, 218, 0.84);
 }
 
-.step-semantic-lane {
-  position: relative;
-  display: inline-grid;
-  align-items: center;
-  justify-items: start;
-  width: 92px;
-  max-width: 100%;
-  min-height: 9px;
-}
-
-.step-semantic-trace-cluster {
-  position: absolute;
-  top: calc(50% + 1px);
-  left: 36px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  width: 54px;
-  height: 9px;
-  opacity: 0.44;
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.step-semantic-trace {
-  display: block;
-  flex: 0 0 auto;
-  width: 20px;
-  height: 10px;
-  color: rgba(168, 214, 228, 0.48);
-  opacity: 0.72;
-  filter: drop-shadow(0 0 3px rgba(168, 214, 228, 0.08));
-}
-
-.step-semantic-trace--questionnaire,
-.step-semantic-trace--substeps {
-  width: 21px;
-}
-
-.step-semantic-trace-cluster.step-semantic-lane--progression-b {
-  left: 37px;
-  gap: 4px;
-  opacity: 0.4;
-}
-
-.step-semantic-trace-cluster.step-semantic-lane--progression-c {
-  left: 35px;
-  gap: 4px;
-  opacity: 0.42;
-}
+/*
+ * Semantic gateway rollback: semantic lane and trace styling paused for easy restoration.
+ *
+ * .step-semantic-lane {
+ *   position: relative;
+ *   display: inline-grid;
+ *   align-items: center;
+ *   justify-items: start;
+ *   width: 92px;
+ *   max-width: 100%;
+ *   min-height: 9px;
+ * }
+ *
+ * .step-semantic-trace-cluster {
+ *   position: absolute;
+ *   top: calc(50% + 1px);
+ *   left: 36px;
+ *   display: flex;
+ *   align-items: center;
+ *   gap: 3px;
+ *   width: 54px;
+ *   height: 9px;
+ *   opacity: 0.44;
+ *   pointer-events: none;
+ *   transform: translateY(-50%);
+ * }
+ *
+ * .step-semantic-trace {
+ *   display: block;
+ *   flex: 0 0 auto;
+ *   width: 20px;
+ *   height: 10px;
+ *   color: rgba(168, 214, 228, 0.48);
+ *   opacity: 0.72;
+ *   filter: drop-shadow(0 0 3px rgba(168, 214, 228, 0.08));
+ * }
+ *
+ * .step-semantic-trace--questionnaire,
+ * .step-semantic-trace--substeps {
+ *   width: 21px;
+ * }
+ *
+ * .step-semantic-trace-cluster.step-semantic-lane--progression-b {
+ *   left: 37px;
+ *   gap: 4px;
+ *   opacity: 0.4;
+ * }
+ *
+ * .step-semantic-trace-cluster.step-semantic-lane--progression-c {
+ *   left: 35px;
+ *   gap: 4px;
+ *   opacity: 0.42;
+ * }
+ */
 
 .step-progress-strip {
   position: relative;
@@ -728,9 +732,13 @@ button {
   text-align: left;
 }
 
-.step-progress-hit-area + .step-semantic-trace-cluster {
-  left: 37px;
-}
+/*
+ * Semantic gateway rollback: progress-to-trace adjacency styling paused for easy restoration.
+ *
+ * .step-progress-hit-area + .step-semantic-trace-cluster {
+ *   left: 37px;
+ * }
+ */
 
 .step-progress-hit-area:hover .step-progress-strip {
   background: var(--progress-todo-hover);
@@ -1338,25 +1346,29 @@ button {
   color: rgba(193, 201, 212, 0.72);
 }
 
-.active-card-front--focused .step-semantic-trace-cluster {
-  top: calc(50% + 2.5px);
-  opacity: 0.62;
-}
-
-.active-card-front--focused .step-semantic-lane--progression-b .step-semantic-trace-cluster {
-  opacity: 0.56;
-}
-
-.active-card-front--focused .step-semantic-lane--progression-c .step-semantic-trace-cluster {
-  opacity: 0.58;
-}
-
-.active-card-front--focused .step-semantic-trace {
-  color: rgba(174, 220, 235, 0.58);
-  filter:
-    drop-shadow(0 0 3px rgba(168, 214, 228, 0.13))
-    drop-shadow(0 0 7px rgba(255, 250, 240, 0.024));
-}
+/*
+ * Semantic gateway rollback: focused semantic trace styling paused for easy restoration.
+ *
+ * .active-card-front--focused .step-semantic-trace-cluster {
+ *   top: calc(50% + 2.5px);
+ *   opacity: 0.62;
+ * }
+ *
+ * .active-card-front--focused .step-semantic-lane--progression-b .step-semantic-trace-cluster {
+ *   opacity: 0.56;
+ * }
+ *
+ * .active-card-front--focused .step-semantic-lane--progression-c .step-semantic-trace-cluster {
+ *   opacity: 0.58;
+ * }
+ *
+ * .active-card-front--focused .step-semantic-trace {
+ *   color: rgba(174, 220, 235, 0.58);
+ *   filter:
+ *     drop-shadow(0 0 3px rgba(168, 214, 228, 0.13))
+ *     drop-shadow(0 0 7px rgba(255, 250, 240, 0.024));
+ * }
+ */
 
 @media (min-width: 560px) {
   .app-shell {
