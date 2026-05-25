@@ -15,6 +15,11 @@ type AppShellProps = {
   users: LayoutUser[];
 };
 
+type DeckFlipState = {
+  isFlipped: boolean;
+  rotationY: number;
+};
+
 const springTransition = {
   type: "spring",
   stiffness: 340,
@@ -25,13 +30,18 @@ const springTransition = {
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
-  const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, boolean>>({});
+  const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
   const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
-  const isSelectedDeckFlipped = selectedDeck ? (deckFlipStateById[selectedDeck.id] ?? false) : false;
-  const toggleSelectedDeckFlip = (deckId: string) => {
+  const selectedDeckFlipState = selectedDeck ? deckFlipStateById[selectedDeck.id] : null;
+  const isSelectedDeckFlipped = selectedDeckFlipState?.isFlipped ?? false;
+  const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
+  const toggleSelectedDeckFlip = (deckId: string, rotationDelta = 180) => {
     setDeckFlipStateById((current) => ({
       ...current,
-      [deckId]: !(current[deckId] ?? false),
+      [deckId]: {
+        isFlipped: !(current[deckId]?.isFlipped ?? false),
+        rotationY: (current[deckId]?.rotationY ?? 0) + rotationDelta,
+      },
     }));
   };
 
@@ -60,8 +70,9 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               key={`deck-detail-${selectedDeck.id}`}
               deck={selectedDeck}
               isDeckFlipped={isSelectedDeckFlipped}
+              deckFlipRotationY={selectedDeckFlipRotationY}
               onBack={() => setSelectedDeckId(null)}
-              onToggleDeckFlip={() => toggleSelectedDeckFlip(selectedDeck.id)}
+              onToggleDeckFlip={(rotationDelta) => toggleSelectedDeckFlip(selectedDeck.id, rotationDelta)}
               transition={springTransition}
             />
           ) : (

@@ -228,23 +228,6 @@ button {
   font-size: clamp(2.05rem, 10vw, 4rem);
 }
 
-.deck-flip-debug-toggle {
-  position: absolute;
-  top: calc(var(--deck-atmosphere-inset) + env(safe-area-inset-top));
-  right: var(--deck-atmosphere-inset);
-  z-index: 12;
-  min-height: 36px;
-  border: 1px solid rgba(255, 255, 255, 0.075);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.052);
-  color: #fffaf0;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 7px 11px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
-}
-
 .card-stack {
   position: relative;
   margin-top: 0;

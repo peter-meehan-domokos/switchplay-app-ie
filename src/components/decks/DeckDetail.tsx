@@ -9,6 +9,7 @@ import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
+import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import type { CompletionStatus } from "@/components/decks/types";
 import { ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
 import { normalizeCompletionStatus } from "@/lib/progress";
@@ -16,8 +17,9 @@ import { normalizeCompletionStatus } from "@/lib/progress";
 type DeckDetailProps = {
   deck: DeckLayout;
   isDeckFlipped: boolean;
+  deckFlipRotationY: number;
   onBack: () => void;
-  onToggleDeckFlip: () => void;
+  onToggleDeckFlip: (rotationDelta?: number) => void;
   transition: object;
 };
 
@@ -28,7 +30,7 @@ function getNextCompletionStatus(currentStatus: CompletionStatus) {
   return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
 }
 
-export default function DeckDetail({ deck, isDeckFlipped, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
+export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
   const [cards, setCards] = useState(deck.cards);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
@@ -119,12 +121,18 @@ export default function DeckDetail({ deck, isDeckFlipped, onBack, onToggleDeckFl
       })
     );
   };
+  const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
+    const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
+
+    onToggleDeckFlip(directionDelta);
+  };
   const deckGestures = useDeckGestures({
     mode: "deck",
-    allowedIntents: ["settleToPast", "restoreFromPast"],
+    allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
     locked: transitionPhase !== null || isFocusModeOpen,
     onSettleToPast: goToNextCard,
     onRestoreFromPast: goToPreviousCard,
+    onFlip: toggleDeckSide,
   });
   const latestPastGestures = useDeckGestures({
     mode: "deck",
@@ -173,14 +181,11 @@ export default function DeckDetail({ deck, isDeckFlipped, onBack, onToggleDeckFl
         <h1>{deck.title}</h1>
       </motion.div>
 
-      <button type="button" className="deck-flip-debug-toggle" onClick={onToggleDeckFlip}>
-        {isDeckFlipped ? "Show fronts" : "Show backs"}
-      </button>
-
       <CardStack
         cards={cards}
         activeCardIndex={activeCardIndex}
         isDeckFlipped={isDeckFlipped}
+        deckFlipRotationY={deckFlipRotationY}
         transitionPhase={transitionPhase}
         onFocusCard={openFocusMode}
         activeGestureHandlers={deckGestures.handlers}

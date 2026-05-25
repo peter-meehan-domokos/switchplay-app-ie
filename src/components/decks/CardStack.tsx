@@ -50,6 +50,7 @@ type CardStackProps = {
   cards: CardLayout[];
   activeCardIndex: number;
   isDeckFlipped: boolean;
+  deckFlipRotationY: number;
   transitionPhase: CardTransitionPhase | null;
   onFocusCard: (cardIndex: number) => void;
   activeGestureHandlers?: DeckGestureHandlers;
@@ -292,6 +293,7 @@ export default function CardStack({
   cards,
   activeCardIndex,
   isDeckFlipped,
+  deckFlipRotationY,
   transitionPhase,
   onFocusCard,
   activeGestureHandlers,
@@ -326,6 +328,7 @@ export default function CardStack({
               key={card.id}
               card={card}
               isDeckFlipped={isDeckFlipped}
+              deckFlipRotationY={deckFlipRotationY}
               stackZone={baseStackStyle.zone}
               showHeader={baseStackStyle.showHeader}
               showProgress={baseStackStyle.showProgress}

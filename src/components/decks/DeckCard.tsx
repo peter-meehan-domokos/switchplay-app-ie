@@ -8,6 +8,7 @@ import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTyp
 type DeckCardProps = {
   card: CardLayout;
   isDeckFlipped: boolean;
+  deckFlipRotationY: number;
   stackZone: "past" | "active" | "future";
   showHeader: boolean;
   showProgress: boolean;
@@ -31,6 +32,7 @@ const deckFlipTransition = {
 export default function DeckCard({
   card,
   isDeckFlipped,
+  deckFlipRotationY,
   stackZone,
   showHeader,
   showProgress,
@@ -76,8 +78,8 @@ export default function DeckCard({
     >
       <motion.div
         className="physical-card deck-card-object"
-        initial={{ rotateY: isDeckFlipped ? 180 : 0 }}
-        animate={{ rotateY: isDeckFlipped ? 180 : 0 }}
+        initial={{ rotateY: deckFlipRotationY }}
+        animate={{ rotateY: deckFlipRotationY }}
         transition={deckFlipTransition}
       >
         <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped}>
