@@ -51,7 +51,7 @@ export const PAST_CARD_SCALE_STEP = 0.035;
 export const MAX_SCALE_REDUCTION = 0.14;
 
 export const CARD_OPACITY_STEP = 0.08;
-export const PAST_CARD_OPACITY_STEP = 0.1;
+export const PAST_CARD_OPACITY_STEP = 0.025;
 export const MIN_STACK_OPACITY = 0.58;
 
 export const ROLE_TRANSITION_SETTLE_MS = 360;

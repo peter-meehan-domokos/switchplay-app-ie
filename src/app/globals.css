@@ -259,8 +259,8 @@ button {
   z-index: 0;
   height: 148px;
   background:
-    radial-gradient(ellipse at 50% 62%, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.16) 38%, transparent 74%);
-  opacity: 0.72;
+    radial-gradient(ellipse at 50% 62%, rgba(0, 0, 0, 0.36), rgba(0, 0, 0, 0.17) 40%, transparent 76%);
+  opacity: 0.76;
 }
 
 .table-surface {
@@ -272,10 +272,10 @@ button {
   height: 172px;
   border-top: 1px solid rgba(255, 255, 255, 0.035);
   background:
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03) 24%, rgba(255, 255, 255, 0.032) 62%, transparent),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.12));
-  mask-image: linear-gradient(180deg, transparent, black 16%, black 76%, transparent);
-  opacity: 0.86;
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.038) 26%, rgba(255, 255, 255, 0.04) 62%, transparent),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.044), rgba(0, 0, 0, 0.11));
+  mask-image: linear-gradient(180deg, transparent, black 14%, black 78%, transparent);
+  opacity: 0.9;
   pointer-events: none;
 }
 
@@ -287,8 +287,8 @@ button {
   z-index: 0;
   height: 156px;
   background:
-    radial-gradient(ellipse at 50% 40%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.09) 42%, transparent 76%);
-  opacity: 0.58;
+    radial-gradient(ellipse at 50% 42%, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.1) 44%, transparent 78%);
+  opacity: 0.62;
   pointer-events: none;
 }
 
@@ -839,9 +839,10 @@ button {
     contrast(var(--past-contrast, 0.94))
     saturate(var(--past-saturation, 0.9));
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.045) inset,
+    0 1px 0 rgba(255, 255, 255, 0.115) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
     calc(var(--past-plane-shadow-x, -1) * 1px) 2px 4px rgba(0, 0, 0, calc(var(--past-shadow-alpha, 0.24) + 0.04)),
-    calc(var(--past-plane-shadow-x, -1) * 1px) calc(var(--past-plane-shadow-y, 8) * 1px) 18px rgba(0, 0, 0, var(--past-shadow-alpha, 0.24));
+    calc(var(--past-plane-shadow-x, -1) * 1px) calc(var(--past-plane-shadow-y, 8) * 1px) 24px rgba(0, 0, 0, var(--past-shadow-alpha, 0.24));
   transform-origin: top left;
 }
 
@@ -856,7 +857,7 @@ button {
 .deck-card.is-past .active-card-identity {
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 8px;
-  opacity: max(0.34, calc(0.86 - var(--past-depth, 1) * 0.1));
+  opacity: max(0.62, calc(0.96 - var(--past-depth, 1) * 0.04));
 }
 
 .deck-card.is-past .intro-media-thumb {
@@ -872,7 +873,7 @@ button {
 }
 
 .deck-card.is-past .active-card-title-block p {
-  color: rgba(255, 250, 240, 0.66);
+  color: rgba(255, 250, 240, 0.76);
   font-size: 0.62rem;
   line-height: 1.1;
   -webkit-line-clamp: 2;
@@ -880,26 +881,26 @@ button {
 
 .deck-card.is-past .card-title-anchor h2 {
   font-size: 0.82rem;
-  opacity: max(0.28, calc(1 - var(--past-depth, 1) * 0.2));
-  filter: blur(min(0.45px, calc((var(--past-depth, 1) - 1) * 0.12px)));
+  opacity: max(0.56, calc(1 - var(--past-depth, 1) * 0.085));
+  filter: blur(min(0.3px, calc((var(--past-depth, 1) - 1) * 0.08px)));
 }
 
 .deck-card.is-past .deck-card-date {
   font-size: 0.62rem;
-  opacity: max(0.2, calc(1 - var(--past-depth, 1) * 0.24));
-  filter: blur(min(0.45px, calc((var(--past-depth, 1) - 1) * 0.12px)));
+  opacity: max(0.46, calc(1 - var(--past-depth, 1) * 0.1));
+  filter: blur(min(0.3px, calc((var(--past-depth, 1) - 1) * 0.08px)));
 }
 
 .deck-card.is-past .completion-strip {
   width: 1.375rem;
   height: 3px;
   margin-top: 6px;
-  opacity: max(0.62, calc(1 - var(--past-depth, 1) * 0.08));
+  opacity: max(0.72, calc(1 - var(--past-depth, 1) * 0.05));
 }
 
 .deck-card.is-past .active-step-list {
   padding-top: 5px;
-  opacity: max(0.24, calc(0.72 - var(--past-depth, 1) * 0.1));
+  opacity: max(0.52, calc(0.86 - var(--past-depth, 1) * 0.04));
 }
 
 .deck-card.is-past .active-step-item {
@@ -961,8 +962,8 @@ button {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(ellipse at 50% 48%, transparent 0%, transparent 36%, rgba(2, 3, 6, 0.18) 62%, rgba(2, 3, 6, 0.32) 100%),
-    linear-gradient(180deg, rgba(2, 3, 6, 0.22), transparent 22%, transparent 76%, rgba(2, 3, 6, 0.24));
+    radial-gradient(ellipse at 50% 48%, transparent 0%, transparent 50%, rgba(2, 3, 6, 0.032) 76%, rgba(2, 3, 6, 0.07) 100%),
+    linear-gradient(180deg, rgba(2, 3, 6, 0.14), rgba(2, 3, 6, 0.055) 28%, transparent 54%, transparent 82%, rgba(2, 3, 6, 0.025));
   pointer-events: none;
 }
 
@@ -972,8 +973,8 @@ button {
   z-index: 0;
   border: 0;
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(12, 15, 22, 0.46), rgba(5, 7, 11, 0.72) 54%, rgba(3, 4, 8, 0.84) 100%),
-    linear-gradient(180deg, rgba(3, 4, 8, 0.82), rgba(7, 9, 14, 0.72) 45%, rgba(2, 3, 6, 0.84));
+    radial-gradient(ellipse at 50% 50%, rgba(12, 15, 22, 0.14), rgba(5, 7, 11, 0.26) 64%, rgba(3, 4, 8, 0.36) 100%),
+    linear-gradient(180deg, rgba(3, 4, 8, 0.56), rgba(5, 7, 11, 0.4) 24%, rgba(7, 9, 14, 0.25) 54%, rgba(5, 7, 11, 0.18) 78%, rgba(2, 3, 6, 0.26));
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -1020,18 +1021,18 @@ button {
 .focused-card-surface--front::before {
   inset: 0;
   background:
-    radial-gradient(ellipse at 34% 12%, rgba(255, 250, 240, 0.055), transparent 38%),
-    radial-gradient(ellipse at 78% 18%, rgba(168, 214, 228, 0.042), transparent 42%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.028), transparent 44%);
-  opacity: 0.72;
+    radial-gradient(ellipse at 34% 12%, rgba(255, 250, 240, 0.08), transparent 42%),
+    radial-gradient(ellipse at 78% 18%, rgba(168, 214, 228, 0.058), transparent 46%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.04), transparent 48%);
+  opacity: 0.82;
 }
 
 .focused-card-surface--front::after {
   inset: 38% 0 0;
   background:
-    radial-gradient(ellipse at 50% 82%, rgba(0, 0, 0, 0.15), transparent 64%),
-    linear-gradient(180deg, transparent, rgba(6, 8, 12, 0.075));
-  opacity: 0.82;
+    radial-gradient(ellipse at 50% 86%, rgba(0, 0, 0, 0.09), transparent 70%),
+    linear-gradient(180deg, transparent, rgba(6, 8, 12, 0.04));
+  opacity: 0.68;
 }
 
 .focused-card-surface--back {

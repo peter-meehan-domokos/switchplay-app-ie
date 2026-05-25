@@ -529,5 +529,69 @@ The current implementation still slightly feels:
 rather than:
 - spatial object system.
 
-### Priority
-Future polish / non-MVP.
+### Other Improvements
+Defocus interaction language refinement
+Temporal continuity system
+Traversal spatial consistency audit
+Focus-mode ontology refinement
+Interaction restraint calibration
+Motion inheritance between deck states
+
+
+
+
+
+# Atmospheric Polish
+
+### Perspective Compression of Background Cards
+
+Status: partially implemented
+
+You already have:
+
+stacking
+opacity falloff
+environmental depth
+
+But the stack could still eventually gain:
+
+slightly stronger spatial compression
+more believable receding perspective
+more grounded physical layering
+
+Right now it is “good digital depth.”
+Later it could become “physical cinematic depth.”
+
+### Grounded Shadows / Table Interaction
+
+Status: partially solved
+
+You improved:
+
+environmental grounding
+lower-scene transmission
+
+But the cards could still gain:
+
+better contact relationship with the table plane
+more coherent soft shadow stacking
+stronger sense that the cards physically occupy space
+
+This is subtle but high-value polish later.
+
+###  Atmospheric Depth Polish
+
+Status: underway
+
+The scene is now much less flat than before.
+
+Future polish could include:
+
+slightly more nuanced fog/falloff behaviour
+better separation between:
+foreground
+focused card
+recent history cards
+deep history cards
+
+But again: this is advanced polish.
