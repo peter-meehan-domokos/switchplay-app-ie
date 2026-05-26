@@ -45,9 +45,11 @@ function getViewportSize() {
     return null;
   }
 
+  const visualViewport = window.visualViewport;
+
   return {
-    width: window.visualViewport?.width ?? window.innerWidth,
-    height: window.visualViewport?.height ?? window.innerHeight,
+    width: visualViewport && visualViewport.width > 0 ? visualViewport.width : window.innerWidth,
+    height: visualViewport && visualViewport.height > 0 ? visualViewport.height : window.innerHeight,
   };
 }
 
@@ -58,9 +60,8 @@ function getDeckSceneLayout(deckDetailElement: HTMLElement | null, deckSceneFram
     return defaultDeckSceneLayout;
   }
 
-  const deckDetailRect = deckDetailElement.getBoundingClientRect();
   const deckSceneFrameRect = deckSceneFrameElement.getBoundingClientRect();
-  const availableHeight = Math.max(0, Math.min(deckDetailRect.bottom, viewportSize.height) - deckSceneFrameRect.top);
+  const availableHeight = Math.max(0, viewportSize.height - deckSceneFrameRect.top);
   const availableHeightWithCropAllowance = availableHeight + DECK_SCENE_BOTTOM_CROP_ALLOWANCE;
   const scale = Math.min(
     viewportSize.width / DECK_SCENE_BASELINE_WIDTH,
@@ -82,6 +83,7 @@ function useDeckSceneLayout(
   const [deckSceneLayout, setDeckSceneLayout] = useState<DeckSceneLayout>(defaultDeckSceneLayout);
 
   useEffect(() => {
+    const scheduledTimeouts: number[] = [];
     const updateDeckSceneLayout = () => {
       const nextDeckSceneLayout = getDeckSceneLayout(deckDetailRef.current, deckSceneFrameRef.current);
 
@@ -94,9 +96,15 @@ function useDeckSceneLayout(
         return hasStableFrameHeight && hasStableScale ? currentDeckSceneLayout : nextDeckSceneLayout;
       });
     };
+    const scheduleDeckSceneLayoutUpdate = () => {
+      updateDeckSceneLayout();
+      window.requestAnimationFrame(updateDeckSceneLayout);
+      scheduledTimeouts.push(window.setTimeout(updateDeckSceneLayout, 180));
+      scheduledTimeouts.push(window.setTimeout(updateDeckSceneLayout, 420));
+    };
     const resizeObserver = new ResizeObserver(updateDeckSceneLayout);
 
-    updateDeckSceneLayout();
+    scheduleDeckSceneLayoutUpdate();
 
     if (deckDetailRef.current) {
       resizeObserver.observe(deckDetailRef.current);
@@ -106,15 +114,16 @@ function useDeckSceneLayout(
       resizeObserver.observe(deckSceneFrameRef.current);
     }
 
-    window.addEventListener("resize", updateDeckSceneLayout);
-    window.visualViewport?.addEventListener("resize", updateDeckSceneLayout);
-    window.visualViewport?.addEventListener("scroll", updateDeckSceneLayout);
+    window.addEventListener("resize", scheduleDeckSceneLayoutUpdate);
+    window.visualViewport?.addEventListener("resize", scheduleDeckSceneLayoutUpdate);
+    window.visualViewport?.addEventListener("scroll", scheduleDeckSceneLayoutUpdate);
 
     return () => {
+      scheduledTimeouts.forEach(window.clearTimeout);
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateDeckSceneLayout);
-      window.visualViewport?.removeEventListener("resize", updateDeckSceneLayout);
-      window.visualViewport?.removeEventListener("scroll", updateDeckSceneLayout);
+      window.removeEventListener("resize", scheduleDeckSceneLayoutUpdate);
+      window.visualViewport?.removeEventListener("resize", scheduleDeckSceneLayoutUpdate);
+      window.visualViewport?.removeEventListener("scroll", scheduleDeckSceneLayoutUpdate);
     };
   }, [deckDetailRef, deckSceneFrameRef]);
 
