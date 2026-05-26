@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
@@ -11,7 +11,12 @@ import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThre
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import type { CompletionStatus } from "@/components/decks/types";
-import { ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
+import {
+  DECK_SCENE_BASELINE_HEIGHT,
+  DECK_SCENE_BASELINE_WIDTH,
+  DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
+  ROLE_TRANSITION_SETTLE_MS,
+} from "@/constants/cardStack";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
@@ -25,6 +30,106 @@ type DeckDetailProps = {
 
 const itemProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
 
+type DeckSceneLayout = {
+  frameHeight: number | null;
+  scale: number;
+};
+
+const defaultDeckSceneLayout: DeckSceneLayout = {
+  frameHeight: null,
+  scale: 1,
+};
+
+function getViewportSize() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const visualViewport = window.visualViewport;
+
+  return {
+    width: visualViewport && visualViewport.width > 0 ? visualViewport.width : window.innerWidth,
+    height: visualViewport && visualViewport.height > 0 ? visualViewport.height : window.innerHeight,
+  };
+}
+
+function getDeckSceneLayout(deckDetailElement: HTMLElement | null, deckSceneFrameElement: HTMLElement | null): DeckSceneLayout {
+  const viewportSize = getViewportSize();
+
+  if (!viewportSize || !deckDetailElement || !deckSceneFrameElement) {
+    return defaultDeckSceneLayout;
+  }
+
+  const deckSceneFrameRect = deckSceneFrameElement.getBoundingClientRect();
+  const availableHeight = Math.max(0, viewportSize.height - deckSceneFrameRect.top);
+  const availableHeightWithCropAllowance = availableHeight + DECK_SCENE_BOTTOM_CROP_ALLOWANCE;
+  const scale = Math.min(
+    viewportSize.width / DECK_SCENE_BASELINE_WIDTH,
+    availableHeightWithCropAllowance / DECK_SCENE_BASELINE_HEIGHT,
+    1
+  );
+  const scaledSceneHeight = DECK_SCENE_BASELINE_HEIGHT * scale;
+
+  return {
+    frameHeight: Math.min(availableHeight, scaledSceneHeight),
+    scale,
+  };
+}
+
+function useDeckSceneLayout(
+  deckDetailRef: RefObject<HTMLElement | null>,
+  deckSceneFrameRef: RefObject<HTMLDivElement | null>
+) {
+  const [deckSceneLayout, setDeckSceneLayout] = useState<DeckSceneLayout>(defaultDeckSceneLayout);
+
+  useEffect(() => {
+    const scheduledTimeouts: number[] = [];
+    const updateDeckSceneLayout = () => {
+      const nextDeckSceneLayout = getDeckSceneLayout(deckDetailRef.current, deckSceneFrameRef.current);
+
+      setDeckSceneLayout((currentDeckSceneLayout) => {
+        const currentFrameHeight = currentDeckSceneLayout.frameHeight ?? -1;
+        const nextFrameHeight = nextDeckSceneLayout.frameHeight ?? -1;
+        const hasStableFrameHeight = Math.abs(currentFrameHeight - nextFrameHeight) < 0.5;
+        const hasStableScale = Math.abs(currentDeckSceneLayout.scale - nextDeckSceneLayout.scale) < 0.001;
+
+        return hasStableFrameHeight && hasStableScale ? currentDeckSceneLayout : nextDeckSceneLayout;
+      });
+    };
+    const scheduleDeckSceneLayoutUpdate = () => {
+      updateDeckSceneLayout();
+      window.requestAnimationFrame(updateDeckSceneLayout);
+      scheduledTimeouts.push(window.setTimeout(updateDeckSceneLayout, 180));
+      scheduledTimeouts.push(window.setTimeout(updateDeckSceneLayout, 420));
+    };
+    const resizeObserver = new ResizeObserver(updateDeckSceneLayout);
+
+    scheduleDeckSceneLayoutUpdate();
+
+    if (deckDetailRef.current) {
+      resizeObserver.observe(deckDetailRef.current);
+    }
+
+    if (deckSceneFrameRef.current) {
+      resizeObserver.observe(deckSceneFrameRef.current);
+    }
+
+    window.addEventListener("resize", scheduleDeckSceneLayoutUpdate);
+    window.visualViewport?.addEventListener("resize", scheduleDeckSceneLayoutUpdate);
+    window.visualViewport?.addEventListener("scroll", scheduleDeckSceneLayoutUpdate);
+
+    return () => {
+      scheduledTimeouts.forEach(window.clearTimeout);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", scheduleDeckSceneLayoutUpdate);
+      window.visualViewport?.removeEventListener("resize", scheduleDeckSceneLayoutUpdate);
+      window.visualViewport?.removeEventListener("scroll", scheduleDeckSceneLayoutUpdate);
+    };
+  }, [deckDetailRef, deckSceneFrameRef]);
+
+  return deckSceneLayout;
+}
+
 function getNextCompletionStatus(currentStatus: CompletionStatus) {
   const currentIndex = itemProgressCycle.indexOf(currentStatus);
   return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
@@ -36,7 +141,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
+  const deckDetailRef = useRef<HTMLElement | null>(null);
+  const deckSceneFrameRef = useRef<HTMLDivElement | null>(null);
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deckSceneLayout = useDeckSceneLayout(deckDetailRef, deckSceneFrameRef);
   const finalCardIndex = cards.length - 1;
 
   useEffect(() => {
@@ -158,6 +266,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
   return (
     <motion.section
+      ref={deckDetailRef}
       className="deck-detail"
       layout
       layoutId={`deck-${deck.id}`}
@@ -181,19 +290,27 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <h1>{deck.title}</h1>
       </motion.div>
 
-      <CardStack
-        cards={cards}
-        activeCardIndex={activeCardIndex}
-        isDeckFlipped={isDeckFlipped}
-        deckFlipRotationY={deckFlipRotationY}
-        transitionPhase={transitionPhase}
-        onFocusCard={openFocusMode}
-        activeGestureHandlers={deckGestures.handlers}
-        latestPastGestureHandlers={latestPastGestures.handlers}
-        activeGesturePreviewY={activeGesturePreviewY}
-        suppressActiveCardActivation={suppressActiveCardActivation}
-        transition={transition}
-      />
+      <div
+        ref={deckSceneFrameRef}
+        className="deck-scene-frame"
+        style={deckSceneLayout.frameHeight === null ? undefined : { height: deckSceneLayout.frameHeight }}
+      >
+        <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
+          <CardStack
+            cards={cards}
+            activeCardIndex={activeCardIndex}
+            isDeckFlipped={isDeckFlipped}
+            deckFlipRotationY={deckFlipRotationY}
+            transitionPhase={transitionPhase}
+            onFocusCard={openFocusMode}
+            activeGestureHandlers={deckGestures.handlers}
+            latestPastGestureHandlers={latestPastGestures.handlers}
+            activeGesturePreviewY={activeGesturePreviewY}
+            suppressActiveCardActivation={suppressActiveCardActivation}
+            transition={transition}
+          />
+        </div>
+      </div>
 
       <AnimatePresence>
         {isFocusModeOpen ? (

@@ -1,14 +1,30 @@
 export const VISIBLE_CONTEXT_CARDS = 2;
 
-export const CARD_ASPECT_RATIO = "1 / 1.45";
+export const CARD_HEIGHT_RATIO = 1.45;
+export const CARD_ASPECT_RATIO = `1 / ${CARD_HEIGHT_RATIO}`;
 export const CARD_CORNER_RADIUS = 22;
 export const FOCUSED_CARD_CORNER_RADIUS = 30;
 
-export const PROGRESSION_CARD_WIDTH = "min(64vw, 252px)";
-export const FOCUSED_CARD_WIDTH = "min(92vw, 430px)";
-export const PAST_TABLE_CARD_WIDTH = "min(38vw, 148px)";
+// Authored iPhone-12-like deck scene baseline. Later phases can scale the whole deck scene around these fixed dimensions.
+export const DECK_SCENE_BASELINE_WIDTH = 390;
+export const DECK_SCENE_BASELINE_HEIGHT = 640;
+export const DECK_SCENE_BOTTOM_CROP_ALLOWANCE = 72;
+export const DECK_CARD_BASELINE_WIDTH = 252;
+export const PAST_CARD_BASELINE_WIDTH = 148;
 
-export const PROGRESSION_SCENE_HEIGHT = "clamp(550px, 72svh, 640px)";
+export const PROGRESSION_CARD_WIDTH = `${DECK_CARD_BASELINE_WIDTH}px`;
+export const FOCUSED_CARD_WIDTH = "min(92vw, 430px)";
+// Focused mode keeps a baseline stage for layout continuity while the inner object receives viewport-fit scale.
+export const FOCUSED_CARD_BASELINE_WIDTH = DECK_CARD_BASELINE_WIDTH;
+export const FOCUSED_CARD_STAGE_WIDTH = `min(64vw, ${FOCUSED_CARD_BASELINE_WIDTH}px)`;
+export const FOCUSED_CARD_PREFERRED_VISUAL_WIDTH = 394;
+export const FOCUSED_CARD_MAX_VISUAL_WIDTH = 430;
+export const FOCUSED_CARD_MIN_VISUAL_WIDTH = 284;
+export const FOCUSED_CARD_HORIZONTAL_PADDING = 18;
+export const FOCUSED_CARD_VERTICAL_PADDING = 18;
+export const PAST_TABLE_CARD_WIDTH = `${PAST_CARD_BASELINE_WIDTH}px`;
+
+export const PROGRESSION_SCENE_HEIGHT = `${DECK_SCENE_BASELINE_HEIGHT}px`;
 
 export const ACTIVE_CARD_OCCLUSION_RELIEF = 8;
 export const FUTURE_ZONE_HEIGHT = 90;
