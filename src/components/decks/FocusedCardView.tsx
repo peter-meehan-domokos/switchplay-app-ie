@@ -6,7 +6,17 @@ import type { CardLayout } from "@/components/cards/cardLayout";
 import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
-import { CARD_ASPECT_RATIO, PROGRESSION_CARD_WIDTH } from "@/constants/cardStack";
+import {
+  CARD_ASPECT_RATIO,
+  CARD_HEIGHT_RATIO,
+  FOCUSED_CARD_BASELINE_WIDTH,
+  FOCUSED_CARD_HORIZONTAL_PADDING,
+  FOCUSED_CARD_MAX_VISUAL_WIDTH,
+  FOCUSED_CARD_MIN_VISUAL_WIDTH,
+  FOCUSED_CARD_PREFERRED_VISUAL_WIDTH,
+  FOCUSED_CARD_STAGE_WIDTH,
+  FOCUSED_CARD_VERTICAL_PADDING,
+} from "@/constants/cardStack";
 
 type FocusedCardViewProps = {
   card: CardLayout;
@@ -38,7 +48,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 
 const FOCUSED_FLIP_LOCK_MS = 680;
 const FOCUSED_TRAVERSAL_LOCK_MS = 280;
-const FOCUSED_CARD_OBJECT_SCALE = 1.56;
+const FALLBACK_FOCUSED_CARD_SCALE = FOCUSED_CARD_PREFERRED_VISUAL_WIDTH / FOCUSED_CARD_BASELINE_WIDTH;
 
 function getDeckFlipSide(isDeckFlipped: boolean): FocusedFlipSide {
   return isDeckFlipped ? "back" : "front";
@@ -63,6 +73,58 @@ const focusedTraversalVariants = {
   }),
 };
 
+function getViewportSize() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return {
+    width: window.visualViewport?.width ?? window.innerWidth,
+    height: window.visualViewport?.height ?? window.innerHeight,
+  };
+}
+
+function getFocusedCardScale(viewportSize: { width: number; height: number } | null) {
+  if (!viewportSize) {
+    return FALLBACK_FOCUSED_CARD_SCALE;
+  }
+
+  const availableWidth = Math.max(0, viewportSize.width - FOCUSED_CARD_HORIZONTAL_PADDING);
+  const availableHeight = Math.max(0, viewportSize.height - FOCUSED_CARD_VERTICAL_PADDING);
+  const heightConstrainedWidth = availableHeight / CARD_HEIGHT_RATIO;
+  const fitVisualWidth = Math.min(
+    FOCUSED_CARD_PREFERRED_VISUAL_WIDTH,
+    FOCUSED_CARD_MAX_VISUAL_WIDTH,
+    availableWidth,
+    heightConstrainedWidth
+  );
+  const minReadableWidth = Math.min(FOCUSED_CARD_MIN_VISUAL_WIDTH, availableWidth, heightConstrainedWidth);
+  const focusedVisualWidth = Math.max(minReadableWidth, fitVisualWidth);
+
+  return focusedVisualWidth / FOCUSED_CARD_BASELINE_WIDTH;
+}
+
+function useFocusedCardScale() {
+  const [focusedCardScale, setFocusedCardScale] = useState(() => getFocusedCardScale(getViewportSize()));
+
+  useEffect(() => {
+    const updateFocusedCardScale = () => {
+      setFocusedCardScale(getFocusedCardScale(getViewportSize()));
+    };
+
+    updateFocusedCardScale();
+    window.addEventListener("resize", updateFocusedCardScale);
+    window.visualViewport?.addEventListener("resize", updateFocusedCardScale);
+
+    return () => {
+      window.removeEventListener("resize", updateFocusedCardScale);
+      window.visualViewport?.removeEventListener("resize", updateFocusedCardScale);
+    };
+  }, []);
+
+  return focusedCardScale;
+}
+
 export default function FocusedCardView({
   card,
   cardIndex,
@@ -82,6 +144,7 @@ export default function FocusedCardView({
   });
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusedCardScale = useFocusedCardScale();
   const cardFlipState = flipState.cardId === card.id ? flipState : { cardId: card.id, side: "front", rotationY: 0 };
   const isFlipped = cardFlipState.side === "back";
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
@@ -196,7 +259,7 @@ export default function FocusedCardView({
           className="focused-card-stage"
           layout
           layoutId={`week-card-${card.id}`}
-          style={{ width: PROGRESSION_CARD_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
+          style={{ width: FOCUSED_CARD_STAGE_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
           custom={traversalDirection}
           variants={focusedTraversalVariants}
           initial="enter"
@@ -209,7 +272,7 @@ export default function FocusedCardView({
             {...focusedGestures.handlers}
             animate={{
               rotateY: cardFlipState.rotationY,
-              scale: FOCUSED_CARD_OBJECT_SCALE,
+              scale: focusedCardScale,
               boxShadow: isFlipped
                 ? "0 34px 112px rgba(0, 0, 0, 0.66)"
                 : "0 32px 104px rgba(0, 0, 0, 0.64)",

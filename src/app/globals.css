@@ -233,6 +233,17 @@ button {
   margin-top: 0;
 }
 
+.deck-scene-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.deck-scene-scaler {
+  position: relative;
+  transform: scale(1);
+  transform-origin: top center;
+}
+
 .card-progression-scene {
   isolation: isolate;
   overflow: hidden;
