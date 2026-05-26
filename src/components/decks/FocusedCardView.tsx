@@ -145,7 +145,12 @@ export default function FocusedCardView({
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedCardScale = useFocusedCardScale();
-  const cardFlipState = flipState.cardId === card.id ? flipState : { cardId: card.id, side: "front", rotationY: 0 };
+  const deckSideFlipState: FocusedFlipState = {
+    cardId: card.id,
+    side: getDeckFlipSide(isDeckFlipped),
+    rotationY: getDeckFlipRotation(isDeckFlipped),
+  };
+  const cardFlipState = flipState.cardId === card.id ? flipState : deckSideFlipState;
   const isFlipped = cardFlipState.side === "back";
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
@@ -178,7 +183,7 @@ export default function FocusedCardView({
     lockFocusedGestures(FOCUSED_FLIP_LOCK_MS);
     setFlipState((currentFlipState) => {
       const currentCardFlipState =
-        currentFlipState.cardId === card.id ? currentFlipState : { cardId: card.id, side: "front" as const, rotationY: 0 };
+        currentFlipState.cardId === card.id ? currentFlipState : deckSideFlipState;
       const directionDelta =
         commitment.direction === "right" || (!commitment.direction && vector.x > 0)
           ? 180
@@ -270,6 +275,7 @@ export default function FocusedCardView({
           <motion.div
             className={`focused-card-object${isFlipped ? " is-flipped" : ""}`}
             {...focusedGestures.handlers}
+            initial={false}
             animate={{
               rotateY: cardFlipState.rotationY,
               scale: focusedCardScale,
