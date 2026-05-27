@@ -1,8 +1,8 @@
-## Known Bug: Focus Transition Flash
+## Incoming Future-to-Active Transition Jerk
 
-When moving a card from active to past the wrong card animates down to the table
+- see file
 
-## Known Bug: Focus Transition Flash
+## Focus Transition Flash
 
 When tapping the active card into focus mode, a flash/pop still occurs during the shared-layout transition.
 
@@ -14,18 +14,6 @@ The issue remains, so it likely involves deeper Motion layout sequencing, duplic
 
 Do not keep iterating blindly with Codex. Revisit manually later.
 
-## Deck active-card state resets when switching decks
+##  Card movement order when swiping up
 
-Status: unresolved
-
-Description:
-When switching away from a deck and returning to it, the deck resets to Week 1. The past/active/future state is not preserved per deck.
-
-Why it matters:
-Each deck should eventually remember its current active card so users return to the correct point in their progression.
-
-Likely direction:
-Store activeCardIndex by deck ID rather than as one shared transient state.
-
-Priority:
-medium
+When swiping up from a card on the table, that card should move first, and then the current active card should slot back. It's currently animates the same as if the user swiped up on the active card which is conceptually a different thing.
