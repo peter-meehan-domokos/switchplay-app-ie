@@ -29,6 +29,7 @@ type DeckDetailProps = {
 };
 
 const itemProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
+const ACTIVE_SETTLE_PREVIEW_MAX_Y = 8;
 
 type DeckSceneLayout = {
   frameHeight: number | null;
@@ -253,7 +254,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     deckGestures.intent === "settleToPast" &&
     deckGestures.direction === "down" &&
     activeCardIndex < finalCardIndex
-      ? Math.min(72, Math.max(0, deckGestures.previewVector.y))
+      ? Math.min(ACTIVE_SETTLE_PREVIEW_MAX_Y, Math.max(0, deckGestures.previewVector.y))
       : deckGestures.phase === "dragging" &&
           deckGestures.intent === "restoreFromPast" &&
           deckGestures.direction === "up" &&
