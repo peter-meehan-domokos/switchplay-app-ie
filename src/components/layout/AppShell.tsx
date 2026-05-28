@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import LogoutButton from "@/components/auth/LogoutButton";
 import DeckDetail from "@/components/decks/DeckDetail";
 import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
@@ -45,9 +46,23 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     }));
   };
 
+  console.log("Rendering AppShell", { selectedDeckId, isSelectedDeckFlipped, selectedDeckFlipRotationY });
   return (
     <LayoutGroup>
       <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
+      {selectedDeckId === null && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{
+            delay: 1.5,
+            duration: 0.8,
+            ease: "easeOut",
+          }}
+        >
+          <LogoutButton username={userName} />
+        </motion.div>
+      )}
         <AnimatePresence initial={false}>
           {!selectedDeck ? (
             <motion.header

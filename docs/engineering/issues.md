@@ -17,3 +17,8 @@ Do not keep iterating blindly with Codex. Revisit manually later.
 ##  Card movement order when swiping up
 
 When swiping up from a card on the table, that card should move first, and then the current active card should slot back. It's currently animates the same as if the user swiped up on the active card which is conceptually a different thing.
+
+# Single user
+## MongoDB and API
+
+- check what this means for mobile - for prod, remove wildcard IP address from access list and replace with heroku one

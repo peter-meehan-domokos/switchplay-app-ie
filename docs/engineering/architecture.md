@@ -364,3 +364,260 @@ Do not place gesture thresholds in `src/constants/cardStack.ts`. That file shoul
 Do not let `DeckDetail.tsx`, `CardStack.tsx`, or `DeckCard.tsx` become gesture/state dumping grounds.
 
 If a component starts accumulating gesture interpretation logic, move that logic into the gesture layer.
+
+
+# Switchplay — Backend & Persistence Architecture
+
+## Overview
+
+Switchplay will use a lightweight full-stack Next.js architecture for the MVP.
+
+The app will use:
+
+- Next.js App Router
+- React frontend
+- Next.js Route Handlers for backend/API logic
+- MongoDB Atlas for persistence
+- HTTP-only cookie-based authentication
+- REST-style API endpoints
+
+The system will remain intentionally lightweight during the MVP phase.
+
+Primary goal:
+
+```txt
+sign in
+-> open deck
+-> track progression
+-> persist state
+-> return later with state restored
+```
+
+The architecture is optimised for:
+
+- minimal infrastructure complexity
+- low debugging overhead
+- fast iteration
+- animation-safe frontend integration
+- future scalability without premature abstraction
+
+---
+
+## Architectural Direction
+
+### Single Full-Stack Next.js Application
+
+Switchplay will NOT use a separate Express backend server during the MVP phase.
+
+Instead:
+
+```txt
+Next.js frontend
++
+Next.js backend route handlers
+```
+
+will live inside the same application.
+
+This avoids:
+
+- running multiple local servers
+- CORS configuration complexity
+- cross-origin cookie/session issues
+- duplicated deployment pipelines
+- frontend/backend environment mismatches
+
+The frontend and backend remain tightly integrated inside one codebase.
+
+---
+
+## Backend API Strategy
+
+Backend logic will use Next.js Route Handlers inside:
+
+```txt
+/app/api/
+```
+
+Example structure:
+
+```txt
+app/
+  api/
+    auth/
+      login/
+        route.ts
+      logout/
+        route.ts
+      me/
+        route.ts
+
+    switchplay/
+      decks-data/
+        route.ts
+
+      decks-data/
+        [userDeckId]/
+          route.ts
+```
+
+These route handlers function similarly to lightweight Express endpoints.
+
+The API style will remain REST-oriented and pragmatic.
+
+---
+
+## Database Choice
+
+Switchplay will use:
+
+```txt
+MongoDB Atlas
+```
+
+as the primary persistence layer.
+
+MongoDB is a strong fit because Switchplay data is naturally document-oriented:
+
+```txt
+user
+  -> decksData
+      -> cards
+          -> steps
+```
+
+MongoDB also supports:
+
+- flexible schema evolution
+- rapid MVP iteration
+- nested progression structures
+- future social/community systems
+- template libraries
+- creator ecosystems
+- reflections/comments/media extensions
+
+without requiring early rigid relational modelling.
+
+---
+
+## Authentication Strategy
+
+Authentication will remain intentionally lightweight during MVP.
+
+The system will use:
+
+- email/password authentication
+- password hashing with `bcrypt` or `argon2`
+- HTTP-only cookie sessions
+
+Authentication routes will likely include:
+
+```txt
+POST /api/auth/login
+POST /api/auth/logout
+GET  /api/auth/me
+```
+
+Important principles:
+
+- never store raw passwords
+- sessions should remain server-controlled
+- authentication should stay simple until social/community systems exist
+
+Complex auth features are intentionally deferred.
+
+---
+
+## GraphQL Decision
+
+Switchplay will NOT use GraphQL during the MVP phase.
+
+Reasoning:
+
+- REST is simpler for current requirements
+- current persistence needs are straightforward
+- GraphQL would add unnecessary complexity at this stage
+- avoiding premature abstraction reduces debugging risk
+
+Current MVP requirements are primarily:
+
+```txt
+user state persistence
+session handling
+deck progress updates
+```
+
+rather than complex relational querying.
+
+GraphQL may be reconsidered later if the application evolves into:
+
+- large template libraries
+- complex creator ecosystems
+- social graphs
+- followers/friends
+- shared progression systems
+- highly relational client queries
+
+The architecture should remain compatible with adding GraphQL later if genuinely beneficial.
+
+---
+
+## Persistence Philosophy
+
+The backend should persist only essential user progression state.
+
+Persisted state includes:
+
+- step statuses
+- active card
+- user-adjustable dates
+
+Derived state should NOT normally be persisted.
+
+Instead:
+
+```txt
+step statuses
+-> derive card progress
+-> derive deck progress
+```
+
+This keeps the system semantically clean and avoids state desynchronisation.
+
+---
+
+## Frontend State Philosophy
+
+Switchplay already contains sophisticated animated deck interactions using:
+
+- Framer Motion
+- shared layout transitions
+- gesture systems
+- active/past/future card architecture
+
+Persistence systems must integrate around this architecture rather than replacing it.
+
+Frontend interaction should remain:
+
+- optimistic
+- responsive
+- animation-safe
+- locally immediate
+
+Backend synchronization should happen behind the interaction layer rather than controlling it directly.
+
+---
+
+## MVP Philosophy
+
+This phase is intentionally:
+
+- single-user
+- lightweight
+- infrastructure-first
+- low-overhead
+- minimally abstracted
+
+The priority is reliability and iteration speed rather than enterprise-scale architecture.
+
+The system should remain conceptually clean enough to evolve later without requiring major rewrites.
