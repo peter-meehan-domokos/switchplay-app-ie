@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import LogoutButton from "@/components/auth/LogoutButton";
@@ -29,6 +29,8 @@ const springTransition = {
   mass: 0.9,
 } as const;
 
+const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
+
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const router = useRouter();
   const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
@@ -37,6 +39,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const [instantiatingDeckTemplateId, setInstantiatingDeckTemplateId] = useState<string | null>(null);
   const [deckInstantiationError, setDeckInstantiationError] = useState<string | null>(null);
   const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
+  const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
   const isDeckInteractionLocked = Boolean(instantiatingDeckTemplateId) || Boolean(pendingDeckOpenId);
   const selectedDeckFlipState = selectedDeck ? deckFlipStateById[selectedDeck.id] : null;
@@ -57,6 +60,14 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       setDeckInstantiationError(null);
     }
   }, [deckLayouts, pendingDeckOpenId]);
+
+  useEffect(() => {
+    return () => {
+      if (overviewRefreshTimeoutRef.current) {
+        clearTimeout(overviewRefreshTimeoutRef.current);
+      }
+    };
+  }, []);
 
   async function instantiateDeckData(deckTemplateId: string) {
     const response = await fetch("/api/decks-data", {
@@ -114,6 +125,19 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     }));
   };
 
+  const handleCloseDeckDetail = () => {
+    setSelectedDeckId(null);
+
+    if (overviewRefreshTimeoutRef.current) {
+      clearTimeout(overviewRefreshTimeoutRef.current);
+    }
+
+    overviewRefreshTimeoutRef.current = setTimeout(() => {
+      router.refresh();
+      overviewRefreshTimeoutRef.current = null;
+    }, OVERVIEW_REFRESH_AFTER_CLOSE_MS);
+  };
+
   return (
     <LayoutGroup>
       <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
@@ -154,7 +178,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               deck={selectedDeck}
               isDeckFlipped={isSelectedDeckFlipped}
               deckFlipRotationY={selectedDeckFlipRotationY}
-              onBack={() => setSelectedDeckId(null)}
+              onBack={handleCloseDeckDetail}
               onToggleDeckFlip={(rotationDelta) => toggleSelectedDeckFlip(selectedDeck.id, rotationDelta)}
               transition={springTransition}
             />

@@ -1,8 +1,8 @@
 import DeckTile from "@/components/decks/DeckTile";
-import type { Deck } from "@/components/decks/types";
+import type { DeckLayout } from "@/components/decks/deckLayout";
 
 type DeckGridProps = {
-  decks: Deck[];
+  decks: DeckLayout[];
   instantiatingDeckTemplateId: string | null;
   isInteractionLocked: boolean;
   onSelectDeck: (deckId: string) => void;
