@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
@@ -150,7 +151,12 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const deckSceneFrameRef = useRef<HTMLDivElement | null>(null);
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deckSceneLayout = useDeckSceneLayout(deckDetailRef, deckSceneFrameRef);
-  const finalCardIndex = cards.length - 1;
+  // `deck` is the stable shell from the parent (identity/persistence fields remain authoritative).
+  // `cards` is DeckDetail's optimistic local mutation source for item state.
+  // Re-derive layout progress from local cards so progress text/strips update immediately,
+  // while deck identity and persistence fields continue to come from `deck`.
+  const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
+  const finalCardIndex = optimisticDeck.cards.length - 1;
 
   useEffect(() => {
     return () => {
@@ -336,7 +342,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       </motion.button>
 
       <motion.div className="detail-heading" layout>
-        <p className="detail-progress">{Math.round(deck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(deck.progressPercentage)}%`}</p>
+        <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>
         <h1>{deck.title}</h1>
       </motion.div>
 
@@ -347,7 +353,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       >
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
           <CardStack
-            cards={cards}
+            cards={optimisticDeck.cards}
             activeCardIndex={activeCardIndex}
             isDeckFlipped={isDeckFlipped}
             deckFlipRotationY={deckFlipRotationY}
@@ -365,9 +371,9 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       <AnimatePresence>
         {isFocusModeOpen ? (
           <FocusedCardView
-            card={cards[activeCardIndex]}
+            card={optimisticDeck.cards[activeCardIndex]}
             cardIndex={activeCardIndex}
-            totalCards={cards.length}
+            totalCards={optimisticDeck.cards.length}
             onClose={closeFocusMode}
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}

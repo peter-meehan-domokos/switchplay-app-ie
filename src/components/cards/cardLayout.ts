@@ -167,3 +167,12 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
     signals: card.signals.map(normalizeSignal),
   };
 }
+
+export function withDerivedCardProgress(card: CardLayout): CardLayout {
+  return {
+    ...card,
+    progressPercentage: getProgressPercentage(
+      card.items.map((item) => ({ completionStatus: item.completionStatus })),
+    ),
+  };
+}
