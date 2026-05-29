@@ -3,21 +3,21 @@ import { authenticateUser, setSession } from "@/lib/auth";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const email = typeof body.email === "string" ? body.email : "";
+    const identifier = typeof body.identifier === "string" ? body.identifier : "";
     const password = typeof body.password === "string" ? body.password : "";
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return Response.json(
-        { error: "Email and password are required." },
+        { error: "Username/email and password are required." },
         { status: 400 },
       );
     }
 
-    const user = await authenticateUser(email, password);
+    const user = await authenticateUser(identifier, password);
 
     if (!user) {
       return Response.json(
-        { error: "Invalid email or password." },
+        { error: "Invalid login details." },
         { status: 401 },
       );
     }

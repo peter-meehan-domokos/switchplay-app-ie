@@ -5,7 +5,7 @@ import { type FormEvent, useState, useTransition } from "react";
 
 export default function AuthScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -19,7 +19,7 @@ export default function AuthScreen() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     if (!response.ok) {
@@ -38,18 +38,16 @@ export default function AuthScreen() {
       <section className="auth-card">
         <p className="eyebrow">Switchplay</p>
         <h1>Sign in</h1>
-        <p className="auth-copy">Use the seeded developer account to unlock the current app shell.</p>
-
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="auth-field">
-            <span>Email</span>
+            <span>Username or email</span>
             <input
-              autoComplete="email"
-              name="email"
-              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="username"
+              name="identifier"
+              onChange={(event) => setIdentifier(event.target.value)}
               required
-              type="email"
-              value={email}
+              type="text"
+              value={identifier}
             />
           </label>
 

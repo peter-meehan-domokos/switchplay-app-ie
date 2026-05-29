@@ -102,9 +102,15 @@ async function readSessionToken(token: string): Promise<SessionUser | null> {
 	}
 }
 
-export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
+export async function authenticateUser(identifier: string, password: string): Promise<AuthUser | null> {
 	const users = await getUsersCollection();
-	const user = await users.findOne({ email: normalizeEmail(email) });
+	const normalizedIdentifier = identifier.trim();
+	const isEmailLogin = normalizedIdentifier.includes("@");
+	const user = await users.findOne(
+		isEmailLogin
+			? { email: normalizedIdentifier.toLowerCase() }
+			: { username: normalizedIdentifier },
+	);
 
 	if (!user) {
 		return null;

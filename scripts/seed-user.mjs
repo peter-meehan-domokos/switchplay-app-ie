@@ -19,10 +19,12 @@ async function seedUser() {
   const email = requireEnv("SEED_USER_EMAIL").toLowerCase();
   const username = requireEnv("SEED_USER_USERNAME");
   const password = requireEnv("SEED_USER_PASSWORD");
-  const existingUser = await users.findOne({ email });
+  const existingUser = await users.findOne({
+    $or: [{ email }, { username }],
+  });
 
   if (existingUser) {
-    console.log(`Seed user already exists for ${email}`);
+    console.log(`Seed user already exists (email: ${email}, username: ${username})`);
     return;
   }
 

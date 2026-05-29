@@ -46,7 +46,6 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     }));
   };
 
-  console.log("Rendering AppShell", { selectedDeckId, isSelectedDeckFlipped, selectedDeckFlipRotationY });
   return (
     <LayoutGroup>
       <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
