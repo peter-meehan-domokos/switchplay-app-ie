@@ -61,7 +61,7 @@ type Card = {
   targetDate: string;
   intro: Intro;
   items: Item[];
-  stats: Stat[];
+  signals: Signal[];
   mediaItems: MediaItem[];
   chats: Chat[];
 };
@@ -84,12 +84,12 @@ type Item = {
   completionStatus: "todo" | "inProgress" | "done";
 };
 
-Stat
+Signal
 
-A stat tracks measurable progress.
+A signal tracks measurable progress.
 
 order describes whether progress means the value should increase or decrease.
-type Stat = {
+type Signal = {
   id: string;
   title: string;
   description: string;
@@ -150,7 +150,7 @@ football performance goals
 gym/fitness goals
 calisthenics goals
 
-Some decks should be completed, with past dates and mostly achieved stats.
+Some decks should be completed, with past dates and mostly achieved signals.
 
 Most decks should be mid-progress, such as week 3 of 5 or week 4 of 6.
 
@@ -163,6 +163,6 @@ connections for other users
 decks for medium-term goals
 cards for weekly milestones
 items for weekly action steps
-stats for measurable targets
+signals for measurable targets
 mediaItems for videos/images
 chats for card-level discussion

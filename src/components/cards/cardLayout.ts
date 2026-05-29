@@ -6,7 +6,7 @@ export type SignalDimension = "recovery" | "stability" | "adaptation" | "executi
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
 
-type RawCardStat = NonNullable<WeeklyCard["stats"]>[number];
+type RawCardSignal = NonNullable<WeeklyCard["signals"]>[number];
 type RawCardComment = NonNullable<WeeklyCard["chats"]>[number]["comments"][number];
 
 export type LayoutUser = {
@@ -40,7 +40,7 @@ export type CardLayoutSignal = {
   dimension: SignalDimension;
 };
 
-export type CardLayout = WeeklyCard & {
+export type CardLayout = Omit<WeeklyCard, "signals"> & {
   backMediaTrace: MediaItem | null;
   externalComment: CardLayoutExternalComment | null;
   ecologicalOccupancy: number;
@@ -85,25 +85,25 @@ export function getNormalizedSignalValue(reading: number, minValue: number, maxV
   return clampSignalValue(order === "decreasing" ? 1 - normalizedValue : normalizedValue);
 }
 
-function normalizeStatToSignal(stat: RawCardStat, index: number): CardLayoutSignal {
-  const order = normalizeSignalOrder(stat.order);
-  const minValue = Number.isFinite(stat.minValue) ? stat.minValue : 0;
-  const maxValue = Number.isFinite(stat.maxValue) ? stat.maxValue : minValue + 1;
-  const reading = Number.isFinite(stat.reading) ? stat.reading : minValue;
+function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal {
+  const order = normalizeSignalOrder(signal.order);
+  const minValue = Number.isFinite(signal.minValue) ? signal.minValue : 0;
+  const maxValue = Number.isFinite(signal.maxValue) ? signal.maxValue : minValue + 1;
+  const reading = Number.isFinite(signal.reading) ? signal.reading : minValue;
 
   return {
-    id: stat.id,
-    title: stat.title,
-    description: stat.description,
+    id: signal.id,
+    title: signal.title,
+    description: signal.description,
     value: getNormalizedSignalValue(reading, minValue, maxValue, order),
     reading,
     variant: signalVariants[index] ?? "movement",
-    targetValue: stat.targetValue,
+    targetValue: signal.targetValue,
     minValue,
     maxValue,
-    unit: stat.unit,
+    unit: signal.unit,
     order,
-    dimension: normalizeSignalDimension(stat.dimension),
+    dimension: normalizeSignalDimension(signal.dimension),
   };
 }
 
@@ -158,6 +158,6 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
     ecologicalOccupancy,
     ecologicalOccupancyRatio,
     reflectionVerticalOffset,
-    signals: card.stats.map(normalizeStatToSignal),
+    signals: card.signals.map(normalizeSignal),
   };
 }

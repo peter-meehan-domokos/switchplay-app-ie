@@ -3,15 +3,19 @@ import type { Deck } from "@/components/decks/types";
 
 type DeckTileProps = {
   deck: Deck;
+  isDisabled?: boolean;
+  isPreparing?: boolean;
   onSelect: () => void;
   transition: object;
 };
 
-export default function DeckTile({ deck, onSelect, transition }: DeckTileProps) {
+export default function DeckTile({ deck, isDisabled = false, isPreparing = false, onSelect, transition }: DeckTileProps) {
   return (
     <motion.button
       type="button"
-      className="deck-tile"
+      className={`deck-tile${isPreparing ? " deck-tile--preparing" : ""}`}
+      disabled={isDisabled}
+      aria-busy={isPreparing}
       layout
       layoutId={`deck-${deck.id}`}
       onClick={onSelect}
@@ -34,7 +38,7 @@ export default function DeckTile({ deck, onSelect, transition }: DeckTileProps) 
       </motion.div>
 
       <span className="deck-tile-title">{deck.title}</span>
-      <span className="deck-tile-meta">{deck.cards.length} weeks</span>
+      <span className="deck-tile-meta">{isPreparing ? "Preparing deck..." : `${deck.cards.length} weeks`}</span>
     </motion.button>
   );
 }

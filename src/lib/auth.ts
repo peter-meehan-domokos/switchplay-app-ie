@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId, type WithId } from "mongodb";
-import type { Deck } from "@/components/decks/types";
+import type { UserDeckData } from "@/components/decks/types";
 import { getCollection } from "@/lib/mongodb";
 
 const USERS_COLLECTION = "users";
@@ -19,7 +19,7 @@ export type UserDocument = {
 	email: string;
 	username: string;
 	passwordHash: string;
-	decksData: Deck[];
+	decksData: UserDeckData[];
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -28,7 +28,7 @@ export type AuthUser = {
 	id: string;
 	email: string;
 	username: string;
-	decksData: Deck[];
+	decksData: UserDeckData[];
 	createdAt: string;
 	updatedAt: string;
 };

@@ -138,7 +138,10 @@ function getNextCompletionStatus(currentStatus: CompletionStatus) {
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
   const [cards, setCards] = useState(deck.cards);
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [activeCardIndex, setActiveCardIndex] = useState(() => {
+    const initialCardIndex = deck.cards.findIndex((card) => card.id === deck.activeCardId);
+    return initialCardIndex >= 0 ? initialCardIndex : 0;
+  });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");

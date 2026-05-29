@@ -22,3 +22,9 @@ When swiping up from a card on the table, that card should move first, and then 
 ## MongoDB and API
 
 - check what this means for mobile - for prod, remove wildcard IP address from access list and replace with heroku one
+
+- handle, no target date set gracefully in the UI and in the code
+- card.defaultTargetDate should be derived from today's date, and the property which determines whether it's daily weekly et cetera.  This may not be defined and if not, then we need a manual way of storing a default target date on each card as well. Basically this is all to do with our card gets its default target date in the deck template. You can simply be defined, or it can be calculated from the property mentioned above plus today's date, what is a fallback option could be today's date plus weekly increase. Essentially, saying that that property should have a default value of weekly.
+
+## LATER
+- consider a categories record

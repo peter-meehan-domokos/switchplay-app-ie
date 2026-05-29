@@ -1,13 +1,18 @@
 import AppShell from "@/components/layout/AppShell";
-import { switchplayMockData } from "@/mocks/switchplayMockData";
+import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
+import { deckTemplates } from "@/mocks/deckTemplates";
+import { mockSocialUsers } from "@/mocks/mockSocialUsers";
+import { mockUserDeckData } from "@/mocks/mockUserDeckData";
 
 export default function HomePage() {
+  const decks = mergeDeckTemplatesWithUserData(deckTemplates, mockUserDeckData, "user-001");
+
   return (
     <AppShell
-      currentUserId={switchplayMockData.user.id}
-      decks={switchplayMockData.user.decks}
-      userName={switchplayMockData.user.name}
-      users={[{ id: switchplayMockData.user.id, name: switchplayMockData.user.name }, ...switchplayMockData.connections]}
+      currentUserId="user-001"
+      decks={decks}
+      userName="Jamie O'Brien"
+      users={[{ id: "user-001", name: "Jamie O'Brien" }, ...mockSocialUsers]}
     />
   );
 }
