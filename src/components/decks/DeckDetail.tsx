@@ -17,6 +17,7 @@ import {
   DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
   ROLE_TRANSITION_SETTLE_MS,
 } from "@/constants/cardStack";
+import { persistActiveCardId, persistItemCompletionStatus } from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
@@ -159,6 +160,29 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     };
   }, []);
 
+  const commitActiveCardIndex = (nextCardIndex: number) => {
+    if (nextCardIndex === activeCardIndex) {
+      return;
+    }
+
+    const nextActiveCardId = cards[nextCardIndex]?.id;
+
+    if (!nextActiveCardId) {
+      setActiveCardIndex(nextCardIndex);
+      return;
+    }
+
+    setActiveCardIndex(nextCardIndex);
+
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    void persistActiveCardId(deck.deckTemplateId, nextActiveCardId).catch((error) => {
+      console.warn("Unable to persist active card position.", error);
+    });
+  };
+
   const moveActiveCard = (nextCardIndex: number) => {
     if (nextCardIndex === activeCardIndex || transitionPhase) {
       return;
@@ -175,7 +199,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     });
 
     roleTransitionTimeoutRef.current = setTimeout(() => {
-      setActiveCardIndex(nextCardIndex);
+      commitActiveCardIndex(nextCardIndex);
       setTransitionPhase(null);
       roleTransitionTimeoutRef.current = null;
     }, ROLE_TRANSITION_SETTLE_MS);
@@ -190,7 +214,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const openFocusMode = (cardIndex: number) => {
-    setActiveCardIndex(cardIndex);
+    commitActiveCardIndex(cardIndex);
     setIsFocusModeOpen(true);
   };
 
@@ -204,7 +228,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     }
 
     setFocusedTraversalDirection(nextCardIndex > activeCardIndex ? "next" : "previous");
-    setActiveCardIndex(nextCardIndex);
+    commitActiveCardIndex(nextCardIndex);
   };
 
   const goToPreviousFocusedCard = () => {
@@ -216,6 +240,20 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const cycleFocusedItemStatus = (itemId: string) => {
+    const activeCard = cards[activeCardIndex];
+
+    if (!activeCard) {
+      return;
+    }
+
+    const currentItem = activeCard.items.find((item) => item.id === itemId);
+
+    if (!currentItem) {
+      return;
+    }
+
+    const nextCompletionStatus = getNextCompletionStatus(normalizeCompletionStatus(currentItem.completionStatus));
+
     setCards((currentCards) =>
       currentCards.map((card, cardIndex) => {
         if (cardIndex !== activeCardIndex) {
@@ -226,12 +264,20 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
           ...card,
           items: card.items.map((item) =>
             item.id === itemId
-              ? { ...item, completionStatus: getNextCompletionStatus(normalizeCompletionStatus(item.completionStatus)) }
+              ? { ...item, completionStatus: nextCompletionStatus }
               : item
           ),
         };
       })
     );
+
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    void persistItemCompletionStatus(deck.deckTemplateId, activeCard.id, itemId, nextCompletionStatus).catch((error) => {
+      console.warn("Unable to persist item completion status.", error);
+    });
   };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
