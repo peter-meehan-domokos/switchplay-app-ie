@@ -16,7 +16,7 @@ export function normalizeCompletionStatus(completionStatus: string): CompletionS
   return "todo";
 }
 
-export function getCardProgressPercentage(items: ProgressItem[]): number {
+export function getProgressPercentage(items: ProgressItem[]): number {
   const includedItems = items.filter((item) => item.completionStatus !== "skipped");
 
   if (!includedItems.length) return 0;

@@ -1,8 +1,8 @@
+import type { CardLayout } from "@/components/cards/cardLayout";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
-import type { WeeklyCard } from "@/components/decks/types";
 
 type CardHeaderProps = {
-  card: WeeklyCard;
+  card: CardLayout;
   dateLabel: string;
 };
 

@@ -3,7 +3,6 @@ import type { UserDeckData } from "@/components/decks/types";
 export const mockUserDeckData: UserDeckData[] = [
   {
     "deckTemplateId": "deck-001",
-    "status": "inProgress",
     "activeCardId": "card-001",
     "cards": [
       {
@@ -205,7 +204,6 @@ export const mockUserDeckData: UserDeckData[] = [
   },
   {
     "deckTemplateId": "deck-002",
-    "status": "completed",
     "activeCardId": "card-005",
     "cards": [
       {
@@ -419,7 +417,6 @@ export const mockUserDeckData: UserDeckData[] = [
   },
   {
     "deckTemplateId": "deck-003",
-    "status": "inProgress",
     "activeCardId": "card-009",
     "cards": [
       {
@@ -704,7 +701,6 @@ export const mockUserDeckData: UserDeckData[] = [
   },
   {
     "deckTemplateId": "deck-004",
-    "status": "inProgress",
     "activeCardId": "card-014",
     "cards": [
       {
@@ -892,7 +888,6 @@ export const mockUserDeckData: UserDeckData[] = [
   },
   {
     "deckTemplateId": "deck-005",
-    "status": "inProgress",
     "activeCardId": "card-018",
     "cards": [
       {
@@ -1143,7 +1138,6 @@ export const mockUserDeckData: UserDeckData[] = [
   },
   {
     "deckTemplateId": "deck-006",
-    "status": "inProgress",
     "activeCardId": "card-024",
     "cards": [
       {

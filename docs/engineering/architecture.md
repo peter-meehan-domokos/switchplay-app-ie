@@ -75,7 +75,6 @@ The first implementation should remain API-free and auth-free, using mock data f
 
 The component structure is:
 - `AppShell`
-- `HomePage`
 - `DeckGrid`
 - `DeckTile`
 - `DeckDetail`

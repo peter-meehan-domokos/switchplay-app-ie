@@ -290,7 +290,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       </motion.button>
 
       <motion.div className="detail-heading" layout>
-        <p className="eyebrow">{deck.status}</p>
+        <p className="detail-progress">{Math.round(deck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(deck.progressPercentage)}%`}</p>
         <h1>{deck.title}</h1>
       </motion.div>
 

@@ -1,6 +1,7 @@
 import type { WeeklyCard } from "@/components/decks/types";
 import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSignal";
 import type { MediaItem } from "@/lib/media";
+import { getProgressPercentage } from "@/lib/progress";
 
 export type SignalDimension = "recovery" | "stability" | "adaptation" | "execution" | "reflection" | "connection";
 export type SignalOrder = "increasing" | "decreasing";
@@ -45,6 +46,7 @@ export type CardLayout = Omit<WeeklyCard, "signals"> & {
   externalComment: CardLayoutExternalComment | null;
   ecologicalOccupancy: number;
   ecologicalOccupancyRatio: number;
+  progressPercentage: number;
   reflectionVerticalOffset: number;
   signals: CardLayoutSignal[];
 };
@@ -144,6 +146,9 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
   const backMediaTrace = normalizeMediaItem(card.mediaItems[0]);
   const externalComment = normalizeExternalComment(card, options);
   const hasReflection = Boolean(card.reflection);
+  const progressPercentage = getProgressPercentage(
+    card.items.map((item) => ({ completionStatus: item.completionStatus })),
+  );
   const ecologicalOccupancy =
     Number(Boolean(backMediaTrace)) +
     Number(Boolean(externalComment)) +
@@ -157,6 +162,7 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
     externalComment,
     ecologicalOccupancy,
     ecologicalOccupancyRatio,
+    progressPercentage,
     reflectionVerticalOffset,
     signals: card.signals.map(normalizeSignal),
   };

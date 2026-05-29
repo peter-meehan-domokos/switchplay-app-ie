@@ -1,10 +1,10 @@
+import type { CardLayout } from "@/components/cards/cardLayout";
 import CardHeader from "@/components/cards/CardHeader";
 import IntroMediaBlock from "@/components/cards/IntroMediaBlock";
 import StepList from "@/components/cards/StepList";
-import type { WeeklyCard } from "@/components/decks/types";
 
 type ActiveCardFrontProps = {
-  card: WeeklyCard;
+  card: CardLayout;
   dateLabel: string;
   variant?: "active" | "focused";
   onCycleItemStatus?: (itemId: string) => void;

@@ -1,7 +1,6 @@
 import type { MediaItem } from "@/lib/media";
 
 export type DeckCategory = "football" | "gym" | "calisthenics";
-export type DeckStatus = "notStarted" | "todo" | "inProgress" | "completed";
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 export type SignalDimension = "recovery" | "stability" | "adaptation" | "execution" | "reflection" | "connection";
 export type SignalOrder = "increasing" | "decreasing";
@@ -81,7 +80,6 @@ export type UserCardData = {
 
 export type UserDeckData = {
   deckTemplateId: string;
-  status: DeckStatus;
   activeCardId: string;
   cards: UserCardData[];
   createdAt: string;
@@ -128,6 +126,5 @@ export type Deck = {
   activeCardId: string;
   title: string;
   category: DeckCategory;
-  status: DeckStatus;
   cards: WeeklyCard[];
 };

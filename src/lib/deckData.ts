@@ -1,23 +1,12 @@
 import {
   type Deck,
-  type DeckStatus,
   type DeckTemplate,
   type UserCardData,
   type UserDeckData,
 } from "@/components/decks/types";
 
-const DEFAULT_DECK_STATUS: DeckStatus = "notStarted";
-
 function getFirstCardId(template: DeckTemplate) {
   return template.cards[0]?.cardId ?? "";
-}
-
-function normalizeDeckStatus(status: string | undefined): DeckStatus {
-  if (status === "todo" || status === "inProgress" || status === "completed" || status === "notStarted") {
-    return status;
-  }
-
-  return DEFAULT_DECK_STATUS;
 }
 
 function createEmptyUserCardDataFromTemplate(templateCard: DeckTemplate["cards"][number]): UserCardData {
@@ -40,7 +29,6 @@ export function createEmptyUserDeckDataFromTemplate(template: DeckTemplate): Use
 
   return {
     deckTemplateId: template.deckTemplateId,
-    status: DEFAULT_DECK_STATUS,
     activeCardId: getFirstCardId(template),
     cards: template.cards.map((templateCard) => createEmptyUserCardDataFromTemplate(templateCard)),
     createdAt: timestamp,
@@ -108,7 +96,6 @@ export function mergeDeckTemplatesWithUserData(
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,
-      status: normalizeDeckStatus(resolvedDeckData.status),
       cards,
     };
   });
