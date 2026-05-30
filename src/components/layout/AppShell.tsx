@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import LogoutButton from "@/components/auth/LogoutButton";
 import DeckDetail from "@/components/decks/DeckDetail";
 import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
@@ -27,14 +29,92 @@ const springTransition = {
   mass: 0.9,
 } as const;
 
+const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
+
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
+  const router = useRouter();
   const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [pendingDeckOpenId, setPendingDeckOpenId] = useState<string | null>(null);
+  const [instantiatingDeckTemplateId, setInstantiatingDeckTemplateId] = useState<string | null>(null);
+  const [deckInstantiationError, setDeckInstantiationError] = useState<string | null>(null);
   const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
+  const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
+  const isDeckInteractionLocked = Boolean(instantiatingDeckTemplateId) || Boolean(pendingDeckOpenId);
   const selectedDeckFlipState = selectedDeck ? deckFlipStateById[selectedDeck.id] : null;
   const isSelectedDeckFlipped = selectedDeckFlipState?.isFlipped ?? false;
   const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
+
+  useEffect(() => {
+    if (!pendingDeckOpenId) {
+      return;
+    }
+
+    const pendingDeck = deckLayouts.find((deck) => deck.id === pendingDeckOpenId);
+
+    if (pendingDeck && pendingDeck.hasUserDeckData) {
+      setSelectedDeckId(pendingDeckOpenId);
+      setPendingDeckOpenId(null);
+      setInstantiatingDeckTemplateId(null);
+      setDeckInstantiationError(null);
+    }
+  }, [deckLayouts, pendingDeckOpenId]);
+
+  useEffect(() => {
+    return () => {
+      if (overviewRefreshTimeoutRef.current) {
+        clearTimeout(overviewRefreshTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  async function instantiateDeckData(deckTemplateId: string) {
+    const response = await fetch("/api/decks-data", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ deckTemplateId }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(payload?.error ?? "Unable to prepare deck data.");
+    }
+  }
+
+  async function handleSelectDeck(deckId: string) {
+    if (isDeckInteractionLocked) {
+      return;
+    }
+
+    const deck = deckLayouts.find((candidateDeck) => candidateDeck.id === deckId);
+
+    if (!deck) {
+      return;
+    }
+
+    if (deck.hasUserDeckData) {
+      setDeckInstantiationError(null);
+      setSelectedDeckId(deckId);
+      return;
+    }
+
+    setDeckInstantiationError(null);
+    setInstantiatingDeckTemplateId(deck.deckTemplateId);
+
+    try {
+      await instantiateDeckData(deck.deckTemplateId);
+      setPendingDeckOpenId(deckId);
+      router.refresh();
+    } catch (error) {
+      setInstantiatingDeckTemplateId(null);
+      setPendingDeckOpenId(null);
+      setDeckInstantiationError(error instanceof Error ? error.message : "Unable to prepare deck data.");
+    }
+  }
+
   const toggleSelectedDeckFlip = (deckId: string, rotationDelta = 180) => {
     setDeckFlipStateById((current) => ({
       ...current,
@@ -45,9 +125,35 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     }));
   };
 
+  const handleCloseDeckDetail = () => {
+    setSelectedDeckId(null);
+
+    if (overviewRefreshTimeoutRef.current) {
+      clearTimeout(overviewRefreshTimeoutRef.current);
+    }
+
+    overviewRefreshTimeoutRef.current = setTimeout(() => {
+      router.refresh();
+      overviewRefreshTimeoutRef.current = null;
+    }, OVERVIEW_REFRESH_AFTER_CLOSE_MS);
+  };
+
   return (
     <LayoutGroup>
       <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
+      {selectedDeckId === null && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{
+            delay: 1.5,
+            duration: 0.8,
+            ease: "easeOut",
+          }}
+        >
+          <LogoutButton username={userName} />
+        </motion.div>
+      )}
         <AnimatePresence initial={false}>
           {!selectedDeck ? (
             <motion.header
@@ -60,6 +166,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               <p className="eyebrow">{userName}</p>
               <h1>Your decks</h1>
               <p className="overview-summary">{deckLayouts.length} active skill paths</p>
+              {deckInstantiationError ? <p className="auth-error">{deckInstantiationError}</p> : null}
             </motion.header>
           ) : null}
         </AnimatePresence>
@@ -71,7 +178,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               deck={selectedDeck}
               isDeckFlipped={isSelectedDeckFlipped}
               deckFlipRotationY={selectedDeckFlipRotationY}
-              onBack={() => setSelectedDeckId(null)}
+              onBack={handleCloseDeckDetail}
               onToggleDeckFlip={(rotationDelta) => toggleSelectedDeckFlip(selectedDeck.id, rotationDelta)}
               transition={springTransition}
             />
@@ -84,7 +191,13 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
             >
-              <DeckGrid decks={deckLayouts} onSelectDeck={setSelectedDeckId} transition={springTransition} />
+              <DeckGrid
+                decks={deckLayouts}
+                instantiatingDeckTemplateId={instantiatingDeckTemplateId}
+                isInteractionLocked={isDeckInteractionLocked}
+                onSelectDeck={handleSelectDeck}
+                transition={springTransition}
+              />
             </motion.section>
           )}
         </AnimatePresence>

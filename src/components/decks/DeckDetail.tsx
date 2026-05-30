@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
@@ -17,6 +18,7 @@ import {
   DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
   ROLE_TRANSITION_SETTLE_MS,
 } from "@/constants/cardStack";
+import { persistActiveCardId, persistCardTargetDate, persistItemCompletionStatus } from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
@@ -136,9 +138,44 @@ function getNextCompletionStatus(currentStatus: CompletionStatus) {
   return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
 }
 
+function isValidDateString(dateString: string) {
+  const normalizedDateString = dateString.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDateString)) {
+    return false;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = normalizedDateString.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const candidateDate = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    candidateDate.getUTCFullYear() === year &&
+    candidateDate.getUTCMonth() === month - 1 &&
+    candidateDate.getUTCDate() === day
+  );
+}
+
+function addDaysToDateString(dateString: string, amount: number) {
+  if (!isValidDateString(dateString)) {
+    return null;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = dateString.split("-");
+  const baseDate = new Date(Date.UTC(Number(yearRaw), Number(monthRaw) - 1, Number(dayRaw)));
+  baseDate.setUTCDate(baseDate.getUTCDate() + amount);
+
+  return baseDate.toISOString().slice(0, 10);
+}
+
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
   const [cards, setCards] = useState(deck.cards);
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [activeCardIndex, setActiveCardIndex] = useState(() => {
+    const initialCardIndex = deck.cards.findIndex((card) => card.id === deck.activeCardId);
+    return initialCardIndex >= 0 ? initialCardIndex : 0;
+  });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
@@ -146,7 +183,12 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const deckSceneFrameRef = useRef<HTMLDivElement | null>(null);
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deckSceneLayout = useDeckSceneLayout(deckDetailRef, deckSceneFrameRef);
-  const finalCardIndex = cards.length - 1;
+  // `deck` is the stable shell from the parent (identity/persistence fields remain authoritative).
+  // `cards` is DeckDetail's optimistic local mutation source for item state.
+  // Re-derive layout progress from local cards so progress text/strips update immediately,
+  // while deck identity and persistence fields continue to come from `deck`.
+  const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
+  const finalCardIndex = optimisticDeck.cards.length - 1;
 
   useEffect(() => {
     return () => {
@@ -155,6 +197,29 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       }
     };
   }, []);
+
+  const commitActiveCardIndex = (nextCardIndex: number) => {
+    if (nextCardIndex === activeCardIndex) {
+      return;
+    }
+
+    const nextActiveCardId = cards[nextCardIndex]?.id;
+
+    if (!nextActiveCardId) {
+      setActiveCardIndex(nextCardIndex);
+      return;
+    }
+
+    setActiveCardIndex(nextCardIndex);
+
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    void persistActiveCardId(deck.deckTemplateId, nextActiveCardId).catch((error) => {
+      console.warn("Unable to persist active card position.", error);
+    });
+  };
 
   const moveActiveCard = (nextCardIndex: number) => {
     if (nextCardIndex === activeCardIndex || transitionPhase) {
@@ -172,7 +237,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     });
 
     roleTransitionTimeoutRef.current = setTimeout(() => {
-      setActiveCardIndex(nextCardIndex);
+      commitActiveCardIndex(nextCardIndex);
       setTransitionPhase(null);
       roleTransitionTimeoutRef.current = null;
     }, ROLE_TRANSITION_SETTLE_MS);
@@ -187,7 +252,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const openFocusMode = (cardIndex: number) => {
-    setActiveCardIndex(cardIndex);
+    commitActiveCardIndex(cardIndex);
     setIsFocusModeOpen(true);
   };
 
@@ -201,7 +266,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     }
 
     setFocusedTraversalDirection(nextCardIndex > activeCardIndex ? "next" : "previous");
-    setActiveCardIndex(nextCardIndex);
+    commitActiveCardIndex(nextCardIndex);
   };
 
   const goToPreviousFocusedCard = () => {
@@ -213,6 +278,20 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const cycleFocusedItemStatus = (itemId: string) => {
+    const activeCard = cards[activeCardIndex];
+
+    if (!activeCard) {
+      return;
+    }
+
+    const currentItem = activeCard.items.find((item) => item.id === itemId);
+
+    if (!currentItem) {
+      return;
+    }
+
+    const nextCompletionStatus = getNextCompletionStatus(normalizeCompletionStatus(currentItem.completionStatus));
+
     setCards((currentCards) =>
       currentCards.map((card, cardIndex) => {
         if (cardIndex !== activeCardIndex) {
@@ -223,12 +302,68 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
           ...card,
           items: card.items.map((item) =>
             item.id === itemId
-              ? { ...item, completionStatus: getNextCompletionStatus(normalizeCompletionStatus(item.completionStatus)) }
+              ? { ...item, completionStatus: nextCompletionStatus }
               : item
           ),
         };
       })
     );
+
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    void persistItemCompletionStatus(deck.deckTemplateId, activeCard.id, itemId, nextCompletionStatus).catch((error) => {
+      console.warn("Unable to persist item completion status.", error);
+    });
+  };
+  const adjustFocusedCardTargetDate = (direction: -1 | 1) => {
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    let mutationToPersist: { cardId: string; targetDate: string } | null = null;
+    let warningMessage: string | null = null;
+
+    setCards((currentCards) =>
+      currentCards.map((card, cardIndex) => {
+        if (cardIndex !== activeCardIndex) {
+          return card;
+        }
+
+        const nextTargetDate = addDaysToDateString(card.targetDate, direction);
+
+        if (!nextTargetDate) {
+          warningMessage = "Unable to adjust card target date.";
+          return card;
+        }
+
+        mutationToPersist = {
+          cardId: card.id,
+          targetDate: nextTargetDate,
+        };
+
+        return {
+          ...card,
+          targetDate: nextTargetDate,
+        };
+      }),
+    );
+
+    if (warningMessage) {
+      console.warn(warningMessage);
+      return;
+    }
+
+    if (!mutationToPersist) {
+      return;
+    }
+
+    const nextMutation = mutationToPersist as { cardId: string; targetDate: string };
+
+    void persistCardTargetDate(deck.deckTemplateId, nextMutation.cardId, nextMutation.targetDate).catch((error) => {
+      console.warn("Unable to persist card target date.", error);
+    });
   };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
@@ -287,7 +422,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       </motion.button>
 
       <motion.div className="detail-heading" layout>
-        <p className="eyebrow">{deck.status}</p>
+        <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>
         <h1>{deck.title}</h1>
       </motion.div>
 
@@ -298,7 +433,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       >
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
           <CardStack
-            cards={cards}
+            cards={optimisticDeck.cards}
             activeCardIndex={activeCardIndex}
             isDeckFlipped={isDeckFlipped}
             deckFlipRotationY={deckFlipRotationY}
@@ -316,13 +451,14 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       <AnimatePresence>
         {isFocusModeOpen ? (
           <FocusedCardView
-            card={cards[activeCardIndex]}
+            card={optimisticDeck.cards[activeCardIndex]}
             cardIndex={activeCardIndex}
-            totalCards={cards.length}
+            totalCards={optimisticDeck.cards.length}
             onClose={closeFocusMode}
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}
             onCycleItemStatus={cycleFocusedItemStatus}
+            onAdjustTargetDate={adjustFocusedCardTargetDate}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}

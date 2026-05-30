@@ -30,6 +30,163 @@ button {
   font: inherit;
 }
 
+input {
+  font: inherit;
+}
+
+.auth-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(168, 214, 228, 0.14), transparent 20rem),
+    radial-gradient(circle at 80% 0%, rgba(244, 224, 171, 0.12), transparent 22rem),
+    linear-gradient(180deg, #121721 0%, #090b10 100%);
+}
+
+.auth-card {
+  width: min(100%, 420px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)),
+    rgba(11, 14, 20, 0.92);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+  padding: 28px;
+}
+
+.auth-card h1 {
+  margin-top: 8px;
+  color: #fffaf0;
+  font-size: clamp(2rem, 10vw, 3rem);
+  line-height: 0.94;
+}
+
+.auth-copy {
+  margin-top: 12px;
+  color: #bdc6d3;
+  font-size: 0.98rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field span {
+  color: #d9deea;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.auth-field input {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fffaf0;
+  padding: 0 14px;
+}
+
+.auth-field input:focus {
+  outline: 2px solid rgba(168, 214, 228, 0.38);
+  outline-offset: 2px;
+}
+
+.auth-error,
+.session-error {
+  color: #ffb6ad;
+  font-size: 0.84rem;
+}
+
+.auth-submit {
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(239, 224, 191, 0.18), rgba(168, 214, 228, 0.14));
+  color: #fffaf0;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 16px;
+}
+
+.session-logout {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.auth-submit:disabled,
+.session-logout:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.session-actions {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 20;
+}
+
+.session-chip {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.session-logout {
+  min-height: 38px;
+  background: rgba(8, 10, 16, 0.72);
+  font-size: 0.8rem;
+  padding-inline: 12px;
+}
+
+.session-logout:hover {
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.session-logout:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+@media (max-width: 640px) {
+  .auth-card {
+    padding: 24px 20px;
+  }
+
+  .session-actions {
+    top: max(10px, calc(env(safe-area-inset-top) + 10px));
+    right: 10px;
+  }
+
+  .session-chip {
+    display: none;
+  }
+}
+
 .app-shell {
   min-height: 100svh;
   overflow-x: hidden;
@@ -228,6 +385,13 @@ button {
 
 .detail-heading {
   padding: calc(44px + env(safe-area-inset-top)) 4px 14px;
+}
+
+.detail-progress {
+  color: rgba(198, 204, 214, 0.72);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .detail-heading h1 {
@@ -546,6 +710,42 @@ button {
   font-weight: 800;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.deck-card-date-shell {
+  position: relative;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.deck-card-date-hit-zone {
+  position: absolute;
+  top: -16px;
+  bottom: -16px;
+  width: 36px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.deck-card-date-hit-zone--left {
+  left: calc(50% - 36px);
+}
+
+.deck-card-date-hit-zone--right {
+  left: 50%;
+}
+
+.deck-card-date-hit-zone:focus-visible {
+  outline: none;
 }
 
 .card-semantic-anchors--back {
