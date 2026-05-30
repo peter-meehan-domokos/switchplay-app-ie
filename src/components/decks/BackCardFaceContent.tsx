@@ -54,11 +54,10 @@ function blockSignalBlockGesturePropagation(event: PointerEvent<HTMLElement>) {
 type FocusedSignalRowProps = {
   cardId: string;
   signal: CardLayout["signals"][number];
-  isSignalGeometryDebug: boolean;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
 };
 
-function FocusedSignalRow({ cardId, signal, isSignalGeometryDebug, onCommitSignalReading }: FocusedSignalRowProps) {
+function FocusedSignalRow({ cardId, signal, onCommitSignalReading }: FocusedSignalRowProps) {
   const [isValueVisible, setIsValueVisible] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [currentNormalized, setCurrentNormalized] = useState(signal.value);
@@ -246,9 +245,7 @@ function FocusedSignalRow({ cardId, signal, isSignalGeometryDebug, onCommitSigna
     showValueTemporarily();
   };
 
-  const signalRowClassName = ["focused-card-signal-slot", isSignalGeometryDebug ? "debug-signal-drag-region" : undefined]
-    .filter(Boolean)
-    .join(" ");
+  const signalRowClassName = "focused-card-signal-slot";
   const signalValueClassName = [
     "focused-card-signal-value",
     isValueVisible ? "focused-card-signal-value--visible" : "focused-card-signal-value--hidden",
@@ -290,7 +287,6 @@ type BackCardFaceContentProps = {
 };
 
 export default function BackCardFaceContent({ card, dateLabel, variant = "focused", onCommitSignalReading }: BackCardFaceContentProps) {
-  const isSignalGeometryDebug = process.env.NODE_ENV !== "production";
   const hasBackMediaTrace = Boolean(card.backMediaTrace);
   const layoutClassName = ["focused-card-back-layout", "back-card-face-content", `back-card-face-content--${variant}`].join(" ");
   const backSignalsClassName = [
@@ -321,7 +317,6 @@ export default function BackCardFaceContent({ card, dateLabel, variant = "focuse
               key={signal.id}
               cardId={card.id}
               signal={signal}
-              isSignalGeometryDebug={isSignalGeometryDebug}
               onCommitSignalReading={commitSignalReading}
             />
           ))}

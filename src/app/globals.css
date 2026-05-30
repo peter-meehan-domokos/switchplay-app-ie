@@ -1582,12 +1582,6 @@ input {
   outline-offset: 4px;
 }
 
-.debug-signal-drag-region {
-  outline: 2px dashed #ff2d95;
-  outline-offset: 5px;
-  background: rgba(255, 45, 149, 0.06);
-}
-
 .focused-card-signal-slot:nth-child(2) {
   margin-left: 3px;
 }

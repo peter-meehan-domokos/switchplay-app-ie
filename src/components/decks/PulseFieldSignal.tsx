@@ -99,7 +99,6 @@ const fieldCharacters = {
 } satisfies Record<PulseFieldSignalVariant, Record<string, number>>;
 
 export default function PulseFieldSignal({ value, variant = "movement", className }: PulseFieldSignalProps) {
-  const isSignalGeometryDebug = process.env.NODE_ENV !== "production";
   const character = fieldCharacters[variant];
   const id = useId().replace(/:/g, "");
   const clampedValue = clamp(value, 0, 1);
@@ -170,20 +169,6 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           <feGaussianBlur stdDeviation="6.8" />
         </filter>
       </defs>
-      {isSignalGeometryDebug ? (
-        <g pointerEvents="none" aria-hidden="true">
-          <rect x={fieldStart} y={fieldY - 2} width={fieldWidth} height={fieldHeight + 4} fill="none" stroke="#22d3ee" strokeWidth="1.3" />
-          <line x1={fieldStart} y1={fieldY - 6} x2={fieldStart} y2={fieldY + fieldHeight + 6} stroke="#f59e0b" strokeWidth="1.3" />
-          <line
-            x1={fieldStart + fieldWidth}
-            y1={fieldY - 6}
-            x2={fieldStart + fieldWidth}
-            y2={fieldY + fieldHeight + 6}
-            stroke="#f59e0b"
-            strokeWidth="1.3"
-          />
-        </g>
-      ) : null}
       <g mask={`url(#${fieldMaskId})`}>
         <rect x="6" y="2.5" width="228" height="23" fill={`url(#${verticalFadeId})`} opacity={character.verticalOpacity} />
         <ellipse
