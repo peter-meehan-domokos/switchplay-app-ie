@@ -2,6 +2,10 @@ import { useId } from "react";
 
 export type PulseFieldSignalVariant = "recovery" | "movement" | "load";
 
+export const SIGNAL_FIELD_START = 12;
+export const SIGNAL_FIELD_WIDTH = 216;
+export const SIGNAL_FIELD_VIEWBOX_WIDTH = 240;
+
 type PulseFieldSignalProps = {
   value: number;
   variant?: PulseFieldSignalVariant;
@@ -12,11 +16,18 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-const fieldStart = 12;
-const fieldWidth = 216;
+const fieldStart = SIGNAL_FIELD_START;
+const fieldWidth = SIGNAL_FIELD_WIDTH;
 const fieldY = 8.6;
 const fieldHeight = 10.6;
 const fieldCenterY = fieldY + fieldHeight / 2;
+
+export function getSignalValuePositionPercent(normalizedValue: number) {
+  const clampedValue = clamp(normalizedValue, 0, 1);
+  const valuePosition = SIGNAL_FIELD_START + clampedValue * SIGNAL_FIELD_WIDTH;
+
+  return `${(valuePosition / SIGNAL_FIELD_VIEWBOX_WIDTH) * 100}%`;
+}
 
 const fieldCharacters = {
   recovery: {
@@ -88,6 +99,7 @@ const fieldCharacters = {
 } satisfies Record<PulseFieldSignalVariant, Record<string, number>>;
 
 export default function PulseFieldSignal({ value, variant = "movement", className }: PulseFieldSignalProps) {
+  const isSignalGeometryDebug = process.env.NODE_ENV !== "production";
   const character = fieldCharacters[variant];
   const id = useId().replace(/:/g, "");
   const clampedValue = clamp(value, 0, 1);
@@ -116,7 +128,8 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
   return (
     <svg
       className={className}
-      viewBox="0 0 240 28"
+      viewBox={`0 0 ${SIGNAL_FIELD_VIEWBOX_WIDTH} 28`}
+      preserveAspectRatio="none"
       role="img"
       aria-label={`Signal field ${Math.round(clampedValue * 100)} percent`}
       focusable="false"
@@ -147,8 +160,8 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           <stop offset="62%" stopColor="white" />
           <stop offset="100%" stopColor="white" stopOpacity="0" />
         </linearGradient>
-        <mask id={fieldMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="28">
-          <rect x="0" y="0" width="240" height="28" fill={`url(#${endFadeId})`} />
+        <mask id={fieldMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={SIGNAL_FIELD_VIEWBOX_WIDTH} height="28">
+          <rect x="0" y="0" width={SIGNAL_FIELD_VIEWBOX_WIDTH} height="28" fill={`url(#${endFadeId})`} />
         </mask>
         <filter id={fieldBlurId} x="-16%" y="-110%" width="132%" height="320%">
           <feGaussianBlur stdDeviation="3.4" />
@@ -157,6 +170,20 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           <feGaussianBlur stdDeviation="6.8" />
         </filter>
       </defs>
+      {isSignalGeometryDebug ? (
+        <g pointerEvents="none" aria-hidden="true">
+          <rect x={fieldStart} y={fieldY - 2} width={fieldWidth} height={fieldHeight + 4} fill="none" stroke="#22d3ee" strokeWidth="1.3" />
+          <line x1={fieldStart} y1={fieldY - 6} x2={fieldStart} y2={fieldY + fieldHeight + 6} stroke="#f59e0b" strokeWidth="1.3" />
+          <line
+            x1={fieldStart + fieldWidth}
+            y1={fieldY - 6}
+            x2={fieldStart + fieldWidth}
+            y2={fieldY + fieldHeight + 6}
+            stroke="#f59e0b"
+            strokeWidth="1.3"
+          />
+        </g>
+      ) : null}
       <g mask={`url(#${fieldMaskId})`}>
         <rect x="6" y="2.5" width="228" height="23" fill={`url(#${verticalFadeId})`} opacity={character.verticalOpacity} />
         <ellipse

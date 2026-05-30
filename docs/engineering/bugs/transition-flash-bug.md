@@ -264,3 +264,205 @@ CORRECTION!!!!!!!!!!!!! --------------------------
 
 Chrome = Android Chrome, not Chrome on iOS.
 Safari = real iPhone Safari.
+
+
+
+-----------
+Note there was a flash bug when we introduced. Click to show signal number below is the copied conversation with copilot in case this assists:
+
+I’ll do a read-only trace through the signal row plus surrounding motion/gesture wrappers to isolate what can visually flash before reveal, then I’ll give you a report with likely cause and safest non-invasive fix direction.
+
+Searched for regex FocusedSignalRow|focused-card-signal-slot|onPointerDown|onClick|onKeyDown|AnimatePresence|layout|whileTap|tap|focus-visible|webkit-tap-highlight (**/src/**/*.{ts,tsx,css}), 193 results
+
+Read 
+
+Read 
+
+I’ve confirmed the 4C row/timer code; next I’m checking parent gesture handlers and focused-card CSS states to identify whether the flicker is coming from focus/tap styling versus motion re-layout.
+
+Searched for regex :focus(?!-visible)|:active|tap-highlight|focused-card-signal-slot|focused-card-object|focused-card-back-shell|focused-card-signal-value|transition (**/src/app/globals.css), 20 results
+
+Read , lines 1400 to 1705
+
+Read , lines 240 to 368
+
+Read , lines 712 to 752
+
+I’ve narrowed the strongest suspect to touch/click feedback styling rather than mount logic; I’m quickly checking nearby interaction components to confirm whether propagation/layout patterns match and then I’ll give you the report-only diagnosis.
+
+Read , lines 248 to 310
+
+Read , lines 1368 to 1412
+
+Read 
+
+Reproduction Summary
+
+I did a read-only investigation and did not change code.
+
+I cannot directly confirm the visual frame-by-frame flicker in-browser from this pass, but the reported symptom strongly matches tap/click feedback appearing before the reveal state update.
+
+Most likely visible sequence on tap:
+
+Row receives touch/click feedback momentarily.
+
+Click handler runs and sets visibility true.
+
+Number opacity transition starts.
+
+This creates a perceptible pre-reveal flash.
+
+Current 4C Implementation Trace
+
+Visibility state is local per row in FocusedSignalRow at BackCardFaceContent.tsx.
+
+Tap/click reveal is triggered via onClick at BackCardFaceContent.tsx.
+
+Timer logic:
+
+Clears existing timer in clearHideTimer at BackCardFaceContent.tsx.
+
+Starts 3000ms timer in showValueTemporarily at BackCardFaceContent.tsx.
+
+Cleanup on unmount at BackCardFaceContent.tsx.
+
+Number is always mounted (not conditionally mounted/unmounted): span remains in DOM at BackCardFaceContent.tsx.
+
+CSS hide/show:
+
+Base hidden opacity + transition at globals.css.
+
+Hidden class at globals.css.
+
+Visible class at globals.css.
+
+Likely Cause
+
+Most probable cause: tap/click feedback flash on the interactive row before reveal state is applied.
+
+Why this is likely:
+
+Reveal is on click, which fires after pointer down/up, so there is a short delay window before number transition starts.
+
+The row is button-like (role button + tabIndex) at BackCardFaceContent.tsx, but it does not explicitly neutralize mobile tap highlight.
+
+There is a focus-visible outline rule at globals.css that can contribute visible feedback depending on device/input mode.
+
+Secondary cause (lower probability): input-mode-dependent focus ring/default focus paint on the row.
+
+Low probability causes:
+
+Mount/unmount flicker (not happening; element stays mounted).
+
+Motion layout jump (no direct AnimatePresence/layout around signal rows themselves).
+
+Evidence
+
+No mount/unmount path for number: BackCardFaceContent.tsx.
+
+Reveal tied to click timing: BackCardFaceContent.tsx.
+
+Row is interactive and focusable: BackCardFaceContent.tsx.
+
+Focus-visible style exists on row: globals.css.
+
+No row-specific tap-highlight reset, while another interactive control explicitly uses one at globals.css.
+
+Parent motion/gestures exist at card-object level:
+
+Motion container with gesture handlers: FocusedCardView.tsx.
+
+Gesture onPointerDown path: useDeckGestures.ts.
+
+But row already stops propagation on pointer down and click:
+
+BackCardFaceContent.tsx
+
+BackCardFaceContent.tsx
+
+Recommended Fix (Conceptual Only, Not Implemented)
+
+Keep current mounted-span strategy (already correct).
+
+Make reveal start on pointer down for immediate response, then keep existing 3s timer reset behavior.
+
+Neutralize touch highlight/default tap paint on the signal row for mobile input.
+
+Preserve keyboard accessibility and keep dedicated focus-visible styling for keyboard paths only.
+
+Keep stopPropagation minimal and local on row events as currently done.
+
+Risk Check
+
+Number positioning: unaffected by the conceptual fix, since positioning helper and CSS transform remain unchanged in PulseFieldSignal.tsx and globals.css.
+
+Debug borders: unaffected; debug class remains in globals.css.
+
+Future drag implementation: compatible, because local per-row visibility/timer ownership remains in place.
+
+Card flip behavior: low risk if propagation boundaries stay local to row and no global gesture code is altered.
+
+Persistence architecture: unaffected; no backend or persistence state involved.
+
+
+
+2nd
+
+I’m applying the two targeted changes now: move reveal to pointer down for immediate touch/mouse feedback, and add tap-highlight neutralization on the signal row while keeping keyboard reveal behavior intact.
+
+Generating patch (13 lines) in [](file:///Users/peterdomokos/projects/switchplay-app/src/components/decks/BackCardFaceContent.tsx)
+
+
+```
+
+```
+
+
+Generating patch (11 lines) in [](file:///Users/peterdomokos/projects/switchplay-app/src/app/globals.css)
+
+
+```
+
+```
+The handler/CSS updates are in place with no extra behavior changes. I’m running a build now to verify everything still compiles cleanly.
+
+Ran terminal command:  npm run build
+
+I’ve finished implementation and build validation; I’m pulling exact line references for the event and CSS deltas so the report is precise.
+
+Read [](file:///Users/peterdomokos/projects/switchplay-app/src/components/decks/BackCardFaceContent.tsx#44-44), lines 44 to 95
+
+Read [](file:///Users/peterdomokos/projects/switchplay-app/src/app/globals.css#1568-1568), lines 1568 to 1588
+
+Implemented only the two requested changes.
+
+Files changed
+- BackCardFaceContent.tsx
+- globals.css
+
+Exact event handler changes
+- In BackCardFaceContent.tsx:
+1. onPointerDown now calls showValueTemporarily() immediately.
+2. onClick no longer calls showValueTemporarily(); it now only stops propagation.
+- Keyboard behavior remains unchanged:
+- Enter/Space still call showValueTemporarily() in onKeyDown at BackCardFaceContent.tsx.
+
+Exact CSS changes
+- Added mobile tap highlight neutralization on the signal row:
+- -webkit-tap-highlight-color: transparent; in globals.css.
+- Kept focus-visible styling intact in globals.css.
+
+Click handling and keyboard accessibility
+- Click handling remains, but now only for propagation control (no reveal trigger), so pointer users reveal on pointer down without click-delay/double-trigger.
+- Keyboard accessibility remains via onKeyDown (Enter/Space) exactly as before.
+
+Build result
+- npm run build passed successfully.
+
+Scope confirmation
+- No timer changes.
+- No positioning changes.
+- No drag/persistence/gesture-shield changes.
+- Debug borders remain.
+
+Made changes.

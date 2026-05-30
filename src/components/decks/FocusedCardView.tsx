@@ -28,6 +28,7 @@ type FocusedCardViewProps = {
   onNext: () => void;
   onCycleItemStatus: (itemId: string) => void;
   onAdjustTargetDate: (direction: -1 | 1) => void;
+  onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
 };
@@ -136,6 +137,7 @@ export default function FocusedCardView({
   onNext,
   onCycleItemStatus,
   onAdjustTargetDate,
+  onCommitSignalReading,
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
@@ -299,7 +301,12 @@ export default function FocusedCardView({
               </div>
             </div>
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
-              <BackCardFaceContent card={card} dateLabel={dateLabel} variant="focused" />
+              <BackCardFaceContent
+                card={card}
+                dateLabel={dateLabel}
+                variant="focused"
+                onCommitSignalReading={onCommitSignalReading}
+              />
             </div>
           </motion.div>
         </motion.article>

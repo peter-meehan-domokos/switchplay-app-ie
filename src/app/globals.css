@@ -1573,6 +1573,19 @@ input {
   display: grid;
   gap: 13px;
   justify-items: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.focused-card-signal-slot:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.5);
+  outline-offset: 4px;
+}
+
+.debug-signal-drag-region {
+  outline: 2px dashed #ff2d95;
+  outline-offset: 5px;
+  background: rgba(255, 45, 149, 0.06);
 }
 
 .focused-card-signal-slot:nth-child(2) {
@@ -1604,30 +1617,41 @@ input {
   overflow: visible;
 }
 
+.focused-card-signal-track {
+  position: relative;
+  width: min(88%, 252px);
+  padding-top: 11px;
+}
+
+.focused-card-signal-track .focused-card-signal-trace {
+  width: 100%;
+}
+
 .focused-card-signal-value {
-  margin-top: -11px;
+  position: absolute;
+  left: var(--signal-value-position, 50%);
+  top: 0;
+  transform: translateX(-50%);
   color: rgba(255, 250, 240, 0.3);
   font-size: 0.68rem;
   font-weight: 560;
   letter-spacing: 0;
   line-height: 1;
-  opacity: 0.92;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 180ms ease;
   text-shadow:
     0 0 8px rgba(168, 214, 228, 0.07),
     0 0 18px rgba(255, 250, 240, 0.045),
     0 1px 9px rgba(13, 18, 24, 0.18);
 }
 
-.focused-card-signal-value--recovery {
-  transform: translate(142px, 0);
+.focused-card-signal-value--hidden {
+  opacity: 0;
 }
 
-.focused-card-signal-value--movement {
-  transform: translate(132px, -1px);
-}
-
-.focused-card-signal-value--load {
-  transform: translate(151px, 0);
+.focused-card-signal-value--visible {
+  opacity: 0.92;
 }
 
 .focused-card-back-external-comment {

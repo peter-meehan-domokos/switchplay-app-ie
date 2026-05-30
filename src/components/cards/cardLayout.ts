@@ -58,6 +58,59 @@ function clampSignalValue(value: number) {
   return Math.min(Math.max(value, 0), 1);
 }
 
+// MVP integer-mode rendering.
+// Future signal precision support may preserve decimal min/max values
+// while rounding displayed/persisted readings independently.
+
+function normalizeSignalRange(minValue: number, maxValue: number) {
+  const safeMinValue = Number.isFinite(minValue) ? minValue : 0;
+  const safeMaxValue = Number.isFinite(maxValue) ? maxValue : safeMinValue + 1;
+  const lowerBound = Math.min(safeMinValue, safeMaxValue);
+  const upperBound = Math.max(safeMinValue, safeMaxValue);
+
+  if (lowerBound === upperBound) {
+    return {
+      minValue: lowerBound,
+      maxValue: lowerBound + 1,
+    };
+  }
+
+  return {
+    minValue: lowerBound,
+    maxValue: upperBound,
+  };
+}
+
+export function clampReadingToSignalRange(reading: number, minValue: number, maxValue: number) {
+  const { minValue: lowerBound, maxValue: upperBound } = normalizeSignalRange(minValue, maxValue);
+
+  if (!Number.isFinite(reading)) {
+    return lowerBound;
+  }
+
+  return Math.min(Math.max(reading, lowerBound), upperBound);
+}
+
+export function snapReadingToInteger(reading: number) {
+  return Number.isFinite(reading) ? Math.round(reading) : 0;
+}
+
+export function readingToNormalized(reading: number, minValue: number, maxValue: number, order: SignalOrder) {
+  const { minValue: lowerBound, maxValue: upperBound } = normalizeSignalRange(minValue, maxValue);
+  const clampedReading = clampReadingToSignalRange(reading, lowerBound, upperBound);
+  const normalizedValue = (clampedReading - lowerBound) / (upperBound - lowerBound);
+
+  return clampSignalValue(order === "decreasing" ? 1 - normalizedValue : normalizedValue);
+}
+
+export function normalizedToReading(normalizedValue: number, minValue: number, maxValue: number, order: SignalOrder) {
+  const { minValue: lowerBound, maxValue: upperBound } = normalizeSignalRange(minValue, maxValue);
+  const clampedNormalizedValue = clampSignalValue(normalizedValue);
+  const orderedNormalizedValue = order === "decreasing" ? 1 - clampedNormalizedValue : clampedNormalizedValue;
+
+  return lowerBound + orderedNormalizedValue * (upperBound - lowerBound);
+}
+
 function normalizeSignalOrder(order: string): SignalOrder {
   return order === "decreasing" ? "decreasing" : "increasing";
 }
@@ -77,21 +130,18 @@ function normalizeSignalDimension(dimension: string): SignalDimension {
 }
 
 export function getNormalizedSignalValue(reading: number, minValue: number, maxValue: number, order: SignalOrder) {
-  const range = maxValue - minValue;
-
-  if (!Number.isFinite(reading) || !Number.isFinite(range) || range === 0) {
-    return 0.5;
-  }
-
-  const normalizedValue = (reading - minValue) / range;
-  return clampSignalValue(order === "decreasing" ? 1 - normalizedValue : normalizedValue);
+  return readingToNormalized(reading, minValue, maxValue, order);
 }
 
 function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal {
   const order = normalizeSignalOrder(signal.order);
-  const minValue = Number.isFinite(signal.minValue) ? signal.minValue : 0;
-  const maxValue = Number.isFinite(signal.maxValue) ? signal.maxValue : minValue + 1;
-  const reading = Number.isFinite(signal.reading) ? signal.reading : minValue;
+
+  // Keep reading precision for field position continuity; display rounding stays in UI.
+  const snappedMinValue = snapReadingToInteger(signal.minValue);
+  const snappedMaxValue = snapReadingToInteger(signal.maxValue);
+  const { minValue, maxValue } = normalizeSignalRange(snappedMinValue, snappedMaxValue);
+  const rawReading = Number.isFinite(signal.reading) ? signal.reading : minValue;
+  const reading = clampReadingToSignalRange(rawReading, minValue, maxValue);
 
   return {
     id: signal.id,
