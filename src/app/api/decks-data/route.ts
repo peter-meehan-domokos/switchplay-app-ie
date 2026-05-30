@@ -4,6 +4,7 @@ import { createEmptyUserDeckDataFromTemplate } from "@/lib/deckData";
 import { getCurrentUser } from "@/lib/auth";
 import { getCollection } from "@/lib/mongodb";
 import { deckTemplates } from "@/mocks/deckTemplates";
+import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 const USERS_COLLECTION = "users";
 
@@ -26,7 +27,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "deckTemplateId is required." }, { status: 400 });
     }
 
-    const template = deckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
+    const template = visibleDeckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
 
     if (!template) {
       return Response.json({ error: "Deck template not found." }, { status: 404 });
