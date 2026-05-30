@@ -18,7 +18,7 @@ import {
   DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
   ROLE_TRANSITION_SETTLE_MS,
 } from "@/constants/cardStack";
-import { persistActiveCardId, persistCardTargetDate, persistItemCompletionStatus } from "@/lib/deckMutations";
+import { persistActiveCardId, persistCardTargetDate, persistItemCompletionStatus, persistSignalReading } from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
@@ -168,6 +168,10 @@ function addDaysToDateString(dateString: string, amount: number) {
   baseDate.setUTCDate(baseDate.getUTCDate() + amount);
 
   return baseDate.toISOString().slice(0, 10);
+}
+
+function roundToTwoDecimals(value: number) {
+  return Number(value.toFixed(2));
 }
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
@@ -361,6 +365,37 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       console.warn("Unable to persist card target date.", error);
     });
   };
+  const commitFocusedSignalReading = (cardId: string, signalId: string, reading: number) => {
+    const nextReading = roundToTwoDecimals(reading);
+    const nextCards = cardsRef.current.map((card) => {
+      if (card.id !== cardId) {
+        return card;
+      }
+
+      return {
+        ...card,
+        signals: card.signals.map((signal) =>
+          signal.id === signalId
+            ? {
+                ...signal,
+                reading: nextReading,
+              }
+            : signal
+        ),
+      };
+    });
+
+    cardsRef.current = nextCards;
+    setCards(nextCards);
+
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    void persistSignalReading(deck.deckTemplateId, cardId, signalId, nextReading).catch((error) => {
+      console.warn("Unable to persist signal reading.", error);
+    });
+  };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
 
@@ -455,6 +490,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onNext={goToNextFocusedCard}
             onCycleItemStatus={cycleFocusedItemStatus}
             onAdjustTargetDate={adjustFocusedCardTargetDate}
+            onCommitSignalReading={commitFocusedSignalReading}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}

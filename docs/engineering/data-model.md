@@ -166,3 +166,58 @@ items for weekly action steps
 signals for measurable targets
 mediaItems for videos/images
 chats for card-level discussion
+
+Signal persistence policy:
+
+- Persist reading only
+- Persist to 2 decimal places
+- Never persist normalized position
+- Layout controls display precision
+
+## Signal Reading Persistence Model
+
+Signal state is persisted as a reading value only.
+
+Do not persist:
+
+* normalized position
+* percentage position
+* visual field position
+
+Persist:
+
+```ts
+reading
+```
+
+only.
+
+Signal position is derived from:
+
+```txt
+reading
++
+signal min/max range
+```
+
+Storage precision:
+
+```txt
+2 decimal places
+```
+
+Display precision is a layout concern and may differ from storage precision.
+
+Examples:
+
+```txt
+Stored: 1.83
+Displayed: 2
+```
+
+```txt
+Stored: 12.46
+Displayed: 12
+```
+
+Future versions may expose display precision options without requiring schema changes.

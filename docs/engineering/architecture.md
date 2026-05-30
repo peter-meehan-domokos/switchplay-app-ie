@@ -620,3 +620,78 @@ This phase is intentionally:
 The priority is reliability and iteration speed rather than enterprise-scale architecture.
 
 The system should remain conceptually clean enough to evolve later without requiring major rewrites.
+
+
+## Route Mutation Shape Safety
+
+When extending shared API routes that support multiple mutation types, always review mutation-shape discrimination before adding a new branch.
+
+New request shapes must not be capable of being misclassified as an existing mutation branch.
+
+Example:
+
+A signal-reading mutation:
+
+```ts
+{
+  cardId,
+  signalId,
+  reading,
+}
+```
+
+was initially at risk of being classified as a target-date mutation because both shapes contained `cardId`.
+
+When adding new mutation types:
+
+1. Define the complete shape explicitly.
+2. Review all existing branch-detection logic.
+3. Ensure each mutation shape is mutually exclusive.
+4. Prefer positive validation of required fields rather than partial matching.
+5. Add validation that prevents overlapping request shapes.
+
+This check is mandatory whenever a new PATCH/POST mutation shape is introduced.
+
+
+## Optimistic Mutation Pattern
+
+Interactive user edits should follow a consistent optimistic-update architecture.
+
+Pattern:
+
+```txt
+User action
+↓
+Local state update
+↓
+Background persistence
+```
+
+The UI should not wait for network confirmation before reflecting the user's action.
+
+Current examples:
+
+* active card updates
+* completion status updates
+* target date updates
+* signal reading updates
+
+Guidelines:
+
+1. Update local state immediately.
+2. Persist in the background.
+3. Avoid page refreshes.
+4. Avoid blocking interaction on network completion.
+5. Prefer a single persistence call per completed user action.
+
+For drag interactions:
+
+```txt
+dragging
+↓
+local updates only
+
+drag end
+↓
+single persistence operation
+```

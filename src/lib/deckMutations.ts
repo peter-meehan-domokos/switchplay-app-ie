@@ -56,3 +56,27 @@ export async function persistCardTargetDate(deckTemplateId: string, cardId: stri
     throw new Error(payload?.error ?? "Unable to update card target date.");
   }
 }
+
+export async function persistSignalReading(
+  deckTemplateId: string,
+  cardId: string,
+  signalId: string,
+  reading: number,
+) {
+  const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      cardId,
+      signalId,
+      reading,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? "Unable to update signal reading.");
+  }
+}

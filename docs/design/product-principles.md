@@ -80,3 +80,43 @@ Animations should support:
 - physical/tactile feeling
 
 rather than decorative spectacle.
+
+## Preserve Rich State, Simplify Presentation
+
+Where possible, Switchplay should preserve richer underlying state than is currently displayed.
+
+The application should avoid throwing away information simply because the current interface chooses not to show it.
+
+Example:
+
+Signal readings are stored with decimal precision but currently displayed as whole numbers.
+
+Storage:
+
+```txt
+1.83
+```
+
+Display:
+
+```txt
+2
+```
+
+This allows presentation choices to evolve without data migration or loss of user intent.
+
+Prefer:
+
+```txt
+Rich storage
+↓
+Simplified display
+```
+
+Over:
+
+```txt
+Simplified storage
+↓
+Simplified display
+```

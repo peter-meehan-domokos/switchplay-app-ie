@@ -176,3 +176,36 @@ Defocus should feel like releasing attention back into the deck environment, not
 ### Flip
 
 Flip should feel intimate and intentional. It is a transition between action and reflection, not a card trick. Avoid overly playful 3D rotation or velocity-driven flipping.
+
+
+## Relative Interaction Principle
+
+Where possible, Switchplay should favour relative manipulation over absolute manipulation.
+
+Example:
+
+Signal editing uses relative drag.
+
+The user begins from the current state and adjusts it through movement.
+
+Avoid interactions that immediately jump an object to the pointer location.
+
+Preferred:
+
+```txt
+Current state
+↓
+User drags
+↓
+State changes relative to movement
+```
+
+Avoid:
+
+```txt
+Touch location
+↓
+Object jumps to touch position
+```
+
+Relative interaction preserves object continuity and strengthens the feeling that users are manipulating an existing object rather than issuing commands to software.

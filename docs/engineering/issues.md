@@ -30,3 +30,8 @@ When swiping up from a card on the table, that card should move first, and then 
 
 ## LATER
 - consider a categories record
+
+
+
+
+ 
