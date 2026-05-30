@@ -27,6 +27,7 @@ type FocusedCardViewProps = {
   onPrevious: () => void;
   onNext: () => void;
   onCycleItemStatus: (itemId: string) => void;
+  onAdjustTargetDate: (direction: -1 | 1) => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
 };
@@ -134,6 +135,7 @@ export default function FocusedCardView({
   onPrevious,
   onNext,
   onCycleItemStatus,
+  onAdjustTargetDate,
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
@@ -292,6 +294,7 @@ export default function FocusedCardView({
                   dateLabel={dateLabel}
                   variant="focused"
                   onCycleItemStatus={onCycleItemStatus}
+                  onAdjustTargetDate={onAdjustTargetDate}
                 />
               </div>
             </div>

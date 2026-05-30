@@ -9,6 +9,7 @@ type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 
 const USERS_COLLECTION = "users";
 const completionStatusValues: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
+const isoDateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 type DeckDataRouteContext = {
   params: Promise<{
@@ -30,6 +31,30 @@ function hasOwnProperty(value: object, key: string) {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isIsoDateOnlyString(value: unknown): value is string {
+  if (!hasNonEmptyString(value)) {
+    return false;
+  }
+
+  const trimmedValue = value.trim();
+
+  if (!isoDateOnlyRegex.test(trimmedValue)) {
+    return false;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = trimmedValue.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const candidateDate = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    candidateDate.getUTCFullYear() === year &&
+    candidateDate.getUTCMonth() === month - 1 &&
+    candidateDate.getUTCDate() === day
+  );
 }
 
 export async function PATCH(request: Request, context: DeckDataRouteContext) {
@@ -58,26 +83,39 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     const bodyRecord = body as Record<string, unknown>;
 
     const hasActiveCardField = hasOwnProperty(bodyRecord, "activeCardId");
-    const hasCardMutationFields =
-      hasOwnProperty(bodyRecord, "cardId") || hasOwnProperty(bodyRecord, "itemId") || hasOwnProperty(bodyRecord, "completionStatus");
+    const hasCardIdField = hasOwnProperty(bodyRecord, "cardId");
+    const hasItemIdField = hasOwnProperty(bodyRecord, "itemId");
+    const hasCompletionStatusField = hasOwnProperty(bodyRecord, "completionStatus");
+    const hasTargetDateField = hasOwnProperty(bodyRecord, "targetDate");
+    const hasCardMutationFields = hasCardIdField || hasItemIdField || hasCompletionStatusField || hasTargetDateField;
+    const hasCompletionStatusMutation = hasItemIdField || hasCompletionStatusField;
+    const hasTargetDateMutation = hasTargetDateField || (hasCardIdField && !hasCompletionStatusMutation);
 
     if (hasActiveCardField && hasCardMutationFields) {
       return Response.json({ error: "Request body must contain only one mutation shape." }, { status: 400 });
     }
 
+    if (hasTargetDateMutation && hasCompletionStatusMutation && hasTargetDateField) {
+      return Response.json({ error: "Request body must contain only one mutation shape." }, { status: 400 });
+    }
+
     const hasActiveCardMutation = hasNonEmptyString(bodyRecord.activeCardId);
-    const hasCompletionStatusMutation =
-      hasOwnProperty(bodyRecord, "cardId") || hasOwnProperty(bodyRecord, "itemId") || hasOwnProperty(bodyRecord, "completionStatus");
 
     if (hasActiveCardField && !hasActiveCardMutation) {
       return Response.json({ error: "activeCardId is required." }, { status: 400 });
+    }
+
+    const templateById = deckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+
+    if (!templateById) {
+      return Response.json({ error: "Invalid deckTemplateId." }, { status: 400 });
     }
 
     const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
     const template = visibleDeckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
 
     if (!template) {
-      return Response.json({ error: "Deck template not found." }, { status: 404 });
+      return Response.json({ error: "You do not have access to this deck template." }, { status: 403 });
     }
 
     const existingDeckData = user.decksData.find((deckData) => deckData.deckTemplateId === deckTemplateId);
@@ -127,6 +165,73 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         success: true,
         deckTemplateId,
         activeCardId,
+      });
+    }
+
+    if (hasTargetDateMutation) {
+      const cardIdRaw = bodyRecord.cardId;
+      const targetDateRaw = bodyRecord.targetDate;
+
+      if (!hasNonEmptyString(cardIdRaw)) {
+        return Response.json({ error: "cardId is required." }, { status: 400 });
+      }
+
+      if (!hasNonEmptyString(targetDateRaw)) {
+        return Response.json({ error: "targetDate is required." }, { status: 400 });
+      }
+
+      const cardId = cardIdRaw.trim();
+      const targetDate = targetDateRaw.trim();
+      const templateCard = template.cards.find((card) => card.cardId === cardId);
+
+      if (!templateCard) {
+        return Response.json({ error: "cardId is not part of this deck template." }, { status: 400 });
+      }
+
+      if (!isIsoDateOnlyString(targetDate)) {
+        return Response.json({ error: "targetDate must be an ISO date string in YYYY-MM-DD format." }, { status: 400 });
+      }
+
+      const existingCardData = existingDeckData.cards.find((card) => card.cardId === cardId);
+
+      if (!existingCardData) {
+        return Response.json({ error: "Failed Mongo update for targetDate." }, { status: 500 });
+      }
+
+      const updateResult = await users.updateOne(
+        {
+          _id: userObjectId,
+          "decksData.deckTemplateId": deckTemplateId,
+        },
+        {
+          $set: {
+            "decksData.$[deck].cards.$[card].targetDate": targetDate,
+            "decksData.$[deck].updatedAt": now.toISOString(),
+            updatedAt: now,
+          },
+        },
+        {
+          arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }, { "card.cardId": cardId }],
+        },
+      );
+
+      if (updateResult.matchedCount === 0) {
+        return Response.json({ error: "Deck data has not been initialized." }, { status: 404 });
+      }
+
+      if (!updateResult.acknowledged) {
+        return Response.json({ error: "Failed Mongo update for targetDate." }, { status: 500 });
+      }
+
+      if (updateResult.modifiedCount === 0 && existingCardData.targetDate !== targetDate) {
+        return Response.json({ error: "Failed Mongo update for targetDate." }, { status: 500 });
+      }
+
+      return Response.json({
+        ok: true,
+        deckTemplateId,
+        cardId,
+        targetDate,
       });
     }
 
@@ -196,13 +301,13 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
       });
     }
 
-    return Response.json({ error: "Request body must contain either activeCardId or cardId/itemId/completionStatus." }, { status: 400 });
+    return Response.json({ error: "Request body must contain either activeCardId, cardId/targetDate, or cardId/itemId/completionStatus." }, { status: 400 });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return Response.json({ error: "Invalid request body." }, { status: 400 });
     }
 
-    console.error("Unable to update deck active card", error);
-    return Response.json({ error: "Unable to update deck active card." }, { status: 500 });
+    console.error("Unable to update deck data", error);
+    return Response.json({ error: "Unable to update deck data." }, { status: 500 });
   }
 }

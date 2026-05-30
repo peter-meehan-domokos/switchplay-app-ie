@@ -18,7 +18,7 @@ import {
   DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
   ROLE_TRANSITION_SETTLE_MS,
 } from "@/constants/cardStack";
-import { persistActiveCardId, persistItemCompletionStatus } from "@/lib/deckMutations";
+import { persistActiveCardId, persistCardTargetDate, persistItemCompletionStatus } from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
@@ -136,6 +136,38 @@ function useDeckSceneLayout(
 function getNextCompletionStatus(currentStatus: CompletionStatus) {
   const currentIndex = itemProgressCycle.indexOf(currentStatus);
   return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
+}
+
+function isValidDateString(dateString: string) {
+  const normalizedDateString = dateString.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDateString)) {
+    return false;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = normalizedDateString.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const candidateDate = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    candidateDate.getUTCFullYear() === year &&
+    candidateDate.getUTCMonth() === month - 1 &&
+    candidateDate.getUTCDate() === day
+  );
+}
+
+function addDaysToDateString(dateString: string, amount: number) {
+  if (!isValidDateString(dateString)) {
+    return null;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = dateString.split("-");
+  const baseDate = new Date(Date.UTC(Number(yearRaw), Number(monthRaw) - 1, Number(dayRaw)));
+  baseDate.setUTCDate(baseDate.getUTCDate() + amount);
+
+  return baseDate.toISOString().slice(0, 10);
 }
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
@@ -285,6 +317,54 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       console.warn("Unable to persist item completion status.", error);
     });
   };
+  const adjustFocusedCardTargetDate = (direction: -1 | 1) => {
+    if (!deck.hasUserDeckData) {
+      return;
+    }
+
+    let mutationToPersist: { cardId: string; targetDate: string } | null = null;
+    let warningMessage: string | null = null;
+
+    setCards((currentCards) =>
+      currentCards.map((card, cardIndex) => {
+        if (cardIndex !== activeCardIndex) {
+          return card;
+        }
+
+        const nextTargetDate = addDaysToDateString(card.targetDate, direction);
+
+        if (!nextTargetDate) {
+          warningMessage = "Unable to adjust card target date.";
+          return card;
+        }
+
+        mutationToPersist = {
+          cardId: card.id,
+          targetDate: nextTargetDate,
+        };
+
+        return {
+          ...card,
+          targetDate: nextTargetDate,
+        };
+      }),
+    );
+
+    if (warningMessage) {
+      console.warn(warningMessage);
+      return;
+    }
+
+    if (!mutationToPersist) {
+      return;
+    }
+
+    const nextMutation = mutationToPersist as { cardId: string; targetDate: string };
+
+    void persistCardTargetDate(deck.deckTemplateId, nextMutation.cardId, nextMutation.targetDate).catch((error) => {
+      console.warn("Unable to persist card target date.", error);
+    });
+  };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
 
@@ -378,6 +458,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}
             onCycleItemStatus={cycleFocusedItemStatus}
+            onAdjustTargetDate={adjustFocusedCardTargetDate}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}
