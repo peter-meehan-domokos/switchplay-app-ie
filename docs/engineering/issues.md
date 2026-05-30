@@ -24,10 +24,9 @@ When swiping up from a card on the table, that card should move first, and then 
 - check what this means for mobile - for prod, remove wildcard IP address from access list and replace with heroku one
 
 - handle, no target date set gracefully in the UI and in the code
+
 - card.defaultTargetDate should be derived from today's date, and the property which determines whether it's daily weekly et cetera.  This may not be defined and if not, then we need a manual way of storing a default target date on each card as well. Basically this is all to do with our card gets its default target date in the deck template. You can simply be defined, or it can be calculated from the property mentioned above plus today's date, what is a fallback option could be today's date plus weekly increase. Essentially, saying that that property should have a default value of weekly.
 
-
- okay, write me the prompt to implement the front end. Include all of the details listed above, and also make sensible suggestions about where the date utility helpers should be stored, including whether there should be a new helpers file or its net use of an existing one? I suggest a date helpers file. Regarding number one, make sure the system is clear that we want to represent the dates in one format, but we want to present them to users in the other until the system how to achieve that.  Let's use date-fns.
 
 ## LATER
 - consider a categories record

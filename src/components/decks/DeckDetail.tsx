@@ -172,6 +172,12 @@ function addDaysToDateString(dateString: string, amount: number) {
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
   const [cards, setCards] = useState(deck.cards);
+  // cardsRef is the immediate optimistic source of truth for target-date edits.
+  // We update it synchronously before setCards(...) so rapid taps always calculate
+  // from the latest optimistic state rather than waiting for React render/effect timing.
+  // This avoids missed persistence updates and prepares the interaction for future
+  // long-press acceleration.
+  const cardsRef = useRef(cards);
   const [activeCardIndex, setActiveCardIndex] = useState(() => {
     const initialCardIndex = deck.cards.findIndex((card) => card.id === deck.activeCardId);
     return initialCardIndex >= 0 ? initialCardIndex : 0;
@@ -189,6 +195,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   // while deck identity and persistence fields continue to come from `deck`.
   const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
   const finalCardIndex = optimisticDeck.cards.length - 1;
+
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
 
   useEffect(() => {
     return () => {
@@ -322,46 +332,32 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       return;
     }
 
-    let mutationToPersist: { cardId: string; targetDate: string } | null = null;
-    let warningMessage: string | null = null;
+    const activeCard = cardsRef.current[activeCardIndex];
 
-    setCards((currentCards) =>
-      currentCards.map((card, cardIndex) => {
-        if (cardIndex !== activeCardIndex) {
-          return card;
-        }
+    if (!activeCard) {
+      return;
+    }
 
-        const nextTargetDate = addDaysToDateString(card.targetDate, direction);
+    const nextTargetDate = addDaysToDateString(activeCard.targetDate, direction);
 
-        if (!nextTargetDate) {
-          warningMessage = "Unable to adjust card target date.";
-          return card;
-        }
+    if (!nextTargetDate) {
+      console.warn("Unable to adjust card target date.");
+      return;
+    }
 
-        mutationToPersist = {
-          cardId: card.id,
-          targetDate: nextTargetDate,
-        };
-
-        return {
-          ...card,
-          targetDate: nextTargetDate,
-        };
-      }),
+    const nextCards = cardsRef.current.map((card, cardIndex) =>
+      cardIndex === activeCardIndex
+        ? {
+            ...card,
+            targetDate: nextTargetDate,
+          }
+        : card,
     );
 
-    if (warningMessage) {
-      console.warn(warningMessage);
-      return;
-    }
+    cardsRef.current = nextCards;
+    setCards(nextCards);
 
-    if (!mutationToPersist) {
-      return;
-    }
-
-    const nextMutation = mutationToPersist as { cardId: string; targetDate: string };
-
-    void persistCardTargetDate(deck.deckTemplateId, nextMutation.cardId, nextMutation.targetDate).catch((error) => {
+    void persistCardTargetDate(deck.deckTemplateId, activeCard.id, nextTargetDate).catch((error) => {
       console.warn("Unable to persist card target date.", error);
     });
   };
