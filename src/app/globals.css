@@ -330,7 +330,7 @@ input {
   line-height: 1.15;
   font-weight: 500;
   letter-spacing: 0.025em;
-  color: rgba(245, 238, 220, 0.105);
+  color: rgba(245, 238, 220, 0.125);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.056);
   white-space: normal;
 }
