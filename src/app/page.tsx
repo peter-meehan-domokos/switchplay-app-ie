@@ -8,6 +8,7 @@ import { mockUserDeckData } from "@/mocks/mockUserDeckData";
 import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 const USE_MOCK_DATA = false;
+const mockUsernames = ['dev', 'Michael']
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -16,7 +17,9 @@ export default async function Home() {
     return <AuthScreen />;
   }
 
-  const decksData = USE_MOCK_DATA ? mockUserDeckData : user.decksData;
+
+
+  const decksData = USE_MOCK_DATA || mockUsernames.includes(user.username) ? mockUserDeckData : user.decksData;
   const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
   const renderDecks = mergeDeckTemplatesWithUserData(visibleDeckTemplates, decksData, user.id);
 

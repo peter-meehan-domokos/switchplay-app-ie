@@ -36,6 +36,8 @@ export type CardLayoutSignal = {
   targetValue: number;
   minValue: number;
   maxValue: number;
+  isTheoreticalMin?: boolean;
+  isTheoreticalMax?: boolean;
   unit: string;
   order: SignalOrder;
   dimension: SignalDimension;
@@ -153,6 +155,8 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
     targetValue: signal.targetValue,
     minValue,
     maxValue,
+    isTheoreticalMin: signal.isTheoreticalMin,
+    isTheoreticalMax: signal.isTheoreticalMax,
     unit: signal.unit,
     order,
     dimension: normalizeSignalDimension(signal.dimension),

@@ -313,6 +313,36 @@ input {
   box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
 }
 
+.deck-preview-channels {
+  position: absolute;
+  top: 40%;
+  left: 14%;
+  right: 12%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.deck-preview-channel-title {
+  font-size: 9px;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  color: rgba(245, 238, 220, 0.105);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.056);
+  white-space: normal;
+}
+
+.deck-preview-channel-title:nth-child(2) {
+  margin-left: 1px;
+}
+
+.deck-preview-channel-title:nth-child(3) {
+  margin-left: 0.5px;
+}
+
 .deck-tile-title {
   position: relative;
   z-index: 1;
@@ -1801,5 +1831,15 @@ input {
 
   .deck-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 700px) {
+  .deck-preview-channels {
+    gap: 4px;
+  }
+
+  .deck-preview-channel-title {
+    font-size: 9px;
   }
 }

@@ -41,6 +41,26 @@ function clampNormalized(value: number) {
   return Math.min(Math.max(value, 0), 1);
 }
 
+function formatSignalMinLabel(signal: CardLayout["signals"][number]) {
+  return signal.isTheoreticalMin === true ? `${signal.minValue}` : `${signal.minValue}-`;
+}
+
+function formatSignalMaxLabel(signal: CardLayout["signals"][number]) {
+  return signal.isTheoreticalMax === true ? `${signal.maxValue}` : `${signal.maxValue}+`;
+}
+
+function formatDisplayedSignalReading(signal: CardLayout["signals"][number], displayedReading: number) {
+  if (displayedReading === signal.minValue) {
+    return formatSignalMinLabel(signal);
+  }
+
+  if (displayedReading === signal.maxValue) {
+    return formatSignalMaxLabel(signal);
+  }
+
+  return `${displayedReading}`;
+}
+
 function blockSignalBlockGesturePropagation(event: PointerEvent<HTMLElement>) {
   event.stopPropagation();
 
@@ -117,6 +137,10 @@ function FocusedSignalRow({ cardId, signal, onCommitSignalReading }: FocusedSign
 
     return clampReadingToSignalRange(snapReadingToInteger(reading), signal.minValue, signal.maxValue);
   }, [effectiveNormalized, signal.maxValue, signal.minValue, signal.order]);
+  const displayedReadingLabel = useMemo(
+    () => formatDisplayedSignalReading(signal, displayedReading),
+    [displayedReading, signal]
+  );
 
   const getMovementRangePx = () => {
     const trackWidth = signalTrackRef.current?.getBoundingClientRect().width ?? 0;
@@ -271,7 +295,7 @@ function FocusedSignalRow({ cardId, signal, onCommitSignalReading }: FocusedSign
         style={{ "--signal-value-position": getSignalValuePositionPercent(effectiveNormalized) } as CSSProperties}
       >
         <span className={signalValueClassName} aria-hidden={!isValueVisible}>
-          {displayedReading}
+          {displayedReadingLabel}
         </span>
         <PulseFieldSignal value={effectiveNormalized} variant={signal.variant} className="focused-card-signal-trace" />
       </div>

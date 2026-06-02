@@ -36,7 +36,17 @@ export default function DeckTile({ deck, isDisabled = false, isPreparing = false
               transform: `translate(${index * 8}px, ${index * -6}px) rotate(${index * 2 - 2}deg)`,
               zIndex: 3 - index,
             }}
-          />
+          >
+            {index === 0 && deck.channels?.length ? (
+              <div className="deck-preview-channels" aria-hidden="true">
+                {deck.channels.slice(0, 3).map((channel) => (
+                  <div key={channel.id} className="deck-preview-channel-title">
+                    {channel.title}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </span>
         ))}
       </motion.div>
 

@@ -37,6 +37,8 @@ export type CardTemplateSignal = {
   targetValue: number;
   minValue: number;
   maxValue: number;
+  isTheoreticalMin?: boolean;
+  isTheoreticalMax?: boolean;
   unit: string;
   dimension: SignalDimension;
 };
@@ -51,10 +53,16 @@ export type CardTemplate = {
   signals: CardTemplateSignal[];
 };
 
+export type ChannelTemplate = {
+  id: string;
+  title: string;
+};
+
 export type DeckTemplate = {
   deckTemplateId: string;
   title: string;
   category: DeckCategory;
+  channels: ChannelTemplate[];
   cards: CardTemplate[];
 };
 
@@ -81,6 +89,7 @@ export type UserCardData = {
 export type UserDeckData = {
   deckTemplateId: string;
   activeCardId: string;
+  channels?: ChannelTemplate[];
   cards: UserCardData[];
   createdAt: string;
   updatedAt: string;
@@ -102,6 +111,8 @@ export type WeeklyCardSignal = {
   targetValue: number;
   minValue: number;
   maxValue: number;
+  isTheoreticalMin?: boolean;
+  isTheoreticalMax?: boolean;
   unit: string;
   dimension: SignalDimension;
 };
@@ -126,5 +137,6 @@ export type Deck = {
   activeCardId: string;
   title: string;
   category: DeckCategory;
+  channels?: ChannelTemplate[];
   cards: WeeklyCard[];
 };

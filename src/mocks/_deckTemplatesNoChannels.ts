@@ -1,25 +1,9 @@
-import type { DeckTemplate } from "@/components/decks/types";
-
-export const deckTemplates: DeckTemplate[] = [
+export const deckTemplates = [
   //PETER - JUNE
   {
     deckTemplateId: "deck-2026-06-open-loops-001",
     title: "Clear The Open Loops",
     category: "life-admin",
-    channels: [
-      {
-        title: "Commitments",
-        id: "commitments"
-      },
-      {
-        title: "Foundations",
-        id: "foundations"
-      },
-      {
-        title: "Initiative",
-        id: "initiative"
-      }
-    ],
     cards: [
       {
         cardId: "open-loops-card-001",
@@ -285,20 +269,6 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-teaching-income-001",
     title: "Create Teaching Income Option For September",
     category: "education",
-    channels: [
-      {
-        title: "Teaching Registration",
-        id: "teaching-registration"
-      },
-      {
-        title: "Tutoring Presence",
-        id: "tutoring-presence"
-      },
-      {
-        title: "Maths Credibility",
-        id: "maths-credibility"
-      }
-    ],
     cards: [
       {
         cardId: "teaching-card-001",
@@ -571,20 +541,6 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-health-fitness-001",
     title: "Make Healthy Habits Feel Natural",
     category: "health-fitness",
-    channels: [
-      {
-        title: "Awareness",
-        id: "awareness"
-      },
-      {
-        title: "Physical Capacity",
-        id: "physical-capacity"
-      },
-      {
-        title: "Recovery & Nutrition",
-        id: "recovery-nutrition"
-      }
-    ],
     cards: [
       {
         cardId: "health-card-001",
@@ -859,20 +815,6 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-tebo-studio-001",
     title: "Establish Tebo Studio As Credible",
     category: "tebo-studio",
-    channels: [
-      {
-        title: "Opportunity Network",
-        id: "opportunity-network"
-      },
-      {
-        title: "Studio Credibility",
-        id: "studio-credibility"
-      },
-      {
-        title: "Studio Perspective",
-        id: "studio-perspective"
-      }
-    ],
     cards: [
       {
         cardId: "tebo-card-001",
@@ -1142,20 +1084,6 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-music-001",
     title: "Jam Freely With Fiddle And H90",
     category: "music",
-    channels: [
-      {
-        title: "Scale Fluency",
-        id: "scale-fluency"
-      },
-      {
-        title: "Sound Shaping",
-        id: "sound-shaping"
-      },
-      {
-        title: "Trad Connections",
-        id: "trad-connections"
-      }
-    ],
     cards: [
       {
         cardId: "music-card-001",
@@ -1395,20 +1323,6 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-switchplay-001",
     title: "Find Early Evidence For Switchplay",
     category: "switchplay",
-    channels: [
-      {
-        title: "Product Robustness",
-        id: "product-robustness"
-      },
-      {
-        title: "User Validation",
-        id: "user-validation"
-      },
-      {
-        title: "Example Proof",
-        id: "proof-through-examples"
-      }
-    ],
     cards: [
       {
         cardId: "switchplay-card-001",
@@ -1679,20 +1593,6 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-001",
     "title": "First Pull-Up to Clean Muscle-Up",
     "category": "calisthenics",
-    "channels": [
-      {
-        "title": "Pull Strength",
-        "id": "pull-strength"
-      },
-      {
-        "title": "Movement Confidence",
-        "id": "movement-confidence"
-      },
-      {
-        "title": "Load Tolerance",
-        "id": "load-tolerance"
-      }
-    ],
     "cards": [
       {
         "cardId": "card-001",
@@ -2024,20 +1924,6 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-002",
     "title": "Explosive Lower Body Power",
     "category": "gym",
-    "channels": [
-      {
-        "title": "Power Output",
-        "id": "power-output"
-      },
-      {
-        "title": "Movement Confidence",
-        "id": "movement-confidence"
-      },
-      {
-        "title": "Load Tolerance",
-        "id": "load-tolerance"
-      }
-    ],
     "cards": [
       {
         "cardId": "card-005",
@@ -2333,20 +2219,6 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-003",
     "title": "Sharper First Touch Under Pressure",
     "category": "football",
-    "channels": [
-      {
-        "title": "First Touch",
-        "id": "first-touch"
-      },
-      {
-        "title": "Confidence Stability",
-        "id": "confidence-stability"
-      },
-      {
-        "title": "Pressure Tolerance",
-        "id": "pressure-tolerance"
-      }
-    ],
     "cards": [
       {
         "cardId": "card-009",
@@ -2780,20 +2652,6 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-004",
     "title": "Lean Strength Block",
     "category": "gym",
-    "channels": [
-      {
-        "title": "Strength Progress",
-        "id": "strength-progress"
-      },
-      {
-        "title": "Movement Confidence",
-        "id": "movement-confidence"
-      },
-      {
-        "title": "Load Tolerance",
-        "id": "load-tolerance"
-      }
-    ],
     "cards": [
       {
         "cardId": "card-014",
@@ -3088,20 +2946,6 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-005",
     "title": "Beating a Full-Back 1v1",
     "category": "football",
-    "channels": [
-      {
-        "title": "Take-On Execution",
-        "id": "take-on-execution"
-      },
-      {
-        "title": "Confidence Stability",
-        "id": "confidence-stability"
-      },
-      {
-        "title": "Pressure Tolerance",
-        "id": "pressure-tolerance"
-      }
-    ],
     "cards": [
       {
         "cardId": "card-018",
@@ -3469,20 +3313,6 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-006",
     "title": "10 Week Performance Test",
     "category": "football",
-    "channels": [
-      {
-        "title": "Performance Output",
-        "id": "performance-output"
-      },
-      {
-        "title": "Confidence Stability",
-        "id": "confidence-stability"
-      },
-      {
-        "title": "Pressure Tolerance",
-        "id": "pressure-tolerance"
-      }
-    ],
     "cards": [
       {
         "cardId": "card-024",

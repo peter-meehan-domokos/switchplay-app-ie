@@ -30,6 +30,7 @@ export function createEmptyUserDeckDataFromTemplate(template: DeckTemplate): Use
   return {
     deckTemplateId: template.deckTemplateId,
     activeCardId: getFirstCardId(template),
+    channels: template.channels,
     cards: template.cards.map((templateCard) => createEmptyUserCardDataFromTemplate(templateCard)),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -80,6 +81,8 @@ export function mergeDeckTemplatesWithUserData(
           targetValue: signal.targetValue,
           minValue: signal.minValue,
           maxValue: signal.maxValue,
+          isTheoreticalMin: signal.isTheoreticalMin,
+          isTheoreticalMax: signal.isTheoreticalMax,
           unit: signal.unit,
           dimension: signal.dimension,
         })),
@@ -96,6 +99,7 @@ export function mergeDeckTemplatesWithUserData(
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,
+      channels: template.channels,
       cards,
     };
   });
