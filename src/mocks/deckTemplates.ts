@@ -2,6 +2,1548 @@ import type { DeckTemplate } from "@/components/decks/types";
 
 export const deckTemplates: DeckTemplate[] = [
   {
+    deckTemplateId: "deck-2026-06-open-loops-001",
+    title: "Clear The Open Loops",
+    category: "life-admin",
+    cards: [
+      {
+        cardId: "open-loops-card-001",
+        title: "Week 1",
+        subtitle: "Create Clarity",
+        suggestedTargetDate: "2026-06-07",
+        intro: {
+          description: "Clarify the app, finances and places where outreach is being avoided.",
+          mediaItem: {
+            id: "open-loops-media-001",
+            mediaType: "image",
+            description: "Create Clarity",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "open-loops-item-001",
+            description: "Build video app prototype and review with John"
+          },
+          {
+            itemId: "open-loops-item-002",
+            description: "Build a first financial projection through December"
+          },
+          {
+            itemId: "open-loops-item-003",
+            description: "Identify where you are currently avoiding outreach"
+          }
+        ],
+        signals: [
+          {
+            signalId: "open-loops-signal-001",
+            title: "John's App Clarity",
+            description: "How clear the next version of the app feels after reviewing it with John",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "commitments"
+          },
+          {
+            signalId: "open-loops-signal-002",
+            title: "Financial Visibility",
+            description: "How clearly you can see your financial position through December",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "foundations"
+          },
+          {
+            signalId: "open-loops-signal-003",
+            title: "Outreach Resistance",
+            description: "How much avoidance currently exists around reaching out to people",
+            order: "decreasing",
+            targetValue: 2,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "initiative"
+          }
+        ]
+      },
+      {
+        cardId: "open-loops-card-002",
+        title: "Week 2",
+        subtitle: "Take Action",
+        suggestedTargetDate: "2026-06-14",
+        intro: {
+          description: "Address family plans, do priority admin and begin outreach.",
+          mediaItem: {
+            id: "open-loops-media-002",
+            mediaType: "image",
+            description: "Take Action",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "open-loops-item-004",
+            description: "Talk to your dad and make progress on summer plans"
+          },
+          {
+            itemId: "open-loops-item-005",
+            description: "Do priority admin and outstanding obligations"
+          },
+          {
+            itemId: "open-loops-item-006",
+            description: "Reach out to people connected to your existing goals and projects"
+          }
+        ],
+        signals: [
+          {
+            signalId: "open-loops-signal-004",
+            title: "Family Stability",
+            description: "How settled and constructive important family relationships feel",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "commitments"
+          },
+          {
+            signalId: "open-loops-signal-005",
+            title: "Admin Control",
+            description: "How in control of practical responsibilities and obligations you feel",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "foundations"
+          },
+          {
+            signalId: "open-loops-signal-006",
+            title: "People Contacted",
+            description: "Meaningful outreach actions taken",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 5,
+            unit: "people",
+            dimension: "initiative"
+          }
+        ]
+      },
+      {
+        cardId: "open-loops-card-003",
+        title: "Week 3",
+        subtitle: "Build Momentum",
+        suggestedTargetDate: "2026-06-21",
+        intro: {
+          description: "Build momentum with John, prepare for moving out and continue outreach.",
+          mediaItem: {
+            id: "open-loops-media-003",
+            mediaType: "image",
+            description: "Build Momentum",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "open-loops-item-007",
+            description: "Improve the video editing app with John and review progress together"
+          },
+          {
+            itemId: "open-loops-item-008",
+            description: "Clean flat, pack and get ready to move out"
+          },
+          {
+            itemId: "open-loops-item-009",
+            description: "Continue outreach and experiment with posting or sharing work publicly"
+          }
+        ],
+        signals: [
+          {
+            signalId: "open-loops-signal-007",
+            title: "Shared Momentum",
+            description: "How much progress and forward movement John and you feel together",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "commitments"
+          },
+          {
+            signalId: "open-loops-signal-008",
+            title: "Move Readiness",
+            description: "How prepared you feel for the upcoming move",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "foundations"
+          },
+          {
+            signalId: "open-loops-signal-009",
+            title: "Outreach Rhythm",
+            description: "How natural and consistent outreach is beginning to feel",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "initiative"
+          }
+        ]
+      },
+      {
+        cardId: "open-loops-card-004",
+        title: "Week 4",
+        subtitle: "Create Peace Of Mind",
+        suggestedTargetDate: "2026-06-28",
+        intro: {
+          description: "Settle key relationships, strengthen foundations and make initiative feel normal.",
+          mediaItem: {
+            id: "open-loops-media-004",
+            mediaType: "image",
+            description: "Create Peace Of Mind",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "open-loops-item-010",
+            description: "Leave key family relationships stable and understood going into summer"
+          },
+          {
+            itemId: "open-loops-item-011",
+            description: "Finish June with clear financial visibility through December"
+          },
+          {
+            itemId: "open-loops-item-012",
+            description: "Make reaching out feel like a normal part of your work rather than something to avoid"
+          }
+        ],
+        signals: [
+          {
+            signalId: "open-loops-signal-010",
+            title: "Commitments Settled",
+            description: "How settled important relationships and commitments feel overall",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "commitments"
+          },
+          {
+            signalId: "open-loops-signal-011",
+            title: "Life Foundations",
+            description: "Overall confidence that practical life is organised and under control",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "foundations"
+          },
+          {
+            signalId: "open-loops-signal-012",
+            title: "Initiative Confidence",
+            description: "Confidence in putting yourself forward and taking initiative",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "initiative"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    deckTemplateId: "deck-2026-06-teaching-income-001",
+    title: "Create Teaching Income Option For September",
+    category: "education",
+    cards: [
+      {
+        cardId: "teaching-card-001",
+        title: "Week 1",
+        subtitle: "Start The Process",
+        suggestedTargetDate: "2026-06-07",
+        intro: {
+          description: "Begin the registration process, prepare tutoring foundations and design the first maths lesson.",
+          mediaItem: {
+            id: "teaching-media-001",
+            mediaType: "image",
+            description: "Start The Process",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "teaching-item-001",
+            description: "Begin registration, Garda and reference requirements"
+          },
+          {
+            itemId: "teaching-item-002",
+            description: "Research and select tutoring platforms"
+          },
+          {
+            itemId: "teaching-item-003",
+            description: "Plan the first maths lesson and activity"
+          }
+        ],
+        signals: [
+          {
+            signalId: "teaching-signal-001",
+            title: "Registration readiness",
+            description: "Progress towards registration, Garda and supporting requirements",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "registration"
+          },
+          {
+            signalId: "teaching-signal-002",
+            title: "Tutoring foundations",
+            description: "Progress towards tutoring profiles, reviews and platform setup",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "presence"
+          },
+          {
+            signalId: "teaching-signal-003",
+            title: "Lesson progress",
+            description: "Progress towards a completed maths lesson and activity",
+            order: "increasing",
+            targetValue: 7,
+            minValue: 0,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          }
+        ]
+      },
+      {
+        cardId: "teaching-card-002",
+        title: "Week 2",
+        subtitle: "Complete The Foundations",
+        suggestedTargetDate: "2026-06-14",
+        intro: {
+          description: "Advance registration, establish tutoring profiles and begin creating the first maths lesson.",
+          mediaItem: {
+            id: "teaching-media-002",
+            mediaType: "image",
+            description: "Complete The Foundations",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "teaching-item-004",
+            description: "Complete registration and Garda requirements where possible"
+          },
+          {
+            itemId: "teaching-item-005",
+            description: "Create tutoring profiles and core information"
+          },
+          {
+            itemId: "teaching-item-006",
+            description: "Create the first maths video and accompanying activity"
+          }
+        ],
+        signals: [
+          {
+            signalId: "teaching-signal-004",
+            title: "Registration readiness",
+            description: "Progress towards registration, Garda and supporting requirements",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "registration"
+          },
+          {
+            signalId: "teaching-signal-005",
+            title: "Tutoring foundations",
+            description: "Progress towards tutoring profiles, reviews and platform setup",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "presence"
+          },
+          {
+            signalId: "teaching-signal-006",
+            title: "Lesson progress",
+            description: "Progress towards a completed maths lesson and activity",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 0,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          }
+        ]
+      },
+      {
+        cardId: "teaching-card-003",
+        title: "Week 3",
+        subtitle: "Become Visible",
+        suggestedTargetDate: "2026-06-21",
+        intro: {
+          description: "Make yourself visible to schools, tutoring platforms and potential students.",
+          mediaItem: {
+            id: "teaching-media-003",
+            mediaType: "image",
+            description: "Become Visible",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "teaching-item-007",
+            description: "Reach out to schools and relevant contacts"
+          },
+          {
+            itemId: "teaching-item-008",
+            description: "Publish tutoring profiles and improve presentation"
+          },
+          {
+            itemId: "teaching-item-009",
+            description: "Publish the first maths lesson on the website"
+          }
+        ],
+        signals: [
+          {
+            signalId: "teaching-signal-007",
+            title: "School outreach",
+            description: "Schools contacted and made aware of your availability",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 5,
+            unit: "schools",
+            dimension: "registration"
+          },
+          {
+            signalId: "teaching-signal-008",
+            title: "Active profiles",
+            description: "Tutoring platforms with active public profiles",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 2,
+            unit: "profiles",
+            dimension: "presence"
+          },
+          {
+            signalId: "teaching-signal-009",
+            title: "Lesson completeness",
+            description: "How complete the first maths lesson feels overall",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 0,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          }
+        ]
+      },
+      {
+        cardId: "teaching-card-004",
+        title: "Week 4",
+        subtitle: "Be Ready For September",
+        suggestedTargetDate: "2026-06-28",
+        intro: {
+          description: "Consolidate progress and ensure the foundations are in place for September opportunities.",
+          mediaItem: {
+            id: "teaching-media-004",
+            mediaType: "image",
+            description: "Be Ready For September",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "teaching-item-010",
+            description: "Resolve remaining registration tasks and follow-ups"
+          },
+          {
+            itemId: "teaching-item-011",
+            description: "Refine profiles and research other avenues"
+          },
+          {
+            itemId: "teaching-item-012",
+            description: "Review what has been created and identify the next content priorities"
+          }
+        ],
+        signals: [
+          {
+            signalId: "teaching-signal-010",
+            title: "September readiness",
+            description: "Confidence that the teaching pathway is ready for September",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "registration"
+          },
+          {
+            signalId: "teaching-signal-011",
+            title: "Tutoring visibility",
+            description: "Confidence that potential students can find and assess you",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "presence"
+          },
+          {
+            signalId: "teaching-signal-012",
+            title: "Teaching confidence",
+            description: "Confidence in the quality and credibility of your maths teaching materials",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    deckTemplateId: "deck-2026-06-health-fitness-001",
+    title: "Make Healthy Habits Feel Natural",
+    category: "health-fitness",
+    cards: [
+      {
+        cardId: "health-card-001",
+        title: "Week 1",
+        subtitle: "Strengthen The Foundations",
+        suggestedTargetDate: "2026-06-07",
+        intro: {
+          description: "Rebuild the base through meditation, better gym structure and food planning.",
+          mediaItem: {
+            id: "health-media-001",
+            mediaType: "image",
+            description: "Strengthen The Foundations",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "health-item-001",
+            description: "Meditate on four days and establish a regular cue"
+          },
+          {
+            itemId: "health-item-002",
+            description: "Give core work and warm-ups greater attention in gym sessions"
+          },
+          {
+            itemId: "health-item-003",
+            description: "Organise shopping and meal preparation for the week ahead"
+          }
+        ],
+        signals: [
+          {
+            signalId: "health-signal-001",
+            title: "Meditation consistency",
+            description: "Days this week when meditation actually happened",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "awareness"
+          },
+          {
+            signalId: "health-signal-002",
+            title: "Professional sessions",
+            description: "Training days with proper warm-up, core work and balanced execution",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "sessions",
+            dimension: "capacity"
+          },
+          {
+            signalId: "health-signal-003",
+            title: "Healthy days",
+            description: "Days with good eating and sleep supporting recovery",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "recovery"
+          }
+        ]
+      },
+      {
+        cardId: "health-card-002",
+        title: "Week 2",
+        subtitle: "Build Consistency",
+        suggestedTargetDate: "2026-06-14",
+        intro: {
+          description: "Make meditation more regular while protecting training and nutrition during busy periods.",
+          mediaItem: {
+            id: "health-media-002",
+            mediaType: "image",
+            description: "Build Consistency",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "health-item-004",
+            description: "Meditate on most days of the week"
+          },
+          {
+            itemId: "health-item-005",
+            description: "Maintain a consistent gym routine while continuing the cut"
+          },
+          {
+            itemId: "health-item-006",
+            description: "Maintain healthy eating even during busy work periods"
+          }
+        ],
+        signals: [
+          {
+            signalId: "health-signal-004",
+            title: "Days without resistance",
+            description: "Days when sitting down to meditate did not feel like a struggle",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "awareness"
+          },
+          {
+            signalId: "health-signal-005",
+            title: "Professional sessions",
+            description: "Training days with proper warm-up, core work and balanced execution",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "sessions",
+            dimension: "capacity"
+          },
+          {
+            signalId: "health-signal-006",
+            title: "Healthy days",
+            description: "Days with good eating and sleep supporting recovery",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "recovery"
+          }
+        ]
+      },
+      {
+        cardId: "health-card-003",
+        title: "Week 3",
+        subtitle: "Increase Quality",
+        suggestedTargetDate: "2026-06-21",
+        intro: {
+          description: "Improve the quality of attention, training execution and recovery support.",
+          mediaItem: {
+            id: "health-media-003",
+            mediaType: "image",
+            description: "Increase Quality",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "health-item-007",
+            description: "Lengthen meditation and improve quality of attention"
+          },
+          {
+            itemId: "health-item-008",
+            description: "Improve training quality through better pacing and execution"
+          },
+          {
+            itemId: "health-item-009",
+            description: "Maintain nutrition consistency through planning and preparation"
+          }
+        ],
+        signals: [
+          {
+            signalId: "health-signal-007",
+            title: "Quality of attention",
+            description: "How present and settled meditation felt this week",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "awareness"
+          },
+          {
+            signalId: "health-signal-008",
+            title: "Professional sessions",
+            description: "Training days with proper warm-up, core work and balanced execution",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "sessions",
+            dimension: "capacity"
+          },
+          {
+            signalId: "health-signal-009",
+            title: "Healthy days",
+            description: "Days with good eating and sleep supporting recovery",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "recovery"
+          }
+        ]
+      },
+      {
+        cardId: "health-card-004",
+        title: "Week 4",
+        subtitle: "Trust The System",
+        suggestedTargetDate: "2026-06-28",
+        intro: {
+          description: "Let the routine feel natural, sustainable and easier to trust.",
+          mediaItem: {
+            id: "health-media-004",
+            mediaType: "image",
+            description: "Trust The System",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "health-item-010",
+            description: "Let meditation become a normal part of daily life"
+          },
+          {
+            itemId: "health-item-011",
+            description: "Run a professional and sustainable training routine"
+          },
+          {
+            itemId: "health-item-012",
+            description: "Maintain nutrition and sleep without constant effort"
+          }
+        ],
+        signals: [
+          {
+            signalId: "health-signal-010",
+            title: "Meditation pull",
+            description: "Days when I naturally wanted to meditate",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "awareness"
+          },
+          {
+            signalId: "health-signal-011",
+            title: "Professional sessions",
+            description: "Training days with proper warm-up, core work and balanced execution",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "sessions",
+            dimension: "capacity"
+          },
+          {
+            signalId: "health-signal-012",
+            title: "Healthy days",
+            description: "Days with good eating and sleep supporting recovery",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 7,
+            unit: "days",
+            dimension: "recovery"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    deckTemplateId: "deck-2026-06-tebo-studio-001",
+    title: "Establish Tebo Studio As Credible",
+    category: "tebo-studio",
+    cards: [
+      {
+        cardId: "tebo-card-001",
+        title: "Week 1",
+        subtitle: "Finish The Portfolio",
+        suggestedTargetDate: "2026-06-07",
+        intro: {
+          description: "Complete the key project presentations and sharpen the studio principles.",
+          mediaItem: {
+            id: "tebo-media-001",
+            mediaType: "image",
+            description: "Finish The Portfolio",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "tebo-item-001",
+            description: "Identify and organise promising organisations and contacts"
+          },
+          {
+            itemId: "tebo-item-002",
+            description: "Complete Switchplay and Perfect Square project presentations"
+          },
+          {
+            itemId: "tebo-item-003",
+            description: "Extract and refine key data visualisation principles through the audit example"
+          }
+        ],
+        signals: [
+          {
+            signalId: "tebo-signal-001",
+            title: "Promising opportunities",
+            description: "Potential organisations, people or openings worth pursuing",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "network"
+          },
+          {
+            signalId: "tebo-signal-002",
+            title: "Portfolio integration",
+            description: "Portfolio projects fully integrated and ready to support the studio",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 2,
+            unit: "",
+            dimension: "credibility"
+          },
+          {
+            signalId: "tebo-signal-003",
+            title: "Useful principles",
+            description: "Data visualisation principles worth carrying into future work",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "perspective"
+          }
+        ]
+      },
+      {
+        cardId: "tebo-card-002",
+        title: "Week 2",
+        subtitle: "Finish The Studio",
+        suggestedTargetDate: "2026-06-14",
+        intro: {
+          description: "Finish the site, begin outreach and integrate the studio perspective.",
+          mediaItem: {
+            id: "tebo-media-002",
+            mediaType: "image",
+            description: "Finish The Studio",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "tebo-item-004",
+            description: "Begin reaching out to selected contacts and organisations"
+          },
+          {
+            itemId: "tebo-item-005",
+            description: "Complete the Tebo Studio website and supporting pages"
+          },
+          {
+            itemId: "tebo-item-006",
+            description: "Integrate design principles into the website and audit example"
+          }
+        ],
+        signals: [
+          {
+            signalId: "tebo-signal-004",
+            title: "Positive responses",
+            description: "Encouraging replies, interest or openings from outreach",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "network"
+          },
+          {
+            signalId: "tebo-signal-005",
+            title: "Website confidence",
+            description: "Confidence that the website represents the studio well",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          },
+          {
+            signalId: "tebo-signal-006",
+            title: "Principle confidence",
+            description: "Confidence that the principles feel clear and useful",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "perspective"
+          }
+        ]
+      },
+      {
+        cardId: "tebo-card-003",
+        title: "Week 3",
+        subtitle: "Start Meaningful Outreach",
+        suggestedTargetDate: "2026-06-21",
+        intro: {
+          description: "Expand outreach and test how the portfolio and ideas land.",
+          mediaItem: {
+            id: "tebo-media-003",
+            mediaType: "image",
+            description: "Start Meaningful Outreach",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "tebo-item-007",
+            description: "Continue outreach and expand relevant contacts"
+          },
+          {
+            itemId: "tebo-item-008",
+            description: "Develop outreach messages using the website and portfolio"
+          },
+          {
+            itemId: "tebo-item-009",
+            description: "Observe which ideas and examples resonate most strongly"
+          }
+        ],
+        signals: [
+          {
+            signalId: "tebo-signal-007",
+            title: "Promising relationships",
+            description: "Relationships that feel worth developing further",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "network"
+          },
+          {
+            signalId: "tebo-signal-008",
+            title: "Message confidence",
+            description: "Confidence that the outreach message is landing well",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          },
+          {
+            signalId: "tebo-signal-009",
+            title: "Perspective insights",
+            description: "Useful insights about which ideas resonate with others",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "perspective"
+          }
+        ]
+      },
+      {
+        cardId: "tebo-card-004",
+        title: "Week 4",
+        subtitle: "Create Real Opportunities",
+        suggestedTargetDate: "2026-06-28",
+        intro: {
+          description: "Turn promising outreach into conversations, opportunities and clearer positioning.",
+          mediaItem: {
+            id: "tebo-media-004",
+            mediaType: "image",
+            description: "Create Real Opportunities",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "tebo-item-010",
+            description: "Hold conversations with promising contacts and organisations"
+          },
+          {
+            itemId: "tebo-item-011",
+            description: "Refine outreach messaging based on responses and feedback"
+          },
+          {
+            itemId: "tebo-item-012",
+            description: "Clarify the strongest positioning emerging from conversations"
+          }
+        ],
+        signals: [
+          {
+            signalId: "tebo-signal-010",
+            title: "Emerging opportunities",
+            description: "Genuine opportunities, leads or possible paid work emerging",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "network"
+          },
+          {
+            signalId: "tebo-signal-011",
+            title: "Studio credibility",
+            description: "Confidence that Tebo Studio feels credible to others",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "credibility"
+          },
+          {
+            signalId: "tebo-signal-012",
+            title: "Positioning clarity",
+            description: "Clarity about the strongest positioning for Tebo Studio",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "perspective"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    deckTemplateId: "deck-2026-06-music-001",
+    title: "Jam Freely With Fiddle And H90",
+    category: "music",
+    cards: [
+      {
+        cardId: "music-card-001",
+        title: "Week 1",
+        subtitle: "Build The Tools",
+        suggestedTargetDate: "2026-06-07",
+        intro: {
+          description: "Build the foundations for scale fluency, H90 understanding and trad connections.",
+          mediaItem: {
+            id: "music-media-001",
+            mediaType: "image",
+            description: "Music deck intro",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          { itemId: "music-item-001", description: "Expand scale fluency in third position" },
+          { itemId: "music-item-002", description: "Learn how H90 presets are structured" },
+          { itemId: "music-item-003", description: "Attend one trad session" }
+        ],
+        signals: [
+          {
+            signalId: "music-signal-001",
+            title: "New scale patterns becoming usable",
+            description: "New scale patterns becoming usable",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 2,
+            unit: "",
+            dimension: "fluency"
+          },
+          {
+            signalId: "music-signal-002",
+            title: "H90 controls understood",
+            description: "H90 controls understood",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "sound"
+          },
+          {
+            signalId: "music-signal-003",
+            title: "Meaningful trad encounters",
+            description: "Meaningful trad encounters",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 2,
+            unit: "",
+            dimension: "connection"
+          }
+        ]
+      },
+      {
+        cardId: "music-card-002",
+        title: "Week 2",
+        subtitle: "Explore The Possibilities",
+        suggestedTargetDate: "2026-06-14",
+        intro: {
+          description: "Expand positions, begin shaping sounds and meet more promising musicians.",
+          mediaItem: {
+            id: "music-media-002",
+            mediaType: "image",
+            description: "Music deck week 2",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          { itemId: "music-item-004", description: "Extend fluency into second and fourth positions" },
+          { itemId: "music-item-005", description: "Begin shaping presets into my own sounds" },
+          { itemId: "music-item-006", description: "Attend two trad sessions" }
+        ],
+        signals: [
+          {
+            signalId: "music-signal-004",
+            title: "Scales becoming familiar",
+            description: "Scales becoming familiar",
+            order: "increasing",
+            targetValue: 4,
+            minValue: 0,
+            maxValue: 4,
+            unit: "",
+            dimension: "fluency"
+          },
+          {
+            signalId: "music-signal-005",
+            title: "Presets successfully personalised",
+            description: "Presets successfully personalised",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "sound"
+          },
+          {
+            signalId: "music-signal-006",
+            title: "New musicians worth knowing",
+            description: "New musicians worth knowing",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "connection"
+          }
+        ]
+      },
+      {
+        cardId: "music-card-003",
+        title: "Week 3",
+        subtitle: "Play Without Thinking",
+        suggestedTargetDate: "2026-06-21",
+        intro: {
+          description: "Connect positions, adjust sounds by ear and deepen the strongest connections.",
+          mediaItem: {
+            id: "music-media-003",
+            mediaType: "image",
+            description: "Music deck week 3",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          { itemId: "music-item-007", description: "Connect scales and positions naturally" },
+          { itemId: "music-item-008", description: "Make sound adjustments by ear" },
+          { itemId: "music-item-009", description: "Attend three trad sessions" }
+        ],
+        signals: [
+          {
+            signalId: "music-signal-007",
+            title: "Scales available instinctively",
+            description: "Scales available instinctively",
+            order: "increasing",
+            targetValue: 5,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "fluency"
+          },
+          {
+            signalId: "music-signal-008",
+            title: "Personal sounds worth keeping",
+            description: "Personal sounds worth keeping",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "sound"
+          },
+          {
+            signalId: "music-signal-009",
+            title: "New strong musical connections",
+            description: "New strong musical connections",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 2,
+            unit: "",
+            dimension: "connection"
+          }
+        ]
+      },
+      {
+        cardId: "music-card-004",
+        title: "Week 4",
+        subtitle: "Know My Sound, Know My People",
+        suggestedTargetDate: "2026-06-28",
+        intro: {
+          description: "Bring the month together through free playing, personal sounds and future plans.",
+          mediaItem: {
+            id: "music-media-004",
+            mediaType: "image",
+            description: "Music deck week 4",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          { itemId: "music-item-010", description: "Jam freely across the neck" },
+          { itemId: "music-item-011", description: "Develop sounds I genuinely rely on" },
+          { itemId: "music-item-012", description: "Arrange future playing plans with new connections" }
+        ],
+        signals: [
+          {
+            signalId: "music-signal-010",
+            title: "Scales I can jam with confidently",
+            description: "Scales I can jam with confidently",
+            order: "increasing",
+            targetValue: 7,
+            minValue: 0,
+            maxValue: 7,
+            unit: "",
+            dimension: "fluency"
+          },
+          {
+            signalId: "music-signal-011",
+            title: "Sounds that feel uniquely mine",
+            description: "Sounds that feel uniquely mine",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "sound"
+          },
+          {
+            signalId: "music-signal-012",
+            title: "New musicians worth staying in touch with",
+            description: "New musicians worth staying in touch with",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "connection"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    deckTemplateId: "deck-2026-06-switchplay-001",
+    title: "Find Early Evidence For Switchplay",
+    category: "switchplay",
+    cards: [
+      {
+        cardId: "switchplay-card-001",
+        title: "Week 1",
+        subtitle: "Use It For Real",
+        suggestedTargetDate: "2026-06-07",
+        intro: {
+          description: "Use Switchplay personally, gather initial reactions and design the maths exemplar.",
+          mediaItem: {
+            id: "switchplay-media-001",
+            mediaType: "image",
+            description: "Use It For Real",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "switchplay-item-001",
+            description: "Use Switchplay myself every day and note friction points"
+          },
+          {
+            itemId: "switchplay-item-002",
+            description: "Show Switchplay to early target users and gather first reactions"
+          },
+          {
+            itemId: "switchplay-item-003",
+            description: "Design the maths exemplar deck and supporting materials"
+          }
+        ],
+        signals: [
+          {
+            signalId: "switchplay-signal-001",
+            title: "Useful product insights",
+            description: "Helpful discoveries from real-world use, positive or negative",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "robustness"
+          },
+          {
+            signalId: "switchplay-signal-002",
+            title: "Interest from target users",
+            description: "Overall level of interest shown by target users",
+            order: "increasing",
+            targetValue: 7,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "validation"
+          },
+          {
+            signalId: "switchplay-signal-003",
+            title: "Example concepts worth pursuing",
+            description: "Promising ideas for exemplar content",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "examples"
+          }
+        ]
+      },
+      {
+        cardId: "switchplay-card-002",
+        title: "Week 2",
+        subtitle: "Strengthen The Experience",
+        suggestedTargetDate: "2026-06-14",
+        intro: {
+          description: "Improve the MVP, refine testing and complete the maths exemplar.",
+          mediaItem: {
+            id: "switchplay-media-002",
+            mediaType: "image",
+            description: "Strengthen The Experience",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "switchplay-item-004",
+            description: "Fix the most important issues discovered through personal use"
+          },
+          {
+            itemId: "switchplay-item-005",
+            description: "Refine testing questions based on recurring reactions"
+          },
+          {
+            itemId: "switchplay-item-006",
+            description: "Film and build the maths exemplar deck"
+          }
+        ],
+        signals: [
+          {
+            signalId: "switchplay-signal-004",
+            title: "Important issues remaining",
+            description: "Outstanding issues still affecting the experience",
+            order: "decreasing",
+            targetValue: 0,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "robustness"
+          },
+          {
+            signalId: "switchplay-signal-005",
+            title: "Questions worth investigating",
+            description: "Useful questions emerging from user conversations",
+            order: "increasing",
+            targetValue: 3,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "validation"
+          },
+          {
+            signalId: "switchplay-signal-006",
+            title: "Confidence in the maths exemplar",
+            description: "How strongly the maths deck represents the opportunity",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "examples"
+          }
+        ]
+      },
+      {
+        cardId: "switchplay-card-003",
+        title: "Week 3",
+        subtitle: "Put It In Front Of People",
+        suggestedTargetDate: "2026-06-21",
+        intro: {
+          description: "Trial the product with real users and create another exemplar.",
+          mediaItem: {
+            id: "switchplay-media-003",
+            mediaType: "image",
+            description: "Put It In Front Of People",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "switchplay-item-007",
+            description: "Support three trial users through their first deck"
+          },
+          {
+            itemId: "switchplay-item-008",
+            description: "Test Switchplay with more target users and probe deeper issues"
+          },
+          {
+            itemId: "switchplay-item-009",
+            description: "Create one additional exemplar deck with a real participant"
+          }
+        ],
+        signals: [
+          {
+            signalId: "switchplay-signal-007",
+            title: "Successful user journeys",
+            description: "Users successfully completing meaningful journeys",
+            order: "increasing",
+            targetValue: 2,
+            minValue: 0,
+            maxValue: 3,
+            unit: "",
+            dimension: "robustness"
+          },
+          {
+            signalId: "switchplay-signal-008",
+            title: "Most valuable discoveries",
+            description: "Overall value of discoveries emerging from user testing",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "validation"
+          },
+          {
+            signalId: "switchplay-signal-009",
+            title: "Quality of content insights",
+            description: "How valuable the content-related discoveries feel",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "examples"
+          }
+        ]
+      },
+      {
+        cardId: "switchplay-card-004",
+        title: "Week 4",
+        subtitle: "Decide What The Evidence Says",
+        suggestedTargetDate: "2026-06-28",
+        intro: {
+          description: "Review everything learned from usage, testing and exemplar creation.",
+          mediaItem: {
+            id: "switchplay-media-004",
+            mediaType: "image",
+            description: "Decide What The Evidence Says",
+            src: "/images/media-traces/gym-trace-01.png"
+          }
+        },
+        items: [
+          {
+            itemId: "switchplay-item-010",
+            description: "Fix issues and improve usability based on trial-user feedback"
+          },
+          {
+            itemId: "switchplay-item-011",
+            description: "Analyse patterns from all user conversations and trials"
+          },
+          {
+            itemId: "switchplay-item-012",
+            description: "Create one additional exemplar deck with a real participant"
+          }
+        ],
+        signals: [
+          {
+            signalId: "switchplay-signal-010",
+            title: "Issues blocking adoption",
+            description: "Remaining issues likely to stop people using Switchplay",
+            order: "decreasing",
+            targetValue: 0,
+            minValue: 0,
+            maxValue: 5,
+            unit: "",
+            dimension: "robustness"
+          },
+          {
+            signalId: "switchplay-signal-011",
+            title: "Confidence in the opportunity",
+            description: "Overall confidence that Switchplay is worth pursuing further",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "validation"
+          },
+          {
+            signalId: "switchplay-signal-012",
+            title: "Clarity about great Switchplay content",
+            description: "Overall understanding of what makes an exemplar effective",
+            order: "increasing",
+            targetValue: 8,
+            minValue: 1,
+            maxValue: 10,
+            unit: "",
+            dimension: "examples"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "deckTemplateId": "deck-001",
     "title": "First Pull-Up to Clean Muscle-Up",
     "category": "calisthenics",

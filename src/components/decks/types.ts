@@ -1,8 +1,8 @@
 import type { MediaItem } from "@/lib/media";
 
-export type DeckCategory = "football" | "gym" | "calisthenics";
+export type DeckCategory = string;
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
-export type SignalDimension = "recovery" | "stability" | "adaptation" | "execution" | "reflection" | "connection";
+export type SignalDimension = string;
 export type SignalOrder = "increasing" | "decreasing";
 
 export type CardComment = {
