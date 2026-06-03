@@ -9,6 +9,8 @@ type ActiveCardFrontProps = {
   variant?: "active" | "focused";
   onCycleItemStatus?: (itemId: string) => void;
   onAdjustTargetDate?: (direction: -1 | 1) => void;
+  onStepNavigateNext?: () => void;
+  onStepNavigatePrevious?: () => void;
 };
 
 export default function ActiveCardFront({
@@ -17,12 +19,19 @@ export default function ActiveCardFront({
   variant = "active",
   onCycleItemStatus,
   onAdjustTargetDate,
+  onStepNavigateNext,
+  onStepNavigatePrevious,
 }: ActiveCardFrontProps) {
   return (
     <div className={`active-card-front active-card-front--${variant}`}>
       <CardHeader card={card} dateLabel={dateLabel} variant={variant} onAdjustTargetDate={onAdjustTargetDate} />
       <IntroMediaBlock card={card} />
-      <StepList items={card.items} onCycleItemStatus={variant === "focused" ? onCycleItemStatus : undefined} />
+      <StepList
+        items={card.items}
+        onCycleItemStatus={variant === "focused" ? onCycleItemStatus : undefined}
+        onStepNavigateNext={variant === "focused" ? onStepNavigateNext : undefined}
+        onStepNavigatePrevious={variant === "focused" ? onStepNavigatePrevious : undefined}
+      />
     </div>
   );
 }
