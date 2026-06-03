@@ -297,6 +297,8 @@ export default function FocusedCardView({
                   variant="focused"
                   onCycleItemStatus={onCycleItemStatus}
                   onAdjustTargetDate={onAdjustTargetDate}
+                  onStepNavigateNext={settleFocusedCardToPast}
+                  onStepNavigatePrevious={restoreFocusedCardFromPast}
                 />
               </div>
             </div>
@@ -306,6 +308,8 @@ export default function FocusedCardView({
                 dateLabel={dateLabel}
                 variant="focused"
                 onCommitSignalReading={onCommitSignalReading}
+                onSignalNavigateNext={settleFocusedCardToPast}
+                onSignalNavigatePrevious={restoreFocusedCardFromPast}
               />
             </div>
           </motion.div>
