@@ -4,11 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
 import { deckTemplates } from "@/mocks/deckTemplates";
 import { mockSocialUsers } from "@/mocks/mockSocialUsers";
-import { mockUserDeckData } from "@/mocks/mockUserDeckData";
 import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
-
-const USE_MOCK_DATA = false;
-const mockUsernames = ['dev', 'Michael']
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -18,15 +14,13 @@ export default async function Home() {
   }
 
 
-
-  const decksData = USE_MOCK_DATA || mockUsernames.includes(user.username) ? mockUserDeckData : user.decksData;
   const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
-  const renderDecks = mergeDeckTemplatesWithUserData(visibleDeckTemplates, decksData, user.id);
+  const renderDecks = mergeDeckTemplatesWithUserData(visibleDeckTemplates, user.decksData, user.id);
 
   // Authenticated user identity is handled separately from social users.
   // Social users will come from a dedicated lookup layer, but mock social data
   // can be enabled for design and UI testing.
-  const users = USE_MOCK_DATA
+  const users = user.username !== 'Michael' //Michael is the only user with mock social data in this mock setup
     ? [
         {
           id: user.id,
