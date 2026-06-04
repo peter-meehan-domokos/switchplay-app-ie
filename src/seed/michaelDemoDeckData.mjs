@@ -1,6 +1,4 @@
-import type { UserDeckData } from "@/components/decks/types";
-
-export const mockUserDeckData: UserDeckData[] = [
+export const michaelDemoDeckData = [
   {
     "deckTemplateId": "deck-001",
     "activeCardId": "card-001",

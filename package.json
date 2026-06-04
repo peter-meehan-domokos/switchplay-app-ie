@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "seed:deck-templates": "node --env-file=.env.local scripts/seed-deck-templates.mjs",
+    "reset:michael": "node --env-file=.env.local scripts/reset-michael-demo-data.mjs",
     "seed:user": "node --env-file=.env.local scripts/seed-user.mjs",
     "start": "next start",
     "lint": "eslint",
