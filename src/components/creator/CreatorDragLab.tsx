@@ -132,10 +132,12 @@ function BoardCell({ cellId, cell, activePairId }: { cellId: CellId; cell: CellS
   const isOccupied = Boolean(cell.pairId);
   const isLocked = cell.kind === "locked";
   const canDropActivePair = isOver && isPairDroppableCell(cell);
+  const isEmptyPanSurface = cell.kind === "empty" && !cell.pairId;
 
   return (
     <div
       className={`creator-cell${isOccupied ? " creator-cell--occupied" : ""}${isLocked ? " creator-cell--locked" : ""}${canDropActivePair ? " creator-cell--can-drop" : ""}`}
+      data-creator-pan-surface={isEmptyPanSurface ? true : undefined}
       ref={setNodeRef}
     >
       {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
@@ -213,7 +215,7 @@ export default function CreatorDragLab() {
       return;
     }
 
-    const isPanGutterTarget = Boolean(target.closest("[data-creator-pan-gutter]"));
+    const shouldCapturePanImmediately = Boolean(target.closest("[data-creator-pan-gutter], [data-creator-pan-surface]"));
 
     panStateRef.current = {
       pointerId: event.pointerId,
@@ -221,10 +223,10 @@ export default function CreatorDragLab() {
       startClientY: event.clientY,
       startScrollLeft: event.currentTarget.scrollLeft,
       isPanning: false,
-      hasPointerCapture: isPanGutterTarget,
+      hasPointerCapture: shouldCapturePanImmediately,
     };
 
-    if (isPanGutterTarget) {
+    if (shouldCapturePanImmediately) {
       event.currentTarget.setPointerCapture(event.pointerId);
       event.preventDefault();
     }
