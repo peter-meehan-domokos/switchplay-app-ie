@@ -472,7 +472,7 @@ input {
 
 .creator-pair {
   display: grid;
-  grid-template-rows: minmax(0, var(--creator-pair-step-track)) var(--creator-pair-handle-area-height) minmax(0, var(--creator-pair-signal-track));
+  grid-template-rows: minmax(var(--creator-pair-step-min-height), var(--creator-pair-step-track)) var(--creator-pair-handle-area-height) minmax(0, var(--creator-pair-signal-track));
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -499,18 +499,20 @@ input {
   min-height: 0;
   padding: var(--creator-pair-text-padding);
   font-size: 0.9rem;
-  line-height: 1.12;
-  text-align: center;
+  line-height: 1.2;
+  text-align: left;
 }
 
 .creator-pair-step {
+  align-self: start;
   font-weight: 750;
   -webkit-line-clamp: var(--creator-pair-step-line-clamp);
 }
 
 .creator-pair-signal {
-  color: #536b78;
-  font-weight: 700;
+  color: #667984;
+  font-size: 0.82rem;
+  font-weight: 650;
   -webkit-line-clamp: var(--creator-pair-signal-line-clamp);
 }
 

@@ -34,6 +34,7 @@ export const CREATOR_GEOMETRY = {
   pairTextPadding: 2,
   pairStepTrack: 7,
   pairSignalTrack: 3,
+  pairStepMinHeight: 58,
   pairStepLineClamp: 3,
   pairSignalLineClamp: 1,
   pairHandleWidth: 44,
@@ -85,6 +86,7 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-pair-text-padding": string;
   "--creator-pair-step-track": string;
   "--creator-pair-signal-track": string;
+  "--creator-pair-step-min-height": string;
   "--creator-pair-step-line-clamp": number;
   "--creator-pair-signal-line-clamp": number;
   "--creator-pair-handle-width": string;
@@ -139,6 +141,7 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-pair-text-padding": toPx(CREATOR_GEOMETRY.pairTextPadding),
     "--creator-pair-step-track": toFr(CREATOR_GEOMETRY.pairStepTrack),
     "--creator-pair-signal-track": toFr(CREATOR_GEOMETRY.pairSignalTrack),
+    "--creator-pair-step-min-height": toPx(CREATOR_GEOMETRY.pairStepMinHeight),
     "--creator-pair-step-line-clamp": CREATOR_GEOMETRY.pairStepLineClamp,
     "--creator-pair-signal-line-clamp": CREATOR_GEOMETRY.pairSignalLineClamp,
     "--creator-pair-handle-width": toPx(CREATOR_GEOMETRY.pairHandleWidth),
