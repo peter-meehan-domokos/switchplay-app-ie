@@ -154,6 +154,7 @@ export default function CreatorDragLab() {
     startClientY: number;
     startScrollLeft: number;
     isPanning: boolean;
+    hasPointerCapture: boolean;
   } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -212,13 +213,21 @@ export default function CreatorDragLab() {
       return;
     }
 
+    const isPanGutterTarget = Boolean(target.closest("[data-creator-pan-gutter]"));
+
     panStateRef.current = {
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startScrollLeft: event.currentTarget.scrollLeft,
       isPanning: false,
+      hasPointerCapture: isPanGutterTarget,
     };
+
+    if (isPanGutterTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
   }
 
   function handlePanPointerMove(event: PointerEvent<HTMLElement>) {
@@ -237,7 +246,10 @@ export default function CreatorDragLab() {
       }
 
       panState.isPanning = true;
-      event.currentTarget.setPointerCapture(event.pointerId);
+      if (!panState.hasPointerCapture) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        panState.hasPointerCapture = true;
+      }
     }
 
     event.preventDefault();
@@ -279,6 +291,7 @@ export default function CreatorDragLab() {
           onPointerMove={handlePanPointerMove}
           onPointerUp={stopPan}
           onPointerCancel={stopPan}
+          onLostPointerCapture={stopPan}
         >
           <div className="creator-canvas">
             <div className="creator-board">
@@ -294,9 +307,9 @@ export default function CreatorDragLab() {
                   </div>
                 </section>
               ))}
-            </div>
+          </div>
             {/* Dedicated pan gutter for mobile thumbs. It shares the scroll shell's pointer-pan handlers and is not a drop target. */}
-            <div className="creator-pan-gutter" aria-hidden="true" />
+            <div className="creator-pan-gutter" data-creator-pan-gutter aria-hidden="true" />
           </div>
         </section>
 

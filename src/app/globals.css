@@ -333,6 +333,9 @@ input {
   margin-top: var(--creator-pan-gutter-gap);
   border: 1px dashed #c1c6c9;
   background: #ededeb;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 @media (max-width: 640px) {
