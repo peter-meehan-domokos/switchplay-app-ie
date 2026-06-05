@@ -455,6 +455,20 @@ input {
   outline-offset: -2px;
 }
 
+.creator-cell--channel-row-dragging {
+  background: #f1f4f5;
+}
+
+.creator-cell--channel-row-dragging > * {
+  opacity: 0.62;
+}
+
+.creator-cell--channel-row-target {
+  background: #eef4f1;
+  outline: 2px solid rgba(45, 125, 70, 0.36);
+  outline-offset: -2px;
+}
+
 .creator-cell[data-creator-pan-surface="true"] {
   touch-action: none;
   user-select: none;
@@ -490,7 +504,54 @@ input {
   color: #111318;
   font-size: 0.86rem;
   font-weight: 800;
-  text-align: center;
+  text-align: left;
+}
+
+.creator-channel-row {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--creator-channel-handle-gap);
+  max-width: 100%;
+}
+
+.creator-channel-row--dragging {
+  opacity: 0.32;
+}
+
+.creator-channel-drag-handle {
+  display: grid;
+  width: var(--creator-channel-handle-width);
+  min-height: var(--creator-channel-handle-height);
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #7b8b93;
+  cursor: grab;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0;
+  touch-action: none;
+}
+
+.creator-channel-drag-handle:active {
+  cursor: grabbing;
+}
+
+.creator-channel-drag-preview {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--creator-channel-handle-gap);
+  width: var(--creator-column-width);
+  border: 1px solid #8f969e;
+  background: #eeeeea;
+  color: #111318;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: var(--creator-cell-padding);
 }
 
 .creator-card-title-button,
@@ -578,9 +639,25 @@ input {
   display: grid;
   width: var(--creator-pair-handle-visible-width);
   height: var(--creator-pair-handle-visible-height);
-  place-items: center;
+  grid-template-columns: repeat(2, var(--creator-drag-handle-dot-size));
+  grid-template-rows: repeat(2, var(--creator-drag-handle-dot-size));
+  place-content: center;
+  gap: var(--creator-drag-handle-dot-row-gap) var(--creator-drag-handle-dot-column-gap);
   border: 1px solid #c4d0d6;
   background: rgba(255, 255, 255, 0.5);
+}
+
+.creator-channel-drag-handle-mark {
+  width: var(--creator-channel-handle-visible-width);
+  height: var(--creator-channel-handle-visible-height);
+  grid-template-rows: repeat(3, var(--creator-drag-handle-dot-size));
+}
+
+.creator-drag-handle-dot {
+  width: var(--creator-drag-handle-dot-size);
+  height: var(--creator-drag-handle-dot-size);
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .creator-drag-handle:active {

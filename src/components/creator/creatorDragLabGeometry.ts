@@ -24,6 +24,11 @@ export const CREATOR_GEOMETRY = {
   columnHeaderPadding: 8,
   rowCount: 3,
   cellPadding: 6,
+  channelHandleWidth: 28,
+  channelHandleHeight: 32,
+  channelHandleVisibleWidth: 24,
+  channelHandleVisibleHeight: 24,
+  channelHandleGap: 6,
   panGutterHeight: 88,
   panGutterMobileHeight: 112,
   panGutterGap: 8,
@@ -42,6 +47,9 @@ export const CREATOR_GEOMETRY = {
   pairHandleVisibleWidth: 24,
   pairHandleVisibleHeight: 18,
   pairHandleAreaHeight: 34,
+  dragHandleDotSize: 3,
+  dragHandleDotColumnGap: 3,
+  dragHandleDotRowGap: 3,
   modalMaxWidth: 420,
   modalMaxHeight: 640,
   modalPadding: 18,
@@ -76,6 +84,11 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-column-header-padding": string;
   "--creator-row-count": number;
   "--creator-cell-padding": string;
+  "--creator-channel-handle-width": string;
+  "--creator-channel-handle-height": string;
+  "--creator-channel-handle-visible-width": string;
+  "--creator-channel-handle-visible-height": string;
+  "--creator-channel-handle-gap": string;
   "--creator-pan-gutter-height": string;
   "--creator-pan-gutter-mobile-height": string;
   "--creator-pan-gutter-gap": string;
@@ -94,6 +107,9 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-pair-handle-visible-width": string;
   "--creator-pair-handle-visible-height": string;
   "--creator-pair-handle-area-height": string;
+  "--creator-drag-handle-dot-size": string;
+  "--creator-drag-handle-dot-column-gap": string;
+  "--creator-drag-handle-dot-row-gap": string;
   "--creator-modal-max-width": string;
   "--creator-modal-max-height": string;
   "--creator-modal-padding": string;
@@ -131,6 +147,11 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-column-header-padding": toPx(CREATOR_GEOMETRY.columnHeaderPadding),
     "--creator-row-count": CREATOR_GEOMETRY.rowCount,
     "--creator-cell-padding": toPx(CREATOR_GEOMETRY.cellPadding),
+    "--creator-channel-handle-width": toPx(CREATOR_GEOMETRY.channelHandleWidth),
+    "--creator-channel-handle-height": toPx(CREATOR_GEOMETRY.channelHandleHeight),
+    "--creator-channel-handle-visible-width": toPx(CREATOR_GEOMETRY.channelHandleVisibleWidth),
+    "--creator-channel-handle-visible-height": toPx(CREATOR_GEOMETRY.channelHandleVisibleHeight),
+    "--creator-channel-handle-gap": toPx(CREATOR_GEOMETRY.channelHandleGap),
     "--creator-pan-gutter-height": toPx(CREATOR_GEOMETRY.panGutterHeight),
     "--creator-pan-gutter-mobile-height": toPx(CREATOR_GEOMETRY.panGutterMobileHeight),
     "--creator-pan-gutter-gap": toPx(CREATOR_GEOMETRY.panGutterGap),
@@ -149,6 +170,9 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-pair-handle-visible-width": toPx(CREATOR_GEOMETRY.pairHandleVisibleWidth),
     "--creator-pair-handle-visible-height": toPx(CREATOR_GEOMETRY.pairHandleVisibleHeight),
     "--creator-pair-handle-area-height": toPx(CREATOR_GEOMETRY.pairHandleAreaHeight),
+    "--creator-drag-handle-dot-size": toPx(CREATOR_GEOMETRY.dragHandleDotSize),
+    "--creator-drag-handle-dot-column-gap": toPx(CREATOR_GEOMETRY.dragHandleDotColumnGap),
+    "--creator-drag-handle-dot-row-gap": toPx(CREATOR_GEOMETRY.dragHandleDotRowGap),
     "--creator-modal-max-width": toPx(CREATOR_GEOMETRY.modalMaxWidth),
     "--creator-modal-max-height": toPx(CREATOR_GEOMETRY.modalMaxHeight),
     "--creator-modal-padding": toPx(CREATOR_GEOMETRY.modalPadding),

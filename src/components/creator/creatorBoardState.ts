@@ -61,6 +61,33 @@ export function getCreatorCellId(columnId: ColumnId, rowIndex: number): CellId {
   return `${columnId}:${rowIndex}`;
 }
 
+export function swapCreatorBoardRows(board: BoardState, fromRow: number, toRow: number): BoardState {
+  if (fromRow === toRow || !board.rows.includes(fromRow) || !board.rows.includes(toRow)) {
+    return board;
+  }
+
+  const nextCells = { ...board.cells };
+
+  for (const column of board.columns) {
+    const fromCellId = getCreatorCellId(column.id, fromRow);
+    const toCellId = getCreatorCellId(column.id, toRow);
+    const fromCell = nextCells[fromCellId];
+
+    nextCells[fromCellId] = nextCells[toCellId];
+    nextCells[toCellId] = fromCell;
+  }
+
+  return {
+    ...board,
+    channelNamesByRow: {
+      ...board.channelNamesByRow,
+      [fromRow]: board.channelNamesByRow[toRow],
+      [toRow]: board.channelNamesByRow[fromRow],
+    },
+    cells: nextCells,
+  };
+}
+
 function createBaseCells(columns: Column[], rows: number[]) {
   return columns.reduce<Record<CellId, CellState>>((nextCells, column) => {
     for (const row of rows) {

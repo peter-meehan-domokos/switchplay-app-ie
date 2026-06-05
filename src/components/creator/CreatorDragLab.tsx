@@ -10,12 +10,14 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import {
   getCreatorCellId,
+  swapCreatorBoardRows,
   type BoardState,
   type CellId,
   type CellState,
@@ -62,6 +64,7 @@ type SignalEditSession = {
 };
 
 type SignalEditValue = Omit<SignalEditSession, "target">;
+type DragType = "channel" | "pair";
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
@@ -107,6 +110,24 @@ function findPairCell(cells: BoardState["cells"], pairId: PairId) {
 
 function isPairDroppableCell(cell: CellState | undefined) {
   return Boolean(cell && cell.kind === "empty" && !cell.pairId);
+}
+
+function getDragType(event: DragStartEvent | DragOverEvent | DragEndEvent): DragType | null {
+  const dragType = event.active.data.current?.type;
+
+  return dragType === "pair" || dragType === "channel" ? dragType : null;
+}
+
+function getChannelRowFromDragEvent(event: DragStartEvent | DragEndEvent) {
+  const row = event.active.data.current?.row;
+
+  return typeof row === "number" ? row : null;
+}
+
+function getChannelRowFromOverEvent(event: DragEndEvent | DragOverEvent) {
+  const overData = event.over?.data.current;
+
+  return overData?.type === "channel-row" && typeof overData.row === "number" ? overData.row : null;
 }
 
 function getEditSession(board: BoardState, target: EditTarget): EditSession | null {
@@ -440,7 +461,7 @@ function PairBlock({
       <div className="creator-pair-handle-row">
         {/* Drag begins only from explicit handles. This avoids future conflicts with editing, scrolling, and other interactions inside creator mode. */}
         <button className="creator-drag-handle" type="button" aria-label="Drag pair" data-creator-drag-handle {...listeners} {...attributes}>
-          <span className="creator-drag-handle-mark" aria-hidden="true">::</span>
+          <DragHandleMark />
         </button>
       </div>
       <button className="creator-editable creator-pair-signal" onClick={() => onSignalEdit({ type: "pair-signal", pairId: pair.id })} type="button">
@@ -450,13 +471,25 @@ function PairBlock({
   );
 }
 
+function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "channel" }) {
+  const dotCount = rows * 2;
+
+  return (
+    <span className={`creator-drag-handle-mark${variant === "channel" ? " creator-channel-drag-handle-mark" : ""}`} aria-hidden="true">
+      {Array.from({ length: dotCount }, (_, dotIndex) => (
+        <span className="creator-drag-handle-dot" key={dotIndex} />
+      ))}
+    </span>
+  );
+}
+
 function PairPreview() {
   return (
     <div className="creator-pair creator-pair--preview">
       <div className="creator-pair-step">Step</div>
       <div className="creator-pair-handle-row">
         <span className="creator-drag-handle creator-drag-handle--preview" aria-hidden="true">
-          <span className="creator-drag-handle-mark">::</span>
+          <DragHandleMark />
         </span>
       </div>
       <div className="creator-pair-signal">Signal</div>
@@ -464,35 +497,89 @@ function PairPreview() {
   );
 }
 
+function ChannelRow({
+  channelName,
+  isDragging = false,
+  onEdit,
+  row,
+}: {
+  channelName?: string;
+  isDragging?: boolean;
+  onEdit: (target: EditTarget) => void;
+  row: number;
+}) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef } = useDraggable({
+    id: `channel:${row}`,
+    data: { type: "channel", row },
+  });
+
+  return (
+    <div className={`creator-channel-row${isDragging ? " creator-channel-row--dragging" : ""}`} ref={setNodeRef}>
+      <button
+        aria-label={`Drag ${channelName ?? "channel"}`}
+        className="creator-channel-drag-handle"
+        data-creator-channel-drag-handle
+        data-creator-drag-handle
+        ref={setActivatorNodeRef}
+        type="button"
+        {...listeners}
+        {...attributes}
+      >
+        <DragHandleMark rows={3} variant="channel" />
+      </button>
+      <button className="creator-editable creator-channel-name" onClick={() => onEdit({ type: "channel-name", row })} type="button">
+        {channelName}
+      </button>
+    </div>
+  );
+}
+
+function ChannelRowPreview({ channelName }: { channelName?: string }) {
+  return (
+    <div className="creator-channel-drag-preview">
+      <DragHandleMark rows={3} variant="channel" />
+      <span>{channelName}</span>
+    </div>
+  );
+}
+
 function BoardCell({
   activePairId,
+  activeChannelRow,
+  activeChannelOverRow,
   cell,
   cellId,
   channelName,
   onEdit,
   onSignalEdit,
   pair,
+  row,
 }: {
   activePairId: PairId | null;
+  activeChannelRow: number | null;
+  activeChannelOverRow: number | null;
   cell: CellState;
   cellId: CellId;
   channelName?: string;
   onEdit: (target: EditTarget) => void;
   onSignalEdit: (target: SignalEditTarget) => void;
   pair?: Pair;
+  row: number;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: cellId,
-    data: { type: "cell", accepts: "pair" },
+    data: cell.kind === "locked" ? { type: "channel-row", row } : { type: "cell", accepts: "pair" },
   });
   const isOccupied = Boolean(cell.pairId);
   const isLocked = cell.kind === "locked";
   const canDropActivePair = isOver && isPairDroppableCell(cell);
   const isEmptyPanSurface = cell.kind === "empty" && !cell.pairId;
+  const isChannelRowDragging = activeChannelRow === row;
+  const isChannelRowTarget = activeChannelOverRow === row && activeChannelOverRow !== activeChannelRow;
 
   return (
     <div
-      className={`creator-cell${isOccupied ? " creator-cell--occupied" : ""}${isLocked ? " creator-cell--locked" : ""}${canDropActivePair ? " creator-cell--can-drop" : ""}`}
+      className={`creator-cell${isOccupied ? " creator-cell--occupied" : ""}${isLocked ? " creator-cell--locked" : ""}${canDropActivePair ? " creator-cell--can-drop" : ""}${isChannelRowDragging ? " creator-cell--channel-row-dragging" : ""}${isChannelRowTarget ? " creator-cell--channel-row-target" : ""}`}
       data-creator-pan-surface={isEmptyPanSurface ? true : undefined}
       ref={setNodeRef}
     >
@@ -500,9 +587,7 @@ function BoardCell({
       {pair ? (
         <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} onSignalEdit={onSignalEdit} />
       ) : isLocked ? (
-        <button className="creator-editable creator-channel-name" onClick={() => onEdit({ type: "channel-name", row: Number(cellId.split(":")[1]) })} type="button">
-          {channelName}
-        </button>
+        <ChannelRow channelName={channelName} isDragging={activeChannelRow === row} onEdit={onEdit} row={row} />
       ) : (
         <span className="creator-empty">empty</span>
       )}
@@ -518,6 +603,8 @@ type CreatorDragLabProps = {
 export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabProps) {
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
+  const [activeChannelRow, setActiveChannelRow] = useState<number | null>(null);
+  const [activeChannelOverRow, setActiveChannelOverRow] = useState<number | null>(null);
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [dateEditSession, setDateEditSession] = useState<DateEditSession | null>(null);
   const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
@@ -541,17 +628,53 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
   const activeOriginCellId = useMemo(() => {
     return activePairId ? findPairCell(board.cells, activePairId) ?? null : null;
   }, [activePairId, board.cells]);
+  const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
 
   function handleDragStart(event: DragStartEvent) {
     panStateRef.current = null;
+    const dragType = getDragType(event);
+
+    if (dragType === "channel") {
+      setActivePairId(null);
+      setActiveChannelRow(getChannelRowFromDragEvent(event));
+      setActiveChannelOverRow(null);
+      return;
+    }
+
+    setActiveChannelRow(null);
+    setActiveChannelOverRow(null);
     setActivePairId(String(event.active.id));
   }
 
+  function handleDragOver(event: DragOverEvent) {
+    if (getDragType(event) !== "channel") {
+      return;
+    }
+
+    setActiveChannelOverRow(getChannelRowFromOverEvent(event));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
-    const pairId = String(event.active.id);
-    const targetCellId = event.over?.id ? String(event.over.id) as CellId : null;
+    const dragType = getDragType(event);
 
     setActivePairId(null);
+    setActiveChannelRow(null);
+    setActiveChannelOverRow(null);
+
+    if (dragType === "channel") {
+      const fromRow = getChannelRowFromDragEvent(event);
+      const toRow = getChannelRowFromOverEvent(event);
+
+      if (fromRow === null || toRow === null || fromRow === toRow) {
+        return;
+      }
+
+      setBoard((currentBoard) => swapCreatorBoardRows(currentBoard, fromRow, toRow));
+      return;
+    }
+
+    const pairId = String(event.active.id);
+    const targetCellId = event.over?.id ? String(event.over.id) as CellId : null;
 
     if (!targetCellId) {
       return;
@@ -574,6 +697,12 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
         },
       };
     });
+  }
+
+  function handleDragCancel() {
+    setActivePairId(null);
+    setActiveChannelRow(null);
+    setActiveChannelOverRow(null);
   }
 
   function openEdit(target: EditTarget) {
@@ -699,7 +828,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
   }
 
   function handlePanPointerDown(event: PointerEvent<HTMLElement>) {
-    if (activePairId || event.button !== 0) {
+    if (activePairId || activeChannelRow !== null || event.button !== 0) {
       return;
     }
 
@@ -781,7 +910,14 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
         </Link>
       </header>
 
-      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActivePairId(null)}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
         <section
           className="creator-scroll-shell"
           aria-label="Creator drag lab canvas"
@@ -822,6 +958,8 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
                       return (
                         <BoardCell
                           activePairId={activePairId}
+                          activeChannelRow={activeChannelRow}
+                          activeChannelOverRow={activeChannelOverRow}
                           cell={board.cells[cellId]}
                           cellId={cellId}
                           channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
@@ -829,6 +967,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
                           onEdit={openEdit}
                           onSignalEdit={openSignalEdit}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
+                          row={row}
                         />
                       );
                     })}
@@ -841,7 +980,10 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           </div>
         </section>
 
-        <DragOverlay>{activePairId && activeOriginCellId ? <PairPreview /> : null}</DragOverlay>
+        <DragOverlay>
+          {activePairId && activeOriginCellId ? <PairPreview /> : null}
+          {activeChannelRow !== null ? <ChannelRowPreview channelName={activeChannelName ?? undefined} /> : null}
+        </DragOverlay>
       </DndContext>
       {editSession ? <CreatorEditModal session={editSession} onClose={() => setEditSession(null)} onSave={saveEdit} /> : null}
       {dateEditSession ? <CreatorDateEditModal session={dateEditSession} onClose={() => setDateEditSession(null)} onSave={saveDateEdit} /> : null}
