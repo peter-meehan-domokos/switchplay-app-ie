@@ -4,45 +4,64 @@ import type { CSSProperties } from "react";
 // hit-testing, panning, and CSS layout must all agree on the same measurements.
 // Do not duplicate these values in component CSS.
 export const CREATOR_GEOMETRY = {
-  rootPaddingTop: 16,
-  rootPaddingBottom: 28,
-  headerGap: 16,
+  creatorHeaderHeight: 84,
+  rootPaddingTop: 10,
+  rootPaddingBottom: 8,
+  headerGap: 12,
   headerPaddingX: 16,
-  headerPaddingBottom: 16,
+  headerPaddingBottom: 8,
+  deckTitleMaxWidth: 420,
   backLinkPaddingY: 8,
   backLinkPaddingX: 12,
   scrollPaddingX: 16,
-  scrollPaddingBottom: 18,
+  scrollPaddingBottom: 8,
   columnWidth: 172,
   columnGap: 12,
-  columnHeaderHeight: 40,
-  columnHeaderPadding: 10,
-  rowHeight: 112,
+  columnHeaderHeight: 76,
+  cardTitleHeight: 42,
+  cardDateHeight: 18,
+  cardHeaderGap: 2,
+  columnHeaderPadding: 8,
   rowCount: 3,
-  cellPadding: 10,
-  panGutterHeight: 104,
-  panGutterMobileHeight: 128,
-  panGutterGap: 12,
+  cellPadding: 6,
+  panGutterHeight: 88,
+  panGutterMobileHeight: 112,
+  panGutterGap: 8,
   pairHeight: 80,
   pairOverlayWidth: 150,
-  pairInternalPadding: 6,
+  pairInternalPadding: 4,
+  pairContentGap: 2,
+  pairTextPadding: 2,
+  pairStepTrack: 7,
+  pairSignalTrack: 3,
+  pairStepLineClamp: 3,
+  pairSignalLineClamp: 1,
   pairHandleWidth: 44,
   pairHandleHeight: 34,
+  pairHandleVisibleWidth: 24,
+  pairHandleVisibleHeight: 18,
+  pairHandleAreaHeight: 34,
+  modalMaxWidth: 420,
+  modalMaxHeight: 640,
+  modalPadding: 18,
+  modalGap: 12,
+  modalTextareaMinHeight: 220,
   panStartThreshold: 4,
   pairDragActivationDistance: 4,
 } as const;
 
 export const CREATOR_DERIVED_GEOMETRY = {
-  columnBodyHeight: CREATOR_GEOMETRY.rowHeight * CREATOR_GEOMETRY.rowCount,
-  columnTotalHeight: CREATOR_GEOMETRY.columnHeaderHeight + CREATOR_GEOMETRY.rowHeight * CREATOR_GEOMETRY.rowCount,
+  columnFixedHeight: CREATOR_GEOMETRY.columnHeaderHeight,
 } as const;
 
 type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-root-padding-top": string;
   "--creator-root-padding-bottom": string;
+  "--creator-header-height": string;
   "--creator-header-gap": string;
   "--creator-header-padding-x": string;
   "--creator-header-padding-bottom": string;
+  "--creator-deck-title-max-width": string;
   "--creator-back-link-padding-y": string;
   "--creator-back-link-padding-x": string;
   "--creator-scroll-padding-x": string;
@@ -50,8 +69,11 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-column-width": string;
   "--creator-column-gap": string;
   "--creator-column-header-height": string;
+  "--creator-card-title-height": string;
+  "--creator-card-date-height": string;
+  "--creator-card-header-gap": string;
   "--creator-column-header-padding": string;
-  "--creator-row-height": string;
+  "--creator-row-count": number;
   "--creator-cell-padding": string;
   "--creator-pan-gutter-height": string;
   "--creator-pan-gutter-mobile-height": string;
@@ -59,21 +81,41 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-pair-height": string;
   "--creator-pair-overlay-width": string;
   "--creator-pair-internal-padding": string;
+  "--creator-pair-content-gap": string;
+  "--creator-pair-text-padding": string;
+  "--creator-pair-step-track": string;
+  "--creator-pair-signal-track": string;
+  "--creator-pair-step-line-clamp": number;
+  "--creator-pair-signal-line-clamp": number;
   "--creator-pair-handle-width": string;
   "--creator-pair-handle-height": string;
+  "--creator-pair-handle-visible-width": string;
+  "--creator-pair-handle-visible-height": string;
+  "--creator-pair-handle-area-height": string;
+  "--creator-modal-max-width": string;
+  "--creator-modal-max-height": string;
+  "--creator-modal-padding": string;
+  "--creator-modal-gap": string;
+  "--creator-modal-textarea-min-height": string;
 };
 
 function toPx(value: number) {
   return `${value}px`;
 }
 
+function toFr(value: number) {
+  return `${value}fr`;
+}
+
 export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
   return {
     "--creator-root-padding-top": toPx(CREATOR_GEOMETRY.rootPaddingTop),
     "--creator-root-padding-bottom": toPx(CREATOR_GEOMETRY.rootPaddingBottom),
+    "--creator-header-height": toPx(CREATOR_GEOMETRY.creatorHeaderHeight),
     "--creator-header-gap": toPx(CREATOR_GEOMETRY.headerGap),
     "--creator-header-padding-x": toPx(CREATOR_GEOMETRY.headerPaddingX),
     "--creator-header-padding-bottom": toPx(CREATOR_GEOMETRY.headerPaddingBottom),
+    "--creator-deck-title-max-width": toPx(CREATOR_GEOMETRY.deckTitleMaxWidth),
     "--creator-back-link-padding-y": toPx(CREATOR_GEOMETRY.backLinkPaddingY),
     "--creator-back-link-padding-x": toPx(CREATOR_GEOMETRY.backLinkPaddingX),
     "--creator-scroll-padding-x": toPx(CREATOR_GEOMETRY.scrollPaddingX),
@@ -81,8 +123,11 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-column-width": toPx(CREATOR_GEOMETRY.columnWidth),
     "--creator-column-gap": toPx(CREATOR_GEOMETRY.columnGap),
     "--creator-column-header-height": toPx(CREATOR_GEOMETRY.columnHeaderHeight),
+    "--creator-card-title-height": toPx(CREATOR_GEOMETRY.cardTitleHeight),
+    "--creator-card-date-height": toPx(CREATOR_GEOMETRY.cardDateHeight),
+    "--creator-card-header-gap": toPx(CREATOR_GEOMETRY.cardHeaderGap),
     "--creator-column-header-padding": toPx(CREATOR_GEOMETRY.columnHeaderPadding),
-    "--creator-row-height": toPx(CREATOR_GEOMETRY.rowHeight),
+    "--creator-row-count": CREATOR_GEOMETRY.rowCount,
     "--creator-cell-padding": toPx(CREATOR_GEOMETRY.cellPadding),
     "--creator-pan-gutter-height": toPx(CREATOR_GEOMETRY.panGutterHeight),
     "--creator-pan-gutter-mobile-height": toPx(CREATOR_GEOMETRY.panGutterMobileHeight),
@@ -90,8 +135,22 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-pair-height": toPx(CREATOR_GEOMETRY.pairHeight),
     "--creator-pair-overlay-width": toPx(CREATOR_GEOMETRY.pairOverlayWidth),
     "--creator-pair-internal-padding": toPx(CREATOR_GEOMETRY.pairInternalPadding),
+    "--creator-pair-content-gap": toPx(CREATOR_GEOMETRY.pairContentGap),
+    "--creator-pair-text-padding": toPx(CREATOR_GEOMETRY.pairTextPadding),
+    "--creator-pair-step-track": toFr(CREATOR_GEOMETRY.pairStepTrack),
+    "--creator-pair-signal-track": toFr(CREATOR_GEOMETRY.pairSignalTrack),
+    "--creator-pair-step-line-clamp": CREATOR_GEOMETRY.pairStepLineClamp,
+    "--creator-pair-signal-line-clamp": CREATOR_GEOMETRY.pairSignalLineClamp,
     "--creator-pair-handle-width": toPx(CREATOR_GEOMETRY.pairHandleWidth),
     "--creator-pair-handle-height": toPx(CREATOR_GEOMETRY.pairHandleHeight),
+    "--creator-pair-handle-visible-width": toPx(CREATOR_GEOMETRY.pairHandleVisibleWidth),
+    "--creator-pair-handle-visible-height": toPx(CREATOR_GEOMETRY.pairHandleVisibleHeight),
+    "--creator-pair-handle-area-height": toPx(CREATOR_GEOMETRY.pairHandleAreaHeight),
+    "--creator-modal-max-width": toPx(CREATOR_GEOMETRY.modalMaxWidth),
+    "--creator-modal-max-height": toPx(CREATOR_GEOMETRY.modalMaxHeight),
+    "--creator-modal-padding": toPx(CREATOR_GEOMETRY.modalPadding),
+    "--creator-modal-gap": toPx(CREATOR_GEOMETRY.modalGap),
+    "--creator-modal-textarea-min-height": toPx(CREATOR_GEOMETRY.modalTextareaMinHeight),
   };
 }
 

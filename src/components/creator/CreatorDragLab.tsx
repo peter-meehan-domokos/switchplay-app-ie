@@ -13,18 +13,21 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { useMemo, useRef, useState, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle, getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
+import { deckTemplates } from "@/mocks/deckTemplates";
 
-type ColumnId = "channels" | "week-1" | "week-2" | "week-3" | "week-4";
+type ColumnId = "channels" | "card-1" | "card-2" | "card-3" | "card-4";
 type PairId = string;
 type CellId = `${ColumnId}:${number}`;
 type CellKind = "empty" | "pair" | "locked";
 
 type Column = {
   id: ColumnId;
-  kind: "channel" | "week";
+  kind: "channel" | "card";
   label: string;
+  cardTitle?: string;
+  targetDate?: string;
 };
 
 type CellState = {
@@ -32,30 +35,81 @@ type CellState = {
   pairId: PairId | null;
 };
 
+type Pair = {
+  id: PairId;
+  stepText: string;
+  signalTitle: string;
+};
+
 type BoardState = {
+  deckTitle: string;
   columns: Column[];
   rows: number[];
   cells: Record<CellId, CellState>;
-  pairs: Record<PairId, { id: PairId }>;
+  channelNamesByRow: Record<number, string>;
+  pairs: Record<PairId, Pair>;
+};
+
+type EditTarget =
+  | { type: "deck-title" }
+  | { type: "channel-name"; row: number }
+  | { type: "card-title"; columnId: ColumnId }
+  | { type: "target-date"; columnId: ColumnId }
+  | { type: "pair-step"; pairId: PairId }
+  | { type: "pair-signal"; pairId: PairId };
+
+type EditSession = {
+  label: string;
+  target: EditTarget;
+  value: string;
 };
 
 const columns: Column[] = [
   { id: "channels", kind: "channel", label: "Channels" },
-  { id: "week-1", kind: "week", label: "Week 1" },
-  { id: "week-2", kind: "week", label: "Week 2" },
-  { id: "week-3", kind: "week", label: "Week 3" },
-  { id: "week-4", kind: "week", label: "Week 4" },
+  { id: "card-1", kind: "card", label: "Card" },
+  { id: "card-2", kind: "card", label: "Card" },
+  { id: "card-3", kind: "card", label: "Card" },
+  { id: "card-4", kind: "card", label: "Card" },
 ];
 
 const rows = getCreatorRows();
 const creatorGeometryStyle = getCreatorGeometryStyle();
+const sourceDeckTemplate = deckTemplates[0];
 
 function getCellId(columnId: ColumnId, rowIndex: number): CellId {
   return `${columnId}:${rowIndex}`;
 }
 
+function formatCreatorDateDisplay(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return value.replace(/\s+\d{4}$/, "");
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 function createInitialBoard(): BoardState {
-  const cells = columns.reduce<Record<CellId, CellState>>((nextCells, column) => {
+  const templateCards = sourceDeckTemplate.cards.slice(0, columns.length - 1);
+  const creatorColumns = columns.map((column, columnIndex) => {
+    if (column.kind === "channel") {
+      return column;
+    }
+
+    const templateCard = templateCards[columnIndex - 1];
+
+    return {
+      ...column,
+      cardTitle: templateCard?.subtitle ?? templateCard?.title ?? column.label,
+      targetDate: templateCard?.suggestedTargetDate ?? "",
+    };
+  });
+  const cells = creatorColumns.reduce<Record<CellId, CellState>>((nextCells, column) => {
     for (const row of rows) {
       nextCells[getCellId(column.id, row)] = {
         kind: column.kind === "channel" ? "locked" : "empty",
@@ -65,20 +119,39 @@ function createInitialBoard(): BoardState {
 
     return nextCells;
   }, {} as Record<CellId, CellState>);
+  const pairs = templateCards.reduce<Record<PairId, Pair>>((nextPairs, card, cardIndex) => {
+    const column = creatorColumns[cardIndex + 1];
 
-  cells[getCellId("week-1", 0)] = { kind: "pair", pairId: "pair-1" };
-  cells[getCellId("week-2", 1)] = { kind: "pair", pairId: "pair-2" };
-  cells[getCellId("week-3", 2)] = { kind: "pair", pairId: "pair-3" };
+    for (const row of rows) {
+      const item = card.items[row];
+      const signal = card.signals[row];
+
+      if (!item || !signal || !column) {
+        continue;
+      }
+
+      const pairId = `${item.itemId}:${signal.signalId}`;
+      nextPairs[pairId] = {
+        id: pairId,
+        stepText: item.description,
+        signalTitle: signal.title,
+      };
+      cells[getCellId(column.id, row)] = { kind: "pair", pairId };
+    }
+
+    return nextPairs;
+  }, {});
 
   return {
-    columns,
+    deckTitle: sourceDeckTemplate.title,
+    columns: creatorColumns,
     rows,
+    channelNamesByRow: sourceDeckTemplate.channels.reduce<Record<number, string>>((nextChannels, channel, index) => {
+      nextChannels[index] = channel.title;
+      return nextChannels;
+    }, {}),
     cells,
-    pairs: {
-      "pair-1": { id: "pair-1" },
-      "pair-2": { id: "pair-2" },
-      "pair-3": { id: "pair-3" },
-    },
+    pairs,
   };
 }
 
@@ -90,22 +163,99 @@ function isPairDroppableCell(cell: CellState | undefined) {
   return Boolean(cell && cell.kind === "empty" && !cell.pairId);
 }
 
-function PairBlock({ id, isDragging = false }: { id: PairId; isDragging?: boolean }) {
+function getEditSession(board: BoardState, target: EditTarget): EditSession | null {
+  if (target.type === "deck-title") {
+    return { label: "Deck title", target, value: board.deckTitle };
+  }
+
+  if (target.type === "channel-name") {
+    return { label: "Channel name", target, value: board.channelNamesByRow[target.row] ?? "" };
+  }
+
+  if (target.type === "card-title") {
+    const column = board.columns.find((candidate) => candidate.id === target.columnId);
+
+    if (!column) {
+      return null;
+    }
+
+    return { label: "Card title", target, value: column.cardTitle ?? "" };
+  }
+
+  if (target.type === "target-date") {
+    const column = board.columns.find((candidate) => candidate.id === target.columnId);
+
+    if (!column) {
+      return null;
+    }
+
+    return { label: "Target date", target, value: column.targetDate ?? "" };
+  }
+
+  const pair = board.pairs[target.pairId];
+
+  if (!pair) {
+    return null;
+  }
+
+  if (target.type === "pair-step") {
+    return { label: "Step text", target, value: pair.stepText };
+  }
+
+  return { label: "Signal title", target, value: pair.signalTitle };
+}
+
+function CreatorEditModal({ session, onClose, onSave }: { session: EditSession; onClose: () => void; onSave: (value: string) => void }) {
+  const [draftValue, setDraftValue] = useState(session.value);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSave(draftValue);
+  }
+
+  return (
+    <div className="creator-modal-backdrop" role="presentation">
+      <form className="creator-modal" onSubmit={handleSubmit}>
+        <header className="creator-modal-header">
+          <p>{session.label}</p>
+          <button className="creator-modal-close" onClick={onClose} type="button">
+            Close
+          </button>
+        </header>
+        <textarea autoFocus className="creator-modal-field" onChange={(event) => setDraftValue(event.target.value)} value={draftValue} />
+        <div className="creator-modal-actions">
+          <button className="creator-modal-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="creator-modal-primary" type="submit">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function PairBlock({ pair, isDragging = false, onEdit }: { pair: Pair; isDragging?: boolean; onEdit: (target: EditTarget) => void }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
-    id,
+    id: pair.id,
     data: { type: "pair" },
   });
 
   return (
     <div className={`creator-pair${isDragging ? " creator-pair--dragging" : ""}`} ref={setNodeRef}>
-      <div className="creator-pair-step">Step {id}</div>
+      <button className="creator-editable creator-pair-step" onClick={() => onEdit({ type: "pair-step", pairId: pair.id })} type="button">
+        {pair.stepText}
+      </button>
       <div className="creator-pair-handle-row">
         {/* Drag begins only from explicit handles. This avoids future conflicts with editing, scrolling, and other interactions inside creator mode. */}
         <button className="creator-drag-handle" type="button" aria-label="Drag pair" data-creator-drag-handle {...listeners} {...attributes}>
-          <span aria-hidden="true">::</span>
+          <span className="creator-drag-handle-mark" aria-hidden="true">::</span>
         </button>
       </div>
-      <div className="creator-pair-signal">Signal {id}</div>
+      <button className="creator-editable creator-pair-signal" onClick={() => onEdit({ type: "pair-signal", pairId: pair.id })} type="button">
+        {pair.signalTitle}
+      </button>
     </div>
   );
 }
@@ -116,7 +266,7 @@ function PairPreview() {
       <div className="creator-pair-step">Step</div>
       <div className="creator-pair-handle-row">
         <span className="creator-drag-handle creator-drag-handle--preview" aria-hidden="true">
-          ::
+          <span className="creator-drag-handle-mark">::</span>
         </span>
       </div>
       <div className="creator-pair-signal">Signal</div>
@@ -124,7 +274,21 @@ function PairPreview() {
   );
 }
 
-function BoardCell({ cellId, cell, activePairId }: { cellId: CellId; cell: CellState; activePairId: PairId | null }) {
+function BoardCell({
+  activePairId,
+  cell,
+  cellId,
+  channelName,
+  onEdit,
+  pair,
+}: {
+  activePairId: PairId | null;
+  cell: CellState;
+  cellId: CellId;
+  channelName?: string;
+  onEdit: (target: EditTarget) => void;
+  pair?: Pair;
+}) {
   const { isOver, setNodeRef } = useDroppable({
     id: cellId,
     data: { type: "cell", accepts: "pair" },
@@ -141,7 +305,15 @@ function BoardCell({ cellId, cell, activePairId }: { cellId: CellId; cell: CellS
       ref={setNodeRef}
     >
       {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
-      {cell.pairId ? <PairBlock id={cell.pairId} isDragging={cell.pairId === activePairId} /> : <span className="creator-empty">{isLocked ? "locked" : "empty"}</span>}
+      {pair ? (
+        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} />
+      ) : isLocked ? (
+        <button className="creator-editable creator-channel-name" onClick={() => onEdit({ type: "channel-name", row: Number(cellId.split(":")[1]) })} type="button">
+          {channelName}
+        </button>
+      ) : (
+        <span className="creator-empty">empty</span>
+      )}
     </div>
   );
 }
@@ -149,6 +321,7 @@ function BoardCell({ cellId, cell, activePairId }: { cellId: CellId; cell: CellS
 export default function CreatorDragLab() {
   const [board, setBoard] = useState<BoardState>(() => createInitialBoard());
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
+  const [editSession, setEditSession] = useState<EditSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const panStateRef = useRef<{
     pointerId: number;
@@ -202,6 +375,70 @@ export default function CreatorDragLab() {
         },
       };
     });
+  }
+
+  function openEdit(target: EditTarget) {
+    const nextEditSession = getEditSession(board, target);
+
+    if (nextEditSession) {
+      setEditSession(nextEditSession);
+    }
+  }
+
+  function saveEdit(value: string) {
+    if (!editSession) {
+      return;
+    }
+
+    const target = editSession.target;
+
+    setBoard((currentBoard) => {
+      if (target.type === "deck-title") {
+        return { ...currentBoard, deckTitle: value };
+      }
+
+      if (target.type === "channel-name") {
+        return {
+          ...currentBoard,
+          channelNamesByRow: {
+            ...currentBoard.channelNamesByRow,
+            [target.row]: value,
+          },
+        };
+      }
+
+      if (target.type === "card-title") {
+        return {
+          ...currentBoard,
+          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, cardTitle: value } : column)),
+        };
+      }
+
+      if (target.type === "target-date") {
+        return {
+          ...currentBoard,
+          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, targetDate: value } : column)),
+        };
+      }
+
+      const pair = currentBoard.pairs[target.pairId];
+
+      if (!pair) {
+        return currentBoard;
+      }
+
+      return {
+        ...currentBoard,
+        pairs: {
+          ...currentBoard.pairs,
+          [target.pairId]: {
+            ...pair,
+            ...(target.type === "pair-step" ? { stepText: value } : { signalTitle: value }),
+          },
+        },
+      };
+    });
+    setEditSession(null);
   }
 
   function handlePanPointerDown(event: PointerEvent<HTMLElement>) {
@@ -277,7 +514,9 @@ export default function CreatorDragLab() {
       <header className="creator-header">
         <div>
           <p className="creator-kicker">Creator Mode Prototype</p>
-          <h1>Drag Lab</h1>
+          <button className="creator-editable creator-deck-title" onClick={() => openEdit({ type: "deck-title" })} type="button">
+            {board.deckTitle}
+          </button>
         </div>
         <Link className="creator-back-link" href="/">
           Decks
@@ -299,12 +538,35 @@ export default function CreatorDragLab() {
             <div className="creator-board">
               {board.columns.map((column) => (
                 <section className="creator-column" key={column.id} aria-label={column.label}>
-                  <h2>{column.label}</h2>
+                  <header className="creator-card-header">
+                    {column.kind === "card" ? (
+                      <>
+                        <button className="creator-editable creator-card-title-button" onClick={() => openEdit({ type: "card-title", columnId: column.id })} type="button">
+                          {column.cardTitle}
+                        </button>
+                        <button className="creator-editable creator-card-date-button" onClick={() => openEdit({ type: "target-date", columnId: column.id })} type="button">
+                          {formatCreatorDateDisplay(column.targetDate ?? "")}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="creator-channel-header">Channels</span>
+                    )}
+                  </header>
                   <div className="creator-column-cells">
                     {board.rows.map((row) => {
                       const cellId = getCellId(column.id, row);
 
-                      return <BoardCell activePairId={activePairId} cell={board.cells[cellId]} cellId={cellId} key={cellId} />;
+                      return (
+                        <BoardCell
+                          activePairId={activePairId}
+                          cell={board.cells[cellId]}
+                          cellId={cellId}
+                          channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
+                          key={cellId}
+                          onEdit={openEdit}
+                          pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
+                        />
+                      );
                     })}
                   </div>
                 </section>
@@ -317,6 +579,7 @@ export default function CreatorDragLab() {
 
         <DragOverlay>{activePairId && activeOriginCellId ? <PairPreview /> : null}</DragOverlay>
       </DndContext>
+      {editSession ? <CreatorEditModal session={editSession} onClose={() => setEditSession(null)} onSave={saveEdit} /> : null}
     </main>
   );
 }
