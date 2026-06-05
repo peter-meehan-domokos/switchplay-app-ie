@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import DeckMenu from "@/components/decks/DeckMenu";
 import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
@@ -451,6 +452,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <span aria-hidden="true">←</span>
         <span>Back</span>
       </motion.button>
+      <DeckMenu deckTemplateId={deck.deckTemplateId} />
 
       <motion.div className="detail-heading" layout>
         <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>

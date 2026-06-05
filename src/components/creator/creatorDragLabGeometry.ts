@@ -18,8 +18,8 @@ export const CREATOR_GEOMETRY = {
   columnWidth: 172,
   columnGap: 12,
   columnHeaderHeight: 76,
+  cardMetaHeight: 18,
   cardTitleHeight: 42,
-  cardDateHeight: 18,
   cardHeaderGap: 2,
   columnHeaderPadding: 8,
   rowCount: 3,
@@ -70,8 +70,8 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-column-width": string;
   "--creator-column-gap": string;
   "--creator-column-header-height": string;
+  "--creator-card-meta-height": string;
   "--creator-card-title-height": string;
-  "--creator-card-date-height": string;
   "--creator-card-header-gap": string;
   "--creator-column-header-padding": string;
   "--creator-row-count": number;
@@ -125,8 +125,8 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-column-width": toPx(CREATOR_GEOMETRY.columnWidth),
     "--creator-column-gap": toPx(CREATOR_GEOMETRY.columnGap),
     "--creator-column-header-height": toPx(CREATOR_GEOMETRY.columnHeaderHeight),
+    "--creator-card-meta-height": toPx(CREATOR_GEOMETRY.cardMetaHeight),
     "--creator-card-title-height": toPx(CREATOR_GEOMETRY.cardTitleHeight),
-    "--creator-card-date-height": toPx(CREATOR_GEOMETRY.cardDateHeight),
     "--creator-card-header-gap": toPx(CREATOR_GEOMETRY.cardHeaderGap),
     "--creator-column-header-padding": toPx(CREATOR_GEOMETRY.columnHeaderPadding),
     "--creator-row-count": CREATOR_GEOMETRY.rowCount,

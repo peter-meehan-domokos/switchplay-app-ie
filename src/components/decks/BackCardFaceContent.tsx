@@ -48,7 +48,7 @@ function clampNormalized(value: number) {
 }
 
 function formatSignalMinLabel(signal: CardLayout["signals"][number]) {
-  return signal.isTheoreticalMin === true ? `${signal.minValue}` : `${signal.minValue}-`;
+  return signal.isTheoreticalMin === true ? `≤ ${signal.minValue}` : `${signal.minValue}-`;
 }
 
 function formatSignalMaxLabel(signal: CardLayout["signals"][number]) {

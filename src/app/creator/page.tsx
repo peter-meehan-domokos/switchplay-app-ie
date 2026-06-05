@@ -1,13 +1,5 @@
-import AuthScreen from "@/components/auth/AuthScreen";
-import CreatorDragLab from "@/components/creator/CreatorDragLab";
-import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default async function CreatorPage() {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  return <CreatorDragLab />;
+export default function CreatorPage() {
+  redirect("/creator/new");
 }

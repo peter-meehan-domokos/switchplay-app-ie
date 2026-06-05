@@ -14,145 +14,91 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
-import { CREATOR_GEOMETRY, getCreatorGeometryStyle, getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
-import { deckTemplates } from "@/mocks/deckTemplates";
-
-type ColumnId = "channels" | "card-1" | "card-2" | "card-3" | "card-4";
-type PairId = string;
-type CellId = `${ColumnId}:${number}`;
-type CellKind = "empty" | "pair" | "locked";
-
-type Column = {
-  id: ColumnId;
-  kind: "channel" | "card";
-  label: string;
-  cardTitle?: string;
-  targetDate?: string;
-};
-
-type CellState = {
-  kind: CellKind;
-  pairId: PairId | null;
-};
-
-type Pair = {
-  id: PairId;
-  stepText: string;
-  signalTitle: string;
-};
-
-type BoardState = {
-  deckTitle: string;
-  columns: Column[];
-  rows: number[];
-  cells: Record<CellId, CellState>;
-  channelNamesByRow: Record<number, string>;
-  pairs: Record<PairId, Pair>;
-};
+import {
+  getCreatorCellId,
+  type BoardState,
+  type CellId,
+  type CellState,
+  type ColumnId,
+  type Pair,
+  type PairId,
+  type SignalMaxSymbol,
+  type SignalMinSymbol,
+} from "@/components/creator/creatorBoardState";
+import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 
 type EditTarget =
   | { type: "deck-title" }
   | { type: "channel-name"; row: number }
+  | { type: "card-label"; columnId: ColumnId }
   | { type: "card-title"; columnId: ColumnId }
-  | { type: "target-date"; columnId: ColumnId }
-  | { type: "pair-step"; pairId: PairId }
-  | { type: "pair-signal"; pairId: PairId };
+  | { type: "pair-step"; pairId: PairId };
 
 type EditSession = {
+  helperText?: string;
+  inputKind: "long-text" | "short-text";
   label: string;
   target: EditTarget;
   value: string;
 };
 
-const columns: Column[] = [
-  { id: "channels", kind: "channel", label: "Channels" },
-  { id: "card-1", kind: "card", label: "Card" },
-  { id: "card-2", kind: "card", label: "Card" },
-  { id: "card-3", kind: "card", label: "Card" },
-  { id: "card-4", kind: "card", label: "Card" },
-];
+type DateEditTarget = { type: "target-date"; columnId: ColumnId };
 
-const rows = getCreatorRows();
+type DateEditSession = {
+  label: string;
+  target: DateEditTarget;
+  value: string;
+};
+
+type SignalEditTarget = { type: "pair-signal"; pairId: PairId };
+
+type SignalEditSession = {
+  target: SignalEditTarget;
+  signalMax: number | "";
+  signalMaxSymbol: SignalMaxSymbol;
+  signalMin: number | "";
+  signalMinSymbol: SignalMinSymbol;
+  signalTitle: string;
+};
+
+type SignalEditValue = Omit<SignalEditSession, "target">;
+
 const creatorGeometryStyle = getCreatorGeometryStyle();
-const sourceDeckTemplate = deckTemplates[0];
+const STEP_TEXT_WARNING_LENGTH = 70;
+const CARD_LABEL_MAX_LENGTH = 8;
 
-function getCellId(columnId: ColumnId, rowIndex: number): CellId {
-  return `${columnId}:${rowIndex}`;
+function isIsoDateOnlyString(value: string) {
+  const normalizedDateString = value.trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDateString)) {
+    return false;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = normalizedDateString.split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const candidateDate = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    candidateDate.getUTCFullYear() === year &&
+    candidateDate.getUTCMonth() === month - 1 &&
+    candidateDate.getUTCDate() === day
+  );
 }
 
 function formatCreatorDateDisplay(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (!year || !month || !day) {
-    return value.replace(/\s+\d{4}$/, "");
+  if (!isIsoDateOnlyString(value)) {
+    return value.trim() || "Set date";
   }
+
+  const [year, month, day] = value.split("-").map(Number);
 
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
-}
-
-function createInitialBoard(): BoardState {
-  const templateCards = sourceDeckTemplate.cards.slice(0, columns.length - 1);
-  const creatorColumns = columns.map((column, columnIndex) => {
-    if (column.kind === "channel") {
-      return column;
-    }
-
-    const templateCard = templateCards[columnIndex - 1];
-
-    return {
-      ...column,
-      cardTitle: templateCard?.subtitle ?? templateCard?.title ?? column.label,
-      targetDate: templateCard?.suggestedTargetDate ?? "",
-    };
-  });
-  const cells = creatorColumns.reduce<Record<CellId, CellState>>((nextCells, column) => {
-    for (const row of rows) {
-      nextCells[getCellId(column.id, row)] = {
-        kind: column.kind === "channel" ? "locked" : "empty",
-        pairId: null,
-      };
-    }
-
-    return nextCells;
-  }, {} as Record<CellId, CellState>);
-  const pairs = templateCards.reduce<Record<PairId, Pair>>((nextPairs, card, cardIndex) => {
-    const column = creatorColumns[cardIndex + 1];
-
-    for (const row of rows) {
-      const item = card.items[row];
-      const signal = card.signals[row];
-
-      if (!item || !signal || !column) {
-        continue;
-      }
-
-      const pairId = `${item.itemId}:${signal.signalId}`;
-      nextPairs[pairId] = {
-        id: pairId,
-        stepText: item.description,
-        signalTitle: signal.title,
-      };
-      cells[getCellId(column.id, row)] = { kind: "pair", pairId };
-    }
-
-    return nextPairs;
-  }, {});
-
-  return {
-    deckTitle: sourceDeckTemplate.title,
-    columns: creatorColumns,
-    rows,
-    channelNamesByRow: sourceDeckTemplate.channels.reduce<Record<number, string>>((nextChannels, channel, index) => {
-      nextChannels[index] = channel.title;
-      return nextChannels;
-    }, {}),
-    cells,
-    pairs,
-  };
 }
 
 function findPairCell(cells: BoardState["cells"], pairId: PairId) {
@@ -165,11 +111,17 @@ function isPairDroppableCell(cell: CellState | undefined) {
 
 function getEditSession(board: BoardState, target: EditTarget): EditSession | null {
   if (target.type === "deck-title") {
-    return { label: "Deck title", target, value: board.deckTitle };
+    return { inputKind: "long-text", label: "Deck title", target, value: board.deckTitle };
   }
 
   if (target.type === "channel-name") {
-    return { label: "Channel name", target, value: board.channelNamesByRow[target.row] ?? "" };
+    return {
+      helperText: "Short label. One word works best.",
+      inputKind: "short-text",
+      label: "Channel name",
+      target,
+      value: board.channelNamesByRow[target.row] ?? "",
+    };
   }
 
   if (target.type === "card-title") {
@@ -179,17 +131,29 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
       return null;
     }
 
-    return { label: "Card title", target, value: column.cardTitle ?? "" };
+    return {
+      helperText: "Short card title. Aim for 1-4 words.",
+      inputKind: "long-text",
+      label: "Card title",
+      target,
+      value: column.cardTitle ?? "",
+    };
   }
 
-  if (target.type === "target-date") {
+  if (target.type === "card-label") {
     const column = board.columns.find((candidate) => candidate.id === target.columnId);
 
     if (!column) {
       return null;
     }
 
-    return { label: "Target date", target, value: column.targetDate ?? "" };
+    return {
+      helperText: "Short label, e.g. Week 1",
+      inputKind: "short-text",
+      label: "Card label",
+      target,
+      value: column.cardLabel ?? "",
+    };
   }
 
   const pair = board.pairs[target.pairId];
@@ -199,14 +163,51 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
   }
 
   if (target.type === "pair-step") {
-    return { label: "Step text", target, value: pair.stepText };
+    return {
+      helperText: "Aim for 1-2 short lines on the card.",
+      inputKind: "long-text",
+      label: "Step text",
+      target,
+      value: pair.stepText,
+    };
   }
 
-  return { label: "Signal title", target, value: pair.signalTitle };
+  return null;
+}
+
+function getDateEditSession(board: BoardState, target: DateEditTarget): DateEditSession | null {
+  const column = board.columns.find((candidate) => candidate.id === target.columnId);
+
+  if (!column) {
+    return null;
+  }
+
+  return { label: "Target date", target, value: column.targetDate ?? "" };
+}
+
+function getSignalEditSession(board: BoardState, target: SignalEditTarget): SignalEditSession | null {
+  const pair = board.pairs[target.pairId];
+
+  if (!pair) {
+    return null;
+  }
+
+  return {
+    target,
+    signalMax: pair.signalMax,
+    signalMaxSymbol: pair.signalMaxSymbol,
+    signalMin: pair.signalMin,
+    signalMinSymbol: pair.signalMinSymbol,
+    signalTitle: pair.signalTitle,
+  };
 }
 
 function CreatorEditModal({ session, onClose, onSave }: { session: EditSession; onClose: () => void; onSave: (value: string) => void }) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const isLongText = session.inputKind === "long-text";
+  const showStepCounter = session.target.type === "pair-step";
+  const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
+  const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -222,7 +223,25 @@ function CreatorEditModal({ session, onClose, onSave }: { session: EditSession; 
             Close
           </button>
         </header>
-        <textarea autoFocus className="creator-modal-field" onChange={(event) => setDraftValue(event.target.value)} value={draftValue} />
+        {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
+        {isLongText ? (
+          <textarea autoFocus className="creator-modal-field" onChange={(event) => setDraftValue(event.target.value)} value={draftValue} />
+        ) : (
+          <input
+            autoFocus
+            className="creator-modal-text-input"
+            maxLength={maxLength}
+            onChange={(event) => setDraftValue(event.target.value)}
+            type="text"
+            value={draftValue}
+          />
+        )}
+        {session.target.type === "card-label" ? <p className="creator-modal-counter">{draftValue.length}/{CARD_LABEL_MAX_LENGTH} characters</p> : null}
+        {showStepCounter ? (
+          <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>
+            {isStepWarningVisible ? `${draftValue.length} characters - this may truncate on the card.` : `${draftValue.length} characters`}
+          </p>
+        ) : null}
         <div className="creator-modal-actions">
           <button className="creator-modal-secondary" onClick={onClose} type="button">
             Cancel
@@ -236,7 +255,178 @@ function CreatorEditModal({ session, onClose, onSave }: { session: EditSession; 
   );
 }
 
-function PairBlock({ pair, isDragging = false, onEdit }: { pair: Pair; isDragging?: boolean; onEdit: (target: EditTarget) => void }) {
+function CreatorDateEditModal({ session, onClose, onSave }: { session: DateEditSession; onClose: () => void; onSave: (value: string) => void }) {
+  const [draftValue, setDraftValue] = useState(() => (isIsoDateOnlyString(session.value) ? session.value : ""));
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasInvalidStoredValue = Boolean(session.value.trim()) && !isIsoDateOnlyString(session.value);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!isIsoDateOnlyString(draftValue)) {
+      setErrorMessage("Choose a valid date.");
+      return;
+    }
+
+    onSave(draftValue);
+  }
+
+  return (
+    <div className="creator-modal-backdrop" role="presentation">
+      <form className="creator-modal" onSubmit={handleSubmit}>
+        <header className="creator-modal-header">
+          <p>{session.label}</p>
+          <button className="creator-modal-close" onClick={onClose} type="button">
+            Close
+          </button>
+        </header>
+        <input
+          autoFocus
+          className="creator-date-field"
+          onChange={(event) => {
+            setDraftValue(event.target.value);
+            setErrorMessage(null);
+          }}
+          required
+          type="date"
+          value={draftValue}
+        />
+        {hasInvalidStoredValue ? <p className="creator-modal-note">Current value: {session.value}</p> : null}
+        {errorMessage ? <p className="creator-modal-error">{errorMessage}</p> : null}
+        <div className="creator-modal-actions">
+          <button className="creator-modal-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="creator-modal-primary" type="submit">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function CreatorSignalEditModal({
+  session,
+  onClose,
+  onSave,
+}: {
+  session: SignalEditSession;
+  onClose: () => void;
+  onSave: (value: SignalEditValue) => void;
+}) {
+  const [signalTitle, setSignalTitle] = useState(session.signalTitle);
+  const [signalMin, setSignalMin] = useState(String(session.signalMin));
+  const [signalMax, setSignalMax] = useState(String(session.signalMax));
+  const [signalMinSymbol, setSignalMinSymbol] = useState<SignalMinSymbol>(session.signalMinSymbol);
+  const [signalMaxSymbol, setSignalMaxSymbol] = useState<SignalMaxSymbol>(session.signalMaxSymbol);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const parsedMin = signalMin.trim() === "" ? null : Number(signalMin);
+  const parsedMax = signalMax.trim() === "" ? null : Number(signalMax);
+  const hasInvalidNumber = (signalMin.trim() !== "" && Number.isNaN(parsedMin)) || (signalMax.trim() !== "" && Number.isNaN(parsedMax));
+  const hasInvertedRange = parsedMin !== null && parsedMax !== null && !Number.isNaN(parsedMin) && !Number.isNaN(parsedMax) && parsedMax < parsedMin;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (hasInvalidNumber) {
+      setErrorMessage("Min and max must be numbers.");
+      return;
+    }
+
+    onSave({
+      signalMax: parsedMax ?? "",
+      signalMaxSymbol,
+      signalMin: parsedMin ?? "",
+      signalMinSymbol,
+      signalTitle,
+    });
+  }
+
+  return (
+    <div className="creator-modal-backdrop" role="presentation">
+      <form className="creator-modal" onSubmit={handleSubmit}>
+        <header className="creator-modal-header">
+          <p>Signal settings</p>
+          <button className="creator-modal-close" onClick={onClose} type="button">
+            Close
+          </button>
+        </header>
+
+        <label className="creator-modal-label">
+          Signal title
+          <input autoFocus className="creator-modal-text-input" onChange={(event) => setSignalTitle(event.target.value)} type="text" value={signalTitle} />
+        </label>
+        <p className="creator-modal-note">Short signal name. Aim for 1-3 words.</p>
+
+        <div className="creator-signal-settings-grid">
+          <label className="creator-modal-label">
+            Min value
+            <input
+              className="creator-modal-text-input"
+              onChange={(event) => {
+                setSignalMin(event.target.value);
+                setErrorMessage(null);
+              }}
+              type="number"
+              value={signalMin}
+            />
+          </label>
+          <label className="creator-modal-label">
+            Max value
+            <input
+              className="creator-modal-text-input"
+              onChange={(event) => {
+                setSignalMax(event.target.value);
+                setErrorMessage(null);
+              }}
+              type="number"
+              value={signalMax}
+            />
+          </label>
+          <label className="creator-modal-label">
+            Lower bound
+            <select className="creator-modal-select" onChange={(event) => setSignalMinSymbol(event.target.value as SignalMinSymbol)} value={signalMinSymbol}>
+              <option value="none">exact</option>
+              <option value="<">≤</option>
+            </select>
+          </label>
+          <label className="creator-modal-label">
+            Upper bound
+            <select className="creator-modal-select" onChange={(event) => setSignalMaxSymbol(event.target.value as SignalMaxSymbol)} value={signalMaxSymbol}>
+              <option value="none">exact</option>
+              <option value="+">+</option>
+            </select>
+          </label>
+        </div>
+
+        {hasInvertedRange ? <p className="creator-modal-counter creator-modal-counter--warning">Max is less than min. You can save, but the range may read oddly.</p> : null}
+        {errorMessage ? <p className="creator-modal-error">{errorMessage}</p> : null}
+
+        <div className="creator-modal-actions">
+          <button className="creator-modal-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="creator-modal-primary" type="submit">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function PairBlock({
+  pair,
+  isDragging = false,
+  onEdit,
+  onSignalEdit,
+}: {
+  pair: Pair;
+  isDragging?: boolean;
+  onEdit: (target: EditTarget) => void;
+  onSignalEdit: (target: SignalEditTarget) => void;
+}) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
     data: { type: "pair" },
@@ -253,7 +443,7 @@ function PairBlock({ pair, isDragging = false, onEdit }: { pair: Pair; isDraggin
           <span className="creator-drag-handle-mark" aria-hidden="true">::</span>
         </button>
       </div>
-      <button className="creator-editable creator-pair-signal" onClick={() => onEdit({ type: "pair-signal", pairId: pair.id })} type="button">
+      <button className="creator-editable creator-pair-signal" onClick={() => onSignalEdit({ type: "pair-signal", pairId: pair.id })} type="button">
         {pair.signalTitle}
       </button>
     </div>
@@ -280,6 +470,7 @@ function BoardCell({
   cellId,
   channelName,
   onEdit,
+  onSignalEdit,
   pair,
 }: {
   activePairId: PairId | null;
@@ -287,6 +478,7 @@ function BoardCell({
   cellId: CellId;
   channelName?: string;
   onEdit: (target: EditTarget) => void;
+  onSignalEdit: (target: SignalEditTarget) => void;
   pair?: Pair;
 }) {
   const { isOver, setNodeRef } = useDroppable({
@@ -306,7 +498,7 @@ function BoardCell({
     >
       {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
       {pair ? (
-        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} />
+        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} onSignalEdit={onSignalEdit} />
       ) : isLocked ? (
         <button className="creator-editable creator-channel-name" onClick={() => onEdit({ type: "channel-name", row: Number(cellId.split(":")[1]) })} type="button">
           {channelName}
@@ -318,10 +510,17 @@ function BoardCell({
   );
 }
 
-export default function CreatorDragLab() {
-  const [board, setBoard] = useState<BoardState>(() => createInitialBoard());
+type CreatorDragLabProps = {
+  initialBoard: BoardState;
+  mode: "edit" | "new";
+};
+
+export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabProps) {
+  const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
   const [editSession, setEditSession] = useState<EditSession | null>(null);
+  const [dateEditSession, setDateEditSession] = useState<DateEditSession | null>(null);
+  const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const panStateRef = useRef<{
     pointerId: number;
@@ -385,6 +584,22 @@ export default function CreatorDragLab() {
     }
   }
 
+  function openDateEdit(target: DateEditTarget) {
+    const nextDateEditSession = getDateEditSession(board, target);
+
+    if (nextDateEditSession) {
+      setDateEditSession(nextDateEditSession);
+    }
+  }
+
+  function openSignalEdit(target: SignalEditTarget) {
+    const nextSignalEditSession = getSignalEditSession(board, target);
+
+    if (nextSignalEditSession) {
+      setSignalEditSession(nextSignalEditSession);
+    }
+  }
+
   function saveEdit(value: string) {
     if (!editSession) {
       return;
@@ -414,10 +629,10 @@ export default function CreatorDragLab() {
         };
       }
 
-      if (target.type === "target-date") {
+      if (target.type === "card-label") {
         return {
           ...currentBoard,
-          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, targetDate: value } : column)),
+          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, cardLabel: value.slice(0, CARD_LABEL_MAX_LENGTH) } : column)),
         };
       }
 
@@ -433,12 +648,54 @@ export default function CreatorDragLab() {
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
-            ...(target.type === "pair-step" ? { stepText: value } : { signalTitle: value }),
+            stepText: value,
           },
         },
       };
     });
     setEditSession(null);
+  }
+
+  function saveDateEdit(value: string) {
+    if (!dateEditSession || !isIsoDateOnlyString(value)) {
+      return;
+    }
+
+    const target = dateEditSession.target;
+
+    setBoard((currentBoard) => ({
+      ...currentBoard,
+      columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, targetDate: value } : column)),
+    }));
+    setDateEditSession(null);
+  }
+
+  function saveSignalEdit(value: SignalEditValue) {
+    if (!signalEditSession) {
+      return;
+    }
+
+    const target = signalEditSession.target;
+
+    setBoard((currentBoard) => {
+      const pair = currentBoard.pairs[target.pairId];
+
+      if (!pair) {
+        return currentBoard;
+      }
+
+      return {
+        ...currentBoard,
+        pairs: {
+          ...currentBoard.pairs,
+          [target.pairId]: {
+            ...pair,
+            ...value,
+          },
+        },
+      };
+    });
+    setSignalEditSession(null);
   }
 
   function handlePanPointerDown(event: PointerEvent<HTMLElement>) {
@@ -513,10 +770,11 @@ export default function CreatorDragLab() {
     <main className="creator-lab" style={creatorGeometryStyle}>
       <header className="creator-header">
         <div>
-          <p className="creator-kicker">Creator Mode Prototype</p>
+          <p className="creator-kicker">{mode === "edit" ? "Edit Template" : "Create New Deck"}</p>
           <button className="creator-editable creator-deck-title" onClick={() => openEdit({ type: "deck-title" })} type="button">
             {board.deckTitle}
           </button>
+          <p className="creator-edit-hint">Tap text to edit</p>
         </div>
         <Link className="creator-back-link" href="/">
           Decks
@@ -541,11 +799,16 @@ export default function CreatorDragLab() {
                   <header className="creator-card-header">
                     {column.kind === "card" ? (
                       <>
+                        <div className="creator-card-meta-row">
+                          <button className="creator-editable creator-card-label-button" onClick={() => openEdit({ type: "card-label", columnId: column.id })} type="button">
+                            {column.cardLabel}
+                          </button>
+                          <button className="creator-editable creator-card-date-button" onClick={() => openDateEdit({ type: "target-date", columnId: column.id })} type="button">
+                            {formatCreatorDateDisplay(column.targetDate ?? "")}
+                          </button>
+                        </div>
                         <button className="creator-editable creator-card-title-button" onClick={() => openEdit({ type: "card-title", columnId: column.id })} type="button">
                           {column.cardTitle}
-                        </button>
-                        <button className="creator-editable creator-card-date-button" onClick={() => openEdit({ type: "target-date", columnId: column.id })} type="button">
-                          {formatCreatorDateDisplay(column.targetDate ?? "")}
                         </button>
                       </>
                     ) : (
@@ -554,7 +817,7 @@ export default function CreatorDragLab() {
                   </header>
                   <div className="creator-column-cells">
                     {board.rows.map((row) => {
-                      const cellId = getCellId(column.id, row);
+                      const cellId = getCreatorCellId(column.id, row);
 
                       return (
                         <BoardCell
@@ -564,6 +827,7 @@ export default function CreatorDragLab() {
                           channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
                           key={cellId}
                           onEdit={openEdit}
+                          onSignalEdit={openSignalEdit}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
                         />
                       );
@@ -580,6 +844,8 @@ export default function CreatorDragLab() {
         <DragOverlay>{activePairId && activeOriginCellId ? <PairPreview /> : null}</DragOverlay>
       </DndContext>
       {editSession ? <CreatorEditModal session={editSession} onClose={() => setEditSession(null)} onSave={saveEdit} /> : null}
+      {dateEditSession ? <CreatorDateEditModal session={dateEditSession} onClose={() => setDateEditSession(null)} onSave={saveDateEdit} /> : null}
+      {signalEditSession ? <CreatorSignalEditModal session={signalEditSession} onClose={() => setSignalEditSession(null)} onSave={saveSignalEdit} /> : null}
     </main>
   );
 }

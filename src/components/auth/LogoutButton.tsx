@@ -37,7 +37,7 @@ export default function LogoutButton({ username }: LogoutButtonProps) {
         <button className="session-logout" disabled={isPending} onClick={handleLogout} type="button">
           {isPending ? "Signing out..." : "sign out"}
         </button>
-        <Link className="session-create" href="/creator">
+        <Link className="session-create" href="/creator/new">
           Create
         </Link>
       </div>

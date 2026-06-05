@@ -10,7 +10,7 @@ export function getVisibleDeckTemplatesForUser(username: string, templates: Deck
   const allowedTemplateIds = userTemplateAccess[username];
 
   if (allowedTemplateIds === undefined) {
-    return templates;
+    return []; // No access for this user
   }
 
   return templates.filter((template) => allowedTemplateIds.includes(template.deckTemplateId));
