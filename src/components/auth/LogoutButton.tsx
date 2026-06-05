@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -32,9 +33,14 @@ export default function LogoutButton({ username }: LogoutButtonProps) {
   return (
     <div className="session-actions">
       <span className="session-chip">{username}</span>
-      <button className="session-logout" disabled={isPending} onClick={handleLogout} type="button">
-        {isPending ? "Signing out..." : "sign out"}
-      </button>
+      <div className="session-action-stack">
+        <button className="session-logout" disabled={isPending} onClick={handleLogout} type="button">
+          {isPending ? "Signing out..." : "sign out"}
+        </button>
+        <Link className="session-create" href="/creator">
+          Create
+        </Link>
+      </div>
       {error ? <p className="session-error">{error}</p> : null}
     </div>
   );

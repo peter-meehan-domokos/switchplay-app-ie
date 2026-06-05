@@ -141,9 +141,15 @@ input {
   top: 2rem;
   right: 2rem;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   z-index: 20;
+}
+
+.session-action-stack {
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
 }
 
 .session-chip {
@@ -161,8 +167,27 @@ input {
   padding-inline: 12px;
 }
 
+.session-create {
+  display: grid;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.72);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .session-logout:hover {
   color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.session-create:hover {
+  color: rgba(255, 255, 255, 0.88);
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.14);
 }
@@ -243,6 +268,183 @@ input {
 .overview-screen {
   margin: 0 auto;
   max-width: 720px;
+}
+
+.creator-lab {
+  min-height: 100svh;
+  background: #f5f5f2;
+  color: #111318;
+  padding: max(var(--creator-root-padding-top), env(safe-area-inset-top)) 0 var(--creator-root-padding-bottom);
+}
+
+.creator-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--creator-header-gap);
+  padding: 0 var(--creator-header-padding-x) var(--creator-header-padding-bottom);
+}
+
+.creator-kicker {
+  color: #555d67;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.creator-header h1 {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.creator-back-link {
+  border: 1px solid #a8adb3;
+  color: #111318;
+  padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
+  text-decoration: none;
+}
+
+.creator-scroll-shell {
+  width: 100%;
+  cursor: grab;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 0 var(--creator-scroll-padding-x) var(--creator-scroll-padding-bottom);
+  touch-action: pan-y;
+}
+
+.creator-scroll-shell:active {
+  cursor: grabbing;
+}
+
+.creator-canvas {
+  width: max-content;
+  min-width: 100%;
+}
+
+.creator-board {
+  display: flex;
+  gap: var(--creator-column-gap);
+}
+
+.creator-pan-gutter {
+  width: 100%;
+  height: var(--creator-pan-gutter-height);
+  margin-top: var(--creator-pan-gutter-gap);
+  border: 1px dashed #c1c6c9;
+  background: #ededeb;
+}
+
+@media (max-width: 640px) {
+  .creator-pan-gutter {
+    height: var(--creator-pan-gutter-mobile-height);
+  }
+}
+
+.creator-column {
+  width: var(--creator-column-width);
+  flex: 0 0 var(--creator-column-width);
+  border: 1px solid #8f969e;
+  background: #ffffff;
+}
+
+.creator-column h2 {
+  display: flex;
+  align-items: center;
+  height: var(--creator-column-header-height);
+  border-bottom: 1px solid #8f969e;
+  font-size: 1rem;
+  line-height: 1.2;
+  padding: var(--creator-column-header-padding);
+}
+
+.creator-column-cells {
+  display: grid;
+  gap: 0;
+}
+
+.creator-cell {
+  display: grid;
+  height: var(--creator-row-height);
+  place-items: center;
+  border-bottom: 1px solid #c2c7cc;
+  background: #fbfbfa;
+  padding: var(--creator-cell-padding);
+}
+
+.creator-cell:last-child {
+  border-bottom: 0;
+}
+
+.creator-cell--locked {
+  background: #eeeeea;
+}
+
+.creator-cell--can-drop {
+  background: #e6f2e6;
+  outline: 2px solid #2d7d46;
+  outline-offset: -2px;
+}
+
+.creator-empty {
+  color: #7a818a;
+  font-size: 0.9rem;
+}
+
+.creator-pair {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  width: 100%;
+  min-height: var(--creator-pair-height);
+  border: 1px solid #315d86;
+  background: #7db8e8;
+  color: #071522;
+  padding: var(--creator-pair-internal-padding);
+}
+
+.creator-pair--dragging {
+  opacity: 0.32;
+}
+
+.creator-pair--preview {
+  width: var(--creator-pair-overlay-width);
+}
+
+.creator-pair-step,
+.creator-pair-signal {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.creator-pair-handle-row {
+  display: grid;
+  place-items: center;
+}
+
+.creator-drag-handle {
+  display: grid;
+  min-width: var(--creator-pair-handle-width);
+  min-height: var(--creator-pair-handle-height);
+  place-items: center;
+  border: 1px solid #1d405f;
+  background: #e8f4ff;
+  color: #1d405f;
+  cursor: grab;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  touch-action: none;
+}
+
+.creator-drag-handle:active {
+  cursor: grabbing;
+}
+
+.creator-drag-handle--preview {
+  display: grid;
 }
 
 .deck-grid {
