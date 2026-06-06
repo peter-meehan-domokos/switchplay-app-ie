@@ -36,7 +36,7 @@ export type CardLayoutSignal = {
   maxValue: number;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
-  unit: string;
+  unit: string | null;
   order: SignalOrder;
 };
 

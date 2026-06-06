@@ -1,6 +1,6 @@
 import type { MediaItem } from "@/lib/media";
 
-export type DeckCategory = string;
+export type DeckCategory = string | null;
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 export type SignalOrder = "increasing" | "decreasing";
 
@@ -19,7 +19,7 @@ export type CardChat = {
 
 export type CardIntro = {
   description: string;
-  mediaItem: MediaItem;
+  mediaItem: MediaItem | null;
 };
 
 export type CardTemplateItem = {
@@ -37,7 +37,7 @@ export type CardTemplateSignal = {
   maxValue: number;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
-  unit: string;
+  unit: string | null;
 };
 
 export type CardTemplate = {
@@ -109,7 +109,7 @@ export type WeeklyCardSignal = {
   maxValue: number;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
-  unit: string;
+  unit: string | null;
 };
 
 export type WeeklyCard = {
