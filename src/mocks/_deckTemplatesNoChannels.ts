@@ -39,33 +39,27 @@ export const deckTemplates = [
             title: "John's App Clarity",
             description: "How clear the next version of the app feels after reviewing it with John",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "commitments"
           },
           {
             signalId: "open-loops-signal-002",
             title: "Financial Visibility",
             description: "How clearly you can see your financial position through December",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "foundations"
           },
           {
             signalId: "open-loops-signal-003",
             title: "Outreach Resistance",
             description: "How much avoidance currently exists around reaching out to people",
             order: "decreasing",
-            targetValue: 2,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "initiative"
           }
         ]
       },
@@ -103,35 +97,29 @@ export const deckTemplates = [
             title: "Family Stability",
             description: "How settled and constructive important family relationships feel",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "commitments"
           },
           {
             signalId: "open-loops-signal-005",
             title: "Admin Control",
             description: "How in control of practical responsibilities and obligations you feel",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "foundations"
           },
           {
             signalId: "open-loops-signal-006",
             title: "People Contacted",
             description: "Meaningful outreach actions taken",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             maxValue: 5,
             isTheoreticalMin: true,
             isTheoreticalMax: true,
             unit: "people",
-            dimension: "initiative"
           }
         ]
       },
@@ -169,33 +157,27 @@ export const deckTemplates = [
             title: "Shared Momentum",
             description: "How much progress and forward movement John and you feel together",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "commitments"
           },
           {
             signalId: "open-loops-signal-008",
             title: "Move Readiness",
             description: "How prepared you feel for the upcoming move",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "foundations"
           },
           {
             signalId: "open-loops-signal-009",
             title: "Outreach Rhythm",
             description: "How natural and consistent outreach is beginning to feel",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "initiative"
           }
         ]
       },
@@ -233,33 +215,27 @@ export const deckTemplates = [
             title: "Commitments Settled",
             description: "How settled important relationships and commitments feel overall",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "commitments"
           },
           {
             signalId: "open-loops-signal-011",
             title: "Life Foundations",
             description: "Overall confidence that practical life is organised and under control",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "foundations"
           },
           {
             signalId: "open-loops-signal-012",
             title: "Initiative Confidence",
             description: "Confidence in putting yourself forward and taking initiative",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "initiative"
           }
         ]
       }
@@ -304,36 +280,30 @@ export const deckTemplates = [
             title: "Registration readiness",
             description: "Progress towards registration, Garda and supporting requirements",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "registration"
           },
           {
             signalId: "teaching-signal-002",
             title: "Tutoring foundations",
             description: "Progress towards tutoring profiles, reviews and platform setup",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "presence"
           },
           {
             signalId: "teaching-signal-003",
             title: "Lesson progress",
             description: "Progress towards a completed maths lesson and activity",
             order: "increasing",
-            targetValue: 7,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           }
         ]
       },
@@ -371,36 +341,30 @@ export const deckTemplates = [
             title: "Registration readiness",
             description: "Progress towards registration, Garda and supporting requirements",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "registration"
           },
           {
             signalId: "teaching-signal-005",
             title: "Tutoring foundations",
             description: "Progress towards tutoring profiles, reviews and platform setup",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "presence"
           },
           {
             signalId: "teaching-signal-006",
             title: "Lesson progress",
             description: "Progress towards a completed maths lesson and activity",
             order: "increasing",
-            targetValue: 8,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           }
         ]
       },
@@ -438,36 +402,30 @@ export const deckTemplates = [
             title: "School outreach",
             description: "Schools contacted and made aware of your availability",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "schools",
-            dimension: "registration"
           },
           {
             signalId: "teaching-signal-008",
             title: "Active profiles",
             description: "Tutoring platforms with active public profiles",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 2,
             unit: "profiles",
-            dimension: "presence"
           },
           {
             signalId: "teaching-signal-009",
             title: "Lesson completeness",
             description: "How complete the first maths lesson feels overall",
             order: "increasing",
-            targetValue: 8,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           }
         ]
       },
@@ -505,33 +463,27 @@ export const deckTemplates = [
             title: "September readiness",
             description: "Confidence that the teaching pathway is ready for September",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "registration"
           },
           {
             signalId: "teaching-signal-011",
             title: "Tutoring visibility",
             description: "Confidence that potential students can find and assess you",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "presence"
           },
           {
             signalId: "teaching-signal-012",
             title: "Teaching confidence",
             description: "Confidence in the quality and credibility of your maths teaching materials",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           }
         ]
       }
@@ -576,36 +528,30 @@ export const deckTemplates = [
             title: "Meditation consistency",
             description: "Days this week when meditation actually happened",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "awareness"
           },
           {
             signalId: "health-signal-002",
             title: "Professional sessions",
             description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "sessions",
-            dimension: "capacity"
           },
           {
             signalId: "health-signal-003",
             title: "Healthy days",
             description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "recovery"
           }
         ]
       },
@@ -643,36 +589,30 @@ export const deckTemplates = [
             title: "Days without resistance",
             description: "Days when sitting down to meditate did not feel like a struggle",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "awareness"
           },
           {
             signalId: "health-signal-005",
             title: "Professional sessions",
             description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "sessions",
-            dimension: "capacity"
           },
           {
             signalId: "health-signal-006",
             title: "Healthy days",
             description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "recovery"
           }
         ]
       },
@@ -710,35 +650,29 @@ export const deckTemplates = [
             title: "Quality of attention",
             description: "How present and settled meditation felt this week",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "awareness"
           },
           {
             signalId: "health-signal-008",
             title: "Professional sessions",
             description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "sessions",
-            dimension: "capacity"
           },
           {
             signalId: "health-signal-009",
             title: "Healthy days",
             description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "recovery"
           }
         ]
       },
@@ -776,36 +710,30 @@ export const deckTemplates = [
             title: "Meditation pull",
             description: "Days when I naturally wanted to meditate",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "awareness"
           },
           {
             signalId: "health-signal-011",
             title: "Professional sessions",
             description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "sessions",
-            dimension: "capacity"
           },
           {
             signalId: "health-signal-012",
             title: "Healthy days",
             description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "days",
-            dimension: "recovery"
           }
         ]
       }
@@ -850,36 +778,30 @@ export const deckTemplates = [
             title: "Promising opportunities",
             description: "Potential organisations, people or openings worth pursuing",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "network"
           },
           {
             signalId: "tebo-signal-002",
             title: "Portfolio integration",
             description: "Portfolio projects fully integrated and ready to support the studio",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 2,
             unit: "",
-            dimension: "credibility"
           },
           {
             signalId: "tebo-signal-003",
             title: "Useful principles",
             description: "Data visualisation principles worth carrying into future work",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "perspective"
           }
         ]
       },
@@ -917,34 +839,28 @@ export const deckTemplates = [
             title: "Positive responses",
             description: "Encouraging replies, interest or openings from outreach",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "network"
           },
           {
             signalId: "tebo-signal-005",
             title: "Website confidence",
             description: "Confidence that the website represents the studio well",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           },
           {
             signalId: "tebo-signal-006",
             title: "Principle confidence",
             description: "Confidence that the principles feel clear and useful",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "perspective"
           }
         ]
       },
@@ -982,34 +898,28 @@ export const deckTemplates = [
             title: "Promising relationships",
             description: "Relationships that feel worth developing further",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "network"
           },
           {
             signalId: "tebo-signal-008",
             title: "Message confidence",
             description: "Confidence that the outreach message is landing well",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           },
           {
             signalId: "tebo-signal-009",
             title: "Perspective insights",
             description: "Useful insights about which ideas resonate with others",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "perspective"
           }
         ]
       },
@@ -1047,34 +957,28 @@ export const deckTemplates = [
             title: "Emerging opportunities",
             description: "Genuine opportunities, leads or possible paid work emerging",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "network"
           },
           {
             signalId: "tebo-signal-011",
             title: "Studio credibility",
             description: "Confidence that Tebo Studio feels credible to others",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "credibility"
           },
           {
             signalId: "tebo-signal-012",
             title: "Positioning clarity",
             description: "Clarity about the strongest positioning for Tebo Studio",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "perspective"
           }
         ]
       }
@@ -1110,36 +1014,30 @@ export const deckTemplates = [
             title: "New scale patterns becoming usable",
             description: "New scale patterns becoming usable",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 2,
             unit: "",
-            dimension: "fluency"
           },
           {
             signalId: "music-signal-002",
             title: "H90 controls understood",
             description: "H90 controls understood",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "sound"
           },
           {
             signalId: "music-signal-003",
             title: "Meaningful trad encounters",
             description: "Meaningful trad encounters",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 2,
             unit: "",
-            dimension: "connection"
           }
         ]
       },
@@ -1168,36 +1066,30 @@ export const deckTemplates = [
             title: "Scales becoming familiar",
             description: "Scales becoming familiar",
             order: "increasing",
-            targetValue: 4,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 4,
             unit: "",
-            dimension: "fluency"
           },
           {
             signalId: "music-signal-005",
             title: "Presets successfully personalised",
             description: "Presets successfully personalised",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "sound"
           },
           {
             signalId: "music-signal-006",
             title: "New musicians worth knowing",
             description: "New musicians worth knowing",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "connection"
           }
         ]
       },
@@ -1226,36 +1118,30 @@ export const deckTemplates = [
             title: "Scales available instinctively",
             description: "Scales available instinctively",
             order: "increasing",
-            targetValue: 5,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "fluency"
           },
           {
             signalId: "music-signal-008",
             title: "Personal sounds worth keeping",
             description: "Personal sounds worth keeping",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "sound"
           },
           {
             signalId: "music-signal-009",
             title: "New strong musical connections",
             description: "New strong musical connections",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 2,
             unit: "",
-            dimension: "connection"
           }
         ]
       },
@@ -1284,36 +1170,30 @@ export const deckTemplates = [
             title: "Scales I can jam with confidently",
             description: "Scales I can jam with confidently",
             order: "increasing",
-            targetValue: 7,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 7,
             unit: "",
-            dimension: "fluency"
           },
           {
             signalId: "music-signal-011",
             title: "Sounds that feel uniquely mine",
             description: "Sounds that feel uniquely mine",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "sound"
           },
           {
             signalId: "music-signal-012",
             title: "New musicians worth staying in touch with",
             description: "New musicians worth staying in touch with",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "connection"
           }
         ]
       }
@@ -1358,35 +1238,29 @@ export const deckTemplates = [
             title: "Useful product insights",
             description: "Helpful discoveries from real-world use, positive or negative",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "robustness"
           },
           {
             signalId: "switchplay-signal-002",
             title: "Interest from target users",
             description: "Overall level of interest shown by target users",
             order: "increasing",
-            targetValue: 7,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "validation"
           },
           {
             signalId: "switchplay-signal-003",
             title: "Example concepts worth pursuing",
             description: "Promising ideas for exemplar content",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "examples"
           }
         ]
       },
@@ -1424,35 +1298,29 @@ export const deckTemplates = [
             title: "Important issues remaining",
             description: "Outstanding issues still affecting the experience",
             order: "decreasing",
-            targetValue: 0,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "robustness"
           },
           {
             signalId: "switchplay-signal-005",
             title: "Questions worth investigating",
             description: "Useful questions emerging from user conversations",
             order: "increasing",
-            targetValue: 3,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "validation"
           },
           {
             signalId: "switchplay-signal-006",
             title: "Confidence in the maths exemplar",
             description: "How strongly the maths deck represents the opportunity",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "examples"
           }
         ]
       },
@@ -1490,34 +1358,28 @@ export const deckTemplates = [
             title: "Successful user journeys",
             description: "Users successfully completing meaningful journeys",
             order: "increasing",
-            targetValue: 2,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 3,
             unit: "",
-            dimension: "robustness"
           },
           {
             signalId: "switchplay-signal-008",
             title: "Most valuable discoveries",
             description: "Overall value of discoveries emerging from user testing",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "validation"
           },
           {
             signalId: "switchplay-signal-009",
             title: "Quality of content insights",
             description: "How valuable the content-related discoveries feel",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "examples"
           }
         ]
       },
@@ -1555,34 +1417,28 @@ export const deckTemplates = [
             title: "Issues blocking adoption",
             description: "Remaining issues likely to stop people using Switchplay",
             order: "decreasing",
-            targetValue: 0,
             minValue: 0,
             isTheoreticalMin: true,
             maxValue: 5,
             unit: "",
-            dimension: "robustness"
           },
           {
             signalId: "switchplay-signal-011",
             title: "Confidence in the opportunity",
             description: "Overall confidence that Switchplay is worth pursuing further",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "validation"
           },
           {
             signalId: "switchplay-signal-012",
             title: "Clarity about great Switchplay content",
             description: "Overall understanding of what makes an exemplar effective",
             order: "increasing",
-            targetValue: 8,
             minValue: 1,
             maxValue: 10,
             unit: "",
-            dimension: "examples"
           }
         ]
       }
@@ -1646,35 +1502,29 @@ export const deckTemplates = [
             "title": "Strict pull-ups",
             "description": "Maximum clean reps in one set",
             "order": "increasing",
-            "targetValue": 7,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 9,
             "unit": "reps",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-001-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-001-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -1730,35 +1580,29 @@ export const deckTemplates = [
             "title": "Chest-height pull-ups",
             "description": "Best set of explosive reps",
             "order": "increasing",
-            "targetValue": 5,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 6,
             "unit": "reps",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-002-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-002-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -1814,35 +1658,29 @@ export const deckTemplates = [
             "title": "Band-assisted muscle-ups",
             "description": "Clean assisted reps",
             "order": "increasing",
-            "targetValue": 5,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 6,
             "unit": "reps",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-003-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-003-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -1886,35 +1724,29 @@ export const deckTemplates = [
             "title": "Clean muscle-up attempts",
             "description": "Successful clean reps",
             "order": "increasing",
-            "targetValue": 1,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 2,
             "unit": "reps",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-004-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-004-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       }
@@ -1965,35 +1797,29 @@ export const deckTemplates = [
             "title": "Back squat 5RM",
             "description": "Best controlled 5-rep set",
             "order": "increasing",
-            "targetValue": 90,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 108,
             "unit": "kg",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-005-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-005-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2037,35 +1863,29 @@ export const deckTemplates = [
             "title": "Standing vertical jump",
             "description": "Best jump height",
             "order": "increasing",
-            "targetValue": 51,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 62,
             "unit": "cm",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-006-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-006-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2109,35 +1929,29 @@ export const deckTemplates = [
             "title": "Split squat load",
             "description": "Dumbbell load per hand for working sets",
             "order": "increasing",
-            "targetValue": 24,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 29,
             "unit": "kg",
-            "dimension": "adaptation"
           },
           {
             "signalId": "signal-007-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-007-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2181,35 +1995,29 @@ export const deckTemplates = [
             "title": "Standing vertical jump",
             "description": "Best retest jump height",
             "order": "increasing",
-            "targetValue": 53,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 65,
             "unit": "cm",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-008-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-008-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       }
@@ -2260,35 +2068,29 @@ export const deckTemplates = [
             "title": "Clean first touches",
             "description": "Clean touches out of 50 attempts",
             "order": "increasing",
-            "targetValue": 40,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 48,
             "unit": "touches",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-009-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-009-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2332,35 +2134,29 @@ export const deckTemplates = [
             "title": "Pre-receive scans",
             "description": "Average scans before receiving in drill",
             "order": "increasing",
-            "targetValue": 1.3,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 2,
             "unit": "scans",
-            "dimension": "reflection"
           },
           {
             "signalId": "signal-010-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-010-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2404,35 +2200,29 @@ export const deckTemplates = [
             "title": "Forward exits",
             "description": "Successful forward first touches out of 40",
             "order": "increasing",
-            "targetValue": 30,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 36,
             "unit": "touches",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-011-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-011-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2476,35 +2266,29 @@ export const deckTemplates = [
             "title": "Turnovers under pressure",
             "description": "Lost possessions in pressure drill",
             "order": "decreasing",
-            "targetValue": 4,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 12,
             "unit": "turnovers",
-            "dimension": "adaptation"
           },
           {
             "signalId": "signal-012-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-012-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2548,35 +2332,29 @@ export const deckTemplates = [
             "title": "Positive first touches",
             "description": "First touches that improve the next action",
             "order": "increasing",
-            "targetValue": 18,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 22,
             "unit": "actions",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-013-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-013-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2614,35 +2392,29 @@ export const deckTemplates = [
             "title": "Late-session clean touches",
             "description": "Clean first touches after fatigue block",
             "order": "increasing",
-            "targetValue": 30,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 36,
             "unit": "touches",
-            "dimension": "recovery"
           },
           {
             "signalId": "signal-023-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-023-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       }
@@ -2693,35 +2465,29 @@ export const deckTemplates = [
             "title": "Average daily protein",
             "description": "Protein intake across the week",
             "order": "increasing",
-            "targetValue": 120,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 150,
             "unit": "g",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-014-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-014-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2765,35 +2531,29 @@ export const deckTemplates = [
             "title": "Bench press working weight",
             "description": "Top set of 6 reps",
             "order": "increasing",
-            "targetValue": 67.5,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 81,
             "unit": "kg",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-015-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-015-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2837,34 +2597,28 @@ export const deckTemplates = [
             "title": "Resting body weight",
             "description": "Average morning weight",
             "order": "decreasing",
-            "targetValue": 75.5,
             "minValue": 72,
             "maxValue": 76.8,
             "unit": "kg",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-016-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-016-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -2908,35 +2662,29 @@ export const deckTemplates = [
             "title": "Pull-ups at bodyweight",
             "description": "Max clean reps",
             "order": "increasing",
-            "targetValue": 10,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 12,
             "unit": "reps",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-017-confidence",
             "title": "Movement confidence",
             "description": "How settled the movement pattern felt this week",
             "order": "increasing",
-            "targetValue": 4.3,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-017-load",
             "title": "Load tolerance",
             "description": "Capacity to absorb the week's training load",
             "order": "increasing",
-            "targetValue": 145,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       }
@@ -2987,35 +2735,29 @@ export const deckTemplates = [
             "title": "Successful take-ons",
             "description": "Successful 1v1s in training game",
             "order": "increasing",
-            "targetValue": 5,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 6,
             "unit": "take-ons",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-018-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-018-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3059,35 +2801,29 @@ export const deckTemplates = [
             "title": "Defender wrong-footed",
             "description": "Times defender shifts weight before touch",
             "order": "increasing",
-            "targetValue": 8,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 10,
             "unit": "actions",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-019-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-019-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3131,35 +2867,29 @@ export const deckTemplates = [
             "title": "Inside/outside balance",
             "description": "Percentage of attacks going weaker side",
             "order": "increasing",
-            "targetValue": 45,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 100,
             "unit": "%",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-020-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-020-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3203,35 +2933,29 @@ export const deckTemplates = [
             "title": "Chance creation after take-on",
             "description": "Shots or dangerous passes after beating defender",
             "order": "increasing",
-            "targetValue": 6,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 8,
             "unit": "actions",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-021-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-021-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3275,35 +2999,29 @@ export const deckTemplates = [
             "title": "Effective 1v1 actions",
             "description": "Take-ons leading to advantage",
             "order": "increasing",
-            "targetValue": 7,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 9,
             "unit": "actions",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-022-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-022-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       }
@@ -3348,34 +3066,28 @@ export const deckTemplates = [
             "title": "10m sprint",
             "description": "Best acceleration time",
             "order": "decreasing",
-            "targetValue": 1.85,
             "minValue": 1.6,
             "maxValue": 5,
             "unit": "s",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-024-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-024-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3413,34 +3125,28 @@ export const deckTemplates = [
             "title": "Sprint drop-off",
             "description": "Difference across repeat sprint set",
             "order": "decreasing",
-            "targetValue": 4,
             "minValue": 2,
             "maxValue": 30,
             "unit": "%",
-            "dimension": "adaptation"
           },
           {
             "signalId": "signal-025-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-025-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3478,35 +3184,29 @@ export const deckTemplates = [
             "title": "Clean COD entries",
             "description": "Controlled entries out of 20 reps",
             "order": "increasing",
-            "targetValue": 16,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 20,
             "unit": "reps",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-026-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-026-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3544,35 +3244,29 @@ export const deckTemplates = [
             "title": "Split squat load",
             "description": "Top working set per hand",
             "order": "increasing",
-            "targetValue": 28,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 34,
             "unit": "kg",
-            "dimension": "adaptation"
           },
           {
             "signalId": "signal-027-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-027-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3610,35 +3304,29 @@ export const deckTemplates = [
             "title": "Controlled carries",
             "description": "Fast carries completed without heavy touch",
             "order": "increasing",
-            "targetValue": 6,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 8,
             "unit": "carries",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-028-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-028-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3676,35 +3364,29 @@ export const deckTemplates = [
             "title": "Effective presses",
             "description": "Presses that force backward or rushed play",
             "order": "increasing",
-            "targetValue": 8,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 10,
             "unit": "presses",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-029-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-029-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3742,35 +3424,29 @@ export const deckTemplates = [
             "title": "Vertical jump",
             "description": "Best weekly jump height",
             "order": "increasing",
-            "targetValue": 55,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 66,
             "unit": "cm",
-            "dimension": "execution"
           },
           {
             "signalId": "signal-030-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-030-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3808,35 +3484,29 @@ export const deckTemplates = [
             "title": "Positive transition decisions",
             "description": "Decisions after high-speed actions",
             "order": "increasing",
-            "targetValue": 6,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 8,
             "unit": "decisions",
-            "dimension": "reflection"
           },
           {
             "signalId": "signal-031-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-031-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3874,35 +3544,29 @@ export const deckTemplates = [
             "title": "Retest readiness",
             "description": "Completed retest components",
             "order": "increasing",
-            "targetValue": 4,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 5,
             "unit": "tests",
-            "dimension": "recovery"
           },
           {
             "signalId": "signal-032-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-032-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       },
@@ -3940,35 +3604,29 @@ export const deckTemplates = [
             "title": "Review actions",
             "description": "Completed review tasks",
             "order": "increasing",
-            "targetValue": 4,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 5,
             "unit": "actions",
-            "dimension": "reflection"
           },
           {
             "signalId": "signal-033-confidence",
             "title": "Confidence stability",
             "description": "Composure held across this week's technical work",
             "order": "increasing",
-            "targetValue": 4.4,
             "minValue": 1,
             "maxValue": 5,
             "unit": "",
-            "dimension": "stability"
           },
           {
             "signalId": "signal-033-pressure",
             "title": "Pressure tolerance",
             "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
-            "targetValue": 144,
             "minValue": 0,
             "isTheoreticalMin": true,
             "maxValue": 180,
             "unit": "",
-            "dimension": "adaptation"
           }
         ]
       }

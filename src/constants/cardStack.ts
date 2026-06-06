@@ -5,7 +5,7 @@ export const CARD_ASPECT_RATIO = `1 / ${CARD_HEIGHT_RATIO}`;
 export const CARD_CORNER_RADIUS = 22;
 export const FOCUSED_CARD_CORNER_RADIUS = 30;
 
-// Authored iPhone-12-like deck scene baseline. Later phases can scale the whole deck scene around these fixed dimensions.
+// Authored iPhone-12-like deck scene baseline. Later phases can scale the whole deck scene around this fixed size.
 export const DECK_SCENE_BASELINE_WIDTH = 390;
 export const DECK_SCENE_BASELINE_HEIGHT = 640;
 export const DECK_SCENE_BOTTOM_CROP_ALLOWANCE = 72;

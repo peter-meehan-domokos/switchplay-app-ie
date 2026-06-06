@@ -2,7 +2,6 @@ import type { MediaItem } from "@/lib/media";
 
 export type DeckCategory = string;
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
-export type SignalDimension = string;
 export type SignalOrder = "increasing" | "decreasing";
 
 export type CardComment = {
@@ -34,13 +33,11 @@ export type CardTemplateSignal = {
   title: string;
   description: string;
   order: SignalOrder;
-  targetValue: number;
   minValue: number;
   maxValue: number;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
   unit: string;
-  dimension: SignalDimension;
 };
 
 export type CardTemplate = {
@@ -108,13 +105,11 @@ export type WeeklyCardSignal = {
   description: string;
   order: SignalOrder;
   reading: number;
-  targetValue: number;
   minValue: number;
   maxValue: number;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
   unit: string;
-  dimension: SignalDimension;
 };
 
 export type WeeklyCard = {
