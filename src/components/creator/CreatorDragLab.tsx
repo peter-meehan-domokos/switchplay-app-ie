@@ -14,9 +14,21 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import {
+  appendCreatorCard,
+  createEmptySignal,
+  deleteCreatorCard,
+  getCardColumns,
   getCreatorCellId,
+  getSignalDisplayText,
+  getStepDisplayText,
+  isPairEmpty,
+  isSignalEmpty,
+  isStepEmpty,
+  resolveCreatorCardLabel,
+  resolveCreatorCardTitle,
+  resolveCreatorChannelName,
   swapCreatorBoardRows,
   type BoardState,
   type CellId,
@@ -106,10 +118,6 @@ function formatCreatorDateDisplay(value: string) {
 
 function findPairCell(cells: BoardState["cells"], pairId: PairId) {
   return Object.entries(cells).find(([, cell]) => cell.pairId === pairId)?.[0] as CellId | undefined;
-}
-
-function isPairDroppableCell(cell: CellState | undefined) {
-  return Boolean(cell && cell.kind === "empty" && !cell.pairId);
 }
 
 function getDragType(event: DragStartEvent | DragOverEvent | DragEndEvent): DragType | null {
@@ -223,12 +231,31 @@ function getSignalEditSession(board: BoardState, target: SignalEditTarget): Sign
   };
 }
 
-function CreatorEditModal({ session, onClose, onSave }: { session: EditSession; onClose: () => void; onSave: (value: string) => void }) {
+function CreatorEditModal({
+  canDeleteCard = false,
+  onClose,
+  onDeleteCard,
+  onSave,
+  session,
+}: {
+  canDeleteCard?: boolean;
+  onClose: () => void;
+  onDeleteCard?: () => void;
+  onSave: (value: string) => void;
+  session: EditSession;
+}) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const isLongText = session.inputKind === "long-text";
+  const isCardTitle = session.target.type === "card-title";
   const showStepCounter = session.target.type === "pair-step";
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
+
+  useEffect(() => {
+    setDraftValue(session.value);
+    setIsDeleteConfirming(false);
+  }, [session]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -271,6 +298,28 @@ function CreatorEditModal({ session, onClose, onSave }: { session: EditSession; 
             Save
           </button>
         </div>
+        {isCardTitle && onDeleteCard ? (
+          <div className="creator-modal-delete-section">
+            {isDeleteConfirming ? (
+              <>
+                <p className="creator-modal-delete-heading">Delete this card?</p>
+                <p className="creator-modal-delete-note">This will remove this card and all steps/signals inside it.</p>
+                <div className="creator-modal-delete-actions">
+                  <button className="creator-modal-secondary" onClick={() => setIsDeleteConfirming(false)} type="button">
+                    Keep Card
+                  </button>
+                  <button className="creator-modal-danger" onClick={onDeleteCard} type="button">
+                    Delete
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button className="creator-modal-delete-trigger" disabled={!canDeleteCard} onClick={() => setIsDeleteConfirming(true)} type="button">
+                Delete Card
+              </button>
+            )}
+          </div>
+        ) : null}
       </form>
     </div>
   );
@@ -451,21 +500,34 @@ function PairBlock({
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
     data: { type: "pair" },
+    disabled: isPairEmpty(pair),
   });
+  const isEmptyPair = isPairEmpty(pair);
+  const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const signalClassName = `creator-editable creator-pair-signal${isSignalEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
 
   return (
     <div className={`creator-pair${isDragging ? " creator-pair--dragging" : ""}`} ref={setNodeRef}>
-      <button className="creator-editable creator-pair-step" onClick={() => onEdit({ type: "pair-step", pairId: pair.id })} type="button">
-        {pair.stepText}
+      <button className={stepClassName} onClick={() => onEdit({ type: "pair-step", pairId: pair.id })} type="button">
+        {getStepDisplayText(pair)}
       </button>
       <div className="creator-pair-handle-row">
         {/* Drag begins only from explicit handles. This avoids future conflicts with editing, scrolling, and other interactions inside creator mode. */}
-        <button className="creator-drag-handle" type="button" aria-label="Drag pair" data-creator-drag-handle {...listeners} {...attributes}>
+        <button
+          className={handleClassName}
+          type="button"
+          aria-label={isEmptyPair ? "Empty pair slot" : "Drag pair"}
+          data-creator-drag-handle
+          disabled={isEmptyPair}
+          {...(isEmptyPair ? {} : listeners)}
+          {...(isEmptyPair ? {} : attributes)}
+        >
           <DragHandleMark />
         </button>
       </div>
-      <button className="creator-editable creator-pair-signal" onClick={() => onSignalEdit({ type: "pair-signal", pairId: pair.id })} type="button">
-        {pair.signalTitle}
+      <button className={signalClassName} onClick={() => onSignalEdit({ type: "pair-signal", pairId: pair.id })} type="button">
+        {getSignalDisplayText(pair)}
       </button>
     </div>
   );
@@ -483,16 +545,19 @@ function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "channe
   );
 }
 
-function PairPreview() {
+function PairPreview({ pair }: { pair: Pair }) {
+  const stepClassName = `creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const signalClassName = `creator-pair-signal${isSignalEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+
   return (
     <div className="creator-pair creator-pair--preview">
-      <div className="creator-pair-step">Step</div>
+      <div className={stepClassName}>{getStepDisplayText(pair)}</div>
       <div className="creator-pair-handle-row">
         <span className="creator-drag-handle creator-drag-handle--preview" aria-hidden="true">
           <DragHandleMark />
         </span>
       </div>
-      <div className="creator-pair-signal">Signal</div>
+      <div className={signalClassName}>{getSignalDisplayText(pair)}</div>
     </div>
   );
 }
@@ -543,6 +608,16 @@ function ChannelRowPreview({ channelName }: { channelName?: string }) {
   );
 }
 
+function AddCardControl({ onAddCard }: { onAddCard: () => void }) {
+  return (
+    <div className="creator-add-card-column" aria-label="Add card">
+      <button className="creator-add-card-button" onClick={onAddCard} type="button" aria-label="Add card">
+        +
+      </button>
+    </div>
+  );
+}
+
 function BoardCell({
   activePairId,
   activeChannelRow,
@@ -572,7 +647,7 @@ function BoardCell({
   });
   const isOccupied = Boolean(cell.pairId);
   const isLocked = cell.kind === "locked";
-  const canDropActivePair = isOver && isPairDroppableCell(cell);
+  const canDropActivePair = Boolean(isOver && activePairId && pair && pair.id !== activePairId && isPairEmpty(pair));
   const isEmptyPanSurface = cell.kind === "empty" && !cell.pairId;
   const isChannelRowDragging = activeChannelRow === row;
   const isChannelRowTarget = activeChannelOverRow === row && activeChannelOverRow !== activeChannelRow;
@@ -628,7 +703,9 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
   const activeOriginCellId = useMemo(() => {
     return activePairId ? findPairCell(board.cells, activePairId) ?? null : null;
   }, [activePairId, board.cells]);
+  const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
+  const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
 
   function handleDragStart(event: DragStartEvent) {
     panStateRef.current = null;
@@ -643,7 +720,10 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
 
     setActiveChannelRow(null);
     setActiveChannelOverRow(null);
-    setActivePairId(String(event.active.id));
+    const pairId = String(event.active.id);
+    const activePairCandidate = board.pairs[pairId];
+
+    setActivePairId(activePairCandidate && !isPairEmpty(activePairCandidate) ? pairId : null);
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -683,17 +763,26 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
     setBoard((currentBoard) => {
       const originCellId = findPairCell(currentBoard.cells, pairId);
       const targetCell = currentBoard.cells[targetCellId];
+      const sourcePair = currentBoard.pairs[pairId];
+      const targetPairId = targetCell?.pairId;
+      const targetPair = targetPairId ? currentBoard.pairs[targetPairId] : undefined;
 
-      if (!originCellId || originCellId === targetCellId || !isPairDroppableCell(targetCell)) {
+      if (!originCellId || originCellId === targetCellId || !sourcePair || isPairEmpty(sourcePair) || !targetPair || !isPairEmpty(targetPair)) {
         return currentBoard;
       }
 
       return {
         ...currentBoard,
-        cells: {
-          ...currentBoard.cells,
-          [originCellId]: { kind: "empty", pairId: null },
-          [targetCellId]: { kind: "pair", pairId },
+        pairs: {
+          ...currentBoard.pairs,
+          [pairId]: {
+            ...targetPair,
+            id: pairId,
+          },
+          [targetPair.id]: {
+            ...sourcePair,
+            id: targetPair.id,
+          },
         },
       };
     });
@@ -703,6 +792,21 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
     setActivePairId(null);
     setActiveChannelRow(null);
     setActiveChannelOverRow(null);
+  }
+
+  function addCard() {
+    setBoard((currentBoard) => appendCreatorCard(currentBoard));
+  }
+
+  function deleteActiveCard() {
+    if (!editSession || editSession.target.type !== "card-title") {
+      return;
+    }
+
+    const columnId = editSession.target.columnId;
+
+    setBoard((currentBoard) => deleteCreatorCard(currentBoard, columnId));
+    setEditSession(null);
   }
 
   function openEdit(target: EditTarget) {
@@ -746,7 +850,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           ...currentBoard,
           channelNamesByRow: {
             ...currentBoard.channelNamesByRow,
-            [target.row]: value,
+            [target.row]: resolveCreatorChannelName(target.row, value),
           },
         };
       }
@@ -754,14 +858,16 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
       if (target.type === "card-title") {
         return {
           ...currentBoard,
-          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, cardTitle: value } : column)),
+          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, cardTitle: resolveCreatorCardTitle(column, value) } : column)),
         };
       }
 
       if (target.type === "card-label") {
         return {
           ...currentBoard,
-          columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, cardLabel: value.slice(0, CARD_LABEL_MAX_LENGTH) } : column)),
+          columns: currentBoard.columns.map((column) =>
+            column.id === target.columnId ? { ...column, cardLabel: resolveCreatorCardLabel(column.id, value).slice(0, CARD_LABEL_MAX_LENGTH) } : column
+          ),
         };
       }
 
@@ -819,7 +925,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
-            ...value,
+            ...(isSignalEmpty(value.signalTitle) ? createEmptySignal() : value),
           },
         },
       };
@@ -974,6 +1080,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
                   </div>
                 </section>
               ))}
+              <AddCardControl onAddCard={addCard} />
           </div>
             {/* Dedicated pan gutter for mobile thumbs. It shares the scroll shell's pointer-pan handlers and is not a drop target. */}
             <div className="creator-pan-gutter" data-creator-pan-gutter aria-hidden="true" />
@@ -981,11 +1088,19 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
         </section>
 
         <DragOverlay>
-          {activePairId && activeOriginCellId ? <PairPreview /> : null}
+          {activePair && activeOriginCellId ? <PairPreview pair={activePair} /> : null}
           {activeChannelRow !== null ? <ChannelRowPreview channelName={activeChannelName ?? undefined} /> : null}
         </DragOverlay>
       </DndContext>
-      {editSession ? <CreatorEditModal session={editSession} onClose={() => setEditSession(null)} onSave={saveEdit} /> : null}
+      {editSession ? (
+        <CreatorEditModal
+          canDeleteCard={canDeleteActiveCard}
+          session={editSession}
+          onClose={() => setEditSession(null)}
+          onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
+          onSave={saveEdit}
+        />
+      ) : null}
       {dateEditSession ? <CreatorDateEditModal session={dateEditSession} onClose={() => setDateEditSession(null)} onSave={saveDateEdit} /> : null}
       {signalEditSession ? <CreatorSignalEditModal session={signalEditSession} onClose={() => setSignalEditSession(null)} onSave={saveSignalEdit} /> : null}
     </main>
