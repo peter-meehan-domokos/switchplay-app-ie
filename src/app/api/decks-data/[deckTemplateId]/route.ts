@@ -1,9 +1,8 @@
 import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
+import { getDeckTemplateById, getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
-import { deckTemplates } from "@/mocks/deckTemplates";
-import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 
@@ -133,14 +132,13 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
       return Response.json({ error: "activeCardId is required." }, { status: 400 });
     }
 
-    const templateById = deckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const templateById = await getDeckTemplateById(deckTemplateId);
 
     if (!templateById) {
       return Response.json({ error: "Invalid deckTemplateId." }, { status: 400 });
     }
 
-    const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
-    const template = visibleDeckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
 
     if (!template) {
       return Response.json({ error: "You do not have access to this deck template." }, { status: 403 });

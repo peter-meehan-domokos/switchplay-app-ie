@@ -2,9 +2,8 @@ import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
 import { getCurrentUser } from "@/lib/auth";
+import { getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
-import { deckTemplates } from "@/mocks/deckTemplates";
-import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 const USERS_COLLECTION = "users";
 
@@ -51,8 +50,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "deckTemplateId is required." }, { status: 400 });
     }
 
-    const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
-    const template = visibleDeckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
 
     if (!template) {
       return Response.json({ error: "Deck template not found." }, { status: 404 });

@@ -3,8 +3,7 @@ import AuthScreen from "@/components/auth/AuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
 import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
 import { getCurrentUser } from "@/lib/auth";
-import { deckTemplates } from "@/mocks/deckTemplates";
-import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
+import { getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 
 type CreatorEditPageProps = {
   params: Promise<{
@@ -20,8 +19,7 @@ export default async function CreatorEditPage({ params }: CreatorEditPageProps) 
   }
 
   const { deckTemplateId } = await params;
-  const visibleTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
-  const template = visibleTemplates.find((candidate) => candidate.deckTemplateId === deckTemplateId);
+  const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
 
   if (!template) {
     return (

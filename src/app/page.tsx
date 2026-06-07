@@ -3,10 +3,9 @@ import AppShell from "@/components/layout/AppShell";
 import { getCurrentUser } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
 import { serverDeckDataItemsToClientDeckDataSteps } from "@/lib/deckApiTransforms";
-import { deckTemplates } from "@/mocks/deckTemplates";
+import { getVisibleDeckTemplatesForUser } from "@/lib/deckTemplateQueries";
 import { mockSocialUsers } from "@/mocks/mockSocialUsers";
 import { mockUserDeckData } from "@/mocks/mockUserDeckData";
-import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 const USE_MOCK_DATA = false;
 const mockUsernames = ['dev', 'Michael']
@@ -22,7 +21,7 @@ export default async function Home() {
 
   const serverDeckData = USE_MOCK_DATA || mockUsernames.includes(user.username) ? mockUserDeckData : user.decksData;
   const decksData = serverDeckDataItemsToClientDeckDataSteps(serverDeckData);
-  const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
+  const visibleDeckTemplates = await getVisibleDeckTemplatesForUser(user);
   const renderDecks = mergeDeckTemplatesWithUserData(visibleDeckTemplates, decksData, user.id);
 
   // Authenticated user identity is handled separately from social users.
