@@ -13,6 +13,7 @@ export type Column = {
   id: ColumnId;
   kind: "channel" | "card";
   label: string;
+  cardId?: string;
   cardLabel?: string;
   cardTitle?: string;
   defaultCardTitle?: string;
@@ -26,37 +27,44 @@ export type CellState = {
 
 export type Pair = {
   id: PairId;
-  signalMax: number | "";
+  signalId: string;
+  signalMax: number | null;
   signalMaxSymbol: SignalMaxSymbol;
-  signalMin: number | "";
+  signalMin: number | null;
   signalMinSymbol: SignalMinSymbol;
-  stepText: string;
-  signalTitle: string;
+  signalTitle: string | null;
+  signalUnit: string | null;
+  stepId: string;
+  stepText: string | null;
 };
 
 export const STEP_PLACEHOLDER_TEXT = "Describe the step";
 export const SIGNAL_PLACEHOLDER_TEXT = "Progress signal";
 
 const DEFAULT_EMPTY_SIGNAL_SETTINGS = {
-  signalMax: 10,
+  signalMax: null,
   signalMaxSymbol: "none",
-  signalMin: 0,
+  signalMin: null,
   signalMinSymbol: "none",
 } as const satisfies Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol">;
 
-type StepEmptyInput = Pick<Pair, "stepText"> | string;
-type SignalEmptyInput = Pick<Pair, "signalTitle"> | string;
+type StepEmptyInput = Pick<Pair, "stepText"> | string | null;
+type SignalEmptyInput = Pick<Pair, "signalTitle"> | string | null;
+
+function createCreatorId(prefix: string) {
+  return `${prefix}-${crypto.randomUUID()}`;
+}
 
 export function isStepEmpty(pairOrStepText: StepEmptyInput) {
-  const stepText = typeof pairOrStepText === "string" ? pairOrStepText : pairOrStepText.stepText;
+  const stepText = typeof pairOrStepText === "string" || pairOrStepText === null ? pairOrStepText : pairOrStepText.stepText;
 
-  return stepText.trim() === "";
+  return stepText === null || stepText.trim() === "";
 }
 
 export function isSignalEmpty(pairOrSignalTitle: SignalEmptyInput) {
-  const signalTitle = typeof pairOrSignalTitle === "string" ? pairOrSignalTitle : pairOrSignalTitle.signalTitle;
+  const signalTitle = typeof pairOrSignalTitle === "string" || pairOrSignalTitle === null ? pairOrSignalTitle : pairOrSignalTitle.signalTitle;
 
-  return signalTitle.trim() === "";
+  return signalTitle === null || signalTitle.trim() === "";
 }
 
 export function isPairEmpty(pair: Pair) {
@@ -71,26 +79,31 @@ export function getSignalDisplayText(pair: Pair) {
   return isSignalEmpty(pair) ? SIGNAL_PLACEHOLDER_TEXT : pair.signalTitle;
 }
 
-export function createEmptySignal(): Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol" | "signalTitle"> {
+export function createEmptySignal(): Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol" | "signalTitle" | "signalUnit"> {
   return {
     ...DEFAULT_EMPTY_SIGNAL_SETTINGS,
-    signalTitle: "",
+    signalTitle: null,
+    signalUnit: null,
   };
 }
 
-export function createEmptyPair(pairId: PairId): Pair {
+export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step"), signalId = createCreatorId("signal")): Pair {
   return {
     id: pairId,
+    signalId,
     ...createEmptySignal(),
-    stepText: "",
+    signalUnit: null,
+    stepId,
+    stepText: null,
   };
 }
 
 export function clearPair(pair: Pair): Pair {
-  return createEmptyPair(pair.id);
+  return createEmptyPair(pair.id, pair.stepId, pair.signalId);
 }
 
 export type BoardState = {
+  deckTemplateId: string;
   deckTitle: string;
   columns: Column[];
   rows: number[];
@@ -197,6 +210,7 @@ export function createNewCardColumn(columns: Column[]): Column & { id: CardColum
     id: createCardColumnId(getNextCardPosition(columns)),
     kind: "card",
     label: "Card",
+    cardId: createCreatorId("card"),
     cardLabel: getNextCardLabel(columns),
     cardTitle,
     defaultCardTitle: cardTitle,
@@ -210,7 +224,7 @@ export function createEmptyPairsForNewCard(columnId: CardColumnId, rows: number[
     pairs: Record<PairId, Pair>;
   }>(
     (nextState, row) => {
-      const pairId = `starter-${columnId}-row-${row + 1}`;
+      const pairId = createCreatorId("pair");
 
       nextState.pairs[pairId] = createEmptyPair(pairId);
       nextState.cells[getCreatorCellId(columnId, row)] = { kind: "pair", pairId };
@@ -368,6 +382,84 @@ export function swapCreatorBoardRows(board: BoardState, fromRow: number, toRow: 
   };
 }
 
+function normalizeCreatorText(value: string | null | undefined) {
+  const normalizedValue = value?.trim();
+
+  return normalizedValue ? normalizedValue : null;
+}
+
+function getCreatorSignalOrder(signalMin: number | null, signalMax: number | null) {
+  if (signalMin === null || signalMax === null) {
+    return null;
+  }
+
+  if (signalMin < signalMax) {
+    return "increasing";
+  }
+
+  if (signalMin > signalMax) {
+    return "decreasing";
+  }
+
+  return null;
+}
+
+function getPairForTemplateSlot(board: BoardState, columnId: ColumnId, row: number) {
+  const pairId = board.cells[getCreatorCellId(columnId, row)]?.pairId;
+
+  return pairId ? board.pairs[pairId] ?? null : null;
+}
+
+export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
+  return {
+    deckTemplateId: board.deckTemplateId,
+    title: board.deckTitle,
+    category: null,
+    channels: board.rows.map((row, rowIndex) => ({
+      id: `channel-${rowIndex + 1}`,
+      title: resolveCreatorChannelName(row, board.channelNamesByRow[row] ?? ""),
+    })),
+    cards: getCardColumns(board.columns).map((column) => {
+      const cardTitle = column.cardTitle ?? "";
+
+      return {
+        cardId: column.cardId ?? column.id,
+        title: column.cardLabel ?? column.label,
+        subtitle: cardTitle,
+        suggestedTargetDate: column.targetDate ?? "",
+        intro: {
+          description: cardTitle,
+          mediaItem: null,
+        },
+        steps: board.rows.map((row) => {
+          const pair = getPairForTemplateSlot(board, column.id, row);
+
+          return {
+            stepId: pair?.stepId ?? `${column.cardId ?? column.id}-step-${row + 1}`,
+            description: normalizeCreatorText(pair?.stepText),
+          };
+        }),
+        signals: board.rows.map((row) => {
+          const pair = getPairForTemplateSlot(board, column.id, row);
+          const signalMin = pair?.signalMin ?? null;
+          const signalMax = pair?.signalMax ?? null;
+
+          return {
+            signalId: pair?.signalId ?? `${column.cardId ?? column.id}-signal-${row + 1}`,
+            title: normalizeCreatorText(pair?.signalTitle),
+            order: getCreatorSignalOrder(signalMin, signalMax),
+            minValue: signalMin,
+            maxValue: signalMax,
+            isTheoreticalMin: pair?.signalMinSymbol === "<",
+            isTheoreticalMax: pair?.signalMaxSymbol === "+",
+            unit: pair?.signalUnit ?? null,
+          };
+        }),
+      };
+    }),
+  };
+}
+
 function createBaseCells(columns: Column[], rows: number[]) {
   return columns.reduce<Record<CellId, CellState>>((nextCells, column) => {
     for (const row of rows) {
@@ -393,6 +485,7 @@ function createBlankColumns(): Column[] {
 
     return {
       ...column,
+      cardId: createCreatorId("card"),
       cardLabel: getDefaultCardLabel(cardIndex),
       cardTitle,
       defaultCardTitle: cardTitle,
@@ -415,6 +508,7 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
 
     return {
       ...column,
+      cardId: templateCard?.cardId ?? createCreatorId("card"),
       cardLabel: getDefaultCardLabel(columnIndex - 1),
       cardTitle,
       defaultCardTitle: cardTitle,
@@ -443,6 +537,7 @@ export function createBlankCreatorBoard(): BoardState {
   }
 
   return {
+    deckTemplateId: createCreatorId("deck"),
     deckTitle: "My Next Path",
     columns,
     rows,
@@ -460,27 +555,32 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
   const templateCards = template.cards.slice(0, creatorColumns.length - 1);
   const columns = createTemplateColumns(template);
   const cells = createBaseCells(columns, rows);
-  const pairs = templateCards.reduce<Record<PairId, Pair>>((nextPairs, card, cardIndex) => {
-    const column = columns[cardIndex + 1];
+  const pairs = columns.reduce<Record<PairId, Pair>>((nextPairs, column, columnIndex) => {
+    if (column.kind !== "card") {
+      return nextPairs;
+    }
+
+    const card = templateCards[columnIndex - 1];
 
     for (const row of rows) {
-      const step = card.steps[row];
-      const signal = card.signals[row];
+      const step = card?.steps[row];
+      const signal = card?.signals[row];
+      const pairId = step && signal ? `${step.stepId}:${signal.signalId}` : createCreatorId("pair");
+      const emptyPair = createEmptyPair(pairId, step?.stepId, signal?.signalId);
 
-      if (!step || !signal || !column) {
-        continue;
-      }
-
-      const pairId = `${step.stepId}:${signal.signalId}`;
-      nextPairs[pairId] = {
-        id: pairId,
-        signalMax: signal.maxValue,
-        signalMaxSymbol: signal.isTheoreticalMax ? "+" : "none",
-        signalMin: signal.minValue,
-        signalMinSymbol: signal.isTheoreticalMin ? "<" : "none",
-        stepText: step.description,
-        signalTitle: signal.title,
-      };
+      nextPairs[pairId] =
+        step && signal
+          ? {
+              ...emptyPair,
+              signalMax: signal.maxValue,
+              signalMaxSymbol: signal.isTheoreticalMax ? "+" : "none",
+              signalMin: signal.minValue,
+              signalMinSymbol: signal.isTheoreticalMin ? "<" : "none",
+              signalTitle: signal.title,
+              signalUnit: signal.unit,
+              stepText: step.description,
+            }
+          : emptyPair;
       cells[getCreatorCellId(column.id, row)] = { kind: "pair", pairId };
     }
 
@@ -488,6 +588,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
   }, {});
 
   return {
+    deckTemplateId: template.deckTemplateId,
     deckTitle: template.title,
     columns,
     rows,

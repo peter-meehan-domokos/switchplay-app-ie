@@ -232,6 +232,10 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         return Response.json({ error: "signalId is not part of that card." }, { status: 400 });
       }
 
+      if (templateSignal.minValue === null || templateSignal.maxValue === null) {
+        return Response.json({ error: "signal range is not configured for this signal." }, { status: 400 });
+      }
+
       if (reading < templateSignal.minValue || reading > templateSignal.maxValue) {
         return Response.json(
           { error: `reading must be between ${templateSignal.minValue} and ${templateSignal.maxValue} for this signal.` },

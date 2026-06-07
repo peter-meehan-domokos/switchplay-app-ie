@@ -70,7 +70,7 @@ export function mergeDeckTemplatesWithUserData(
           id: signal.signalId,
           title: signal.title,
           order: signal.order,
-          reading: signalReadingById.get(signal.signalId) ?? signal.minValue,
+          reading: signalReadingById.get(signal.signalId) ?? signal.minValue ?? 0,
           minValue: signal.minValue,
           maxValue: signal.maxValue,
           isTheoreticalMin: signal.isTheoreticalMin,

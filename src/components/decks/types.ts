@@ -24,16 +24,16 @@ export type CardIntro = {
 
 export type CardTemplateStep = {
   stepId: string;
-  description: string;
+  description: string | null;
   mediaItem?: MediaItem;
 };
 
 export type CardTemplateSignal = {
   signalId: string;
-  title: string;
-  order: SignalOrder;
-  minValue: number;
-  maxValue: number;
+  title: string | null;
+  order: SignalOrder | null;
+  minValue: number | null;
+  maxValue: number | null;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
   unit: string | null;
@@ -117,18 +117,18 @@ export type ClientUserDeckData = {
 
 export type WeeklyCardStep = {
   stepId: string;
-  description: string;
+  description: string | null;
   completionStatus: string;
   mediaItem?: MediaItem;
 };
 
 export type WeeklyCardSignal = {
   id: string;
-  title: string;
-  order: SignalOrder;
+  title: string | null;
+  order: SignalOrder | null;
   reading: number;
-  minValue: number;
-  maxValue: number;
+  minValue: number | null;
+  maxValue: number | null;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
   unit: string | null;

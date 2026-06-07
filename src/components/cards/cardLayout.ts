@@ -109,7 +109,7 @@ export function normalizedToReading(normalizedValue: number, minValue: number, m
   return lowerBound + orderedNormalizedValue * (upperBound - lowerBound);
 }
 
-function normalizeSignalOrder(order: string): SignalOrder {
+function normalizeSignalOrder(order: string | null): SignalOrder {
   return order === "decreasing" ? "decreasing" : "increasing";
 }
 
@@ -121,15 +121,15 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
   const order = normalizeSignalOrder(signal.order);
 
   // Keep reading precision for field position continuity; display rounding stays in UI.
-  const snappedMinValue = snapReadingToInteger(signal.minValue);
-  const snappedMaxValue = snapReadingToInteger(signal.maxValue);
+  const snappedMinValue = snapReadingToInteger(signal.minValue ?? 0);
+  const snappedMaxValue = snapReadingToInteger(signal.maxValue ?? snappedMinValue + 1);
   const { minValue, maxValue } = normalizeSignalRange(snappedMinValue, snappedMaxValue);
   const rawReading = Number.isFinite(signal.reading) ? signal.reading : minValue;
   const reading = clampReadingToSignalRange(rawReading, minValue, maxValue);
 
   return {
     id: signal.id,
-    title: signal.title,
+    title: signal.title ?? "Untitled signal",
     value: getNormalizedSignalValue(reading, minValue, maxValue, order),
     reading,
     variant: signalVariants[index] ?? "movement",

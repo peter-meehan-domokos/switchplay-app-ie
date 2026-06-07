@@ -14,10 +14,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   createEmptySignal,
+  creatorBoardToDeckTemplate,
   deleteCreatorCard,
   getCardColumns,
   getCreatorCellId,
@@ -68,11 +69,11 @@ type SignalEditTarget = { type: "pair-signal"; pairId: PairId };
 
 type SignalEditSession = {
   target: SignalEditTarget;
-  signalMax: number | "";
+  signalMax: number | null;
   signalMaxSymbol: SignalMaxSymbol;
-  signalMin: number | "";
+  signalMin: number | null;
   signalMinSymbol: SignalMinSymbol;
-  signalTitle: string;
+  signalTitle: string | null;
 };
 
 type SignalEditValue = Omit<SignalEditSession, "target">;
@@ -197,7 +198,7 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
       inputKind: "long-text",
       label: "Step text",
       target,
-      value: pair.stepText,
+      value: pair.stepText ?? "",
     };
   }
 
@@ -231,6 +232,22 @@ function getSignalEditSession(board: BoardState, target: SignalEditTarget): Sign
   };
 }
 
+function getEditTargetKey(target: EditTarget) {
+  if (target.type === "deck-title") {
+    return target.type;
+  }
+
+  if (target.type === "channel-name") {
+    return `${target.type}:${target.row}`;
+  }
+
+  if (target.type === "pair-step") {
+    return `${target.type}:${target.pairId}`;
+  }
+
+  return `${target.type}:${target.columnId}`;
+}
+
 function CreatorEditModal({
   canDeleteCard = false,
   onClose,
@@ -251,11 +268,6 @@ function CreatorEditModal({
   const showStepCounter = session.target.type === "pair-step";
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
-
-  useEffect(() => {
-    setDraftValue(session.value);
-    setIsDeleteConfirming(false);
-  }, [session]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -303,7 +315,7 @@ function CreatorEditModal({
             {isDeleteConfirming ? (
               <>
                 <p className="creator-modal-delete-heading">Delete this card?</p>
-                <p className="creator-modal-delete-note">This will remove this card and all steps/signals inside it.</p>
+                <p className="creator-modal-delete-note">This will remove this card and steps/signals inside it.</p>
                 <div className="creator-modal-delete-actions">
                   <button className="creator-modal-secondary" onClick={() => setIsDeleteConfirming(false)} type="button">
                     Keep Card
@@ -386,8 +398,8 @@ function CreatorSignalEditModal({
   onSave: (value: SignalEditValue) => void;
 }) {
   const [signalTitle, setSignalTitle] = useState(session.signalTitle);
-  const [signalMin, setSignalMin] = useState(String(session.signalMin));
-  const [signalMax, setSignalMax] = useState(String(session.signalMax));
+  const [signalMin, setSignalMin] = useState(session.signalMin === null ? "" : String(session.signalMin));
+  const [signalMax, setSignalMax] = useState(session.signalMax === null ? "" : String(session.signalMax));
   const [signalMinSymbol, setSignalMinSymbol] = useState<SignalMinSymbol>(session.signalMinSymbol);
   const [signalMaxSymbol, setSignalMaxSymbol] = useState<SignalMaxSymbol>(session.signalMaxSymbol);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -405,11 +417,11 @@ function CreatorSignalEditModal({
     }
 
     onSave({
-      signalMax: parsedMax ?? "",
+      signalMax: parsedMax,
       signalMaxSymbol,
-      signalMin: parsedMin ?? "",
+      signalMin: parsedMin,
       signalMinSymbol,
-      signalTitle,
+      signalTitle: signalTitle ?? "",
     });
   }
 
@@ -425,7 +437,7 @@ function CreatorSignalEditModal({
 
         <label className="creator-modal-label">
           Signal title
-          <input autoFocus className="creator-modal-text-input" onChange={(event) => setSignalTitle(event.target.value)} type="text" value={signalTitle} />
+          <input autoFocus className="creator-modal-text-input" onChange={(event) => setSignalTitle(event.target.value)} type="text" value={signalTitle ?? ""} />
         </label>
         <p className="creator-modal-note">Short signal name. Aim for 1-3 words.</p>
 
@@ -707,6 +719,10 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
   const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
 
+  function previewTemplateOutput() {
+    console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
+  }
+
   function handleDragStart(event: DragStartEvent) {
     panStateRef.current = null;
     const dragType = getDragType(event);
@@ -883,7 +899,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
-            stepText: value,
+            stepText: value.trim() === "" ? null : value,
           },
         },
       };
@@ -925,7 +941,12 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
-            ...(isSignalEmpty(value.signalTitle) ? createEmptySignal() : value),
+            ...(isSignalEmpty(value.signalTitle)
+              ? createEmptySignal()
+              : {
+                  ...value,
+                  signalTitle: value.signalTitle,
+                }),
           },
         },
       };
@@ -1011,9 +1032,15 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           </button>
           <p className="creator-edit-hint">Tap text to edit</p>
         </div>
-        <Link className="creator-back-link" href="/">
-          Decks
-        </Link>
+        <div className="creator-header-actions">
+          {/* TEMP DEV TOOL — remove after Creator persistence is implemented. */}
+          <button className="creator-preview-output-button" onClick={previewTemplateOutput} type="button">
+            Preview
+          </button>
+          <Link className="creator-back-link" href="/">
+            Decks
+          </Link>
+        </div>
       </header>
 
       <DndContext
@@ -1095,6 +1122,7 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
       {editSession ? (
         <CreatorEditModal
           canDeleteCard={canDeleteActiveCard}
+          key={getEditTargetKey(editSession.target)}
           session={editSession}
           onClose={() => setEditSession(null)}
           onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
