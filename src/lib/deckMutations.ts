@@ -1,4 +1,5 @@
 import type { CompletionStatus } from "@/components/decks/types";
+import { clientStepCompletionToServerItemCompletion } from "@/lib/deckApiTransforms";
 
 export async function persistActiveCardId(deckTemplateId: string, activeCardId: string) {
   const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
@@ -15,22 +16,24 @@ export async function persistActiveCardId(deckTemplateId: string, activeCardId: 
   }
 }
 
-export async function persistItemCompletionStatus(
+export async function persistStepCompletionStatus(
   deckTemplateId: string,
   cardId: string,
-  itemId: string,
+  stepId: string,
   completionStatus: CompletionStatus,
 ) {
+  const payload = clientStepCompletionToServerItemCompletion({
+    cardId,
+    stepId,
+    completionStatus,
+  });
+
   const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      cardId,
-      itemId,
-      completionStatus,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {

@@ -436,7 +436,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         return Response.json({ error: "cardId is not part of this deck template." }, { status: 400 });
       }
 
-      const templateCardHasItem = templateCard.items.some((item) => item.itemId === itemId);
+      const templateCardHasItem = templateCard.steps.some((step) => step.stepId === itemId);
 
       if (!templateCardHasItem) {
         return Response.json({ error: "itemId is not part of that card." }, { status: 400 });

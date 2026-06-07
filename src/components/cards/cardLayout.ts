@@ -28,7 +28,6 @@ export type CardLayoutExternalComment = {
 export type CardLayoutSignal = {
   id: string;
   title: string;
-  description: string;
   value: number;
   reading: number;
   variant: SignalVariant;
@@ -131,7 +130,6 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
   return {
     id: signal.id,
     title: signal.title,
-    description: signal.description,
     value: getNormalizedSignalValue(reading, minValue, maxValue, order),
     reading,
     variant: signalVariants[index] ?? "movement",
@@ -182,7 +180,7 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
   const externalComment = normalizeExternalComment(card, options);
   const hasReflection = Boolean(card.reflection);
   const progressPercentage = getProgressPercentage(
-    card.items.map((item) => ({ completionStatus: item.completionStatus })),
+    card.steps.map((step) => ({ completionStatus: step.completionStatus })),
   );
   const ecologicalOccupancy =
     Number(Boolean(backMediaTrace)) +
@@ -207,7 +205,7 @@ export function withDerivedCardProgress(card: CardLayout): CardLayout {
   return {
     ...card,
     progressPercentage: getProgressPercentage(
-      card.items.map((item) => ({ completionStatus: item.completionStatus })),
+      card.steps.map((step) => ({ completionStatus: step.completionStatus })),
     ),
   };
 }

@@ -19,17 +19,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "open-loops-item-001",
+            stepId: "open-loops-item-001",
             description: "Build video app prototype and review with John"
           },
           {
-            itemId: "open-loops-item-002",
+            stepId: "open-loops-item-002",
             description: "Build a first financial projection through December"
           },
           {
-            itemId: "open-loops-item-003",
+            stepId: "open-loops-item-003",
             description: "Identify where you are currently avoiding outreach"
           }
         ],
@@ -37,7 +37,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-001",
             title: "John's App Clarity",
-            description: "How clear the next version of the app feels after reviewing it with John",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -46,7 +45,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-002",
             title: "Financial Visibility",
-            description: "How clearly you can see your financial position through December",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -55,7 +53,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-003",
             title: "Outreach Resistance",
-            description: "How much avoidance currently exists around reaching out to people",
             order: "decreasing",
             minValue: 1,
             maxValue: 10,
@@ -77,17 +74,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "open-loops-item-004",
+            stepId: "open-loops-item-004",
             description: "Talk to your dad and make progress on summer plans"
           },
           {
-            itemId: "open-loops-item-005",
+            stepId: "open-loops-item-005",
             description: "Do priority admin and outstanding obligations"
           },
           {
-            itemId: "open-loops-item-006",
+            stepId: "open-loops-item-006",
             description: "Reach out to people connected to your existing goals and projects"
           }
         ],
@@ -95,7 +92,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-004",
             title: "Family Stability",
-            description: "How settled and constructive important family relationships feel",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -104,7 +100,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-005",
             title: "Admin Control",
-            description: "How in control of practical responsibilities and obligations you feel",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -113,7 +108,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-006",
             title: "People Contacted",
-            description: "Meaningful outreach actions taken",
             order: "increasing",
             minValue: 0,
             maxValue: 5,
@@ -137,17 +131,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "open-loops-item-007",
+            stepId: "open-loops-item-007",
             description: "Improve the video editing app with John and review progress together"
           },
           {
-            itemId: "open-loops-item-008",
+            stepId: "open-loops-item-008",
             description: "Clean flat, pack and get ready to move out"
           },
           {
-            itemId: "open-loops-item-009",
+            stepId: "open-loops-item-009",
             description: "Continue outreach and experiment with posting or sharing work publicly"
           }
         ],
@@ -155,7 +149,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-007",
             title: "Shared Momentum",
-            description: "How much progress and forward movement John and you feel together",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -164,7 +157,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-008",
             title: "Move Readiness",
-            description: "How prepared you feel for the upcoming move",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -173,7 +165,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-009",
             title: "Outreach Rhythm",
-            description: "How natural and consistent outreach is beginning to feel",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -195,17 +186,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "open-loops-item-010",
+            stepId: "open-loops-item-010",
             description: "Leave key family relationships stable and understood going into summer"
           },
           {
-            itemId: "open-loops-item-011",
+            stepId: "open-loops-item-011",
             description: "Finish June with clear financial visibility through December"
           },
           {
-            itemId: "open-loops-item-012",
+            stepId: "open-loops-item-012",
             description: "Make reaching out feel like a normal part of your work rather than something to avoid"
           }
         ],
@@ -213,7 +204,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-010",
             title: "Commitments Settled",
-            description: "How settled important relationships and commitments feel overall",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -222,7 +212,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-011",
             title: "Life Foundations",
-            description: "Overall confidence that practical life is organised and under control",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -231,7 +220,6 @@ export const deckTemplates = [
           {
             signalId: "open-loops-signal-012",
             title: "Initiative Confidence",
-            description: "Confidence in putting yourself forward and taking initiative",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -260,17 +248,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "teaching-item-001",
+            stepId: "teaching-item-001",
             description: "Begin registration, Garda and reference requirements"
           },
           {
-            itemId: "teaching-item-002",
+            stepId: "teaching-item-002",
             description: "Research and select tutoring platforms"
           },
           {
-            itemId: "teaching-item-003",
+            stepId: "teaching-item-003",
             description: "Plan the first maths lesson and activity"
           }
         ],
@@ -278,7 +266,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-001",
             title: "Registration readiness",
-            description: "Progress towards registration, Garda and supporting requirements",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -288,7 +275,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-002",
             title: "Tutoring foundations",
-            description: "Progress towards tutoring profiles, reviews and platform setup",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -298,7 +284,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-003",
             title: "Lesson progress",
-            description: "Progress towards a completed maths lesson and activity",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -321,17 +306,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "teaching-item-004",
+            stepId: "teaching-item-004",
             description: "Complete registration and Garda requirements where possible"
           },
           {
-            itemId: "teaching-item-005",
+            stepId: "teaching-item-005",
             description: "Create tutoring profiles and core information"
           },
           {
-            itemId: "teaching-item-006",
+            stepId: "teaching-item-006",
             description: "Create the first maths video and accompanying activity"
           }
         ],
@@ -339,7 +324,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-004",
             title: "Registration readiness",
-            description: "Progress towards registration, Garda and supporting requirements",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -349,7 +333,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-005",
             title: "Tutoring foundations",
-            description: "Progress towards tutoring profiles, reviews and platform setup",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -359,7 +342,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-006",
             title: "Lesson progress",
-            description: "Progress towards a completed maths lesson and activity",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -382,17 +364,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "teaching-item-007",
+            stepId: "teaching-item-007",
             description: "Reach out to schools and relevant contacts"
           },
           {
-            itemId: "teaching-item-008",
+            stepId: "teaching-item-008",
             description: "Publish tutoring profiles and improve presentation"
           },
           {
-            itemId: "teaching-item-009",
+            stepId: "teaching-item-009",
             description: "Publish the first maths lesson on the website"
           }
         ],
@@ -400,7 +382,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-007",
             title: "School outreach",
-            description: "Schools contacted and made aware of your availability",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -410,7 +391,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-008",
             title: "Active profiles",
-            description: "Tutoring platforms with active public profiles",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -420,7 +400,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-009",
             title: "Lesson completeness",
-            description: "How complete the first maths lesson feels overall",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -443,17 +422,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "teaching-item-010",
+            stepId: "teaching-item-010",
             description: "Resolve remaining registration tasks and follow-ups"
           },
           {
-            itemId: "teaching-item-011",
+            stepId: "teaching-item-011",
             description: "Refine profiles and research other avenues"
           },
           {
-            itemId: "teaching-item-012",
+            stepId: "teaching-item-012",
             description: "Review what has been created and identify the next content priorities"
           }
         ],
@@ -461,7 +440,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-010",
             title: "September readiness",
-            description: "Confidence that the teaching pathway is ready for September",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -470,7 +448,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-011",
             title: "Tutoring visibility",
-            description: "Confidence that potential students can find and assess you",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -479,7 +456,6 @@ export const deckTemplates = [
           {
             signalId: "teaching-signal-012",
             title: "Teaching confidence",
-            description: "Confidence in the quality and credibility of your maths teaching materials",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -508,17 +484,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "health-item-001",
+            stepId: "health-item-001",
             description: "Meditate on four days and establish a regular cue"
           },
           {
-            itemId: "health-item-002",
+            stepId: "health-item-002",
             description: "Give core work and warm-ups greater attention in gym sessions"
           },
           {
-            itemId: "health-item-003",
+            stepId: "health-item-003",
             description: "Organise shopping and meal preparation for the week ahead"
           }
         ],
@@ -526,7 +502,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-001",
             title: "Meditation consistency",
-            description: "Days this week when meditation actually happened",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -536,7 +511,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-002",
             title: "Professional sessions",
-            description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -546,7 +520,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-003",
             title: "Healthy days",
-            description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -569,17 +542,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "health-item-004",
+            stepId: "health-item-004",
             description: "Meditate on most days of the week"
           },
           {
-            itemId: "health-item-005",
+            stepId: "health-item-005",
             description: "Maintain a consistent gym routine while continuing the cut"
           },
           {
-            itemId: "health-item-006",
+            stepId: "health-item-006",
             description: "Maintain healthy eating even during busy work periods"
           }
         ],
@@ -587,7 +560,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-004",
             title: "Days without resistance",
-            description: "Days when sitting down to meditate did not feel like a struggle",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -597,7 +569,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-005",
             title: "Professional sessions",
-            description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -607,7 +578,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-006",
             title: "Healthy days",
-            description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -630,17 +600,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "health-item-007",
+            stepId: "health-item-007",
             description: "Lengthen meditation and improve quality of attention"
           },
           {
-            itemId: "health-item-008",
+            stepId: "health-item-008",
             description: "Improve training quality through better pacing and execution"
           },
           {
-            itemId: "health-item-009",
+            stepId: "health-item-009",
             description: "Maintain nutrition consistency through planning and preparation"
           }
         ],
@@ -648,7 +618,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-007",
             title: "Quality of attention",
-            description: "How present and settled meditation felt this week",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -657,7 +626,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-008",
             title: "Professional sessions",
-            description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -667,7 +635,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-009",
             title: "Healthy days",
-            description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -690,17 +657,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "health-item-010",
+            stepId: "health-item-010",
             description: "Let meditation become a normal part of daily life"
           },
           {
-            itemId: "health-item-011",
+            stepId: "health-item-011",
             description: "Run a professional and sustainable training routine"
           },
           {
-            itemId: "health-item-012",
+            stepId: "health-item-012",
             description: "Maintain nutrition and sleep without constant effort"
           }
         ],
@@ -708,7 +675,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-010",
             title: "Meditation pull",
-            description: "Days when I naturally wanted to meditate",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -718,7 +684,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-011",
             title: "Professional sessions",
-            description: "Training days with proper warm-up, core work and balanced execution",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -728,7 +693,6 @@ export const deckTemplates = [
           {
             signalId: "health-signal-012",
             title: "Healthy days",
-            description: "Days with good eating and sleep supporting recovery",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -758,17 +722,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "tebo-item-001",
+            stepId: "tebo-item-001",
             description: "Identify and organise promising organisations and contacts"
           },
           {
-            itemId: "tebo-item-002",
+            stepId: "tebo-item-002",
             description: "Complete Switchplay and Perfect Square project presentations"
           },
           {
-            itemId: "tebo-item-003",
+            stepId: "tebo-item-003",
             description: "Extract and refine key data visualisation principles through the audit example"
           }
         ],
@@ -776,7 +740,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-001",
             title: "Promising opportunities",
-            description: "Potential organisations, people or openings worth pursuing",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -786,7 +749,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-002",
             title: "Portfolio integration",
-            description: "Portfolio projects fully integrated and ready to support the studio",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -796,7 +758,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-003",
             title: "Useful principles",
-            description: "Data visualisation principles worth carrying into future work",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -819,17 +780,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "tebo-item-004",
+            stepId: "tebo-item-004",
             description: "Begin reaching out to selected contacts and organisations"
           },
           {
-            itemId: "tebo-item-005",
+            stepId: "tebo-item-005",
             description: "Complete the Tebo Studio website and supporting pages"
           },
           {
-            itemId: "tebo-item-006",
+            stepId: "tebo-item-006",
             description: "Integrate design principles into the website and audit example"
           }
         ],
@@ -837,7 +798,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-004",
             title: "Positive responses",
-            description: "Encouraging replies, interest or openings from outreach",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -847,7 +807,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-005",
             title: "Website confidence",
-            description: "Confidence that the website represents the studio well",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -856,7 +815,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-006",
             title: "Principle confidence",
-            description: "Confidence that the principles feel clear and useful",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -878,17 +836,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "tebo-item-007",
+            stepId: "tebo-item-007",
             description: "Continue outreach and expand relevant contacts"
           },
           {
-            itemId: "tebo-item-008",
+            stepId: "tebo-item-008",
             description: "Develop outreach messages using the website and portfolio"
           },
           {
-            itemId: "tebo-item-009",
+            stepId: "tebo-item-009",
             description: "Observe which ideas and examples resonate most strongly"
           }
         ],
@@ -896,7 +854,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-007",
             title: "Promising relationships",
-            description: "Relationships that feel worth developing further",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -906,7 +863,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-008",
             title: "Message confidence",
-            description: "Confidence that the outreach message is landing well",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -915,7 +871,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-009",
             title: "Perspective insights",
-            description: "Useful insights about which ideas resonate with others",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -937,17 +892,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "tebo-item-010",
+            stepId: "tebo-item-010",
             description: "Hold conversations with promising contacts and organisations"
           },
           {
-            itemId: "tebo-item-011",
+            stepId: "tebo-item-011",
             description: "Refine outreach messaging based on responses and feedback"
           },
           {
-            itemId: "tebo-item-012",
+            stepId: "tebo-item-012",
             description: "Clarify the strongest positioning emerging from conversations"
           }
         ],
@@ -955,7 +910,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-010",
             title: "Emerging opportunities",
-            description: "Genuine opportunities, leads or possible paid work emerging",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -965,7 +919,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-011",
             title: "Studio credibility",
-            description: "Confidence that Tebo Studio feels credible to others",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -974,7 +927,6 @@ export const deckTemplates = [
           {
             signalId: "tebo-signal-012",
             title: "Positioning clarity",
-            description: "Clarity about the strongest positioning for Tebo Studio",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1003,16 +955,15 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
-          { itemId: "music-item-001", description: "Expand scale fluency in third position" },
-          { itemId: "music-item-002", description: "Learn how H90 presets are structured" },
-          { itemId: "music-item-003", description: "Attend one trad session" }
+        steps: [
+          { stepId: "music-item-001", description: "Expand scale fluency in third position" },
+          { stepId: "music-item-002", description: "Learn how H90 presets are structured" },
+          { stepId: "music-item-003", description: "Attend one trad session" }
         ],
         signals: [
           {
             signalId: "music-signal-001",
             title: "New scale patterns becoming usable",
-            description: "New scale patterns becoming usable",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1022,7 +973,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-002",
             title: "H90 controls understood",
-            description: "H90 controls understood",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1032,7 +982,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-003",
             title: "Meaningful trad encounters",
-            description: "Meaningful trad encounters",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1055,16 +1004,15 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
-          { itemId: "music-item-004", description: "Extend fluency into second and fourth positions" },
-          { itemId: "music-item-005", description: "Begin shaping presets into my own sounds" },
-          { itemId: "music-item-006", description: "Attend two trad sessions" }
+        steps: [
+          { stepId: "music-item-004", description: "Extend fluency into second and fourth positions" },
+          { stepId: "music-item-005", description: "Begin shaping presets into my own sounds" },
+          { stepId: "music-item-006", description: "Attend two trad sessions" }
         ],
         signals: [
           {
             signalId: "music-signal-004",
             title: "Scales becoming familiar",
-            description: "Scales becoming familiar",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1074,7 +1022,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-005",
             title: "Presets successfully personalised",
-            description: "Presets successfully personalised",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1084,7 +1031,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-006",
             title: "New musicians worth knowing",
-            description: "New musicians worth knowing",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1107,16 +1053,15 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
-          { itemId: "music-item-007", description: "Connect scales and positions naturally" },
-          { itemId: "music-item-008", description: "Make sound adjustments by ear" },
-          { itemId: "music-item-009", description: "Attend three trad sessions" }
+        steps: [
+          { stepId: "music-item-007", description: "Connect scales and positions naturally" },
+          { stepId: "music-item-008", description: "Make sound adjustments by ear" },
+          { stepId: "music-item-009", description: "Attend three trad sessions" }
         ],
         signals: [
           {
             signalId: "music-signal-007",
             title: "Scales available instinctively",
-            description: "Scales available instinctively",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1126,7 +1071,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-008",
             title: "Personal sounds worth keeping",
-            description: "Personal sounds worth keeping",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1136,7 +1080,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-009",
             title: "New strong musical connections",
-            description: "New strong musical connections",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1159,16 +1102,15 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
-          { itemId: "music-item-010", description: "Jam freely across the neck" },
-          { itemId: "music-item-011", description: "Develop sounds I genuinely rely on" },
-          { itemId: "music-item-012", description: "Arrange future playing plans with new connections" }
+        steps: [
+          { stepId: "music-item-010", description: "Jam freely across the neck" },
+          { stepId: "music-item-011", description: "Develop sounds I genuinely rely on" },
+          { stepId: "music-item-012", description: "Arrange future playing plans with new connections" }
         ],
         signals: [
           {
             signalId: "music-signal-010",
             title: "Scales I can jam with confidently",
-            description: "Scales I can jam with confidently",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1178,7 +1120,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-011",
             title: "Sounds that feel uniquely mine",
-            description: "Sounds that feel uniquely mine",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1188,7 +1129,6 @@ export const deckTemplates = [
           {
             signalId: "music-signal-012",
             title: "New musicians worth staying in touch with",
-            description: "New musicians worth staying in touch with",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1218,17 +1158,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "switchplay-item-001",
+            stepId: "switchplay-item-001",
             description: "Use Switchplay myself every day and note friction points"
           },
           {
-            itemId: "switchplay-item-002",
+            stepId: "switchplay-item-002",
             description: "Show Switchplay to early target users and gather first reactions"
           },
           {
-            itemId: "switchplay-item-003",
+            stepId: "switchplay-item-003",
             description: "Design the maths exemplar deck and supporting materials"
           }
         ],
@@ -1236,7 +1176,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-001",
             title: "Useful product insights",
-            description: "Helpful discoveries from real-world use, positive or negative",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1246,7 +1185,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-002",
             title: "Interest from target users",
-            description: "Overall level of interest shown by target users",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1255,7 +1193,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-003",
             title: "Example concepts worth pursuing",
-            description: "Promising ideas for exemplar content",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1278,17 +1215,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "switchplay-item-004",
+            stepId: "switchplay-item-004",
             description: "Fix the most important issues discovered through personal use"
           },
           {
-            itemId: "switchplay-item-005",
+            stepId: "switchplay-item-005",
             description: "Refine testing questions based on recurring reactions"
           },
           {
-            itemId: "switchplay-item-006",
+            stepId: "switchplay-item-006",
             description: "Film and build the maths exemplar deck"
           }
         ],
@@ -1296,7 +1233,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-004",
             title: "Important issues remaining",
-            description: "Outstanding issues still affecting the experience",
             order: "decreasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1306,7 +1242,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-005",
             title: "Questions worth investigating",
-            description: "Useful questions emerging from user conversations",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1316,7 +1251,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-006",
             title: "Confidence in the maths exemplar",
-            description: "How strongly the maths deck represents the opportunity",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1338,17 +1272,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "switchplay-item-007",
+            stepId: "switchplay-item-007",
             description: "Support three trial users through their first deck"
           },
           {
-            itemId: "switchplay-item-008",
+            stepId: "switchplay-item-008",
             description: "Test Switchplay with more target users and probe deeper issues"
           },
           {
-            itemId: "switchplay-item-009",
+            stepId: "switchplay-item-009",
             description: "Create one additional exemplar deck with a real participant"
           }
         ],
@@ -1356,7 +1290,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-007",
             title: "Successful user journeys",
-            description: "Users successfully completing meaningful journeys",
             order: "increasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1366,7 +1299,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-008",
             title: "Most valuable discoveries",
-            description: "Overall value of discoveries emerging from user testing",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1375,7 +1307,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-009",
             title: "Quality of content insights",
-            description: "How valuable the content-related discoveries feel",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1397,17 +1328,17 @@ export const deckTemplates = [
             src: "/images/media-traces/gym-trace-01.png"
           }
         },
-        items: [
+        steps: [
           {
-            itemId: "switchplay-item-010",
+            stepId: "switchplay-item-010",
             description: "Fix issues and improve usability based on trial-user feedback"
           },
           {
-            itemId: "switchplay-item-011",
+            stepId: "switchplay-item-011",
             description: "Analyse patterns from all user conversations and trials"
           },
           {
-            itemId: "switchplay-item-012",
+            stepId: "switchplay-item-012",
             description: "Create one additional exemplar deck with a real participant"
           }
         ],
@@ -1415,7 +1346,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-010",
             title: "Issues blocking adoption",
-            description: "Remaining issues likely to stop people using Switchplay",
             order: "decreasing",
             minValue: 0,
             isTheoreticalMin: true,
@@ -1425,7 +1355,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-011",
             title: "Confidence in the opportunity",
-            description: "Overall confidence that Switchplay is worth pursuing further",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1434,7 +1363,6 @@ export const deckTemplates = [
           {
             signalId: "switchplay-signal-012",
             title: "Clarity about great Switchplay content",
-            description: "Overall understanding of what makes an exemplar effective",
             order: "increasing",
             minValue: 1,
             maxValue: 10,
@@ -1464,9 +1392,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-001",
+            "stepId": "item-001",
             "description": "Complete strict pull-up strength sets",
             "mediaItem": {
               "id": "media-002",
@@ -1476,7 +1404,7 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-002",
+            "stepId": "item-002",
             "description": "Practise hollow-body holds for 3 sets of 30 seconds.",
             "mediaItem": {
               "id": "media-003",
@@ -1486,7 +1414,7 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-107",
+            "stepId": "item-107",
             "description": "Film one clean top-position hold",
             "mediaItem": {
               "id": "media-060",
@@ -1500,7 +1428,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-001",
             "title": "Strict pull-ups",
-            "description": "Maximum clean reps in one set",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1510,7 +1437,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-001-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1519,7 +1445,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-001-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1542,9 +1467,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-003",
+            "stepId": "item-003",
             "description": "Complete 5 sets of chest-height pull-ups.",
             "mediaItem": {
               "id": "media-006",
@@ -1554,7 +1479,7 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-004",
+            "stepId": "item-004",
             "description": "Practise band-assisted transitions",
             "mediaItem": {
               "id": "media-007",
@@ -1564,7 +1489,7 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-108",
+            "stepId": "item-108",
             "description": "Film 3 high pulls from side angle",
             "mediaItem": {
               "id": "media-061",
@@ -1578,7 +1503,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-002",
             "title": "Chest-height pull-ups",
-            "description": "Best set of explosive reps",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1588,7 +1512,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-002-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1597,7 +1520,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-002-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1620,9 +1542,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-005",
+            "stepId": "item-005",
             "description": "Complete 4 sets of low-bar transition drills.",
             "mediaItem": {
               "id": "media-009",
@@ -1632,7 +1554,7 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-006",
+            "stepId": "item-006",
             "description": "Film 3 attempts and review elbow path.",
             "mediaItem": {
               "id": "media-010",
@@ -1642,7 +1564,7 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-109",
+            "stepId": "item-109",
             "description": "Hold false-grip support for 20 seconds",
             "mediaItem": {
               "id": "media-062",
@@ -1656,7 +1578,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-003",
             "title": "Band-assisted muscle-ups",
-            "description": "Clean assisted reps",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1666,7 +1587,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-003-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1675,7 +1595,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-003-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1698,9 +1617,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-007",
+            "stepId": "item-007",
             "description": "Attempt 6 controlled muscle-up singles",
             "mediaItem": {
               "id": "media-012",
@@ -1710,11 +1629,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-026",
+            "stepId": "item-026",
             "description": "Warm up with explosive high pulls"
           },
           {
-            "itemId": "item-027",
+            "stepId": "item-027",
             "description": "Review one filmed attempt with a teammate."
           }
         ],
@@ -1722,7 +1641,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-004",
             "title": "Clean muscle-up attempts",
-            "description": "Successful clean reps",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1732,7 +1650,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-004-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1741,7 +1658,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-004-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1771,9 +1687,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-008",
+            "stepId": "item-008",
             "description": "Test 5-rep back squat at controlled depth.",
             "mediaItem": {
               "id": "media-014",
@@ -1783,11 +1699,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-028",
+            "stepId": "item-028",
             "description": "Record 3 countermovement jumps"
           },
           {
-            "itemId": "item-029",
+            "stepId": "item-029",
             "description": "Log warm-up loads and RPE notes"
           }
         ],
@@ -1795,7 +1711,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-005",
             "title": "Back squat 5RM",
-            "description": "Best controlled 5-rep set",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1805,7 +1720,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-005-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1814,7 +1728,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-005-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1837,9 +1750,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-009",
+            "stepId": "item-009",
             "description": "Complete 5 sets of 3 trap-bar jumps.",
             "mediaItem": {
               "id": "media-016",
@@ -1849,11 +1762,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-030",
+            "stepId": "item-030",
             "description": "Pair jumps with acceleration mechanics"
           },
           {
-            "itemId": "item-031",
+            "stepId": "item-031",
             "description": "Upload one slow-motion jump clip for landing review."
           }
         ],
@@ -1861,7 +1774,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-006",
             "title": "Standing vertical jump",
-            "description": "Best jump height",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1871,7 +1783,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-006-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1880,7 +1791,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-006-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1903,9 +1813,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-010",
+            "stepId": "item-010",
             "description": "Complete split squats each leg",
             "mediaItem": {
               "id": "media-018",
@@ -1915,11 +1825,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-032",
+            "stepId": "item-032",
             "description": "Add single-leg pogos for 3 sets of 20 contacts."
           },
           {
-            "itemId": "item-033",
+            "stepId": "item-033",
             "description": "Compare left and right leg jump quality from video."
           }
         ],
@@ -1927,7 +1837,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-007",
             "title": "Split squat load",
-            "description": "Dumbbell load per hand for working sets",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1937,7 +1846,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-007-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -1946,7 +1854,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-007-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -1969,9 +1876,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-011",
+            "stepId": "item-011",
             "description": "Retest standing vertical jump after warm-up.",
             "mediaItem": {
               "id": "media-020",
@@ -1981,11 +1888,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-034",
+            "stepId": "item-034",
             "description": "Retest 5-rep squat at controlled depth."
           },
           {
-            "itemId": "item-035",
+            "stepId": "item-035",
             "description": "Write one recovery and training note"
           }
         ],
@@ -1993,7 +1900,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-008",
             "title": "Standing vertical jump",
-            "description": "Best retest jump height",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2003,7 +1909,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-008-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2012,7 +1917,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-008-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2042,9 +1946,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-012",
+            "stepId": "item-012",
             "description": "Complete 100 wall passes using two-touch control.",
             "mediaItem": {
               "id": "media-022",
@@ -2054,11 +1958,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-036",
+            "stepId": "item-036",
             "description": "Film 20 receives with body shape open to the pitch."
           },
           {
-            "itemId": "item-037",
+            "stepId": "item-037",
             "description": "Log 5 touches that opened the pass"
           }
         ],
@@ -2066,7 +1970,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-009",
             "title": "Clean first touches",
-            "description": "Clean touches out of 50 attempts",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2076,7 +1979,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-009-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2085,7 +1987,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-009-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2108,9 +2009,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-013",
+            "stepId": "item-013",
             "description": "Review 3 scanning rondo clips",
             "mediaItem": {
               "id": "media-024",
@@ -2120,11 +2021,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-038",
+            "stepId": "item-038",
             "description": "Add shoulder checks before receiving"
           },
           {
-            "itemId": "item-039",
+            "stepId": "item-039",
             "description": "React to teammate colour calls"
           }
         ],
@@ -2132,7 +2033,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-010",
             "title": "Pre-receive scans",
-            "description": "Average scans before receiving in drill",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2142,7 +2042,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-010-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2151,7 +2050,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-010-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2174,9 +2072,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-014",
+            "stepId": "item-014",
             "description": "Complete 60 half-turn receives from both sides.",
             "mediaItem": {
               "id": "media-026",
@@ -2186,11 +2084,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-040",
+            "stepId": "item-040",
             "description": "Complete 20 half-turn exits into a forward pass."
           },
           {
-            "itemId": "item-041",
+            "stepId": "item-041",
             "description": "Review one touch that opened play"
           }
         ],
@@ -2198,7 +2096,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-011",
             "title": "Forward exits",
-            "description": "Successful forward first touches out of 40",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2208,7 +2105,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-011-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2217,7 +2113,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-011-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2240,9 +2135,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-015",
+            "stepId": "item-015",
             "description": "Complete pressure receiving rounds",
             "mediaItem": {
               "id": "media-028",
@@ -2252,11 +2147,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-042",
+            "stepId": "item-042",
             "description": "Complete two rounds with contact pressure from behind."
           },
           {
-            "itemId": "item-043",
+            "stepId": "item-043",
             "description": "Clip 3 pressure first-touch moments"
           }
         ],
@@ -2264,7 +2159,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-012",
             "title": "Turnovers under pressure",
-            "description": "Lost possessions in pressure drill",
             "order": "decreasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2274,7 +2168,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-012-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2283,7 +2176,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-012-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2306,9 +2198,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-016",
+            "stepId": "item-016",
             "description": "Clip 5 first touches that created space",
             "mediaItem": {
               "id": "media-030",
@@ -2318,11 +2210,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-044",
+            "stepId": "item-044",
             "description": "Track first-touch decisions in one full training game."
           },
           {
-            "itemId": "item-045",
+            "stepId": "item-045",
             "description": "Share two positive first-touch clips with the group."
           }
         ],
@@ -2330,7 +2222,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-013",
             "title": "Positive first touches",
-            "description": "First touches that improve the next action",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2340,7 +2231,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-013-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2349,7 +2239,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-013-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2372,17 +2261,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-046",
+            "stepId": "item-046",
             "description": "Complete post-conditioning receiving"
           },
           {
-            "itemId": "item-047",
+            "stepId": "item-047",
             "description": "Compare late touches with Week 1"
           },
           {
-            "itemId": "item-048",
+            "stepId": "item-048",
             "description": "Write one first-touch match target"
           }
         ],
@@ -2390,7 +2279,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-023",
             "title": "Late-session clean touches",
-            "description": "Clean first touches after fatigue block",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2400,7 +2288,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-023-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2409,7 +2296,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-023-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2439,9 +2325,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-017",
+            "stepId": "item-017",
             "description": "Track protein intake for 7 days.",
             "mediaItem": {
               "id": "media-032",
@@ -2451,11 +2337,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-049",
+            "stepId": "item-049",
             "description": "Complete two controlled full-body lifting sessions."
           },
           {
-            "itemId": "item-050",
+            "stepId": "item-050",
             "description": "Set a sleep and hydration target for the block."
           }
         ],
@@ -2463,7 +2349,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-014",
             "title": "Average daily protein",
-            "description": "Protein intake across the week",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2473,7 +2358,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-014-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2482,7 +2366,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-014-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2505,9 +2388,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-018",
+            "stepId": "item-018",
             "description": "Match bench and row volume",
             "mediaItem": {
               "id": "media-034",
@@ -2517,11 +2400,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-051",
+            "stepId": "item-051",
             "description": "Add shoulder prehab work after each upper-body lift."
           },
           {
-            "itemId": "item-052",
+            "stepId": "item-052",
             "description": "Record posture check photos before and after the week."
           }
         ],
@@ -2529,7 +2412,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-015",
             "title": "Bench press working weight",
-            "description": "Top set of 6 reps",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2539,7 +2421,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-015-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2548,7 +2429,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-015-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2571,9 +2451,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-019",
+            "stepId": "item-019",
             "description": "Complete 2 short conditioning finishers",
             "mediaItem": {
               "id": "media-036",
@@ -2583,11 +2463,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-053",
+            "stepId": "item-053",
             "description": "Hit all lower-body target loads"
           },
           {
-            "itemId": "item-054",
+            "stepId": "item-054",
             "description": "Log body weight and readiness across three mornings."
           }
         ],
@@ -2595,7 +2475,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-016",
             "title": "Resting body weight",
-            "description": "Average morning weight",
             "order": "decreasing",
             "minValue": 72,
             "maxValue": 76.8,
@@ -2604,7 +2483,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-016-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2613,7 +2491,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-016-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2636,9 +2513,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-020",
+            "stepId": "item-020",
             "description": "Retest main lifts at submaximal effort.",
             "mediaItem": {
               "id": "media-038",
@@ -2648,11 +2525,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-055",
+            "stepId": "item-055",
             "description": "Compare Week 1 and Week 4 pull-up quality."
           },
           {
-            "itemId": "item-056",
+            "stepId": "item-056",
             "description": "Write one maintenance target for the next block."
           }
         ],
@@ -2660,7 +2537,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-017",
             "title": "Pull-ups at bodyweight",
-            "description": "Max clean reps",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2670,7 +2546,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-017-confidence",
             "title": "Movement confidence",
-            "description": "How settled the movement pattern felt this week",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2679,7 +2554,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-017-load",
             "title": "Load tolerance",
-            "description": "Capacity to absorb the week's training load",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2709,9 +2583,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-021",
+            "stepId": "item-021",
             "description": "Complete 30 slow-fast dribble reps each side.",
             "mediaItem": {
               "id": "media-040",
@@ -2721,11 +2595,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-057",
+            "stepId": "item-057",
             "description": "Film 10 take-ons showing the speed change."
           },
           {
-            "itemId": "item-058",
+            "stepId": "item-058",
             "description": "Use the move twice in a small-sided game."
           }
         ],
@@ -2733,7 +2607,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-018",
             "title": "Successful take-ons",
-            "description": "Successful 1v1s in training game",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2743,7 +2616,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-018-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2752,7 +2624,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-018-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2775,9 +2646,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-022",
+            "stepId": "item-022",
             "description": "Practise 40 body feints into outside acceleration.",
             "mediaItem": {
               "id": "media-042",
@@ -2787,11 +2658,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-059",
+            "stepId": "item-059",
             "description": "Complete 20 feints into inside carries."
           },
           {
-            "itemId": "item-060",
+            "stepId": "item-060",
             "description": "Clip one defender biting on the feint"
           }
         ],
@@ -2799,7 +2670,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-019",
             "title": "Defender wrong-footed",
-            "description": "Times defender shifts weight before touch",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2809,7 +2679,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-019-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2818,7 +2687,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-019-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2841,9 +2709,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-023",
+            "stepId": "item-023",
             "description": "Mix inside cuts and outside bursts",
             "mediaItem": {
               "id": "media-044",
@@ -2853,11 +2721,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-061",
+            "stepId": "item-061",
             "description": "Use three weaker-side attacks in a possession game."
           },
           {
-            "itemId": "item-062",
+            "stepId": "item-062",
             "description": "Review whether the defender over-protects one side."
           }
         ],
@@ -2865,7 +2733,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-020",
             "title": "Inside/outside balance",
-            "description": "Percentage of attacks going weaker side",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2875,7 +2742,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-020-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2884,7 +2750,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-020-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2907,9 +2772,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-024",
+            "stepId": "item-024",
             "description": "Complete 25 take-on into cutback reps.",
             "mediaItem": {
               "id": "media-046",
@@ -2919,11 +2784,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-063",
+            "stepId": "item-063",
             "description": "Hit five low crosses after beating a passive defender."
           },
           {
-            "itemId": "item-064",
+            "stepId": "item-064",
             "description": "Film two end-product reps from each side."
           }
         ],
@@ -2931,7 +2796,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-021",
             "title": "Chance creation after take-on",
-            "description": "Shots or dangerous passes after beating defender",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2941,7 +2805,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-021-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -2950,7 +2813,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-021-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -2973,9 +2835,9 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-025",
+            "stepId": "item-025",
             "description": "Clip 5 1v1 moments from match or full training game.",
             "mediaItem": {
               "id": "media-048",
@@ -2985,11 +2847,11 @@ export const deckTemplates = [
             }
           },
           {
-            "itemId": "item-065",
+            "stepId": "item-065",
             "description": "Tag every 1v1 as inside, outside or recycle."
           },
           {
-            "itemId": "item-066",
+            "stepId": "item-066",
             "description": "Choose one decision-making target for the next match."
           }
         ],
@@ -2997,7 +2859,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-022",
             "title": "Effective 1v1 actions",
-            "description": "Take-ons leading to advantage",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3007,7 +2868,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-022-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3016,7 +2876,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-022-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3046,17 +2905,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-067",
+            "stepId": "item-067",
             "description": "Record 3 10-metre sprint times"
           },
           {
-            "itemId": "item-068",
+            "stepId": "item-068",
             "description": "Film 2 starts from side angle"
           },
           {
-            "itemId": "item-069",
+            "stepId": "item-069",
             "description": "Log best time and recovery gaps"
           }
         ],
@@ -3064,7 +2923,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-024",
             "title": "10m sprint",
-            "description": "Best acceleration time",
             "order": "decreasing",
             "minValue": 1.6,
             "maxValue": 5,
@@ -3073,7 +2931,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-024-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3082,7 +2939,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-024-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3105,17 +2961,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-071",
+            "stepId": "item-071",
             "description": "Complete repeat 20-metre sprints"
           },
           {
-            "itemId": "item-072",
+            "stepId": "item-072",
             "description": "Track drop-off between fastest and slowest sprint."
           },
           {
-            "itemId": "item-073",
+            "stepId": "item-073",
             "description": "Review posture under fatigue"
           }
         ],
@@ -3123,7 +2979,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-025",
             "title": "Sprint drop-off",
-            "description": "Difference across repeat sprint set",
             "order": "decreasing",
             "minValue": 2,
             "maxValue": 30,
@@ -3132,7 +2987,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-025-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3141,7 +2995,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-025-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3164,17 +3017,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-075",
+            "stepId": "item-075",
             "description": "Complete decel entries each side"
           },
           {
-            "itemId": "item-076",
+            "stepId": "item-076",
             "description": "Film front-on foot placement"
           },
           {
-            "itemId": "item-077",
+            "stepId": "item-077",
             "description": "Add ball-carry exits after decels"
           }
         ],
@@ -3182,7 +3035,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-026",
             "title": "Clean COD entries",
-            "description": "Controlled entries out of 20 reps",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3192,7 +3044,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-026-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3201,7 +3052,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-026-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3224,17 +3074,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-079",
+            "stepId": "item-079",
             "description": "Complete trap-bar and split squat sets"
           },
           {
-            "itemId": "item-080",
+            "stepId": "item-080",
             "description": "Add Copenhagen plank holds after the main lift."
           },
           {
-            "itemId": "item-081",
+            "stepId": "item-081",
             "description": "Complete Nordic hamstring progressions"
           }
         ],
@@ -3242,7 +3092,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-027",
             "title": "Split squat load",
-            "description": "Top working set per hand",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3252,7 +3101,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-027-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3261,7 +3109,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-027-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3284,17 +3131,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-083",
+            "stepId": "item-083",
             "description": "Complete high-speed ball carries"
           },
           {
-            "itemId": "item-084",
+            "stepId": "item-084",
             "description": "Measure touch count during each carry."
           },
           {
-            "itemId": "item-085",
+            "stepId": "item-085",
             "description": "Film carries from behind"
           }
         ],
@@ -3302,7 +3149,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-028",
             "title": "Controlled carries",
-            "description": "Fast carries completed without heavy touch",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3312,7 +3158,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-028-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3321,7 +3166,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-028-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3344,17 +3188,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-087",
+            "stepId": "item-087",
             "description": "Complete 6 pressing waves"
           },
           {
-            "itemId": "item-088",
+            "stepId": "item-088",
             "description": "Track first step and body angle"
           },
           {
-            "itemId": "item-089",
+            "stepId": "item-089",
             "description": "Clip one sharp press and one late press"
           }
         ],
@@ -3362,7 +3206,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-029",
             "title": "Effective presses",
-            "description": "Presses that force backward or rushed play",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3372,7 +3215,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-029-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3381,7 +3223,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-029-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3404,17 +3245,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-091",
+            "stepId": "item-091",
             "description": "Complete 2 low-volume jump sessions"
           },
           {
-            "itemId": "item-092",
+            "stepId": "item-092",
             "description": "Retest standing vertical jump after warm-up."
           },
           {
-            "itemId": "item-093",
+            "stepId": "item-093",
             "description": "Add sprint exposures after first lift"
           }
         ],
@@ -3422,7 +3263,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-030",
             "title": "Vertical jump",
-            "description": "Best weekly jump height",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3432,7 +3272,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-030-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3441,7 +3280,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-030-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3464,17 +3302,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-095",
+            "stepId": "item-095",
             "description": "Play 4v4 with sprint triggers"
           },
           {
-            "itemId": "item-096",
+            "stepId": "item-096",
             "description": "Track decisions after sprint actions"
           },
           {
-            "itemId": "item-097",
+            "stepId": "item-097",
             "description": "Clip one calm and one rushed choice"
           }
         ],
@@ -3482,7 +3320,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-031",
             "title": "Positive transition decisions",
-            "description": "Decisions after high-speed actions",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3492,7 +3329,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-031-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3501,7 +3337,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-031-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3524,17 +3359,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-099",
+            "stepId": "item-099",
             "description": "Retest 10-metre sprint"
           },
           {
-            "itemId": "item-100",
+            "stepId": "item-100",
             "description": "Retest vertical jump and compare with Week 1."
           },
           {
-            "itemId": "item-101",
+            "stepId": "item-101",
             "description": "Complete one repeat sprint retest"
           }
         ],
@@ -3542,7 +3377,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-032",
             "title": "Retest readiness",
-            "description": "Completed retest components",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3552,7 +3386,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-032-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3561,7 +3394,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-032-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3584,17 +3416,17 @@ export const deckTemplates = [
             "src": "/images/media-traces/gym-trace-01.png"
           }
         },
-        "items": [
+        "steps": [
           {
-            "itemId": "item-103",
+            "stepId": "item-103",
             "description": "Choose 3 improved output clips"
           },
           {
-            "itemId": "item-104",
+            "stepId": "item-104",
             "description": "Compare Week 1 and Week 9 test numbers."
           },
           {
-            "itemId": "item-105",
+            "stepId": "item-105",
             "description": "Write the next 4-week priority"
           }
         ],
@@ -3602,7 +3434,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-033",
             "title": "Review actions",
-            "description": "Completed review tasks",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,
@@ -3612,7 +3443,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-033-confidence",
             "title": "Confidence stability",
-            "description": "Composure held across this week's technical work",
             "order": "increasing",
             "minValue": 1,
             "maxValue": 5,
@@ -3621,7 +3451,6 @@ export const deckTemplates = [
           {
             "signalId": "signal-033-pressure",
             "title": "Pressure tolerance",
-            "description": "Ability to keep shape and choice under pressure",
             "order": "increasing",
             "minValue": 0,
             "isTheoreticalMin": true,

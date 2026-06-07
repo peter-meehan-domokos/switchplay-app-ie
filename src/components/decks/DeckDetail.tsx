@@ -19,7 +19,7 @@ import {
   DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
   ROLE_TRANSITION_SETTLE_MS,
 } from "@/constants/cardStack";
-import { persistActiveCardId, persistCardTargetDate, persistItemCompletionStatus, persistSignalReading } from "@/lib/deckMutations";
+import { persistActiveCardId, persistCardTargetDate, persistSignalReading, persistStepCompletionStatus } from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type DeckDetailProps = {
@@ -31,7 +31,7 @@ type DeckDetailProps = {
   transition: object;
 };
 
-const itemProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
+const stepProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
 const ACTIVE_SETTLE_PREVIEW_MAX_Y = 8;
 
 type DeckSceneLayout = {
@@ -135,8 +135,8 @@ function useDeckSceneLayout(
 }
 
 function getNextCompletionStatus(currentStatus: CompletionStatus) {
-  const currentIndex = itemProgressCycle.indexOf(currentStatus);
-  return itemProgressCycle[(currentIndex + 1) % itemProgressCycle.length];
+  const currentIndex = stepProgressCycle.indexOf(currentStatus);
+  return stepProgressCycle[(currentIndex + 1) % stepProgressCycle.length];
 }
 
 function isValidDateString(dateString: string) {
@@ -195,7 +195,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deckSceneLayout = useDeckSceneLayout(deckDetailRef, deckSceneFrameRef);
   // `deck` is the stable shell from the parent (identity/persistence fields remain authoritative).
-  // `cards` is DeckDetail's optimistic local mutation source for item state.
+  // `cards` is DeckDetail's optimistic local mutation source for step state.
   // Re-derive layout progress from local cards so progress text/strips update immediately,
   // while deck identity and persistence fields continue to come from `deck`.
   const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
@@ -292,20 +292,20 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     moveFocusedCard(Math.min(activeCardIndex + 1, finalCardIndex));
   };
 
-  const cycleFocusedItemStatus = (itemId: string) => {
+  const cycleFocusedStepStatus = (stepId: string) => {
     const activeCard = cards[activeCardIndex];
 
     if (!activeCard) {
       return;
     }
 
-    const currentItem = activeCard.items.find((item) => item.id === itemId);
+    const currentStep = activeCard.steps.find((step) => step.stepId === stepId);
 
-    if (!currentItem) {
+    if (!currentStep) {
       return;
     }
 
-    const nextCompletionStatus = getNextCompletionStatus(normalizeCompletionStatus(currentItem.completionStatus));
+    const nextCompletionStatus = getNextCompletionStatus(normalizeCompletionStatus(currentStep.completionStatus));
 
     setCards((currentCards) =>
       currentCards.map((card, cardIndex) => {
@@ -315,10 +315,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
         return {
           ...card,
-          items: card.items.map((item) =>
-            item.id === itemId
-              ? { ...item, completionStatus: nextCompletionStatus }
-              : item
+          steps: card.steps.map((step) =>
+            step.stepId === stepId
+              ? { ...step, completionStatus: nextCompletionStatus }
+              : step
           ),
         };
       })
@@ -328,8 +328,8 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       return;
     }
 
-    void persistItemCompletionStatus(deck.deckTemplateId, activeCard.id, itemId, nextCompletionStatus).catch((error) => {
-      console.warn("Unable to persist item completion status.", error);
+    void persistStepCompletionStatus(deck.deckTemplateId, activeCard.id, stepId, nextCompletionStatus).catch((error) => {
+      console.warn("Unable to persist step completion status.", error);
     });
   };
   const adjustFocusedCardTargetDate = (direction: -1 | 1) => {
@@ -490,7 +490,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onClose={closeFocusMode}
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}
-            onCycleItemStatus={cycleFocusedItemStatus}
+            onCycleStepStatus={cycleFocusedStepStatus}
             onAdjustTargetDate={adjustFocusedCardTargetDate}
             onCommitSignalReading={commitFocusedSignalReading}
             isDeckFlipped={isDeckFlipped}

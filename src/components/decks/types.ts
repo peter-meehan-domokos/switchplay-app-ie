@@ -22,8 +22,8 @@ export type CardIntro = {
   mediaItem: MediaItem | null;
 };
 
-export type CardTemplateItem = {
-  itemId: string;
+export type CardTemplateStep = {
+  stepId: string;
   description: string;
   mediaItem?: MediaItem;
 };
@@ -31,7 +31,6 @@ export type CardTemplateItem = {
 export type CardTemplateSignal = {
   signalId: string;
   title: string;
-  description: string;
   order: SignalOrder;
   minValue: number;
   maxValue: number;
@@ -46,7 +45,7 @@ export type CardTemplate = {
   subtitle: string;
   suggestedTargetDate: string;
   intro: CardIntro;
-  items: CardTemplateItem[];
+  steps: CardTemplateStep[];
   signals: CardTemplateSignal[];
 };
 
@@ -92,8 +91,32 @@ export type UserDeckData = {
   updatedAt: string;
 };
 
-export type WeeklyCardItem = {
-  id: string;
+export type ClientUserCardStepData = {
+  stepId: string;
+  completionStatus: string;
+};
+
+export type ClientUserCardData = {
+  cardId: string;
+  targetDate: string;
+  steps: ClientUserCardStepData[];
+  signalReadings: UserCardSignalReading[];
+  reflection: string;
+  mediaItems: MediaItem[];
+  chats: CardChat[];
+};
+
+export type ClientUserDeckData = {
+  deckTemplateId: string;
+  activeCardId: string;
+  channels?: ChannelTemplate[];
+  cards: ClientUserCardData[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WeeklyCardStep = {
+  stepId: string;
   description: string;
   completionStatus: string;
   mediaItem?: MediaItem;
@@ -102,7 +125,6 @@ export type WeeklyCardItem = {
 export type WeeklyCardSignal = {
   id: string;
   title: string;
-  description: string;
   order: SignalOrder;
   reading: number;
   minValue: number;
@@ -118,7 +140,7 @@ export type WeeklyCard = {
   subtitle: string;
   targetDate: string;
   intro: CardIntro;
-  items: WeeklyCardItem[];
+  steps: WeeklyCardStep[];
   signals: WeeklyCardSignal[];
   mediaItems: MediaItem[];
   chats: CardChat[];

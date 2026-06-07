@@ -12,7 +12,7 @@ export type DeckLayoutOptions = CardLayoutOptions;
 export function buildDeckLayout(deck: Deck, options: DeckLayoutOptions): DeckLayout {
   const progressPercentage = getProgressPercentage(
     deck.cards.flatMap((card) =>
-      card.items.map((item) => ({ completionStatus: item.completionStatus }))
+      card.steps.map((step) => ({ completionStatus: step.completionStatus }))
     )
   );
 
@@ -27,7 +27,7 @@ export function buildOptimisticDeckLayout(deck: DeckLayout, cards: CardLayout[])
   const optimisticCards = cards.map(withDerivedCardProgress);
   const progressPercentage = getProgressPercentage(
     optimisticCards.flatMap((card) =>
-      card.items.map((item) => ({ completionStatus: item.completionStatus }))
+      card.steps.map((step) => ({ completionStatus: step.completionStatus }))
     )
   );
 

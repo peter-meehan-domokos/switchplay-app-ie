@@ -464,21 +464,21 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
     const column = columns[cardIndex + 1];
 
     for (const row of rows) {
-      const item = card.items[row];
+      const step = card.steps[row];
       const signal = card.signals[row];
 
-      if (!item || !signal || !column) {
+      if (!step || !signal || !column) {
         continue;
       }
 
-      const pairId = `${item.itemId}:${signal.signalId}`;
+      const pairId = `${step.stepId}:${signal.signalId}`;
       nextPairs[pairId] = {
         id: pairId,
         signalMax: signal.maxValue,
         signalMaxSymbol: signal.isTheoreticalMax ? "+" : "none",
         signalMin: signal.minValue,
         signalMinSymbol: signal.isTheoreticalMin ? "<" : "none",
-        stepText: item.description,
+        stepText: step.description,
         signalTitle: signal.title,
       };
       cells[getCreatorCellId(column.id, row)] = { kind: "pair", pairId };

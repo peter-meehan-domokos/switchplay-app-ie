@@ -2,6 +2,7 @@ import AuthScreen from "@/components/auth/AuthScreen";
 import AppShell from "@/components/layout/AppShell";
 import { getCurrentUser } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
+import { serverDeckDataItemsToClientDeckDataSteps } from "@/lib/deckApiTransforms";
 import { deckTemplates } from "@/mocks/deckTemplates";
 import { mockSocialUsers } from "@/mocks/mockSocialUsers";
 import { mockUserDeckData } from "@/mocks/mockUserDeckData";
@@ -19,7 +20,8 @@ export default async function Home() {
 
 
 
-  const decksData = USE_MOCK_DATA || mockUsernames.includes(user.username) ? mockUserDeckData : user.decksData;
+  const serverDeckData = USE_MOCK_DATA || mockUsernames.includes(user.username) ? mockUserDeckData : user.decksData;
+  const decksData = serverDeckDataItemsToClientDeckDataSteps(serverDeckData);
   const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
   const renderDecks = mergeDeckTemplatesWithUserData(visibleDeckTemplates, decksData, user.id);
 
