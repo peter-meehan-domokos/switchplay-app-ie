@@ -56,8 +56,7 @@ export function mergeDeckTemplatesWithUserData(
 
       return {
         id: templateCard.cardId,
-        title: templateCard.title,
-        subtitle: templateCard.subtitle,
+        label: templateCard.label,
         targetDate: cardData.targetDate || templateCard.suggestedTargetDate,
         intro: templateCard.intro,
         steps: templateCard.steps.map((step) => ({

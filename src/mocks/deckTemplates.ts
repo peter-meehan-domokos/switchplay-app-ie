@@ -23,11 +23,11 @@ export const deckTemplates: DeckTemplate[] = [
     cards: [
       {
         cardId: "open-loops-card-001",
-        title: "Week 1",
-        subtitle: "Create Clarity",
+        label: "Week 1",
         suggestedTargetDate: "2026-06-07",
         intro: {
-          description: "Clarify the app, finances and places where outreach is being avoided.",
+          title: "Create Clarity",
+          description: null,
           mediaItem: {
             id: "open-loops-media-001",
             mediaType: "image",
@@ -78,11 +78,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "open-loops-card-002",
-        title: "Week 2",
-        subtitle: "Take Action",
+        label: "Week 2",
         suggestedTargetDate: "2026-06-14",
         intro: {
-          description: "Address family plans, do priority admin and begin outreach.",
+          title: "Take Action",
+          description: null,
           mediaItem: {
             id: "open-loops-media-002",
             mediaType: "image",
@@ -135,11 +135,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "open-loops-card-003",
-        title: "Week 3",
-        subtitle: "Build Momentum",
+        label: "Week 3",
         suggestedTargetDate: "2026-06-21",
         intro: {
-          description: "Build momentum with John, prepare for moving out and continue outreach.",
+          title: "Build Momentum",
+          description: null,
           mediaItem: {
             id: "open-loops-media-003",
             mediaType: "image",
@@ -190,11 +190,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "open-loops-card-004",
-        title: "Week 4",
-        subtitle: "Create Peace Of Mind",
+        label: "Week 4",
         suggestedTargetDate: "2026-06-28",
         intro: {
-          description: "Settle key relationships, strengthen foundations and make initiative feel normal.",
+          title: "Create Peace Of Mind",
+          description: null,
           mediaItem: {
             id: "open-loops-media-004",
             mediaType: "image",
@@ -266,11 +266,11 @@ export const deckTemplates: DeckTemplate[] = [
     cards: [
       {
         cardId: "teaching-card-001",
-        title: "Week 1",
-        subtitle: "Start The Process",
+        label: "Week 1",
         suggestedTargetDate: "2026-06-07",
         intro: {
-          description: "Begin the registration process, prepare tutoring foundations and design the first maths lesson.",
+          title: "Start The Process",
+          description: null,
           mediaItem: {
             id: "teaching-media-001",
             mediaType: "image",
@@ -324,11 +324,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "teaching-card-002",
-        title: "Week 2",
-        subtitle: "Complete The Foundations",
+        label: "Week 2",
         suggestedTargetDate: "2026-06-14",
         intro: {
-          description: "Advance registration, establish tutoring profiles and begin creating the first maths lesson.",
+          title: "Complete The Foundations",
+          description: null,
           mediaItem: {
             id: "teaching-media-002",
             mediaType: "image",
@@ -382,11 +382,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "teaching-card-003",
-        title: "Week 3",
-        subtitle: "Become Visible",
+        label: "Week 3",
         suggestedTargetDate: "2026-06-21",
         intro: {
-          description: "Make yourself visible to schools, tutoring platforms and potential students.",
+          title: "Become Visible",
+          description: null,
           mediaItem: {
             id: "teaching-media-003",
             mediaType: "image",
@@ -440,11 +440,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "teaching-card-004",
-        title: "Week 4",
-        subtitle: "Be Ready For September",
+        label: "Week 4",
         suggestedTargetDate: "2026-06-28",
         intro: {
-          description: "Consolidate progress and ensure the foundations are in place for September opportunities.",
+          title: "Be Ready For September",
+          description: null,
           mediaItem: {
             id: "teaching-media-004",
             mediaType: "image",
@@ -516,11 +516,11 @@ export const deckTemplates: DeckTemplate[] = [
     cards: [
       {
         cardId: "health-card-001",
-        title: "Week 1",
-        subtitle: "Strengthen The Foundations",
+        label: "Week 1",
         suggestedTargetDate: "2026-06-07",
         intro: {
-          description: "Rebuild the base through meditation, better gym structure and food planning.",
+          title: "Strengthen The Foundations",
+          description: null,
           mediaItem: {
             id: "health-media-001",
             mediaType: "image",
@@ -574,11 +574,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "health-card-002",
-        title: "Week 2",
-        subtitle: "Build Consistency",
+        label: "Week 2",
         suggestedTargetDate: "2026-06-14",
         intro: {
-          description: "Make meditation more regular while protecting training and nutrition during busy periods.",
+          title: "Build Consistency",
+          description: null,
           mediaItem: {
             id: "health-media-002",
             mediaType: "image",
@@ -632,11 +632,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "health-card-003",
-        title: "Week 3",
-        subtitle: "Increase Quality",
+        label: "Week 3",
         suggestedTargetDate: "2026-06-21",
         intro: {
-          description: "Improve the quality of attention, training execution and recovery support.",
+          title: "Increase Quality",
+          description: null,
           mediaItem: {
             id: "health-media-003",
             mediaType: "image",
@@ -689,11 +689,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "health-card-004",
-        title: "Week 4",
-        subtitle: "Trust The System",
+        label: "Week 4",
         suggestedTargetDate: "2026-06-28",
         intro: {
-          description: "Let the routine feel natural, sustainable and easier to trust.",
+          title: "Trust The System",
+          description: null,
           mediaItem: {
             id: "health-media-004",
             mediaType: "image",
@@ -768,11 +768,11 @@ export const deckTemplates: DeckTemplate[] = [
     cards: [
       {
         cardId: "tebo-card-001",
-        title: "Week 1",
-        subtitle: "Finish The Portfolio",
+        label: "Week 1",
         suggestedTargetDate: "2026-06-07",
         intro: {
-          description: "Complete the key project presentations and sharpen the studio principles.",
+          title: "Finish The Portfolio",
+          description: null,
           mediaItem: {
             id: "tebo-media-001",
             mediaType: "image",
@@ -826,11 +826,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "tebo-card-002",
-        title: "Week 2",
-        subtitle: "Finish The Studio",
+        label: "Week 2",
         suggestedTargetDate: "2026-06-14",
         intro: {
-          description: "Finish the site, begin outreach and integrate the studio perspective.",
+          title: "Finish The Studio",
+          description: null,
           mediaItem: {
             id: "tebo-media-002",
             mediaType: "image",
@@ -882,11 +882,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "tebo-card-003",
-        title: "Week 3",
-        subtitle: "Start Meaningful Outreach",
+        label: "Week 3",
         suggestedTargetDate: "2026-06-21",
         intro: {
-          description: "Expand outreach and test how the portfolio and ideas land.",
+          title: "Start Meaningful Outreach",
+          description: null,
           mediaItem: {
             id: "tebo-media-003",
             mediaType: "image",
@@ -938,11 +938,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "tebo-card-004",
-        title: "Week 4",
-        subtitle: "Create Real Opportunities",
+        label: "Week 4",
         suggestedTargetDate: "2026-06-28",
         intro: {
-          description: "Turn promising outreach into conversations, opportunities and clearer positioning.",
+          title: "Create Real Opportunities",
+          description: null,
           mediaItem: {
             id: "tebo-media-004",
             mediaType: "image",
@@ -1015,11 +1015,11 @@ export const deckTemplates: DeckTemplate[] = [
     cards: [
       {
         cardId: "music-card-001",
-        title: "Week 1",
-        subtitle: "Build The Tools",
+        label: "Week 1",
         suggestedTargetDate: "2026-06-07",
         intro: {
-          description: "Build the foundations for scale fluency, H90 understanding and trad connections.",
+          title: "Build The Tools",
+          description: null,
           mediaItem: {
             id: "music-media-001",
             mediaType: "image",
@@ -1064,11 +1064,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "music-card-002",
-        title: "Week 2",
-        subtitle: "Explore The Possibilities",
+        label: "Week 2",
         suggestedTargetDate: "2026-06-14",
         intro: {
-          description: "Expand positions, begin shaping sounds and meet more promising musicians.",
+          title: "Explore The Possibilities",
+          description: null,
           mediaItem: {
             id: "music-media-002",
             mediaType: "image",
@@ -1113,11 +1113,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "music-card-003",
-        title: "Week 3",
-        subtitle: "Play Without Thinking",
+        label: "Week 3",
         suggestedTargetDate: "2026-06-21",
         intro: {
-          description: "Connect positions, adjust sounds by ear and deepen the strongest connections.",
+          title: "Play Without Thinking",
+          description: null,
           mediaItem: {
             id: "music-media-003",
             mediaType: "image",
@@ -1162,11 +1162,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "music-card-004",
-        title: "Week 4",
-        subtitle: "Know My Sound, Know My People",
+        label: "Week 4",
         suggestedTargetDate: "2026-06-28",
         intro: {
-          description: "Bring the month together through free playing, personal sounds and future plans.",
+          title: "Know My Sound, Know My People",
+          description: null,
           mediaItem: {
             id: "music-media-004",
             mediaType: "image",
@@ -1232,11 +1232,11 @@ export const deckTemplates: DeckTemplate[] = [
     cards: [
       {
         cardId: "switchplay-card-001",
-        title: "Week 1",
-        subtitle: "Use It For Real",
+        label: "Week 1",
         suggestedTargetDate: "2026-06-07",
         intro: {
-          description: "Use Switchplay personally, gather initial reactions and design the maths exemplar.",
+          title: "Use It For Real",
+          description: null,
           mediaItem: {
             id: "switchplay-media-001",
             mediaType: "image",
@@ -1289,11 +1289,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "switchplay-card-002",
-        title: "Week 2",
-        subtitle: "Strengthen The Experience",
+        label: "Week 2",
         suggestedTargetDate: "2026-06-14",
         intro: {
-          description: "Improve the MVP, refine testing and complete the maths exemplar.",
+          title: "Strengthen The Experience",
+          description: null,
           mediaItem: {
             id: "switchplay-media-002",
             mediaType: "image",
@@ -1346,11 +1346,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "switchplay-card-003",
-        title: "Week 3",
-        subtitle: "Put It In Front Of People",
+        label: "Week 3",
         suggestedTargetDate: "2026-06-21",
         intro: {
-          description: "Trial the product with real users and create another exemplar.",
+          title: "Put It In Front Of People",
+          description: null,
           mediaItem: {
             id: "switchplay-media-003",
             mediaType: "image",
@@ -1402,11 +1402,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         cardId: "switchplay-card-004",
-        title: "Week 4",
-        subtitle: "Decide What The Evidence Says",
+        label: "Week 4",
         suggestedTargetDate: "2026-06-28",
         intro: {
-          description: "Review everything learned from usage, testing and exemplar creation.",
+          title: "Decide What The Evidence Says",
+          description: null,
           mediaItem: {
             id: "switchplay-media-004",
             mediaType: "image",
@@ -1480,11 +1480,11 @@ export const deckTemplates: DeckTemplate[] = [
     "cards": [
       {
         "cardId": "card-001",
-        "title": "Week 1",
-        "subtitle": "Build strict pulling strength",
+        "label": "Week 1",
         "suggestedTargetDate": "2026-05-03",
         "intro": {
-          "description": "Start by improving strict pull-up quality, scapular control and hollow-body tension.",
+          "title": "Build strict pulling strength",
+          "description": null,
           "mediaItem": {
             "id": "media-001",
             "mediaType": "image",
@@ -1555,11 +1555,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-002",
-        "title": "Week 2",
-        "subtitle": "Add explosive pulling",
+        "label": "Week 2",
         "suggestedTargetDate": "2026-05-10",
         "intro": {
-          "description": "Shift from strength to power by pulling higher and faster while keeping control.",
+          "title": "Add explosive pulling",
+          "description": null,
           "mediaItem": {
             "id": "media-005",
             "mediaType": "image",
@@ -1630,11 +1630,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-003",
-        "title": "Week 3",
-        "subtitle": "Control the transition",
+        "label": "Week 3",
         "suggestedTargetDate": "2026-05-17",
         "intro": {
-          "description": "This week focuses on turning over the bar smoothly without losing tension.",
+          "title": "Control the transition",
+          "description": null,
           "mediaItem": {
             "id": "media-008",
             "mediaType": "image",
@@ -1705,11 +1705,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-004",
-        "title": "Week 4",
-        "subtitle": "Attempt clean singles",
+        "label": "Week 4",
         "suggestedTargetDate": "2026-05-24",
         "intro": {
-          "description": "Bring the pieces together with controlled singles and good recovery between attempts.",
+          "title": "Attempt clean singles",
+          "description": null,
           "mediaItem": {
             "id": "media-011",
             "mediaType": "image",
@@ -1789,11 +1789,11 @@ export const deckTemplates: DeckTemplate[] = [
     "cards": [
       {
         "cardId": "card-005",
-        "title": "Week 1",
-        "subtitle": "Establish squat strength baseline",
+        "label": "Week 1",
         "suggestedTargetDate": "2026-03-22",
         "intro": {
-          "description": "Build a safe baseline with controlled squats and jumping mechanics.",
+          "title": "Establish squat strength baseline",
+          "description": null,
           "mediaItem": {
             "id": "media-013",
             "mediaType": "image",
@@ -1852,11 +1852,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-006",
-        "title": "Week 2",
-        "subtitle": "Introduce loaded jumps",
+        "label": "Week 2",
         "suggestedTargetDate": "2026-03-29",
         "intro": {
-          "description": "Convert gym strength into explosive output with lighter, faster movements.",
+          "title": "Introduce loaded jumps",
+          "description": null,
           "mediaItem": {
             "id": "media-015",
             "mediaType": "image",
@@ -1915,11 +1915,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-007",
-        "title": "Week 3",
-        "subtitle": "Single-leg force production",
+        "label": "Week 3",
         "suggestedTargetDate": "2026-04-05",
         "intro": {
-          "description": "Focus on unilateral strength for sprinting, cutting and balance in duels.",
+          "title": "Single-leg force production",
+          "description": null,
           "mediaItem": {
             "id": "media-017",
             "mediaType": "image",
@@ -1978,11 +1978,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-008",
-        "title": "Week 4",
-        "subtitle": "Retest and consolidate",
+        "label": "Week 4",
         "suggestedTargetDate": "2026-04-12",
         "intro": {
-          "description": "Finish the block by retesting jump output and squat strength.",
+          "title": "Retest and consolidate",
+          "description": null,
           "mediaItem": {
             "id": "media-019",
             "mediaType": "image",
@@ -2062,11 +2062,11 @@ export const deckTemplates: DeckTemplate[] = [
     "cards": [
       {
         "cardId": "card-009",
-        "title": "Week 1",
-        "subtitle": "Clean receiving mechanics",
+        "label": "Week 1",
         "suggestedTargetDate": "2026-04-27",
         "intro": {
-          "description": "Improve body shape before receiving and make the first touch more purposeful.",
+          "title": "Clean receiving mechanics",
+          "description": null,
           "mediaItem": {
             "id": "media-021",
             "mediaType": "image",
@@ -2125,11 +2125,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-010",
-        "title": "Week 2",
-        "subtitle": "Scan before receiving",
+        "label": "Week 2",
         "suggestedTargetDate": "2026-05-04",
         "intro": {
-          "description": "Add scanning before the ball arrives so the first touch matches the next action.",
+          "title": "Scan before receiving",
+          "description": null,
           "mediaItem": {
             "id": "media-023",
             "mediaType": "image",
@@ -2188,11 +2188,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-011",
-        "title": "Week 3",
-        "subtitle": "Receive on the half-turn",
+        "label": "Week 3",
         "suggestedTargetDate": "2026-05-11",
         "intro": {
-          "description": "Focus on opening your hips and receiving across your body to play forward sooner.",
+          "title": "Receive on the half-turn",
+          "description": null,
           "mediaItem": {
             "id": "media-025",
             "mediaType": "image",
@@ -2251,11 +2251,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-012",
-        "title": "Week 4",
-        "subtitle": "Pressure touch and release",
+        "label": "Week 4",
         "suggestedTargetDate": "2026-05-18",
         "intro": {
-          "description": "Move from isolated work to receiving under contact pressure and playing quickly.",
+          "title": "Pressure touch and release",
+          "description": null,
           "mediaItem": {
             "id": "media-027",
             "mediaType": "image",
@@ -2314,11 +2314,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-013",
-        "title": "Week 5",
-        "subtitle": "Apply it in match actions",
+        "label": "Week 5",
         "suggestedTargetDate": "2026-05-25",
         "intro": {
-          "description": "Track first-touch decisions in a real match or full training game.",
+          "title": "Apply it in match actions",
+          "description": null,
           "mediaItem": {
             "id": "media-029",
             "mediaType": "image",
@@ -2377,11 +2377,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-023",
-        "title": "Week 6",
-        "subtitle": "Retain first touch quality under fatigue",
+        "label": "Week 6",
         "suggestedTargetDate": "2026-06-01",
         "intro": {
-          "description": "Finish the block by checking whether scanning, body shape and first-touch choices hold late in training.",
+          "title": "Retain first touch quality under fatigue",
+          "description": null,
           "mediaItem": {
             "id": "media-049",
             "mediaType": "image",
@@ -2455,11 +2455,11 @@ export const deckTemplates: DeckTemplate[] = [
     "cards": [
       {
         "cardId": "card-014",
-        "title": "Week 1",
-        "subtitle": "Set nutrition and lifting baseline",
+        "label": "Week 1",
         "suggestedTargetDate": "2026-05-05",
         "intro": {
-          "description": "Establish consistent protein intake and controlled strength sessions without overdoing volume.",
+          "title": "Set nutrition and lifting baseline",
+          "description": null,
           "mediaItem": {
             "id": "media-031",
             "mediaType": "image",
@@ -2518,11 +2518,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-015",
-        "title": "Week 2",
-        "subtitle": "Upper-body strength and posture",
+        "label": "Week 2",
         "suggestedTargetDate": "2026-05-12",
         "intro": {
-          "description": "Build pressing and pulling strength while keeping shoulder health in mind.",
+          "title": "Upper-body strength and posture",
+          "description": null,
           "mediaItem": {
             "id": "media-033",
             "mediaType": "image",
@@ -2581,11 +2581,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-016",
-        "title": "Week 3",
-        "subtitle": "Conditioning without losing strength",
+        "label": "Week 3",
         "suggestedTargetDate": "2026-05-19",
         "intro": {
-          "description": "Add short conditioning work while keeping gym performance stable.",
+          "title": "Conditioning without losing strength",
+          "description": null,
           "mediaItem": {
             "id": "media-035",
             "mediaType": "image",
@@ -2643,11 +2643,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-017",
-        "title": "Week 4",
-        "subtitle": "Strength retention check",
+        "label": "Week 4",
         "suggestedTargetDate": "2026-05-26",
         "intro": {
-          "description": "Check whether strength is holding while body composition improves.",
+          "title": "Strength retention check",
+          "description": null,
           "mediaItem": {
             "id": "media-037",
             "mediaType": "image",
@@ -2727,11 +2727,11 @@ export const deckTemplates: DeckTemplate[] = [
     "cards": [
       {
         "cardId": "card-018",
-        "title": "Week 1",
-        "subtitle": "Change of pace basics",
+        "label": "Week 1",
         "suggestedTargetDate": "2026-05-01",
         "intro": {
-          "description": "Build the habit of slowing the defender down before exploding past them.",
+          "title": "Change of pace basics",
+          "description": null,
           "mediaItem": {
             "id": "media-039",
             "mediaType": "image",
@@ -2790,11 +2790,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-019",
-        "title": "Week 2",
-        "subtitle": "Body feints and disguise",
+        "label": "Week 2",
         "suggestedTargetDate": "2026-05-08",
         "intro": {
-          "description": "Use shoulders, hips and eyes to move the defender before touching the ball past them.",
+          "title": "Body feints and disguise",
+          "description": null,
           "mediaItem": {
             "id": "media-041",
             "mediaType": "image",
@@ -2853,11 +2853,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-020",
-        "title": "Week 3",
-        "subtitle": "Attack both sides",
+        "label": "Week 3",
         "suggestedTargetDate": "2026-05-15",
         "intro": {
-          "description": "Stop becoming predictable by threatening inside and outside with equal confidence.",
+          "title": "Attack both sides",
+          "description": null,
           "mediaItem": {
             "id": "media-043",
             "mediaType": "image",
@@ -2916,11 +2916,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-021",
-        "title": "Week 4",
-        "subtitle": "End product after the take-on",
+        "label": "Week 4",
         "suggestedTargetDate": "2026-05-22",
         "intro": {
-          "description": "The goal is not just beating the defender — it is creating a shot, cross or cutback after it.",
+          "title": "End product after the take-on",
+          "description": null,
           "mediaItem": {
             "id": "media-045",
             "mediaType": "image",
@@ -2979,11 +2979,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-022",
-        "title": "Week 5",
-        "subtitle": "Match application",
+        "label": "Week 5",
         "suggestedTargetDate": "2026-05-29",
         "intro": {
-          "description": "Use match clips to review decision-making, timing and final action quality.",
+          "title": "Match application",
+          "description": null,
           "mediaItem": {
             "id": "media-047",
             "mediaType": "image",
@@ -3063,11 +3063,11 @@ export const deckTemplates: DeckTemplate[] = [
     "cards": [
       {
         "cardId": "card-024",
-        "title": "Week 1",
-        "subtitle": "Acceleration baseline",
+        "label": "Week 1",
         "suggestedTargetDate": "2026-06-03",
         "intro": {
-          "description": "Establish first-step speed, sprint posture and repeatable acceleration markers.",
+          "title": "Acceleration baseline",
+          "description": null,
           "mediaItem": {
             "id": "media-card-024-intro",
             "mediaType": "image",
@@ -3119,11 +3119,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-025",
-        "title": "Week 2",
-        "subtitle": "Repeat sprint quality",
+        "label": "Week 2",
         "suggestedTargetDate": "2026-06-10",
         "intro": {
-          "description": "Improve the ability to repeat high-quality sprints with consistent recovery and technique.",
+          "title": "Repeat sprint quality",
+          "description": null,
           "mediaItem": {
             "id": "media-card-025-intro",
             "mediaType": "image",
@@ -3175,11 +3175,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-026",
-        "title": "Week 3",
-        "subtitle": "Change of direction entry",
+        "label": "Week 3",
         "suggestedTargetDate": "2026-06-17",
         "intro": {
-          "description": "Build cleaner deceleration shapes before changing direction at speed.",
+          "title": "Change of direction entry",
+          "description": null,
           "mediaItem": {
             "id": "media-card-026-intro",
             "mediaType": "image",
@@ -3232,11 +3232,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-027",
-        "title": "Week 4",
-        "subtitle": "Strength support",
+        "label": "Week 4",
         "suggestedTargetDate": "2026-06-24",
         "intro": {
-          "description": "Support on-pitch speed with lower-body strength, trunk control and hamstring robustness.",
+          "title": "Strength support",
+          "description": null,
           "mediaItem": {
             "id": "media-card-027-intro",
             "mediaType": "image",
@@ -3289,11 +3289,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-028",
-        "title": "Week 5",
-        "subtitle": "High-speed ball carries",
+        "label": "Week 5",
         "suggestedTargetDate": "2026-07-01",
         "intro": {
-          "description": "Connect sprint mechanics to carrying the ball at pace without losing control.",
+          "title": "High-speed ball carries",
+          "description": null,
           "mediaItem": {
             "id": "media-card-028-intro",
             "mediaType": "image",
@@ -3346,11 +3346,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-029",
-        "title": "Week 6",
-        "subtitle": "Pressing repeatability",
+        "label": "Week 6",
         "suggestedTargetDate": "2026-07-08",
         "intro": {
-          "description": "Test repeated pressing actions and recovery between high-intensity defensive efforts.",
+          "title": "Pressing repeatability",
+          "description": null,
           "mediaItem": {
             "id": "media-card-029-intro",
             "mediaType": "image",
@@ -3403,11 +3403,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-030",
-        "title": "Week 7",
-        "subtitle": "Power maintenance",
+        "label": "Week 7",
         "suggestedTargetDate": "2026-07-15",
         "intro": {
-          "description": "Maintain jump and sprint qualities while training volume increases.",
+          "title": "Power maintenance",
+          "description": null,
           "mediaItem": {
             "id": "media-card-030-intro",
             "mediaType": "image",
@@ -3460,11 +3460,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-031",
-        "title": "Week 8",
-        "subtitle": "Match-speed decisions",
+        "label": "Week 8",
         "suggestedTargetDate": "2026-07-22",
         "intro": {
-          "description": "Bring physical improvements into match-speed choices with and without the ball.",
+          "title": "Match-speed decisions",
+          "description": null,
           "mediaItem": {
             "id": "media-card-031-intro",
             "mediaType": "image",
@@ -3517,11 +3517,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-032",
-        "title": "Week 9",
-        "subtitle": "Retest week",
+        "label": "Week 9",
         "suggestedTargetDate": "2026-07-29",
         "intro": {
-          "description": "Retest sprint, jump and repeat-effort markers with clean recovery and consistent warm-up.",
+          "title": "Retest week",
+          "description": null,
           "mediaItem": {
             "id": "media-card-032-intro",
             "mediaType": "image",
@@ -3574,11 +3574,11 @@ export const deckTemplates: DeckTemplate[] = [
       },
       {
         "cardId": "card-033",
-        "title": "Week 10",
-        "subtitle": "Performance review",
+        "label": "Week 10",
         "suggestedTargetDate": "2026-08-05",
         "intro": {
-          "description": "Use the final week to review progress, pick the next focus and preserve the most useful routines.",
+          "title": "Performance review",
+          "description": null,
           "mediaItem": {
             "id": "media-card-033-intro",
             "mediaType": "image",

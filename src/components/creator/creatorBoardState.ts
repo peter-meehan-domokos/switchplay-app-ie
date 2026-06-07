@@ -1,5 +1,6 @@
-import type { DeckTemplate } from "@/components/decks/types";
+import type { DeckTemplate, SignalOrder } from "@/components/decks/types";
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
+import type { MediaItem } from "@/lib/media";
 
 export type CardColumnId = `card-${number}`;
 export type ColumnId = "channels" | CardColumnId;
@@ -17,6 +18,8 @@ export type Column = {
   cardLabel?: string;
   cardTitle?: string;
   defaultCardTitle?: string;
+  introDescription?: string | null;
+  introMediaItem?: MediaItem | null;
   targetDate?: string;
 };
 
@@ -32,9 +35,11 @@ export type Pair = {
   signalMaxSymbol: SignalMaxSymbol;
   signalMin: number | null;
   signalMinSymbol: SignalMinSymbol;
+  signalOrder: SignalOrder | null;
   signalTitle: string | null;
   signalUnit: string | null;
   stepId: string;
+  stepMediaItem: MediaItem | null;
   stepText: string | null;
 };
 
@@ -92,8 +97,10 @@ export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step")
     id: pairId,
     signalId,
     ...createEmptySignal(),
+    signalOrder: null,
     signalUnit: null,
     stepId,
+    stepMediaItem: null,
     stepText: null,
   };
 }
@@ -214,6 +221,8 @@ export function createNewCardColumn(columns: Column[]): Column & { id: CardColum
     cardLabel: getNextCardLabel(columns),
     cardTitle,
     defaultCardTitle: cardTitle,
+    introDescription: null,
+    introMediaItem: null,
     targetDate: getNextCardDate(columns),
   };
 }
@@ -404,6 +413,14 @@ function getCreatorSignalOrder(signalMin: number | null, signalMax: number | nul
   return null;
 }
 
+function getTemplateSignalOrder(pair: Pair | null, signalMin: number | null, signalMax: number | null) {
+  if (signalMin === null || signalMax === null) {
+    return null;
+  }
+
+  return pair?.signalOrder ?? getCreatorSignalOrder(signalMin, signalMax);
+}
+
 function getPairForTemplateSlot(board: BoardState, columnId: ColumnId, row: number) {
   const pairId = board.cells[getCreatorCellId(columnId, row)]?.pairId;
 
@@ -424,12 +441,12 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
 
       return {
         cardId: column.cardId ?? column.id,
-        title: column.cardLabel ?? column.label,
-        subtitle: cardTitle,
+        label: column.cardLabel ?? column.label,
         suggestedTargetDate: column.targetDate ?? "",
         intro: {
-          description: cardTitle,
-          mediaItem: null,
+          title: normalizeCreatorText(cardTitle),
+          description: column.introDescription ?? null,
+          mediaItem: column.introMediaItem ?? null,
         },
         steps: board.rows.map((row) => {
           const pair = getPairForTemplateSlot(board, column.id, row);
@@ -437,6 +454,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
           return {
             stepId: pair?.stepId ?? `${column.cardId ?? column.id}-step-${row + 1}`,
             description: normalizeCreatorText(pair?.stepText),
+            mediaItem: pair?.stepMediaItem ?? null,
           };
         }),
         signals: board.rows.map((row) => {
@@ -447,7 +465,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
           return {
             signalId: pair?.signalId ?? `${column.cardId ?? column.id}-signal-${row + 1}`,
             title: normalizeCreatorText(pair?.signalTitle),
-            order: getCreatorSignalOrder(signalMin, signalMax),
+            order: getTemplateSignalOrder(pair, signalMin, signalMax),
             minValue: signalMin,
             maxValue: signalMax,
             isTheoreticalMin: pair?.signalMinSymbol === "<",
@@ -489,6 +507,8 @@ function createBlankColumns(): Column[] {
       cardLabel: getDefaultCardLabel(cardIndex),
       cardTitle,
       defaultCardTitle: cardTitle,
+      introDescription: null,
+      introMediaItem: null,
       targetDate: starterTargetDates[cardIndex] ?? "",
     };
   });
@@ -504,14 +524,16 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
 
     const templateCard = templateCards[columnIndex - 1];
 
-    const cardTitle = templateCard?.subtitle ?? templateCard?.title ?? column.label;
+    const cardTitle = templateCard?.intro.title ?? templateCard?.label ?? column.label;
 
     return {
       ...column,
       cardId: templateCard?.cardId ?? createCreatorId("card"),
-      cardLabel: getDefaultCardLabel(columnIndex - 1),
+      cardLabel: templateCard?.label ?? getDefaultCardLabel(columnIndex - 1),
       cardTitle,
       defaultCardTitle: cardTitle,
+      introDescription: templateCard?.intro.description ?? null,
+      introMediaItem: templateCard?.intro.mediaItem ?? null,
       targetDate: templateCard?.suggestedTargetDate ?? "",
     };
   });
@@ -576,8 +598,10 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
               signalMaxSymbol: signal.isTheoreticalMax ? "+" : "none",
               signalMin: signal.minValue,
               signalMinSymbol: signal.isTheoreticalMin ? "<" : "none",
+              signalOrder: signal.order,
               signalTitle: signal.title,
               signalUnit: signal.unit,
+              stepMediaItem: step.mediaItem ?? null,
               stepText: step.description,
             }
           : emptyPair;

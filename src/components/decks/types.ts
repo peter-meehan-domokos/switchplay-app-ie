@@ -18,14 +18,15 @@ export type CardChat = {
 };
 
 export type CardIntro = {
-  description: string;
+  title: string | null;
+  description: string | null;
   mediaItem: MediaItem | null;
 };
 
 export type CardTemplateStep = {
   stepId: string;
   description: string | null;
-  mediaItem?: MediaItem;
+  mediaItem?: MediaItem | null;
 };
 
 export type CardTemplateSignal = {
@@ -41,8 +42,7 @@ export type CardTemplateSignal = {
 
 export type CardTemplate = {
   cardId: string;
-  title: string;
-  subtitle: string;
+  label: string;
   suggestedTargetDate: string;
   intro: CardIntro;
   steps: CardTemplateStep[];
@@ -119,7 +119,7 @@ export type WeeklyCardStep = {
   stepId: string;
   description: string | null;
   completionStatus: string;
-  mediaItem?: MediaItem;
+  mediaItem?: MediaItem | null;
 };
 
 export type WeeklyCardSignal = {
@@ -136,8 +136,7 @@ export type WeeklyCardSignal = {
 
 export type WeeklyCard = {
   id: string;
-  title: string;
-  subtitle: string;
+  label: string;
   targetDate: string;
   intro: CardIntro;
   steps: WeeklyCardStep[];
