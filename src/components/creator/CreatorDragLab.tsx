@@ -14,7 +14,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   createEmptySignal,
@@ -41,6 +41,7 @@ import {
   type SignalMinSymbol,
 } from "@/components/creator/creatorBoardState";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
+import type { SignalOrder } from "@/components/decks/types";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -73,15 +74,32 @@ type SignalEditSession = {
   signalMaxSymbol: SignalMaxSymbol;
   signalMin: number | null;
   signalMinSymbol: SignalMinSymbol;
+  signalOrder: SignalOrder;
   signalTitle: string | null;
 };
 
 type SignalEditValue = Omit<SignalEditSession, "target">;
 type DragType = "channel" | "pair";
+type CreatorSelectOption<TValue extends string> = {
+  label: string;
+  value: TValue;
+};
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
+const creatorSignalMinSymbolOptions: CreatorSelectOption<SignalMinSymbol>[] = [
+  { label: "exact", value: "none" },
+  { label: "≤", value: "<" },
+];
+const creatorSignalMaxSymbolOptions: CreatorSelectOption<SignalMaxSymbol>[] = [
+  { label: "exact", value: "none" },
+  { label: "+", value: "+" },
+];
+const creatorSignalOrderOptions: CreatorSelectOption<SignalOrder>[] = [
+  { label: "High scores are better", value: "increasing" },
+  { label: "Low scores are better", value: "decreasing" },
+];
 
 function isIsoDateOnlyString(value: string) {
   const normalizedDateString = value.trim();
@@ -228,6 +246,7 @@ function getSignalEditSession(board: BoardState, target: SignalEditTarget): Sign
     signalMaxSymbol: pair.signalMaxSymbol,
     signalMin: pair.signalMin,
     signalMinSymbol: pair.signalMinSymbol,
+    signalOrder: pair.signalOrder,
     signalTitle: pair.signalTitle,
   };
 }
@@ -388,6 +407,102 @@ function CreatorDateEditModal({ session, onClose, onSave }: { session: DateEditS
   );
 }
 
+function CreatorSelect<TValue extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: TValue) => void;
+  options: CreatorSelectOption<TValue>[];
+  value: TValue;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [placement, setPlacement] = useState<"above" | "below">("below");
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selectedOption = options.find((option) => option.value === value) ?? options[0];
+
+  function updatePlacement() {
+    const triggerRect = rootRef.current?.getBoundingClientRect();
+
+    if (!triggerRect) {
+      return;
+    }
+
+    const estimatedMenuHeight = Math.min(options.length, 6) * 44 + 8;
+    const spaceBelow = window.innerHeight - triggerRect.bottom;
+    const spaceAbove = triggerRect.top;
+
+    setPlacement(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? "above" : "below");
+  }
+
+  function openSelect() {
+    updatePlacement();
+    setIsOpen(true);
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    updatePlacement();
+
+    window.addEventListener("resize", updatePlacement);
+    window.addEventListener("orientationchange", updatePlacement);
+    window.addEventListener("scroll", updatePlacement, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePlacement);
+      window.removeEventListener("orientationchange", updatePlacement);
+      window.removeEventListener("scroll", updatePlacement, true);
+    };
+  }, [isOpen, options.length]);
+
+  return (
+    <div
+      className="creator-select"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsOpen(false);
+        }
+      }}
+      ref={rootRef}
+    >
+      <button
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        className="creator-modal-select"
+        onClick={() => (isOpen ? setIsOpen(false) : openSelect())}
+        type="button"
+      >
+        <span>{selectedOption?.label ?? label}</span>
+        <span aria-hidden="true">⌄</span>
+      </button>
+      {isOpen ? (
+        <div className={`creator-select-menu creator-select-menu--${placement}`} role="listbox" aria-label={label}>
+          {options.map((option) => (
+            <button
+              aria-selected={option.value === value}
+              className="creator-select-option"
+              key={option.value}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              role="option"
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function CreatorSignalEditModal({
   session,
   onClose,
@@ -402,6 +517,7 @@ function CreatorSignalEditModal({
   const [signalMax, setSignalMax] = useState(session.signalMax === null ? "" : String(session.signalMax));
   const [signalMinSymbol, setSignalMinSymbol] = useState<SignalMinSymbol>(session.signalMinSymbol);
   const [signalMaxSymbol, setSignalMaxSymbol] = useState<SignalMaxSymbol>(session.signalMaxSymbol);
+  const [signalOrder, setSignalOrder] = useState<SignalOrder>(session.signalOrder);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const parsedMin = signalMin.trim() === "" ? null : Number(signalMin);
   const parsedMax = signalMax.trim() === "" ? null : Number(signalMax);
@@ -421,6 +537,7 @@ function CreatorSignalEditModal({
       signalMaxSymbol,
       signalMin: parsedMin,
       signalMinSymbol,
+      signalOrder,
       signalTitle: signalTitle ?? "",
     });
   }
@@ -468,17 +585,15 @@ function CreatorSignalEditModal({
           </label>
           <label className="creator-modal-label">
             Lower bound
-            <select className="creator-modal-select" onChange={(event) => setSignalMinSymbol(event.target.value as SignalMinSymbol)} value={signalMinSymbol}>
-              <option value="none">exact</option>
-              <option value="<">≤</option>
-            </select>
+            <CreatorSelect label="Lower bound" onChange={setSignalMinSymbol} options={creatorSignalMinSymbolOptions} value={signalMinSymbol} />
           </label>
           <label className="creator-modal-label">
             Upper bound
-            <select className="creator-modal-select" onChange={(event) => setSignalMaxSymbol(event.target.value as SignalMaxSymbol)} value={signalMaxSymbol}>
-              <option value="none">exact</option>
-              <option value="+">+</option>
-            </select>
+            <CreatorSelect label="Upper bound" onChange={setSignalMaxSymbol} options={creatorSignalMaxSymbolOptions} value={signalMaxSymbol} />
+          </label>
+          <label className="creator-modal-label creator-signal-order-field">
+            Score direction
+            <CreatorSelect label="Score direction" onChange={setSignalOrder} options={creatorSignalOrderOptions} value={signalOrder} />
           </label>
         </div>
 
@@ -942,7 +1057,10 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           [target.pairId]: {
             ...pair,
             ...(isSignalEmpty(value.signalTitle)
-              ? createEmptySignal()
+              ? {
+                  ...createEmptySignal(),
+                  signalOrder: value.signalOrder,
+                }
               : {
                   ...value,
                   signalTitle: value.signalTitle,

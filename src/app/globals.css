@@ -780,9 +780,59 @@ input {
 .creator-modal-text-input,
 .creator-modal-select {
   border: 1px solid #a8adb3;
+  background: #ffffff;
   color: #111318;
   font: inherit;
   padding: var(--creator-cell-padding);
+}
+
+.creator-modal-select {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.creator-select {
+  position: relative;
+}
+
+.creator-select-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #8f969e;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(17, 19, 24, 0.16);
+}
+
+.creator-select-menu--below {
+  top: calc(100% + 4px);
+}
+
+.creator-select-menu--above {
+  bottom: calc(100% + 4px);
+}
+
+.creator-select-option {
+  border: 0;
+  background: #ffffff;
+  color: #111318;
+  cursor: pointer;
+  font: inherit;
+  padding: var(--creator-cell-padding);
+  text-align: left;
+}
+
+.creator-select-option:hover,
+.creator-select-option[aria-selected="true"] {
+  background: #eef1f3;
 }
 
 .creator-modal-field {
@@ -808,6 +858,10 @@ input {
   display: grid;
   gap: var(--creator-modal-gap);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.creator-signal-order-field {
+  grid-column: 1 / -1;
 }
 
 .creator-modal-note,

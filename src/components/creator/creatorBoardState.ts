@@ -35,7 +35,7 @@ export type Pair = {
   signalMaxSymbol: SignalMaxSymbol;
   signalMin: number | null;
   signalMinSymbol: SignalMinSymbol;
-  signalOrder: SignalOrder | null;
+  signalOrder: SignalOrder;
   signalTitle: string | null;
   signalUnit: string | null;
   stepId: string;
@@ -52,6 +52,7 @@ const DEFAULT_EMPTY_SIGNAL_SETTINGS = {
   signalMin: null,
   signalMinSymbol: "none",
 } as const satisfies Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol">;
+const DEFAULT_SIGNAL_ORDER = "increasing" satisfies SignalOrder;
 
 type StepEmptyInput = Pick<Pair, "stepText"> | string | null;
 type SignalEmptyInput = Pick<Pair, "signalTitle"> | string | null;
@@ -97,7 +98,7 @@ export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step")
     id: pairId,
     signalId,
     ...createEmptySignal(),
-    signalOrder: null,
+    signalOrder: DEFAULT_SIGNAL_ORDER,
     signalUnit: null,
     stepId,
     stepMediaItem: null,
@@ -115,6 +116,7 @@ export type BoardState = {
   columns: Column[];
   rows: number[];
   cells: Record<CellId, CellState>;
+  channelIdsByRow: Record<number, string>;
   channelNamesByRow: Record<number, string>;
   pairs: Record<PairId, Pair>;
 };
@@ -382,6 +384,11 @@ export function swapCreatorBoardRows(board: BoardState, fromRow: number, toRow: 
 
   return {
     ...board,
+    channelIdsByRow: {
+      ...board.channelIdsByRow,
+      [fromRow]: board.channelIdsByRow[toRow],
+      [toRow]: board.channelIdsByRow[fromRow],
+    },
     channelNamesByRow: {
       ...board.channelNamesByRow,
       [fromRow]: board.channelNamesByRow[toRow],
@@ -397,30 +404,6 @@ function normalizeCreatorText(value: string | null | undefined) {
   return normalizedValue ? normalizedValue : null;
 }
 
-function getCreatorSignalOrder(signalMin: number | null, signalMax: number | null) {
-  if (signalMin === null || signalMax === null) {
-    return null;
-  }
-
-  if (signalMin < signalMax) {
-    return "increasing";
-  }
-
-  if (signalMin > signalMax) {
-    return "decreasing";
-  }
-
-  return null;
-}
-
-function getTemplateSignalOrder(pair: Pair | null, signalMin: number | null, signalMax: number | null) {
-  if (signalMin === null || signalMax === null) {
-    return null;
-  }
-
-  return pair?.signalOrder ?? getCreatorSignalOrder(signalMin, signalMax);
-}
-
 function getPairForTemplateSlot(board: BoardState, columnId: ColumnId, row: number) {
   const pairId = board.cells[getCreatorCellId(columnId, row)]?.pairId;
 
@@ -432,8 +415,8 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
     deckTemplateId: board.deckTemplateId,
     title: board.deckTitle,
     category: null,
-    channels: board.rows.map((row, rowIndex) => ({
-      id: `channel-${rowIndex + 1}`,
+    channels: board.rows.map((row) => ({
+      id: board.channelIdsByRow[row],
       title: resolveCreatorChannelName(row, board.channelNamesByRow[row] ?? ""),
     })),
     cards: getCardColumns(board.columns).map((column) => {
@@ -465,7 +448,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
           return {
             signalId: pair?.signalId ?? `${column.cardId ?? column.id}-signal-${row + 1}`,
             title: normalizeCreatorText(pair?.signalTitle),
-            order: getTemplateSignalOrder(pair, signalMin, signalMax),
+            order: pair?.signalOrder ?? DEFAULT_SIGNAL_ORDER,
             minValue: signalMin,
             maxValue: signalMax,
             isTheoreticalMin: pair?.signalMinSymbol === "<",
@@ -489,6 +472,20 @@ function createBaseCells(columns: Column[], rows: number[]) {
 
     return nextCells;
   }, {} as Record<CellId, CellState>);
+}
+
+function createBlankChannelIds(rows: number[]) {
+  return rows.reduce<Record<number, string>>((nextChannelIds, row) => {
+    nextChannelIds[row] = createCreatorId("channel");
+    return nextChannelIds;
+  }, {});
+}
+
+function createTemplateChannelIds(template: DeckTemplate, rows: number[]) {
+  return rows.reduce<Record<number, string>>((nextChannelIds, row) => {
+    nextChannelIds[row] = template.channels[row]?.id ?? createCreatorId("channel");
+    return nextChannelIds;
+  }, {});
 }
 
 function createBlankColumns(): Column[] {
@@ -563,6 +560,7 @@ export function createBlankCreatorBoard(): BoardState {
     deckTitle: "My Next Path",
     columns,
     rows,
+    channelIdsByRow: createBlankChannelIds(rows),
     channelNamesByRow: starterChannelNames.reduce<Record<number, string>>((nextChannels, channel, index) => {
       nextChannels[index] = getDefaultChannelName(index);
       return nextChannels;
@@ -598,7 +596,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
               signalMaxSymbol: signal.isTheoreticalMax ? "+" : "none",
               signalMin: signal.minValue,
               signalMinSymbol: signal.isTheoreticalMin ? "<" : "none",
-              signalOrder: signal.order,
+              signalOrder: signal.order ?? DEFAULT_SIGNAL_ORDER,
               signalTitle: signal.title,
               signalUnit: signal.unit,
               stepMediaItem: step.mediaItem ?? null,
@@ -616,6 +614,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
     deckTitle: template.title,
     columns,
     rows,
+    channelIdsByRow: createTemplateChannelIds(template, rows),
     channelNamesByRow: template.channels.reduce<Record<number, string>>((nextChannels, channel, index) => {
       nextChannels[index] = channel.title;
       return nextChannels;
