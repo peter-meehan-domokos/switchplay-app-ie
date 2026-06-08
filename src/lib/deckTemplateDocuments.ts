@@ -5,12 +5,18 @@ export const DECK_TEMPLATES_COLLECTION = "deckTemplates";
 
 export type DeckTemplateVisibility = "private" | "public";
 
+export type DeckTemplatePreviousVersion = {
+  template: DeckTemplate;
+  savedAt: Date;
+};
+
 export type DeckTemplateDocument = {
   _id?: ObjectId;
   deckTemplateId: string;
   ownerUserId: string;
   visibility: DeckTemplateVisibility;
   template: DeckTemplate;
+  previousVersions?: DeckTemplatePreviousVersion[];
   createdAt: Date;
   updatedAt: Date;
 };

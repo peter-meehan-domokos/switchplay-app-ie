@@ -10,5 +10,5 @@ export default async function NewCreatorPage() {
     return <AuthScreen />;
   }
 
-  return <CreatorDragLab initialBoard={createBlankCreatorBoard()} mode="new" />;
+  return <CreatorDragLab canUpdateExistingTemplate={false} initialBoard={createBlankCreatorBoard()} mode="new" />;
 }

@@ -44,6 +44,15 @@ export async function getVisibleDeckTemplateByIdForUser(
   return document?.template ?? null;
 }
 
+export async function getVisibleDeckTemplateDocumentByIdForUser(
+  user: AuthUser,
+  deckTemplateId: string,
+): Promise<DeckTemplateDocument | null> {
+  const collection = await getDeckTemplatesCollection();
+
+  return collection.findOne(createVisibleTemplateQuery(user, deckTemplateId));
+}
+
 export async function getDeckTemplateById(deckTemplateId: string): Promise<DeckTemplate | null> {
   const collection = await getDeckTemplatesCollection();
   const document = await collection.findOne({ deckTemplateId });

@@ -3,7 +3,7 @@ import AuthScreen from "@/components/auth/AuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
 import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
 import { getCurrentUser } from "@/lib/auth";
-import { getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
+import { getVisibleDeckTemplateDocumentByIdForUser } from "@/lib/deckTemplateQueries";
 
 type CreatorEditPageProps = {
   params: Promise<{
@@ -19,9 +19,9 @@ export default async function CreatorEditPage({ params }: CreatorEditPageProps) 
   }
 
   const { deckTemplateId } = await params;
-  const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
+  const templateDocument = await getVisibleDeckTemplateDocumentByIdForUser(user, deckTemplateId);
 
-  if (!template) {
+  if (!templateDocument) {
     return (
       <main className="creator-not-found">
         <p>Template not found.</p>
@@ -30,5 +30,11 @@ export default async function CreatorEditPage({ params }: CreatorEditPageProps) 
     );
   }
 
-  return <CreatorDragLab initialBoard={createCreatorBoardFromTemplate(template)} mode="edit" />;
+  return (
+    <CreatorDragLab
+      canUpdateExistingTemplate={templateDocument.ownerUserId === user.id}
+      initialBoard={createCreatorBoardFromTemplate(templateDocument.template)}
+      mode="edit"
+    />
+  );
 }

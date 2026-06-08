@@ -337,6 +337,35 @@ input {
   color: #111318;
 }
 
+.creator-save-button {
+  border: 1px solid #111318;
+  background: #111318;
+  color: #ffffff;
+  cursor: pointer;
+  padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
+}
+
+.creator-save-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.creator-save-message {
+  align-self: center;
+  color: #4f5965;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.creator-save-message--error {
+  color: #b42318;
+}
+
+.creator-save-message--success {
+  color: #17683a;
+}
+
 .creator-scroll-shell {
   width: 100%;
   min-height: 0;

@@ -61,6 +61,10 @@ function createCreatorId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
+export function createCreatorDeckTemplateId() {
+  return createCreatorId("deck");
+}
+
 export function isStepEmpty(pairOrStepText: StepEmptyInput) {
   const stepText = typeof pairOrStepText === "string" || pairOrStepText === null ? pairOrStepText : pairOrStepText.stepText;
 
@@ -556,7 +560,7 @@ export function createBlankCreatorBoard(): BoardState {
   }
 
   return {
-    deckTemplateId: createCreatorId("deck"),
+    deckTemplateId: createCreatorDeckTemplateId(),
     deckTitle: "My Next Path",
     columns,
     rows,

@@ -1,0 +1,89 @@
+import type { DeckTemplate } from "@/components/decks/types";
+
+export type TemplateSaveValidationResult =
+  | {
+      ok: true;
+      template: DeckTemplate;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export function hasNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringOrNull(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidationResult {
+  if (!isPlainObject(body)) {
+    return { ok: false, error: "Invalid request body." };
+  }
+
+  const template = body.template;
+
+  if (!isPlainObject(template)) {
+    return { ok: false, error: "template is required." };
+  }
+
+  if (!hasNonEmptyString(template.deckTemplateId)) {
+    return { ok: false, error: "template.deckTemplateId is required." };
+  }
+
+  if (!hasNonEmptyString(template.title)) {
+    return { ok: false, error: "template.title is required." };
+  }
+
+  if (!isStringOrNull(template.category)) {
+    return { ok: false, error: "template.category must be a string or null." };
+  }
+
+  if (!Array.isArray(template.channels)) {
+    return { ok: false, error: "template.channels must be an array." };
+  }
+
+  for (const channel of template.channels) {
+    if (!isPlainObject(channel) || !hasNonEmptyString(channel.id)) {
+      return { ok: false, error: "Each channel must have an id." };
+    }
+  }
+
+  if (!Array.isArray(template.cards)) {
+    return { ok: false, error: "template.cards must be an array." };
+  }
+
+  for (const card of template.cards) {
+    if (!isPlainObject(card) || !hasNonEmptyString(card.cardId)) {
+      return { ok: false, error: "Each card must have a cardId." };
+    }
+
+    if (!Array.isArray(card.steps)) {
+      return { ok: false, error: "Each card must have a steps array." };
+    }
+
+    for (const step of card.steps) {
+      if (!isPlainObject(step) || !hasNonEmptyString(step.stepId)) {
+        return { ok: false, error: "Each step must have a stepId." };
+      }
+    }
+
+    if (!Array.isArray(card.signals)) {
+      return { ok: false, error: "Each card must have a signals array." };
+    }
+
+    for (const signal of card.signals) {
+      if (!isPlainObject(signal) || !hasNonEmptyString(signal.signalId)) {
+        return { ok: false, error: "Each signal must have a signalId." };
+      }
+    }
+  }
+
+  return { ok: true, template: template as DeckTemplate };
+}

@@ -14,9 +14,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
+  createCreatorDeckTemplateId,
   createEmptySignal,
   creatorBoardToDeckTemplate,
   deleteCreatorCard,
@@ -41,7 +43,7 @@ import {
   type SignalMinSymbol,
 } from "@/components/creator/creatorBoardState";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
-import type { SignalOrder } from "@/components/decks/types";
+import type { DeckTemplate, SignalOrder } from "@/components/decks/types";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -84,6 +86,8 @@ type CreatorSelectOption<TValue extends string> = {
   label: string;
   value: TValue;
 };
+
+type SaveStatus = "idle" | "saving" | "success" | "error";
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
@@ -133,6 +137,79 @@ function formatCreatorDateDisplay(value: string) {
     month: "short",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function getSaveErrorMessage(errorBody: unknown, fallback: string) {
+  if (typeof errorBody === "object" && errorBody !== null && "error" in errorBody && typeof errorBody.error === "string") {
+    return errorBody.error;
+  }
+
+  return fallback;
+}
+
+async function saveCreatorDeckTemplate({
+  deckTemplateId,
+  method,
+  template,
+}: {
+  deckTemplateId?: string;
+  method: "PATCH" | "POST";
+  template: DeckTemplate;
+}) {
+  const response = await fetch(method === "PATCH" ? `/api/deck-templates/${encodeURIComponent(deckTemplateId ?? "")}` : "/api/deck-templates", {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ template }),
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(getSaveErrorMessage(responseBody, "Unable to save template."));
+  }
+
+  return responseBody;
+}
+
+async function initializeCreatorDeckData(deckTemplateId: string) {
+  const response = await fetch("/api/decks-data", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ deckTemplateId }),
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(`Template saved, but deck data could not be initialized: ${getSaveErrorMessage(responseBody, "Unable to initialize deck data.")}`);
+  }
+
+  return responseBody;
+}
+
+async function reconcileCreatorDeckData({
+  oldDeckTemplateId,
+  newDeckTemplateId,
+}: {
+  oldDeckTemplateId: string;
+  newDeckTemplateId: string;
+}) {
+  const response = await fetch("/api/decks-data/reconcile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ oldDeckTemplateId, newDeckTemplateId }),
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(`Template saved, but deck data reconciliation failed: ${getSaveErrorMessage(responseBody, "Unable to reconcile deck data.")}`);
+  }
+
+  return responseBody;
 }
 
 function findPairCell(cells: BoardState["cells"], pairId: PairId) {
@@ -798,17 +875,22 @@ function BoardCell({
 }
 
 type CreatorDragLabProps = {
+  canUpdateExistingTemplate: boolean;
   initialBoard: BoardState;
   mode: "edit" | "new";
 };
 
-export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canUpdateExistingTemplate, initialBoard, mode }: CreatorDragLabProps) {
+  const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
   const [activeChannelRow, setActiveChannelRow] = useState<number | null>(null);
   const [activeChannelOverRow, setActiveChannelOverRow] = useState<number | null>(null);
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [dateEditSession, setDateEditSession] = useState<DateEditSession | null>(null);
+  const [deckDataPendingTemplateId, setDeckDataPendingTemplateId] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const panStateRef = useRef<{
@@ -836,6 +918,66 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
 
   function previewTemplateOutput() {
     console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
+  }
+
+  async function saveTemplate() {
+    if (saveStatus === "saving") {
+      return;
+    }
+
+    setSaveStatus("saving");
+    setSaveMessage("");
+
+    try {
+      const shouldUpdateExistingTemplate = mode === "edit" && canUpdateExistingTemplate;
+      const shouldCreateFreshDeckData = mode === "new";
+      const originalDeckTemplateId = board.deckTemplateId;
+      const nextDeckTemplateId = shouldUpdateExistingTemplate
+        ? board.deckTemplateId
+        : deckDataPendingTemplateId ?? (mode === "new" ? board.deckTemplateId : createCreatorDeckTemplateId());
+      const template = {
+        ...creatorBoardToDeckTemplate(board),
+        deckTemplateId: nextDeckTemplateId,
+      };
+      const hasCreatedTemplateAwaitingDeckData = !shouldUpdateExistingTemplate && deckDataPendingTemplateId === nextDeckTemplateId;
+
+      await saveCreatorDeckTemplate({
+        deckTemplateId: nextDeckTemplateId,
+        method: shouldUpdateExistingTemplate || hasCreatedTemplateAwaitingDeckData ? "PATCH" : "POST",
+        template,
+      });
+
+      if (!shouldUpdateExistingTemplate) {
+        setDeckDataPendingTemplateId(nextDeckTemplateId);
+      }
+
+      if (shouldCreateFreshDeckData) {
+        await initializeCreatorDeckData(nextDeckTemplateId);
+      } else if (!shouldUpdateExistingTemplate) {
+        await reconcileCreatorDeckData({
+          oldDeckTemplateId: originalDeckTemplateId,
+          newDeckTemplateId: nextDeckTemplateId,
+        });
+      }
+
+      if (!shouldUpdateExistingTemplate) {
+        setDeckDataPendingTemplateId(null);
+      }
+
+      setSaveStatus("success");
+      setSaveMessage("Saved.");
+
+      if (!shouldUpdateExistingTemplate) {
+        setBoard((currentBoard) => ({
+          ...currentBoard,
+          deckTemplateId: nextDeckTemplateId,
+        }));
+        router.replace(`/creator/edit/${encodeURIComponent(nextDeckTemplateId)}`);
+      }
+    } catch (error) {
+      setSaveStatus("error");
+      setSaveMessage(error instanceof Error ? error.message : "Unable to save template.");
+    }
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -1155,6 +1297,10 @@ export default function CreatorDragLab({ initialBoard, mode }: CreatorDragLabPro
           <button className="creator-preview-output-button" onClick={previewTemplateOutput} type="button">
             Preview
           </button>
+          <button className="creator-save-button" disabled={saveStatus === "saving"} onClick={saveTemplate} type="button">
+            {saveStatus === "saving" ? "Saving…" : saveStatus === "success" ? "Saved" : "Save"}
+          </button>
+          {saveMessage ? <p className={`creator-save-message creator-save-message--${saveStatus}`}>{saveMessage}</p> : null}
           <Link className="creator-back-link" href="/">
             Decks
           </Link>
