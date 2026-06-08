@@ -10,5 +10,14 @@ export default async function NewCreatorPage() {
     return <AuthScreen />;
   }
 
-  return <CreatorDragLab canUpdateExistingTemplate={false} initialBoard={createBlankCreatorBoard()} mode="new" />;
+  const canPreviewOutput = user.isAdmin === true || user.username === "dev";
+
+  return (
+    <CreatorDragLab
+      canPreviewOutput={canPreviewOutput}
+      canUpdateExistingTemplate={false}
+      initialBoard={createBlankCreatorBoard()}
+      mode="new"
+    />
+  );
 }

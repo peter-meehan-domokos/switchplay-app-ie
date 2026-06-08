@@ -875,12 +875,13 @@ function BoardCell({
 }
 
 type CreatorDragLabProps = {
+  canPreviewOutput: boolean;
   canUpdateExistingTemplate: boolean;
   initialBoard: BoardState;
   mode: "edit" | "new";
 };
 
-export default function CreatorDragLab({ canUpdateExistingTemplate, initialBoard, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, initialBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
@@ -1293,10 +1294,11 @@ export default function CreatorDragLab({ canUpdateExistingTemplate, initialBoard
           <p className="creator-edit-hint">Tap text to edit</p>
         </div>
         <div className="creator-header-actions">
-          {/* TEMP DEV TOOL — remove after Creator persistence is implemented. */}
-          <button className="creator-preview-output-button" onClick={previewTemplateOutput} type="button">
-            Preview
-          </button>
+          {canPreviewOutput ? (
+            <button className="creator-preview-output-button" onClick={previewTemplateOutput} type="button">
+              Preview
+            </button>
+          ) : null}
           <button className="creator-save-button" disabled={saveStatus === "saving"} onClick={saveTemplate} type="button">
             {saveStatus === "saving" ? "Saving…" : saveStatus === "success" ? "Saved" : "Save"}
           </button>

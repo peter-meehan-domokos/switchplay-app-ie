@@ -30,8 +30,11 @@ export default async function CreatorEditPage({ params }: CreatorEditPageProps) 
     );
   }
 
+  const canPreviewOutput = user.isAdmin === true || user.username === "dev";
+
   return (
     <CreatorDragLab
+      canPreviewOutput={canPreviewOutput}
       canUpdateExistingTemplate={templateDocument.ownerUserId === user.id}
       initialBoard={createCreatorBoardFromTemplate(templateDocument.template)}
       mode="edit"
