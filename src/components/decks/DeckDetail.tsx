@@ -227,7 +227,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
     setActiveCardIndex(nextCardIndex);
 
-    if (!deck.hasUserDeckData) {
+    if (!deck.hasUserDeckData || !deck.canMutate) {
       return;
     }
 
@@ -293,6 +293,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const cycleFocusedStepStatus = (stepId: string) => {
+    if (!deck.canMutate) {
+      return;
+    }
+
     const activeCard = cards[activeCardIndex];
 
     if (!activeCard) {
@@ -333,7 +337,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     });
   };
   const adjustFocusedCardTargetDate = (direction: -1 | 1) => {
-    if (!deck.hasUserDeckData) {
+    if (!deck.hasUserDeckData || !deck.canMutate) {
       return;
     }
 
@@ -367,6 +371,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     });
   };
   const commitFocusedSignalReading = (cardId: string, signalId: string, reading: number) => {
+    if (!deck.canMutate) {
+      return;
+    }
+
     const nextReading = roundToTwoDecimals(reading);
     const nextCards = cardsRef.current.map((card) => {
       if (card.id !== cardId) {

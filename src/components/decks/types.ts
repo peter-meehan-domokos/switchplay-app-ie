@@ -150,6 +150,11 @@ export type Deck = {
   id: string;
   deckTemplateId: string;
   hasUserDeckData: boolean;
+  canMutate: boolean;
+  isOwnedByCurrentUser: boolean;
+  ownerUserId: string;
+  ownerUsername: string;
+  showOwnerTag: boolean;
   activeCardId: string;
   title: string;
   category: DeckCategory;

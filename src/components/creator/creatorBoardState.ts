@@ -117,6 +117,7 @@ export function clearPair(pair: Pair): Pair {
 export type BoardState = {
   deckTemplateId: string;
   deckTitle: string;
+  category: DeckTemplate["category"];
   columns: Column[];
   rows: number[];
   cells: Record<CellId, CellState>;
@@ -418,7 +419,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
   return {
     deckTemplateId: board.deckTemplateId,
     title: board.deckTitle,
-    category: null,
+    category: board.category,
     channels: board.rows.map((row) => ({
       id: board.channelIdsByRow[row],
       title: resolveCreatorChannelName(row, board.channelNamesByRow[row] ?? ""),
@@ -562,6 +563,7 @@ export function createBlankCreatorBoard(): BoardState {
   return {
     deckTemplateId: createCreatorDeckTemplateId(),
     deckTitle: "My Next Path",
+    category: null,
     columns,
     rows,
     channelIdsByRow: createBlankChannelIds(rows),
@@ -616,6 +618,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
   return {
     deckTemplateId: template.deckTemplateId,
     deckTitle: template.title,
+    category: template.category,
     columns,
     rows,
     channelIdsByRow: createTemplateChannelIds(template, rows),

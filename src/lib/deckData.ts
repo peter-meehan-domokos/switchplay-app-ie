@@ -32,8 +32,17 @@ export function mergeDeckTemplatesWithUserData(
   templates: DeckTemplate[],
   decksData: ClientUserDeckData[],
   userId: string,
+  options?: {
+    canMutate?: boolean;
+    currentUserId?: string;
+    ownerUserId?: string;
+    ownerUsername?: string;
+    showOwnerTag?: boolean;
+  },
 ): Deck[] {
   const decksDataByTemplateId = new Map(decksData.map((deckData) => [deckData.deckTemplateId, deckData]));
+  const currentUserId = options?.currentUserId ?? userId;
+  const ownerUserId = options?.ownerUserId ?? userId;
 
   return templates.map((template) => {
     const matchedUserDeckData = decksDataByTemplateId.get(template.deckTemplateId);
@@ -86,6 +95,11 @@ export function mergeDeckTemplatesWithUserData(
       id: getDeckKey(userId, template.deckTemplateId),
       deckTemplateId: template.deckTemplateId,
       hasUserDeckData: Boolean(matchedUserDeckData),
+      canMutate: options?.canMutate ?? true,
+      isOwnedByCurrentUser: ownerUserId === currentUserId,
+      ownerUserId,
+      ownerUsername: options?.ownerUsername ?? "",
+      showOwnerTag: options?.showOwnerTag ?? false,
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,

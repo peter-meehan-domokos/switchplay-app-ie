@@ -1049,6 +1049,20 @@ input {
   text-transform: uppercase;
 }
 
+.deck-owner-tag {
+  justify-self: end;
+  align-self: start;
+  grid-area: 1 / 1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 250, 240, 0.68);
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1;
+  padding: 7px 9px;
+}
+
 .tile-card-stack {
   position: relative;
   align-self: center;

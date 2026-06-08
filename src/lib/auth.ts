@@ -20,6 +20,7 @@ export type UserDocument = {
 	username: string;
 	passwordHash: string;
 	decksData: UserDeckData[];
+	isAdmin?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
 };
@@ -29,6 +30,7 @@ export type AuthUser = {
 	email: string;
 	username: string;
 	decksData: UserDeckData[];
+	isAdmin: boolean;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -57,6 +59,7 @@ function toAuthUser(user: WithId<UserDocument>): AuthUser {
 		email: user.email,
 		username: user.username,
 		decksData: user.decksData,
+		isAdmin: user.isAdmin === true,
 		createdAt: toIsoString(user.createdAt),
 		updatedAt: toIsoString(user.updatedAt),
 	};
