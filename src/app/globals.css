@@ -696,10 +696,16 @@ input {
 
 .creator-pair-signal {
   align-self: start;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: #667984;
   font-size: 0.82rem;
   font-weight: 650;
-  -webkit-line-clamp: var(--creator-pair-signal-line-clamp);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .creator-pair-title--placeholder {
