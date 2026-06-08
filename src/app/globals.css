@@ -875,6 +875,15 @@ input {
   resize: vertical;
 }
 
+.creator-modal-field--step {
+  min-height: calc(var(--creator-modal-textarea-min-height) * 0.8);
+}
+
+.creator-modal-field--card-title,
+.creator-modal-field--deck-title {
+  min-height: calc(var(--creator-modal-textarea-min-height) * 0.5);
+}
+
 .creator-date-field {
   border: 1px solid #a8adb3;
   color: #111318;
@@ -935,6 +944,21 @@ input {
 .creator-modal-primary {
   background: #111318;
   color: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .creator-modal-backdrop {
+    place-items: start center;
+    overflow-y: auto;
+    padding-block: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-bottom));
+  }
+
+  .creator-modal {
+    max-height: calc(100svh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 .creator-modal-delete-section {

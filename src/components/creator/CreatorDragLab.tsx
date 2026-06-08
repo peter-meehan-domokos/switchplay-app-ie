@@ -361,6 +361,15 @@ function CreatorEditModal({
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const isLongText = session.inputKind === "long-text";
   const isCardTitle = session.target.type === "card-title";
+  const modalClassName = `creator-modal creator-modal--${session.target.type}`;
+  const fieldClassName = [
+    "creator-modal-field",
+    session.target.type === "pair-step" ? "creator-modal-field--step" : undefined,
+    session.target.type === "card-title" ? "creator-modal-field--card-title" : undefined,
+    session.target.type === "deck-title" ? "creator-modal-field--deck-title" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const showStepCounter = session.target.type === "pair-step";
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
@@ -372,7 +381,7 @@ function CreatorEditModal({
 
   return (
     <div className="creator-modal-backdrop" role="presentation">
-      <form className="creator-modal" onSubmit={handleSubmit}>
+      <form className={modalClassName} onSubmit={handleSubmit}>
         <header className="creator-modal-header">
           <p>{session.label}</p>
           <button className="creator-modal-close" onClick={onClose} type="button">
@@ -381,7 +390,7 @@ function CreatorEditModal({
         </header>
         {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
         {isLongText ? (
-          <textarea autoFocus className="creator-modal-field" onChange={(event) => setDraftValue(event.target.value)} value={draftValue} />
+          <textarea autoFocus className={fieldClassName} onChange={(event) => setDraftValue(event.target.value)} value={draftValue} />
         ) : (
           <input
             autoFocus
