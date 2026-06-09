@@ -1,5 +1,6 @@
 import AuthScreen from "@/components/auth/AuthScreen";
 import AppShell from "@/components/layout/AppShell";
+import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
@@ -8,7 +9,7 @@ import {
   DECK_TEMPLATES_COLLECTION,
   type DeckTemplateDocument,
 } from "@/lib/deckTemplateDocuments";
-import { getVisibleDeckTemplatesForUser } from "@/lib/deckTemplateQueries";
+import { getVisibleDeckTemplateDocumentsForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
 import { mockSocialUsers } from "@/mocks/mockSocialUsers";
 
@@ -58,6 +59,39 @@ async function getAdminDecks(currentUserId: string) {
   };
 }
 
+async function getVisibleLibraryDecks(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
+  const visibleTemplateDocuments = await getVisibleDeckTemplateDocumentsForUser(user);
+  const ownerUserIds = [
+    ...new Set(
+      visibleTemplateDocuments
+        .map((document) => document.ownerUserId)
+        .filter((ownerUserId) => ObjectId.isValid(ownerUserId)),
+    ),
+  ];
+  const usersCollection = await getCollection<UserDocument>(USERS_COLLECTION);
+  const owners = ownerUserIds.length
+    ? await usersCollection
+        .find(
+          { _id: { $in: ownerUserIds.map((ownerUserId) => new ObjectId(ownerUserId)) } },
+          { projection: { username: 1 } },
+        )
+        .toArray()
+    : [];
+  const usernameByOwnerUserId = new Map(owners.map((owner) => [owner._id.toHexString(), owner.username]));
+  const decksData = serverDeckDataItemsToClientDeckDataSteps(user.decksData);
+
+  return visibleTemplateDocuments.flatMap((document) => {
+    const ownerUsername = usernameByOwnerUserId.get(document.ownerUserId) ?? user.username;
+
+    return mergeDeckTemplatesWithUserData([document.template], decksData, user.id, {
+      currentUserId: user.id,
+      ownerUserId: document.ownerUserId,
+      ownerUsername,
+      showOwnerTag: ownerUsername !== user.username,
+    });
+  });
+}
+
 export default async function Home() {
   const user = await getCurrentUser();
 
@@ -65,19 +99,10 @@ export default async function Home() {
     return <AuthScreen />;
   }
 
-
-
   const adminDeckData = user.isAdmin ? await getAdminDecks(user.id) : null;
-  const serverDeckData = user.decksData;
-  const decksData = serverDeckDataItemsToClientDeckDataSteps(serverDeckData);
-  const visibleDeckTemplates = user.isAdmin ? [] : await getVisibleDeckTemplatesForUser(user);
   const renderDecks = adminDeckData
     ? adminDeckData.decks
-    : mergeDeckTemplatesWithUserData(visibleDeckTemplates, decksData, user.id, {
-        currentUserId: user.id,
-        ownerUserId: user.id,
-        ownerUsername: user.username,
-      });
+    : await getVisibleLibraryDecks(user);
 
   // Authenticated user identity is handled separately from social users.
   // Social users will come from a dedicated lookup layer, but mock social data

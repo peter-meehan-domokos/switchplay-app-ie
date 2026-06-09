@@ -1179,14 +1179,14 @@ input {
   justify-self: end;
   align-self: start;
   grid-area: 1 / 1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 250, 240, 0.68);
-  font-size: 0.68rem;
-  font-weight: 750;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 250, 240, 0.58);
+  font-size: 0.58rem;
+  font-weight: 700;
   line-height: 1;
-  padding: 7px 9px;
+  padding: 5px 7px;
 }
 
 .tile-card-stack {
@@ -1761,9 +1761,9 @@ input {
   min-width: 0;
   max-width: 100%;
   color: var(--progress-accent-soft);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  line-height: 1;
+  line-height: 0.98;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1778,6 +1778,10 @@ input {
   border-radius: 999px;
   background: var(--progress-todo);
   overflow: hidden;
+}
+
+.card-semantic-anchors--front .completion-strip {
+  transform: translateY(3px);
 }
 
 .completion-strip-fill {
@@ -1835,6 +1839,11 @@ input {
   align-items: center;
   gap: 13px;
   padding-top: 1px;
+}
+
+.active-card-identity--no-media {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
 }
 
 .intro-media-thumb {
@@ -1930,17 +1939,17 @@ input {
 
 .step-copy {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-items: start;
   min-width: 0;
 }
 
 .active-step-item:nth-child(2) .step-copy {
-  gap: 4.5px;
+  gap: 3.5px;
 }
 
 .active-step-item:nth-child(3) .step-copy {
-  gap: 3.5px;
+  gap: 3px;
 }
 
 .step-description {
@@ -2231,6 +2240,11 @@ input {
   opacity: max(0.62, calc(0.96 - var(--past-depth, 1) * 0.04));
 }
 
+.deck-card.is-past .active-card-identity--no-media {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
 .deck-card.is-past .intro-media-thumb {
   width: 34px;
   border-radius: 8px;
@@ -2251,7 +2265,7 @@ input {
 }
 
 .deck-card.is-past .card-title-anchor h2 {
-  font-size: 0.82rem;
+  font-size: 0.77rem;
   opacity: max(0.56, calc(1 - var(--past-depth, 1) * 0.085));
   filter: blur(min(0.3px, calc((var(--past-depth, 1) - 1) * 0.08px)));
 }
@@ -2294,7 +2308,7 @@ input {
 }
 
 .deck-card.is-past .step-copy {
-  gap: 2px;
+  gap: 1.5px;
 }
 
 .deck-card.is-past .step-description {

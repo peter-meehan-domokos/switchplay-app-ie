@@ -10,7 +10,7 @@ export default function IntroMediaBlock({ card }: IntroMediaBlockProps) {
   const introTitle = card.intro.title ?? "";
 
   return (
-    <div className="active-card-identity">
+    <div className={`active-card-identity${mediaItem ? "" : " active-card-identity--no-media"}`}>
       {mediaItem ? (
         <div className="intro-media-thumb" aria-label={getMediaTitle(mediaItem, introTitle)}>
           <span className="intro-media-play" aria-hidden="true" />

@@ -25,13 +25,19 @@ async function getDeckTemplatesCollection() {
 }
 
 export async function getVisibleDeckTemplatesForUser(user: AuthUser): Promise<DeckTemplate[]> {
+  const documents = await getVisibleDeckTemplateDocumentsForUser(user);
+
+  return documents.map((document) => document.template);
+}
+
+export async function getVisibleDeckTemplateDocumentsForUser(user: AuthUser): Promise<DeckTemplateDocument[]> {
   const collection = await getDeckTemplatesCollection();
   const documents = await collection
     .find(createVisibleTemplateQuery(user))
     .sort({ createdAt: 1, deckTemplateId: 1 })
     .toArray();
 
-  return documents.map((document) => document.template);
+  return documents;
 }
 
 export async function getVisibleDeckTemplateByIdForUser(
