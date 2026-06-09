@@ -274,9 +274,10 @@ input {
   display: grid;
   grid-template-rows: var(--creator-header-height) minmax(0, 1fr);
   height: 100svh;
+  height: 100dvh;
   background: #f5f5f2;
   color: #111318;
-  padding: max(var(--creator-root-padding-top), env(safe-area-inset-top)) 0 var(--creator-root-padding-bottom);
+  padding: max(var(--creator-root-padding-top), env(safe-area-inset-top)) 0 max(var(--creator-root-padding-bottom), env(safe-area-inset-bottom));
 }
 
 .creator-header {
@@ -413,6 +414,15 @@ input {
 }
 
 @media (max-width: 640px) {
+  .creator-lab {
+    --creator-header-height: 76px;
+    --creator-column-width: 156px;
+    --creator-column-gap: 10px;
+    --creator-column-header-height: 70px;
+    --creator-pan-gutter-mobile-height: 86px;
+    --creator-cell-padding: 5px;
+  }
+
   .creator-pan-gutter {
     height: var(--creator-pan-gutter-mobile-height);
   }
