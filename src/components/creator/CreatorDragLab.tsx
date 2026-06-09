@@ -3,7 +3,7 @@
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  TouchSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
@@ -709,7 +709,7 @@ function PairBlock({
   onEdit: (target: EditTarget) => void;
   onSignalEdit: (target: SignalEditTarget) => void;
 }) {
-  const { setNodeRef } = useDraggable({
+  const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
     data: { type: "pair" },
     disabled: isPairEmpty(pair),
@@ -725,13 +725,15 @@ function PairBlock({
         {getStepDisplayText(pair)}
       </button>
       <div className="creator-pair-handle-row">
-        {/* Stage 1 pan-first mode keeps reorder inactive while preserving the handle for future long-press restoration. */}
+        {/* Touch reorder is intentionally handle-only and requires dnd-kit long-press activation. */}
         <button
           className={handleClassName}
           type="button"
-          aria-label={isEmptyPair ? "Empty pair slot" : "Pair reorder temporarily disabled"}
+          aria-label={isEmptyPair ? "Empty pair slot" : "Long press to reorder pair"}
           data-creator-drag-handle
           disabled={isEmptyPair}
+          {...(isEmptyPair ? {} : listeners)}
+          {...(isEmptyPair ? {} : attributes)}
         >
           <DragHandleMark />
         </button>
@@ -907,9 +909,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     hasPointerCapture: boolean;
   } | null>(null);
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(TouchSensor, {
       activationConstraint: {
-        distance: CREATOR_GEOMETRY.pairDragActivationDistance,
+        delay: 300,
+        tolerance: 8,
       },
     }),
   );
@@ -1019,7 +1022,9 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   }
 
   function handleDragStart(event: DragStartEvent) {
-    panStateRef.current = null;
+    if (panStateRef.current && scrollShellRef.current) {
+      resetPanState(scrollShellRef.current, panStateRef.current.pointerId);
+    }
     const dragType = getDragType(event);
 
     if (dragType === "channel") {
