@@ -921,6 +921,39 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
 
+  function clearExpiredClickSuppression() {
+    if (suppressClickUntilRef.current && Date.now() > suppressClickUntilRef.current) {
+      suppressClickUntilRef.current = 0;
+    }
+  }
+
+  function releasePanPointerCapture(target: HTMLElement, pointerId: number) {
+    if (!target.hasPointerCapture(pointerId)) {
+      return;
+    }
+
+    try {
+      target.releasePointerCapture(pointerId);
+    } catch {
+      // iOS Safari can report capture changes after cancellation; stale capture is safe to ignore.
+    }
+  }
+
+  function resetPanState(target: HTMLElement, pointerId: number) {
+    const panState = panStateRef.current;
+
+    if (!panState || panState.pointerId !== pointerId) {
+      return;
+    }
+
+    if (panState.isPanning) {
+      suppressClickUntilRef.current = Date.now() + 350;
+    }
+
+    releasePanPointerCapture(target, pointerId);
+    panStateRef.current = null;
+  }
+
   function previewTemplateOutput() {
     console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
   }
@@ -1224,6 +1257,11 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       return;
     }
 
+    clearExpiredClickSuppression();
+    if (panStateRef.current) {
+      resetPanState(event.currentTarget, panStateRef.current.pointerId);
+    }
+
     const target = event.target as HTMLElement;
 
     if (target.closest("input, select, textarea, [contenteditable='true'], [data-creator-pan-exempt]")) {
@@ -1231,7 +1269,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     }
 
     const shouldCapturePanImmediately = Boolean(target.closest(".creator-board, [data-creator-pan-gutter], [data-creator-pan-surface]"));
-    const shouldPreventPointerDownDefault = Boolean(target.closest("[data-creator-pan-gutter], [data-creator-pan-surface]"));
+
+    if (!shouldCapturePanImmediately) {
+      return;
+    }
 
     panStateRef.current = {
       pointerId: event.pointerId,
@@ -1239,14 +1280,13 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       startClientY: event.clientY,
       startScrollLeft: event.currentTarget.scrollLeft,
       isPanning: false,
-      hasPointerCapture: shouldCapturePanImmediately,
+      hasPointerCapture: true,
     };
 
-    if (shouldCapturePanImmediately) {
+    try {
       event.currentTarget.setPointerCapture(event.pointerId);
-      if (shouldPreventPointerDownDefault) {
-        event.preventDefault();
-      }
+    } catch {
+      panStateRef.current.hasPointerCapture = false;
     }
   }
 
@@ -1278,21 +1318,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   }
 
   function stopPan(event: PointerEvent<HTMLElement>) {
-    const panState = panStateRef.current;
-
-    if (!panState || panState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    if (panState.isPanning) {
-      suppressClickUntilRef.current = Date.now() + 350;
-    }
-
-    panStateRef.current = null;
+    resetPanState(event.currentTarget, event.pointerId);
   }
 
   function handlePanClickCapture(event: MouseEvent<HTMLElement>) {

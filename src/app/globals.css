@@ -373,7 +373,7 @@ input {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   padding: 0 var(--creator-scroll-padding-x) var(--creator-scroll-padding-bottom);
-  touch-action: pan-y;
+  touch-action: none;
 }
 
 .creator-scroll-shell:active {
@@ -391,6 +391,14 @@ input {
   gap: var(--creator-column-gap);
   height: calc(100% - var(--creator-pan-gutter-height) - var(--creator-pan-gutter-gap));
   min-height: 0;
+  touch-action: none;
+}
+
+.creator-board button {
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
 }
 
 .creator-pan-gutter {
@@ -526,6 +534,7 @@ input {
   border-bottom: 1px solid #c2c7cc;
   background: #fbfbfa;
   padding: var(--creator-cell-padding);
+  touch-action: none;
 }
 
 .creator-cell:last-child {
@@ -665,6 +674,7 @@ input {
   color: #111318;
   gap: var(--creator-pair-content-gap);
   padding: var(--creator-pair-internal-padding);
+  touch-action: none;
 }
 
 .creator-pair--dragging {
