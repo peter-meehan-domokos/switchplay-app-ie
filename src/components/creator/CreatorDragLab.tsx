@@ -785,7 +785,7 @@ function ChannelRow({
   onEdit: (target: EditTarget) => void;
   row: number;
 }) {
-  const { setNodeRef } = useDraggable({
+  const { attributes, listeners, setNodeRef } = useDraggable({
     id: `channel:${row}`,
     data: { type: "channel", row },
   });
@@ -793,11 +793,13 @@ function ChannelRow({
   return (
     <div className={`creator-channel-row${isDragging ? " creator-channel-row--dragging" : ""}`} ref={setNodeRef}>
       <button
-        aria-label="Channel reorder temporarily disabled"
+        aria-label="Long press to reorder channel"
         className="creator-channel-drag-handle"
         data-creator-channel-drag-handle
         data-creator-drag-handle
         type="button"
+        {...listeners}
+        {...attributes}
       >
         <DragHandleMark rows={3} variant="channel" />
       </button>
@@ -1363,6 +1365,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       </header>
 
       <DndContext
+        id="creator-dnd-context"
         sensors={sensors}
         collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
