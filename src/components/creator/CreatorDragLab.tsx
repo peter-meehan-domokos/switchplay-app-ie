@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   createCreatorDeckTemplateId,
@@ -709,7 +709,7 @@ function PairBlock({
   onEdit: (target: EditTarget) => void;
   onSignalEdit: (target: SignalEditTarget) => void;
 }) {
-  const { attributes, listeners, setNodeRef } = useDraggable({
+  const { setNodeRef } = useDraggable({
     id: pair.id,
     data: { type: "pair" },
     disabled: isPairEmpty(pair),
@@ -725,15 +725,13 @@ function PairBlock({
         {getStepDisplayText(pair)}
       </button>
       <div className="creator-pair-handle-row">
-        {/* Drag begins only from explicit handles. This avoids future conflicts with editing, scrolling, and other interactions inside creator mode. */}
+        {/* Stage 1 pan-first mode keeps reorder inactive while preserving the handle for future long-press restoration. */}
         <button
           className={handleClassName}
           type="button"
-          aria-label={isEmptyPair ? "Empty pair slot" : "Drag pair"}
+          aria-label={isEmptyPair ? "Empty pair slot" : "Pair reorder temporarily disabled"}
           data-creator-drag-handle
           disabled={isEmptyPair}
-          {...(isEmptyPair ? {} : listeners)}
-          {...(isEmptyPair ? {} : attributes)}
         >
           <DragHandleMark />
         </button>
@@ -785,7 +783,7 @@ function ChannelRow({
   onEdit: (target: EditTarget) => void;
   row: number;
 }) {
-  const { attributes, listeners, setActivatorNodeRef, setNodeRef } = useDraggable({
+  const { setNodeRef } = useDraggable({
     id: `channel:${row}`,
     data: { type: "channel", row },
   });
@@ -793,14 +791,11 @@ function ChannelRow({
   return (
     <div className={`creator-channel-row${isDragging ? " creator-channel-row--dragging" : ""}`} ref={setNodeRef}>
       <button
-        aria-label={`Drag ${channelName ?? "channel"}`}
+        aria-label="Channel reorder temporarily disabled"
         className="creator-channel-drag-handle"
         data-creator-channel-drag-handle
         data-creator-drag-handle
-        ref={setActivatorNodeRef}
         type="button"
-        {...listeners}
-        {...attributes}
       >
         <DragHandleMark rows={3} variant="channel" />
       </button>
@@ -902,6 +897,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
+  const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
     pointerId: number;
     startClientX: number;
@@ -1230,11 +1226,12 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     const target = event.target as HTMLElement;
 
-    if (target.closest("[data-creator-drag-handle]")) {
+    if (target.closest("input, select, textarea, [contenteditable='true'], [data-creator-pan-exempt]")) {
       return;
     }
 
-    const shouldCapturePanImmediately = Boolean(target.closest("[data-creator-pan-gutter], [data-creator-pan-surface]"));
+    const shouldCapturePanImmediately = Boolean(target.closest(".creator-board, [data-creator-pan-gutter], [data-creator-pan-surface]"));
+    const shouldPreventPointerDownDefault = Boolean(target.closest("[data-creator-pan-gutter], [data-creator-pan-surface]"));
 
     panStateRef.current = {
       pointerId: event.pointerId,
@@ -1247,7 +1244,9 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     if (shouldCapturePanImmediately) {
       event.currentTarget.setPointerCapture(event.pointerId);
-      event.preventDefault();
+      if (shouldPreventPointerDownDefault) {
+        event.preventDefault();
+      }
     }
   }
 
@@ -1267,6 +1266,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       }
 
       panState.isPanning = true;
+      suppressClickUntilRef.current = Date.now() + 350;
       if (!panState.hasPointerCapture) {
         event.currentTarget.setPointerCapture(event.pointerId);
         panState.hasPointerCapture = true;
@@ -1288,7 +1288,21 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
+    if (panState.isPanning) {
+      suppressClickUntilRef.current = Date.now() + 350;
+    }
+
     panStateRef.current = null;
+  }
+
+  function handlePanClickCapture(event: MouseEvent<HTMLElement>) {
+    if (Date.now() > suppressClickUntilRef.current) {
+      return;
+    }
+
+    suppressClickUntilRef.current = 0;
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   return (
@@ -1334,6 +1348,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
           onPointerUp={stopPan}
           onPointerCancel={stopPan}
           onLostPointerCapture={stopPan}
+          onClickCapture={handlePanClickCapture}
         >
           <div className="creator-canvas">
             <div className="creator-board">
