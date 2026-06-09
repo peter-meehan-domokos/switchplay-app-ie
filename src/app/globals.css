@@ -980,6 +980,14 @@ input {
     overscroll-behavior: contain;
   }
 
+  .creator-modal-field,
+  .creator-modal-text-input,
+  .creator-modal-select,
+  .creator-select-option,
+  .creator-date-field {
+    font-size: 16px;
+  }
+
   .creator-modal--pair-step {
     gap: 8px;
   }
