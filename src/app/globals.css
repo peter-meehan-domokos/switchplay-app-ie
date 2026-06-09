@@ -959,6 +959,50 @@ input {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+
+  .creator-modal--pair-step {
+    gap: 8px;
+  }
+
+  .creator-modal--pair-step .creator-modal-note,
+  .creator-modal--pair-step .creator-modal-counter {
+    font-size: 0.8rem;
+    line-height: 1.2;
+  }
+
+  .creator-modal--pair-step .creator-modal-field--step {
+    min-height: calc(var(--creator-modal-textarea-min-height) * 0.62);
+  }
+
+  .creator-modal--signal-settings {
+    gap: 8px;
+  }
+
+  .creator-modal--signal-settings .creator-modal-header {
+    gap: 8px;
+  }
+
+  .creator-modal--signal-settings .creator-modal-label {
+    gap: 3px;
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+
+  .creator-modal--signal-settings .creator-signal-settings-grid {
+    gap: 8px;
+  }
+
+  .creator-modal--signal-settings .creator-modal-text-input,
+  .creator-modal--signal-settings .creator-modal-select {
+    min-height: 32px;
+    padding: 4px 6px;
+    line-height: 1.2;
+  }
+
+  .creator-modal--signal-settings .creator-modal-close {
+    padding: 6px 10px;
+    line-height: 1.2;
+  }
 }
 
 .creator-modal-delete-section {

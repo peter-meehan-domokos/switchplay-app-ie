@@ -630,7 +630,7 @@ function CreatorSignalEditModal({
 
   return (
     <div className="creator-modal-backdrop" role="presentation">
-      <form className="creator-modal" onSubmit={handleSubmit}>
+      <form className="creator-modal creator-modal--signal-settings" onSubmit={handleSubmit}>
         <header className="creator-modal-header">
           <p>Signal settings</p>
           <button className="creator-modal-close" onClick={onClose} type="button">
@@ -642,7 +642,6 @@ function CreatorSignalEditModal({
           Signal title
           <input autoFocus className="creator-modal-text-input" onChange={(event) => setSignalTitle(event.target.value)} type="text" value={signalTitle ?? ""} />
         </label>
-        <p className="creator-modal-note">Short signal name. Aim for 1-3 words.</p>
 
         <div className="creator-signal-settings-grid">
           <label className="creator-modal-label">
