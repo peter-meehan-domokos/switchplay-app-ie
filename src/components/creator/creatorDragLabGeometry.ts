@@ -4,12 +4,12 @@ import type { CSSProperties } from "react";
 // hit-testing, panning, and CSS layout must all agree on the same measurements.
 // Do not duplicate these values in component CSS.
 export const CREATOR_GEOMETRY = {
-  creatorHeaderHeight: 84,
-  rootPaddingTop: 10,
+  creatorHeaderHeight: 106,
+  rootPaddingTop: 14,
   rootPaddingBottom: 8,
   headerGap: 12,
   headerPaddingX: 16,
-  headerPaddingBottom: 8,
+  headerPaddingBottom: 10,
   deckTitleMaxWidth: 420,
   backLinkPaddingY: 8,
   backLinkPaddingX: 12,
@@ -30,8 +30,8 @@ export const CREATOR_GEOMETRY = {
   channelHandleVisibleWidth: 24,
   channelHandleVisibleHeight: 24,
   channelHandleGap: 6,
-  panGutterHeight: 88,
-  panGutterMobileHeight: 112,
+  panGutterHeight: 60,
+  panGutterMobileHeight: 60,
   panGutterGap: 8,
   pairHeight: 80,
   pairOverlayWidth: 150,
