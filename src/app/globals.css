@@ -419,7 +419,7 @@ input {
     --creator-column-width: 156px;
     --creator-column-gap: 10px;
     --creator-column-header-height: 70px;
-    --creator-pan-gutter-mobile-height: 60px;
+    --creator-pan-gutter-mobile-height: 44px;
     --creator-cell-padding: 5px;
   }
 
@@ -719,9 +719,7 @@ input {
 
 .creator-pair-step,
 .creator-pair-signal {
-  display: -webkit-box;
   overflow: hidden;
-  -webkit-box-orient: vertical;
   min-height: 0;
   padding: var(--creator-pair-text-padding);
   font-size: 0.9rem;
@@ -730,9 +728,14 @@ input {
 }
 
 .creator-pair-step {
+  display: -webkit-box;
   align-self: end;
   font-weight: 750;
   -webkit-line-clamp: var(--creator-pair-step-line-clamp);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .creator-pair-signal {
