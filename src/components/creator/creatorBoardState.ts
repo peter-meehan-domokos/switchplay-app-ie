@@ -47,9 +47,9 @@ export const STEP_PLACEHOLDER_TEXT = "Describe the step";
 export const SIGNAL_PLACEHOLDER_TEXT = "Progress signal";
 
 const DEFAULT_EMPTY_SIGNAL_SETTINGS = {
-  signalMax: null,
+  signalMax: 10,
   signalMaxSymbol: "none",
-  signalMin: null,
+  signalMin: 1,
   signalMinSymbol: "none",
 } as const satisfies Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol">;
 const DEFAULT_SIGNAL_ORDER = "increasing" satisfies SignalOrder;
@@ -456,8 +456,8 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
             order: pair?.signalOrder ?? DEFAULT_SIGNAL_ORDER,
             minValue: signalMin,
             maxValue: signalMax,
-            isTheoreticalMin: pair?.signalMinSymbol === "<",
-            isTheoreticalMax: pair?.signalMaxSymbol === "+",
+            isTheoreticalMin: pair?.signalMinSymbol === "none",
+            isTheoreticalMax: pair?.signalMaxSymbol === "none",
             unit: pair?.signalUnit ?? null,
           };
         }),
