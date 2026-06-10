@@ -884,11 +884,15 @@ function BoardCell({
 type CreatorDragLabProps = {
   canPreviewOutput: boolean;
   canUpdateExistingTemplate: boolean;
+  creatorReturnTarget?: {
+    label: "Deck" | "Decks";
+    href: string;
+  };
   initialBoard: BoardState;
   mode: "edit" | "new";
 };
 
-export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, initialBoard, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, creatorReturnTarget, initialBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
@@ -925,6 +929,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
+  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
 
   function clearExpiredClickSuppression() {
     if (suppressClickUntilRef.current && Date.now() > suppressClickUntilRef.current) {
@@ -1358,8 +1363,8 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
             {saveStatus === "saving" ? "Saving…" : saveStatus === "success" ? "Saved" : "Save"}
           </button>
           {saveMessage ? <p className={`creator-save-message creator-save-message--${saveStatus}`}>{saveMessage}</p> : null}
-          <Link className="creator-back-link" href="/">
-            Decks
+          <Link className="creator-back-link" href={resolvedCreatorReturnTarget.href}>
+            {resolvedCreatorReturnTarget.label}
           </Link>
         </div>
       </header>

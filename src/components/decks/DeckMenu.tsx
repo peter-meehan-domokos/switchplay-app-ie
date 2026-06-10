@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 
 type DeckMenuProps = {
+  deckId: string;
   deckTemplateId: string;
 };
 
-export default function DeckMenu({ deckTemplateId }: DeckMenuProps) {
+export default function DeckMenu({ deckId, deckTemplateId }: DeckMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const editHref = `/creator/edit/${encodeURIComponent(deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(deckId)}&returnDeckTemplateId=${encodeURIComponent(deckTemplateId)}`;
 
   return (
     <div className="deck-menu">
@@ -24,7 +26,7 @@ export default function DeckMenu({ deckTemplateId }: DeckMenuProps) {
       </button>
       {isOpen ? (
         <div className="deck-menu-popover" role="menu">
-          <Link className="deck-menu-item" href={`/creator/edit/${deckTemplateId}`} role="menuitem">
+          <Link className="deck-menu-item" href={editHref} role="menuitem">
             Edit
           </Link>
         </div>

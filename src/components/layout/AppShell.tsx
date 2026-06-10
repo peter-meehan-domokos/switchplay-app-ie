@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import LogoutButton from "@/components/auth/LogoutButton";
 import DeckDetail from "@/components/decks/DeckDetail";
@@ -33,6 +33,7 @@ const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
 
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [pendingDeckOpenId, setPendingDeckOpenId] = useState<string | null>(null);
@@ -40,6 +41,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const [deckInstantiationError, setDeckInstantiationError] = useState<string | null>(null);
   const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
   const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasHandledOpenDeckParamRef = useRef(false);
   const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
   const isDeckInteractionLocked = Boolean(instantiatingDeckTemplateId) || Boolean(pendingDeckOpenId);
   const selectedDeckFlipState = selectedDeck ? deckFlipStateById[selectedDeck.id] : null;
@@ -64,6 +66,33 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       setDeckInstantiationError(null);
     }
   }, [deckLayouts, pendingDeckOpenId]);
+
+  useEffect(() => {
+    if (hasHandledOpenDeckParamRef.current) {
+      return;
+    }
+
+    const requestedDeckId = searchParams.get("openDeck")?.trim();
+
+    if (!requestedDeckId) {
+      hasHandledOpenDeckParamRef.current = true;
+      return;
+    }
+
+    const requestedDeck = deckLayouts.find((deck) => deck.id === requestedDeckId);
+
+    if (!requestedDeck) {
+      hasHandledOpenDeckParamRef.current = true;
+      return;
+    }
+
+    if (isDeckInteractionLocked) {
+      return;
+    }
+
+    hasHandledOpenDeckParamRef.current = true;
+    void handleSelectDeck(requestedDeck.id);
+  }, [deckLayouts, isDeckInteractionLocked, searchParams]);
 
   useEffect(() => {
     return () => {

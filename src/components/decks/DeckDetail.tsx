@@ -460,7 +460,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <span aria-hidden="true">←</span>
         <span>Back</span>
       </motion.button>
-      <DeckMenu deckTemplateId={deck.deckTemplateId} />
+      <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} />
 
       <motion.div className="detail-heading" layout>
         <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>
