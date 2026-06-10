@@ -942,6 +942,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
+  const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const publishButtonLabel =
     publishStatus === "publishing" ? "Publishing…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
 
@@ -1422,7 +1423,12 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
               Preview
             </button>
           ) : null}
-          <button className="creator-save-button" disabled={publishStatus === "publishing"} onClick={() => void publishTemplate()} type="button">
+          <button
+            className={`creator-save-button${isPublishedState ? " creator-save-button--published" : ""}`}
+            disabled={publishStatus === "publishing"}
+            onClick={() => void publishTemplate()}
+            type="button"
+          >
             {publishButtonLabel}
           </button>
           {publishMessage ? <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}</p> : null}

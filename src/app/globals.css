@@ -347,6 +347,12 @@ input {
   padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
 }
 
+.creator-save-button--published {
+  border-color: #a8adb3;
+  background: transparent;
+  color: #111318;
+}
+
 .creator-save-button:disabled {
   cursor: wait;
   opacity: 0.72;
