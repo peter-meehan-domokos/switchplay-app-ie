@@ -105,6 +105,13 @@ const creatorSignalOrderOptions: CreatorSelectOption<SignalOrder>[] = [
   { label: "Low scores are better", value: "decreasing" },
 ];
 
+function createTemplateSnapshot(board: BoardState, deckTemplateId = board.deckTemplateId) {
+  return JSON.stringify({
+    ...creatorBoardToDeckTemplate(board),
+    deckTemplateId,
+  });
+}
+
 function isIsoDateOnlyString(value: string) {
   const normalizedDateString = value.trim();
 
@@ -895,6 +902,7 @@ type CreatorDragLabProps = {
 export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, creatorReturnTarget, initialBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
+  const [savedTemplateSnapshot, setSavedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialBoard));
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
   const [activeChannelRow, setActiveChannelRow] = useState<number | null>(null);
   const [activeChannelOverRow, setActiveChannelOverRow] = useState<number | null>(null);
@@ -903,6 +911,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [deckDataPendingTemplateId, setDeckDataPendingTemplateId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
@@ -930,6 +939,14 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
+  const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
+  const isCreatorDirty = currentTemplateSnapshot !== savedTemplateSnapshot;
+
+  useEffect(() => {
+    if (!isCreatorDirty) {
+      setIsLeaveConfirmOpen(false);
+    }
+  }, [isCreatorDirty]);
 
   function clearExpiredClickSuppression() {
     if (suppressClickUntilRef.current && Date.now() > suppressClickUntilRef.current) {
@@ -968,9 +985,28 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
   }
 
+  function navigateToReturnTarget() {
+    router.push(resolvedCreatorReturnTarget.href);
+  }
+
+  function handleReturnClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (saveStatus === "saving") {
+      event.preventDefault();
+      return;
+    }
+
+    if (!isCreatorDirty) {
+      setIsLeaveConfirmOpen(false);
+      return;
+    }
+
+    event.preventDefault();
+    setIsLeaveConfirmOpen(true);
+  }
+
   async function saveTemplate() {
     if (saveStatus === "saving") {
-      return;
+      return false;
     }
 
     setSaveStatus("saving");
@@ -987,6 +1023,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
         ...creatorBoardToDeckTemplate(board),
         deckTemplateId: nextDeckTemplateId,
       };
+      const nextSavedTemplateSnapshot = JSON.stringify(template);
       const hasCreatedTemplateAwaitingDeckData = !shouldUpdateExistingTemplate && deckDataPendingTemplateId === nextDeckTemplateId;
 
       await saveCreatorDeckTemplate({
@@ -1012,6 +1049,8 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
         setDeckDataPendingTemplateId(null);
       }
 
+      setSavedTemplateSnapshot(nextSavedTemplateSnapshot);
+
       setSaveStatus("success");
       setSaveMessage("Saved.");
 
@@ -1022,10 +1061,30 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
         }));
         router.replace(`/creator/edit/${encodeURIComponent(nextDeckTemplateId)}`);
       }
+
+      return true;
     } catch (error) {
       setSaveStatus("error");
       setSaveMessage(error instanceof Error ? error.message : "Unable to save template.");
+
+      return false;
     }
+  }
+
+  async function saveBeforeLeaving() {
+    const didSave = await saveTemplate();
+
+    if (!didSave) {
+      return;
+    }
+
+    setIsLeaveConfirmOpen(false);
+    navigateToReturnTarget();
+  }
+
+  function discardAndLeave() {
+    setIsLeaveConfirmOpen(false);
+    navigateToReturnTarget();
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -1359,13 +1418,29 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
               Preview
             </button>
           ) : null}
-          <button className="creator-save-button" disabled={saveStatus === "saving"} onClick={saveTemplate} type="button">
+          <button className="creator-save-button" disabled={saveStatus === "saving"} onClick={() => void saveTemplate()} type="button">
             {saveStatus === "saving" ? "Saving…" : saveStatus === "success" ? "Saved" : "Save"}
           </button>
           {saveMessage ? <p className={`creator-save-message creator-save-message--${saveStatus}`}>{saveMessage}</p> : null}
-          <Link className="creator-back-link" href={resolvedCreatorReturnTarget.href}>
+          <Link className="creator-back-link" href={resolvedCreatorReturnTarget.href} onClick={handleReturnClick}>
             {resolvedCreatorReturnTarget.label}
           </Link>
+          {isLeaveConfirmOpen ? (
+            <div className="creator-leave-confirm" role="dialog" aria-label="Unsaved changes confirmation">
+              <p className="creator-leave-confirm-title">Save changes before leaving?</p>
+              <div className="creator-leave-confirm-actions">
+                <button className="creator-leave-confirm-cancel" onClick={() => setIsLeaveConfirmOpen(false)} type="button">
+                  Cancel
+                </button>
+                <button className="creator-leave-confirm-discard" onClick={discardAndLeave} type="button">
+                  Discard
+                </button>
+                <button className="creator-leave-confirm-save" disabled={saveStatus === "saving"} onClick={() => void saveBeforeLeaving()} type="button">
+                  {saveStatus === "saving" ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </header>
 
