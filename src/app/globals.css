@@ -2015,17 +2015,17 @@ input {
 
 .step-copy {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   align-items: start;
   min-width: 0;
 }
 
 .active-step-item:nth-child(2) .step-copy {
-  gap: 3.5px;
+  gap: 4.5px;
 }
 
 .active-step-item:nth-child(3) .step-copy {
-  gap: 3px;
+  gap: 4px;
 }
 
 .step-description {
