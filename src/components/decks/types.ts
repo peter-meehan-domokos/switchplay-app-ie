@@ -1,8 +1,7 @@
 import type { MediaItem } from "@/lib/media";
 
-export type DeckCategory = string;
+export type DeckCategory = string | null;
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
-export type SignalDimension = string;
 export type SignalOrder = "increasing" | "decreasing";
 
 export type CardComment = {
@@ -19,37 +18,34 @@ export type CardChat = {
 };
 
 export type CardIntro = {
-  description: string;
-  mediaItem: MediaItem;
+  title: string | null;
+  description: string | null;
+  mediaItem: MediaItem | null;
 };
 
-export type CardTemplateItem = {
-  itemId: string;
-  description: string;
-  mediaItem?: MediaItem;
+export type CardTemplateStep = {
+  stepId: string;
+  description: string | null;
+  mediaItem?: MediaItem | null;
 };
 
 export type CardTemplateSignal = {
   signalId: string;
-  title: string;
-  description: string;
-  order: SignalOrder;
-  targetValue: number;
-  minValue: number;
-  maxValue: number;
+  title: string | null;
+  order: SignalOrder | null;
+  minValue: number | null;
+  maxValue: number | null;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
-  unit: string;
-  dimension: SignalDimension;
+  unit: string | null;
 };
 
 export type CardTemplate = {
   cardId: string;
-  title: string;
-  subtitle: string;
+  label: string;
   suggestedTargetDate: string;
   intro: CardIntro;
-  items: CardTemplateItem[];
+  steps: CardTemplateStep[];
   signals: CardTemplateSignal[];
 };
 
@@ -95,35 +91,55 @@ export type UserDeckData = {
   updatedAt: string;
 };
 
-export type WeeklyCardItem = {
-  id: string;
-  description: string;
+export type ClientUserCardStepData = {
+  stepId: string;
   completionStatus: string;
-  mediaItem?: MediaItem;
+};
+
+export type ClientUserCardData = {
+  cardId: string;
+  targetDate: string;
+  steps: ClientUserCardStepData[];
+  signalReadings: UserCardSignalReading[];
+  reflection: string;
+  mediaItems: MediaItem[];
+  chats: CardChat[];
+};
+
+export type ClientUserDeckData = {
+  deckTemplateId: string;
+  activeCardId: string;
+  channels?: ChannelTemplate[];
+  cards: ClientUserCardData[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WeeklyCardStep = {
+  stepId: string;
+  description: string | null;
+  completionStatus: string;
+  mediaItem?: MediaItem | null;
 };
 
 export type WeeklyCardSignal = {
   id: string;
-  title: string;
-  description: string;
-  order: SignalOrder;
+  title: string | null;
+  order: SignalOrder | null;
   reading: number;
-  targetValue: number;
-  minValue: number;
-  maxValue: number;
+  minValue: number | null;
+  maxValue: number | null;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
-  unit: string;
-  dimension: SignalDimension;
+  unit: string | null;
 };
 
 export type WeeklyCard = {
   id: string;
-  title: string;
-  subtitle: string;
+  label: string;
   targetDate: string;
   intro: CardIntro;
-  items: WeeklyCardItem[];
+  steps: WeeklyCardStep[];
   signals: WeeklyCardSignal[];
   mediaItems: MediaItem[];
   chats: CardChat[];
@@ -134,6 +150,11 @@ export type Deck = {
   id: string;
   deckTemplateId: string;
   hasUserDeckData: boolean;
+  canMutate: boolean;
+  isOwnedByCurrentUser: boolean;
+  ownerUserId: string;
+  ownerUsername: string;
+  showOwnerTag: boolean;
   activeCardId: string;
   title: string;
   category: DeckCategory;

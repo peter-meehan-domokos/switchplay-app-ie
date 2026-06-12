@@ -4,8 +4,8 @@ import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThre
 import type { WeeklyCard } from "@/components/decks/types";
 
 type StepListProps = {
-  items: WeeklyCard["items"];
-  onCycleItemStatus?: (itemId: string) => void;
+  steps: WeeklyCard["steps"];
+  onCycleStepStatus?: (stepId: string) => void;
   onStepNavigateNext?: () => void;
   onStepNavigatePrevious?: () => void;
 };
@@ -60,12 +60,12 @@ function blockContentGesturePropagation(event: PointerEvent<HTMLOListElement>) {
 }
 
 export default function StepList({
-  items,
-  onCycleItemStatus,
+  steps,
+  onCycleStepStatus,
   onStepNavigateNext,
   onStepNavigatePrevious,
 }: StepListProps) {
-  const isInteractive = typeof onCycleItemStatus === "function";
+  const isInteractive = typeof onCycleStepStatus === "function";
   const stepGestureSessionRef = useRef<StepGestureSession | null>(null);
   const suppressNextClickRef = useRef(false);
 
@@ -233,8 +233,8 @@ export default function StepList({
       className="active-step-list"
       {...gestureShieldHandlers}
     >
-      {items.map((item, index) => (
-        <StepItem key={item.id} index={index} item={item} onCycleStatus={onCycleItemStatus} />
+      {steps.map((step, index) => (
+        <StepItem key={step.stepId} index={index} step={step} onCycleStatus={onCycleStepStatus} />
       ))}
     </ol>
   );

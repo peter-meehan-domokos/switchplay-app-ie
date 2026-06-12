@@ -48,7 +48,7 @@ function clampNormalized(value: number) {
 }
 
 function formatSignalMinLabel(signal: CardLayout["signals"][number]) {
-  return signal.isTheoreticalMin === true ? `${signal.minValue}` : `${signal.minValue}-`;
+  return signal.isTheoreticalMin === true ? `≤ ${signal.minValue}` : `${signal.minValue}-`;
 }
 
 function formatSignalMaxLabel(signal: CardLayout["signals"][number]) {
@@ -353,7 +353,10 @@ function FocusedSignalRow({
       event.preventDefault();
     }
 
-    releaseDragSession();
+    // End pointer ownership immediately, but keep preview when a signal commit
+    // is about to happen so the row does not momentarily fall back to stale
+    // signal.value before parent state updates propagate.
+    dragSessionRef.current = null;
 
     if (finalAxis === "vertical") {
       hideValueNow();
@@ -368,9 +371,11 @@ function FocusedSignalRow({
     }
 
     if (finalIntent === "signal") {
+      setPreviewNormalized(finalNormalized);
       onCommitSignalReading(cardId, signal.id, getFinalReadingFromNormalized(finalNormalized));
       showValueTemporarily();
     } else if (wasMoved) {
+      setPreviewNormalized(null);
       hideValueNow();
     }
   };

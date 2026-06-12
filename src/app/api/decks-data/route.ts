@@ -1,12 +1,35 @@
 import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
-import { createEmptyUserDeckDataFromTemplate } from "@/lib/deckData";
+import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
 import { getCurrentUser } from "@/lib/auth";
+import { getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
-import { deckTemplates } from "@/mocks/deckTemplates";
-import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 const USERS_COLLECTION = "users";
+
+function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckData {
+  const timestamp = new Date().toISOString();
+
+  return {
+    deckTemplateId: template.deckTemplateId,
+    activeCardId: template.cards[0]?.cardId ?? "",
+    channels: template.channels,
+    cards: template.cards.map((card) => ({
+      cardId: card.cardId,
+      targetDate: card.suggestedTargetDate,
+      items: card.steps.map((step) => ({
+        itemId: step.stepId,
+        completionStatus: "todo",
+      })),
+      signalReadings: [],
+      reflection: "",
+      mediaItems: [],
+      chats: [],
+    })),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
 
 export async function POST(request: Request) {
   try {
@@ -27,8 +50,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "deckTemplateId is required." }, { status: 400 });
     }
 
-    const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
-    const template = visibleDeckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
 
     if (!template) {
       return Response.json({ error: "Deck template not found." }, { status: 404 });
@@ -42,7 +64,7 @@ export async function POST(request: Request) {
 
     const users = await getCollection<UserDocument>(USERS_COLLECTION);
     const userObjectId = new ObjectId(user.id);
-    const deckDataToCreate = createEmptyUserDeckDataFromTemplate(template);
+    const deckDataToCreate = createServerUserDeckDataFromTemplate(template);
 
     const updateResult = await users.updateOne(
       {

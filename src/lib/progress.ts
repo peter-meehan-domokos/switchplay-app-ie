@@ -16,14 +16,14 @@ export function normalizeCompletionStatus(completionStatus: string): CompletionS
   return "todo";
 }
 
-export function getProgressPercentage(items: ProgressItem[]): number {
-  const includedItems = items.filter((item) => item.completionStatus !== "skipped");
+export function getProgressPercentage(steps: ProgressItem[]): number {
+  const includedSteps = steps.filter((step) => step.completionStatus !== "skipped");
 
-  if (!includedItems.length) return 0;
+  if (!includedSteps.length) return 0;
 
-  const completedCount = includedItems.filter(
-    (item) => item.completionStatus === "done"
+  const completedCount = includedSteps.filter(
+    (step) => step.completionStatus === "done"
   ).length;
 
-  return Math.round((completedCount / includedItems.length) * 100);
+  return Math.round((completedCount / includedSteps.length) * 100);
 }

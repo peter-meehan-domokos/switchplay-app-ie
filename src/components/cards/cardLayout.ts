@@ -3,7 +3,6 @@ import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSigna
 import type { MediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
 
-export type SignalDimension = "recovery" | "stability" | "adaptation" | "execution" | "reflection" | "connection";
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
 
@@ -29,18 +28,15 @@ export type CardLayoutExternalComment = {
 export type CardLayoutSignal = {
   id: string;
   title: string;
-  description: string;
   value: number;
   reading: number;
   variant: SignalVariant;
-  targetValue: number;
   minValue: number;
   maxValue: number;
   isTheoreticalMin?: boolean;
   isTheoreticalMax?: boolean;
-  unit: string;
+  unit: string | null;
   order: SignalOrder;
-  dimension: SignalDimension;
 };
 
 export type CardLayout = Omit<WeeklyCard, "signals"> & {
@@ -113,22 +109,8 @@ export function normalizedToReading(normalizedValue: number, minValue: number, m
   return lowerBound + orderedNormalizedValue * (upperBound - lowerBound);
 }
 
-function normalizeSignalOrder(order: string): SignalOrder {
+function normalizeSignalOrder(order: string | null): SignalOrder {
   return order === "decreasing" ? "decreasing" : "increasing";
-}
-
-function normalizeSignalDimension(dimension: string): SignalDimension {
-  if (
-    dimension === "recovery" ||
-    dimension === "stability" ||
-    dimension === "adaptation" ||
-    dimension === "reflection" ||
-    dimension === "connection"
-  ) {
-    return dimension;
-  }
-
-  return "execution";
 }
 
 export function getNormalizedSignalValue(reading: number, minValue: number, maxValue: number, order: SignalOrder) {
@@ -139,27 +121,24 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
   const order = normalizeSignalOrder(signal.order);
 
   // Keep reading precision for field position continuity; display rounding stays in UI.
-  const snappedMinValue = snapReadingToInteger(signal.minValue);
-  const snappedMaxValue = snapReadingToInteger(signal.maxValue);
+  const snappedMinValue = snapReadingToInteger(signal.minValue ?? 0);
+  const snappedMaxValue = snapReadingToInteger(signal.maxValue ?? snappedMinValue + 1);
   const { minValue, maxValue } = normalizeSignalRange(snappedMinValue, snappedMaxValue);
   const rawReading = Number.isFinite(signal.reading) ? signal.reading : minValue;
   const reading = clampReadingToSignalRange(rawReading, minValue, maxValue);
 
   return {
     id: signal.id,
-    title: signal.title,
-    description: signal.description,
+    title: signal.title ?? "Untitled signal",
     value: getNormalizedSignalValue(reading, minValue, maxValue, order),
     reading,
     variant: signalVariants[index] ?? "movement",
-    targetValue: signal.targetValue,
     minValue,
     maxValue,
     isTheoreticalMin: signal.isTheoreticalMin,
     isTheoreticalMax: signal.isTheoreticalMax,
     unit: signal.unit,
     order,
-    dimension: normalizeSignalDimension(signal.dimension),
   };
 }
 
@@ -201,7 +180,7 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
   const externalComment = normalizeExternalComment(card, options);
   const hasReflection = Boolean(card.reflection);
   const progressPercentage = getProgressPercentage(
-    card.items.map((item) => ({ completionStatus: item.completionStatus })),
+    card.steps.map((step) => ({ completionStatus: step.completionStatus })),
   );
   const ecologicalOccupancy =
     Number(Boolean(backMediaTrace)) +
@@ -226,7 +205,7 @@ export function withDerivedCardProgress(card: CardLayout): CardLayout {
   return {
     ...card,
     progressPercentage: getProgressPercentage(
-      card.items.map((item) => ({ completionStatus: item.completionStatus })),
+      card.steps.map((step) => ({ completionStatus: step.completionStatus })),
     ),
   };
 }

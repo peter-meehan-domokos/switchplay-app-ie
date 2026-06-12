@@ -1,9 +1,8 @@
 import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
+import { getDeckTemplateById, getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
-import { deckTemplates } from "@/mocks/deckTemplates";
-import { getVisibleDeckTemplatesForUser } from "@/mocks/templateAccess";
 
 type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 
@@ -133,14 +132,13 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
       return Response.json({ error: "activeCardId is required." }, { status: 400 });
     }
 
-    const templateById = deckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const templateById = await getDeckTemplateById(deckTemplateId);
 
     if (!templateById) {
       return Response.json({ error: "Invalid deckTemplateId." }, { status: 400 });
     }
 
-    const visibleDeckTemplates = getVisibleDeckTemplatesForUser(user.username, deckTemplates);
-    const template = visibleDeckTemplates.find((deckTemplate) => deckTemplate.deckTemplateId === deckTemplateId);
+    const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
 
     if (!template) {
       return Response.json({ error: "You do not have access to this deck template." }, { status: 403 });
@@ -230,6 +228,10 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
 
       if (!templateSignal) {
         return Response.json({ error: "signalId is not part of that card." }, { status: 400 });
+      }
+
+      if (templateSignal.minValue === null || templateSignal.maxValue === null) {
+        return Response.json({ error: "signal range is not configured for this signal." }, { status: 400 });
       }
 
       if (reading < templateSignal.minValue || reading > templateSignal.maxValue) {
@@ -436,7 +438,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         return Response.json({ error: "cardId is not part of this deck template." }, { status: 400 });
       }
 
-      const templateCardHasItem = templateCard.items.some((item) => item.itemId === itemId);
+      const templateCardHasItem = templateCard.steps.some((step) => step.stepId === itemId);
 
       if (!templateCardHasItem) {
         return Response.json({ error: "itemId is not part of that card." }, { status: 400 });

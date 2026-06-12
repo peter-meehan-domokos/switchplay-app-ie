@@ -96,7 +96,6 @@ type Signal = {
   order: "increasing" | "decreasing";
   startValue: number;
   endValue: number;
-  targetValue: number;
   unit: string;
 };
 

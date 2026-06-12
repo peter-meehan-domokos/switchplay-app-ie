@@ -26,7 +26,7 @@ type FocusedCardViewProps = {
   onClose: () => void;
   onPrevious: () => void;
   onNext: () => void;
-  onCycleItemStatus: (itemId: string) => void;
+  onCycleStepStatus: (stepId: string) => void;
   onAdjustTargetDate: (direction: -1 | 1) => void;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   traversalDirection: FocusedTraversalDirection;
@@ -135,7 +135,7 @@ export default function FocusedCardView({
   onClose,
   onPrevious,
   onNext,
-  onCycleItemStatus,
+  onCycleStepStatus,
   onAdjustTargetDate,
   onCommitSignalReading,
   traversalDirection,
@@ -295,7 +295,7 @@ export default function FocusedCardView({
                   card={card}
                   dateLabel={dateLabel}
                   variant="focused"
-                  onCycleItemStatus={onCycleItemStatus}
+                  onCycleStepStatus={onCycleStepStatus}
                   onAdjustTargetDate={onAdjustTargetDate}
                   onStepNavigateNext={settleFocusedCardToPast}
                   onStepNavigatePrevious={restoreFocusedCardFromPast}

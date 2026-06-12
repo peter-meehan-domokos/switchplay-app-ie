@@ -1,20 +1,20 @@
 import {
+  type ClientUserCardData,
+  type ClientUserDeckData,
   type Deck,
   type DeckTemplate,
-  type UserCardData,
-  type UserDeckData,
 } from "@/components/decks/types";
 
 function getFirstCardId(template: DeckTemplate) {
   return template.cards[0]?.cardId ?? "";
 }
 
-function createEmptyUserCardDataFromTemplate(templateCard: DeckTemplate["cards"][number]): UserCardData {
+function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["cards"][number]): ClientUserCardData {
   return {
     cardId: templateCard.cardId,
     targetDate: templateCard.suggestedTargetDate,
-    items: templateCard.items.map((item) => ({
-      itemId: item.itemId,
+    steps: templateCard.steps.map((step) => ({
+      stepId: step.stepId,
       completionStatus: "todo",
     })),
     signalReadings: [],
@@ -24,67 +24,66 @@ function createEmptyUserCardDataFromTemplate(templateCard: DeckTemplate["cards"]
   };
 }
 
-export function createEmptyUserDeckDataFromTemplate(template: DeckTemplate): UserDeckData {
-  const timestamp = new Date().toISOString();
-
-  return {
-    deckTemplateId: template.deckTemplateId,
-    activeCardId: getFirstCardId(template),
-    channels: template.channels,
-    cards: template.cards.map((templateCard) => createEmptyUserCardDataFromTemplate(templateCard)),
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-}
-
 function getDeckKey(userId: string, deckTemplateId: string) {
   return `${userId}:${deckTemplateId}`;
 }
 
 export function mergeDeckTemplatesWithUserData(
   templates: DeckTemplate[],
-  decksData: UserDeckData[],
+  decksData: ClientUserDeckData[],
   userId: string,
+  options?: {
+    canMutate?: boolean;
+    currentUserId?: string;
+    ownerUserId?: string;
+    ownerUsername?: string;
+    showOwnerTag?: boolean;
+  },
 ): Deck[] {
   const decksDataByTemplateId = new Map(decksData.map((deckData) => [deckData.deckTemplateId, deckData]));
+  const currentUserId = options?.currentUserId ?? userId;
+  const ownerUserId = options?.ownerUserId ?? userId;
 
   return templates.map((template) => {
     const matchedUserDeckData = decksDataByTemplateId.get(template.deckTemplateId);
-    const fallbackUserDeckData = createEmptyUserDeckDataFromTemplate(template);
+    const fallbackUserDeckData: ClientUserDeckData = {
+      deckTemplateId: template.deckTemplateId,
+      activeCardId: getFirstCardId(template),
+      channels: template.channels,
+      cards: template.cards.map((templateCard) => createEmptyClientUserCardDataFromTemplate(templateCard)),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
     const resolvedDeckData = matchedUserDeckData ?? fallbackUserDeckData;
     const cardDataById = new Map(resolvedDeckData.cards.map((cardData) => [cardData.cardId, cardData]));
 
     const cards = template.cards.map((templateCard) => {
-      const fallbackCardData = createEmptyUserCardDataFromTemplate(templateCard);
+      const fallbackCardData = createEmptyClientUserCardDataFromTemplate(templateCard);
       const cardData = cardDataById.get(templateCard.cardId) ?? fallbackCardData;
-      const itemStatusByItemId = new Map(cardData.items.map((item) => [item.itemId, item.completionStatus]));
       const signalReadingById = new Map(cardData.signalReadings.map((signal) => [signal.signalId, signal.reading]));
+      const stepStatusByStepId = new Map(cardData.steps.map((step) => [step.stepId, step.completionStatus]));
 
       return {
         id: templateCard.cardId,
-        title: templateCard.title,
-        subtitle: templateCard.subtitle,
+        label: templateCard.label,
         targetDate: cardData.targetDate || templateCard.suggestedTargetDate,
         intro: templateCard.intro,
-        items: templateCard.items.map((item) => ({
-          id: item.itemId,
-          description: item.description,
-          mediaItem: item.mediaItem,
-          completionStatus: itemStatusByItemId.get(item.itemId) ?? "todo",
+        steps: templateCard.steps.map((step) => ({
+          stepId: step.stepId,
+          description: step.description,
+          mediaItem: step.mediaItem,
+          completionStatus: stepStatusByStepId.get(step.stepId) ?? "todo",
         })),
         signals: templateCard.signals.map((signal) => ({
           id: signal.signalId,
           title: signal.title,
-          description: signal.description,
           order: signal.order,
-          reading: signalReadingById.get(signal.signalId) ?? signal.minValue,
-          targetValue: signal.targetValue,
+          reading: signalReadingById.get(signal.signalId) ?? signal.minValue ?? 0,
           minValue: signal.minValue,
           maxValue: signal.maxValue,
           isTheoreticalMin: signal.isTheoreticalMin,
           isTheoreticalMax: signal.isTheoreticalMax,
           unit: signal.unit,
-          dimension: signal.dimension,
         })),
         mediaItems: cardData.mediaItems,
         chats: cardData.chats,
@@ -96,6 +95,11 @@ export function mergeDeckTemplatesWithUserData(
       id: getDeckKey(userId, template.deckTemplateId),
       deckTemplateId: template.deckTemplateId,
       hasUserDeckData: Boolean(matchedUserDeckData),
+      canMutate: options?.canMutate ?? true,
+      isOwnedByCurrentUser: ownerUserId === currentUserId,
+      ownerUserId,
+      ownerUsername: options?.ownerUsername ?? "",
+      showOwnerTag: options?.showOwnerTag ?? false,
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,

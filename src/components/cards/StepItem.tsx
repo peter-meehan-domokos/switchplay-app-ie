@@ -1,4 +1,4 @@
-import type { WeeklyCardItem } from "@/components/decks/types";
+import type { WeeklyCardStep } from "@/components/decks/types";
 // Semantic gateway rollback: trace lane import paused for easy restoration.
 // import SemanticTraceLane from "@/components/cards/SemanticTraceLane";
 // Semantic gateway rollback: trace family import paused for easy restoration.
@@ -8,8 +8,8 @@ import { normalizeCompletionStatus } from "@/lib/progress";
 
 type StepItemProps = {
   index: number;
-  item: WeeklyCardItem;
-  onCycleStatus?: (itemId: string) => void;
+  step: WeeklyCardStep;
+  onCycleStatus?: (stepId: string) => void;
 };
 
 /*
@@ -31,8 +31,8 @@ type StepItemProps = {
  * }
  */
 
-export default function StepItem({ index, item, onCycleStatus }: StepItemProps) {
-  const completionStatus = normalizeCompletionStatus(item.completionStatus);
+export default function StepItem({ index, step, onCycleStatus }: StepItemProps) {
+  const completionStatus = normalizeCompletionStatus(step.completionStatus);
   /*
    * Semantic gateway rollback: mock trace selection paused for easy restoration.
    *
@@ -43,10 +43,10 @@ export default function StepItem({ index, item, onCycleStatus }: StepItemProps) 
     <li className="active-step-item">
       <span className="step-play-icon" aria-hidden="true" />
       <span className="step-copy">
-        <span className="step-description">{item.description}</span>
+        <span className="step-description">{step.description}</span>
         <StepProgressStrip
           completionStatus={completionStatus}
-          onCycleStatus={onCycleStatus ? () => onCycleStatus(item.id) : undefined}
+          onCycleStatus={onCycleStatus ? () => onCycleStatus(step.stepId) : undefined}
         />
         {/*
           Semantic gateway rollback: lane wrapper and trace rendering paused for easy restoration.
@@ -54,7 +54,7 @@ export default function StepItem({ index, item, onCycleStatus }: StepItemProps) 
           <span className={`step-semantic-lane step-semantic-lane--${semanticTrace.id}`}>
             <StepProgressStrip
               completionStatus={completionStatus}
-              onCycleStatus={onCycleStatus ? () => onCycleStatus(item.id) : undefined}
+              onCycleStatus={onCycleStatus ? () => onCycleStatus(step.stepId) : undefined}
             />
             <SemanticTraceLane families={semanticTrace.families} pattern={semanticTrace.id} />
           </span>

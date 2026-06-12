@@ -25,7 +25,8 @@ export default function DeckTile({ deck, isDisabled = false, isPreparing = false
       transition={transition}
       whileTap={{ scale: 0.98 }}
     >
-      <span className="category-chip">{deck.category}</span>
+      {deck.category ? <span className="category-chip">{deck.category}</span> : null}
+      {deck.showOwnerTag ? <span className="deck-owner-tag">{deck.ownerUsername}</span> : null}
 
       <motion.div className="tile-card-stack" layout>
         {deck.cards.slice(0, 3).map((card, index) => (
