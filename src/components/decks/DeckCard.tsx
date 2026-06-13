@@ -90,12 +90,12 @@ export default function DeckCard({
       {...gestureHandlers}
     >
       <motion.div
-        className="deck-card-object"
+        className="physical-card deck-card-object"
         initial={{ rotateY: deckFlipRotationY }}
         animate={{ rotateY: deckFlipRotationY }}
         transition={deckFlipTransition}
       >
-        <div className="physical-card deck-card-render-surface" style={renderSurfaceStyle}>
+        <div className="deck-card-render-surface" style={renderSurfaceStyle}>
           <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped}>
             <div className="deck-card-content">
               {stackZone === "active" || stackZone === "past" ? (
