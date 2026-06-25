@@ -1,6 +1,7 @@
 import type { WeeklyCard } from "@/components/decks/types";
 import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSignal";
 import type { MediaItem } from "@/lib/media";
+import { isImageMediaItem, isLegacyProviderlessVideoMediaItem, isVideoMediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
 import { clampSignalReading, roundSignalReadingForDisplay, signalReadingToNormalized } from "@/lib/signals";
 
@@ -75,12 +76,15 @@ function normalizeMediaItem(mediaItem: WeeklyCard["mediaItems"][number] | undefi
     return null;
   }
 
-  return {
-    id: mediaItem.id,
-    mediaType: mediaItem.mediaType === "video" ? "video" : "image",
-    description: mediaItem.description,
-    src: mediaItem.src,
-  };
+  if (isImageMediaItem(mediaItem) || isVideoMediaItem(mediaItem)) {
+    return mediaItem;
+  }
+
+  if (isLegacyProviderlessVideoMediaItem(mediaItem)) {
+    return null;
+  }
+
+  return null;
 }
 
 function getExternalCommentAuthor(comment: RawCardComment, users: LayoutUser[]) {

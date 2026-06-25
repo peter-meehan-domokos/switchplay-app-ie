@@ -48,9 +48,9 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const isSelectedDeckFlipped = selectedDeckFlipState?.isFlipped ?? false;
   const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
 
-  console.log("Rendering AppShell", {
-    decks
-  });
+  //console.log("Rendering AppShell", {
+    //decks
+  //});
 
   useEffect(() => {
     if (!pendingDeckOpenId) {

@@ -1,4 +1,10 @@
 import type { DeckTemplate } from "@/components/decks/types";
+import {
+  isCloudflareStreamVideoMediaItem,
+  isImageMediaItem,
+  isLegacyProviderlessVideoMediaItem,
+  isYouTubeVideoMediaItem,
+} from "@/lib/media";
 
 export type TemplateSaveValidationResult =
   | {
@@ -20,6 +26,35 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 
 function isStringOrNull(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
+}
+
+function validateMediaItemForSave(mediaItem: unknown, fieldPath: string): string | null {
+  if (mediaItem === undefined || mediaItem === null) {
+    return null;
+  }
+
+  if (!isPlainObject(mediaItem)) {
+    return `${fieldPath} must be an object or null.`;
+  }
+
+  if (isImageMediaItem(mediaItem) || isCloudflareStreamVideoMediaItem(mediaItem) || isYouTubeVideoMediaItem(mediaItem)) {
+    return null;
+  }
+
+  // Compatibility only: older persisted data may contain providerless video media.
+  if (isLegacyProviderlessVideoMediaItem(mediaItem)) {
+    return null;
+  }
+
+  if (mediaItem.mediaType === "image") {
+    return `${fieldPath} image media must include non-empty id, description, and src.`;
+  }
+
+  if (mediaItem.mediaType === "video") {
+    return `${fieldPath} video media must include provider, non-empty id, description, src, and assetId.`;
+  }
+
+  return `${fieldPath}.mediaType must be image or video.`;
 }
 
 export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidationResult {
@@ -68,9 +103,23 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
       return { ok: false, error: "Each card must have a steps array." };
     }
 
+    if (isPlainObject(card.intro)) {
+      const introMediaError = validateMediaItemForSave(card.intro.mediaItem, "card.intro.mediaItem");
+
+      if (introMediaError) {
+        return { ok: false, error: introMediaError };
+      }
+    }
+
     for (const step of card.steps) {
       if (!isPlainObject(step) || !hasNonEmptyString(step.stepId)) {
         return { ok: false, error: "Each step must have a stepId." };
+      }
+
+      const stepMediaError = validateMediaItemForSave(step.mediaItem, "step.mediaItem");
+
+      if (stepMediaError) {
+        return { ok: false, error: stepMediaError };
       }
     }
 
