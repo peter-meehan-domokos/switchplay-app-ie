@@ -19,15 +19,14 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, 
 import {
   appendCreatorCard,
   createCreatorDeckTemplateId,
-  createEmptySignal,
   creatorBoardToDeckTemplate,
   deleteCreatorCard,
   getCardColumns,
   getCreatorCellId,
-  getSignalDisplayText,
   getStepDisplayText,
+  getVideoDisplayText,
   isPairEmpty,
-  isSignalEmpty,
+  isStepMediaEmpty,
   isStepEmpty,
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
@@ -39,11 +38,9 @@ import {
   type ColumnId,
   type Pair,
   type PairId,
-  type SignalMaxSymbol,
-  type SignalMinSymbol,
 } from "@/components/creator/creatorBoardState";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
-import type { DeckTemplate, SignalOrder } from "@/components/decks/types";
+import type { DeckTemplate } from "@/components/decks/types";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -68,42 +65,13 @@ type DateEditSession = {
   value: string;
 };
 
-type SignalEditTarget = { type: "pair-signal"; pairId: PairId };
-
-type SignalEditSession = {
-  target: SignalEditTarget;
-  signalMax: number | null;
-  signalMaxSymbol: SignalMaxSymbol;
-  signalMin: number | null;
-  signalMinSymbol: SignalMinSymbol;
-  signalOrder: SignalOrder;
-  signalTitle: string | null;
-};
-
-type SignalEditValue = Omit<SignalEditSession, "target">;
 type DragType = "channel" | "pair";
-type CreatorSelectOption<TValue extends string> = {
-  label: string;
-  value: TValue;
-};
 
 type PublishStatus = "idle" | "publishing" | "success" | "error";
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
-const creatorSignalMinSymbolOptions: CreatorSelectOption<SignalMinSymbol>[] = [
-  { label: "exact", value: "none" },
-  { label: "≤", value: "<" },
-];
-const creatorSignalMaxSymbolOptions: CreatorSelectOption<SignalMaxSymbol>[] = [
-  { label: "exact", value: "none" },
-  { label: "+", value: "+" },
-];
-const creatorSignalOrderOptions: CreatorSelectOption<SignalOrder>[] = [
-  { label: "High scores are better", value: "increasing" },
-  { label: "Low scores are better", value: "decreasing" },
-];
 
 function createTemplateSnapshot(board: BoardState, deckTemplateId = board.deckTemplateId) {
   return JSON.stringify({
@@ -317,24 +285,6 @@ function getDateEditSession(board: BoardState, target: DateEditTarget): DateEdit
   return { label: "Target date", target, value: column.targetDate ?? "" };
 }
 
-function getSignalEditSession(board: BoardState, target: SignalEditTarget): SignalEditSession | null {
-  const pair = board.pairs[target.pairId];
-
-  if (!pair) {
-    return null;
-  }
-
-  return {
-    target,
-    signalMax: pair.signalMax,
-    signalMaxSymbol: pair.signalMaxSymbol,
-    signalMin: pair.signalMin,
-    signalMinSymbol: pair.signalMinSymbol,
-    signalOrder: pair.signalOrder,
-    signalTitle: pair.signalTitle,
-  };
-}
-
 function getEditTargetKey(target: EditTarget) {
   if (target.type === "deck-title") {
     return target.type;
@@ -427,7 +377,7 @@ function CreatorEditModal({
             {isDeleteConfirming ? (
               <>
                 <p className="creator-modal-delete-heading">Delete this card?</p>
-                <p className="creator-modal-delete-note">This will remove this card and steps/signals inside it.</p>
+                <p className="creator-modal-delete-note">This will remove this card and pairs inside it.</p>
                 <div className="creator-modal-delete-actions">
                   <button className="creator-modal-secondary" onClick={() => setIsDeleteConfirming(false)} type="button">
                     Keep Card
@@ -500,221 +450,14 @@ function CreatorDateEditModal({ session, onClose, onSave }: { session: DateEditS
   );
 }
 
-function CreatorSelect<TValue extends string>({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: TValue) => void;
-  options: CreatorSelectOption<TValue>[];
-  value: TValue;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [placement, setPlacement] = useState<"above" | "below">("below");
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const selectedOption = options.find((option) => option.value === value) ?? options[0];
-
-  function updatePlacement() {
-    const triggerRect = rootRef.current?.getBoundingClientRect();
-
-    if (!triggerRect) {
-      return;
-    }
-
-    const estimatedMenuHeight = Math.min(options.length, 6) * 44 + 8;
-    const spaceBelow = window.innerHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-
-    setPlacement(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? "above" : "below");
-  }
-
-  function openSelect() {
-    updatePlacement();
-    setIsOpen(true);
-  }
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    updatePlacement();
-
-    window.addEventListener("resize", updatePlacement);
-    window.addEventListener("orientationchange", updatePlacement);
-    window.addEventListener("scroll", updatePlacement, true);
-
-    return () => {
-      window.removeEventListener("resize", updatePlacement);
-      window.removeEventListener("orientationchange", updatePlacement);
-      window.removeEventListener("scroll", updatePlacement, true);
-    };
-  }, [isOpen, options.length]);
-
-  return (
-    <div
-      className="creator-select"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setIsOpen(false);
-        }
-      }}
-      ref={rootRef}
-    >
-      <button
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        className="creator-modal-select"
-        onClick={() => (isOpen ? setIsOpen(false) : openSelect())}
-        type="button"
-      >
-        <span>{selectedOption?.label ?? label}</span>
-        <span aria-hidden="true">⌄</span>
-      </button>
-      {isOpen ? (
-        <div className={`creator-select-menu creator-select-menu--${placement}`} role="listbox" aria-label={label}>
-          {options.map((option) => (
-            <button
-              aria-selected={option.value === value}
-              className="creator-select-option"
-              key={option.value}
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-              role="option"
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function CreatorSignalEditModal({
-  session,
-  onClose,
-  onSave,
-}: {
-  session: SignalEditSession;
-  onClose: () => void;
-  onSave: (value: SignalEditValue) => void;
-}) {
-  const [signalTitle, setSignalTitle] = useState(session.signalTitle);
-  const [signalMin, setSignalMin] = useState(session.signalMin === null ? "" : String(session.signalMin));
-  const [signalMax, setSignalMax] = useState(session.signalMax === null ? "" : String(session.signalMax));
-  const [signalMinSymbol, setSignalMinSymbol] = useState<SignalMinSymbol>(session.signalMinSymbol);
-  const [signalMaxSymbol, setSignalMaxSymbol] = useState<SignalMaxSymbol>(session.signalMaxSymbol);
-  const [signalOrder, setSignalOrder] = useState<SignalOrder>(session.signalOrder);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const parsedMin = signalMin.trim() === "" ? null : Number(signalMin);
-  const parsedMax = signalMax.trim() === "" ? null : Number(signalMax);
-  const hasInvalidNumber = (signalMin.trim() !== "" && Number.isNaN(parsedMin)) || (signalMax.trim() !== "" && Number.isNaN(parsedMax));
-  const hasInvertedRange = parsedMin !== null && parsedMax !== null && !Number.isNaN(parsedMin) && !Number.isNaN(parsedMax) && parsedMax < parsedMin;
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (hasInvalidNumber) {
-      setErrorMessage("Min and max must be numbers.");
-      return;
-    }
-
-    onSave({
-      signalMax: parsedMax,
-      signalMaxSymbol,
-      signalMin: parsedMin,
-      signalMinSymbol,
-      signalOrder,
-      signalTitle: signalTitle ?? "",
-    });
-  }
-
-  return (
-    <div className="creator-modal-backdrop" role="presentation">
-      <form className="creator-modal creator-modal--signal-settings" onSubmit={handleSubmit}>
-        <header className="creator-modal-header">
-          <p>Signal settings</p>
-          <button className="creator-modal-close" onClick={onClose} type="button">
-            Close
-          </button>
-        </header>
-
-        <label className="creator-modal-label">
-          Signal title
-          <input autoFocus className="creator-modal-text-input" onChange={(event) => setSignalTitle(event.target.value)} type="text" value={signalTitle ?? ""} />
-        </label>
-
-        <div className="creator-signal-settings-grid">
-          <label className="creator-modal-label">
-            Min value
-            <input
-              className="creator-modal-text-input"
-              onChange={(event) => {
-                setSignalMin(event.target.value);
-                setErrorMessage(null);
-              }}
-              type="number"
-              value={signalMin}
-            />
-          </label>
-          <label className="creator-modal-label">
-            Max value
-            <input
-              className="creator-modal-text-input"
-              onChange={(event) => {
-                setSignalMax(event.target.value);
-                setErrorMessage(null);
-              }}
-              type="number"
-              value={signalMax}
-            />
-          </label>
-          <label className="creator-modal-label">
-            Lower bound
-            <CreatorSelect label="Lower bound" onChange={setSignalMinSymbol} options={creatorSignalMinSymbolOptions} value={signalMinSymbol} />
-          </label>
-          <label className="creator-modal-label">
-            Upper bound
-            <CreatorSelect label="Upper bound" onChange={setSignalMaxSymbol} options={creatorSignalMaxSymbolOptions} value={signalMaxSymbol} />
-          </label>
-          <label className="creator-modal-label creator-signal-order-field">
-            Score direction
-            <CreatorSelect label="Score direction" onChange={setSignalOrder} options={creatorSignalOrderOptions} value={signalOrder} />
-          </label>
-        </div>
-
-        {hasInvertedRange ? <p className="creator-modal-counter creator-modal-counter--warning">Max is less than min. You can save, but the range may read oddly.</p> : null}
-        {errorMessage ? <p className="creator-modal-error">{errorMessage}</p> : null}
-
-        <div className="creator-modal-actions">
-          <button className="creator-modal-secondary" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="creator-modal-primary" type="submit">
-            Save
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function PairBlock({
   pair,
   isDragging = false,
   onEdit,
-  onSignalEdit,
 }: {
   pair: Pair;
   isDragging?: boolean;
   onEdit: (target: EditTarget) => void;
-  onSignalEdit: (target: SignalEditTarget) => void;
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
@@ -723,7 +466,7 @@ function PairBlock({
   });
   const isEmptyPair = isPairEmpty(pair);
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
-  const signalClassName = `creator-editable creator-pair-signal${isSignalEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const videoClassName = `creator-pair-signal${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
 
   return (
@@ -745,9 +488,7 @@ function PairBlock({
           <DragHandleMark />
         </button>
       </div>
-      <button className={signalClassName} onClick={() => onSignalEdit({ type: "pair-signal", pairId: pair.id })} type="button">
-        {getSignalDisplayText(pair)}
-      </button>
+      <div className={videoClassName}>{getVideoDisplayText(pair)}</div>
     </div>
   );
 }
@@ -766,7 +507,7 @@ function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "channe
 
 function PairPreview({ pair }: { pair: Pair }) {
   const stepClassName = `creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
-  const signalClassName = `creator-pair-signal${isSignalEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const videoClassName = `creator-pair-signal${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
 
   return (
     <div className="creator-pair creator-pair--preview">
@@ -776,7 +517,7 @@ function PairPreview({ pair }: { pair: Pair }) {
           <DragHandleMark />
         </span>
       </div>
-      <div className={signalClassName}>{getSignalDisplayText(pair)}</div>
+      <div className={videoClassName}>{getVideoDisplayText(pair)}</div>
     </div>
   );
 }
@@ -844,7 +585,6 @@ function BoardCell({
   cellId,
   channelName,
   onEdit,
-  onSignalEdit,
   pair,
   row,
 }: {
@@ -855,7 +595,6 @@ function BoardCell({
   cellId: CellId;
   channelName?: string;
   onEdit: (target: EditTarget) => void;
-  onSignalEdit: (target: SignalEditTarget) => void;
   pair?: Pair;
   row: number;
 }) {
@@ -878,7 +617,7 @@ function BoardCell({
     >
       {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
       {pair ? (
-        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} onSignalEdit={onSignalEdit} />
+        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} />
       ) : isLocked ? (
         <ChannelRow channelName={channelName} isDragging={activeChannelRow === row} onEdit={onEdit} row={row} />
       ) : (
@@ -913,7 +652,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [publishMessage, setPublishMessage] = useState("");
   const [publishStatus, setPublishStatus] = useState<PublishStatus>("idle");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
-  const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -1212,14 +950,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     }
   }
 
-  function openSignalEdit(target: SignalEditTarget) {
-    const nextSignalEditSession = getSignalEditSession(board, target);
-
-    if (nextSignalEditSession) {
-      setSignalEditSession(nextSignalEditSession);
-    }
-  }
-
   function saveEdit(value: string) {
     if (!editSession) {
       return;
@@ -1290,42 +1020,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, targetDate: value } : column)),
     }));
     setDateEditSession(null);
-  }
-
-  function saveSignalEdit(value: SignalEditValue) {
-    if (!signalEditSession) {
-      return;
-    }
-
-    const target = signalEditSession.target;
-
-    setBoard((currentBoard) => {
-      const pair = currentBoard.pairs[target.pairId];
-
-      if (!pair) {
-        return currentBoard;
-      }
-
-      return {
-        ...currentBoard,
-        pairs: {
-          ...currentBoard.pairs,
-          [target.pairId]: {
-            ...pair,
-            ...(isSignalEmpty(value.signalTitle)
-              ? {
-                  ...createEmptySignal(),
-                  signalOrder: value.signalOrder,
-                }
-              : {
-                  ...value,
-                  signalTitle: value.signalTitle,
-                }),
-          },
-        },
-      };
-    });
-    setSignalEditSession(null);
   }
 
   function handlePanPointerDown(event: PointerEvent<HTMLElement>) {
@@ -1511,7 +1205,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
                           channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
                           key={cellId}
                           onEdit={openEdit}
-                          onSignalEdit={openSignalEdit}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
                           row={row}
                         />
@@ -1543,7 +1236,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
         />
       ) : null}
       {dateEditSession ? <CreatorDateEditModal session={dateEditSession} onClose={() => setDateEditSession(null)} onSave={saveDateEdit} /> : null}
-      {signalEditSession ? <CreatorSignalEditModal session={signalEditSession} onClose={() => setSignalEditSession(null)} onSave={saveSignalEdit} /> : null}
     </main>
   );
 }

@@ -1,4 +1,4 @@
-import type { DeckTemplate, SignalOrder } from "@/components/decks/types";
+import type { DeckTemplate } from "@/components/decks/types";
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import type { MediaItem } from "@/lib/media";
 
@@ -7,8 +7,6 @@ export type ColumnId = "channels" | CardColumnId;
 export type PairId = string;
 export type CellId = `${ColumnId}:${number}`;
 export type CellKind = "empty" | "pair" | "locked";
-export type SignalMinSymbol = "none" | "<";
-export type SignalMaxSymbol = "none" | "+";
 
 export type Column = {
   id: ColumnId;
@@ -30,32 +28,16 @@ export type CellState = {
 
 export type Pair = {
   id: PairId;
-  signalId: string;
-  signalMax: number | null;
-  signalMaxSymbol: SignalMaxSymbol;
-  signalMin: number | null;
-  signalMinSymbol: SignalMinSymbol;
-  signalOrder: SignalOrder;
-  signalTitle: string | null;
-  signalUnit: string | null;
   stepId: string;
   stepMediaItem: MediaItem | null;
   stepText: string | null;
 };
 
 export const STEP_PLACEHOLDER_TEXT = "Describe the step";
-export const SIGNAL_PLACEHOLDER_TEXT = "Progress signal";
-
-const DEFAULT_EMPTY_SIGNAL_SETTINGS = {
-  signalMax: 10,
-  signalMaxSymbol: "none",
-  signalMin: 1,
-  signalMinSymbol: "none",
-} as const satisfies Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol">;
-const DEFAULT_SIGNAL_ORDER = "increasing" satisfies SignalOrder;
+export const VIDEO_PLACEHOLDER_TEXT = "Video placeholder";
 
 type StepEmptyInput = Pick<Pair, "stepText"> | string | null;
-type SignalEmptyInput = Pick<Pair, "signalTitle"> | string | null;
+type StepMediaEmptyInput = Pick<Pair, "stepMediaItem"> | MediaItem | null;
 
 function createCreatorId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -71,39 +53,30 @@ export function isStepEmpty(pairOrStepText: StepEmptyInput) {
   return stepText === null || stepText.trim() === "";
 }
 
-export function isSignalEmpty(pairOrSignalTitle: SignalEmptyInput) {
-  const signalTitle = typeof pairOrSignalTitle === "string" || pairOrSignalTitle === null ? pairOrSignalTitle : pairOrSignalTitle.signalTitle;
+export function isStepMediaEmpty(pairOrStepMediaItem: StepMediaEmptyInput) {
+  const stepMediaItem =
+    pairOrStepMediaItem === null || "mediaType" in pairOrStepMediaItem
+      ? pairOrStepMediaItem
+      : pairOrStepMediaItem.stepMediaItem;
 
-  return signalTitle === null || signalTitle.trim() === "";
+  return stepMediaItem === null;
 }
 
 export function isPairEmpty(pair: Pair) {
-  return isStepEmpty(pair) && isSignalEmpty(pair);
+  return isStepEmpty(pair) && isStepMediaEmpty(pair);
 }
 
 export function getStepDisplayText(pair: Pair) {
   return isStepEmpty(pair) ? STEP_PLACEHOLDER_TEXT : pair.stepText;
 }
 
-export function getSignalDisplayText(pair: Pair) {
-  return isSignalEmpty(pair) ? SIGNAL_PLACEHOLDER_TEXT : pair.signalTitle;
+export function getVideoDisplayText(pair: Pair) {
+  return isStepMediaEmpty(pair) ? VIDEO_PLACEHOLDER_TEXT : pair.stepMediaItem?.description ?? VIDEO_PLACEHOLDER_TEXT;
 }
 
-export function createEmptySignal(): Pick<Pair, "signalMax" | "signalMaxSymbol" | "signalMin" | "signalMinSymbol" | "signalTitle" | "signalUnit"> {
-  return {
-    ...DEFAULT_EMPTY_SIGNAL_SETTINGS,
-    signalTitle: null,
-    signalUnit: null,
-  };
-}
-
-export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step"), signalId = createCreatorId("signal")): Pair {
+export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step")): Pair {
   return {
     id: pairId,
-    signalId,
-    ...createEmptySignal(),
-    signalOrder: DEFAULT_SIGNAL_ORDER,
-    signalUnit: null,
     stepId,
     stepMediaItem: null,
     stepText: null,
@@ -111,7 +84,7 @@ export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step")
 }
 
 export function clearPair(pair: Pair): Pair {
-  return createEmptyPair(pair.id, pair.stepId, pair.signalId);
+  return createEmptyPair(pair.id, pair.stepId);
 }
 
 export type BoardState = {
@@ -574,21 +547,13 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
 
     for (const row of rows) {
       const step = card?.steps[row];
-      const signal = card?.signals?.[row];
-      const pairId = step && signal ? `${step.stepId}:${signal.signalId}` : createCreatorId("pair");
-      const emptyPair = createEmptyPair(pairId, step?.stepId, signal?.signalId);
+      const pairId = step ? step.stepId : createCreatorId("pair");
+      const emptyPair = createEmptyPair(pairId, step?.stepId);
 
       nextPairs[pairId] =
-        step && signal
+        step
           ? {
               ...emptyPair,
-              signalMax: signal.maxValue,
-              signalMaxSymbol: signal.isTheoreticalMax ? "+" : "none",
-              signalMin: signal.minValue,
-              signalMinSymbol: signal.isTheoreticalMin ? "<" : "none",
-              signalOrder: signal.order ?? DEFAULT_SIGNAL_ORDER,
-              signalTitle: signal.title,
-              signalUnit: signal.unit,
               stepMediaItem: step.mediaItem ?? null,
               stepText: step.description,
             }
