@@ -749,7 +749,7 @@ input {
 
 .creator-pair {
   display: grid;
-  grid-template-rows: minmax(var(--creator-pair-step-min-height), var(--creator-pair-step-track)) var(--creator-pair-handle-area-height) minmax(0, var(--creator-pair-signal-track));
+  grid-template-rows: minmax(var(--creator-pair-step-min-height), var(--creator-pair-step-track)) var(--creator-pair-handle-area-height) minmax(0, var(--creator-pair-media-track));
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -780,7 +780,7 @@ input {
 }
 
 .creator-pair-step,
-.creator-pair-signal {
+.creator-pair-media {
   overflow: hidden;
   min-height: 0;
   padding: var(--creator-pair-text-padding);
@@ -800,7 +800,7 @@ input {
   white-space: normal;
 }
 
-.creator-pair-signal {
+.creator-pair-media {
   align-self: start;
   display: block;
   width: 100%;
@@ -841,7 +841,7 @@ input {
 }
 
 .creator-pair--dragging .creator-pair-step,
-.creator-pair--dragging .creator-pair-signal {
+.creator-pair--dragging .creator-pair-media {
   visibility: hidden;
 }
 

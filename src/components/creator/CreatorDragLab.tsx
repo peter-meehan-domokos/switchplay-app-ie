@@ -24,7 +24,7 @@ import {
   getCardColumns,
   getCreatorCellId,
   getStepDisplayText,
-  getVideoDisplayText,
+  getStepMediaDisplayText,
   isPairEmpty,
   isStepMediaEmpty,
   isStepEmpty,
@@ -466,7 +466,7 @@ function PairBlock({
   });
   const isEmptyPair = isPairEmpty(pair);
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
-  const videoClassName = `creator-pair-signal${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
 
   return (
@@ -488,7 +488,7 @@ function PairBlock({
           <DragHandleMark />
         </button>
       </div>
-      <div className={videoClassName}>{getVideoDisplayText(pair)}</div>
+      <div className={mediaClassName}>{getStepMediaDisplayText(pair)}</div>
     </div>
   );
 }
@@ -507,7 +507,7 @@ function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "channe
 
 function PairPreview({ pair }: { pair: Pair }) {
   const stepClassName = `creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
-  const videoClassName = `creator-pair-signal${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
 
   return (
     <div className="creator-pair creator-pair--preview">
@@ -517,7 +517,7 @@ function PairPreview({ pair }: { pair: Pair }) {
           <DragHandleMark />
         </span>
       </div>
-      <div className={videoClassName}>{getVideoDisplayText(pair)}</div>
+      <div className={mediaClassName}>{getStepMediaDisplayText(pair)}</div>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export function getStepDisplayText(pair: Pair) {
   return isStepEmpty(pair) ? STEP_PLACEHOLDER_TEXT : pair.stepText;
 }
 
-export function getVideoDisplayText(pair: Pair) {
+export function getStepMediaDisplayText(pair: Pair) {
   return isStepMediaEmpty(pair) ? VIDEO_PLACEHOLDER_TEXT : pair.stepMediaItem?.description ?? VIDEO_PLACEHOLDER_TEXT;
 }
 
