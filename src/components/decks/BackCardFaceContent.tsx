@@ -1,9 +1,4 @@
-import {
-  clampReadingToSignalRange,
-  normalizedToReading,
-  snapReadingToInteger,
-  type CardLayout,
-} from "@/components/cards/cardLayout";
+import { snapReadingToInteger, type CardLayout } from "@/components/cards/cardLayout";
 import {
   useCallback,
   useEffect,
@@ -25,6 +20,7 @@ import PulseFieldSignal, {
   SIGNAL_FIELD_VIEWBOX_WIDTH,
   SIGNAL_FIELD_WIDTH,
 } from "@/components/decks/PulseFieldSignal";
+import { clampSignalReading, normalizedToSignalReading, roundSignalReadingForStorage, SIGNAL_MAX, SIGNAL_MIN } from "@/lib/signals";
 
 const SIGNAL_VALUE_VISIBILITY_MS = 3000;
 const SIGNAL_DRAG_THRESHOLD_PX = 8;
@@ -47,24 +43,16 @@ function clampNormalized(value: number) {
   return Math.min(Math.max(value, 0), 1);
 }
 
-function formatSignalMinLabel(signal: CardLayout["signals"][number]) {
-  return signal.isTheoreticalMin === true ? `≤ ${signal.minValue}` : `${signal.minValue}-`;
-}
-
-function formatSignalMaxLabel(signal: CardLayout["signals"][number]) {
-  return signal.isTheoreticalMax === true ? `${signal.maxValue}` : `${signal.maxValue}+`;
-}
-
 function formatDisplayedSignalReading(signal: CardLayout["signals"][number], displayedReading: number) {
-  if (displayedReading === signal.minValue) {
-    return formatSignalMinLabel(signal);
+  if (displayedReading === SIGNAL_MIN) {
+    return "Hang in there";
   }
 
-  if (displayedReading === signal.maxValue) {
-    return formatSignalMaxLabel(signal);
+  if (displayedReading === SIGNAL_MAX) {
+    return "That's great!";
   }
 
-  return `${displayedReading}`;
+  return "";
 }
 
 function getSignalGestureAxis(deltaX: number, deltaY: number): "horizontal" | "vertical" | null {
@@ -124,7 +112,7 @@ function PassiveSignalRow({ signal }: { signal: CardLayout["signals"][number] })
 
   return (
     <div className="focused-card-signal-slot">
-      <p>{signal.title}</p>
+      <p>{signal.channelTitle}</p>
       <div
         className="focused-card-signal-track"
         style={{ "--signal-value-position": getSignalValuePositionPercent(signal.value) } as CSSProperties}
@@ -202,10 +190,10 @@ function FocusedSignalRow({
 
   const effectiveNormalized = clampNormalized(previewNormalized ?? signal.value);
   const displayedReading = useMemo(() => {
-    const reading = normalizedToReading(effectiveNormalized, signal.minValue, signal.maxValue, signal.order);
+    const reading = normalizedToSignalReading(effectiveNormalized);
 
-    return clampReadingToSignalRange(snapReadingToInteger(reading), signal.minValue, signal.maxValue);
-  }, [effectiveNormalized, signal.maxValue, signal.minValue, signal.order]);
+    return clampSignalReading(snapReadingToInteger(reading));
+  }, [effectiveNormalized]);
   const displayedReadingLabel = useMemo(
     () => formatDisplayedSignalReading(signal, displayedReading),
     [displayedReading, signal]
@@ -219,12 +207,11 @@ function FocusedSignalRow({
 
   const getFinalReadingFromNormalized = useCallback(
     (normalizedValue: number) => {
-      const reading = normalizedToReading(normalizedValue, signal.minValue, signal.maxValue, signal.order);
-      const clampedReading = clampReadingToSignalRange(reading, signal.minValue, signal.maxValue);
+      const reading = normalizedToSignalReading(normalizedValue);
 
-      return Number(clampedReading.toFixed(2));
+      return roundSignalReadingForStorage(reading);
     },
-    [signal.maxValue, signal.minValue, signal.order]
+    []
   );
 
   // Focused signal rows own signal-start gestures so mobile pointer capture
@@ -437,7 +424,7 @@ function FocusedSignalRow({
       className={signalRowClassName}
       role="button"
       tabIndex={0}
-      aria-label={`Show ${signal.title} value`}
+      aria-label={`Adjust ${signal.channelTitle} reading`}
       onPointerDown={handleRowPointerDown}
       onPointerMove={handleRowPointerMove}
       onPointerUp={finishRowPointerInteraction}
@@ -446,7 +433,7 @@ function FocusedSignalRow({
       onClick={handleRowClick}
       onKeyDown={handleRowKeyDown}
     >
-      <p>{signal.title}</p>
+      <p>{signal.channelTitle}</p>
       <div
         ref={signalTrackRef}
         className="focused-card-signal-track"

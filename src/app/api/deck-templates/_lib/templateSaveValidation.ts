@@ -74,11 +74,11 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
       }
     }
 
-    if (!Array.isArray(card.signals)) {
-      return { ok: false, error: "Each card must have a signals array." };
+    if (card.signals !== undefined && !Array.isArray(card.signals)) {
+      return { ok: false, error: "card.signals must be an array when provided." };
     }
 
-    for (const signal of card.signals) {
+    for (const signal of card.signals ?? []) {
       if (!isPlainObject(signal) || !hasNonEmptyString(signal.signalId)) {
         return { ok: false, error: "Each signal must have a signalId." };
       }

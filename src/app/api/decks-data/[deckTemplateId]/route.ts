@@ -3,6 +3,7 @@ import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { getDeckTemplateById, getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
+import { IMPLICIT_SIGNAL_IDS, SIGNAL_MAX, SIGNAL_MIN } from "@/lib/signals";
 
 type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 
@@ -224,19 +225,16 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         return Response.json({ error: "cardId is not part of this deck template." }, { status: 400 });
       }
 
-      const templateSignal = templateCard.signals.find((signal) => signal.signalId === signalId);
+      const isImplicitSignalId = IMPLICIT_SIGNAL_IDS.includes(signalId as (typeof IMPLICIT_SIGNAL_IDS)[number]);
+      const templateSignal = templateCard.signals?.find((signal) => signal.signalId === signalId);
 
-      if (!templateSignal) {
+      if (!isImplicitSignalId && !templateSignal) {
         return Response.json({ error: "signalId is not part of that card." }, { status: 400 });
       }
 
-      if (templateSignal.minValue === null || templateSignal.maxValue === null) {
-        return Response.json({ error: "signal range is not configured for this signal." }, { status: 400 });
-      }
-
-      if (reading < templateSignal.minValue || reading > templateSignal.maxValue) {
+      if (reading < SIGNAL_MIN || reading > SIGNAL_MAX) {
         return Response.json(
-          { error: `reading must be between ${templateSignal.minValue} and ${templateSignal.maxValue} for this signal.` },
+          { error: `reading must be between ${SIGNAL_MIN} and ${SIGNAL_MAX} for this signal.` },
           { status: 400 },
         );
       }

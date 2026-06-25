@@ -1,4 +1,5 @@
 import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
+import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 export type ReconcileDeckDataInput = {
   oldTemplate: DeckTemplate;
@@ -15,11 +16,18 @@ function createFreshCardData(templateCard: DeckTemplate["cards"][number]): UserD
       itemId: step.stepId,
       completionStatus: "todo",
     })),
-    signalReadings: [],
+    signalReadings: createDefaultSignalReadings(),
     reflection: "",
     mediaItems: [],
     chats: [],
   };
+}
+
+function createDefaultSignalReadings() {
+  return IMPLICIT_SIGNAL_IDS.map((signalId) => ({
+    signalId,
+    reading: DEFAULT_SIGNAL_READING,
+  }));
 }
 
 export function reconcileDeckDataWithTemplate({
@@ -33,10 +41,8 @@ export function reconcileDeckDataWithTemplate({
   const newTemplateHasActiveCard = newTemplate.cards.some((card) => card.cardId === existingDeckData.activeCardId);
 
   return {
-    ...existingDeckData,
     deckTemplateId: outputDeckTemplateId,
     activeCardId: newTemplateHasActiveCard ? existingDeckData.activeCardId : newTemplate.cards[0]?.cardId ?? "",
-    channels: newTemplate.channels,
     cards: newTemplate.cards.map((newCard) => {
       const oldCard = oldCardsById.get(newCard.cardId);
       const existingCard = existingCardsById.get(newCard.cardId);
@@ -47,7 +53,6 @@ export function reconcileDeckDataWithTemplate({
 
       const oldStepsById = new Map(oldCard.steps.map((step) => [step.stepId, step]));
       const existingItemsById = new Map(existingCard.items.map((item) => [item.itemId, item]));
-      const oldSignalsById = new Map(oldCard.signals.map((signal) => [signal.signalId, signal]));
       const existingSignalReadingsById = new Map(existingCard.signalReadings.map((reading) => [reading.signalId, reading]));
 
       return {
@@ -63,26 +68,28 @@ export function reconcileDeckDataWithTemplate({
             completionStatus: existingItem && canPreserveCompletionStatus ? existingItem.completionStatus : "todo",
           };
         }),
-        signalReadings: newCard.signals.flatMap((newSignal) => {
-          const oldSignal = oldSignalsById.get(newSignal.signalId);
-          const existingReading = existingSignalReadingsById.get(newSignal.signalId);
+        signalReadings: IMPLICIT_SIGNAL_IDS.map((signalId, signalIndex) => {
+          const existingFixedReading = existingSignalReadingsById.get(signalId);
+          const legacySignal = oldCard.signals?.[signalIndex];
+          const existingLegacyReading = legacySignal ? existingSignalReadingsById.get(legacySignal.signalId) : undefined;
+          const reading =
+            existingFixedReading !== undefined
+              ? clampSignalReading(existingFixedReading.reading)
+              : existingLegacyReading !== undefined
+                ? clampSignalReading(existingLegacyReading.reading)
+                : DEFAULT_SIGNAL_READING;
 
-          if (!oldSignal || !existingReading) {
-            return [];
-          }
-
-          const canPreserveReading =
-            oldSignal.title === newSignal.title &&
-            oldSignal.order === newSignal.order &&
-            oldSignal.minValue === newSignal.minValue &&
-            oldSignal.maxValue === newSignal.maxValue;
-
-          return canPreserveReading ? [existingReading] : [];
+          return {
+            signalId,
+            reading,
+          };
         }),
         reflection: existingCard.reflection,
         mediaItems: existingCard.mediaItems,
         chats: existingCard.chats,
       };
     }),
+    createdAt: existingDeckData.createdAt,
+    updatedAt: existingDeckData.updatedAt,
   };
 }

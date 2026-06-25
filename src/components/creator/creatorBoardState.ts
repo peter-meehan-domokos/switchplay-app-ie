@@ -445,22 +445,6 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
             mediaItem: pair?.stepMediaItem ?? null,
           };
         }),
-        signals: board.rows.map((row) => {
-          const pair = getPairForTemplateSlot(board, column.id, row);
-          const signalMin = pair?.signalMin ?? null;
-          const signalMax = pair?.signalMax ?? null;
-
-          return {
-            signalId: pair?.signalId ?? `${column.cardId ?? column.id}-signal-${row + 1}`,
-            title: normalizeCreatorText(pair?.signalTitle),
-            order: pair?.signalOrder ?? DEFAULT_SIGNAL_ORDER,
-            minValue: signalMin,
-            maxValue: signalMax,
-            isTheoreticalMin: pair?.signalMinSymbol === "none",
-            isTheoreticalMax: pair?.signalMaxSymbol === "none",
-            unit: pair?.signalUnit ?? null,
-          };
-        }),
       };
     }),
   };
@@ -590,7 +574,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
 
     for (const row of rows) {
       const step = card?.steps[row];
-      const signal = card?.signals[row];
+      const signal = card?.signals?.[row];
       const pairId = step && signal ? `${step.stepId}:${signal.signalId}` : createCreatorId("pair");
       const emptyPair = createEmptyPair(pairId, step?.stepId, signal?.signalId);
 

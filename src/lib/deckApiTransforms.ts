@@ -21,23 +21,33 @@ function normalizeClientStepsToServerItems(clientSteps: ClientUserCardData["step
 }
 
 export function serverDeckDataItemsToClientDeckDataSteps(serverDeckData: UserDeckData[]): ClientUserDeckData[] {
-  return serverDeckData.map((deckData) => ({
-    ...deckData,
-    cards: deckData.cards.map((card) => ({
-      ...card,
-      steps: normalizeServerItemsToClientSteps(card.items),
-    })),
-  }));
+  return serverDeckData.map((deckData) => {
+    const deckDataWithoutChannels = { ...deckData } as UserDeckData & { channels?: unknown };
+    delete deckDataWithoutChannels.channels;
+
+    return {
+      ...deckDataWithoutChannels,
+      cards: deckData.cards.map((card) => ({
+        ...card,
+        steps: normalizeServerItemsToClientSteps(card.items),
+      })),
+    };
+  });
 }
 
 export function clientDeckDataStepsToServerDeckDataItems(clientDeckData: ClientUserDeckData[]): UserDeckData[] {
-  return clientDeckData.map((deckData) => ({
-    ...deckData,
-    cards: deckData.cards.map((card) => ({
-      ...card,
-      items: normalizeClientStepsToServerItems(card.steps),
-    })),
-  }));
+  return clientDeckData.map((deckData) => {
+    const deckDataWithoutChannels = { ...deckData } as ClientUserDeckData & { channels?: unknown };
+    delete deckDataWithoutChannels.channels;
+
+    return {
+      ...deckDataWithoutChannels,
+      cards: deckData.cards.map((card) => ({
+        ...card,
+        items: normalizeClientStepsToServerItems(card.steps),
+      })),
+    };
+  });
 }
 
 export function clientStepCompletionToServerItemCompletion(input: {

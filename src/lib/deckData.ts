@@ -4,6 +4,7 @@ import {
   type Deck,
   type DeckTemplate,
 } from "@/components/decks/types";
+import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 function getFirstCardId(template: DeckTemplate) {
   return template.cards[0]?.cardId ?? "";
@@ -17,7 +18,10 @@ function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["c
       stepId: step.stepId,
       completionStatus: "todo",
     })),
-    signalReadings: [],
+    signalReadings: IMPLICIT_SIGNAL_IDS.map((signalId) => ({
+      signalId,
+      reading: DEFAULT_SIGNAL_READING,
+    })),
     reflection: "",
     mediaItems: [],
     chats: [],
@@ -26,6 +30,10 @@ function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["c
 
 function getDeckKey(userId: string, deckTemplateId: string) {
   return `${userId}:${deckTemplateId}`;
+}
+
+function getChannelTitle(template: DeckTemplate, index: number) {
+  return template.channels[index]?.title ?? `Channel ${index + 1}`;
 }
 
 export function mergeDeckTemplatesWithUserData(
@@ -49,7 +57,6 @@ export function mergeDeckTemplatesWithUserData(
     const fallbackUserDeckData: ClientUserDeckData = {
       deckTemplateId: template.deckTemplateId,
       activeCardId: getFirstCardId(template),
-      channels: template.channels,
       cards: template.cards.map((templateCard) => createEmptyClientUserCardDataFromTemplate(templateCard)),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -74,17 +81,25 @@ export function mergeDeckTemplatesWithUserData(
           mediaItem: step.mediaItem,
           completionStatus: stepStatusByStepId.get(step.stepId) ?? "todo",
         })),
-        signals: templateCard.signals.map((signal) => ({
-          id: signal.signalId,
-          title: signal.title,
-          order: signal.order,
-          reading: signalReadingById.get(signal.signalId) ?? signal.minValue ?? 0,
-          minValue: signal.minValue,
-          maxValue: signal.maxValue,
-          isTheoreticalMin: signal.isTheoreticalMin,
-          isTheoreticalMax: signal.isTheoreticalMax,
-          unit: signal.unit,
-        })),
+        signals: IMPLICIT_SIGNAL_IDS.map((signalId, signalIndex) => {
+          const fixedReading = signalReadingById.get(signalId);
+          const legacySignal = templateCard.signals?.[signalIndex];
+          const legacyReading = legacySignal ? signalReadingById.get(legacySignal.signalId) : undefined;
+          const reading =
+            fixedReading !== undefined
+              ? clampSignalReading(fixedReading)
+              : legacyReading !== undefined
+                ? clampSignalReading(legacyReading)
+                : DEFAULT_SIGNAL_READING;
+
+          return {
+            id: signalId,
+            channelTitle: getChannelTitle(template, signalIndex),
+            order: "increasing" as const,
+            reading,
+            unit: null,
+          };
+        }),
         mediaItems: cardData.mediaItems,
         chats: cardData.chats,
         reflection: cardData.reflection,
