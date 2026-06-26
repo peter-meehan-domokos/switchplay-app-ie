@@ -4,6 +4,7 @@ import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
+import StepView, { type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import {
@@ -43,6 +44,11 @@ type FocusedFlipState = {
   rotationY: number;
 };
 
+type StepViewState = {
+  cardId: string;
+  itemIndex: number;
+};
+
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -58,6 +64,13 @@ function getDeckFlipSide(isDeckFlipped: boolean): FocusedFlipSide {
 
 function getDeckFlipRotation(isDeckFlipped: boolean) {
   return isDeckFlipped ? 180 : 0;
+}
+
+function getStepViewSequence(card: CardLayout): StepViewItem[] {
+  return [
+    { type: "intro" },
+    ...card.steps.map((_, stepIndex) => ({ type: "step" as const, stepIndex })),
+  ];
 }
 
 const focusedTraversalVariants = {
@@ -146,6 +159,7 @@ export default function FocusedCardView({
     side: isDeckFlipped ? "back" : "front",
     rotationY: isDeckFlipped ? 180 : 0,
   });
+  const [stepViewState, setStepViewState] = useState<StepViewState | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedCardScale = useFocusedCardScale();
@@ -156,6 +170,12 @@ export default function FocusedCardView({
   };
   const cardFlipState = flipState.cardId === card.id ? flipState : deckSideFlipState;
   const isFlipped = cardFlipState.side === "back";
+  const stepViewSequence = getStepViewSequence(card);
+  const stepViewItemIndex =
+    stepViewState?.cardId === card.id && !isFlipped
+      ? Math.min(stepViewState.itemIndex, stepViewSequence.length - 1)
+      : null;
+  const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
@@ -216,10 +236,47 @@ export default function FocusedCardView({
     lockFocusedGestures(FOCUSED_TRAVERSAL_LOCK_MS);
     onPrevious();
   };
+  const openStepView = (stepIndex: number) => {
+    if (isFlipped) {
+      return;
+    }
+
+    setStepViewState({
+      cardId: card.id,
+      itemIndex: stepIndex + 1,
+    });
+  };
+  const closeStepView = () => {
+    setStepViewState(null);
+  };
+  const goToPreviousStepViewItem = () => {
+    setStepViewState((currentStepViewState) => {
+      if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
+        return currentStepViewState;
+      }
+
+      return {
+        ...currentStepViewState,
+        itemIndex: Math.max(0, currentStepViewState.itemIndex - 1),
+      };
+    });
+  };
+  const goToNextStepViewItem = () => {
+    setStepViewState((currentStepViewState) => {
+      if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
+        return currentStepViewState;
+      }
+
+      return {
+        ...currentStepViewState,
+        itemIndex: Math.min(stepViewSequence.length - 1, currentStepViewState.itemIndex + 1),
+      };
+    });
+  };
   const focusedGestures = useDeckGestures({
     mode: "focus",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
-    locked: isFocusedGestureLocked,
+    locked: isFocusedGestureLocked || Boolean(stepViewItem),
     onSettleToPast: settleFocusedCardToPast,
     onRestoreFromPast: restoreFocusedCardFromPast,
     onFlip: toggleFocusedCardSide,
@@ -297,6 +354,7 @@ export default function FocusedCardView({
                   variant="focused"
                   onCycleStepStatus={onCycleStepStatus}
                   onAdjustTargetDate={onAdjustTargetDate}
+                  onOpenStepView={openStepView}
                   onStepNavigateNext={settleFocusedCardToPast}
                   onStepNavigatePrevious={restoreFocusedCardFromPast}
                 />
@@ -312,6 +370,20 @@ export default function FocusedCardView({
                 onSignalNavigatePrevious={restoreFocusedCardFromPast}
               />
             </div>
+            <AnimatePresence>
+              {stepViewItem && stepViewItemIndex !== null ? (
+                <StepView
+                  key={`${card.id}:${stepViewItemIndex}`}
+                  card={card}
+                  item={stepViewItem}
+                  itemIndex={stepViewItemIndex}
+                  itemCount={stepViewSequence.length}
+                  onClose={closeStepView}
+                  onNext={goToNextStepViewItem}
+                  onPrevious={goToPreviousStepViewItem}
+                />
+              ) : null}
+            </AnimatePresence>
           </motion.div>
         </motion.article>
       </AnimatePresence>

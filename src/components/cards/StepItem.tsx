@@ -1,4 +1,5 @@
 import type { WeeklyCardStep } from "@/components/decks/types";
+import type { KeyboardEvent } from "react";
 // Semantic gateway rollback: trace lane import paused for easy restoration.
 // import SemanticTraceLane from "@/components/cards/SemanticTraceLane";
 // Semantic gateway rollback: trace family import paused for easy restoration.
@@ -8,6 +9,7 @@ import { normalizeCompletionStatus } from "@/lib/progress";
 
 type StepItemProps = {
   index: number;
+  onOpenStepView?: (stepIndex: number) => void;
   step: WeeklyCardStep;
   onCycleStatus?: (stepId: string) => void;
 };
@@ -31,8 +33,20 @@ type StepItemProps = {
  * }
  */
 
-export default function StepItem({ index, step, onCycleStatus }: StepItemProps) {
+export default function StepItem({ index, onOpenStepView, step, onCycleStatus }: StepItemProps) {
   const completionStatus = normalizeCompletionStatus(step.completionStatus);
+  const isStepViewTrigger = typeof onOpenStepView === "function";
+  const openStepView = () => {
+    onOpenStepView?.(index);
+  };
+  const handleStepKeyDown = (event: KeyboardEvent<HTMLLIElement>) => {
+    if (!isStepViewTrigger || (event.key !== "Enter" && event.key !== " ")) {
+      return;
+    }
+
+    event.preventDefault();
+    openStepView();
+  };
   /*
    * Semantic gateway rollback: mock trace selection paused for easy restoration.
    *
@@ -40,7 +54,12 @@ export default function StepItem({ index, step, onCycleStatus }: StepItemProps) 
    */
 
   return (
-    <li className="active-step-item">
+    <li
+      className="active-step-item"
+      onKeyDown={isStepViewTrigger ? handleStepKeyDown : undefined}
+      role={isStepViewTrigger ? "button" : undefined}
+      tabIndex={isStepViewTrigger ? 0 : undefined}
+    >
       <span className="step-play-icon" aria-hidden="true" />
       <span className="step-copy">
         <span className="step-description">{step.description}</span>

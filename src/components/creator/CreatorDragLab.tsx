@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   createCreatorDeckTemplateId,
@@ -41,6 +41,7 @@ import {
 } from "@/components/creator/creatorBoardState";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { DeckTemplate } from "@/components/decks/types";
+import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -68,6 +69,12 @@ type DateEditSession = {
 type DragType = "channel" | "pair";
 
 type PublishStatus = "idle" | "publishing" | "success" | "error";
+
+type StreamDirectUploadResponse = {
+  uid: string;
+  uploadURL: string;
+  maxDurationSeconds: number;
+};
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
@@ -120,6 +127,76 @@ function getPublishErrorMessage(errorBody: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function isStreamDirectUploadResponse(value: unknown): value is StreamDirectUploadResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "uid" in value &&
+    typeof value.uid === "string" &&
+    value.uid.trim() !== "" &&
+    "uploadURL" in value &&
+    typeof value.uploadURL === "string" &&
+    value.uploadURL.trim() !== "" &&
+    "maxDurationSeconds" in value &&
+    typeof value.maxDurationSeconds === "number"
+  );
+}
+
+function createCloudflareStreamPlaybackUrl(uid: string) {
+  return `https://iframe.videodelivery.net/${encodeURIComponent(uid)}`;
+}
+
+async function requestStreamDirectUpload(file: File): Promise<StreamDirectUploadResponse> {
+  const response = await fetch("/api/media/stream/direct-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: file.name }),
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(getPublishErrorMessage(responseBody, "Unable to prepare video upload."));
+  }
+
+  if (!isStreamDirectUploadResponse(responseBody)) {
+    throw new Error("Video upload could not be prepared.");
+  }
+
+  return responseBody;
+}
+
+async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
+  const uploadBody = new FormData();
+
+  uploadBody.append("file", file);
+
+  const response = await fetch(uploadURL, {
+    method: "POST",
+    body: uploadBody,
+  });
+
+  if (!response.ok) {
+    throw new Error("Video upload failed.");
+  }
+}
+
+async function uploadCreatorVideo(file: File): Promise<CloudflareStreamVideoMediaItem> {
+  const directUpload = await requestStreamDirectUpload(file);
+
+  await uploadFileToCloudflareStream(directUpload.uploadURL, file);
+
+  return {
+    id: `stream-${directUpload.uid}`,
+    mediaType: "video",
+    provider: "cloudflare-stream",
+    assetId: directUpload.uid,
+    src: createCloudflareStreamPlaybackUrl(directUpload.uid),
+    description: file.name || "Video attached",
+  };
 }
 
 async function publishCreatorDeckTemplate({
@@ -451,13 +528,17 @@ function CreatorDateEditModal({ session, onClose, onSave }: { session: DateEditS
 }
 
 function PairBlock({
+  isMediaUploading = false,
   pair,
   isDragging = false,
   onEdit,
+  onUploadMedia,
 }: {
+  isMediaUploading?: boolean;
   pair: Pair;
   isDragging?: boolean;
   onEdit: (target: EditTarget) => void;
+  onUploadMedia: (pairId: PairId, file: File) => void;
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
@@ -468,6 +549,19 @@ function PairBlock({
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
+  const mediaLabel = isMediaUploading ? "Uploading..." : getStepMediaDisplayText(pair);
+
+  function handleMediaInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    onUploadMedia(pair.id, file);
+  }
 
   return (
     <div className={`creator-pair${isDragging ? " creator-pair--dragging" : ""}`} ref={setNodeRef}>
@@ -488,7 +582,10 @@ function PairBlock({
           <DragHandleMark />
         </button>
       </div>
-      <div className={mediaClassName}>{getStepMediaDisplayText(pair)}</div>
+      <label className={mediaClassName} data-creator-pan-exempt>
+        {mediaLabel}
+        <input accept="video/*" disabled={isMediaUploading} hidden onChange={handleMediaInputChange} type="file" />
+      </label>
     </div>
   );
 }
@@ -585,8 +682,10 @@ function BoardCell({
   cellId,
   channelName,
   onEdit,
+  onUploadMedia,
   pair,
   row,
+  uploadingMediaPairIds,
 }: {
   activePairId: PairId | null;
   activeChannelRow: number | null;
@@ -595,8 +694,10 @@ function BoardCell({
   cellId: CellId;
   channelName?: string;
   onEdit: (target: EditTarget) => void;
+  onUploadMedia: (pairId: PairId, file: File) => void;
   pair?: Pair;
   row: number;
+  uploadingMediaPairIds: ReadonlySet<PairId>;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: cellId,
@@ -617,7 +718,13 @@ function BoardCell({
     >
       {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
       {pair ? (
-        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} />
+        <PairBlock
+          pair={pair}
+          isDragging={pair.id === activePairId}
+          isMediaUploading={uploadingMediaPairIds.has(pair.id)}
+          onEdit={onEdit}
+          onUploadMedia={onUploadMedia}
+        />
       ) : isLocked ? (
         <ChannelRow channelName={channelName} isDragging={activeChannelRow === row} onEdit={onEdit} row={row} />
       ) : (
@@ -641,6 +748,7 @@ type CreatorDragLabProps = {
 export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, creatorReturnTarget, initialBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
+  console.log("CreatorDragLab board", board);
   const [publishedTemplateSnapshot, setPublishedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialBoard));
   const [hasPublishedBaseline, setHasPublishedBaseline] = useState(mode === "edit");
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
@@ -652,6 +760,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [publishMessage, setPublishMessage] = useState("");
   const [publishStatus, setPublishStatus] = useState<PublishStatus>("idle");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -680,9 +789,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
+  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0;
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const publishButtonLabel =
-    publishStatus === "publishing" ? "Publishing…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
+    publishStatus === "publishing" ? "Publishing…" : hasMediaUploadInFlight ? "Uploading…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
 
   useEffect(() => {
     if (!hasUnpublishedChanges) {
@@ -747,7 +857,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   }
 
   async function publishTemplate() {
-    if (publishStatus === "publishing") {
+    if (publishStatus === "publishing" || hasMediaUploadInFlight) {
       return false;
     }
 
@@ -1008,6 +1118,54 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     setEditSession(null);
   }
 
+  async function uploadPairMedia(pairId: PairId, file: File) {
+    if (file.type && !file.type.startsWith("video/")) {
+      setPublishStatus("error");
+      setPublishMessage("Choose a video file.");
+      return;
+    }
+
+    setUploadingMediaPairIds((currentPairIds) => {
+      const nextPairIds = new Set(currentPairIds);
+      nextPairIds.add(pairId);
+      return nextPairIds;
+    });
+    setPublishMessage("");
+    setPublishStatus("idle");
+
+    try {
+      const mediaItem = await uploadCreatorVideo(file);
+
+      setBoard((currentBoard) => {
+        const pair = currentBoard.pairs[pairId];
+
+        if (!pair) {
+          return currentBoard;
+        }
+
+        return {
+          ...currentBoard,
+          pairs: {
+            ...currentBoard.pairs,
+            [pairId]: {
+              ...pair,
+              stepMediaItem: mediaItem,
+            },
+          },
+        };
+      });
+    } catch (error) {
+      setPublishStatus("error");
+      setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
+    } finally {
+      setUploadingMediaPairIds((currentPairIds) => {
+        const nextPairIds = new Set(currentPairIds);
+        nextPairIds.delete(pairId);
+        return nextPairIds;
+      });
+    }
+  }
+
   function saveDateEdit(value: string) {
     if (!dateEditSession || !isIsoDateOnlyString(value)) {
       return;
@@ -1119,7 +1277,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
           ) : null}
           <button
             className={`creator-save-button${isPublishedState ? " creator-save-button--published" : ""}`}
-            disabled={publishStatus === "publishing"}
+            disabled={publishStatus === "publishing" || hasMediaUploadInFlight}
             onClick={() => void publishTemplate()}
             type="button"
           >
@@ -1205,8 +1363,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
                           channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
                           key={cellId}
                           onEdit={openEdit}
+                          onUploadMedia={uploadPairMedia}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
                           row={row}
+                          uploadingMediaPairIds={uploadingMediaPairIds}
                         />
                       );
                     })}

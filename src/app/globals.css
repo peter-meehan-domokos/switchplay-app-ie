@@ -808,7 +808,7 @@ input {
   max-width: 100%;
   overflow: hidden;
   color: #667984;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2723,6 +2723,139 @@ input {
   position: relative;
   z-index: 1;
   padding: 14px 20px 18px;
+}
+
+.step-view-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, #efe0bf, var(--progress-accent), #8d98b6) top / 100% 5px no-repeat,
+    radial-gradient(ellipse at 26% 12%, rgba(255, 250, 240, 0.08), transparent 42%),
+    radial-gradient(ellipse at 82% 20%, rgba(168, 214, 228, 0.06), transparent 48%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    #202632;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 18px 20px 18px;
+  pointer-events: auto;
+}
+
+.step-view-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.step-view-kicker,
+.step-view-actions span {
+  color: rgba(255, 235, 194, 0.76);
+  font-size: 0.62rem;
+  font-weight: 720;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.step-view-title {
+  margin: 0;
+  color: rgba(255, 250, 240, 0.94);
+  font-size: 1rem;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.18;
+}
+
+.step-view-layer[data-step-view-item="step"] .step-view-title {
+  display: -webkit-box;
+  max-width: 92%;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.12;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.step-view-close,
+.step-view-actions button {
+  border: 1px solid rgba(255, 250, 240, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 250, 240, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 720;
+  line-height: 1;
+  padding: 8px 10px;
+}
+
+.step-view-close:focus-visible,
+.step-view-actions button:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.54);
+  outline-offset: 3px;
+}
+
+.step-view-actions button:disabled {
+  cursor: default;
+  opacity: 0.34;
+}
+
+.step-view-body {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-height: 0;
+  padding-top: 18px;
+}
+
+.step-view-video-placeholder {
+  display: grid;
+  justify-self: center;
+  width: 100%;
+  min-height: 134px;
+  place-items: center;
+  border: 1px solid rgba(255, 250, 240, 0.095);
+  border-radius: 15px;
+  box-sizing: border-box;
+  background:
+    radial-gradient(ellipse at 48% 50%, rgba(168, 214, 228, 0.07), transparent 62%),
+    rgba(17, 23, 31, 0.42);
+  color: rgba(255, 250, 240, 0.42);
+  font-size: 0.72rem;
+  font-weight: 680;
+  line-height: 1;
+  transform: scaleX(1.04);
+  transform-origin: center;
+  overflow: hidden;
+}
+
+.cloudflare-stream-player {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 134px;
+  border: 0;
+  border-radius: inherit;
+  background: #05070a;
+}
+
+.step-view-actions {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-view-actions span {
+  justify-self: center;
+  color: rgba(255, 250, 240, 0.42);
 }
 
 .active-card-front--focused .card-title-anchor h2 {

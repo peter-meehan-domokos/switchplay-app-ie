@@ -6,6 +6,7 @@ import type { WeeklyCard } from "@/components/decks/types";
 type StepListProps = {
   steps: WeeklyCard["steps"];
   onCycleStepStatus?: (stepId: string) => void;
+  onOpenStepView?: (stepIndex: number) => void;
   onStepNavigateNext?: () => void;
   onStepNavigatePrevious?: () => void;
 };
@@ -59,14 +60,34 @@ function blockContentGesturePropagation(event: PointerEvent<HTMLOListElement>) {
   }
 }
 
+function getStepItemIndexFromEventTarget(eventTarget: EventTarget | null) {
+  if (!(eventTarget instanceof HTMLElement)) {
+    return null;
+  }
+
+  if (eventTarget.closest(".step-progress-hit-area")) {
+    return null;
+  }
+
+  const stepItem = eventTarget.closest(".active-step-item");
+
+  if (!stepItem?.parentElement) {
+    return null;
+  }
+
+  return Array.from(stepItem.parentElement.children).indexOf(stepItem);
+}
+
 export default function StepList({
   steps,
   onCycleStepStatus,
+  onOpenStepView,
   onStepNavigateNext,
   onStepNavigatePrevious,
 }: StepListProps) {
   const isInteractive = typeof onCycleStepStatus === "function";
   const stepGestureSessionRef = useRef<StepGestureSession | null>(null);
+  const pendingTapStepIndexRef = useRef<number | null>(null);
   const suppressNextClickRef = useRef(false);
 
   const releaseStepGesture = () => {
@@ -81,6 +102,7 @@ export default function StepList({
     }
 
     suppressNextClickRef.current = false;
+    pendingTapStepIndexRef.current = getStepItemIndexFromEventTarget(event.target);
     stepGestureSessionRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -182,6 +204,7 @@ export default function StepList({
 
     if (session.moved) {
       suppressNextClickRef.current = true;
+      pendingTapStepIndexRef.current = null;
     }
 
     releaseStepGesture();
@@ -196,21 +219,32 @@ export default function StepList({
 
     if (session.moved) {
       suppressNextClickRef.current = true;
+      pendingTapStepIndexRef.current = null;
     }
 
     releaseStepGesture();
   };
 
   const handleInteractiveClickCapture = (event: MouseEvent<HTMLOListElement>) => {
-    if (!suppressNextClickRef.current) {
+    if (suppressNextClickRef.current) {
+      // Vertical or horizontal movement suppresses the eventual click so swipe
+      // navigation/cancel never triggers a step action.
+      event.preventDefault();
+      event.stopPropagation();
+      suppressNextClickRef.current = false;
+      pendingTapStepIndexRef.current = null;
       return;
     }
 
-    // Vertical or horizontal movement suppresses the eventual click so swipe
-    // navigation/cancel never triggers a step action.
-    event.preventDefault();
+    const stepIndex = pendingTapStepIndexRef.current;
+
+    if (stepIndex === null || stepIndex < 0) {
+      return;
+    }
+
+    pendingTapStepIndexRef.current = null;
     event.stopPropagation();
-    suppressNextClickRef.current = false;
+    onOpenStepView?.(stepIndex);
   };
 
   // When no cycle callback is supplied, steps are visual-only active/deck
@@ -234,7 +268,7 @@ export default function StepList({
       {...gestureShieldHandlers}
     >
       {steps.map((step, index) => (
-        <StepItem key={step.stepId} index={index} step={step} onCycleStatus={onCycleStepStatus} />
+        <StepItem key={step.stepId} index={index} onOpenStepView={onOpenStepView} step={step} onCycleStatus={onCycleStepStatus} />
       ))}
     </ol>
   );

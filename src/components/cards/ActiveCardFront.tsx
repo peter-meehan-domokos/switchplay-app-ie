@@ -9,6 +9,7 @@ type ActiveCardFrontProps = {
   variant?: "active" | "focused";
   onCycleStepStatus?: (stepId: string) => void;
   onAdjustTargetDate?: (direction: -1 | 1) => void;
+  onOpenStepView?: (stepIndex: number) => void;
   onStepNavigateNext?: () => void;
   onStepNavigatePrevious?: () => void;
 };
@@ -19,6 +20,7 @@ export default function ActiveCardFront({
   variant = "active",
   onCycleStepStatus,
   onAdjustTargetDate,
+  onOpenStepView,
   onStepNavigateNext,
   onStepNavigatePrevious,
 }: ActiveCardFrontProps) {
@@ -29,6 +31,7 @@ export default function ActiveCardFront({
       <StepList
         steps={card.steps}
         onCycleStepStatus={variant === "focused" ? onCycleStepStatus : undefined}
+        onOpenStepView={variant === "focused" ? onOpenStepView : undefined}
         onStepNavigateNext={variant === "focused" ? onStepNavigateNext : undefined}
         onStepNavigatePrevious={variant === "focused" ? onStepNavigatePrevious : undefined}
       />
