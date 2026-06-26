@@ -1,7 +1,9 @@
 import type { WeeklyCard } from "@/components/decks/types";
 import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSignal";
 import type { MediaItem } from "@/lib/media";
+import { isImageMediaItem, isLegacyProviderlessVideoMediaItem, isVideoMediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
+import { clampSignalReading, roundSignalReadingForDisplay, signalReadingToNormalized } from "@/lib/signals";
 
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
@@ -27,14 +29,10 @@ export type CardLayoutExternalComment = {
 
 export type CardLayoutSignal = {
   id: string;
-  title: string;
+  channelTitle: string;
   value: number;
   reading: number;
   variant: SignalVariant;
-  minValue: number;
-  maxValue: number;
-  isTheoreticalMin?: boolean;
-  isTheoreticalMax?: boolean;
   unit: string | null;
   order: SignalOrder;
 };
@@ -52,91 +50,22 @@ export type CardLayout = Omit<WeeklyCard, "signals"> & {
 const signalVariants: SignalVariant[] = ["recovery", "movement", "load"];
 const sparseReflectionOffset = -10;
 
-function clampSignalValue(value: number) {
-  return Math.min(Math.max(value, 0), 1);
-}
-
-// MVP integer-mode rendering.
-// Future signal precision support may preserve decimal min/max values
-// while rounding displayed/persisted readings independently.
-
-function normalizeSignalRange(minValue: number, maxValue: number) {
-  const safeMinValue = Number.isFinite(minValue) ? minValue : 0;
-  const safeMaxValue = Number.isFinite(maxValue) ? maxValue : safeMinValue + 1;
-  const lowerBound = Math.min(safeMinValue, safeMaxValue);
-  const upperBound = Math.max(safeMinValue, safeMaxValue);
-
-  if (lowerBound === upperBound) {
-    return {
-      minValue: lowerBound,
-      maxValue: lowerBound + 1,
-    };
-  }
-
-  return {
-    minValue: lowerBound,
-    maxValue: upperBound,
-  };
-}
-
-export function clampReadingToSignalRange(reading: number, minValue: number, maxValue: number) {
-  const { minValue: lowerBound, maxValue: upperBound } = normalizeSignalRange(minValue, maxValue);
-
-  if (!Number.isFinite(reading)) {
-    return lowerBound;
-  }
-
-  return Math.min(Math.max(reading, lowerBound), upperBound);
-}
-
 export function snapReadingToInteger(reading: number) {
-  return Number.isFinite(reading) ? Math.round(reading) : 0;
-}
-
-export function readingToNormalized(reading: number, minValue: number, maxValue: number, order: SignalOrder) {
-  const { minValue: lowerBound, maxValue: upperBound } = normalizeSignalRange(minValue, maxValue);
-  const clampedReading = clampReadingToSignalRange(reading, lowerBound, upperBound);
-  const normalizedValue = (clampedReading - lowerBound) / (upperBound - lowerBound);
-
-  return clampSignalValue(order === "decreasing" ? 1 - normalizedValue : normalizedValue);
-}
-
-export function normalizedToReading(normalizedValue: number, minValue: number, maxValue: number, order: SignalOrder) {
-  const { minValue: lowerBound, maxValue: upperBound } = normalizeSignalRange(minValue, maxValue);
-  const clampedNormalizedValue = clampSignalValue(normalizedValue);
-  const orderedNormalizedValue = order === "decreasing" ? 1 - clampedNormalizedValue : clampedNormalizedValue;
-
-  return lowerBound + orderedNormalizedValue * (upperBound - lowerBound);
-}
-
-function normalizeSignalOrder(order: string | null): SignalOrder {
-  return order === "decreasing" ? "decreasing" : "increasing";
-}
-
-export function getNormalizedSignalValue(reading: number, minValue: number, maxValue: number, order: SignalOrder) {
-  return readingToNormalized(reading, minValue, maxValue, order);
+  return roundSignalReadingForDisplay(reading);
 }
 
 function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal {
-  const order = normalizeSignalOrder(signal.order);
+  const order = "increasing";
 
   // Keep reading precision for field position continuity; display rounding stays in UI.
-  const snappedMinValue = snapReadingToInteger(signal.minValue ?? 0);
-  const snappedMaxValue = snapReadingToInteger(signal.maxValue ?? snappedMinValue + 1);
-  const { minValue, maxValue } = normalizeSignalRange(snappedMinValue, snappedMaxValue);
-  const rawReading = Number.isFinite(signal.reading) ? signal.reading : minValue;
-  const reading = clampReadingToSignalRange(rawReading, minValue, maxValue);
+  const reading = clampSignalReading(signal.reading);
 
   return {
     id: signal.id,
-    title: signal.title ?? "Untitled signal",
-    value: getNormalizedSignalValue(reading, minValue, maxValue, order),
+    channelTitle: signal.channelTitle,
+    value: signalReadingToNormalized(reading),
     reading,
     variant: signalVariants[index] ?? "movement",
-    minValue,
-    maxValue,
-    isTheoreticalMin: signal.isTheoreticalMin,
-    isTheoreticalMax: signal.isTheoreticalMax,
     unit: signal.unit,
     order,
   };
@@ -147,12 +76,15 @@ function normalizeMediaItem(mediaItem: WeeklyCard["mediaItems"][number] | undefi
     return null;
   }
 
-  return {
-    id: mediaItem.id,
-    mediaType: mediaItem.mediaType === "video" ? "video" : "image",
-    description: mediaItem.description,
-    src: mediaItem.src,
-  };
+  if (isImageMediaItem(mediaItem) || isVideoMediaItem(mediaItem)) {
+    return mediaItem;
+  }
+
+  if (isLegacyProviderlessVideoMediaItem(mediaItem)) {
+    return null;
+  }
+
+  return null;
 }
 
 function getExternalCommentAuthor(comment: RawCardComment, users: LayoutUser[]) {

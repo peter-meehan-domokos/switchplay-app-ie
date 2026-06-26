@@ -1,3 +1,8 @@
+
+## Current
+why is deckData created when deckTemplate published? shuold be when user imports a deck,
+although if it is for them, then should auto create on publish i suppose- nedd to decide as part of deck management
+
 ## Incoming Future-to-Active Transition Jerk
 
 - see file

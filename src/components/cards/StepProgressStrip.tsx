@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import type { CompletionStatus } from "@/components/decks/types";
 
 type StepProgressStripProps = {
@@ -30,11 +31,16 @@ export default function StepProgressStrip({ completionStatus, onCycleStatus }: S
     return strip;
   }
 
+  function handleCycleStatus(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onCycleStatus?.();
+  }
+
   return (
     <button
       type="button"
       className="step-progress-hit-area"
-      onClick={onCycleStatus}
+      onClick={handleCycleStatus}
       aria-label={`Update step progress. Current status: ${completionStatus}`}
     >
       {strip}

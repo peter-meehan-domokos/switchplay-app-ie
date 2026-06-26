@@ -21,6 +21,7 @@ import {
 } from "@/constants/cardStack";
 import { persistActiveCardId, persistCardTargetDate, persistSignalReading, persistStepCompletionStatus } from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
+import { roundSignalReadingForStorage } from "@/lib/signals";
 
 type DeckDetailProps = {
   deck: DeckLayout;
@@ -169,10 +170,6 @@ function addDaysToDateString(dateString: string, amount: number) {
   baseDate.setUTCDate(baseDate.getUTCDate() + amount);
 
   return baseDate.toISOString().slice(0, 10);
-}
-
-function roundToTwoDecimals(value: number) {
-  return Number(value.toFixed(2));
 }
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
@@ -375,7 +372,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       return;
     }
 
-    const nextReading = roundToTwoDecimals(reading);
+    const nextReading = roundSignalReadingForStorage(reading);
     const nextCards = cardsRef.current.map((card) => {
       if (card.id !== cardId) {
         return card;

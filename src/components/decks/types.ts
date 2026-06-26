@@ -46,7 +46,7 @@ export type CardTemplate = {
   suggestedTargetDate: string;
   intro: CardIntro;
   steps: CardTemplateStep[];
-  signals: CardTemplateSignal[];
+  signals?: CardTemplateSignal[];
 };
 
 export type ChannelTemplate = {
@@ -85,7 +85,6 @@ export type UserCardData = {
 export type UserDeckData = {
   deckTemplateId: string;
   activeCardId: string;
-  channels?: ChannelTemplate[];
   cards: UserCardData[];
   createdAt: string;
   updatedAt: string;
@@ -109,7 +108,6 @@ export type ClientUserCardData = {
 export type ClientUserDeckData = {
   deckTemplateId: string;
   activeCardId: string;
-  channels?: ChannelTemplate[];
   cards: ClientUserCardData[];
   createdAt: string;
   updatedAt: string;
@@ -124,13 +122,9 @@ export type WeeklyCardStep = {
 
 export type WeeklyCardSignal = {
   id: string;
-  title: string | null;
+  channelTitle: string;
   order: SignalOrder | null;
   reading: number;
-  minValue: number | null;
-  maxValue: number | null;
-  isTheoreticalMin?: boolean;
-  isTheoreticalMax?: boolean;
   unit: string | null;
 };
 

@@ -17,9 +17,10 @@ export const CREATOR_GEOMETRY = {
   scrollPaddingBottom: 8,
   columnWidth: 172,
   columnGap: 12,
-  columnHeaderHeight: 80,
+  columnHeaderHeight: 100,
   cardMetaHeight: 18,
   cardTitleHeight: 42,
+  cardIntroMediaHeight: 20,
   cardHeaderGap: 2,
   columnHeaderPadding: 8,
   addCardControlWidth: 58,
@@ -39,10 +40,10 @@ export const CREATOR_GEOMETRY = {
   pairContentGap: 1,
   pairTextPadding: 1,
   pairStepTrack: 8,
-  pairSignalTrack: 2,
+  pairMediaTrack: 2,
   pairStepMinHeight: 72,
   pairStepLineClamp: 4,
-  pairSignalLineClamp: 1,
+  pairMediaLineClamp: 1,
   pairHandleWidth: 44,
   pairHandleHeight: 34,
   pairHandleVisibleWidth: 24,
@@ -82,6 +83,7 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-add-card-control-width": string;
   "--creator-card-meta-height": string;
   "--creator-card-title-height": string;
+  "--creator-card-intro-media-height": string;
   "--creator-card-header-gap": string;
   "--creator-column-header-padding": string;
   "--creator-row-count": number;
@@ -100,10 +102,10 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-pair-content-gap": string;
   "--creator-pair-text-padding": string;
   "--creator-pair-step-track": string;
-  "--creator-pair-signal-track": string;
+  "--creator-pair-media-track": string;
   "--creator-pair-step-min-height": string;
   "--creator-pair-step-line-clamp": number;
-  "--creator-pair-signal-line-clamp": number;
+  "--creator-pair-media-line-clamp": number;
   "--creator-pair-handle-width": string;
   "--creator-pair-handle-height": string;
   "--creator-pair-handle-visible-width": string;
@@ -146,6 +148,7 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-add-card-control-width": toPx(CREATOR_GEOMETRY.addCardControlWidth),
     "--creator-card-meta-height": toPx(CREATOR_GEOMETRY.cardMetaHeight),
     "--creator-card-title-height": toPx(CREATOR_GEOMETRY.cardTitleHeight),
+    "--creator-card-intro-media-height": toPx(CREATOR_GEOMETRY.cardIntroMediaHeight),
     "--creator-card-header-gap": toPx(CREATOR_GEOMETRY.cardHeaderGap),
     "--creator-column-header-padding": toPx(CREATOR_GEOMETRY.columnHeaderPadding),
     "--creator-row-count": CREATOR_GEOMETRY.rowCount,
@@ -164,10 +167,10 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-pair-content-gap": toPx(CREATOR_GEOMETRY.pairContentGap),
     "--creator-pair-text-padding": toPx(CREATOR_GEOMETRY.pairTextPadding),
     "--creator-pair-step-track": toFr(CREATOR_GEOMETRY.pairStepTrack),
-    "--creator-pair-signal-track": toFr(CREATOR_GEOMETRY.pairSignalTrack),
+    "--creator-pair-media-track": toFr(CREATOR_GEOMETRY.pairMediaTrack),
     "--creator-pair-step-min-height": toPx(CREATOR_GEOMETRY.pairStepMinHeight),
     "--creator-pair-step-line-clamp": CREATOR_GEOMETRY.pairStepLineClamp,
-    "--creator-pair-signal-line-clamp": CREATOR_GEOMETRY.pairSignalLineClamp,
+    "--creator-pair-media-line-clamp": CREATOR_GEOMETRY.pairMediaLineClamp,
     "--creator-pair-handle-width": toPx(CREATOR_GEOMETRY.pairHandleWidth),
     "--creator-pair-handle-height": toPx(CREATOR_GEOMETRY.pairHandleHeight),
     "--creator-pair-handle-visible-width": toPx(CREATOR_GEOMETRY.pairHandleVisibleWidth),

@@ -19,15 +19,14 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, 
 import {
   appendCreatorCard,
   createCreatorDeckTemplateId,
-  createEmptySignal,
   creatorBoardToDeckTemplate,
   deleteCreatorCard,
   getCardColumns,
   getCreatorCellId,
-  getSignalDisplayText,
   getStepDisplayText,
+  getStepMediaDisplayText,
   isPairEmpty,
-  isSignalEmpty,
+  isStepMediaEmpty,
   isStepEmpty,
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
@@ -39,11 +38,11 @@ import {
   type ColumnId,
   type Pair,
   type PairId,
-  type SignalMaxSymbol,
-  type SignalMinSymbol,
 } from "@/components/creator/creatorBoardState";
+import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
-import type { DeckTemplate, SignalOrder } from "@/components/decks/types";
+import type { DeckTemplate } from "@/components/decks/types";
+import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -68,42 +67,19 @@ type DateEditSession = {
   value: string;
 };
 
-type SignalEditTarget = { type: "pair-signal"; pairId: PairId };
-
-type SignalEditSession = {
-  target: SignalEditTarget;
-  signalMax: number | null;
-  signalMaxSymbol: SignalMaxSymbol;
-  signalMin: number | null;
-  signalMinSymbol: SignalMinSymbol;
-  signalOrder: SignalOrder;
-  signalTitle: string | null;
-};
-
-type SignalEditValue = Omit<SignalEditSession, "target">;
 type DragType = "channel" | "pair";
-type CreatorSelectOption<TValue extends string> = {
-  label: string;
-  value: TValue;
-};
 
 type PublishStatus = "idle" | "publishing" | "success" | "error";
+
+type StreamDirectUploadResponse = {
+  uid: string;
+  uploadURL: string;
+  maxDurationSeconds: number;
+};
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
-const creatorSignalMinSymbolOptions: CreatorSelectOption<SignalMinSymbol>[] = [
-  { label: "exact", value: "none" },
-  { label: "≤", value: "<" },
-];
-const creatorSignalMaxSymbolOptions: CreatorSelectOption<SignalMaxSymbol>[] = [
-  { label: "exact", value: "none" },
-  { label: "+", value: "+" },
-];
-const creatorSignalOrderOptions: CreatorSelectOption<SignalOrder>[] = [
-  { label: "High scores are better", value: "increasing" },
-  { label: "Low scores are better", value: "decreasing" },
-];
 
 function createTemplateSnapshot(board: BoardState, deckTemplateId = board.deckTemplateId) {
   return JSON.stringify({
@@ -152,6 +128,76 @@ function getPublishErrorMessage(errorBody: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function isStreamDirectUploadResponse(value: unknown): value is StreamDirectUploadResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "uid" in value &&
+    typeof value.uid === "string" &&
+    value.uid.trim() !== "" &&
+    "uploadURL" in value &&
+    typeof value.uploadURL === "string" &&
+    value.uploadURL.trim() !== "" &&
+    "maxDurationSeconds" in value &&
+    typeof value.maxDurationSeconds === "number"
+  );
+}
+
+function createCloudflareStreamPlaybackUrl(uid: string) {
+  return `https://iframe.videodelivery.net/${encodeURIComponent(uid)}`;
+}
+
+async function requestStreamDirectUpload(file: File): Promise<StreamDirectUploadResponse> {
+  const response = await fetch("/api/media/stream/direct-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: file.name }),
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(getPublishErrorMessage(responseBody, "Unable to prepare video upload."));
+  }
+
+  if (!isStreamDirectUploadResponse(responseBody)) {
+    throw new Error("Video upload could not be prepared.");
+  }
+
+  return responseBody;
+}
+
+async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
+  const uploadBody = new FormData();
+
+  uploadBody.append("file", file);
+
+  const response = await fetch(uploadURL, {
+    method: "POST",
+    body: uploadBody,
+  });
+
+  if (!response.ok) {
+    throw new Error("Video upload failed.");
+  }
+}
+
+async function uploadCreatorVideo(file: File): Promise<CloudflareStreamVideoMediaItem> {
+  const directUpload = await requestStreamDirectUpload(file);
+
+  await uploadFileToCloudflareStream(directUpload.uploadURL, file);
+
+  return {
+    id: `stream-${directUpload.uid}`,
+    mediaType: "video",
+    provider: "cloudflare-stream",
+    assetId: directUpload.uid,
+    src: createCloudflareStreamPlaybackUrl(directUpload.uid),
+    description: file.name || "Video attached",
+  };
 }
 
 async function publishCreatorDeckTemplate({
@@ -317,24 +363,6 @@ function getDateEditSession(board: BoardState, target: DateEditTarget): DateEdit
   return { label: "Target date", target, value: column.targetDate ?? "" };
 }
 
-function getSignalEditSession(board: BoardState, target: SignalEditTarget): SignalEditSession | null {
-  const pair = board.pairs[target.pairId];
-
-  if (!pair) {
-    return null;
-  }
-
-  return {
-    target,
-    signalMax: pair.signalMax,
-    signalMaxSymbol: pair.signalMaxSymbol,
-    signalMin: pair.signalMin,
-    signalMinSymbol: pair.signalMinSymbol,
-    signalOrder: pair.signalOrder,
-    signalTitle: pair.signalTitle,
-  };
-}
-
 function getEditTargetKey(target: EditTarget) {
   if (target.type === "deck-title") {
     return target.type;
@@ -427,7 +455,7 @@ function CreatorEditModal({
             {isDeleteConfirming ? (
               <>
                 <p className="creator-modal-delete-heading">Delete this card?</p>
-                <p className="creator-modal-delete-note">This will remove this card and steps/signals inside it.</p>
+                <p className="creator-modal-delete-note">This will remove this card and pairs inside it.</p>
                 <div className="creator-modal-delete-actions">
                   <button className="creator-modal-secondary" onClick={() => setIsDeleteConfirming(false)} type="button">
                     Keep Card
@@ -500,221 +528,18 @@ function CreatorDateEditModal({ session, onClose, onSave }: { session: DateEditS
   );
 }
 
-function CreatorSelect<TValue extends string>({
-  label,
-  onChange,
-  options,
-  value,
-}: {
-  label: string;
-  onChange: (value: TValue) => void;
-  options: CreatorSelectOption<TValue>[];
-  value: TValue;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [placement, setPlacement] = useState<"above" | "below">("below");
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const selectedOption = options.find((option) => option.value === value) ?? options[0];
-
-  function updatePlacement() {
-    const triggerRect = rootRef.current?.getBoundingClientRect();
-
-    if (!triggerRect) {
-      return;
-    }
-
-    const estimatedMenuHeight = Math.min(options.length, 6) * 44 + 8;
-    const spaceBelow = window.innerHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-
-    setPlacement(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? "above" : "below");
-  }
-
-  function openSelect() {
-    updatePlacement();
-    setIsOpen(true);
-  }
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    updatePlacement();
-
-    window.addEventListener("resize", updatePlacement);
-    window.addEventListener("orientationchange", updatePlacement);
-    window.addEventListener("scroll", updatePlacement, true);
-
-    return () => {
-      window.removeEventListener("resize", updatePlacement);
-      window.removeEventListener("orientationchange", updatePlacement);
-      window.removeEventListener("scroll", updatePlacement, true);
-    };
-  }, [isOpen, options.length]);
-
-  return (
-    <div
-      className="creator-select"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setIsOpen(false);
-        }
-      }}
-      ref={rootRef}
-    >
-      <button
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        className="creator-modal-select"
-        onClick={() => (isOpen ? setIsOpen(false) : openSelect())}
-        type="button"
-      >
-        <span>{selectedOption?.label ?? label}</span>
-        <span aria-hidden="true">⌄</span>
-      </button>
-      {isOpen ? (
-        <div className={`creator-select-menu creator-select-menu--${placement}`} role="listbox" aria-label={label}>
-          {options.map((option) => (
-            <button
-              aria-selected={option.value === value}
-              className="creator-select-option"
-              key={option.value}
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-              role="option"
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function CreatorSignalEditModal({
-  session,
-  onClose,
-  onSave,
-}: {
-  session: SignalEditSession;
-  onClose: () => void;
-  onSave: (value: SignalEditValue) => void;
-}) {
-  const [signalTitle, setSignalTitle] = useState(session.signalTitle);
-  const [signalMin, setSignalMin] = useState(session.signalMin === null ? "" : String(session.signalMin));
-  const [signalMax, setSignalMax] = useState(session.signalMax === null ? "" : String(session.signalMax));
-  const [signalMinSymbol, setSignalMinSymbol] = useState<SignalMinSymbol>(session.signalMinSymbol);
-  const [signalMaxSymbol, setSignalMaxSymbol] = useState<SignalMaxSymbol>(session.signalMaxSymbol);
-  const [signalOrder, setSignalOrder] = useState<SignalOrder>(session.signalOrder);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const parsedMin = signalMin.trim() === "" ? null : Number(signalMin);
-  const parsedMax = signalMax.trim() === "" ? null : Number(signalMax);
-  const hasInvalidNumber = (signalMin.trim() !== "" && Number.isNaN(parsedMin)) || (signalMax.trim() !== "" && Number.isNaN(parsedMax));
-  const hasInvertedRange = parsedMin !== null && parsedMax !== null && !Number.isNaN(parsedMin) && !Number.isNaN(parsedMax) && parsedMax < parsedMin;
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (hasInvalidNumber) {
-      setErrorMessage("Min and max must be numbers.");
-      return;
-    }
-
-    onSave({
-      signalMax: parsedMax,
-      signalMaxSymbol,
-      signalMin: parsedMin,
-      signalMinSymbol,
-      signalOrder,
-      signalTitle: signalTitle ?? "",
-    });
-  }
-
-  return (
-    <div className="creator-modal-backdrop" role="presentation">
-      <form className="creator-modal creator-modal--signal-settings" onSubmit={handleSubmit}>
-        <header className="creator-modal-header">
-          <p>Signal settings</p>
-          <button className="creator-modal-close" onClick={onClose} type="button">
-            Close
-          </button>
-        </header>
-
-        <label className="creator-modal-label">
-          Signal title
-          <input autoFocus className="creator-modal-text-input" onChange={(event) => setSignalTitle(event.target.value)} type="text" value={signalTitle ?? ""} />
-        </label>
-
-        <div className="creator-signal-settings-grid">
-          <label className="creator-modal-label">
-            Min value
-            <input
-              className="creator-modal-text-input"
-              onChange={(event) => {
-                setSignalMin(event.target.value);
-                setErrorMessage(null);
-              }}
-              type="number"
-              value={signalMin}
-            />
-          </label>
-          <label className="creator-modal-label">
-            Max value
-            <input
-              className="creator-modal-text-input"
-              onChange={(event) => {
-                setSignalMax(event.target.value);
-                setErrorMessage(null);
-              }}
-              type="number"
-              value={signalMax}
-            />
-          </label>
-          <label className="creator-modal-label">
-            Lower bound
-            <CreatorSelect label="Lower bound" onChange={setSignalMinSymbol} options={creatorSignalMinSymbolOptions} value={signalMinSymbol} />
-          </label>
-          <label className="creator-modal-label">
-            Upper bound
-            <CreatorSelect label="Upper bound" onChange={setSignalMaxSymbol} options={creatorSignalMaxSymbolOptions} value={signalMaxSymbol} />
-          </label>
-          <label className="creator-modal-label creator-signal-order-field">
-            Score direction
-            <CreatorSelect label="Score direction" onChange={setSignalOrder} options={creatorSignalOrderOptions} value={signalOrder} />
-          </label>
-        </div>
-
-        {hasInvertedRange ? <p className="creator-modal-counter creator-modal-counter--warning">Max is less than min. You can save, but the range may read oddly.</p> : null}
-        {errorMessage ? <p className="creator-modal-error">{errorMessage}</p> : null}
-
-        <div className="creator-modal-actions">
-          <button className="creator-modal-secondary" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="creator-modal-primary" type="submit">
-            Save
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function PairBlock({
+  isMediaUploading = false,
   pair,
   isDragging = false,
   onEdit,
-  onSignalEdit,
+  onUploadMedia,
 }: {
+  isMediaUploading?: boolean;
   pair: Pair;
   isDragging?: boolean;
   onEdit: (target: EditTarget) => void;
-  onSignalEdit: (target: SignalEditTarget) => void;
+  onUploadMedia: (pairId: PairId, file: File) => void;
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
@@ -723,7 +548,7 @@ function PairBlock({
   });
   const isEmptyPair = isPairEmpty(pair);
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
-  const signalClassName = `creator-editable creator-pair-signal${isSignalEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
 
   return (
@@ -745,9 +570,15 @@ function PairBlock({
           <DragHandleMark />
         </button>
       </div>
-      <button className={signalClassName} onClick={() => onSignalEdit({ type: "pair-signal", pairId: pair.id })} type="button">
-        {getSignalDisplayText(pair)}
-      </button>
+      <CreatorMediaUploadSlot
+        ariaLabel="Upload step video"
+        className={mediaClassName}
+        isUploading={isMediaUploading}
+        mediaItem={pair.stepMediaItem}
+        onUpload={(file) => onUploadMedia(pair.id, file)}
+        placeholder="Upload video"
+        size="pair"
+      />
     </div>
   );
 }
@@ -766,7 +597,7 @@ function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "channe
 
 function PairPreview({ pair }: { pair: Pair }) {
   const stepClassName = `creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
-  const signalClassName = `creator-pair-signal${isSignalEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
+  const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
 
   return (
     <div className="creator-pair creator-pair--preview">
@@ -776,7 +607,7 @@ function PairPreview({ pair }: { pair: Pair }) {
           <DragHandleMark />
         </span>
       </div>
-      <div className={signalClassName}>{getSignalDisplayText(pair)}</div>
+      <div className={mediaClassName}>{getStepMediaDisplayText(pair)}</div>
     </div>
   );
 }
@@ -844,9 +675,10 @@ function BoardCell({
   cellId,
   channelName,
   onEdit,
-  onSignalEdit,
+  onUploadMedia,
   pair,
   row,
+  uploadingMediaPairIds,
 }: {
   activePairId: PairId | null;
   activeChannelRow: number | null;
@@ -855,9 +687,10 @@ function BoardCell({
   cellId: CellId;
   channelName?: string;
   onEdit: (target: EditTarget) => void;
-  onSignalEdit: (target: SignalEditTarget) => void;
+  onUploadMedia: (pairId: PairId, file: File) => void;
   pair?: Pair;
   row: number;
+  uploadingMediaPairIds: ReadonlySet<PairId>;
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: cellId,
@@ -878,7 +711,13 @@ function BoardCell({
     >
       {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
       {pair ? (
-        <PairBlock pair={pair} isDragging={pair.id === activePairId} onEdit={onEdit} onSignalEdit={onSignalEdit} />
+        <PairBlock
+          pair={pair}
+          isDragging={pair.id === activePairId}
+          isMediaUploading={uploadingMediaPairIds.has(pair.id)}
+          onEdit={onEdit}
+          onUploadMedia={onUploadMedia}
+        />
       ) : isLocked ? (
         <ChannelRow channelName={channelName} isDragging={activeChannelRow === row} onEdit={onEdit} row={row} />
       ) : (
@@ -902,6 +741,7 @@ type CreatorDragLabProps = {
 export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, creatorReturnTarget, initialBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
+  console.log("CreatorDragLab board", board);
   const [publishedTemplateSnapshot, setPublishedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialBoard));
   const [hasPublishedBaseline, setHasPublishedBaseline] = useState(mode === "edit");
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
@@ -913,7 +753,8 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [publishMessage, setPublishMessage] = useState("");
   const [publishStatus, setPublishStatus] = useState<PublishStatus>("idle");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
-  const [signalEditSession, setSignalEditSession] = useState<SignalEditSession | null>(null);
+  const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
+  const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -942,9 +783,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
+  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0;
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const publishButtonLabel =
-    publishStatus === "publishing" ? "Publishing…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
+    publishStatus === "publishing" ? "Publishing…" : hasMediaUploadInFlight ? "Uploading…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
 
   useEffect(() => {
     if (!hasUnpublishedChanges) {
@@ -1009,7 +851,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   }
 
   async function publishTemplate() {
-    if (publishStatus === "publishing") {
+    if (publishStatus === "publishing" || hasMediaUploadInFlight) {
       return false;
     }
 
@@ -1212,14 +1054,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     }
   }
 
-  function openSignalEdit(target: SignalEditTarget) {
-    const nextSignalEditSession = getSignalEditSession(board, target);
-
-    if (nextSignalEditSession) {
-      setSignalEditSession(nextSignalEditSession);
-    }
-  }
-
   function saveEdit(value: string) {
     if (!editSession) {
       return;
@@ -1278,6 +1112,95 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     setEditSession(null);
   }
 
+  async function uploadPairMedia(pairId: PairId, file: File) {
+    if (file.type && !file.type.startsWith("video/")) {
+      setPublishStatus("error");
+      setPublishMessage("Choose a video file.");
+      return;
+    }
+
+    setUploadingMediaPairIds((currentPairIds) => {
+      const nextPairIds = new Set(currentPairIds);
+      nextPairIds.add(pairId);
+      return nextPairIds;
+    });
+    setPublishMessage("");
+    setPublishStatus("idle");
+
+    try {
+      const mediaItem = await uploadCreatorVideo(file);
+
+      setBoard((currentBoard) => {
+        const pair = currentBoard.pairs[pairId];
+
+        if (!pair) {
+          return currentBoard;
+        }
+
+        return {
+          ...currentBoard,
+          pairs: {
+            ...currentBoard.pairs,
+            [pairId]: {
+              ...pair,
+              stepMediaItem: mediaItem,
+            },
+          },
+        };
+      });
+    } catch (error) {
+      setPublishStatus("error");
+      setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
+    } finally {
+      setUploadingMediaPairIds((currentPairIds) => {
+        const nextPairIds = new Set(currentPairIds);
+        nextPairIds.delete(pairId);
+        return nextPairIds;
+      });
+    }
+  }
+
+  async function uploadIntroMedia(columnId: ColumnId, file: File) {
+    if (file.type && !file.type.startsWith("video/")) {
+      setPublishStatus("error");
+      setPublishMessage("Choose a video file.");
+      return;
+    }
+
+    setUploadingIntroMediaColumnIds((currentColumnIds) => {
+      const nextColumnIds = new Set(currentColumnIds);
+      nextColumnIds.add(columnId);
+      return nextColumnIds;
+    });
+    setPublishMessage("");
+    setPublishStatus("idle");
+
+    try {
+      const mediaItem = await uploadCreatorVideo(file);
+
+      setBoard((currentBoard) => ({
+        ...currentBoard,
+        columns: currentBoard.columns.map((column) =>
+          column.id === columnId && column.kind === "card"
+            ? {
+                ...column,
+                introMediaItem: mediaItem,
+              }
+            : column
+        ),
+      }));
+    } catch (error) {
+      setPublishStatus("error");
+      setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
+    } finally {
+      setUploadingIntroMediaColumnIds((currentColumnIds) => {
+        const nextColumnIds = new Set(currentColumnIds);
+        nextColumnIds.delete(columnId);
+        return nextColumnIds;
+      });
+    }
+  }
+
   function saveDateEdit(value: string) {
     if (!dateEditSession || !isIsoDateOnlyString(value)) {
       return;
@@ -1290,42 +1213,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, targetDate: value } : column)),
     }));
     setDateEditSession(null);
-  }
-
-  function saveSignalEdit(value: SignalEditValue) {
-    if (!signalEditSession) {
-      return;
-    }
-
-    const target = signalEditSession.target;
-
-    setBoard((currentBoard) => {
-      const pair = currentBoard.pairs[target.pairId];
-
-      if (!pair) {
-        return currentBoard;
-      }
-
-      return {
-        ...currentBoard,
-        pairs: {
-          ...currentBoard.pairs,
-          [target.pairId]: {
-            ...pair,
-            ...(isSignalEmpty(value.signalTitle)
-              ? {
-                  ...createEmptySignal(),
-                  signalOrder: value.signalOrder,
-                }
-              : {
-                  ...value,
-                  signalTitle: value.signalTitle,
-                }),
-          },
-        },
-      };
-    });
-    setSignalEditSession(null);
   }
 
   function handlePanPointerDown(event: PointerEvent<HTMLElement>) {
@@ -1425,7 +1312,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
           ) : null}
           <button
             className={`creator-save-button${isPublishedState ? " creator-save-button--published" : ""}`}
-            disabled={publishStatus === "publishing"}
+            disabled={publishStatus === "publishing" || hasMediaUploadInFlight}
             onClick={() => void publishTemplate()}
             type="button"
           >
@@ -1492,6 +1379,15 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
                         <button className="creator-editable creator-card-title-button" onClick={() => openEdit({ type: "card-title", columnId: column.id })} type="button">
                           {column.cardTitle}
                         </button>
+                        <CreatorMediaUploadSlot
+                          ariaLabel={`Upload intro video for ${column.cardTitle ?? column.cardLabel ?? "card"}`}
+                          className="creator-card-intro-media-slot"
+                          isUploading={uploadingIntroMediaColumnIds.has(column.id)}
+                          mediaItem={column.introMediaItem ?? null}
+                          onUpload={(file) => void uploadIntroMedia(column.id, file)}
+                          placeholder="Upload video"
+                          size="intro"
+                        />
                       </>
                     ) : (
                       <span className="creator-channel-header">Channels</span>
@@ -1511,9 +1407,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
                           channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
                           key={cellId}
                           onEdit={openEdit}
-                          onSignalEdit={openSignalEdit}
+                          onUploadMedia={uploadPairMedia}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
                           row={row}
+                          uploadingMediaPairIds={uploadingMediaPairIds}
                         />
                       );
                     })}
@@ -1543,7 +1440,6 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
         />
       ) : null}
       {dateEditSession ? <CreatorDateEditModal session={dateEditSession} onClose={() => setDateEditSession(null)} onSave={saveDateEdit} /> : null}
-      {signalEditSession ? <CreatorSignalEditModal session={signalEditSession} onClose={() => setSignalEditSession(null)} onSave={saveSignalEdit} /> : null}
     </main>
   );
 }

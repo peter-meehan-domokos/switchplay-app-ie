@@ -1,4 +1,5 @@
 import type { MediaItem } from "@/lib/media";
+import { isImageMediaItem } from "@/lib/media";
 
 export type BackCardMediaTraceItem = MediaItem;
 
@@ -7,7 +8,7 @@ type BackCardMediaTraceProps = {
 };
 
 export default function BackCardMediaTrace({ trace }: BackCardMediaTraceProps) {
-  if (!trace) {
+  if (!isImageMediaItem(trace)) {
     return null;
   }
 

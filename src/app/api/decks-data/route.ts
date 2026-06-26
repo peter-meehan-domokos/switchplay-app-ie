@@ -4,6 +4,7 @@ import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
 import { getCurrentUser } from "@/lib/auth";
 import { getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
+import { DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 const USERS_COLLECTION = "users";
 
@@ -13,7 +14,6 @@ function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckD
   return {
     deckTemplateId: template.deckTemplateId,
     activeCardId: template.cards[0]?.cardId ?? "",
-    channels: template.channels,
     cards: template.cards.map((card) => ({
       cardId: card.cardId,
       targetDate: card.suggestedTargetDate,
@@ -21,7 +21,10 @@ function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckD
         itemId: step.stepId,
         completionStatus: "todo",
       })),
-      signalReadings: [],
+      signalReadings: IMPLICIT_SIGNAL_IDS.map((signalId) => ({
+        signalId,
+        reading: DEFAULT_SIGNAL_READING,
+      })),
       reflection: "",
       mediaItems: [],
       chats: [],
