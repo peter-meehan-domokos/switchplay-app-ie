@@ -2117,7 +2117,7 @@ input {
   line-height: 1.24;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: var(--runtime-step-line-clamp);
+  -webkit-line-clamp: var(--runtime-step-line-clamp, 2);
 }
 
 .active-step-item:nth-child(2) .step-description {
