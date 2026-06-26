@@ -13,6 +13,9 @@ function createDeckTemplateResponse(document: DeckTemplateDocument) {
     ownerUserId: document.ownerUserId,
     visibility: document.visibility,
     template: document.template,
+    savedTemplate: document.savedTemplate,
+    savedAt: document.savedAt,
+    publishedAt: document.publishedAt,
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,
   };
@@ -54,14 +57,18 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
+    const publishedTemplate = {
+      ...template,
+      deckTemplateId,
+    };
     const documentToInsert: DeckTemplateDocument = {
       deckTemplateId,
       ownerUserId: user.id,
       visibility: "private",
-      template: {
-        ...template,
-        deckTemplateId,
-      },
+      template: publishedTemplate,
+      savedTemplate: publishedTemplate,
+      savedAt: now,
+      publishedAt: now,
       createdAt: now,
       updatedAt: now,
     };

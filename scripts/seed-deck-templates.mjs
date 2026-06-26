@@ -100,6 +100,9 @@ async function seedDeckTemplates() {
             ownerUserId: ownerUser._id.toString(),
             visibility: ownership.visibility,
             template,
+            savedTemplate: template,
+            savedAt: now,
+            publishedAt: now,
             updatedAt: now,
           },
           $setOnInsert: {

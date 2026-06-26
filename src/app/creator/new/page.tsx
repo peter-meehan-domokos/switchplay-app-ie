@@ -15,7 +15,6 @@ export default async function NewCreatorPage() {
   return (
     <CreatorDragLab
       canPreviewOutput={canPreviewOutput}
-      canUpdateExistingTemplate={false}
       initialBoard={createBlankCreatorBoard()}
       mode="new"
     />

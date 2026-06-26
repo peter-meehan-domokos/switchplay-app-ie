@@ -16,7 +16,10 @@ export type DeckTemplateDocument = {
   ownerUserId: string;
   visibility: DeckTemplateVisibility;
   template: DeckTemplate;
+  savedTemplate?: DeckTemplate;
   previousVersions?: DeckTemplatePreviousVersion[];
+  savedAt?: Date;
+  publishedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 };

@@ -13,7 +13,7 @@ import {
   validateDeckTemplateForSave,
 } from "@/app/api/deck-templates/_lib/templateSaveValidation";
 
-type DeckTemplateRouteContext = {
+type PublishDeckTemplateRouteContext = {
   params: Promise<{
     deckTemplateId: string;
   }>;
@@ -71,7 +71,7 @@ async function reconcileOwnerDeckData(input: {
   return updateResult.matchedCount === 1;
 }
 
-export async function PATCH(request: Request, context: DeckTemplateRouteContext) {
+export async function POST(_request: Request, context: PublishDeckTemplateRouteContext) {
   try {
     const user = await getCurrentUser();
 
@@ -90,20 +90,6 @@ export async function PATCH(request: Request, context: DeckTemplateRouteContext)
       return Response.json({ error: "deckTemplateId is required." }, { status: 400 });
     }
 
-    const body = await request.json();
-    const validation = validateDeckTemplateForSave(body);
-
-    if (!validation.ok) {
-      return Response.json({ error: validation.error }, { status: 400 });
-    }
-
-    const { template } = validation;
-    const incomingDeckTemplateId = template.deckTemplateId.trim();
-
-    if (incomingDeckTemplateId !== deckTemplateId) {
-      return Response.json({ error: "template.deckTemplateId must match route deckTemplateId." }, { status: 400 });
-    }
-
     const collection = await getCollection<DeckTemplateDocument>(DECK_TEMPLATES_COLLECTION);
     const existingTemplate = await collection.findOne({ deckTemplateId });
 
@@ -115,15 +101,21 @@ export async function PATCH(request: Request, context: DeckTemplateRouteContext)
       return Response.json({ error: "You do not own this deck template." }, { status: 403 });
     }
 
-    const updatedAt = new Date();
-    const updatedTemplate = {
-      ...template,
+    const publishedAt = new Date();
+    const publishedTemplate = {
+      ...(existingTemplate.savedTemplate ?? existingTemplate.template),
       deckTemplateId,
     };
+    const validation = validateDeckTemplateForSave({ template: publishedTemplate });
+
+    if (!validation.ok) {
+      return Response.json({ error: validation.error }, { status: 400 });
+    }
+
     const previousVersions: DeckTemplatePreviousVersion[] = [
       {
         template: existingTemplate.template,
-        savedAt: updatedAt,
+        savedAt: publishedAt,
       },
       ...(existingTemplate.previousVersions ?? []),
     ].slice(0, MAX_PREVIOUS_VERSIONS);
@@ -132,12 +124,12 @@ export async function PATCH(request: Request, context: DeckTemplateRouteContext)
       { deckTemplateId, ownerUserId: user.id },
       {
         $set: {
-          template: updatedTemplate,
-          savedTemplate: updatedTemplate,
+          template: publishedTemplate,
+          savedTemplate: publishedTemplate,
           previousVersions,
-          savedAt: updatedAt,
-          publishedAt: updatedAt,
-          updatedAt,
+          savedAt: publishedAt,
+          publishedAt,
+          updatedAt: publishedAt,
         },
       },
       { returnDocument: "after" },
@@ -156,26 +148,22 @@ export async function PATCH(request: Request, context: DeckTemplateRouteContext)
         deckTemplateId,
         existingDeckData,
         oldTemplate: existingTemplate.template,
-        newTemplate: updatedTemplate,
-        updatedAt,
+        newTemplate: publishedTemplate,
+        updatedAt: publishedAt,
       });
 
       if (!deckDataReconciled) {
-        return Response.json({ error: "Deck template updated, but deck data reconciliation failed." }, { status: 500 });
+        return Response.json({ error: "Deck template published, but deck data reconciliation failed." }, { status: 500 });
       }
     }
 
     return Response.json({
-      updated: true,
+      published: true,
       deckDataReconciled,
       deckTemplate: createDeckTemplateResponse(updateResult),
     });
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      return Response.json({ error: "Invalid request body." }, { status: 400 });
-    }
-
-    console.error("Unable to update deck template", error);
-    return Response.json({ error: "Unable to update deck template." }, { status: 500 });
+    console.error("Unable to publish deck template", error);
+    return Response.json({ error: "Unable to publish deck template." }, { status: 500 });
   }
 }

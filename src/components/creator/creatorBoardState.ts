@@ -113,7 +113,7 @@ const starterChannelNames = ["Channel 1", "Channel 2", "Channel 3"];
 const newCardTitle = "My New Card";
 
 function getDefaultCardLabel(cardIndex: number) {
-  return `Week ${cardIndex + 1}`;
+  return `Stage ${cardIndex + 1}`;
 }
 
 function getCardPosition(columnId: ColumnId) {
