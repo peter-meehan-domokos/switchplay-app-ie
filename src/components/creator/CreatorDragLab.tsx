@@ -77,6 +77,11 @@ type StreamDirectUploadResponse = {
   maxDurationSeconds: number;
 };
 
+type SavedDeckTemplateResponse = {
+  copied?: boolean;
+  deckTemplateId?: string;
+};
+
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
@@ -225,6 +230,42 @@ async function publishCreatorDeckTemplate({
   return responseBody;
 }
 
+async function saveCreatorDeckTemplateDraft({
+  deckTemplateId,
+  template,
+}: {
+  deckTemplateId: string;
+  template: DeckTemplate;
+}): Promise<SavedDeckTemplateResponse> {
+  const response = await fetch(`/api/deck-templates/${encodeURIComponent(deckTemplateId)}/saved`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ template }),
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(getPublishErrorMessage(responseBody, "Unable to save draft."));
+  }
+
+  return typeof responseBody === "object" && responseBody !== null ? responseBody as SavedDeckTemplateResponse : {};
+}
+
+async function publishSavedCreatorDeckTemplate(deckTemplateId: string) {
+  const response = await fetch(`/api/deck-templates/${encodeURIComponent(deckTemplateId)}/publish`, {
+    method: "POST",
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(getPublishErrorMessage(responseBody, "Unable to publish template."));
+  }
+
+  return responseBody;
+}
+
 async function initializeCreatorDeckData(deckTemplateId: string) {
   const response = await fetch("/api/decks-data", {
     method: "POST",
@@ -237,29 +278,6 @@ async function initializeCreatorDeckData(deckTemplateId: string) {
 
   if (!response.ok) {
     throw new Error(`Template published, but deck data could not be initialized: ${getPublishErrorMessage(responseBody, "Unable to initialize deck data.")}`);
-  }
-
-  return responseBody;
-}
-
-async function reconcileCreatorDeckData({
-  oldDeckTemplateId,
-  newDeckTemplateId,
-}: {
-  oldDeckTemplateId: string;
-  newDeckTemplateId: string;
-}) {
-  const response = await fetch("/api/decks-data/reconcile", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ oldDeckTemplateId, newDeckTemplateId }),
-  });
-  const responseBody: unknown = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(`Template published, but deck data reconciliation failed: ${getPublishErrorMessage(responseBody, "Unable to reconcile deck data.")}`);
   }
 
   return responseBody;
@@ -729,20 +747,20 @@ function BoardCell({
 
 type CreatorDragLabProps = {
   canPreviewOutput: boolean;
-  canUpdateExistingTemplate: boolean;
   creatorReturnTarget?: {
     label: "Deck" | "Decks";
     href: string;
   };
   initialBoard: BoardState;
+  initialPublishedBoard?: BoardState;
   mode: "edit" | "new";
 };
 
-export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemplate, creatorReturnTarget, initialBoard, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialPublishedBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   console.log("CreatorDragLab board", board);
-  const [publishedTemplateSnapshot, setPublishedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialBoard));
+  const [publishedTemplateSnapshot, setPublishedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialPublishedBoard ?? initialBoard));
   const [hasPublishedBaseline, setHasPublishedBaseline] = useState(mode === "edit");
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
   const [activeChannelRow, setActiveChannelRow] = useState<number | null>(null);
@@ -755,6 +773,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
   const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
+  const boardRef = useRef<BoardState>(initialBoard);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -787,6 +806,10 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const publishButtonLabel =
     publishStatus === "publishing" ? "Publishing…" : hasMediaUploadInFlight ? "Uploading…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
+
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
 
   useEffect(() => {
     if (!hasUnpublishedChanges) {
@@ -831,6 +854,64 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
   }
 
+  async function persistSavedDraft(nextBoard: BoardState) {
+    if (mode !== "edit") {
+      return nextBoard;
+    }
+
+    const sourceDeckTemplateId = nextBoard.deckTemplateId;
+    const template = creatorBoardToDeckTemplate(nextBoard);
+
+    try {
+      const responseBody = await saveCreatorDeckTemplateDraft({
+        deckTemplateId: sourceDeckTemplateId,
+        template,
+      });
+      const savedDeckTemplateId = responseBody.deckTemplateId?.trim();
+
+      if (savedDeckTemplateId && savedDeckTemplateId !== sourceDeckTemplateId) {
+        const copiedBoard = {
+          ...nextBoard,
+          deckTemplateId: savedDeckTemplateId,
+        };
+
+        boardRef.current = copiedBoard;
+        setBoard(copiedBoard);
+        router.replace(`/creator/edit/${encodeURIComponent(savedDeckTemplateId)}`);
+
+        setPublishStatus("idle");
+        setPublishMessage("");
+
+        return copiedBoard;
+      }
+
+      setPublishStatus("idle");
+      setPublishMessage("");
+
+      return nextBoard;
+    } catch (error) {
+      setPublishStatus("error");
+      setPublishMessage(error instanceof Error ? error.message : "Unable to save draft.");
+
+      return null;
+    }
+  }
+
+  function updateBoardAndSaveDraft(createNextBoard: (currentBoard: BoardState) => BoardState) {
+    const nextBoard = createNextBoard(boardRef.current);
+
+    boardRef.current = nextBoard;
+    setBoard(nextBoard);
+    void persistSavedDraft(nextBoard);
+  }
+
+  function updateBoardLocally(createNextBoard: (currentBoard: BoardState) => BoardState) {
+    const nextBoard = createNextBoard(boardRef.current);
+
+    boardRef.current = nextBoard;
+    setBoard(nextBoard);
+  }
+
   function navigateToReturnTarget() {
     router.push(resolvedCreatorReturnTarget.href);
   }
@@ -859,41 +940,41 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     setPublishMessage("");
 
     try {
-      const shouldUpdateExistingTemplate = mode === "edit" && canUpdateExistingTemplate;
-      const shouldCreateFreshDeckData = mode === "new";
-      const originalDeckTemplateId = board.deckTemplateId;
-      const nextDeckTemplateId = shouldUpdateExistingTemplate
-        ? board.deckTemplateId
-        : deckDataPendingTemplateId ?? (mode === "new" ? board.deckTemplateId : createCreatorDeckTemplateId());
+      if (mode === "edit") {
+        const savedBoard = await persistSavedDraft(boardRef.current);
+
+        if (!savedBoard) {
+          return false;
+        }
+
+        await publishSavedCreatorDeckTemplate(savedBoard.deckTemplateId);
+
+        setPublishedTemplateSnapshot(createTemplateSnapshot(savedBoard));
+        setHasPublishedBaseline(true);
+        setPublishStatus("success");
+        setPublishMessage("");
+
+        return true;
+      }
+
+      const nextDeckTemplateId = deckDataPendingTemplateId ?? board.deckTemplateId;
       const template = {
-        ...creatorBoardToDeckTemplate(board),
+        ...creatorBoardToDeckTemplate(boardRef.current),
         deckTemplateId: nextDeckTemplateId,
       };
       const nextPublishedTemplateSnapshot = JSON.stringify(template);
-      const hasCreatedTemplateAwaitingDeckData = !shouldUpdateExistingTemplate && deckDataPendingTemplateId === nextDeckTemplateId;
+      const hasCreatedTemplateAwaitingDeckData = deckDataPendingTemplateId === nextDeckTemplateId;
 
       await publishCreatorDeckTemplate({
         deckTemplateId: nextDeckTemplateId,
-        method: shouldUpdateExistingTemplate || hasCreatedTemplateAwaitingDeckData ? "PATCH" : "POST",
+        method: hasCreatedTemplateAwaitingDeckData ? "PATCH" : "POST",
         template,
       });
 
-      if (!shouldUpdateExistingTemplate) {
-        setDeckDataPendingTemplateId(nextDeckTemplateId);
-      }
+      setDeckDataPendingTemplateId(nextDeckTemplateId);
 
-      if (shouldCreateFreshDeckData) {
-        await initializeCreatorDeckData(nextDeckTemplateId);
-      } else if (!shouldUpdateExistingTemplate) {
-        await reconcileCreatorDeckData({
-          oldDeckTemplateId: originalDeckTemplateId,
-          newDeckTemplateId: nextDeckTemplateId,
-        });
-      }
-
-      if (!shouldUpdateExistingTemplate) {
-        setDeckDataPendingTemplateId(null);
-      }
+      await initializeCreatorDeckData(nextDeckTemplateId);
+      setDeckDataPendingTemplateId(null);
 
       setPublishedTemplateSnapshot(nextPublishedTemplateSnapshot);
       setHasPublishedBaseline(true);
@@ -901,13 +982,14 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       setPublishStatus("success");
       setPublishMessage("");
 
-      if (!shouldUpdateExistingTemplate) {
-        setBoard((currentBoard) => ({
-          ...currentBoard,
-          deckTemplateId: nextDeckTemplateId,
-        }));
-        router.replace(`/creator/edit/${encodeURIComponent(nextDeckTemplateId)}`);
-      }
+      const publishedBoard = {
+        ...boardRef.current,
+        deckTemplateId: nextDeckTemplateId,
+      };
+
+      boardRef.current = publishedBoard;
+      setBoard(publishedBoard);
+      router.replace(`/creator/edit/${encodeURIComponent(nextDeckTemplateId)}`);
 
       return true;
     } catch (error) {
@@ -978,7 +1060,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
         return;
       }
 
-      setBoard((currentBoard) => swapCreatorBoardRows(currentBoard, fromRow, toRow));
+      updateBoardLocally((currentBoard) => swapCreatorBoardRows(currentBoard, fromRow, toRow));
       return;
     }
 
@@ -989,7 +1071,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
       return;
     }
 
-    setBoard((currentBoard) => {
+    updateBoardLocally((currentBoard) => {
       const originCellId = findPairCell(currentBoard.cells, pairId);
       const targetCell = currentBoard.cells[targetCellId];
       const sourcePair = currentBoard.pairs[pairId];
@@ -1024,7 +1106,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   }
 
   function addCard() {
-    setBoard((currentBoard) => appendCreatorCard(currentBoard));
+    updateBoardLocally((currentBoard) => appendCreatorCard(currentBoard));
   }
 
   function deleteActiveCard() {
@@ -1034,7 +1116,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     const columnId = editSession.target.columnId;
 
-    setBoard((currentBoard) => deleteCreatorCard(currentBoard, columnId));
+    updateBoardLocally((currentBoard) => deleteCreatorCard(currentBoard, columnId));
     setEditSession(null);
   }
 
@@ -1061,7 +1143,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     const target = editSession.target;
 
-    setBoard((currentBoard) => {
+    updateBoardAndSaveDraft((currentBoard) => {
       if (target.type === "deck-title") {
         return { ...currentBoard, deckTitle: value };
       }
@@ -1129,8 +1211,8 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     try {
       const mediaItem = await uploadCreatorVideo(file);
-
-      setBoard((currentBoard) => {
+      const nextBoard = (() => {
+        const currentBoard = boardRef.current;
         const pair = currentBoard.pairs[pairId];
 
         if (!pair) {
@@ -1147,7 +1229,11 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
             },
           },
         };
-      });
+      })();
+
+      boardRef.current = nextBoard;
+      setBoard(nextBoard);
+      await persistSavedDraft(nextBoard);
     } catch (error) {
       setPublishStatus("error");
       setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
@@ -1177,8 +1263,8 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     try {
       const mediaItem = await uploadCreatorVideo(file);
-
-      setBoard((currentBoard) => ({
+      const currentBoard = boardRef.current;
+      const nextBoard = {
         ...currentBoard,
         columns: currentBoard.columns.map((column) =>
           column.id === columnId && column.kind === "card"
@@ -1188,7 +1274,11 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
               }
             : column
         ),
-      }));
+      };
+
+      boardRef.current = nextBoard;
+      setBoard(nextBoard);
+      await persistSavedDraft(nextBoard);
     } catch (error) {
       setPublishStatus("error");
       setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
@@ -1208,7 +1298,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
 
     const target = dateEditSession.target;
 
-    setBoard((currentBoard) => ({
+    updateBoardAndSaveDraft((currentBoard) => ({
       ...currentBoard,
       columns: currentBoard.columns.map((column) => (column.id === target.columnId ? { ...column, targetDate: value } : column)),
     }));

@@ -42,6 +42,8 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   }
 
   const canPreviewOutput = user.isAdmin === true || user.username === "dev";
+  const editableTemplate = templateDocument.savedTemplate ?? templateDocument.template;
+  const publishedBoard = createCreatorBoardFromTemplate(templateDocument.template);
   const creatorReturnTarget =
     returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
       ? { label: "Deck" as const, href: `/?openDeck=${encodeURIComponent(returnDeckId)}` }
@@ -50,9 +52,9 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   return (
     <CreatorDragLab
       canPreviewOutput={canPreviewOutput}
-      canUpdateExistingTemplate={templateDocument.ownerUserId === user.id}
       creatorReturnTarget={creatorReturnTarget}
-      initialBoard={createCreatorBoardFromTemplate(templateDocument.template)}
+      initialBoard={createCreatorBoardFromTemplate(editableTemplate)}
+      initialPublishedBoard={publishedBoard}
       mode="edit"
     />
   );
