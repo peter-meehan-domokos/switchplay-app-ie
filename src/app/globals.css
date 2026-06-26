@@ -393,6 +393,13 @@ input {
   font-weight: 700;
 }
 
+.creator-leave-confirm-body {
+  margin: 6px 0 0;
+  color: #59626c;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .creator-leave-confirm-actions {
   display: flex;
   justify-content: flex-end;
@@ -401,7 +408,7 @@ input {
 }
 
 .creator-leave-confirm-cancel,
-.creator-leave-confirm-discard,
+.creator-leave-confirm-leave,
 .creator-leave-confirm-save {
   border: 1px solid #a8adb3;
   background: #ffffff;
@@ -413,7 +420,7 @@ input {
   padding: 6px 10px;
 }
 
-.creator-leave-confirm-discard {
+.creator-leave-confirm-leave {
   border-color: #cbb7b4;
   color: #6b2f28;
 }

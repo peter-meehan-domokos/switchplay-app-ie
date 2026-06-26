@@ -1011,7 +1011,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     navigateToReturnTarget();
   }
 
-  function discardAndLeave() {
+  function leaveWithoutPublishing() {
     setIsLeaveConfirmOpen(false);
     navigateToReturnTarget();
   }
@@ -1413,17 +1413,18 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
             {resolvedCreatorReturnTarget.label}
           </Link>
           {isLeaveConfirmOpen ? (
-            <div className="creator-leave-confirm" role="dialog" aria-label="Unpublished changes confirmation">
-              <p className="creator-leave-confirm-title">Publish changes before leaving?</p>
+            <div className="creator-leave-confirm" role="dialog" aria-label="Leave Creator confirmation">
+              <p className="creator-leave-confirm-title">Leave Creator?</p>
+              <p className="creator-leave-confirm-body">Your changes are saved as a draft. They will not appear in the live deck until you publish.</p>
               <div className="creator-leave-confirm-actions">
                 <button className="creator-leave-confirm-cancel" onClick={() => setIsLeaveConfirmOpen(false)} type="button">
-                  Cancel
+                  Stay
                 </button>
-                <button className="creator-leave-confirm-discard" onClick={discardAndLeave} type="button">
-                  Discard
+                <button className="creator-leave-confirm-leave" onClick={leaveWithoutPublishing} type="button">
+                  Leave without publishing
                 </button>
                 <button className="creator-leave-confirm-save" disabled={publishStatus === "publishing"} onClick={() => void publishBeforeLeaving()} type="button">
-                  {publishStatus === "publishing" ? "Publishing…" : "Publish"}
+                  {publishStatus === "publishing" ? "Publishing…" : "Publish and leave"}
                 </button>
               </div>
             </div>
