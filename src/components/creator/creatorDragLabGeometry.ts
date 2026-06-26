@@ -17,9 +17,10 @@ export const CREATOR_GEOMETRY = {
   scrollPaddingBottom: 8,
   columnWidth: 172,
   columnGap: 12,
-  columnHeaderHeight: 80,
+  columnHeaderHeight: 100,
   cardMetaHeight: 18,
   cardTitleHeight: 42,
+  cardIntroMediaHeight: 20,
   cardHeaderGap: 2,
   columnHeaderPadding: 8,
   addCardControlWidth: 58,
@@ -82,6 +83,7 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-add-card-control-width": string;
   "--creator-card-meta-height": string;
   "--creator-card-title-height": string;
+  "--creator-card-intro-media-height": string;
   "--creator-card-header-gap": string;
   "--creator-column-header-padding": string;
   "--creator-row-count": number;
@@ -146,6 +148,7 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-add-card-control-width": toPx(CREATOR_GEOMETRY.addCardControlWidth),
     "--creator-card-meta-height": toPx(CREATOR_GEOMETRY.cardMetaHeight),
     "--creator-card-title-height": toPx(CREATOR_GEOMETRY.cardTitleHeight),
+    "--creator-card-intro-media-height": toPx(CREATOR_GEOMETRY.cardIntroMediaHeight),
     "--creator-card-header-gap": toPx(CREATOR_GEOMETRY.cardHeaderGap),
     "--creator-column-header-padding": toPx(CREATOR_GEOMETRY.columnHeaderPadding),
     "--creator-row-count": CREATOR_GEOMETRY.rowCount,

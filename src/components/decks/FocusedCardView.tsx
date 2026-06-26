@@ -246,6 +246,16 @@ export default function FocusedCardView({
       itemIndex: stepIndex + 1,
     });
   };
+  const openIntroView = () => {
+    if (isFlipped) {
+      return;
+    }
+
+    setStepViewState({
+      cardId: card.id,
+      itemIndex: 0,
+    });
+  };
   const closeStepView = () => {
     setStepViewState(null);
   };
@@ -354,6 +364,7 @@ export default function FocusedCardView({
                   variant="focused"
                   onCycleStepStatus={onCycleStepStatus}
                   onAdjustTargetDate={onAdjustTargetDate}
+                  onOpenIntroView={openIntroView}
                   onOpenStepView={openStepView}
                   onStepNavigateNext={settleFocusedCardToPast}
                   onStepNavigatePrevious={restoreFocusedCardFromPast}

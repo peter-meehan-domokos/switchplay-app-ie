@@ -35,8 +35,8 @@ function getStepViewItemText(card: CardLayout, item: StepViewItem) {
   return card.steps[item.stepIndex]?.description ?? "";
 }
 
-function getStepViewStepMediaItem(card: CardLayout, item: StepViewItem) {
-  return item.type === "step" ? card.steps[item.stepIndex]?.mediaItem ?? null : null;
+function getStepViewMediaItem(card: CardLayout, item: StepViewItem) {
+  return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
 }
 
 function stopStepViewPropagation(event: PointerEvent<HTMLElement> | MouseEvent<HTMLElement>) {
@@ -44,7 +44,7 @@ function stopStepViewPropagation(event: PointerEvent<HTMLElement> | MouseEvent<H
 }
 
 function renderStepViewMedia(card: CardLayout, item: StepViewItem) {
-  const mediaItem = getStepViewStepMediaItem(card, item);
+  const mediaItem = getStepViewMediaItem(card, item);
 
   if (!mediaItem) {
     return "Video placeholder";

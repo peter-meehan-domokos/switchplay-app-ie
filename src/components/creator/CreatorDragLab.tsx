@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   createCreatorDeckTemplateId,
@@ -39,6 +39,7 @@ import {
   type Pair,
   type PairId,
 } from "@/components/creator/creatorBoardState";
+import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { DeckTemplate } from "@/components/decks/types";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
@@ -549,19 +550,6 @@ function PairBlock({
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
-  const mediaLabel = isMediaUploading ? "Uploading..." : getStepMediaDisplayText(pair);
-
-  function handleMediaInputChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    onUploadMedia(pair.id, file);
-  }
 
   return (
     <div className={`creator-pair${isDragging ? " creator-pair--dragging" : ""}`} ref={setNodeRef}>
@@ -582,10 +570,15 @@ function PairBlock({
           <DragHandleMark />
         </button>
       </div>
-      <label className={mediaClassName} data-creator-pan-exempt>
-        {mediaLabel}
-        <input accept="video/*" disabled={isMediaUploading} hidden onChange={handleMediaInputChange} type="file" />
-      </label>
+      <CreatorMediaUploadSlot
+        ariaLabel="Upload step video"
+        className={mediaClassName}
+        isUploading={isMediaUploading}
+        mediaItem={pair.stepMediaItem}
+        onUpload={(file) => onUploadMedia(pair.id, file)}
+        placeholder="Upload video"
+        size="pair"
+      />
     </div>
   );
 }
@@ -761,6 +754,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const [publishStatus, setPublishStatus] = useState<PublishStatus>("idle");
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
+  const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -789,7 +783,7 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
-  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0;
+  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0;
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const publishButtonLabel =
     publishStatus === "publishing" ? "Publishing…" : hasMediaUploadInFlight ? "Uploading…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
@@ -1166,6 +1160,47 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
     }
   }
 
+  async function uploadIntroMedia(columnId: ColumnId, file: File) {
+    if (file.type && !file.type.startsWith("video/")) {
+      setPublishStatus("error");
+      setPublishMessage("Choose a video file.");
+      return;
+    }
+
+    setUploadingIntroMediaColumnIds((currentColumnIds) => {
+      const nextColumnIds = new Set(currentColumnIds);
+      nextColumnIds.add(columnId);
+      return nextColumnIds;
+    });
+    setPublishMessage("");
+    setPublishStatus("idle");
+
+    try {
+      const mediaItem = await uploadCreatorVideo(file);
+
+      setBoard((currentBoard) => ({
+        ...currentBoard,
+        columns: currentBoard.columns.map((column) =>
+          column.id === columnId && column.kind === "card"
+            ? {
+                ...column,
+                introMediaItem: mediaItem,
+              }
+            : column
+        ),
+      }));
+    } catch (error) {
+      setPublishStatus("error");
+      setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
+    } finally {
+      setUploadingIntroMediaColumnIds((currentColumnIds) => {
+        const nextColumnIds = new Set(currentColumnIds);
+        nextColumnIds.delete(columnId);
+        return nextColumnIds;
+      });
+    }
+  }
+
   function saveDateEdit(value: string) {
     if (!dateEditSession || !isIsoDateOnlyString(value)) {
       return;
@@ -1344,6 +1379,15 @@ export default function CreatorDragLab({ canPreviewOutput, canUpdateExistingTemp
                         <button className="creator-editable creator-card-title-button" onClick={() => openEdit({ type: "card-title", columnId: column.id })} type="button">
                           {column.cardTitle}
                         </button>
+                        <CreatorMediaUploadSlot
+                          ariaLabel={`Upload intro video for ${column.cardTitle ?? column.cardLabel ?? "card"}`}
+                          className="creator-card-intro-media-slot"
+                          isUploading={uploadingIntroMediaColumnIds.has(column.id)}
+                          mediaItem={column.introMediaItem ?? null}
+                          onUpload={(file) => void uploadIntroMedia(column.id, file)}
+                          placeholder="Upload video"
+                          size="intro"
+                        />
                       </>
                     ) : (
                       <span className="creator-channel-header">Channels</span>
