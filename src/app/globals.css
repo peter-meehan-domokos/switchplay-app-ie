@@ -796,8 +796,9 @@ input {
 .creator-pair-step {
   display: -webkit-box;
   align-self: end;
+  max-height: calc(var(--creator-pair-step-line-clamp, 4) * 1.2em);
   font-weight: 750;
-  -webkit-line-clamp: var(--creator-pair-step-line-clamp);
+  -webkit-line-clamp: var(--creator-pair-step-line-clamp, 4);
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
