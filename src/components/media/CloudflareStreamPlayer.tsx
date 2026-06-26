@@ -50,7 +50,7 @@ export default function CloudflareStreamPlayer({ mediaItem }: CloudflareStreamPl
       className="cloudflare-stream-player"
       src={getCloudflareStreamIframeUrl(mediaItem)}
       title={mediaItem.description || "Step video"}
-      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+      allow="accelerometer; gyroscope; autoplay; encrypted-media"
       allowFullScreen
       loading="lazy"
     />
