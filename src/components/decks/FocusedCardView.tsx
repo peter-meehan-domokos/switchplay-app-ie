@@ -220,8 +220,11 @@ export default function FocusedCardView({
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
+  const [expandedLandscapeFrameSize, setExpandedLandscapeFrameSize] = useState<{ width: number; height: number } | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoHostElementRef = useRef<HTMLDivElement | null>(null);
+  const videoFrameElementRef = useRef<HTMLDivElement | null>(null);
   const focusedCardScale = useFocusedCardScale();
   const deckSideFlipState: FocusedFlipState = {
     cardId: card.id,
@@ -418,10 +421,75 @@ export default function FocusedCardView({
   useEffect(() => {
     if (!activeCloudflareVideoMediaItem) {
       setIsVideoExpanded(false);
+      setExpandedLandscapeFrameSize(null);
       setVideoHostRect(null);
       setVideoAnchorElement(null);
     }
   }, [activeCloudflareVideoMediaItem]);
+
+  useEffect(() => {
+    if (!isVideoExpanded || isExpandedVideoPortrait) {
+      setExpandedLandscapeFrameSize(null);
+      return;
+    }
+
+    let isDisposed = false;
+
+    const runExpandedLandscapeRelayoutNudge = () => {
+      if (isDisposed) {
+        return;
+      }
+
+      const hostElement = videoHostElementRef.current;
+      const frameElement = videoFrameElementRef.current;
+
+      if (!hostElement || !frameElement) {
+        return;
+      }
+
+      const hostRect = hostElement.getBoundingClientRect();
+      const frameRect = frameElement.getBoundingClientRect();
+      const iframeRect = frameElement.querySelector<HTMLIFrameElement>(".cloudflare-stream-player")?.getBoundingClientRect();
+
+      if (hostRect.width <= 1 || hostRect.height <= 1) {
+        return;
+      }
+
+      const nextWidth = Math.max(1, Math.round(hostRect.width));
+      const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
+
+      setExpandedLandscapeFrameSize((currentSize) => {
+        if (currentSize && currentSize.width === nextWidth && currentSize.height === nextHeight) {
+          return currentSize;
+        }
+
+        return {
+          width: nextWidth,
+          height: nextHeight,
+        };
+      });
+
+      // iPhone Safari/WebKit relayout workaround for the hosted Cloudflare player
+      // after embedded -> expanded transitions.
+      // Read shell/iframe rects before dispatching resize to nudge internal relayout.
+      void frameRect;
+      void iframeRect;
+      window.dispatchEvent(new Event("resize"));
+    };
+
+    const firstFrameId = window.requestAnimationFrame(() => {
+      const secondFrameId = window.requestAnimationFrame(runExpandedLandscapeRelayoutNudge);
+
+      if (isDisposed) {
+        window.cancelAnimationFrame(secondFrameId);
+      }
+    });
+
+    return () => {
+      isDisposed = true;
+      window.cancelAnimationFrame(firstFrameId);
+    };
+  }, [isVideoExpanded, isExpandedVideoPortrait]);
 
   useLayoutEffect(() => {
     if (!videoAnchorElement) {
@@ -472,6 +540,7 @@ export default function FocusedCardView({
   useEffect(() => {
     setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
     setIsVideoExpanded(false);
+    setExpandedLandscapeFrameSize(null);
     setVideoHostRect(null);
     setVideoAnchorElement(null);
     setReflectionEditorState(null);
@@ -586,6 +655,7 @@ export default function FocusedCardView({
       {isVideoHostVisible && activeCloudflareVideoMediaItem ? (
         <div className="switchplay-video-host-layer" aria-hidden="true">
           <div
+            ref={videoHostElementRef}
             className={`switchplay-video-host${
               isVideoExpanded ? " switchplay-video-host--expanded" : " switchplay-video-host--embedded"
             }${isExpandedVideoPortrait ? " switchplay-video-host--portrait" : " switchplay-video-host--landscape"}`}
@@ -600,7 +670,18 @@ export default function FocusedCardView({
                 : undefined
             }
           >
-            <div className="switchplay-video-frame">
+            <div
+              ref={videoFrameElementRef}
+              className="switchplay-video-frame"
+              style={
+                isVideoExpanded && !isExpandedVideoPortrait && expandedLandscapeFrameSize
+                  ? {
+                      height: `${expandedLandscapeFrameSize.height}px`,
+                      width: `${expandedLandscapeFrameSize.width}px`,
+                    }
+                  : undefined
+              }
+            >
               <CloudflareStreamPlayer
                 controlsMode="switchplay"
                 displayMode={isVideoExpanded ? "expanded" : "embedded"}
