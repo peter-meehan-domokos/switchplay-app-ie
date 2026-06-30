@@ -2,7 +2,11 @@ import { useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEven
 import { getCloudflareStreamThumbnailUrl } from "@/components/media/CloudflareStreamPlayer";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import type { WeeklyCard } from "@/components/decks/types";
-import { getMediaTitle, isCloudflareStreamVideoMediaItem } from "@/lib/media";
+import {
+  getMediaTitle,
+  isCloudflareStreamVideoMediaItem,
+  isKnownPortraitCloudflareStreamVideoMediaItem,
+} from "@/lib/media";
 
 type IntroMediaBlockProps = {
   card: WeeklyCard;
@@ -52,6 +56,7 @@ export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavi
   const mediaItem = card.intro.mediaItem;
   const introTitle = card.intro.title ?? "";
   const thumbnailSrc = isCloudflareStreamVideoMediaItem(mediaItem) ? getCloudflareStreamThumbnailUrl(mediaItem) : null;
+  const isPortraitThumbnail = isCloudflareStreamVideoMediaItem(mediaItem) && isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem);
   const [failedThumbnailSrc, setFailedThumbnailSrc] = useState<string | null>(null);
   const shouldShowThumbnail = Boolean(thumbnailSrc && failedThumbnailSrc !== thumbnailSrc);
   const isIntroViewTrigger = typeof onOpenIntroView === "function";
@@ -245,7 +250,10 @@ export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavi
       tabIndex={isIntroViewTrigger ? 0 : undefined}
     >
       {mediaItem ? (
-        <div className="intro-media-thumb" aria-label={getMediaTitle(mediaItem, introTitle)}>
+        <div
+          className={`intro-media-thumb${isPortraitThumbnail ? " intro-media-thumb--portrait" : ""}`}
+          aria-label={getMediaTitle(mediaItem, introTitle)}
+        >
           {thumbnailSrc && shouldShowThumbnail ? (
             <img
               alt=""

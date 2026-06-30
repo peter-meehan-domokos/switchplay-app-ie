@@ -14,6 +14,8 @@ export type CloudflareStreamVideoMediaItem = BaseMediaItem & {
   assetId: string;
   src: string;
   thumbnailSrc?: string;
+  width?: number;
+  height?: number;
 };
 
 export type YouTubeVideoMediaItem = BaseMediaItem & {
@@ -57,6 +59,13 @@ function hasOptionalStringField(value: Record<string, unknown>, fieldName: strin
   return value[fieldName] === undefined || typeof value[fieldName] === "string";
 }
 
+function hasOptionalPositiveNumberField(value: Record<string, unknown>, fieldName: string) {
+  return (
+    value[fieldName] === undefined ||
+    (typeof value[fieldName] === "number" && Number.isFinite(value[fieldName]) && value[fieldName] > 0)
+  );
+}
+
 function isBaseMediaItem(value: unknown): value is BaseMediaItem {
   return isRecord(value) && hasStringField(value, "id") && hasStringField(value, "description");
 }
@@ -81,7 +90,9 @@ export function isCloudflareStreamVideoMediaItem(value: unknown): value is Cloud
     mediaItem.provider === "cloudflare-stream" &&
     hasStringField(mediaItem, "assetId") &&
     hasStringField(mediaItem, "src") &&
-    hasOptionalStringField(mediaItem, "thumbnailSrc")
+    hasOptionalStringField(mediaItem, "thumbnailSrc") &&
+    hasOptionalPositiveNumberField(mediaItem, "width") &&
+    hasOptionalPositiveNumberField(mediaItem, "height")
   );
 }
 
@@ -135,4 +146,12 @@ export function getMediaKindLabel(mediaItem?: MediaKindLike): string {
 
 export function getMediaTitle(mediaItem: MediaTitleLike | undefined, fallback: string): string {
   return mediaItem?.description ?? fallback;
+}
+
+export function isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem: CloudflareStreamVideoMediaItem) {
+  return (
+    typeof mediaItem.width === "number" &&
+    typeof mediaItem.height === "number" &&
+    mediaItem.height > mediaItem.width
+  );
 }

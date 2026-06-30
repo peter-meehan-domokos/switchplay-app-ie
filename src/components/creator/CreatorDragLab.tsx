@@ -77,6 +77,11 @@ type StreamDirectUploadResponse = {
   maxDurationSeconds: number;
 };
 
+type VideoDimensions = {
+  width: number;
+  height: number;
+};
+
 type SavedDeckTemplateResponse = {
   copied?: boolean;
   deckTemplateId?: string;
@@ -154,6 +159,58 @@ function createCloudflareStreamPlaybackUrl(uid: string) {
   return `https://iframe.videodelivery.net/${encodeURIComponent(uid)}`;
 }
 
+function getLocalVideoDimensions(file: File): Promise<VideoDimensions | null> {
+  if (typeof document === "undefined" || typeof URL === "undefined") {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    let isSettled = false;
+    let timeoutId: number | null = null;
+
+    const cleanup = () => {
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    const settle = (dimensions: VideoDimensions | null) => {
+      if (isSettled) {
+        return;
+      }
+
+      isSettled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      cleanup();
+      resolve(dimensions);
+    };
+
+    timeoutId = window.setTimeout(() => settle(null), 10_000);
+
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    video.addEventListener(
+      "loadedmetadata",
+      () => {
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+        const hasDimensions = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0;
+
+        settle(hasDimensions ? { width, height } : null);
+      },
+      { once: true }
+    );
+    video.addEventListener("error", () => settle(null), { once: true });
+    video.src = objectUrl;
+    video.load();
+  });
+}
+
 async function requestStreamDirectUpload(file: File): Promise<StreamDirectUploadResponse> {
   const response = await fetch("/api/media/stream/direct-upload", {
     method: "POST",
@@ -191,6 +248,7 @@ async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
 }
 
 async function uploadCreatorVideo(file: File): Promise<CloudflareStreamVideoMediaItem> {
+  const dimensions = await getLocalVideoDimensions(file);
   const directUpload = await requestStreamDirectUpload(file);
 
   await uploadFileToCloudflareStream(directUpload.uploadURL, file);
@@ -202,6 +260,7 @@ async function uploadCreatorVideo(file: File): Promise<CloudflareStreamVideoMedi
     assetId: directUpload.uid,
     src: createCloudflareStreamPlaybackUrl(directUpload.uid),
     description: file.name || "Video attached",
+    ...(dimensions ?? {}),
   };
 }
 
