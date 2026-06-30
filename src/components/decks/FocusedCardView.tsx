@@ -427,61 +427,56 @@ export default function FocusedCardView({
     }
   }, [activeCloudflareVideoMediaItem]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isVideoExpanded || isExpandedVideoPortrait) {
       setExpandedLandscapeFrameSize(null);
       return;
     }
 
-      let isDisposed = false;
+    const updateExpandedLandscapeFrameSize = () => {
+      const hostElement = videoHostElementRef.current;
 
-      const runExpandedLandscapeRelayoutNudge = () => {
-        if (isDisposed) {
-          return;
+      if (!hostElement) {
+        return;
+      }
+
+      const hostRect = hostElement.getBoundingClientRect();
+
+      if (hostRect.width <= 1 || hostRect.height <= 1) {
+        return;
+      }
+
+      const nextWidth = Math.max(1, Math.round(hostRect.width));
+      const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
+
+      setExpandedLandscapeFrameSize((currentSize) => {
+        if (currentSize && currentSize.width === nextWidth && currentSize.height === nextHeight) {
+          return currentSize;
         }
 
-        const hostElement = videoHostElementRef.current;
-        const frameElement = videoFrameElementRef.current;
+        return {
+          width: nextWidth,
+          height: nextHeight,
+        };
+      });
+    };
 
-        if (!hostElement || !frameElement) {
-          return;
-        }
+    updateExpandedLandscapeFrameSize();
 
-        const hostRect = hostElement.getBoundingClientRect();
-        const frameRect = frameElement.getBoundingClientRect();
-        const iframeRect = frameElement.querySelector<HTMLIFrameElement>(".cloudflare-stream-player")?.getBoundingClientRect();
+    const hostElement = videoHostElementRef.current;
+    if (!hostElement) {
+      return;
+    }
 
-        if (hostRect.width <= 1 || hostRect.height <= 1) {
-          return;
-        }
-
-        const nextWidth = Math.max(1, Math.round(hostRect.width));
-        const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
-
-        setExpandedLandscapeFrameSize((currentSize) => {
-          if (currentSize && currentSize.width === nextWidth && currentSize.height === nextHeight) {
-            return currentSize;
-          }
-
-          return {
-            width: nextWidth,
-            height: nextHeight,
-          };
-        });
-
-        // iPhone Safari/WebKit relayout workaround for the hosted Cloudflare player
-        // after embedded -> expanded transitions.
-        // Read shell/iframe rects before dispatching resize to nudge internal relayout.
-        void frameRect;
-        void iframeRect;
-        window.dispatchEvent(new Event("resize"));
-      };
-
-        const frameId = window.requestAnimationFrame(runExpandedLandscapeRelayoutNudge);
+    const resizeObserver = new ResizeObserver(updateExpandedLandscapeFrameSize);
+    resizeObserver.observe(hostElement);
+    window.addEventListener("resize", updateExpandedLandscapeFrameSize);
+    window.visualViewport?.addEventListener("resize", updateExpandedLandscapeFrameSize);
 
     return () => {
-      isDisposed = true;
-          window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateExpandedLandscapeFrameSize);
+      window.visualViewport?.removeEventListener("resize", updateExpandedLandscapeFrameSize);
     };
   }, [isVideoExpanded, isExpandedVideoPortrait]);
 
@@ -668,11 +663,16 @@ export default function FocusedCardView({
               ref={videoFrameElementRef}
               className="switchplay-video-frame"
               style={
-                isVideoExpanded && !isExpandedVideoPortrait && expandedLandscapeFrameSize
-                  ? {
-                      height: `${expandedLandscapeFrameSize.height}px`,
-                      width: `${expandedLandscapeFrameSize.width}px`,
-                    }
+                isVideoExpanded && !isExpandedVideoPortrait
+                  ? expandedLandscapeFrameSize
+                    ? {
+                        height: `${expandedLandscapeFrameSize.height}px`,
+                        visibility: "visible",
+                        width: `${expandedLandscapeFrameSize.width}px`,
+                      }
+                    : {
+                        visibility: "hidden",
+                      }
                   : undefined
               }
             >
