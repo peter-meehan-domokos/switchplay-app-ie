@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
@@ -30,6 +30,7 @@ type FocusedCardViewProps = {
   onCycleStepStatus: (stepId: string) => void;
   onAdjustTargetDate: (direction: -1 | 1) => void;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
+  onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
 };
@@ -49,6 +50,10 @@ type StepViewState = {
   itemIndex: number;
 };
 
+type ReflectionEditorState = {
+  cardId: string;
+};
+
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -57,6 +62,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 const FOCUSED_FLIP_LOCK_MS = 680;
 const FOCUSED_TRAVERSAL_LOCK_MS = 280;
 const FALLBACK_FOCUSED_CARD_SCALE = FOCUSED_CARD_PREFERRED_VISUAL_WIDTH / FOCUSED_CARD_BASELINE_WIDTH;
+const REFLECTION_DISPLAY_RECOMMENDED_CHARS = 55;
 
 function getDeckFlipSide(isDeckFlipped: boolean): FocusedFlipSide {
   return isDeckFlipped ? "back" : "front";
@@ -151,6 +157,7 @@ export default function FocusedCardView({
   onCycleStepStatus,
   onAdjustTargetDate,
   onCommitSignalReading,
+  onCommitReflection,
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
@@ -160,6 +167,10 @@ export default function FocusedCardView({
     rotationY: isDeckFlipped ? 180 : 0,
   });
   const [stepViewState, setStepViewState] = useState<StepViewState | null>(null);
+  const [reflectionEditorState, setReflectionEditorState] = useState<ReflectionEditorState | null>(null);
+  const [reflectionDraftValue, setReflectionDraftValue] = useState("");
+  const [reflectionEditorError, setReflectionEditorError] = useState<string | null>(null);
+  const [isSavingReflection, setIsSavingReflection] = useState(false);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedCardScale = useFocusedCardScale();
@@ -256,6 +267,48 @@ export default function FocusedCardView({
       itemIndex: 0,
     });
   };
+  const openReflectionEditor = (cardId: string) => {
+    if (!onCommitReflection || !isFlipped) {
+      return;
+    }
+
+    setReflectionEditorState({
+      cardId,
+    });
+    setReflectionDraftValue(card.reflection);
+    setReflectionEditorError(null);
+  };
+  const closeReflectionEditor = () => {
+    if (isSavingReflection) {
+      return;
+    }
+
+    setReflectionEditorState(null);
+    setReflectionEditorError(null);
+  };
+  const stopReflectionEditorGesturePropagation = (event: PointerEvent<HTMLFormElement>) => {
+    event.stopPropagation();
+  };
+  const submitReflectionEditor = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!reflectionEditorState || !onCommitReflection) {
+      return;
+    }
+
+    setIsSavingReflection(true);
+    setReflectionEditorError(null);
+
+    try {
+      await onCommitReflection(reflectionEditorState.cardId, reflectionDraftValue);
+      setReflectionEditorState(null);
+    } catch (error) {
+      console.warn("Unable to persist card reflection.", error);
+      setReflectionEditorError(error instanceof Error ? error.message : "Unable to save reflection.");
+    } finally {
+      setIsSavingReflection(false);
+    }
+  };
   const closeStepView = () => {
     setStepViewState(null);
   };
@@ -286,7 +339,7 @@ export default function FocusedCardView({
   const focusedGestures = useDeckGestures({
     mode: "focus",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
-    locked: isFocusedGestureLocked || Boolean(stepViewItem),
+    locked: isFocusedGestureLocked || Boolean(stepViewItem) || Boolean(reflectionEditorState),
     onSettleToPast: settleFocusedCardToPast,
     onRestoreFromPast: restoreFocusedCardFromPast,
     onFlip: toggleFocusedCardSide,
@@ -294,6 +347,8 @@ export default function FocusedCardView({
 
   useEffect(() => {
     setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
+    setReflectionEditorState(null);
+    setReflectionEditorError(null);
   }, [card.id]);
 
   useEffect(() => {
@@ -377,6 +432,7 @@ export default function FocusedCardView({
                 dateLabel={dateLabel}
                 variant="focused"
                 onCommitSignalReading={onCommitSignalReading}
+                onEditReflection={onCommitReflection ? openReflectionEditor : undefined}
                 onSignalNavigateNext={settleFocusedCardToPast}
                 onSignalNavigatePrevious={restoreFocusedCardFromPast}
               />
@@ -397,6 +453,57 @@ export default function FocusedCardView({
             </AnimatePresence>
           </motion.div>
         </motion.article>
+      </AnimatePresence>
+      <AnimatePresence>
+        {reflectionEditorState ? (
+          <motion.div
+            className="creator-modal-backdrop reflection-editor-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14 }}
+            role="presentation"
+          >
+            <form
+              className="creator-modal creator-modal--reflection-editor reflection-editor-modal"
+              onPointerCancel={stopReflectionEditorGesturePropagation}
+              onPointerDown={stopReflectionEditorGesturePropagation}
+              onPointerMove={stopReflectionEditorGesturePropagation}
+              onPointerUp={stopReflectionEditorGesturePropagation}
+              onSubmit={submitReflectionEditor}
+            >
+              <header className="creator-modal-header">
+                <p>Edit reflection</p>
+                <button className="creator-modal-close" disabled={isSavingReflection} onClick={closeReflectionEditor} type="button">
+                  Close
+                </button>
+              </header>
+              <p className="creator-modal-note">Aim for about 9 words. Longer reflections may be truncated on the card.</p>
+              <textarea
+                autoFocus
+                className="creator-modal-field creator-modal-field--reflection"
+                onChange={(event) => setReflectionDraftValue(event.target.value)}
+                value={reflectionDraftValue}
+              />
+              <p
+                className={`creator-modal-counter${
+                  reflectionDraftValue.length > REFLECTION_DISPLAY_RECOMMENDED_CHARS ? " creator-modal-counter--warning" : ""
+                }`}
+              >
+                {reflectionDraftValue.length}/{REFLECTION_DISPLAY_RECOMMENDED_CHARS} recommended characters
+              </p>
+              {reflectionEditorError ? <p className="creator-modal-error">{reflectionEditorError}</p> : null}
+              <div className="creator-modal-actions">
+                <button className="creator-modal-secondary" disabled={isSavingReflection} onClick={closeReflectionEditor} type="button">
+                  Cancel
+                </button>
+                <button className="creator-modal-primary" disabled={isSavingReflection} type="submit">
+                  {isSavingReflection ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
     </motion.div>
   );

@@ -82,6 +82,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     }
     const bodyRecord = body as Record<string, unknown>;
 
+    const hasTypeField = hasOwnProperty(bodyRecord, "type");
     const hasActiveCardField = hasOwnProperty(bodyRecord, "activeCardId");
     const hasCardIdField = hasOwnProperty(bodyRecord, "cardId");
     const hasItemIdField = hasOwnProperty(bodyRecord, "itemId");
@@ -111,9 +112,23 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     // - cardId + itemId + completionStatus
     // - cardId + targetDate
     // - cardId + signalId + reading
+    // - type: "update-card-reflection" + cardId + reflection
     //
     // New mutations (reflections, media, chats, etc.) must be added carefully to
     // avoid ambiguous request bodies and silent routing to the wrong branch.
+
+    if (hasTypeField) {
+      if (bodyRecord.type !== "update-card-reflection") {
+        return Response.json({ error: "Unknown mutation type." }, { status: 400 });
+      }
+
+      const allowedReflectionMutationFields = new Set(["type", "cardId", "reflection"]);
+      const hasUnexpectedField = Object.keys(bodyRecord).some((key) => !allowedReflectionMutationFields.has(key));
+
+      if (hasUnexpectedField) {
+        return Response.json({ error: "Request body must contain only one mutation shape." }, { status: 400 });
+      }
+    }
 
     if (hasActiveCardField && hasCardMutationFields) {
       return Response.json({ error: "Request body must contain only one mutation shape." }, { status: 400 });
@@ -154,6 +169,73 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     const users = await getCollection<UserDocument>(USERS_COLLECTION);
     const userObjectId = new ObjectId(user.id);
     const now = new Date();
+
+    if (bodyRecord.type === "update-card-reflection") {
+      const cardIdRaw = bodyRecord.cardId;
+      const reflectionRaw = bodyRecord.reflection;
+
+      if (!hasNonEmptyString(cardIdRaw)) {
+        return Response.json({ error: "cardId is required." }, { status: 400 });
+      }
+
+      if (!hasOwnProperty(bodyRecord, "reflection")) {
+        return Response.json({ error: "reflection is required." }, { status: 400 });
+      }
+
+      if (typeof reflectionRaw !== "string" && reflectionRaw !== null) {
+        return Response.json({ error: "reflection must be a string or null." }, { status: 400 });
+      }
+
+      const cardId = cardIdRaw.trim();
+      const reflection = reflectionRaw === null ? "" : reflectionRaw.trim();
+      const templateCard = template.cards.find((card) => card.cardId === cardId);
+
+      if (!templateCard) {
+        return Response.json({ error: "cardId is not part of this deck template." }, { status: 400 });
+      }
+
+      const existingCardData = existingDeckData.cards.find((card) => card.cardId === cardId);
+
+      if (!existingCardData) {
+        return Response.json({ error: "Failed Mongo update for card reflection." }, { status: 500 });
+      }
+
+      const updateResult = await users.updateOne(
+        {
+          _id: userObjectId,
+          "decksData.deckTemplateId": deckTemplateId,
+        },
+        {
+          $set: {
+            "decksData.$[deck].cards.$[card].reflection": reflection,
+            "decksData.$[deck].updatedAt": now.toISOString(),
+            updatedAt: now,
+          },
+        },
+        {
+          arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }, { "card.cardId": cardId }],
+        },
+      );
+
+      if (updateResult.matchedCount === 0) {
+        return Response.json({ error: "Deck data has not been initialized." }, { status: 404 });
+      }
+
+      if (!updateResult.acknowledged) {
+        return Response.json({ error: "Failed Mongo update for card reflection." }, { status: 500 });
+      }
+
+      if (updateResult.modifiedCount === 0 && existingCardData.reflection !== reflection) {
+        return Response.json({ error: "Failed Mongo update for card reflection." }, { status: 500 });
+      }
+
+      return Response.json({
+        ok: true,
+        deckTemplateId,
+        cardId,
+        reflection,
+      });
+    }
 
     if (hasActiveCardMutation) {
       const activeCardIdRaw = bodyRecord.activeCardId;

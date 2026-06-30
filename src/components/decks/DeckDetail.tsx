@@ -19,7 +19,13 @@ import {
   DECK_SCENE_BOTTOM_CROP_ALLOWANCE,
   ROLE_TRANSITION_SETTLE_MS,
 } from "@/constants/cardStack";
-import { persistActiveCardId, persistCardTargetDate, persistSignalReading, persistStepCompletionStatus } from "@/lib/deckMutations";
+import {
+  persistActiveCardId,
+  persistCardReflection,
+  persistCardTargetDate,
+  persistSignalReading,
+  persistStepCompletionStatus,
+} from "@/lib/deckMutations";
 import { normalizeCompletionStatus } from "@/lib/progress";
 import { roundSignalReadingForStorage } from "@/lib/signals";
 
@@ -402,6 +408,33 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       console.warn("Unable to persist signal reading.", error);
     });
   };
+  const commitFocusedReflection = async (cardId: string, reflection: string) => {
+    if (!deck.canMutate || !deck.hasUserDeckData) {
+      throw new Error("Unable to save reflection for this deck.");
+    }
+
+    const normalizedReflection = reflection.trim();
+    const previousCards = cardsRef.current;
+    const nextCards = previousCards.map((card) =>
+      card.id === cardId
+        ? {
+            ...card,
+            reflection: normalizedReflection,
+          }
+        : card,
+    );
+
+    cardsRef.current = nextCards;
+    setCards(nextCards);
+
+    try {
+      await persistCardReflection(deck.deckTemplateId, cardId, normalizedReflection);
+    } catch (error) {
+      cardsRef.current = previousCards;
+      setCards(previousCards);
+      throw error;
+    }
+  };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
 
@@ -498,6 +531,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onCycleStepStatus={cycleFocusedStepStatus}
             onAdjustTargetDate={adjustFocusedCardTargetDate}
             onCommitSignalReading={commitFocusedSignalReading}
+            onCommitReflection={deck.canMutate && deck.hasUserDeckData ? commitFocusedReflection : undefined}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}

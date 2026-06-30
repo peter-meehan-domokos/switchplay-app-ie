@@ -60,6 +60,25 @@ export async function persistCardTargetDate(deckTemplateId: string, cardId: stri
   }
 }
 
+export async function persistCardReflection(deckTemplateId: string, cardId: string, reflection: string | null) {
+  const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      type: "update-card-reflection",
+      cardId,
+      reflection,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? "Unable to update card reflection.");
+  }
+}
+
 export async function persistSignalReading(
   deckTemplateId: string,
   cardId: string,

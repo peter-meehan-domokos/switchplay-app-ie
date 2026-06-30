@@ -1124,6 +1124,27 @@ input {
   color: #ffffff;
 }
 
+.reflection-editor-backdrop {
+  z-index: 90;
+  --creator-scroll-padding-x: 18px;
+  --creator-cell-padding: 10px;
+  --creator-modal-gap: 12px;
+  --creator-modal-max-width: 420px;
+  --creator-modal-max-height: 560px;
+  --creator-modal-padding: 18px;
+  --creator-modal-textarea-min-height: 170px;
+  --creator-back-link-padding-y: 8px;
+  --creator-back-link-padding-x: 12px;
+}
+
+.reflection-editor-modal {
+  box-shadow: 0 24px 72px rgba(4, 6, 10, 0.34);
+}
+
+.creator-modal-field--reflection {
+  min-height: 170px;
+}
+
 @media (max-width: 640px) {
   .creator-modal-backdrop {
     place-items: start center;
@@ -2788,6 +2809,8 @@ input {
   position: absolute;
   right: 38px;
   bottom: 62px;
+  display: -webkit-box;
+  overflow: hidden;
   max-width: 102px;
   color: rgba(255, 250, 240, 0.275);
   font-size: 0.7rem;
@@ -2799,6 +2822,23 @@ input {
     0 0 14px rgba(168, 214, 228, 0.052),
     0 1px 10px rgba(10, 14, 20, 0.18);
   transform: translateY(var(--reflection-y-offset, 0));
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.focused-card-back-reflection-fragment--placeholder {
+  color: rgba(255, 250, 240, 0.16);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.focused-card-back-reflection-fragment--editable {
+  cursor: pointer;
+}
+
+.focused-card-back-reflection-fragment--editable:focus-visible {
+  outline: 1px solid rgba(255, 250, 240, 0.5);
+  outline-offset: 4px;
 }
 
 .focused-card-content {
