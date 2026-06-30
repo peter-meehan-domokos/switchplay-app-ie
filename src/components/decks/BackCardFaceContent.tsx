@@ -453,6 +453,7 @@ type BackCardFaceContentProps = {
   dateLabel: string;
   variant?: "focused" | "deck" | "preview";
   onCommitSignalReading?: (cardId: string, signalId: string, reading: number) => void;
+  onEditReflection?: (cardId: string) => void;
   onSignalNavigateNext?: () => void;
   onSignalNavigatePrevious?: () => void;
 };
@@ -462,11 +463,14 @@ export default function BackCardFaceContent({
   dateLabel,
   variant = "focused",
   onCommitSignalReading,
+  onEditReflection,
   onSignalNavigateNext,
   onSignalNavigatePrevious,
 }: BackCardFaceContentProps) {
   const hasBackMediaTrace = Boolean(card.backMediaTrace);
   const isFocusedVariant = variant === "focused";
+  const shouldShowReflectionPlaceholder = variant === "deck" || isFocusedVariant;
+  const canEditReflection = isFocusedVariant && Boolean(onEditReflection);
   const layoutClassName = ["focused-card-back-layout", "back-card-face-content", `back-card-face-content--${variant}`].join(" ");
   const backSignalsClassName = [
     "focused-card-back-signals",
@@ -514,7 +518,14 @@ export default function BackCardFaceContent({
           )}
         </section>
         <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
-        <BackCardReflectionFragment reflectionVerticalOffset={card.reflectionVerticalOffset} text={card.reflection} />
+        <BackCardReflectionFragment
+          ariaLabel={card.reflection.trim() ? "Edit reflection" : "Add a reflection"}
+          isEditable={canEditReflection}
+          onClick={canEditReflection ? () => onEditReflection?.(card.id) : undefined}
+          reflectionVerticalOffset={card.reflectionVerticalOffset}
+          showPlaceholder={shouldShowReflectionPlaceholder}
+          text={card.reflection}
+        />
       </div>
     </div>
   );
