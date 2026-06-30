@@ -477,17 +477,11 @@ export default function FocusedCardView({
         window.dispatchEvent(new Event("resize"));
       };
 
-      const firstFrameId = window.requestAnimationFrame(() => {
-        const secondFrameId = window.requestAnimationFrame(runExpandedLandscapeRelayoutNudge);
-
-        if (isDisposed) {
-          window.cancelAnimationFrame(secondFrameId);
-        }
-      });
+        const frameId = window.requestAnimationFrame(runExpandedLandscapeRelayoutNudge);
 
     return () => {
       isDisposed = true;
-        window.cancelAnimationFrame(firstFrameId);
+          window.cancelAnimationFrame(frameId);
     };
   }, [isVideoExpanded, isExpandedVideoPortrait]);
 
