@@ -1,10 +1,11 @@
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
 const CLOUDFLARE_STREAM_SDK_SRC = "https://embed.cloudflarestream.com/embed/sdk.latest.js";
 
 type CloudflareStreamPlayerInstance = {
   addEventListener?: (eventName: string, listener: () => void) => void;
+  controls?: boolean;
   ended?: boolean;
   pause?: () => void;
   paused?: boolean;
@@ -111,11 +112,17 @@ function stopPlayerControlPropagation(event: PointerEvent<HTMLButtonElement>) {
   event.stopPropagation();
 }
 
+function isFullscreenElement(element: HTMLElement | null) {
+  return Boolean(element && document.fullscreenElement === element);
+}
+
 export default function CloudflareStreamPlayer({ controlsMode = "native", mediaItem }: CloudflareStreamPlayerProps) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<CloudflareStreamPlayerInstance | null>(null);
   const [isPaused, setIsPaused] = useState(true);
   const [isEnded, setIsEnded] = useState(false);
+  const [isFullscreenActive, setIsFullscreenActive] = useState(false);
   const [sdkStatus, setSdkStatus] = useState<"idle" | "ready" | "failed">("idle");
   const isSwitchplayControlsMode = controlsMode === "switchplay";
   const iframeSrc = useMemo(
@@ -126,6 +133,28 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     [isSwitchplayControlsMode, mediaItem, sdkStatus]
   );
   const iframeTitle = mediaItem.description || "Step video";
+
+  useEffect(() => {
+    if (!isSwitchplayControlsMode) {
+      return;
+    }
+
+    const handleFullscreenChange = () => {
+      const isShellFullscreen = isFullscreenElement(shellRef.current) || isFullscreenElement(iframeRef.current);
+
+      setIsFullscreenActive(isShellFullscreen);
+
+      if (!isShellFullscreen && playerRef.current) {
+        playerRef.current.controls = false;
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [isSwitchplayControlsMode]);
 
   useEffect(() => {
     if (!isSwitchplayControlsMode) {
@@ -201,6 +230,31 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     };
   }, [isSwitchplayControlsMode, mediaItem.assetId, mediaItem.src]);
 
+  const requestPlayerFullscreen = async () => {
+    const player = playerRef.current;
+    const shell = shellRef.current;
+    const iframe = iframeRef.current;
+
+    if (!player || sdkStatus !== "ready") {
+      return;
+    }
+
+    player.controls = true;
+    setIsFullscreenActive(true);
+
+    try {
+      if (shell?.requestFullscreen) {
+        await shell.requestFullscreen();
+        return;
+      }
+
+      await iframe?.requestFullscreen?.();
+    } catch (error) {
+      console.warn("Unable to enter Cloudflare Stream fullscreen.", error);
+      player.controls = false;
+      setIsFullscreenActive(false);
+    }
+  };
   const togglePlayback = () => {
     const player = playerRef.current;
 
@@ -223,38 +277,92 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
 
     player.pause?.();
   };
+  const handleExpandClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    void requestPlayerFullscreen();
+  };
+  const exitPlayerFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      return;
+    }
+
+    try {
+      await document.exitFullscreen();
+    } catch (error) {
+      console.warn("Unable to exit fullscreen.", error);
+    }
+  };
+  const handleCollapseClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    void exitPlayerFullscreen();
+  };
 
   if (isSwitchplayControlsMode) {
     const hasSdkFailed = sdkStatus === "failed";
     const buttonLabel = isPaused || isEnded ? "Play video" : "Pause video";
 
     return (
-      <div className="cloudflare-stream-player-shell">
+      <div className="cloudflare-stream-player-shell" ref={shellRef}>
         <iframe
           ref={iframeRef}
           className="cloudflare-stream-player"
           src={iframeSrc}
           title={iframeTitle}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
           loading="lazy"
         />
         {hasSdkFailed ? (
           <p className="cloudflare-stream-player-status">Native video controls restored.</p>
         ) : (
-          <button
-            className="cloudflare-stream-player-control"
-            disabled={sdkStatus !== "ready"}
-            onClick={togglePlayback}
-            onPointerCancel={stopPlayerControlPropagation}
-            onPointerDown={stopPlayerControlPropagation}
-            onPointerMove={stopPlayerControlPropagation}
-            onPointerUp={stopPlayerControlPropagation}
-            type="button"
-            aria-label={buttonLabel}
-          >
-            {isPaused || isEnded ? "Play" : "Pause"}
-          </button>
+          <>
+            {!isFullscreenActive ? (
+              <button
+                className="cloudflare-stream-player-frame-control"
+                disabled={sdkStatus !== "ready"}
+                onClick={handleExpandClick}
+                onPointerCancel={stopPlayerControlPropagation}
+                onPointerDown={stopPlayerControlPropagation}
+                onPointerMove={stopPlayerControlPropagation}
+                onPointerUp={stopPlayerControlPropagation}
+                type="button"
+                aria-label="Expand video"
+              >
+                <span className="cloudflare-stream-player-frame-control-icon" aria-hidden="true" />
+              </button>
+            ) : (
+              <button
+                className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit"
+                onClick={handleCollapseClick}
+                onPointerCancel={stopPlayerControlPropagation}
+                onPointerDown={stopPlayerControlPropagation}
+                onPointerMove={stopPlayerControlPropagation}
+                onPointerUp={stopPlayerControlPropagation}
+                type="button"
+                aria-label="Exit fullscreen"
+              >
+                <span
+                  className="cloudflare-stream-player-frame-control-icon cloudflare-stream-player-frame-control-icon--exit"
+                  aria-hidden="true"
+                />
+              </button>
+            )}
+            {!isFullscreenActive ? (
+              <button
+                className="cloudflare-stream-player-control"
+                disabled={sdkStatus !== "ready"}
+                onClick={togglePlayback}
+                onPointerCancel={stopPlayerControlPropagation}
+                onPointerDown={stopPlayerControlPropagation}
+                onPointerMove={stopPlayerControlPropagation}
+                onPointerUp={stopPlayerControlPropagation}
+                type="button"
+                aria-label={buttonLabel}
+              >
+                {isPaused || isEnded ? "Play" : "Pause"}
+              </button>
+            ) : null}
+          </>
         )}
       </div>
     );
