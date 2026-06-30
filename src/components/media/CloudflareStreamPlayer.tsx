@@ -13,15 +13,6 @@ type CloudflareStreamPlayerInstance = {
   removeEventListener?: (eventName: string, listener: () => void) => void;
 };
 
-type FullscreenCapableElement = HTMLElement & {
-  webkitRequestFullscreen?: () => Promise<void> | void;
-};
-
-type FullscreenCapableDocument = Document & {
-  webkitExitFullscreen?: () => Promise<void> | void;
-  webkitFullscreenElement?: Element | null;
-};
-
 declare global {
   interface Window {
     Stream?: (iframe: HTMLIFrameElement) => CloudflareStreamPlayerInstance;
@@ -121,16 +112,8 @@ function stopPlayerControlPropagation(event: PointerEvent<HTMLButtonElement>) {
   event.stopPropagation();
 }
 
-function getActiveFullscreenElement() {
-  const fullscreenDocument = document as FullscreenCapableDocument;
-
-  return document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement ?? null;
-}
-
-function isPlayerFullscreenActive(shell: HTMLElement | null, iframe: HTMLIFrameElement | null) {
-  const activeFullscreenElement = getActiveFullscreenElement();
-
-  return Boolean(activeFullscreenElement && (activeFullscreenElement === shell || activeFullscreenElement === iframe));
+function isFullscreenElement(element: HTMLElement | null) {
+  return Boolean(element && document.fullscreenElement === element);
 }
 
 export default function CloudflareStreamPlayer({ controlsMode = "native", mediaItem }: CloudflareStreamPlayerProps) {
@@ -156,33 +139,20 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
       return;
     }
 
-    const syncFullscreenState = () => {
-      const isPlayerFullscreen = isPlayerFullscreenActive(shellRef.current, iframeRef.current);
+    const handleFullscreenChange = () => {
+      const isShellFullscreen = isFullscreenElement(shellRef.current) || isFullscreenElement(iframeRef.current);
 
-      setIsFullscreenActive(isPlayerFullscreen);
+      setIsFullscreenActive(isShellFullscreen);
 
-      if (!isPlayerFullscreen && playerRef.current) {
-        playerRef.current.controls = false;
-      }
-    };
-    const handleFullscreenError = () => {
-      setIsFullscreenActive(false);
-
-      if (playerRef.current) {
+      if (!isShellFullscreen && playerRef.current) {
         playerRef.current.controls = false;
       }
     };
 
-    document.addEventListener("fullscreenchange", syncFullscreenState);
-    document.addEventListener("webkitfullscreenchange", syncFullscreenState as EventListener);
-    document.addEventListener("fullscreenerror", handleFullscreenError);
-    document.addEventListener("webkitfullscreenerror", handleFullscreenError as EventListener);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
 
     return () => {
-      document.removeEventListener("fullscreenchange", syncFullscreenState);
-      document.removeEventListener("webkitfullscreenchange", syncFullscreenState as EventListener);
-      document.removeEventListener("fullscreenerror", handleFullscreenError);
-      document.removeEventListener("webkitfullscreenerror", handleFullscreenError as EventListener);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [isSwitchplayControlsMode]);
 
@@ -264,71 +234,25 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     const player = playerRef.current;
     const shell = shellRef.current;
     const iframe = iframeRef.current;
-    const fullscreenDocument = document as FullscreenCapableDocument;
-    const fullscreenShell = shell as FullscreenCapableElement | null;
-    const fullscreenIframe = iframe as (HTMLIFrameElement & { webkitRequestFullscreen?: () => Promise<void> | void }) | null;
-    const syncFullscreenState = () => {
-      const isPlayerFullscreen = isPlayerFullscreenActive(shellRef.current, iframeRef.current);
-
-      setIsFullscreenActive(isPlayerFullscreen);
-
-      if (!isPlayerFullscreen && playerRef.current) {
-        playerRef.current.controls = false;
-      }
-
-      return isPlayerFullscreen;
-    };
-    const handleFullscreenFailure = (error?: unknown) => {
-      if (error) {
-        console.warn("Unable to enter Cloudflare Stream fullscreen.", error);
-      }
-
-      playerRef.current && (playerRef.current.controls = false);
-      setIsFullscreenActive(false);
-    };
 
     if (!player || sdkStatus !== "ready") {
       return;
     }
 
     player.controls = true;
+    setIsFullscreenActive(true);
 
     try {
-      if (fullscreenShell?.requestFullscreen) {
-        await fullscreenShell.requestFullscreen();
-        if (!syncFullscreenState()) {
-          handleFullscreenFailure();
-        }
+      if (shell?.requestFullscreen) {
+        await shell.requestFullscreen();
         return;
       }
 
-      if (fullscreenShell?.webkitRequestFullscreen) {
-        await Promise.resolve(fullscreenShell.webkitRequestFullscreen());
-        if (!syncFullscreenState()) {
-          handleFullscreenFailure();
-        }
-        return;
-      }
-
-      if (fullscreenIframe?.requestFullscreen) {
-        await fullscreenIframe.requestFullscreen();
-        if (!syncFullscreenState()) {
-          handleFullscreenFailure();
-        }
-        return;
-      }
-
-      if (fullscreenIframe?.webkitRequestFullscreen) {
-        await Promise.resolve(fullscreenIframe.webkitRequestFullscreen());
-        if (!syncFullscreenState()) {
-          handleFullscreenFailure();
-        }
-        return;
-      }
-
-      handleFullscreenFailure();
+      await iframe?.requestFullscreen?.();
     } catch (error) {
-      handleFullscreenFailure(error);
+      console.warn("Unable to enter Cloudflare Stream fullscreen.", error);
+      player.controls = false;
+      setIsFullscreenActive(false);
     }
   };
   const togglePlayback = () => {
@@ -358,17 +282,12 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     void requestPlayerFullscreen();
   };
   const exitPlayerFullscreen = async () => {
-    const fullscreenDocument = document as FullscreenCapableDocument;
+    if (!document.fullscreenElement) {
+      return;
+    }
 
     try {
-      if (document.fullscreenElement && document.exitFullscreen) {
-        await document.exitFullscreen();
-        return;
-      }
-
-      if (fullscreenDocument.webkitFullscreenElement && fullscreenDocument.webkitExitFullscreen) {
-        await Promise.resolve(fullscreenDocument.webkitExitFullscreen());
-      }
+      await document.exitFullscreen();
     } catch (error) {
       console.warn("Unable to exit fullscreen.", error);
     }
