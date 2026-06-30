@@ -51,7 +51,7 @@ function renderStepViewMedia(card: CardLayout, item: StepViewItem) {
   }
 
   if (isCloudflareStreamVideoMediaItem(mediaItem)) {
-    return <CloudflareStreamPlayer mediaItem={mediaItem} />;
+    return <CloudflareStreamPlayer controlsMode="switchplay" mediaItem={mediaItem} />;
   }
 
   return mediaItem.mediaType === "video" ? "Video not ready yet" : "Unsupported media";
