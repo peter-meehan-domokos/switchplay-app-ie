@@ -433,61 +433,61 @@ export default function FocusedCardView({
       return;
     }
 
-    let isDisposed = false;
+      let isDisposed = false;
 
-    const runExpandedLandscapeRelayoutNudge = () => {
-      if (isDisposed) {
-        return;
-      }
-
-      const hostElement = videoHostElementRef.current;
-      const frameElement = videoFrameElementRef.current;
-
-      if (!hostElement || !frameElement) {
-        return;
-      }
-
-      const hostRect = hostElement.getBoundingClientRect();
-      const frameRect = frameElement.getBoundingClientRect();
-      const iframeRect = frameElement.querySelector<HTMLIFrameElement>(".cloudflare-stream-player")?.getBoundingClientRect();
-
-      if (hostRect.width <= 1 || hostRect.height <= 1) {
-        return;
-      }
-
-      const nextWidth = Math.max(1, Math.round(hostRect.width));
-      const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
-
-      setExpandedLandscapeFrameSize((currentSize) => {
-        if (currentSize && currentSize.width === nextWidth && currentSize.height === nextHeight) {
-          return currentSize;
+      const runExpandedLandscapeRelayoutNudge = () => {
+        if (isDisposed) {
+          return;
         }
 
-        return {
-          width: nextWidth,
-          height: nextHeight,
-        };
+        const hostElement = videoHostElementRef.current;
+        const frameElement = videoFrameElementRef.current;
+
+        if (!hostElement || !frameElement) {
+          return;
+        }
+
+        const hostRect = hostElement.getBoundingClientRect();
+        const frameRect = frameElement.getBoundingClientRect();
+        const iframeRect = frameElement.querySelector<HTMLIFrameElement>(".cloudflare-stream-player")?.getBoundingClientRect();
+
+        if (hostRect.width <= 1 || hostRect.height <= 1) {
+          return;
+        }
+
+        const nextWidth = Math.max(1, Math.round(hostRect.width));
+        const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
+
+        setExpandedLandscapeFrameSize((currentSize) => {
+          if (currentSize && currentSize.width === nextWidth && currentSize.height === nextHeight) {
+            return currentSize;
+          }
+
+          return {
+            width: nextWidth,
+            height: nextHeight,
+          };
+        });
+
+        // iPhone Safari/WebKit relayout workaround for the hosted Cloudflare player
+        // after embedded -> expanded transitions.
+        // Read shell/iframe rects before dispatching resize to nudge internal relayout.
+        void frameRect;
+        void iframeRect;
+        window.dispatchEvent(new Event("resize"));
+      };
+
+      const firstFrameId = window.requestAnimationFrame(() => {
+        const secondFrameId = window.requestAnimationFrame(runExpandedLandscapeRelayoutNudge);
+
+        if (isDisposed) {
+          window.cancelAnimationFrame(secondFrameId);
+        }
       });
-
-      // iPhone Safari/WebKit relayout workaround for the hosted Cloudflare player
-      // after embedded -> expanded transitions.
-      // Read shell/iframe rects before dispatching resize to nudge internal relayout.
-      void frameRect;
-      void iframeRect;
-      window.dispatchEvent(new Event("resize"));
-    };
-
-    const firstFrameId = window.requestAnimationFrame(() => {
-      const secondFrameId = window.requestAnimationFrame(runExpandedLandscapeRelayoutNudge);
-
-      if (isDisposed) {
-        window.cancelAnimationFrame(secondFrameId);
-      }
-    });
 
     return () => {
       isDisposed = true;
-      window.cancelAnimationFrame(firstFrameId);
+        window.cancelAnimationFrame(firstFrameId);
     };
   }, [isVideoExpanded, isExpandedVideoPortrait]);
 
