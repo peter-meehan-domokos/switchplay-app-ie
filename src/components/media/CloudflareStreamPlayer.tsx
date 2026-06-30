@@ -170,26 +170,37 @@ export default function CloudflareStreamPlayer({
       setIsPaused(true);
       setIsEnded(true);
     };
-    const handleError = () => {
-      setSdkStatus("failed");
+    const handleRuntimeMediaError = () => {
+      // Runtime media errors can be transient (for example during startup buffering).
+      // Keep Switchplay controls active unless SDK/bootstrap initialization fails.
+      console.warn("Cloudflare Stream emitted a runtime media error; retaining Switchplay controls.");
     };
 
     setSdkStatus("idle");
 
     loadCloudflareStreamSdk()
       .then(() => {
-        if (isCancelled || !window.Stream) {
+        if (isCancelled) {
+          return;
+        }
+
+        if (!window.Stream) {
+          setSdkStatus("failed");
           return;
         }
 
         player = window.Stream(iframe);
+        if (!player) {
+          setSdkStatus("failed");
+          return;
+        }
         player.controls = false;
         playerRef.current = player;
         player.addEventListener?.("play", handlePlay);
         player.addEventListener?.("playing", handlePlay);
         player.addEventListener?.("pause", handlePause);
         player.addEventListener?.("ended", handleEnded);
-        player.addEventListener?.("error", handleError);
+        player.addEventListener?.("error", handleRuntimeMediaError);
         syncPausedState();
         setSdkStatus("ready");
       })
@@ -206,7 +217,7 @@ export default function CloudflareStreamPlayer({
       player?.removeEventListener?.("playing", handlePlay);
       player?.removeEventListener?.("pause", handlePause);
       player?.removeEventListener?.("ended", handleEnded);
-      player?.removeEventListener?.("error", handleError);
+      player?.removeEventListener?.("error", handleRuntimeMediaError);
       if (playerRef.current === player) {
         playerRef.current = null;
       }
