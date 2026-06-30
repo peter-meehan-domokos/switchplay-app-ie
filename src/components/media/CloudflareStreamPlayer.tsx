@@ -21,7 +21,10 @@ declare global {
 
 type CloudflareStreamPlayerProps = {
   controlsMode?: "native" | "switchplay";
+  displayMode?: "embedded" | "expanded";
   mediaItem: CloudflareStreamVideoMediaItem;
+  onRequestCollapse?: () => void;
+  onRequestExpand?: () => void;
 };
 
 let cloudflareStreamSdkPromise: Promise<void> | null = null;
@@ -112,19 +115,20 @@ function stopPlayerControlPropagation(event: PointerEvent<HTMLButtonElement>) {
   event.stopPropagation();
 }
 
-function isFullscreenElement(element: HTMLElement | null) {
-  return Boolean(element && document.fullscreenElement === element);
-}
-
-export default function CloudflareStreamPlayer({ controlsMode = "native", mediaItem }: CloudflareStreamPlayerProps) {
-  const shellRef = useRef<HTMLDivElement | null>(null);
+export default function CloudflareStreamPlayer({
+  controlsMode = "native",
+  displayMode = "embedded",
+  mediaItem,
+  onRequestCollapse,
+  onRequestExpand,
+}: CloudflareStreamPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<CloudflareStreamPlayerInstance | null>(null);
   const [isPaused, setIsPaused] = useState(true);
   const [isEnded, setIsEnded] = useState(false);
-  const [isFullscreenActive, setIsFullscreenActive] = useState(false);
   const [sdkStatus, setSdkStatus] = useState<"idle" | "ready" | "failed">("idle");
   const isSwitchplayControlsMode = controlsMode === "switchplay";
+  const isExpandedMode = displayMode === "expanded";
   const iframeSrc = useMemo(
     () =>
       isSwitchplayControlsMode && sdkStatus !== "failed"
@@ -133,28 +137,6 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     [isSwitchplayControlsMode, mediaItem, sdkStatus]
   );
   const iframeTitle = mediaItem.description || "Step video";
-
-  useEffect(() => {
-    if (!isSwitchplayControlsMode) {
-      return;
-    }
-
-    const handleFullscreenChange = () => {
-      const isShellFullscreen = isFullscreenElement(shellRef.current) || isFullscreenElement(iframeRef.current);
-
-      setIsFullscreenActive(isShellFullscreen);
-
-      if (!isShellFullscreen && playerRef.current) {
-        playerRef.current.controls = false;
-      }
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, [isSwitchplayControlsMode]);
 
   useEffect(() => {
     if (!isSwitchplayControlsMode) {
@@ -201,6 +183,7 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
         }
 
         player = window.Stream(iframe);
+        player.controls = false;
         playerRef.current = player;
         player.addEventListener?.("play", handlePlay);
         player.addEventListener?.("playing", handlePlay);
@@ -230,31 +213,18 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     };
   }, [isSwitchplayControlsMode, mediaItem.assetId, mediaItem.src]);
 
-  const requestPlayerFullscreen = async () => {
-    const player = playerRef.current;
-    const shell = shellRef.current;
-    const iframe = iframeRef.current;
-
-    if (!player || sdkStatus !== "ready") {
+  useEffect(() => {
+    if (!isSwitchplayControlsMode || sdkStatus !== "ready") {
       return;
     }
 
-    player.controls = true;
-    setIsFullscreenActive(true);
-
-    try {
-      if (shell?.requestFullscreen) {
-        await shell.requestFullscreen();
-        return;
-      }
-
-      await iframe?.requestFullscreen?.();
-    } catch (error) {
-      console.warn("Unable to enter Cloudflare Stream fullscreen.", error);
-      player.controls = false;
-      setIsFullscreenActive(false);
+    if (!playerRef.current) {
+      return;
     }
-  };
+
+    playerRef.current.controls = false;
+  }, [isSwitchplayControlsMode, sdkStatus, displayMode]);
+
   const togglePlayback = () => {
     const player = playerRef.current;
 
@@ -279,22 +249,19 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
   };
   const handleExpandClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    void requestPlayerFullscreen();
-  };
-  const exitPlayerFullscreen = async () => {
-    if (!document.fullscreenElement) {
+    if (!onRequestExpand) {
       return;
     }
 
-    try {
-      await document.exitFullscreen();
-    } catch (error) {
-      console.warn("Unable to exit fullscreen.", error);
-    }
+    onRequestExpand();
   };
   const handleCollapseClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    void exitPlayerFullscreen();
+    if (!onRequestCollapse) {
+      return;
+    }
+
+    onRequestCollapse();
   };
 
   if (isSwitchplayControlsMode) {
@@ -302,13 +269,13 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
     const buttonLabel = isPaused || isEnded ? "Play video" : "Pause video";
 
     return (
-      <div className="cloudflare-stream-player-shell" ref={shellRef}>
+      <div className="cloudflare-stream-player-shell">
         <iframe
           ref={iframeRef}
           className="cloudflare-stream-player"
           src={iframeSrc}
           title={iframeTitle}
-          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
           allowFullScreen
           loading="lazy"
         />
@@ -316,10 +283,10 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
           <p className="cloudflare-stream-player-status">Native video controls restored.</p>
         ) : (
           <>
-            {!isFullscreenActive ? (
+            {!isExpandedMode ? (
               <button
                 className="cloudflare-stream-player-frame-control"
-                disabled={sdkStatus !== "ready"}
+                disabled={sdkStatus !== "ready" || !onRequestExpand}
                 onClick={handleExpandClick}
                 onPointerCancel={stopPlayerControlPropagation}
                 onPointerDown={stopPlayerControlPropagation}
@@ -333,6 +300,7 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
             ) : (
               <button
                 className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit"
+                disabled={!onRequestCollapse}
                 onClick={handleCollapseClick}
                 onPointerCancel={stopPlayerControlPropagation}
                 onPointerDown={stopPlayerControlPropagation}
@@ -347,21 +315,19 @@ export default function CloudflareStreamPlayer({ controlsMode = "native", mediaI
                 />
               </button>
             )}
-            {!isFullscreenActive ? (
-              <button
-                className="cloudflare-stream-player-control"
-                disabled={sdkStatus !== "ready"}
-                onClick={togglePlayback}
-                onPointerCancel={stopPlayerControlPropagation}
-                onPointerDown={stopPlayerControlPropagation}
-                onPointerMove={stopPlayerControlPropagation}
-                onPointerUp={stopPlayerControlPropagation}
-                type="button"
-                aria-label={buttonLabel}
-              >
-                {isPaused || isEnded ? "Play" : "Pause"}
-              </button>
-            ) : null}
+            <button
+              className="cloudflare-stream-player-control"
+              disabled={sdkStatus !== "ready"}
+              onClick={togglePlayback}
+              onPointerCancel={stopPlayerControlPropagation}
+              onPointerDown={stopPlayerControlPropagation}
+              onPointerMove={stopPlayerControlPropagation}
+              onPointerUp={stopPlayerControlPropagation}
+              type="button"
+              aria-label={buttonLabel}
+            >
+              {isPaused || isEnded ? "Play" : "Pause"}
+            </button>
           </>
         )}
       </div>

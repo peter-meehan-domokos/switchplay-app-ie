@@ -1,8 +1,9 @@
 import { motion, type Transition } from "motion/react";
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type MouseEvent, type RefCallback } from "react";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
 import {
+  type CloudflareStreamVideoMediaItem,
   isCloudflareStreamVideoMediaItem,
   isKnownPortraitCloudflareStreamVideoMediaItem,
 } from "@/lib/media";
@@ -13,12 +14,14 @@ export type StepViewItem =
 
 type StepViewProps = {
   card: CardLayout;
+  cloudflareVideoAnchorRef?: RefCallback<HTMLDivElement>;
   item: StepViewItem;
   itemIndex: number;
   itemCount: number;
   onClose: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  useCloudflareVideoHost?: boolean;
 };
 
 const stepViewTransition: Transition = {
@@ -48,7 +51,12 @@ function stopStepViewPropagation(event: PointerEvent<HTMLElement> | MouseEvent<H
   event.stopPropagation();
 }
 
-function renderStepViewMedia(card: CardLayout, item: StepViewItem) {
+function renderStepViewMedia(
+  card: CardLayout,
+  item: StepViewItem,
+  cloudflareVideoAnchorRef?: RefCallback<HTMLDivElement>,
+  useCloudflareVideoHost = false
+) {
   const mediaItem = getStepViewMediaItem(card, item);
 
   if (!mediaItem) {
@@ -56,6 +64,10 @@ function renderStepViewMedia(card: CardLayout, item: StepViewItem) {
   }
 
   if (isCloudflareStreamVideoMediaItem(mediaItem)) {
+    if (useCloudflareVideoHost) {
+      return <div className="step-view-video-anchor" ref={cloudflareVideoAnchorRef} aria-hidden="true" />;
+    }
+
     return <CloudflareStreamPlayer controlsMode="switchplay" mediaItem={mediaItem} />;
   }
 
@@ -70,12 +82,14 @@ function isStepViewPortraitMedia(card: CardLayout, item: StepViewItem) {
 
 export default function StepView({
   card,
+  cloudflareVideoAnchorRef,
   item,
   itemIndex,
   itemCount,
   onClose,
   onNext,
   onPrevious,
+  useCloudflareVideoHost = false,
 }: StepViewProps) {
   const titleRef = useRef<HTMLHeadingElement | null>(null);
   const [portraitMediaMaxHeight, setPortraitMediaMaxHeight] = useState(PORTRAIT_MEDIA_REFERENCE_HEIGHT_PX);
@@ -156,7 +170,7 @@ export default function StepView({
           onPointerUp={stopStepViewPropagation}
           onPointerCancel={stopStepViewPropagation}
         >
-          {renderStepViewMedia(card, item)}
+          {renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost)}
         </div>
       </main>
       <footer className="step-view-actions">
