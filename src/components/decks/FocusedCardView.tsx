@@ -10,6 +10,7 @@ import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import {
   isCloudflareStreamVideoMediaItem,
+  isKnownLandscapeCloudflareStreamVideoMediaItem,
   isKnownPortraitCloudflareStreamVideoMediaItem,
   type CloudflareStreamVideoMediaItem,
   type MediaItem,
@@ -250,6 +251,8 @@ export default function FocusedCardView({
       : null;
   const isExpandedVideoPortrait =
     activeCloudflareVideoMediaItem ? isKnownPortraitCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
+  const isExpandedVideoLandscape =
+    activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
   const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
   const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem) : null;
   const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
@@ -489,7 +492,13 @@ export default function FocusedCardView({
         return;
       }
 
-      const nextWidth = Math.max(1, Math.round(hostRect.width));
+      const viewportSize = getViewportSize();
+      const shouldFitLandscapeViewport =
+        isExpandedVideoLandscape && viewportSize !== null && viewportSize.width > viewportSize.height;
+      const nextWidth = Math.max(
+        1,
+        Math.round(shouldFitLandscapeViewport ? Math.min(hostRect.width, hostRect.height * (16 / 9)) : hostRect.width)
+      );
       const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
 
       setExpandedLandscapeFrameSize((currentSize) => {
@@ -521,7 +530,7 @@ export default function FocusedCardView({
       window.removeEventListener("resize", updateExpandedLandscapeFrameSize);
       window.visualViewport?.removeEventListener("resize", updateExpandedLandscapeFrameSize);
     };
-  }, [isVideoExpanded, isExpandedVideoPortrait]);
+  }, [isExpandedVideoLandscape, isVideoExpanded, isExpandedVideoPortrait]);
 
   useLayoutEffect(() => {
     if (!videoAnchorElement) {
@@ -695,7 +704,9 @@ export default function FocusedCardView({
             ref={videoHostElementRef}
             className={`switchplay-video-host${
               isVideoExpanded ? " switchplay-video-host--expanded" : " switchplay-video-host--embedded"
-            }${isExpandedVideoPortrait ? " switchplay-video-host--portrait" : " switchplay-video-host--landscape"}`}
+            }${isExpandedVideoPortrait ? " switchplay-video-host--portrait" : " switchplay-video-host--landscape"}${
+              isExpandedVideoLandscape ? " switchplay-video-host--known-landscape" : ""
+            }`}
             style={
               !isVideoExpanded && videoHostRect
                 ? {

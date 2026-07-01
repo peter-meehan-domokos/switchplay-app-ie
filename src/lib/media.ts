@@ -155,3 +155,11 @@ export function isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem: Cloudfl
     mediaItem.height > mediaItem.width
   );
 }
+
+export function isKnownLandscapeCloudflareStreamVideoMediaItem(mediaItem: CloudflareStreamVideoMediaItem) {
+  return (
+    typeof mediaItem.width === "number" &&
+    typeof mediaItem.height === "number" &&
+    mediaItem.width > mediaItem.height
+  );
+}
