@@ -3163,10 +3163,40 @@ input {
   background: transparent;
   cursor: pointer;
   padding: 0;
+  touch-action: manipulation;
 }
 
 .cloudflare-stream-player-surface-control:disabled {
   cursor: wait;
+}
+
+.cloudflare-stream-player-skip-feedback {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  min-width: 54px;
+  min-height: 42px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 1px solid rgba(255, 250, 240, 0.18);
+  border-radius: 999px;
+  background: rgba(5, 7, 10, 0.58);
+  color: rgba(255, 250, 240, 0.9);
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1;
+  pointer-events: none;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  animation: cloudflare-stream-player-skip-feedback 520ms ease-out both;
+}
+
+.cloudflare-stream-player-skip-feedback--backward {
+  left: 22%;
+}
+
+.cloudflare-stream-player-skip-feedback--forward {
+  right: 22%;
 }
 
 .cloudflare-stream-player-control {
@@ -3256,6 +3286,23 @@ input {
   font-weight: 700;
   line-height: 1.2;
   padding: 7px 11px;
+}
+
+@keyframes cloudflare-stream-player-skip-feedback {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.92);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(1.04);
+  }
 }
 
 .step-view-actions {

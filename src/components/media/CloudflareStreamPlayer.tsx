@@ -3,10 +3,14 @@ import { CollapseVideoIcon, ExpandVideoIcon } from "@/components/icons/videoCont
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
 const CLOUDFLARE_STREAM_SDK_SRC = "https://embed.cloudflarestream.com/embed/sdk.latest.js";
+const SKIP_SECONDS = 10;
+const SURFACE_DOUBLE_TAP_THRESHOLD_MS = 250;
 
 type CloudflareStreamPlayerInstance = {
   addEventListener?: (eventName: string, listener: () => void) => void;
   controls?: boolean;
+  currentTime?: number;
+  duration?: number;
   ended?: boolean;
   pause?: () => void;
   paused?: boolean;
@@ -27,6 +31,11 @@ type CloudflareStreamPlayerProps = {
   onMediaDisplayStateChange?: (state: { assetId: string; state: "failed" | "renderable" }) => void;
   onRequestCollapse?: () => void;
   onRequestExpand?: () => void;
+};
+
+type SkipFeedback = {
+  direction: "backward" | "forward";
+  id: number;
 };
 
 let cloudflareStreamSdkPromise: Promise<void> | null = null;
@@ -127,9 +136,13 @@ export default function CloudflareStreamPlayer({
 }: CloudflareStreamPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<CloudflareStreamPlayerInstance | null>(null);
+  const surfaceTapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipFeedbackIdRef = useRef(0);
   const [isPaused, setIsPaused] = useState(true);
   const [isEnded, setIsEnded] = useState(false);
   const [sdkStatus, setSdkStatus] = useState<"idle" | "ready" | "failed">("idle");
+  const [skipFeedback, setSkipFeedback] = useState<SkipFeedback | null>(null);
   const isSwitchplayControlsMode = controlsMode === "switchplay";
   const isExpandedMode = displayMode === "expanded";
   const iframeSrc = useMemo(
@@ -254,6 +267,18 @@ export default function CloudflareStreamPlayer({
     playerRef.current.controls = false;
   }, [isSwitchplayControlsMode, sdkStatus, displayMode]);
 
+  useEffect(() => {
+    return () => {
+      if (surfaceTapTimeoutRef.current) {
+        clearTimeout(surfaceTapTimeoutRef.current);
+      }
+
+      if (skipFeedbackTimeoutRef.current) {
+        clearTimeout(skipFeedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const togglePlayback = () => {
     const player = playerRef.current;
 
@@ -276,16 +301,77 @@ export default function CloudflareStreamPlayer({
 
     player.pause?.();
   };
+  const cancelPendingSurfaceTap = () => {
+    if (!surfaceTapTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(surfaceTapTimeoutRef.current);
+    surfaceTapTimeoutRef.current = null;
+  };
+  const showSkipFeedback = (direction: SkipFeedback["direction"]) => {
+    if (skipFeedbackTimeoutRef.current) {
+      clearTimeout(skipFeedbackTimeoutRef.current);
+    }
+
+    skipFeedbackIdRef.current += 1;
+    setSkipFeedback({
+      direction,
+      id: skipFeedbackIdRef.current,
+    });
+
+    skipFeedbackTimeoutRef.current = setTimeout(() => {
+      setSkipFeedback(null);
+      skipFeedbackTimeoutRef.current = null;
+    }, 520);
+  };
+  const seekBySeconds = (secondsDelta: number) => {
+    const player = playerRef.current;
+
+    if (!player || sdkStatus !== "ready") {
+      return;
+    }
+
+    const currentTime = typeof player.currentTime === "number" && Number.isFinite(player.currentTime) ? player.currentTime : 0;
+    const duration = typeof player.duration === "number" && Number.isFinite(player.duration) && player.duration > 0 ? player.duration : null;
+    const unclampedTargetTime = currentTime + secondsDelta;
+    const targetTime =
+      secondsDelta < 0
+        ? Math.max(0, unclampedTargetTime)
+        : duration !== null
+          ? Math.min(duration, unclampedTargetTime)
+          : unclampedTargetTime;
+
+    player.currentTime = targetTime;
+    setIsEnded(false);
+    showSkipFeedback(secondsDelta < 0 ? "backward" : "forward");
+  };
   const handleSurfacePlaybackClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    togglePlayback();
+
+    if (surfaceTapTimeoutRef.current) {
+      clearTimeout(surfaceTapTimeoutRef.current);
+      surfaceTapTimeoutRef.current = null;
+
+      const surfaceRect = event.currentTarget.getBoundingClientRect();
+      const isLeftHalf = event.clientX < surfaceRect.left + surfaceRect.width / 2;
+      seekBySeconds(isLeftHalf ? -SKIP_SECONDS : SKIP_SECONDS);
+      return;
+    }
+
+    surfaceTapTimeoutRef.current = setTimeout(() => {
+      surfaceTapTimeoutRef.current = null;
+      togglePlayback();
+    }, SURFACE_DOUBLE_TAP_THRESHOLD_MS);
   };
   const handlePlaybackButtonClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    cancelPendingSurfaceTap();
     togglePlayback();
   };
   const handleExpandClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    cancelPendingSurfaceTap();
     if (!onRequestExpand) {
       return;
     }
@@ -294,6 +380,7 @@ export default function CloudflareStreamPlayer({
   };
   const handleCollapseClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    cancelPendingSurfaceTap();
     if (!onRequestCollapse) {
       return;
     }
@@ -328,9 +415,22 @@ export default function CloudflareStreamPlayer({
               className="cloudflare-stream-player-surface-control"
               disabled={sdkStatus !== "ready"}
               onClick={handleSurfacePlaybackClick}
+              onPointerCancel={stopPlayerControlPropagation}
+              onPointerDown={stopPlayerControlPropagation}
+              onPointerMove={stopPlayerControlPropagation}
+              onPointerUp={stopPlayerControlPropagation}
               tabIndex={-1}
               type="button"
             />
+            {skipFeedback ? (
+              <span
+                key={skipFeedback.id}
+                className={`cloudflare-stream-player-skip-feedback cloudflare-stream-player-skip-feedback--${skipFeedback.direction}`}
+                aria-hidden="true"
+              >
+                {skipFeedback.direction === "backward" ? "↺ 10" : "10 ↻"}
+              </span>
+            ) : null}
             {!isExpandedMode ? (
               <button
                 className="cloudflare-stream-player-frame-control"
