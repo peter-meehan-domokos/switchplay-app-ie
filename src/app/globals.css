@@ -2506,6 +2506,29 @@ input {
   height: min(100%, 980px);
 }
 
+.switchplay-video-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.switchplay-video-player-layer {
+  width: 100%;
+  height: 100%;
+}
+
+.switchplay-video-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 15px;
+  background: #05070b;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .switchplay-video-host--expanded.switchplay-video-host--portrait .switchplay-video-frame {
   height: 100%;
   width: auto;

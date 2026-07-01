@@ -23,6 +23,7 @@ type CloudflareStreamPlayerProps = {
   controlsMode?: "native" | "switchplay";
   displayMode?: "embedded" | "expanded";
   mediaItem: CloudflareStreamVideoMediaItem;
+  onMediaDisplayStateChange?: (state: { assetId: string; state: "failed" | "renderable" }) => void;
   onRequestCollapse?: () => void;
   onRequestExpand?: () => void;
 };
@@ -119,6 +120,7 @@ export default function CloudflareStreamPlayer({
   controlsMode = "native",
   displayMode = "embedded",
   mediaItem,
+  onMediaDisplayStateChange,
   onRequestCollapse,
   onRequestExpand,
 }: CloudflareStreamPlayerProps) {
@@ -151,6 +153,12 @@ export default function CloudflareStreamPlayer({
 
     let isCancelled = false;
     let player: CloudflareStreamPlayerInstance | null = null;
+    const emitRenderable = () => {
+      onMediaDisplayStateChange?.({ assetId: mediaItem.assetId, state: "renderable" });
+    };
+    const emitFailed = () => {
+      onMediaDisplayStateChange?.({ assetId: mediaItem.assetId, state: "failed" });
+    };
     const syncPausedState = () => {
       if (!player) {
         return;
@@ -186,16 +194,21 @@ export default function CloudflareStreamPlayer({
 
         if (!window.Stream) {
           setSdkStatus("failed");
+          emitFailed();
           return;
         }
 
         player = window.Stream(iframe);
         if (!player) {
           setSdkStatus("failed");
+          emitFailed();
           return;
         }
         player.controls = false;
         playerRef.current = player;
+        player.addEventListener?.("loadedmetadata", emitRenderable);
+        player.addEventListener?.("canplay", emitRenderable);
+        player.addEventListener?.("playing", emitRenderable);
         player.addEventListener?.("play", handlePlay);
         player.addEventListener?.("playing", handlePlay);
         player.addEventListener?.("pause", handlePause);
@@ -208,11 +221,15 @@ export default function CloudflareStreamPlayer({
         console.warn("Unable to initialize Cloudflare Stream SDK.", error);
         if (!isCancelled) {
           setSdkStatus("failed");
+          emitFailed();
         }
       });
 
     return () => {
       isCancelled = true;
+      player?.removeEventListener?.("loadedmetadata", emitRenderable);
+      player?.removeEventListener?.("canplay", emitRenderable);
+      player?.removeEventListener?.("playing", emitRenderable);
       player?.removeEventListener?.("play", handlePlay);
       player?.removeEventListener?.("playing", handlePlay);
       player?.removeEventListener?.("pause", handlePause);
@@ -286,6 +303,9 @@ export default function CloudflareStreamPlayer({
           className="cloudflare-stream-player"
           src={iframeSrc}
           title={iframeTitle}
+          onLoad={() => {
+            onMediaDisplayStateChange?.({ assetId: mediaItem.assetId, state: "renderable" });
+          }}
           allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
           allowFullScreen
           loading="lazy"

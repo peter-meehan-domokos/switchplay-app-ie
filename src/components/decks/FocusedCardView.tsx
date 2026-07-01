@@ -4,7 +4,7 @@ import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
-import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
+import CloudflareStreamPlayer, { getCloudflareStreamThumbnailUrl } from "@/components/media/CloudflareStreamPlayer";
 import StepView, { type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
@@ -221,6 +221,9 @@ export default function FocusedCardView({
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
   const [expandedLandscapeFrameSize, setExpandedLandscapeFrameSize] = useState<{ width: number; height: number } | null>(null);
+  const [renderableVideoAssetId, setRenderableVideoAssetId] = useState<string | null>(null);
+  const [failedVideoAssetId, setFailedVideoAssetId] = useState<string | null>(null);
+  const [failedVideoPosterSrc, setFailedVideoPosterSrc] = useState<string | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoHostElementRef = useRef<HTMLDivElement | null>(null);
@@ -246,6 +249,15 @@ export default function FocusedCardView({
       : null;
   const isExpandedVideoPortrait =
     activeCloudflareVideoMediaItem ? isKnownPortraitCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
+  const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
+  const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem) : null;
+  const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
+  const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId);
+  const isCurrentVideoFailed = Boolean(activeVideoAssetId && failedVideoAssetId === activeVideoAssetId);
+  const shouldConcealCloudflarePlayer = Boolean(
+    activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
+  );
+  const shouldShowVideoPoster = Boolean(hasPosterFallback && !isCurrentVideoRenderable);
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
@@ -422,10 +434,19 @@ export default function FocusedCardView({
     if (!activeCloudflareVideoMediaItem) {
       setIsVideoExpanded(false);
       setExpandedLandscapeFrameSize(null);
+      setRenderableVideoAssetId(null);
+      setFailedVideoAssetId(null);
+      setFailedVideoPosterSrc(null);
       setVideoHostRect(null);
       setVideoAnchorElement(null);
     }
   }, [activeCloudflareVideoMediaItem]);
+
+  useEffect(() => {
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFailedVideoPosterSrc(null);
+  }, [activeVideoAssetId]);
 
   useLayoutEffect(() => {
     if (!isVideoExpanded || isExpandedVideoPortrait) {
@@ -530,6 +551,9 @@ export default function FocusedCardView({
     setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
     setIsVideoExpanded(false);
     setExpandedLandscapeFrameSize(null);
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFailedVideoPosterSrc(null);
     setVideoHostRect(null);
     setVideoAnchorElement(null);
     setReflectionEditorState(null);
@@ -667,26 +691,49 @@ export default function FocusedCardView({
                   ? expandedLandscapeFrameSize
                     ? {
                         height: `${expandedLandscapeFrameSize.height}px`,
-                        visibility: "visible",
                         width: `${expandedLandscapeFrameSize.width}px`,
                       }
-                    : {
-                        visibility: "hidden",
-                      }
+                    : undefined
                   : undefined
               }
             >
-              <CloudflareStreamPlayer
-                controlsMode="switchplay"
-                displayMode={isVideoExpanded ? "expanded" : "embedded"}
-                mediaItem={activeCloudflareVideoMediaItem}
-                onRequestCollapse={() => {
-                  setIsVideoExpanded(false);
-                }}
-                onRequestExpand={() => {
-                  setIsVideoExpanded(true);
-                }}
-              />
+              <div className="switchplay-video-content">
+                {shouldShowVideoPoster ? (
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className="switchplay-video-poster"
+                    onError={() => setFailedVideoPosterSrc(activeVideoPosterSrc)}
+                    src={activeVideoPosterSrc ?? undefined}
+                  />
+                ) : null}
+                <div className="switchplay-video-player-layer" style={shouldConcealCloudflarePlayer ? { visibility: "hidden" } : undefined}>
+                  <CloudflareStreamPlayer
+                    controlsMode="switchplay"
+                    displayMode={isVideoExpanded ? "expanded" : "embedded"}
+                    mediaItem={activeCloudflareVideoMediaItem}
+                    onMediaDisplayStateChange={({ assetId, state }) => {
+                      if (assetId !== activeVideoAssetId) {
+                        return;
+                      }
+
+                      if (state === "renderable") {
+                        setRenderableVideoAssetId(assetId);
+                        setFailedVideoAssetId(null);
+                        return;
+                      }
+
+                      setFailedVideoAssetId(assetId);
+                    }}
+                    onRequestCollapse={() => {
+                      setIsVideoExpanded(false);
+                    }}
+                    onRequestExpand={() => {
+                      setIsVideoExpanded(true);
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
