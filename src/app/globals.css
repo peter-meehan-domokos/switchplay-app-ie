@@ -2513,8 +2513,11 @@ input {
 }
 
 .switchplay-video-player-layer {
+  position: relative;
   width: 100%;
   height: 100%;
+  border-radius: 15px;
+  overflow: hidden;
 }
 
 .switchplay-video-poster {
@@ -2550,6 +2553,14 @@ input {
 .switchplay-video-host .cloudflare-stream-player,
 .switchplay-video-host .cloudflare-stream-player-shell {
   border-radius: 15px;
+}
+
+.switchplay-video-host .cloudflare-stream-player-shell,
+.switchplay-video-host .cloudflare-stream-player {
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  margin-top: -1px;
+  margin-left: -1px;
 }
 
 .focused-card-scrim {
