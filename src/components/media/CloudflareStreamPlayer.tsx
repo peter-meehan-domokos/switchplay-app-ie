@@ -1,4 +1,5 @@
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
+import { CollapseVideoIcon, ExpandVideoIcon } from "@/components/icons/videoControlIcons";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
 const CLOUDFLARE_STREAM_SDK_SRC = "https://embed.cloudflarestream.com/embed/sdk.latest.js";
@@ -326,7 +327,7 @@ export default function CloudflareStreamPlayer({
                 type="button"
                 aria-label="Expand video"
               >
-                <span className="cloudflare-stream-player-frame-control-icon" aria-hidden="true" />
+                <ExpandVideoIcon className="cloudflare-stream-player-frame-control-icon" />
               </button>
             ) : (
               <button
@@ -340,10 +341,7 @@ export default function CloudflareStreamPlayer({
                 type="button"
                 aria-label="Exit fullscreen"
               >
-                <span
-                  className="cloudflare-stream-player-frame-control-icon cloudflare-stream-player-frame-control-icon--exit"
-                  aria-hidden="true"
-                />
+                <CollapseVideoIcon className="cloudflare-stream-player-frame-control-icon" />
               </button>
             )}
             <button

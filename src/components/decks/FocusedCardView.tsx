@@ -690,6 +690,7 @@ export default function FocusedCardView({
       </AnimatePresence>
       {isVideoHostVisible && activeCloudflareVideoMediaItem ? (
         <div className="switchplay-video-host-layer" aria-hidden="true">
+          {isVideoExpanded ? <div className="switchplay-video-expanded-backdrop" /> : null}
           <div
             ref={videoHostElementRef}
             className={`switchplay-video-host${
