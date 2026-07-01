@@ -276,6 +276,14 @@ export default function CloudflareStreamPlayer({
 
     player.pause?.();
   };
+  const handleSurfacePlaybackClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    togglePlayback();
+  };
+  const handlePlaybackButtonClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    togglePlayback();
+  };
   const handleExpandClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (!onRequestExpand) {
@@ -315,6 +323,14 @@ export default function CloudflareStreamPlayer({
           <p className="cloudflare-stream-player-status">Native video controls restored.</p>
         ) : (
           <>
+            <button
+              aria-hidden="true"
+              className="cloudflare-stream-player-surface-control"
+              disabled={sdkStatus !== "ready"}
+              onClick={handleSurfacePlaybackClick}
+              tabIndex={-1}
+              type="button"
+            />
             {!isExpandedMode ? (
               <button
                 className="cloudflare-stream-player-frame-control"
@@ -347,7 +363,7 @@ export default function CloudflareStreamPlayer({
             <button
               className="cloudflare-stream-player-control"
               disabled={sdkStatus !== "ready"}
-              onClick={togglePlayback}
+              onClick={handlePlaybackButtonClick}
               onPointerCancel={stopPlayerControlPropagation}
               onPointerDown={stopPlayerControlPropagation}
               onPointerMove={stopPlayerControlPropagation}

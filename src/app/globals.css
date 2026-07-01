@@ -3155,6 +3155,20 @@ input {
   background: #05070a;
 }
 
+.cloudflare-stream-player-surface-control {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cloudflare-stream-player-surface-control:disabled {
+  cursor: wait;
+}
+
 .cloudflare-stream-player-control {
   position: absolute;
   left: 50%;
