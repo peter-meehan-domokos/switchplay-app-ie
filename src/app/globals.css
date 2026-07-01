@@ -3046,6 +3046,12 @@ input {
   overflow: hidden;
 }
 
+.step-view-video-placeholder:not(.step-view-video-placeholder--portrait) {
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  transform: none;
+}
+
 .step-view-video-placeholder--portrait {
   align-self: start;
   width: auto;
