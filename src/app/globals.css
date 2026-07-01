@@ -2530,6 +2530,12 @@ input {
   background: #05070b;
   pointer-events: none;
   z-index: 1;
+  opacity: 1;
+  transition: opacity 250ms ease-out;
+}
+
+.switchplay-video-poster--fade-out {
+  opacity: 0;
 }
 
 .switchplay-video-host--expanded.switchplay-video-host--portrait .switchplay-video-frame {

@@ -224,6 +224,7 @@ export default function FocusedCardView({
   const [renderableVideoAssetId, setRenderableVideoAssetId] = useState<string | null>(null);
   const [failedVideoAssetId, setFailedVideoAssetId] = useState<string | null>(null);
   const [failedVideoPosterSrc, setFailedVideoPosterSrc] = useState<string | null>(null);
+  const [fadingPosterAssetId, setFadingPosterAssetId] = useState<string | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoHostElementRef = useRef<HTMLDivElement | null>(null);
@@ -254,10 +255,13 @@ export default function FocusedCardView({
   const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
   const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId);
   const isCurrentVideoFailed = Boolean(activeVideoAssetId && failedVideoAssetId === activeVideoAssetId);
+  const isPosterFadeOutActive = Boolean(
+    activeVideoAssetId && isCurrentVideoRenderable && fadingPosterAssetId === activeVideoAssetId
+  );
   const shouldConcealCloudflarePlayer = Boolean(
     activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
   );
-  const shouldShowVideoPoster = Boolean(hasPosterFallback && !isCurrentVideoRenderable);
+  const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
@@ -437,6 +441,7 @@ export default function FocusedCardView({
       setRenderableVideoAssetId(null);
       setFailedVideoAssetId(null);
       setFailedVideoPosterSrc(null);
+      setFadingPosterAssetId(null);
       setVideoHostRect(null);
       setVideoAnchorElement(null);
     }
@@ -446,7 +451,24 @@ export default function FocusedCardView({
     setRenderableVideoAssetId(null);
     setFailedVideoAssetId(null);
     setFailedVideoPosterSrc(null);
+    setFadingPosterAssetId(null);
   }, [activeVideoAssetId]);
+
+  useEffect(() => {
+    if (!activeVideoAssetId || !hasPosterFallback || !isCurrentVideoRenderable) {
+      setFadingPosterAssetId(null);
+      return;
+    }
+
+    setFadingPosterAssetId(activeVideoAssetId);
+    const fadeTimeout = window.setTimeout(() => {
+      setFadingPosterAssetId((currentAssetId) => (currentAssetId === activeVideoAssetId ? null : currentAssetId));
+    }, 250);
+
+    return () => {
+      window.clearTimeout(fadeTimeout);
+    };
+  }, [activeVideoAssetId, hasPosterFallback, isCurrentVideoRenderable]);
 
   useLayoutEffect(() => {
     if (!isVideoExpanded || isExpandedVideoPortrait) {
@@ -554,6 +576,7 @@ export default function FocusedCardView({
     setRenderableVideoAssetId(null);
     setFailedVideoAssetId(null);
     setFailedVideoPosterSrc(null);
+    setFadingPosterAssetId(null);
     setVideoHostRect(null);
     setVideoAnchorElement(null);
     setReflectionEditorState(null);
@@ -702,7 +725,7 @@ export default function FocusedCardView({
                   <img
                     alt=""
                     aria-hidden="true"
-                    className="switchplay-video-poster"
+                    className={`switchplay-video-poster${isPosterFadeOutActive ? " switchplay-video-poster--fade-out" : ""}`}
                     onError={() => setFailedVideoPosterSrc(activeVideoPosterSrc)}
                     src={activeVideoPosterSrc ?? undefined}
                   />
