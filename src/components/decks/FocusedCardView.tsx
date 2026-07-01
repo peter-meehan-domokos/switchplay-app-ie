@@ -1,12 +1,20 @@
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
+import CloudflareStreamPlayer, { getCloudflareStreamThumbnailUrl } from "@/components/media/CloudflareStreamPlayer";
 import StepView, { type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
+import {
+  isCloudflareStreamVideoMediaItem,
+  isKnownLandscapeCloudflareStreamVideoMediaItem,
+  isKnownPortraitCloudflareStreamVideoMediaItem,
+  type CloudflareStreamVideoMediaItem,
+  type MediaItem,
+} from "@/lib/media";
 import {
   CARD_ASPECT_RATIO,
   CARD_HEIGHT_RATIO,
@@ -54,6 +62,13 @@ type ReflectionEditorState = {
   cardId: string;
 };
 
+type VideoHostRect = {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};
+
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -77,6 +92,38 @@ function getStepViewSequence(card: CardLayout): StepViewItem[] {
     { type: "intro" },
     ...card.steps.map((_, stepIndex) => ({ type: "step" as const, stepIndex })),
   ];
+}
+
+function getStepViewMediaItem(card: CardLayout, item: StepViewItem): MediaItem | null {
+  return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
+}
+
+function toVideoHostRect(rect: DOMRect): VideoHostRect {
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+  };
+}
+
+function isVideoHostRectEqual(currentRect: VideoHostRect | null, nextRect: VideoHostRect) {
+  if (!currentRect) {
+    return false;
+  }
+
+  const epsilon = 0.5;
+
+  return (
+    Math.abs(currentRect.left - nextRect.left) <= epsilon &&
+    Math.abs(currentRect.top - nextRect.top) <= epsilon &&
+    Math.abs(currentRect.width - nextRect.width) <= epsilon &&
+    Math.abs(currentRect.height - nextRect.height) <= epsilon
+  );
+}
+
+function isValidVideoHostRect(rect: VideoHostRect) {
+  return Number.isFinite(rect.left) && Number.isFinite(rect.top) && rect.width > 1 && rect.height > 1;
 }
 
 const focusedTraversalVariants = {
@@ -171,8 +218,18 @@ export default function FocusedCardView({
   const [reflectionDraftValue, setReflectionDraftValue] = useState("");
   const [reflectionEditorError, setReflectionEditorError] = useState<string | null>(null);
   const [isSavingReflection, setIsSavingReflection] = useState(false);
+  const [isVideoExpanded, setIsVideoExpanded] = useState(false);
+  const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
+  const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
+  const [expandedLandscapeFrameSize, setExpandedLandscapeFrameSize] = useState<{ width: number; height: number } | null>(null);
+  const [renderableVideoAssetId, setRenderableVideoAssetId] = useState<string | null>(null);
+  const [failedVideoAssetId, setFailedVideoAssetId] = useState<string | null>(null);
+  const [failedVideoPosterSrc, setFailedVideoPosterSrc] = useState<string | null>(null);
+  const [fadingPosterAssetId, setFadingPosterAssetId] = useState<string | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoHostElementRef = useRef<HTMLDivElement | null>(null);
+  const videoFrameElementRef = useRef<HTMLDivElement | null>(null);
   const focusedCardScale = useFocusedCardScale();
   const deckSideFlipState: FocusedFlipState = {
     cardId: card.id,
@@ -187,6 +244,28 @@ export default function FocusedCardView({
       ? Math.min(stepViewState.itemIndex, stepViewSequence.length - 1)
       : null;
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
+  const activeStepViewMediaItem = stepViewItem ? getStepViewMediaItem(card, stepViewItem) : null;
+  const activeCloudflareVideoMediaItem =
+    activeStepViewMediaItem && isCloudflareStreamVideoMediaItem(activeStepViewMediaItem)
+      ? activeStepViewMediaItem
+      : null;
+  const isExpandedVideoPortrait =
+    activeCloudflareVideoMediaItem ? isKnownPortraitCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
+  const isExpandedVideoLandscape =
+    activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
+  const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
+  const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem) : null;
+  const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
+  const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId);
+  const isCurrentVideoFailed = Boolean(activeVideoAssetId && failedVideoAssetId === activeVideoAssetId);
+  const isPosterFadeOutActive = Boolean(
+    activeVideoAssetId && isCurrentVideoRenderable && fadingPosterAssetId === activeVideoAssetId
+  );
+  const shouldConcealCloudflarePlayer = Boolean(
+    activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
+  );
+  const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
+  const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
@@ -310,9 +389,13 @@ export default function FocusedCardView({
     }
   };
   const closeStepView = () => {
+    setIsVideoExpanded(false);
+    setVideoHostRect(null);
+    setVideoAnchorElement(null);
     setStepViewState(null);
   };
   const goToPreviousStepViewItem = () => {
+    setIsVideoExpanded(false);
     setStepViewState((currentStepViewState) => {
       if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
         return currentStepViewState;
@@ -325,6 +408,7 @@ export default function FocusedCardView({
     });
   };
   const goToNextStepViewItem = () => {
+    setIsVideoExpanded(false);
     setStepViewState((currentStepViewState) => {
       if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
         return currentStepViewState;
@@ -336,17 +420,174 @@ export default function FocusedCardView({
       };
     });
   };
+  const handleVideoAnchorRef = useCallback((nextAnchorElement: HTMLDivElement | null) => {
+    // Ignore transient null callbacks during re-render so the hosted player remains mounted.
+    if (!nextAnchorElement) {
+      return;
+    }
+
+    setVideoAnchorElement((currentAnchorElement) => (currentAnchorElement === nextAnchorElement ? currentAnchorElement : nextAnchorElement));
+  }, []);
   const focusedGestures = useDeckGestures({
     mode: "focus",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
-    locked: isFocusedGestureLocked || Boolean(stepViewItem) || Boolean(reflectionEditorState),
+    locked: isFocusedGestureLocked || Boolean(stepViewItem) || Boolean(reflectionEditorState) || isVideoExpanded,
     onSettleToPast: settleFocusedCardToPast,
     onRestoreFromPast: restoreFocusedCardFromPast,
     onFlip: toggleFocusedCardSide,
   });
 
   useEffect(() => {
+    if (!activeCloudflareVideoMediaItem) {
+      setIsVideoExpanded(false);
+      setExpandedLandscapeFrameSize(null);
+      setRenderableVideoAssetId(null);
+      setFailedVideoAssetId(null);
+      setFailedVideoPosterSrc(null);
+      setFadingPosterAssetId(null);
+      setVideoHostRect(null);
+      setVideoAnchorElement(null);
+    }
+  }, [activeCloudflareVideoMediaItem]);
+
+  useEffect(() => {
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFailedVideoPosterSrc(null);
+    setFadingPosterAssetId(null);
+  }, [activeVideoAssetId]);
+
+  useEffect(() => {
+    if (!activeVideoAssetId || !hasPosterFallback || !isCurrentVideoRenderable) {
+      setFadingPosterAssetId(null);
+      return;
+    }
+
+    setFadingPosterAssetId(activeVideoAssetId);
+    const fadeTimeout = window.setTimeout(() => {
+      setFadingPosterAssetId((currentAssetId) => (currentAssetId === activeVideoAssetId ? null : currentAssetId));
+    }, 250);
+
+    return () => {
+      window.clearTimeout(fadeTimeout);
+    };
+  }, [activeVideoAssetId, hasPosterFallback, isCurrentVideoRenderable]);
+
+  useLayoutEffect(() => {
+    if (!isVideoExpanded || isExpandedVideoPortrait) {
+      setExpandedLandscapeFrameSize(null);
+      return;
+    }
+
+    const updateExpandedLandscapeFrameSize = () => {
+      const hostElement = videoHostElementRef.current;
+
+      if (!hostElement) {
+        return;
+      }
+
+      const hostRect = hostElement.getBoundingClientRect();
+
+      if (hostRect.width <= 1 || hostRect.height <= 1) {
+        return;
+      }
+
+      const viewportSize = getViewportSize();
+      const shouldFitLandscapeViewport =
+        isExpandedVideoLandscape && viewportSize !== null && viewportSize.width > viewportSize.height;
+      const nextWidth = Math.max(
+        1,
+        Math.round(shouldFitLandscapeViewport ? Math.min(hostRect.width, hostRect.height * (16 / 9)) : hostRect.width)
+      );
+      const nextHeight = Math.max(1, Math.round(Math.min(hostRect.height, nextWidth * (9 / 16))));
+
+      setExpandedLandscapeFrameSize((currentSize) => {
+        if (currentSize && currentSize.width === nextWidth && currentSize.height === nextHeight) {
+          return currentSize;
+        }
+
+        return {
+          width: nextWidth,
+          height: nextHeight,
+        };
+      });
+    };
+
+    updateExpandedLandscapeFrameSize();
+
+    const hostElement = videoHostElementRef.current;
+    if (!hostElement) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(updateExpandedLandscapeFrameSize);
+    resizeObserver.observe(hostElement);
+    window.addEventListener("resize", updateExpandedLandscapeFrameSize);
+    window.visualViewport?.addEventListener("resize", updateExpandedLandscapeFrameSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateExpandedLandscapeFrameSize);
+      window.visualViewport?.removeEventListener("resize", updateExpandedLandscapeFrameSize);
+    };
+  }, [isExpandedVideoLandscape, isVideoExpanded, isExpandedVideoPortrait]);
+
+  useLayoutEffect(() => {
+    if (!videoAnchorElement) {
+      return;
+    }
+
+    let isDisposed = false;
+    let animationFrameId: number | null = null;
+
+    const updateVideoHostRect = () => {
+      const nextRect = toVideoHostRect(videoAnchorElement.getBoundingClientRect());
+
+      if (!isValidVideoHostRect(nextRect)) {
+        return;
+      }
+
+      setVideoHostRect((currentRect) => (isVideoHostRectEqual(currentRect, nextRect) ? currentRect : nextRect));
+    };
+
+    const sampleVideoHostRect = () => {
+      if (isDisposed) {
+        return;
+      }
+
+      updateVideoHostRect();
+      animationFrameId = window.requestAnimationFrame(sampleVideoHostRect);
+    };
+
+    updateVideoHostRect();
+    animationFrameId = window.requestAnimationFrame(sampleVideoHostRect);
+
+    const resizeObserver = new ResizeObserver(updateVideoHostRect);
+    resizeObserver.observe(videoAnchorElement);
+    window.addEventListener("resize", updateVideoHostRect);
+    window.visualViewport?.addEventListener("resize", updateVideoHostRect);
+
+    return () => {
+      isDisposed = true;
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateVideoHostRect);
+      window.visualViewport?.removeEventListener("resize", updateVideoHostRect);
+    };
+  }, [videoAnchorElement]);
+
+  useEffect(() => {
     setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
+    setIsVideoExpanded(false);
+    setExpandedLandscapeFrameSize(null);
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFailedVideoPosterSrc(null);
+    setFadingPosterAssetId(null);
+    setVideoHostRect(null);
+    setVideoAnchorElement(null);
     setReflectionEditorState(null);
     setReflectionEditorError(null);
   }, [card.id]);
@@ -442,18 +683,96 @@ export default function FocusedCardView({
                 <StepView
                   key={`${card.id}:${stepViewItemIndex}`}
                   card={card}
+                  cloudflareVideoAnchorRef={handleVideoAnchorRef}
                   item={stepViewItem}
                   itemIndex={stepViewItemIndex}
                   itemCount={stepViewSequence.length}
                   onClose={closeStepView}
                   onNext={goToNextStepViewItem}
                   onPrevious={goToPreviousStepViewItem}
+                  useCloudflareVideoHost={Boolean(activeCloudflareVideoMediaItem)}
                 />
               ) : null}
             </AnimatePresence>
           </motion.div>
         </motion.article>
       </AnimatePresence>
+      {isVideoHostVisible && activeCloudflareVideoMediaItem ? (
+        <div className="switchplay-video-host-layer" aria-hidden="true">
+          {isVideoExpanded ? <div className="switchplay-video-expanded-backdrop" /> : null}
+          <div
+            ref={videoHostElementRef}
+            className={`switchplay-video-host${
+              isVideoExpanded ? " switchplay-video-host--expanded" : " switchplay-video-host--embedded"
+            }${isExpandedVideoPortrait ? " switchplay-video-host--portrait" : " switchplay-video-host--landscape"}${
+              isExpandedVideoLandscape ? " switchplay-video-host--known-landscape" : ""
+            }`}
+            style={
+              !isVideoExpanded && videoHostRect
+                ? {
+                    height: `${videoHostRect.height}px`,
+                    left: `${videoHostRect.left}px`,
+                    top: `${videoHostRect.top}px`,
+                    width: `${videoHostRect.width}px`,
+                  }
+                : undefined
+            }
+          >
+            <div
+              ref={videoFrameElementRef}
+              className="switchplay-video-frame"
+              style={
+                isVideoExpanded && !isExpandedVideoPortrait
+                  ? expandedLandscapeFrameSize
+                    ? {
+                        height: `${expandedLandscapeFrameSize.height}px`,
+                        width: `${expandedLandscapeFrameSize.width}px`,
+                      }
+                    : undefined
+                  : undefined
+              }
+            >
+              <div className="switchplay-video-content">
+                {shouldShowVideoPoster ? (
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className={`switchplay-video-poster${isPosterFadeOutActive ? " switchplay-video-poster--fade-out" : ""}`}
+                    onError={() => setFailedVideoPosterSrc(activeVideoPosterSrc)}
+                    src={activeVideoPosterSrc ?? undefined}
+                  />
+                ) : null}
+                <div className="switchplay-video-player-layer" style={shouldConcealCloudflarePlayer ? { visibility: "hidden" } : undefined}>
+                  <CloudflareStreamPlayer
+                    controlsMode="switchplay"
+                    displayMode={isVideoExpanded ? "expanded" : "embedded"}
+                    mediaItem={activeCloudflareVideoMediaItem}
+                    onMediaDisplayStateChange={({ assetId, state }) => {
+                      if (assetId !== activeVideoAssetId) {
+                        return;
+                      }
+
+                      if (state === "renderable") {
+                        setRenderableVideoAssetId(assetId);
+                        setFailedVideoAssetId(null);
+                        return;
+                      }
+
+                      setFailedVideoAssetId(assetId);
+                    }}
+                    onRequestCollapse={() => {
+                      setIsVideoExpanded(false);
+                    }}
+                    onRequestExpand={() => {
+                      setIsVideoExpanded(true);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <AnimatePresence>
         {reflectionEditorState ? (
           <motion.div

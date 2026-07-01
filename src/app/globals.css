@@ -2046,6 +2046,10 @@ input {
   object-fit: cover;
 }
 
+.intro-media-thumb--portrait .intro-media-thumbnail {
+  object-fit: contain;
+}
+
 .intro-media-play,
 .step-play-icon {
   width: 0;
@@ -2467,6 +2471,131 @@ input {
     radial-gradient(ellipse at 50% 48%, transparent 0%, transparent 50%, rgba(2, 3, 6, 0.032) 76%, rgba(2, 3, 6, 0.07) 100%),
     linear-gradient(180deg, rgba(2, 3, 6, 0.14), rgba(2, 3, 6, 0.055) 28%, transparent 54%, transparent 82%, rgba(2, 3, 6, 0.025));
   pointer-events: none;
+}
+
+.switchplay-video-host-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.switchplay-video-expanded-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(168, 214, 228, 0.065), transparent 52%),
+    rgba(5, 7, 10, 0.76);
+  pointer-events: none;
+  animation: switchplay-video-backdrop-in 180ms ease-out both;
+}
+
+.switchplay-video-host {
+  position: fixed;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.switchplay-video-host--expanded {
+  inset:
+    max(12px, calc(env(safe-area-inset-top) + 8px))
+    max(12px, calc(env(safe-area-inset-right) + 8px))
+    max(12px, calc(env(safe-area-inset-bottom) + 8px))
+    max(12px, calc(env(safe-area-inset-left) + 8px));
+  display: grid;
+  place-items: center;
+}
+
+.switchplay-video-frame {
+  width: 100%;
+  height: 100%;
+}
+
+.switchplay-video-host--expanded .switchplay-video-frame {
+  position: relative;
+  width: min(100%, 980px);
+  height: min(100%, 980px);
+}
+
+.switchplay-video-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.switchplay-video-player-layer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.switchplay-video-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 15px;
+  background: #05070b;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 1;
+  transition: opacity 250ms ease-out;
+}
+
+.switchplay-video-poster--fade-out {
+  opacity: 0;
+}
+
+.switchplay-video-host--expanded.switchplay-video-host--portrait .switchplay-video-frame {
+  height: 100%;
+  width: auto;
+  aspect-ratio: 9 / 16;
+  max-width: min(100%, 470px);
+}
+
+.switchplay-video-host--expanded.switchplay-video-host--landscape .switchplay-video-frame {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.switchplay-video-host .cloudflare-stream-player-shell {
+  min-height: 0;
+}
+
+.switchplay-video-host .cloudflare-stream-player,
+.switchplay-video-host .cloudflare-stream-player-shell {
+  border-radius: 15px;
+}
+
+.switchplay-video-host .cloudflare-stream-player-shell,
+.switchplay-video-host .cloudflare-stream-player {
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  margin-top: -1px;
+  margin-left: -1px;
+}
+
+.switchplay-video-host .switchplay-video-poster {
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  margin-top: -1px;
+  margin-left: -1px;
+}
+
+@keyframes switchplay-video-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .focused-card-scrim {
@@ -2937,9 +3066,14 @@ input {
   padding-top: 18px;
 }
 
+.step-view-body--portrait-media {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .step-view-video-placeholder {
   display: grid;
   justify-self: center;
+  position: relative;
   width: 100%;
   min-height: 134px;
   place-items: center;
@@ -2958,6 +3092,59 @@ input {
   overflow: hidden;
 }
 
+.step-view-video-placeholder:not(.step-view-video-placeholder--portrait) {
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  transform: none;
+}
+
+.step-view-video-placeholder--portrait {
+  align-self: start;
+  width: auto;
+  height: min(100%, var(--step-view-portrait-media-max-height, 199px));
+  max-width: 145px;
+  min-height: 0;
+  aspect-ratio: 9 / 16;
+  border-color: transparent;
+  background: transparent;
+  transform: translateY(-6px);
+  overflow: visible;
+}
+
+.step-view-video-placeholder--portrait .cloudflare-stream-player-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.step-view-video-placeholder--portrait .cloudflare-stream-player {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.step-view-video-anchor {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.cloudflare-stream-player-shell {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 134px;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
 .cloudflare-stream-player {
   display: block;
   width: 100%;
@@ -2966,6 +3153,109 @@ input {
   border: 0;
   border-radius: inherit;
   background: #05070a;
+}
+
+.cloudflare-stream-player-surface-control {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cloudflare-stream-player-surface-control:disabled {
+  cursor: wait;
+}
+
+.cloudflare-stream-player-control {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 2;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 250, 240, 0.22);
+  border-radius: 999px;
+  background: rgba(5, 7, 10, 0.68);
+  color: rgba(255, 250, 240, 0.92);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 760;
+  line-height: 1;
+  padding: 8px 13px;
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.26);
+}
+
+.cloudflare-stream-player-control:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+.cloudflare-stream-player-control:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.62);
+  outline-offset: 3px;
+}
+
+.cloudflare-stream-player-frame-control {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(255, 250, 240, 0.2);
+  border-radius: 999px;
+  background: rgba(5, 7, 10, 0.58);
+  color: rgba(255, 250, 240, 0.9);
+  cursor: pointer;
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.24);
+}
+
+.cloudflare-stream-player-frame-control--exit {
+  width: 26px;
+  height: 26px;
+  top: 12px;
+  right: 12px;
+  border-color: rgba(255, 250, 240, 0.16);
+  background: rgba(5, 7, 10, 0.48);
+}
+
+.cloudflare-stream-player-frame-control:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+.cloudflare-stream-player-frame-control:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.62);
+  outline-offset: 3px;
+}
+
+.cloudflare-stream-player-frame-control-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.cloudflare-stream-player-status {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 2;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(5, 7, 10, 0.68);
+  color: rgba(255, 250, 240, 0.74);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 7px 11px;
 }
 
 .step-view-actions {
