@@ -2563,6 +2563,13 @@ input {
   margin-left: -1px;
 }
 
+.switchplay-video-host .switchplay-video-poster {
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  margin-top: -1px;
+  margin-left: -1px;
+}
+
 .focused-card-scrim {
   position: absolute;
   inset: 0;
