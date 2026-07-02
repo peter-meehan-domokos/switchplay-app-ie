@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import LogoutButton from "@/components/auth/LogoutButton";
 import DeckDetail from "@/components/decks/DeckDetail";
 import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
 import type { LayoutUser } from "@/components/cards/cardLayout";
+import OverviewMenu from "@/components/layout/OverviewMenu";
 
 type AppShellProps = {
   currentUserId: string;
@@ -184,7 +184,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
             ease: "easeOut",
           }}
         >
-          <LogoutButton username={userName} />
+          <OverviewMenu username={userName} />
         </motion.div>
       )}
         <AnimatePresence initial={false}>
