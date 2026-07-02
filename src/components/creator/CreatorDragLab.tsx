@@ -630,28 +630,6 @@ function getEditTargetKey(target: EditTarget) {
   return `${target.type}:${target.columnId}`;
 }
 
-function CreatorStepDescriptionPreview({ content }: { content?: StepDescriptionSpan[] }) {
-  if (!content || content.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="creator-step-inline-preview" aria-label="Linked text preview">
-      {content.map((span, index) => {
-        if (span.type === "text") {
-          return span.text;
-        }
-
-        return (
-          <span className="creator-step-inline-preview-link" key={`${span.url}:${index}`}>
-            {span.text}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 function CreatorEditModal({
   canDeleteCard = false,
   onClose,
@@ -798,8 +776,6 @@ function CreatorEditModal({
     onSave(draftValue, isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined);
   }
 
-  const previewContent = isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined;
-
   return (
     <div className="creator-modal-backdrop" role="presentation">
       <form className={modalClassName} onSubmit={handleSubmit}>
@@ -828,9 +804,6 @@ function CreatorEditModal({
             value={draftValue}
           />
         )}
-        {isStepText && previewContent ? (
-          <CreatorStepDescriptionPreview content={previewContent} />
-        ) : null}
         {session.target.type === "card-label" ? <p className="creator-modal-counter">{draftValue.length}/{CARD_LABEL_MAX_LENGTH} characters</p> : null}
         {showStepCounter ? (
           <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>

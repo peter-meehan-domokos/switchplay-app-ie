@@ -1157,25 +1157,6 @@ input {
   gap: 10px;
 }
 
-.creator-step-inline-preview {
-  border: 1px solid #d8dde1;
-  background: #fbfcfd;
-  color: #111318;
-  font-size: 0.85rem;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-  padding: 9px 10px;
-  white-space: pre-wrap;
-}
-
-.creator-step-inline-preview-link {
-  border-radius: 4px;
-  background: rgba(168, 214, 228, 0.1);
-  color: #277e9e;
-  font-weight: 760;
-  padding: 0 2px;
-}
-
 .creator-step-inline-links-header {
   display: flex;
   align-items: center;
