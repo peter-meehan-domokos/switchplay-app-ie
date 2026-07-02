@@ -87,6 +87,11 @@ type SavedDeckTemplateResponse = {
   deckTemplateId?: string;
 };
 
+type UploadSession = {
+  controller: AbortController;
+  token: symbol;
+};
+
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
@@ -211,13 +216,24 @@ function getLocalVideoDimensions(file: File): Promise<VideoDimensions | null> {
   });
 }
 
-async function requestStreamDirectUpload(file: File): Promise<StreamDirectUploadResponse> {
+function isAbortError(error: unknown) {
+  return typeof error === "object" && error !== null && "name" in error && error.name === "AbortError";
+}
+
+function throwIfUploadAborted(signal: AbortSignal) {
+  if (signal.aborted) {
+    throw new DOMException("Upload cancelled.", "AbortError");
+  }
+}
+
+async function requestStreamDirectUpload(file: File, signal: AbortSignal): Promise<StreamDirectUploadResponse> {
   const response = await fetch("/api/media/stream/direct-upload", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name: file.name }),
+    signal,
   });
   const responseBody: unknown = await response.json().catch(() => null);
 
@@ -232,7 +248,7 @@ async function requestStreamDirectUpload(file: File): Promise<StreamDirectUpload
   return responseBody;
 }
 
-async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
+async function uploadFileToCloudflareStream(uploadURL: string, file: File, signal: AbortSignal) {
   const uploadBody = new FormData();
 
   uploadBody.append("file", file);
@@ -240,6 +256,7 @@ async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
   const response = await fetch(uploadURL, {
     method: "POST",
     body: uploadBody,
+    signal,
   });
 
   if (!response.ok) {
@@ -247,11 +264,13 @@ async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
   }
 }
 
-async function uploadCreatorVideo(file: File): Promise<CloudflareStreamVideoMediaItem> {
+async function uploadCreatorVideo(file: File, signal: AbortSignal): Promise<CloudflareStreamVideoMediaItem> {
   const dimensions = await getLocalVideoDimensions(file);
-  const directUpload = await requestStreamDirectUpload(file);
+  throwIfUploadAborted(signal);
+  const directUpload = await requestStreamDirectUpload(file, signal);
 
-  await uploadFileToCloudflareStream(directUpload.uploadURL, file);
+  await uploadFileToCloudflareStream(directUpload.uploadURL, file, signal);
+  throwIfUploadAborted(signal);
 
   return {
     id: `stream-${directUpload.uid}`,
@@ -609,12 +628,14 @@ function PairBlock({
   isMediaUploading = false,
   pair,
   isDragging = false,
+  onCancelMediaUpload,
   onEdit,
   onUploadMedia,
 }: {
   isMediaUploading?: boolean;
   pair: Pair;
   isDragging?: boolean;
+  onCancelMediaUpload: (pairId: PairId) => void;
   onEdit: (target: EditTarget) => void;
   onUploadMedia: (pairId: PairId, file: File) => void;
 }) {
@@ -652,6 +673,7 @@ function PairBlock({
         className={mediaClassName}
         isUploading={isMediaUploading}
         mediaItem={pair.stepMediaItem}
+        onCancelUpload={() => onCancelMediaUpload(pair.id)}
         onUpload={(file) => onUploadMedia(pair.id, file)}
         placeholder="Upload video"
         size="pair"
@@ -752,6 +774,7 @@ function BoardCell({
   cellId,
   streamName,
   onEdit,
+  onCancelMediaUpload,
   onUploadMedia,
   pair,
   row,
@@ -763,6 +786,7 @@ function BoardCell({
   cell: CellState;
   cellId: CellId;
   streamName?: string;
+  onCancelMediaUpload: (pairId: PairId) => void;
   onEdit: (target: EditTarget) => void;
   onUploadMedia: (pairId: PairId, file: File) => void;
   pair?: Pair;
@@ -792,6 +816,7 @@ function BoardCell({
           pair={pair}
           isDragging={pair.id === activePairId}
           isMediaUploading={uploadingMediaPairIds.has(pair.id)}
+          onCancelMediaUpload={onCancelMediaUpload}
           onEdit={onEdit}
           onUploadMedia={onUploadMedia}
         />
@@ -833,6 +858,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
   const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
   const boardRef = useRef<BoardState>(initialBoard);
+  const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
+  const introUploadSessionsRef = useRef<Map<ColumnId, UploadSession>>(new Map());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -869,6 +896,19 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   useEffect(() => {
     boardRef.current = board;
   }, [board]);
+
+  useEffect(() => {
+    return () => {
+      for (const session of pairUploadSessionsRef.current.values()) {
+        session.controller.abort();
+      }
+      for (const session of introUploadSessionsRef.current.values()) {
+        session.controller.abort();
+      }
+      pairUploadSessionsRef.current.clear();
+      introUploadSessionsRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasUnpublishedChanges) {
@@ -1253,6 +1293,116 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     setEditSession(null);
   }
 
+  function clearPairUploadState(pairId: PairId) {
+    setUploadingMediaPairIds((currentPairIds) => {
+      if (!currentPairIds.has(pairId)) {
+        return currentPairIds;
+      }
+
+      const nextPairIds = new Set(currentPairIds);
+      nextPairIds.delete(pairId);
+      return nextPairIds;
+    });
+  }
+
+  function clearIntroUploadState(columnId: ColumnId) {
+    setUploadingIntroMediaColumnIds((currentColumnIds) => {
+      if (!currentColumnIds.has(columnId)) {
+        return currentColumnIds;
+      }
+
+      const nextColumnIds = new Set(currentColumnIds);
+      nextColumnIds.delete(columnId);
+      return nextColumnIds;
+    });
+  }
+
+  function createPairUploadSession(pairId: PairId) {
+    pairUploadSessionsRef.current.get(pairId)?.controller.abort();
+
+    const session: UploadSession = {
+      controller: new AbortController(),
+      token: Symbol(pairId),
+    };
+
+    pairUploadSessionsRef.current.set(pairId, session);
+    setUploadingMediaPairIds((currentPairIds) => {
+      const nextPairIds = new Set(currentPairIds);
+      nextPairIds.add(pairId);
+      return nextPairIds;
+    });
+
+    return session;
+  }
+
+  function createIntroUploadSession(columnId: ColumnId) {
+    introUploadSessionsRef.current.get(columnId)?.controller.abort();
+
+    const session: UploadSession = {
+      controller: new AbortController(),
+      token: Symbol(columnId),
+    };
+
+    introUploadSessionsRef.current.set(columnId, session);
+    setUploadingIntroMediaColumnIds((currentColumnIds) => {
+      const nextColumnIds = new Set(currentColumnIds);
+      nextColumnIds.add(columnId);
+      return nextColumnIds;
+    });
+
+    return session;
+  }
+
+  function isActivePairUpload(pairId: PairId, session: UploadSession) {
+    return pairUploadSessionsRef.current.get(pairId)?.token === session.token && !session.controller.signal.aborted;
+  }
+
+  function isActiveIntroUpload(columnId: ColumnId, session: UploadSession) {
+    return introUploadSessionsRef.current.get(columnId)?.token === session.token && !session.controller.signal.aborted;
+  }
+
+  function finishPairUpload(pairId: PairId, session: UploadSession) {
+    if (pairUploadSessionsRef.current.get(pairId)?.token !== session.token) {
+      return;
+    }
+
+    pairUploadSessionsRef.current.delete(pairId);
+    clearPairUploadState(pairId);
+  }
+
+  function finishIntroUpload(columnId: ColumnId, session: UploadSession) {
+    if (introUploadSessionsRef.current.get(columnId)?.token !== session.token) {
+      return;
+    }
+
+    introUploadSessionsRef.current.delete(columnId);
+    clearIntroUploadState(columnId);
+  }
+
+  function cancelPairMediaUpload(pairId: PairId) {
+    const session = pairUploadSessionsRef.current.get(pairId);
+
+    if (!session) {
+      return;
+    }
+
+    session.controller.abort();
+    pairUploadSessionsRef.current.delete(pairId);
+    clearPairUploadState(pairId);
+  }
+
+  function cancelIntroMediaUpload(columnId: ColumnId) {
+    const session = introUploadSessionsRef.current.get(columnId);
+
+    if (!session) {
+      return;
+    }
+
+    session.controller.abort();
+    introUploadSessionsRef.current.delete(columnId);
+    clearIntroUploadState(columnId);
+  }
+
   async function uploadPairMedia(pairId: PairId, file: File) {
     if (file.type && !file.type.startsWith("video/")) {
       setPublishStatus("error");
@@ -1260,16 +1410,20 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       return;
     }
 
-    setUploadingMediaPairIds((currentPairIds) => {
-      const nextPairIds = new Set(currentPairIds);
-      nextPairIds.add(pairId);
-      return nextPairIds;
-    });
+    const uploadSession = createPairUploadSession(pairId);
+
     setPublishMessage("");
     setPublishStatus("idle");
 
     try {
-      const mediaItem = await uploadCreatorVideo(file);
+      const mediaItem = await uploadCreatorVideo(file, uploadSession.controller.signal);
+
+      if (!isActivePairUpload(pairId, uploadSession)) {
+        return;
+      }
+
+      finishPairUpload(pairId, uploadSession);
+
       const nextBoard = (() => {
         const currentBoard = boardRef.current;
         const pair = currentBoard.pairs[pairId];
@@ -1294,14 +1448,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setBoard(nextBoard);
       await persistSavedDraft(nextBoard);
     } catch (error) {
+      if (uploadSession.controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
       setPublishStatus("error");
       setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
     } finally {
-      setUploadingMediaPairIds((currentPairIds) => {
-        const nextPairIds = new Set(currentPairIds);
-        nextPairIds.delete(pairId);
-        return nextPairIds;
-      });
+      finishPairUpload(pairId, uploadSession);
     }
   }
 
@@ -1312,16 +1466,20 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       return;
     }
 
-    setUploadingIntroMediaColumnIds((currentColumnIds) => {
-      const nextColumnIds = new Set(currentColumnIds);
-      nextColumnIds.add(columnId);
-      return nextColumnIds;
-    });
+    const uploadSession = createIntroUploadSession(columnId);
+
     setPublishMessage("");
     setPublishStatus("idle");
 
     try {
-      const mediaItem = await uploadCreatorVideo(file);
+      const mediaItem = await uploadCreatorVideo(file, uploadSession.controller.signal);
+
+      if (!isActiveIntroUpload(columnId, uploadSession)) {
+        return;
+      }
+
+      finishIntroUpload(columnId, uploadSession);
+
       const currentBoard = boardRef.current;
       const nextBoard = {
         ...currentBoard,
@@ -1339,14 +1497,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setBoard(nextBoard);
       await persistSavedDraft(nextBoard);
     } catch (error) {
+      if (uploadSession.controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
       setPublishStatus("error");
       setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
     } finally {
-      setUploadingIntroMediaColumnIds((currentColumnIds) => {
-        const nextColumnIds = new Set(currentColumnIds);
-        nextColumnIds.delete(columnId);
-        return nextColumnIds;
-      });
+      finishIntroUpload(columnId, uploadSession);
     }
   }
 
@@ -1534,6 +1692,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                           className="creator-card-intro-media-slot"
                           isUploading={uploadingIntroMediaColumnIds.has(column.id)}
                           mediaItem={column.introMediaItem ?? null}
+                          onCancelUpload={() => cancelIntroMediaUpload(column.id)}
                           onUpload={(file) => void uploadIntroMedia(column.id, file)}
                           placeholder="Upload video"
                           size="intro"
@@ -1556,6 +1715,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                           cellId={cellId}
                           streamName={column.kind === "stream" ? board.streamNamesByRow[row] : undefined}
                           key={cellId}
+                          onCancelMediaUpload={cancelPairMediaUpload}
                           onEdit={openEdit}
                           onUploadMedia={uploadPairMedia}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
