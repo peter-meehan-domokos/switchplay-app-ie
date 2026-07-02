@@ -26,8 +26,13 @@ export type CardIntro = {
 export type CardTemplateStep = {
   stepId: string;
   description: string | null;
+  descriptionContent?: StepDescriptionSpan[];
   mediaItem?: MediaItem | null;
 };
+
+export type StepDescriptionSpan =
+  | { type: "text"; text: string }
+  | { type: "link"; text: string; url: string };
 
 export type CardTemplateSignal = {
   signalId: string;
@@ -116,6 +121,7 @@ export type ClientUserDeckData = {
 export type WeeklyCardStep = {
   stepId: string;
   description: string | null;
+  descriptionContent?: StepDescriptionSpan[];
   completionStatus: string;
   mediaItem?: MediaItem | null;
 };

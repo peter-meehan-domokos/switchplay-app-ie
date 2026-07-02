@@ -41,7 +41,7 @@ import {
 } from "@/components/creator/creatorBoardState";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
-import type { DeckTemplate } from "@/components/decks/types";
+import type { DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 
 type EditTarget =
@@ -52,12 +52,25 @@ type EditTarget =
   | { type: "pair-step"; pairId: PairId };
 
 type EditSession = {
+  descriptionContent?: StepDescriptionSpan[];
   helperText?: string;
   inputKind: "long-text" | "short-text";
   label: string;
   target: EditTarget;
   value: string;
 };
+
+type StepLinkRange = {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+  url: string;
+};
+
+type PendingStepLink =
+  | { mode: "selection"; start: number; end: number; text: string; url: string }
+  | { mode: "insert"; start: number; text: string; url: string };
 
 type DateEditTarget = { type: "target-date"; columnId: ColumnId };
 
@@ -95,6 +108,10 @@ type UploadSession = {
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
+
+function createStepLinkId() {
+  return `step-link-${crypto.randomUUID()}`;
+}
 
 function createTemplateSnapshot(board: BoardState, deckTemplateId = board.deckTemplateId) {
   return JSON.stringify({
@@ -135,6 +152,143 @@ function formatCreatorDateDisplay(value: string) {
     month: "short",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function normalizeCreatorHttpUrl(value: string) {
+  const trimmedValue = value.trim();
+
+  if (trimmedValue === "") {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmedValue);
+
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function getPlainTextFromDescriptionContent(content: StepDescriptionSpan[]) {
+  return content.map((span) => span.text).join("");
+}
+
+function getLinkRangesFromDescriptionContent(content: StepDescriptionSpan[] | undefined, fallbackText: string): StepLinkRange[] {
+  if (!content) {
+    return [];
+  }
+
+  const contentText = getPlainTextFromDescriptionContent(content);
+
+  if (contentText !== fallbackText) {
+    return [];
+  }
+
+  let cursor = 0;
+
+  return content.flatMap((span) => {
+    const start = cursor;
+    cursor += span.text.length;
+
+    if (span.type !== "link") {
+      return [];
+    }
+
+    return [{
+      id: createStepLinkId(),
+      start,
+      end: cursor,
+      text: span.text,
+      url: span.url,
+    }];
+  }).filter((range) => fallbackText.slice(range.start, range.end) === range.text);
+}
+
+function buildStepDescriptionContent(text: string, ranges: StepLinkRange[]) {
+  const validRanges = ranges
+    .map((range) => ({
+      ...range,
+      start: Math.max(0, Math.min(text.length, range.start)),
+      end: Math.max(0, Math.min(text.length, range.end)),
+      url: normalizeCreatorHttpUrl(range.url) ?? "",
+    }))
+    .filter((range) => range.start < range.end && range.text.trim() !== "" && range.url !== "" && text.slice(range.start, range.end) === range.text)
+    .sort((a, b) => a.start - b.start || a.end - b.end)
+    .reduce<StepLinkRange[]>((nextRanges, range) => {
+      const previousRange = nextRanges.at(-1);
+
+      if (previousRange && range.start < previousRange.end) {
+        return nextRanges;
+      }
+
+      nextRanges.push(range);
+      return nextRanges;
+    }, []);
+
+  if (validRanges.length === 0) {
+    return undefined;
+  }
+
+  const content: StepDescriptionSpan[] = [];
+  let cursor = 0;
+
+  for (const range of validRanges) {
+    if (range.start > cursor) {
+      content.push({ type: "text", text: text.slice(cursor, range.start) });
+    }
+
+    content.push({ type: "link", text: range.text, url: range.url });
+    cursor = range.end;
+  }
+
+  if (cursor < text.length) {
+    content.push({ type: "text", text: text.slice(cursor) });
+  }
+
+  return content;
+}
+
+function adjustStepLinkRangesForTextChange(previousText: string, nextText: string, ranges: StepLinkRange[]) {
+  if (previousText === nextText || ranges.length === 0) {
+    return ranges;
+  }
+
+  let prefixLength = 0;
+
+  while (
+    prefixLength < previousText.length &&
+    prefixLength < nextText.length &&
+    previousText[prefixLength] === nextText[prefixLength]
+  ) {
+    prefixLength += 1;
+  }
+
+  let previousSuffixStart = previousText.length;
+  let nextSuffixStart = nextText.length;
+
+  while (
+    previousSuffixStart > prefixLength &&
+    nextSuffixStart > prefixLength &&
+    previousText[previousSuffixStart - 1] === nextText[nextSuffixStart - 1]
+  ) {
+    previousSuffixStart -= 1;
+    nextSuffixStart -= 1;
+  }
+
+  const delta = (nextSuffixStart - prefixLength) - (previousSuffixStart - prefixLength);
+
+  return ranges.map((range) => {
+    if (previousSuffixStart <= range.start) {
+      return {
+        ...range,
+        start: range.start + delta,
+        end: range.end + delta,
+      };
+    }
+
+    return range;
+  });
 }
 
 function getPublishErrorMessage(errorBody: unknown, fallback: string) {
@@ -438,6 +592,7 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
 
   if (target.type === "pair-step") {
     return {
+      descriptionContent: pair.stepDescriptionContent,
       helperText: "Aim for 1-2 short lines on the card.",
       inputKind: "long-text",
       label: "Step text",
@@ -485,13 +640,20 @@ function CreatorEditModal({
   canDeleteCard?: boolean;
   onClose: () => void;
   onDeleteCard?: () => void;
-  onSave: (value: string) => void;
+  onSave: (value: string, descriptionContent?: StepDescriptionSpan[]) => void;
   session: EditSession;
 }) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const [linkRanges, setLinkRanges] = useState<StepLinkRange[]>(() =>
+    getLinkRangesFromDescriptionContent(session.descriptionContent, session.value)
+  );
+  const [pendingLink, setPendingLink] = useState<PendingStepLink | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const isLongText = session.inputKind === "long-text";
   const isCardTitle = session.target.type === "card-title";
+  const isStepText = session.target.type === "pair-step";
   const modalClassName = `creator-modal creator-modal--${session.target.type}`;
   const fieldClassName = [
     "creator-modal-field",
@@ -505,9 +667,113 @@ function CreatorEditModal({
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
 
+  function handleDraftValueChange(value: string) {
+    setLinkRanges((currentRanges) => adjustStepLinkRangesForTextChange(draftValue, value, currentRanges));
+    setDraftValue(value);
+    setLinkError(null);
+  }
+
+  function startAddLink() {
+    const textarea = textareaRef.current;
+    const selectionStart = textarea?.selectionStart ?? draftValue.length;
+    const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+    const selectedText = draftValue.slice(selectionStart, selectionEnd);
+
+    setLinkError(null);
+
+    if (selectedText.trim() !== "") {
+      setPendingLink({
+        mode: "selection",
+        start: selectionStart,
+        end: selectionEnd,
+        text: selectedText,
+        url: "",
+      });
+      return;
+    }
+
+    setPendingLink({
+      mode: "insert",
+      start: selectionStart,
+      text: "",
+      url: "",
+    });
+  }
+
+  function updatePendingLink(field: "text" | "url", value: string) {
+    setPendingLink((currentLink) => (currentLink ? { ...currentLink, [field]: value } : currentLink));
+    setLinkError(null);
+  }
+
+  function commitPendingLink() {
+    if (!pendingLink) {
+      return;
+    }
+
+    const url = normalizeCreatorHttpUrl(pendingLink.url);
+
+    if (!url) {
+      setLinkError("Links must use http:// or https:// URLs.");
+      return;
+    }
+
+    if (pendingLink.mode === "selection") {
+      const linkedText = draftValue.slice(pendingLink.start, pendingLink.end);
+
+      if (linkedText !== pendingLink.text) {
+        setLinkError("Selected text changed. Select the text and add the link again.");
+        return;
+      }
+
+      setLinkRanges((currentRanges) => [
+        ...currentRanges.filter((range) => range.end <= pendingLink.start || range.start >= pendingLink.end),
+        {
+          id: createStepLinkId(),
+          start: pendingLink.start,
+          end: pendingLink.end,
+          text: pendingLink.text,
+          url,
+        },
+      ]);
+      setPendingLink(null);
+      return;
+    }
+
+    const linkText = pendingLink.text.trim();
+
+    if (linkText === "") {
+      setLinkError("Enter link text.");
+      return;
+    }
+
+    const insertAt = Math.max(0, Math.min(draftValue.length, pendingLink.start));
+    const nextValue = `${draftValue.slice(0, insertAt)}${linkText}${draftValue.slice(insertAt)}`;
+    const insertedRange = {
+      id: createStepLinkId(),
+      start: insertAt,
+      end: insertAt + linkText.length,
+      text: linkText,
+      url,
+    };
+
+    setDraftValue(nextValue);
+    setLinkRanges((currentRanges) => [
+      ...currentRanges
+        .filter((range) => range.end <= insertAt || range.start >= insertAt)
+        .map((range) => range.start >= insertAt ? { ...range, start: range.start + linkText.length, end: range.end + linkText.length } : range),
+      insertedRange,
+    ]);
+    setPendingLink(null);
+  }
+
+  function removeLinkRange(linkId: string) {
+    setLinkRanges((currentRanges) => currentRanges.filter((range) => range.id !== linkId));
+    setLinkError(null);
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSave(draftValue);
+    onSave(draftValue, isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined);
   }
 
   return (
@@ -521,13 +787,19 @@ function CreatorEditModal({
         </header>
         {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
         {isLongText ? (
-          <textarea autoFocus className={fieldClassName} onChange={(event) => setDraftValue(event.target.value)} value={draftValue} />
+          <textarea
+            autoFocus
+            className={fieldClassName}
+            onChange={(event) => handleDraftValueChange(event.target.value)}
+            ref={textareaRef}
+            value={draftValue}
+          />
         ) : (
           <input
             autoFocus
             className="creator-modal-text-input"
             maxLength={maxLength}
-            onChange={(event) => setDraftValue(event.target.value)}
+            onChange={(event) => handleDraftValueChange(event.target.value)}
             type="text"
             value={draftValue}
           />
@@ -537,6 +809,65 @@ function CreatorEditModal({
           <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>
             {isStepWarningVisible ? `${draftValue.length} characters - this may truncate on the card.` : `${draftValue.length} characters`}
           </p>
+        ) : null}
+        {isStepText ? (
+          <section className="creator-step-inline-links" aria-label="Inline step links">
+            <div className="creator-step-inline-links-header">
+              <p>Inline links</p>
+              <button className="creator-step-inline-link-add" onClick={startAddLink} type="button">
+                Add link
+              </button>
+            </div>
+            {pendingLink ? (
+              <div className="creator-step-inline-link-editor">
+                {pendingLink.mode === "insert" ? (
+                  <label>
+                    <span>Link text</span>
+                    <input
+                      className="creator-modal-text-input"
+                      onChange={(event) => updatePendingLink("text", event.target.value)}
+                      type="text"
+                      value={pendingLink.text}
+                    />
+                  </label>
+                ) : (
+                  <p className="creator-step-inline-link-selection">Linking: {pendingLink.text}</p>
+                )}
+                <label>
+                  <span>URL</span>
+                  <input
+                    className="creator-modal-text-input"
+                    inputMode="url"
+                    onChange={(event) => updatePendingLink("url", event.target.value)}
+                    placeholder="https://example.com"
+                    type="url"
+                    value={pendingLink.url}
+                  />
+                </label>
+                <div className="creator-step-inline-link-actions">
+                  <button className="creator-modal-secondary" onClick={() => setPendingLink(null)} type="button">
+                    Cancel
+                  </button>
+                  <button className="creator-modal-primary" onClick={commitPendingLink} type="button">
+                    Apply link
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {linkRanges.length > 0 ? (
+              <div className="creator-step-inline-link-list" aria-label="Current inline links">
+                {linkRanges.map((range) => (
+                  <span className="creator-step-inline-link-pill" key={range.id}>
+                    {range.text}
+                    <button aria-label={`Remove link from ${range.text}`} onClick={() => removeLinkRange(range.id)} type="button">
+                      Remove
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {linkError ? <p className="creator-modal-error">{linkError}</p> : null}
+          </section>
         ) : null}
         <div className="creator-modal-actions">
           <button className="creator-modal-secondary" onClick={onClose} type="button">
@@ -1235,7 +1566,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
 
-  function saveEdit(value: string) {
+  function saveEdit(value: string, descriptionContent?: StepDescriptionSpan[]) {
     if (!editSession) {
       return;
     }
@@ -1285,6 +1616,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
+            stepDescriptionContent: descriptionContent,
             stepText: value.trim() === "" ? null : value,
           },
         },
@@ -1550,13 +1882,15 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       startClientY: event.clientY,
       startScrollLeft: event.currentTarget.scrollLeft,
       isPanning: false,
-      hasPointerCapture: true,
+      hasPointerCapture: event.pointerType !== "mouse",
     };
 
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      panStateRef.current.hasPointerCapture = false;
+    if (event.pointerType !== "mouse") {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        panStateRef.current.hasPointerCapture = false;
+      }
     }
   }
 

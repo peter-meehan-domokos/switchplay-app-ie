@@ -1,4 +1,4 @@
-import type { DeckTemplate } from "@/components/decks/types";
+import type { CardTemplateStep, DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import {
   isCloudflareStreamVideoMediaItem,
   isImageMediaItem,
@@ -27,6 +27,78 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 
 function isStringOrNull(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
+}
+
+function normalizeHttpUrlForSave(value: string) {
+  try {
+    const url = new URL(value.trim());
+
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateStepDescriptionContentForSave(value: unknown): { ok: true; content?: StepDescriptionSpan[] } | { ok: false; error: string } {
+  if (value === undefined) {
+    return { ok: true };
+  }
+
+  if (!Array.isArray(value)) {
+    return { ok: false, error: "step.descriptionContent must be an array when provided." };
+  }
+
+  const content: StepDescriptionSpan[] = [];
+
+  for (const span of value) {
+    if (!isPlainObject(span)) {
+      return { ok: false, error: "Each step description span must be an object." };
+    }
+
+    if (span.type === "text") {
+      if (typeof span.text !== "string") {
+        return { ok: false, error: "Step description text spans must include text." };
+      }
+
+      if (span.text !== "") {
+        content.push({ type: "text", text: span.text });
+      }
+      continue;
+    }
+
+    if (span.type === "link") {
+      if (typeof span.text !== "string" || typeof span.url !== "string" || span.text.trim() === "") {
+        return { ok: false, error: "Step description link spans must include non-empty text and url." };
+      }
+
+      const url = normalizeHttpUrlForSave(span.url);
+
+      if (!url) {
+        return { ok: false, error: "Step description link URLs must use http or https." };
+      }
+
+      content.push({ type: "link", text: span.text, url });
+      continue;
+    }
+
+    return { ok: false, error: "Step description span type must be text or link." };
+  }
+
+  return content.length > 0 ? { ok: true, content } : { ok: true };
+}
+
+function normalizeStepDescriptionContentForSave(step: CardTemplateStep): CardTemplateStep {
+  const { descriptionContent: _descriptionContent, ...stepWithoutDescriptionContent } = step;
+  const validation = validateStepDescriptionContentForSave(step.descriptionContent);
+
+  if (!validation.ok || !validation.content) {
+    return stepWithoutDescriptionContent;
+  }
+
+  return {
+    ...stepWithoutDescriptionContent,
+    descriptionContent: validation.content,
+  };
 }
 
 function validateMediaItemForSave(mediaItem: unknown, fieldPath: string): string | null {
@@ -124,6 +196,12 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
       if (stepMediaError) {
         return { ok: false, error: stepMediaError };
       }
+
+      const stepDescriptionContentValidation = validateStepDescriptionContentForSave(step.descriptionContent);
+
+      if (!stepDescriptionContentValidation.ok) {
+        return { ok: false, error: stepDescriptionContentValidation.error };
+      }
     }
 
     if (card.signals !== undefined && !Array.isArray(card.signals)) {
@@ -137,8 +215,16 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
     }
   }
 
+  const normalizedTemplate = normalizeDeckTemplateForRuntime(template as Parameters<typeof normalizeDeckTemplateForRuntime>[0]);
+
   return {
     ok: true,
-    template: normalizeDeckTemplateForRuntime(template as Parameters<typeof normalizeDeckTemplateForRuntime>[0]),
+    template: {
+      ...normalizedTemplate,
+      cards: normalizedTemplate.cards.map((card) => ({
+        ...card,
+        steps: card.steps.map(normalizeStepDescriptionContentForSave),
+      })),
+    },
   };
 }

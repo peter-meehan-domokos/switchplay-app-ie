@@ -5,6 +5,7 @@ import type { KeyboardEvent } from "react";
 // Semantic gateway rollback: trace family import paused for easy restoration.
 // import type { SemanticTraceFamily } from "@/components/cards/SemanticTraceGlyph";
 import StepProgressStrip from "@/components/cards/StepProgressStrip";
+import StepDescriptionText from "@/components/cards/StepDescriptionText";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type StepItemProps = {
@@ -62,7 +63,9 @@ export default function StepItem({ index, onOpenStepView, step, onCycleStatus }:
     >
       <span className="step-play-icon" aria-hidden="true" />
       <span className="step-copy">
-        <span className="step-description">{step.description}</span>
+        <span className="step-description">
+          <StepDescriptionText content={step.descriptionContent} fallback={step.description} />
+        </span>
         <StepProgressStrip
           completionStatus={completionStatus}
           onCycleStatus={onCycleStatus ? () => onCycleStatus(step.stepId) : undefined}

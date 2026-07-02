@@ -65,7 +65,7 @@ function getStepItemIndexFromEventTarget(eventTarget: EventTarget | null) {
     return null;
   }
 
-  if (eventTarget.closest(".step-progress-hit-area")) {
+  if (eventTarget.closest(".step-progress-hit-area, .step-description-link")) {
     return null;
   }
 
@@ -226,6 +226,11 @@ export default function StepList({
   };
 
   const handleInteractiveClickCapture = (event: MouseEvent<HTMLOListElement>) => {
+    if (event.target instanceof HTMLElement && event.target.closest(".step-description-link")) {
+      pendingTapStepIndexRef.current = null;
+      return;
+    }
+
     if (suppressNextClickRef.current) {
       // Vertical or horizontal movement suppresses the eventual click so swipe
       // navigation/cancel never triggers a step action.

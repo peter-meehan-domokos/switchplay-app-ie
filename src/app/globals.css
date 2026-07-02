@@ -673,7 +673,7 @@ input {
   border: 0;
   background: transparent;
   color: inherit;
-  cursor: text;
+  cursor: pointer;
   font: inherit;
   padding: 0;
 }
@@ -1150,6 +1150,96 @@ input {
 
 .creator-modal-counter--warning {
   color: #9a5b00;
+}
+
+.creator-step-inline-links {
+  display: grid;
+  gap: 10px;
+}
+
+.creator-step-inline-links-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.creator-step-inline-links-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.creator-step-inline-link-add {
+  border: 1px solid #8f969e;
+  background: #ffffff;
+  color: #111318;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 750;
+  line-height: 1;
+  padding: 8px 10px;
+}
+
+.creator-step-inline-link-editor {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d8dde1;
+  background: #f8fafb;
+  padding: 10px;
+}
+
+.creator-step-inline-link-editor label {
+  display: grid;
+  gap: 4px;
+  color: #5b626b;
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.creator-step-inline-link-selection {
+  margin: 0;
+  color: #5b626b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.creator-step-inline-link-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.creator-step-inline-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.creator-step-inline-link-pill {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #cbd3d8;
+  background: #ffffff;
+  color: #111318;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 7px;
+}
+
+.creator-step-inline-link-pill button {
+  border: 0;
+  background: transparent;
+  color: #5b626b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0;
 }
 
 .creator-modal-close,
@@ -2194,6 +2284,18 @@ input {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: var(--runtime-step-line-clamp, 2);
+}
+
+.step-description-link {
+  color: rgba(168, 214, 228, 0.94);
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.step-description-link:hover,
+.step-description-link:focus-visible {
+  color: rgba(188, 229, 240, 0.98);
+  text-decoration: none;
 }
 
 .active-step-item:nth-child(2) .step-description {
