@@ -1,6 +1,7 @@
 import { motion, type Transition } from "motion/react";
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type MouseEvent, type RefCallback } from "react";
 import type { CardLayout } from "@/components/cards/cardLayout";
+import StepDescriptionText from "@/components/cards/StepDescriptionText";
 import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
 import {
   type CloudflareStreamVideoMediaItem,
@@ -41,6 +42,10 @@ function getStepViewItemText(card: CardLayout, item: StepViewItem) {
   }
 
   return card.steps[item.stepIndex]?.description ?? "";
+}
+
+function getStepViewItemContent(card: CardLayout, item: StepViewItem) {
+  return item.type === "step" ? card.steps[item.stepIndex]?.descriptionContent : undefined;
 }
 
 function getStepViewMediaItem(card: CardLayout, item: StepViewItem) {
@@ -95,6 +100,8 @@ export default function StepView({
   const [portraitMediaMaxHeight, setPortraitMediaMaxHeight] = useState(PORTRAIT_MEDIA_REFERENCE_HEIGHT_PX);
   const itemLabel = getStepViewItemLabel(item);
   const itemText = getStepViewItemText(card, item);
+  const itemContent = getStepViewItemContent(card, item);
+  const hasItemContent = Boolean(itemContent?.length);
   const isPortraitMedia = isStepViewPortraitMedia(card, item);
   const bodyStyle = isPortraitMedia
     ? ({
@@ -135,7 +142,7 @@ export default function StepView({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [isPortraitMedia, itemText]);
+  }, [isPortraitMedia, itemContent, itemText]);
 
   return (
     <motion.section
@@ -160,7 +167,11 @@ export default function StepView({
       </header>
       <main className={`step-view-body${isPortraitMedia ? " step-view-body--portrait-media" : ""}`} style={bodyStyle}>
         <h2 className="step-view-title" ref={titleRef}>
-          {itemText || "No description yet."}
+          {itemText || hasItemContent ? (
+            <StepDescriptionText content={itemContent} fallback={itemText} />
+          ) : (
+            "No description yet."
+          )}
         </h2>
         <div
           className={`step-view-video-placeholder${isPortraitMedia ? " step-view-video-placeholder--portrait" : ""}`}

@@ -78,6 +78,7 @@ export function mergeDeckTemplatesWithUserData(
         steps: templateCard.steps.map((step) => ({
           stepId: step.stepId,
           description: step.description,
+          descriptionContent: step.descriptionContent,
           mediaItem: step.mediaItem,
           completionStatus: stepStatusByStepId.get(step.stepId) ?? "todo",
         })),

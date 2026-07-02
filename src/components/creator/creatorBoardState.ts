@@ -1,4 +1,4 @@
-import type { DeckTemplate } from "@/components/decks/types";
+import type { DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import type { MediaItem } from "@/lib/media";
 
@@ -29,6 +29,7 @@ export type CellState = {
 export type Pair = {
   id: PairId;
   stepId: string;
+  stepDescriptionContent?: StepDescriptionSpan[];
   stepMediaItem: MediaItem | null;
   stepText: string | null;
 };
@@ -63,7 +64,7 @@ export function isStepMediaEmpty(pairOrStepMediaItem: StepMediaEmptyInput) {
 }
 
 export function isPairEmpty(pair: Pair) {
-  return isStepEmpty(pair) && isStepMediaEmpty(pair);
+  return isStepEmpty(pair) && isStepMediaEmpty(pair) && (pair.stepDescriptionContent?.length ?? 0) === 0;
 }
 
 export function getStepDisplayText(pair: Pair) {
@@ -382,6 +383,23 @@ function normalizeCreatorText(value: string | null | undefined) {
   return normalizedValue ? normalizedValue : null;
 }
 
+function normalizeCreatorStepDescriptionContent(content: StepDescriptionSpan[] | null | undefined) {
+  const normalizedContent = (content ?? [])
+    .map((span): StepDescriptionSpan | null => {
+      if (span.type === "text") {
+        return span.text === "" ? null : { type: "text", text: span.text };
+      }
+
+      const text = span.text.trim();
+      const url = span.url.trim();
+
+      return text === "" || url === "" ? null : { type: "link", text, url };
+    })
+    .filter((span): span is StepDescriptionSpan => span !== null);
+
+  return normalizedContent.length > 0 ? normalizedContent : undefined;
+}
+
 function getPairForTemplateSlot(board: BoardState, columnId: ColumnId, row: number) {
   const pairId = board.cells[getCreatorCellId(columnId, row)]?.pairId;
 
@@ -415,6 +433,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
           return {
             stepId: pair?.stepId ?? `${column.cardId ?? column.id}-step-${row + 1}`,
             description: normalizeCreatorText(pair?.stepText),
+            descriptionContent: normalizeCreatorStepDescriptionContent(pair?.stepDescriptionContent),
             mediaItem: pair?.stepMediaItem ?? null,
           };
         }),
@@ -554,6 +573,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
         step
           ? {
               ...emptyPair,
+              stepDescriptionContent: step.descriptionContent,
               stepMediaItem: step.mediaItem ?? null,
               stepText: step.description,
             }

@@ -65,7 +65,7 @@ function getStepItemIndexFromEventTarget(eventTarget: EventTarget | null) {
     return null;
   }
 
-  if (eventTarget.closest(".step-progress-hit-area")) {
+  if (eventTarget.closest(".step-progress-hit-area, .step-description-link")) {
     return null;
   }
 
