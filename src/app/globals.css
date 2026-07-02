@@ -673,7 +673,7 @@ input {
   border: 0;
   background: transparent;
   color: inherit;
-  cursor: text;
+  cursor: pointer;
   font: inherit;
   padding: 0;
 }

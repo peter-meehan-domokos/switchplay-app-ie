@@ -1550,13 +1550,15 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       startClientY: event.clientY,
       startScrollLeft: event.currentTarget.scrollLeft,
       isPanning: false,
-      hasPointerCapture: true,
+      hasPointerCapture: event.pointerType !== "mouse",
     };
 
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      panStateRef.current.hasPointerCapture = false;
+    if (event.pointerType !== "mouse") {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        panStateRef.current.hasPointerCapture = false;
+      }
     }
   }
 
