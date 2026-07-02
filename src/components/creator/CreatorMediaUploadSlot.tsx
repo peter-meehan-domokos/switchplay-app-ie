@@ -10,6 +10,7 @@ type CreatorMediaUploadSlotProps = {
   disabled?: boolean;
   isUploading?: boolean;
   mediaItem: MediaItem | null;
+  onCancelUpload?: () => void;
   onUpload: (file: File) => void;
   placeholder?: string;
   size: "intro" | "pair";
@@ -21,6 +22,7 @@ export default function CreatorMediaUploadSlot({
   disabled = false,
   isUploading = false,
   mediaItem,
+  onCancelUpload,
   onUpload,
   placeholder = "Upload video",
   size,
@@ -42,10 +44,17 @@ export default function CreatorMediaUploadSlot({
   }
 
   return (
-    <label aria-label={ariaLabel} className={rootClassName} data-creator-pan-exempt>
-      <UploadIcon className="creator-media-upload-icon" />
-      <span className="creator-media-upload-label">{label}</span>
-      <input accept="video/*" disabled={disabled || isUploading} hidden onChange={handleInputChange} type="file" />
-    </label>
+    <div className={rootClassName} data-creator-pan-exempt>
+      <label aria-label={ariaLabel} className="creator-media-upload-control">
+        <UploadIcon className="creator-media-upload-icon" />
+        <span className="creator-media-upload-label">{label}</span>
+        <input accept="video/*" disabled={disabled || isUploading} hidden onChange={handleInputChange} type="file" />
+      </label>
+      {isUploading && onCancelUpload ? (
+        <button aria-label="Cancel upload" className="creator-media-upload-cancel" onClick={onCancelUpload} type="button">
+          ×
+        </button>
+      ) : null}
+    </div>
   );
 }

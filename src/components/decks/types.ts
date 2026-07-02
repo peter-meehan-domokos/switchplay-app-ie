@@ -49,7 +49,7 @@ export type CardTemplate = {
   signals?: CardTemplateSignal[];
 };
 
-export type ChannelTemplate = {
+export type StreamTemplate = {
   id: string;
   title: string;
 };
@@ -58,7 +58,7 @@ export type DeckTemplate = {
   deckTemplateId: string;
   title: string;
   category: DeckCategory;
-  channels: ChannelTemplate[];
+  streams: StreamTemplate[];
   cards: CardTemplate[];
 };
 
@@ -122,7 +122,7 @@ export type WeeklyCardStep = {
 
 export type WeeklyCardSignal = {
   id: string;
-  channelTitle: string;
+  streamTitle: string;
   order: SignalOrder | null;
   reading: number;
   unit: string | null;
@@ -152,6 +152,6 @@ export type Deck = {
   activeCardId: string;
   title: string;
   category: DeckCategory;
-  channels?: ChannelTemplate[];
+  streams?: StreamTemplate[];
   cards: WeeklyCard[];
 };

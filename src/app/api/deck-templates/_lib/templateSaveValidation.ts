@@ -5,6 +5,7 @@ import {
   isLegacyProviderlessVideoMediaItem,
   isYouTubeVideoMediaItem,
 } from "@/lib/media";
+import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
 
 export type TemplateSaveValidationResult =
   | {
@@ -80,13 +81,15 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
     return { ok: false, error: "template.category must be a string or null." };
   }
 
-  if (!Array.isArray(template.channels)) {
-    return { ok: false, error: "template.channels must be an array." };
+  const streams = Array.isArray(template.streams) ? template.streams : template.channels;
+
+  if (!Array.isArray(streams)) {
+    return { ok: false, error: "template.streams must be an array." };
   }
 
-  for (const channel of template.channels) {
-    if (!isPlainObject(channel) || !hasNonEmptyString(channel.id)) {
-      return { ok: false, error: "Each channel must have an id." };
+  for (const stream of streams) {
+    if (!isPlainObject(stream) || !hasNonEmptyString(stream.id)) {
+      return { ok: false, error: "Each stream must have an id." };
     }
   }
 
@@ -134,5 +137,8 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
     }
   }
 
-  return { ok: true, template: template as DeckTemplate };
+  return {
+    ok: true,
+    template: normalizeDeckTemplateForRuntime(template as Parameters<typeof normalizeDeckTemplateForRuntime>[0]),
+  };
 }

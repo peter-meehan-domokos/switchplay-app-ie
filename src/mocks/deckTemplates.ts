@@ -1,12 +1,161 @@
 import type { DeckTemplate } from "@/components/decks/types";
 
 export const deckTemplates: DeckTemplate[] = [
+  {
+    deckTemplateId: "Simeon-deck-12-weeks-nicene-creed-001",
+    title: "12 Weeks in the Nicene Creed",
+    category: "spiritual",
+    streams: [
+      { id: "article-reading", title: "Article Reading" },
+      { id: "bible-passages", title: "Bible Passages" },
+      { id: "prayer-journal", title: "Prayer Journal" }
+    ],
+    cards: [
+      {
+        cardId: "card-001",
+        label: "Week 1",
+        suggestedTargetDate: "",
+        intro: { title: "Week 1", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-001-step-1", description: "Read Article 1", mediaItem: null },
+          { stepId: "card-001-step-2", description: "Read and meditate on Genesis 1", mediaItem: null },
+          { stepId: "card-001-step-3", description: "Journal a prayer of worship in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-002",
+        label: "Week 2",
+        suggestedTargetDate: "",
+        intro: { title: "Week 2", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-002-step-1", description: "Read Article 2", mediaItem: null },
+          { stepId: "card-002-step-2", description: "Read and meditate on John 1:1-18", mediaItem: null },
+          { stepId: "card-002-step-3", description: "Journal a prayer of worship in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-003",
+        label: "Week 3",
+        suggestedTargetDate: "",
+        intro: { title: "Week 3", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-003-step-1", description: "Read Article 3", mediaItem: null },
+          { stepId: "card-003-step-2", description: "Read and meditate on Luke 2:1-21", mediaItem: null },
+          { stepId: "card-003-step-3", description: "Journal a prayer of gratitude in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-004",
+        label: "Week 4",
+        suggestedTargetDate: "",
+        intro: { title: "Week 4", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-004-step-1", description: "Read Article 4", mediaItem: null },
+          { stepId: "card-004-step-2", description: "Read and meditate on Matthew 27:32-50", mediaItem: null },
+          { stepId: "card-004-step-3", description: "Journal a prayer of repentance in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-005",
+        label: "Week 5",
+        suggestedTargetDate: "",
+        intro: { title: "Week 5", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-005-step-1", description: "Read Article 5", mediaItem: null },
+          { stepId: "card-005-step-2", description: "Read and meditate on Mark 15:1-8", mediaItem: null },
+          { stepId: "card-005-step-3", description: "Journal a prayer of gratitude in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-006",
+        label: "Week 6",
+        suggestedTargetDate: "",
+        intro: { title: "Week 6", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-006-step-1", description: "Read Article 6", mediaItem: null },
+          { stepId: "card-006-step-2", description: "Read and meditate on Acts 1:6-11", mediaItem: null },
+          { stepId: "card-006-step-3", description: "Journal a prayer of worship in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-007",
+        label: "Week 7",
+        suggestedTargetDate: "",
+        intro: { title: "Week 7", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-007-step-1", description: "Read Article 7", mediaItem: null },
+          { stepId: "card-007-step-2", description: "Read and meditate on Revelation 20:11-15", mediaItem: null },
+          { stepId: "card-007-step-3", description: "Journal a prayer of repentance in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-008",
+        label: "Week 8",
+        suggestedTargetDate: "",
+        intro: { title: "Week 8", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-008-step-1", description: "Read Article 8", mediaItem: null },
+          { stepId: "card-008-step-2", description: "Read and meditate on 1 Corinthians 2:6-16", mediaItem: null },
+          { stepId: "card-008-step-3", description: "Journal a prayer of gratitude in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-009",
+        label: "Week 9",
+        suggestedTargetDate: "",
+        intro: { title: "Week 9", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-009-step-1", description: "Read Article 9", mediaItem: null },
+          { stepId: "card-009-step-2", description: "Read and meditate on Acts 2:42-47", mediaItem: null },
+          { stepId: "card-009-step-3", description: "Journal a prayer of intercession for the church in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-010",
+        label: "Week 10",
+        suggestedTargetDate: "",
+        intro: { title: "Week 10", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-010-step-1", description: "Read Article 10", mediaItem: null },
+          { stepId: "card-010-step-2", description: "Read and meditate on Exodus 14:21-31 and Acts 8:26-40", mediaItem: null },
+          { stepId: "card-010-step-3", description: "Journal a prayer of repentance in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-011",
+        label: "Week 11",
+        suggestedTargetDate: "",
+        intro: { title: "Week 11", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-011-step-1", description: "Read Article 11", mediaItem: null },
+          { stepId: "card-011-step-2", description: "Read and meditate on 1 Corinthians 15:35-58", mediaItem: null },
+          { stepId: "card-011-step-3", description: "Journal a prayer of intercession for people who don't yet know God in response", mediaItem: null }
+        ]
+      },
+      {
+        cardId: "card-012",
+        label: "Week 12",
+        suggestedTargetDate: "",
+        intro: { title: "Week 12", description: "", mediaItem: null },
+        steps: [
+          { stepId: "card-012-step-1", description: "Read Article 12", mediaItem: null },
+          { stepId: "card-012-step-2", description: "Read and meditate on Revelation 21", mediaItem: null },
+          { stepId: "card-012-step-3", description: "Journal a prayer of worship in response", mediaItem: null }
+        ]
+      }
+    ]
+  },
+];
+
+
+
   //PETER - JUNE
+  /*
   {
     deckTemplateId: "deck-2026-06-open-loops-001",
     title: "Clear The Open Loops",
     category: "life-admin",
-    channels: [
+    streams: [
       {
         title: "Commitments",
         id: "commitments"
@@ -249,7 +398,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-teaching-income-001",
     title: "Create Teaching Income Option For September",
     category: "education",
-    channels: [
+    streams: [
       {
         title: "Teaching Registration",
         id: "teaching-registration"
@@ -499,7 +648,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-health-fitness-001",
     title: "Make Healthy Habits Feel Natural",
     category: "health-fitness",
-    channels: [
+    streams: [
       {
         title: "Awareness",
         id: "awareness"
@@ -751,7 +900,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-tebo-studio-001",
     title: "Establish Tebo Studio As Credible",
     category: "tebo-studio",
-    channels: [
+    streams: [
       {
         title: "Opportunity Network",
         id: "opportunity-network"
@@ -998,7 +1147,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-music-001",
     title: "Jam Freely With Fiddle And H90",
     category: "music",
-    channels: [
+    streams: [
       {
         title: "Scale Fluency",
         id: "scale-fluency"
@@ -1215,7 +1364,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-switchplay-001",
     title: "Find Early Evidence For Switchplay",
     category: "switchplay",
-    channels: [
+    streams: [
       {
         title: "Product Robustness",
         id: "product-robustness"
@@ -1463,7 +1612,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-001",
     "title": "First Pull-Up to Clean Muscle-Up",
     "category": "calisthenics",
-    "channels": [
+    "streams": [
       {
         "title": "Pull Strength",
         "id": "pull-strength"
@@ -1772,7 +1921,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-002",
     "title": "Explosive Lower Body Power",
     "category": "gym",
-    "channels": [
+    "streams": [
       {
         "title": "Power Output",
         "id": "power-output"
@@ -2045,7 +2194,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-003",
     "title": "Sharper First Touch Under Pressure",
     "category": "football",
-    "channels": [
+    "streams": [
       {
         "title": "First Touch",
         "id": "first-touch"
@@ -2438,7 +2587,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-004",
     "title": "Lean Strength Block",
     "category": "gym",
-    "channels": [
+    "streams": [
       {
         "title": "Strength Progress",
         "id": "strength-progress"
@@ -2710,7 +2859,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-005",
     "title": "Beating a Full-Back 1v1",
     "category": "football",
-    "channels": [
+    "streams": [
       {
         "title": "Take-On Execution",
         "id": "take-on-execution"
@@ -3046,7 +3195,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-006",
     "title": "10 Week Performance Test",
     "category": "football",
-    "channels": [
+    "streams": [
       {
         "title": "Performance Output",
         "id": "performance-output"
@@ -3632,3 +3781,5 @@ export const deckTemplates: DeckTemplate[] = [
     ]
   }
 ];
+
+    */

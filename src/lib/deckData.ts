@@ -32,8 +32,8 @@ function getDeckKey(userId: string, deckTemplateId: string) {
   return `${userId}:${deckTemplateId}`;
 }
 
-function getChannelTitle(template: DeckTemplate, index: number) {
-  return template.channels[index]?.title ?? `Channel ${index + 1}`;
+function getStreamTitle(template: DeckTemplate, index: number) {
+  return template.streams[index]?.title ?? `Stream ${index + 1}`;
 }
 
 export function mergeDeckTemplatesWithUserData(
@@ -94,7 +94,7 @@ export function mergeDeckTemplatesWithUserData(
 
           return {
             id: signalId,
-            channelTitle: getChannelTitle(template, signalIndex),
+            streamTitle: getStreamTitle(template, signalIndex),
             order: "increasing" as const,
             reading,
             unit: null,
@@ -118,7 +118,7 @@ export function mergeDeckTemplatesWithUserData(
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,
-      channels: template.channels,
+      streams: template.streams,
       cards,
     };
   });

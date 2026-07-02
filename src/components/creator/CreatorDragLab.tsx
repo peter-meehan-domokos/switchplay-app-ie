@@ -30,7 +30,7 @@ import {
   isStepEmpty,
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
-  resolveCreatorChannelName,
+  resolveCreatorStreamName,
   swapCreatorBoardRows,
   type BoardState,
   type CellId,
@@ -46,7 +46,7 @@ import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 
 type EditTarget =
   | { type: "deck-title" }
-  | { type: "channel-name"; row: number }
+  | { type: "stream-name"; row: number }
   | { type: "card-label"; columnId: ColumnId }
   | { type: "card-title"; columnId: ColumnId }
   | { type: "pair-step"; pairId: PairId };
@@ -67,7 +67,7 @@ type DateEditSession = {
   value: string;
 };
 
-type DragType = "channel" | "pair";
+type DragType = "stream" | "pair";
 
 type PublishStatus = "idle" | "publishing" | "success" | "error";
 
@@ -85,6 +85,11 @@ type VideoDimensions = {
 type SavedDeckTemplateResponse = {
   copied?: boolean;
   deckTemplateId?: string;
+};
+
+type UploadSession = {
+  controller: AbortController;
+  token: symbol;
 };
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
@@ -211,13 +216,24 @@ function getLocalVideoDimensions(file: File): Promise<VideoDimensions | null> {
   });
 }
 
-async function requestStreamDirectUpload(file: File): Promise<StreamDirectUploadResponse> {
+function isAbortError(error: unknown) {
+  return typeof error === "object" && error !== null && "name" in error && error.name === "AbortError";
+}
+
+function throwIfUploadAborted(signal: AbortSignal) {
+  if (signal.aborted) {
+    throw new DOMException("Upload cancelled.", "AbortError");
+  }
+}
+
+async function requestStreamDirectUpload(file: File, signal: AbortSignal): Promise<StreamDirectUploadResponse> {
   const response = await fetch("/api/media/stream/direct-upload", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name: file.name }),
+    signal,
   });
   const responseBody: unknown = await response.json().catch(() => null);
 
@@ -232,7 +248,7 @@ async function requestStreamDirectUpload(file: File): Promise<StreamDirectUpload
   return responseBody;
 }
 
-async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
+async function uploadFileToCloudflareStream(uploadURL: string, file: File, signal: AbortSignal) {
   const uploadBody = new FormData();
 
   uploadBody.append("file", file);
@@ -240,6 +256,7 @@ async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
   const response = await fetch(uploadURL, {
     method: "POST",
     body: uploadBody,
+    signal,
   });
 
   if (!response.ok) {
@@ -247,11 +264,13 @@ async function uploadFileToCloudflareStream(uploadURL: string, file: File) {
   }
 }
 
-async function uploadCreatorVideo(file: File): Promise<CloudflareStreamVideoMediaItem> {
+async function uploadCreatorVideo(file: File, signal: AbortSignal): Promise<CloudflareStreamVideoMediaItem> {
   const dimensions = await getLocalVideoDimensions(file);
-  const directUpload = await requestStreamDirectUpload(file);
+  throwIfUploadAborted(signal);
+  const directUpload = await requestStreamDirectUpload(file, signal);
 
-  await uploadFileToCloudflareStream(directUpload.uploadURL, file);
+  await uploadFileToCloudflareStream(directUpload.uploadURL, file, signal);
+  throwIfUploadAborted(signal);
 
   return {
     id: `stream-${directUpload.uid}`,
@@ -349,19 +368,19 @@ function findPairCell(cells: BoardState["cells"], pairId: PairId) {
 function getDragType(event: DragStartEvent | DragOverEvent | DragEndEvent): DragType | null {
   const dragType = event.active.data.current?.type;
 
-  return dragType === "pair" || dragType === "channel" ? dragType : null;
+  return dragType === "pair" || dragType === "stream" ? dragType : null;
 }
 
-function getChannelRowFromDragEvent(event: DragStartEvent | DragEndEvent) {
+function getStreamRowFromDragEvent(event: DragStartEvent | DragEndEvent) {
   const row = event.active.data.current?.row;
 
   return typeof row === "number" ? row : null;
 }
 
-function getChannelRowFromOverEvent(event: DragEndEvent | DragOverEvent) {
+function getStreamRowFromOverEvent(event: DragEndEvent | DragOverEvent) {
   const overData = event.over?.data.current;
 
-  return overData?.type === "channel-row" && typeof overData.row === "number" ? overData.row : null;
+  return overData?.type === "stream-row" && typeof overData.row === "number" ? overData.row : null;
 }
 
 function getEditSession(board: BoardState, target: EditTarget): EditSession | null {
@@ -369,13 +388,13 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
     return { inputKind: "long-text", label: "Deck title", target, value: board.deckTitle };
   }
 
-  if (target.type === "channel-name") {
+  if (target.type === "stream-name") {
     return {
       helperText: "Short label. One word works best.",
       inputKind: "short-text",
-      label: "Channel name",
+      label: "Stream name",
       target,
-      value: board.channelNamesByRow[target.row] ?? "",
+      value: board.streamNamesByRow[target.row] ?? "",
     };
   }
 
@@ -445,7 +464,7 @@ function getEditTargetKey(target: EditTarget) {
     return target.type;
   }
 
-  if (target.type === "channel-name") {
+  if (target.type === "stream-name") {
     return `${target.type}:${target.row}`;
   }
 
@@ -609,12 +628,14 @@ function PairBlock({
   isMediaUploading = false,
   pair,
   isDragging = false,
+  onCancelMediaUpload,
   onEdit,
   onUploadMedia,
 }: {
   isMediaUploading?: boolean;
   pair: Pair;
   isDragging?: boolean;
+  onCancelMediaUpload: (pairId: PairId) => void;
   onEdit: (target: EditTarget) => void;
   onUploadMedia: (pairId: PairId, file: File) => void;
 }) {
@@ -652,6 +673,7 @@ function PairBlock({
         className={mediaClassName}
         isUploading={isMediaUploading}
         mediaItem={pair.stepMediaItem}
+        onCancelUpload={() => onCancelMediaUpload(pair.id)}
         onUpload={(file) => onUploadMedia(pair.id, file)}
         placeholder="Upload video"
         size="pair"
@@ -660,11 +682,11 @@ function PairBlock({
   );
 }
 
-function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "channel" }) {
+function DragHandleMark({ rows = 2, variant }: { rows?: 2 | 3; variant?: "stream" }) {
   const dotCount = rows * 2;
 
   return (
-    <span className={`creator-drag-handle-mark${variant === "channel" ? " creator-channel-drag-handle-mark" : ""}`} aria-hidden="true">
+    <span className={`creator-drag-handle-mark${variant === "stream" ? " creator-stream-drag-handle-mark" : ""}`} aria-hidden="true">
       {Array.from({ length: dotCount }, (_, dotIndex) => (
         <span className="creator-drag-handle-dot" key={dotIndex} />
       ))}
@@ -689,47 +711,47 @@ function PairPreview({ pair }: { pair: Pair }) {
   );
 }
 
-function ChannelRow({
-  channelName,
+function StreamRow({
+  streamName,
   isDragging = false,
   onEdit,
   row,
 }: {
-  channelName?: string;
+  streamName?: string;
   isDragging?: boolean;
   onEdit: (target: EditTarget) => void;
   row: number;
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
-    id: `channel:${row}`,
-    data: { type: "channel", row },
+    id: `stream:${row}`,
+    data: { type: "stream", row },
   });
 
   return (
-    <div className={`creator-channel-row${isDragging ? " creator-channel-row--dragging" : ""}`} ref={setNodeRef}>
+    <div className={`creator-stream-row${isDragging ? " creator-stream-row--dragging" : ""}`} ref={setNodeRef}>
       <button
-        aria-label="Long press to reorder channel"
-        className="creator-channel-drag-handle"
-        data-creator-channel-drag-handle
+        aria-label="Long press to reorder stream"
+        className="creator-stream-drag-handle"
+        data-creator-stream-drag-handle
         data-creator-drag-handle
         type="button"
         {...listeners}
         {...attributes}
       >
-        <DragHandleMark rows={3} variant="channel" />
+        <DragHandleMark rows={3} variant="stream" />
       </button>
-      <button className="creator-editable creator-channel-name" onClick={() => onEdit({ type: "channel-name", row })} type="button">
-        {channelName}
+      <button className="creator-editable creator-stream-name" onClick={() => onEdit({ type: "stream-name", row })} type="button">
+        {streamName}
       </button>
     </div>
   );
 }
 
-function ChannelRowPreview({ channelName }: { channelName?: string }) {
+function StreamRowPreview({ streamName }: { streamName?: string }) {
   return (
-    <div className="creator-channel-drag-preview">
-      <DragHandleMark rows={3} variant="channel" />
-      <span>{channelName}</span>
+    <div className="creator-stream-drag-preview">
+      <DragHandleMark rows={3} variant="stream" />
+      <span>{streamName}</span>
     </div>
   );
 }
@@ -746,23 +768,25 @@ function AddCardControl({ onAddCard }: { onAddCard: () => void }) {
 
 function BoardCell({
   activePairId,
-  activeChannelRow,
-  activeChannelOverRow,
+  activeStreamRow,
+  activeStreamOverRow,
   cell,
   cellId,
-  channelName,
+  streamName,
   onEdit,
+  onCancelMediaUpload,
   onUploadMedia,
   pair,
   row,
   uploadingMediaPairIds,
 }: {
   activePairId: PairId | null;
-  activeChannelRow: number | null;
-  activeChannelOverRow: number | null;
+  activeStreamRow: number | null;
+  activeStreamOverRow: number | null;
   cell: CellState;
   cellId: CellId;
-  channelName?: string;
+  streamName?: string;
+  onCancelMediaUpload: (pairId: PairId) => void;
   onEdit: (target: EditTarget) => void;
   onUploadMedia: (pairId: PairId, file: File) => void;
   pair?: Pair;
@@ -771,32 +795,33 @@ function BoardCell({
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: cellId,
-    data: cell.kind === "locked" ? { type: "channel-row", row } : { type: "cell", accepts: "pair" },
+    data: cell.kind === "locked" ? { type: "stream-row", row } : { type: "cell", accepts: "pair" },
   });
   const isOccupied = Boolean(cell.pairId);
   const isLocked = cell.kind === "locked";
   const canDropActivePair = Boolean(isOver && activePairId && pair && pair.id !== activePairId && isPairEmpty(pair));
   const isEmptyPanSurface = cell.kind === "empty" && !cell.pairId;
-  const isChannelRowDragging = activeChannelRow === row;
-  const isChannelRowTarget = activeChannelOverRow === row && activeChannelOverRow !== activeChannelRow;
+  const isStreamRowDragging = activeStreamRow === row;
+  const isStreamRowTarget = activeStreamOverRow === row && activeStreamOverRow !== activeStreamRow;
 
   return (
     <div
-      className={`creator-cell${isOccupied ? " creator-cell--occupied" : ""}${isLocked ? " creator-cell--locked" : ""}${canDropActivePair ? " creator-cell--can-drop" : ""}${isChannelRowDragging ? " creator-cell--channel-row-dragging" : ""}${isChannelRowTarget ? " creator-cell--channel-row-target" : ""}`}
+      className={`creator-cell${isOccupied ? " creator-cell--occupied" : ""}${isLocked ? " creator-cell--locked" : ""}${canDropActivePair ? " creator-cell--can-drop" : ""}${isStreamRowDragging ? " creator-cell--stream-row-dragging" : ""}${isStreamRowTarget ? " creator-cell--stream-row-target" : ""}`}
       data-creator-pan-surface={isEmptyPanSurface ? true : undefined}
       ref={setNodeRef}
     >
-      {/* Cells currently support empty, pair, and locked states. Channel cells are locked until channel dragging exists. */}
+      {/* Cells currently support empty, pair, and locked states. Stream cells are locked until row dragging exists. */}
       {pair ? (
         <PairBlock
           pair={pair}
           isDragging={pair.id === activePairId}
           isMediaUploading={uploadingMediaPairIds.has(pair.id)}
+          onCancelMediaUpload={onCancelMediaUpload}
           onEdit={onEdit}
           onUploadMedia={onUploadMedia}
         />
       ) : isLocked ? (
-        <ChannelRow channelName={channelName} isDragging={activeChannelRow === row} onEdit={onEdit} row={row} />
+        <StreamRow streamName={streamName} isDragging={activeStreamRow === row} onEdit={onEdit} row={row} />
       ) : (
         <span className="creator-empty">empty</span>
       )}
@@ -822,8 +847,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [publishedTemplateSnapshot, setPublishedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialPublishedBoard ?? initialBoard));
   const [hasPublishedBaseline, setHasPublishedBaseline] = useState(mode === "edit");
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
-  const [activeChannelRow, setActiveChannelRow] = useState<number | null>(null);
-  const [activeChannelOverRow, setActiveChannelOverRow] = useState<number | null>(null);
+  const [activeStreamRow, setActiveStreamRow] = useState<number | null>(null);
+  const [activeStreamOverRow, setActiveStreamOverRow] = useState<number | null>(null);
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [dateEditSession, setDateEditSession] = useState<DateEditSession | null>(null);
   const [deckDataPendingTemplateId, setDeckDataPendingTemplateId] = useState<string | null>(null);
@@ -833,6 +858,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
   const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
   const boardRef = useRef<BoardState>(initialBoard);
+  const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
+  const introUploadSessionsRef = useRef<Map<ColumnId, UploadSession>>(new Map());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -856,7 +883,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     return activePairId ? findPairCell(board.cells, activePairId) ?? null : null;
   }, [activePairId, board.cells]);
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
-  const activeChannelName = activeChannelRow === null ? null : board.channelNamesByRow[activeChannelRow] ?? null;
+  const activeStreamName = activeStreamRow === null ? null : board.streamNamesByRow[activeStreamRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
@@ -869,6 +896,19 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   useEffect(() => {
     boardRef.current = board;
   }, [board]);
+
+  useEffect(() => {
+    return () => {
+      for (const session of pairUploadSessionsRef.current.values()) {
+        session.controller.abort();
+      }
+      for (const session of introUploadSessionsRef.current.values()) {
+        session.controller.abort();
+      }
+      pairUploadSessionsRef.current.clear();
+      introUploadSessionsRef.current.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasUnpublishedChanges) {
@@ -1081,15 +1121,15 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
     const dragType = getDragType(event);
 
-    if (dragType === "channel") {
+    if (dragType === "stream") {
       setActivePairId(null);
-      setActiveChannelRow(getChannelRowFromDragEvent(event));
-      setActiveChannelOverRow(null);
+      setActiveStreamRow(getStreamRowFromDragEvent(event));
+      setActiveStreamOverRow(null);
       return;
     }
 
-    setActiveChannelRow(null);
-    setActiveChannelOverRow(null);
+    setActiveStreamRow(null);
+    setActiveStreamOverRow(null);
     const pairId = String(event.active.id);
     const activePairCandidate = board.pairs[pairId];
 
@@ -1097,23 +1137,23 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   function handleDragOver(event: DragOverEvent) {
-    if (getDragType(event) !== "channel") {
+    if (getDragType(event) !== "stream") {
       return;
     }
 
-    setActiveChannelOverRow(getChannelRowFromOverEvent(event));
+    setActiveStreamOverRow(getStreamRowFromOverEvent(event));
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const dragType = getDragType(event);
 
     setActivePairId(null);
-    setActiveChannelRow(null);
-    setActiveChannelOverRow(null);
+    setActiveStreamRow(null);
+    setActiveStreamOverRow(null);
 
-    if (dragType === "channel") {
-      const fromRow = getChannelRowFromDragEvent(event);
-      const toRow = getChannelRowFromOverEvent(event);
+    if (dragType === "stream") {
+      const fromRow = getStreamRowFromDragEvent(event);
+      const toRow = getStreamRowFromOverEvent(event);
 
       if (fromRow === null || toRow === null || fromRow === toRow) {
         return;
@@ -1160,8 +1200,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   function handleDragCancel() {
     setActivePairId(null);
-    setActiveChannelRow(null);
-    setActiveChannelOverRow(null);
+    setActiveStreamRow(null);
+    setActiveStreamOverRow(null);
   }
 
   function addCard() {
@@ -1207,12 +1247,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         return { ...currentBoard, deckTitle: value };
       }
 
-      if (target.type === "channel-name") {
+      if (target.type === "stream-name") {
         return {
           ...currentBoard,
-          channelNamesByRow: {
-            ...currentBoard.channelNamesByRow,
-            [target.row]: resolveCreatorChannelName(target.row, value),
+          streamNamesByRow: {
+            ...currentBoard.streamNamesByRow,
+            [target.row]: resolveCreatorStreamName(target.row, value),
           },
         };
       }
@@ -1253,6 +1293,116 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     setEditSession(null);
   }
 
+  function clearPairUploadState(pairId: PairId) {
+    setUploadingMediaPairIds((currentPairIds) => {
+      if (!currentPairIds.has(pairId)) {
+        return currentPairIds;
+      }
+
+      const nextPairIds = new Set(currentPairIds);
+      nextPairIds.delete(pairId);
+      return nextPairIds;
+    });
+  }
+
+  function clearIntroUploadState(columnId: ColumnId) {
+    setUploadingIntroMediaColumnIds((currentColumnIds) => {
+      if (!currentColumnIds.has(columnId)) {
+        return currentColumnIds;
+      }
+
+      const nextColumnIds = new Set(currentColumnIds);
+      nextColumnIds.delete(columnId);
+      return nextColumnIds;
+    });
+  }
+
+  function createPairUploadSession(pairId: PairId) {
+    pairUploadSessionsRef.current.get(pairId)?.controller.abort();
+
+    const session: UploadSession = {
+      controller: new AbortController(),
+      token: Symbol(pairId),
+    };
+
+    pairUploadSessionsRef.current.set(pairId, session);
+    setUploadingMediaPairIds((currentPairIds) => {
+      const nextPairIds = new Set(currentPairIds);
+      nextPairIds.add(pairId);
+      return nextPairIds;
+    });
+
+    return session;
+  }
+
+  function createIntroUploadSession(columnId: ColumnId) {
+    introUploadSessionsRef.current.get(columnId)?.controller.abort();
+
+    const session: UploadSession = {
+      controller: new AbortController(),
+      token: Symbol(columnId),
+    };
+
+    introUploadSessionsRef.current.set(columnId, session);
+    setUploadingIntroMediaColumnIds((currentColumnIds) => {
+      const nextColumnIds = new Set(currentColumnIds);
+      nextColumnIds.add(columnId);
+      return nextColumnIds;
+    });
+
+    return session;
+  }
+
+  function isActivePairUpload(pairId: PairId, session: UploadSession) {
+    return pairUploadSessionsRef.current.get(pairId)?.token === session.token && !session.controller.signal.aborted;
+  }
+
+  function isActiveIntroUpload(columnId: ColumnId, session: UploadSession) {
+    return introUploadSessionsRef.current.get(columnId)?.token === session.token && !session.controller.signal.aborted;
+  }
+
+  function finishPairUpload(pairId: PairId, session: UploadSession) {
+    if (pairUploadSessionsRef.current.get(pairId)?.token !== session.token) {
+      return;
+    }
+
+    pairUploadSessionsRef.current.delete(pairId);
+    clearPairUploadState(pairId);
+  }
+
+  function finishIntroUpload(columnId: ColumnId, session: UploadSession) {
+    if (introUploadSessionsRef.current.get(columnId)?.token !== session.token) {
+      return;
+    }
+
+    introUploadSessionsRef.current.delete(columnId);
+    clearIntroUploadState(columnId);
+  }
+
+  function cancelPairMediaUpload(pairId: PairId) {
+    const session = pairUploadSessionsRef.current.get(pairId);
+
+    if (!session) {
+      return;
+    }
+
+    session.controller.abort();
+    pairUploadSessionsRef.current.delete(pairId);
+    clearPairUploadState(pairId);
+  }
+
+  function cancelIntroMediaUpload(columnId: ColumnId) {
+    const session = introUploadSessionsRef.current.get(columnId);
+
+    if (!session) {
+      return;
+    }
+
+    session.controller.abort();
+    introUploadSessionsRef.current.delete(columnId);
+    clearIntroUploadState(columnId);
+  }
+
   async function uploadPairMedia(pairId: PairId, file: File) {
     if (file.type && !file.type.startsWith("video/")) {
       setPublishStatus("error");
@@ -1260,16 +1410,20 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       return;
     }
 
-    setUploadingMediaPairIds((currentPairIds) => {
-      const nextPairIds = new Set(currentPairIds);
-      nextPairIds.add(pairId);
-      return nextPairIds;
-    });
+    const uploadSession = createPairUploadSession(pairId);
+
     setPublishMessage("");
     setPublishStatus("idle");
 
     try {
-      const mediaItem = await uploadCreatorVideo(file);
+      const mediaItem = await uploadCreatorVideo(file, uploadSession.controller.signal);
+
+      if (!isActivePairUpload(pairId, uploadSession)) {
+        return;
+      }
+
+      finishPairUpload(pairId, uploadSession);
+
       const nextBoard = (() => {
         const currentBoard = boardRef.current;
         const pair = currentBoard.pairs[pairId];
@@ -1294,14 +1448,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setBoard(nextBoard);
       await persistSavedDraft(nextBoard);
     } catch (error) {
+      if (uploadSession.controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
       setPublishStatus("error");
       setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
     } finally {
-      setUploadingMediaPairIds((currentPairIds) => {
-        const nextPairIds = new Set(currentPairIds);
-        nextPairIds.delete(pairId);
-        return nextPairIds;
-      });
+      finishPairUpload(pairId, uploadSession);
     }
   }
 
@@ -1312,16 +1466,20 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       return;
     }
 
-    setUploadingIntroMediaColumnIds((currentColumnIds) => {
-      const nextColumnIds = new Set(currentColumnIds);
-      nextColumnIds.add(columnId);
-      return nextColumnIds;
-    });
+    const uploadSession = createIntroUploadSession(columnId);
+
     setPublishMessage("");
     setPublishStatus("idle");
 
     try {
-      const mediaItem = await uploadCreatorVideo(file);
+      const mediaItem = await uploadCreatorVideo(file, uploadSession.controller.signal);
+
+      if (!isActiveIntroUpload(columnId, uploadSession)) {
+        return;
+      }
+
+      finishIntroUpload(columnId, uploadSession);
+
       const currentBoard = boardRef.current;
       const nextBoard = {
         ...currentBoard,
@@ -1339,14 +1497,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setBoard(nextBoard);
       await persistSavedDraft(nextBoard);
     } catch (error) {
+      if (uploadSession.controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
       setPublishStatus("error");
       setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
     } finally {
-      setUploadingIntroMediaColumnIds((currentColumnIds) => {
-        const nextColumnIds = new Set(currentColumnIds);
-        nextColumnIds.delete(columnId);
-        return nextColumnIds;
-      });
+      finishIntroUpload(columnId, uploadSession);
     }
   }
 
@@ -1365,7 +1523,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   function handlePanPointerDown(event: PointerEvent<HTMLElement>) {
-    if (activePairId || activeChannelRow !== null || event.button !== 0) {
+    if (activePairId || activeStreamRow !== null || event.button !== 0) {
       return;
     }
 
@@ -1534,13 +1692,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                           className="creator-card-intro-media-slot"
                           isUploading={uploadingIntroMediaColumnIds.has(column.id)}
                           mediaItem={column.introMediaItem ?? null}
+                          onCancelUpload={() => cancelIntroMediaUpload(column.id)}
                           onUpload={(file) => void uploadIntroMedia(column.id, file)}
                           placeholder="Upload video"
                           size="intro"
                         />
                       </>
                     ) : (
-                      <span className="creator-channel-header">Channels</span>
+                      <span className="creator-stream-header">Streams</span>
                     )}
                   </header>
                   <div className="creator-column-cells">
@@ -1550,12 +1709,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                       return (
                         <BoardCell
                           activePairId={activePairId}
-                          activeChannelRow={activeChannelRow}
-                          activeChannelOverRow={activeChannelOverRow}
+                          activeStreamRow={activeStreamRow}
+                          activeStreamOverRow={activeStreamOverRow}
                           cell={board.cells[cellId]}
                           cellId={cellId}
-                          channelName={column.kind === "channel" ? board.channelNamesByRow[row] : undefined}
+                          streamName={column.kind === "stream" ? board.streamNamesByRow[row] : undefined}
                           key={cellId}
+                          onCancelMediaUpload={cancelPairMediaUpload}
                           onEdit={openEdit}
                           onUploadMedia={uploadPairMedia}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
@@ -1576,7 +1736,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
         <DragOverlay>
           {activePair && activeOriginCellId ? <PairPreview pair={activePair} /> : null}
-          {activeChannelRow !== null ? <ChannelRowPreview channelName={activeChannelName ?? undefined} /> : null}
+          {activeStreamRow !== null ? <StreamRowPreview streamName={activeStreamName ?? undefined} /> : null}
         </DragOverlay>
       </DndContext>
       {editSession ? (

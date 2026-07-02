@@ -112,7 +112,7 @@ function PassiveSignalRow({ signal }: { signal: CardLayout["signals"][number] })
 
   return (
     <div className="focused-card-signal-slot">
-      <p>{signal.channelTitle}</p>
+      <p>{signal.streamTitle}</p>
       <div
         className="focused-card-signal-track"
         style={{ "--signal-value-position": getSignalValuePositionPercent(signal.value) } as CSSProperties}
@@ -424,7 +424,7 @@ function FocusedSignalRow({
       className={signalRowClassName}
       role="button"
       tabIndex={0}
-      aria-label={`Adjust ${signal.channelTitle} reading`}
+      aria-label={`Adjust ${signal.streamTitle} reading`}
       onPointerDown={handleRowPointerDown}
       onPointerMove={handleRowPointerMove}
       onPointerUp={finishRowPointerInteraction}
@@ -433,7 +433,7 @@ function FocusedSignalRow({
       onClick={handleRowClick}
       onKeyDown={handleRowKeyDown}
     >
-      <p>{signal.channelTitle}</p>
+      <p>{signal.streamTitle}</p>
       <div
         ref={signalTrackRef}
         className="focused-card-signal-track"

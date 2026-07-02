@@ -29,7 +29,7 @@ export type CardLayoutExternalComment = {
 
 export type CardLayoutSignal = {
   id: string;
-  channelTitle: string;
+  streamTitle: string;
   value: number;
   reading: number;
   variant: SignalVariant;
@@ -62,7 +62,7 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
 
   return {
     id: signal.id,
-    channelTitle: signal.channelTitle,
+    streamTitle: signal.streamTitle,
     value: signalReadingToNormalized(reading),
     reading,
     variant: signalVariants[index] ?? "movement",
