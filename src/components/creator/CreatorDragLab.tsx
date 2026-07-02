@@ -249,6 +249,48 @@ function buildStepDescriptionContent(text: string, ranges: StepLinkRange[]) {
   return content;
 }
 
+function adjustStepLinkRangesForTextChange(previousText: string, nextText: string, ranges: StepLinkRange[]) {
+  if (previousText === nextText || ranges.length === 0) {
+    return ranges;
+  }
+
+  let prefixLength = 0;
+
+  while (
+    prefixLength < previousText.length &&
+    prefixLength < nextText.length &&
+    previousText[prefixLength] === nextText[prefixLength]
+  ) {
+    prefixLength += 1;
+  }
+
+  let previousSuffixStart = previousText.length;
+  let nextSuffixStart = nextText.length;
+
+  while (
+    previousSuffixStart > prefixLength &&
+    nextSuffixStart > prefixLength &&
+    previousText[previousSuffixStart - 1] === nextText[nextSuffixStart - 1]
+  ) {
+    previousSuffixStart -= 1;
+    nextSuffixStart -= 1;
+  }
+
+  const delta = (nextSuffixStart - prefixLength) - (previousSuffixStart - prefixLength);
+
+  return ranges.map((range) => {
+    if (previousSuffixStart <= range.start) {
+      return {
+        ...range,
+        start: range.start + delta,
+        end: range.end + delta,
+      };
+    }
+
+    return range;
+  });
+}
+
 function getPublishErrorMessage(errorBody: unknown, fallback: string) {
   if (typeof errorBody === "object" && errorBody !== null && "error" in errorBody && typeof errorBody.error === "string") {
     return errorBody.error;
@@ -588,6 +630,28 @@ function getEditTargetKey(target: EditTarget) {
   return `${target.type}:${target.columnId}`;
 }
 
+function CreatorStepDescriptionPreview({ content }: { content?: StepDescriptionSpan[] }) {
+  if (!content || content.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="creator-step-inline-preview" aria-label="Linked text preview">
+      {content.map((span, index) => {
+        if (span.type === "text") {
+          return span.text;
+        }
+
+        return (
+          <span className="creator-step-inline-preview-link" key={`${span.url}:${index}`}>
+            {span.text}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function CreatorEditModal({
   canDeleteCard = false,
   onClose,
@@ -626,6 +690,7 @@ function CreatorEditModal({
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
 
   function handleDraftValueChange(value: string) {
+    setLinkRanges((currentRanges) => adjustStepLinkRangesForTextChange(draftValue, value, currentRanges));
     setDraftValue(value);
     setLinkError(null);
   }
@@ -733,6 +798,8 @@ function CreatorEditModal({
     onSave(draftValue, isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined);
   }
 
+  const previewContent = isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined;
+
   return (
     <div className="creator-modal-backdrop" role="presentation">
       <form className={modalClassName} onSubmit={handleSubmit}>
@@ -761,6 +828,9 @@ function CreatorEditModal({
             value={draftValue}
           />
         )}
+        {isStepText && previewContent ? (
+          <CreatorStepDescriptionPreview content={previewContent} />
+        ) : null}
         {session.target.type === "card-label" ? <p className="creator-modal-counter">{draftValue.length}/{CARD_LABEL_MAX_LENGTH} characters</p> : null}
         {showStepCounter ? (
           <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>

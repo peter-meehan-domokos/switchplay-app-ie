@@ -1157,6 +1157,25 @@ input {
   gap: 10px;
 }
 
+.creator-step-inline-preview {
+  border: 1px solid #d8dde1;
+  background: #fbfcfd;
+  color: #111318;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  padding: 9px 10px;
+  white-space: pre-wrap;
+}
+
+.creator-step-inline-preview-link {
+  border-radius: 4px;
+  background: rgba(168, 214, 228, 0.1);
+  color: #277e9e;
+  font-weight: 760;
+  padding: 0 2px;
+}
+
 .creator-step-inline-links-header {
   display: flex;
   align-items: center;
@@ -2287,16 +2306,15 @@ input {
 }
 
 .step-description-link {
-  color: inherit;
+  color: rgba(168, 214, 228, 0.94);
   font-weight: 780;
-  text-decoration: underline;
-  text-decoration-thickness: 0.08em;
-  text-underline-offset: 0.16em;
+  text-decoration: none;
 }
 
 .step-description-link:hover,
 .step-description-link:focus-visible {
-  color: rgba(168, 214, 228, 0.96);
+  color: rgba(188, 229, 240, 0.98);
+  text-decoration: none;
 }
 
 .active-step-item:nth-child(2) .step-description {
