@@ -16,7 +16,7 @@ function createVisibleTemplateQuery(
     ...(deckTemplateId ? { deckTemplateId } : {}),
     $or: [
       { ownerUserId: user.id },
-      { visibility: "public" },
+      //{ visibility: "public" },
     ],
   };
 }

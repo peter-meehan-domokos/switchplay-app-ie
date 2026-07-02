@@ -47,6 +47,52 @@ function printSummary(summary) {
   console.log(`Missing template IDs: ${summary.missingTemplateIds.size === 0 ? "none" : [...summary.missingTemplateIds].join(", ")}`);
 }
 
+function isValidDateOnly(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return false;
+  }
+
+  const [yearRaw, monthRaw, dayRaw] = value.trim().split("-");
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  const candidateDate = new Date(year, month - 1, day);
+
+  return (
+    candidateDate.getFullYear() === year &&
+    candidateDate.getMonth() === month - 1 &&
+    candidateDate.getDate() === day
+  );
+}
+
+function addLocalDays(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function formatLocalDateOnly(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeTemplateSuggestedTargetDates(template, today = new Date()) {
+  if (!template.cards?.some((card) => !isValidDateOnly(card.suggestedTargetDate))) {
+    return template;
+  }
+
+  const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  return {
+    ...template,
+    cards: template.cards.map((card, index) => ({
+      ...card,
+      suggestedTargetDate: formatLocalDateOnly(addLocalDays(startDate, index * 7)),
+    })),
+  };
+}
+
 const client = new MongoClient(requireEnv("MONGODB_URI"));
 
 async function seedDeckTemplates() {
@@ -61,7 +107,11 @@ async function seedDeckTemplates() {
   const users = db.collection("users");
   const templates = db.collection(DECK_TEMPLATES_COLLECTION);
   const templatesById = new Map(
-    deckTemplates.map((template) => [template.deckTemplateId, template]),
+    deckTemplates.map((template) => {
+      const normalizedTemplate = normalizeTemplateSuggestedTargetDates(template);
+
+      return [normalizedTemplate.deckTemplateId, normalizedTemplate];
+    }),
   );
   const ownerUsersByUsername = new Map();
   const summary = createSummary();
