@@ -7,6 +7,7 @@ import {
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { reconcileDeckDataWithTemplate } from "@/lib/deckDataReconciliation";
+import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
 import { getCollection } from "@/lib/mongodb";
 import {
   hasNonEmptyString,
@@ -102,22 +103,31 @@ export async function POST(_request: Request, context: PublishDeckTemplateRouteC
     }
 
     const publishedAt = new Date();
-    const publishedTemplate = {
+    const existingPublishedTemplate = normalizeDeckTemplateForRuntime(existingTemplate.template);
+    const candidatePublishedTemplate = {
       ...(existingTemplate.savedTemplate ?? existingTemplate.template),
       deckTemplateId,
     };
-    const validation = validateDeckTemplateForSave({ template: publishedTemplate });
+    const validation = validateDeckTemplateForSave({ template: candidatePublishedTemplate });
 
     if (!validation.ok) {
       return Response.json({ error: validation.error }, { status: 400 });
     }
 
+    const publishedTemplate = {
+      ...validation.template,
+      deckTemplateId,
+    };
+
     const previousVersions: DeckTemplatePreviousVersion[] = [
       {
-        template: existingTemplate.template,
+        template: existingPublishedTemplate,
         savedAt: publishedAt,
       },
-      ...(existingTemplate.previousVersions ?? []),
+      ...(existingTemplate.previousVersions ?? []).map((previousVersion) => ({
+        ...previousVersion,
+        template: normalizeDeckTemplateForRuntime(previousVersion.template),
+      })),
     ].slice(0, MAX_PREVIOUS_VERSIONS);
 
     const updateResult = await collection.findOneAndUpdate(
@@ -147,7 +157,7 @@ export async function POST(_request: Request, context: PublishDeckTemplateRouteC
         userId: user.id,
         deckTemplateId,
         existingDeckData,
-        oldTemplate: existingTemplate.template,
+        oldTemplate: existingPublishedTemplate,
         newTemplate: publishedTemplate,
         updatedAt: publishedAt,
       });

@@ -6,7 +6,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-open-loops-001",
     title: "Clear The Open Loops",
     category: "life-admin",
-    channels: [
+    streams: [
       {
         title: "Commitments",
         id: "commitments"
@@ -249,7 +249,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-teaching-income-001",
     title: "Create Teaching Income Option For September",
     category: "education",
-    channels: [
+    streams: [
       {
         title: "Teaching Registration",
         id: "teaching-registration"
@@ -499,7 +499,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-health-fitness-001",
     title: "Make Healthy Habits Feel Natural",
     category: "health-fitness",
-    channels: [
+    streams: [
       {
         title: "Awareness",
         id: "awareness"
@@ -751,7 +751,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-tebo-studio-001",
     title: "Establish Tebo Studio As Credible",
     category: "tebo-studio",
-    channels: [
+    streams: [
       {
         title: "Opportunity Network",
         id: "opportunity-network"
@@ -998,7 +998,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-music-001",
     title: "Jam Freely With Fiddle And H90",
     category: "music",
-    channels: [
+    streams: [
       {
         title: "Scale Fluency",
         id: "scale-fluency"
@@ -1215,7 +1215,7 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "deck-2026-06-switchplay-001",
     title: "Find Early Evidence For Switchplay",
     category: "switchplay",
-    channels: [
+    streams: [
       {
         title: "Product Robustness",
         id: "product-robustness"
@@ -1463,7 +1463,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-001",
     "title": "First Pull-Up to Clean Muscle-Up",
     "category": "calisthenics",
-    "channels": [
+    "streams": [
       {
         "title": "Pull Strength",
         "id": "pull-strength"
@@ -1772,7 +1772,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-002",
     "title": "Explosive Lower Body Power",
     "category": "gym",
-    "channels": [
+    "streams": [
       {
         "title": "Power Output",
         "id": "power-output"
@@ -2045,7 +2045,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-003",
     "title": "Sharper First Touch Under Pressure",
     "category": "football",
-    "channels": [
+    "streams": [
       {
         "title": "First Touch",
         "id": "first-touch"
@@ -2438,7 +2438,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-004",
     "title": "Lean Strength Block",
     "category": "gym",
-    "channels": [
+    "streams": [
       {
         "title": "Strength Progress",
         "id": "strength-progress"
@@ -2710,7 +2710,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-005",
     "title": "Beating a Full-Back 1v1",
     "category": "football",
-    "channels": [
+    "streams": [
       {
         "title": "Take-On Execution",
         "id": "take-on-execution"
@@ -3046,7 +3046,7 @@ export const deckTemplates: DeckTemplate[] = [
     "deckTemplateId": "deck-006",
     "title": "10 Week Performance Test",
     "category": "football",
-    "channels": [
+    "streams": [
       {
         "title": "Performance Output",
         "id": "performance-output"

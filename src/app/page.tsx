@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
-import { serverDeckDataItemsToClientDeckDataSteps } from "@/lib/deckApiTransforms";
+import { normalizeDeckTemplateForRuntime, serverDeckDataItemsToClientDeckDataSteps } from "@/lib/deckApiTransforms";
 import {
   DECK_TEMPLATES_COLLECTION,
   type DeckTemplateDocument,
@@ -36,7 +36,9 @@ async function getAdminDecks(currentUserId: string) {
   const templateDocuments = await templateCollection
     .find({ deckTemplateId: { $in: deckTemplateIds } })
     .toArray();
-  const templatesById = new Map(templateDocuments.map((document) => [document.deckTemplateId, document.template]));
+  const templatesById = new Map(
+    templateDocuments.map((document) => [document.deckTemplateId, normalizeDeckTemplateForRuntime(document.template)]),
+  );
   const decks = users.flatMap((deckOwner) => {
     const ownerUserId = deckOwner._id.toHexString();
     const templates = deckOwner.decksData

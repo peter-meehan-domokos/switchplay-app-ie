@@ -5,6 +5,7 @@ import {
   DECK_TEMPLATES_COLLECTION,
   type DeckTemplateDocument,
 } from "@/lib/deckTemplateDocuments";
+import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
 import { getCollection } from "@/lib/mongodb";
 
 function createVisibleTemplateQuery(
@@ -24,6 +25,14 @@ async function getDeckTemplatesCollection() {
   return getCollection<DeckTemplateDocument>(DECK_TEMPLATES_COLLECTION);
 }
 
+function normalizeDeckTemplateDocumentForRuntime(document: DeckTemplateDocument): DeckTemplateDocument {
+  return {
+    ...document,
+    template: normalizeDeckTemplateForRuntime(document.template),
+    savedTemplate: document.savedTemplate ? normalizeDeckTemplateForRuntime(document.savedTemplate) : undefined,
+  };
+}
+
 export async function getVisibleDeckTemplatesForUser(user: AuthUser): Promise<DeckTemplate[]> {
   const documents = await getVisibleDeckTemplateDocumentsForUser(user);
 
@@ -37,7 +46,7 @@ export async function getVisibleDeckTemplateDocumentsForUser(user: AuthUser): Pr
     .sort({ createdAt: 1, deckTemplateId: 1 })
     .toArray();
 
-  return documents;
+  return documents.map(normalizeDeckTemplateDocumentForRuntime);
 }
 
 export async function getVisibleDeckTemplateByIdForUser(
@@ -47,7 +56,7 @@ export async function getVisibleDeckTemplateByIdForUser(
   const collection = await getDeckTemplatesCollection();
   const document = await collection.findOne(createVisibleTemplateQuery(user, deckTemplateId));
 
-  return document?.template ?? null;
+  return document ? normalizeDeckTemplateForRuntime(document.template) : null;
 }
 
 export async function getVisibleDeckTemplateDocumentByIdForUser(
@@ -56,14 +65,16 @@ export async function getVisibleDeckTemplateDocumentByIdForUser(
 ): Promise<DeckTemplateDocument | null> {
   const collection = await getDeckTemplatesCollection();
 
-  return collection.findOne(createVisibleTemplateQuery(user, deckTemplateId));
+  const document = await collection.findOne(createVisibleTemplateQuery(user, deckTemplateId));
+
+  return document ? normalizeDeckTemplateDocumentForRuntime(document) : null;
 }
 
 export async function getDeckTemplateById(deckTemplateId: string): Promise<DeckTemplate | null> {
   const collection = await getDeckTemplatesCollection();
   const document = await collection.findOne({ deckTemplateId });
 
-  return document?.template ?? null;
+  return document ? normalizeDeckTemplateForRuntime(document.template) : null;
 }
 
 export async function assertDeckTemplateVisibleToUser(

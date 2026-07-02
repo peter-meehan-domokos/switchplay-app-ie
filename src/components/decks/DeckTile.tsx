@@ -38,11 +38,11 @@ export default function DeckTile({ deck, isDisabled = false, isPreparing = false
               zIndex: 3 - index,
             }}
           >
-            {index === 0 && deck.channels?.length ? (
-              <div className="deck-preview-channels" aria-hidden="true">
-                {deck.channels.slice(0, 3).map((channel) => (
-                  <div key={channel.id} className="deck-preview-channel-title">
-                    {channel.title}
+            {index === 0 && deck.streams?.length ? (
+              <div className="deck-preview-streams" aria-hidden="true">
+                {deck.streams.slice(0, 3).map((stream) => (
+                  <div key={stream.id} className="deck-preview-stream-title">
+                    {stream.title}
                   </div>
                 ))}
               </div>

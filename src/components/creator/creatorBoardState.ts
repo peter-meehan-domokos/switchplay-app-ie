@@ -3,14 +3,14 @@ import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import type { MediaItem } from "@/lib/media";
 
 export type CardColumnId = `card-${number}`;
-export type ColumnId = "channels" | CardColumnId;
+export type ColumnId = "streams" | CardColumnId;
 export type PairId = string;
 export type CellId = `${ColumnId}:${number}`;
 export type CellKind = "empty" | "pair" | "locked";
 
 export type Column = {
   id: ColumnId;
-  kind: "channel" | "card";
+  kind: "stream" | "card";
   label: string;
   cardId?: string;
   cardLabel?: string;
@@ -94,13 +94,13 @@ export type BoardState = {
   columns: Column[];
   rows: number[];
   cells: Record<CellId, CellState>;
-  channelIdsByRow: Record<number, string>;
-  channelNamesByRow: Record<number, string>;
+  streamIdsByRow: Record<number, string>;
+  streamNamesByRow: Record<number, string>;
   pairs: Record<PairId, Pair>;
 };
 
 const creatorColumns: Column[] = [
-  { id: "channels", kind: "channel", label: "Channels" },
+  { id: "streams", kind: "stream", label: "Streams" },
   { id: "card-1", kind: "card", label: "Card" },
   { id: "card-2", kind: "card", label: "Card" },
   { id: "card-3", kind: "card", label: "Card" },
@@ -109,7 +109,7 @@ const creatorColumns: Column[] = [
 
 const starterCardTitles = ["Get started", "Make progress", "Build momentum", "Feel the difference"];
 const starterTargetDates = ["2026-06-07", "2026-06-14", "2026-06-21", "2026-06-28"];
-const starterChannelNames = ["Channel 1", "Channel 2", "Channel 3"];
+const starterStreamNames = ["Stream 1", "Stream 2", "Stream 3"];
 const newCardTitle = "My New Card";
 
 function getDefaultCardLabel(cardIndex: number) {
@@ -282,7 +282,7 @@ export function deleteCreatorCard(board: BoardState, columnId: ColumnId): BoardS
       return columns;
     }
 
-    if (column.kind === "channel") {
+    if (column.kind === "stream") {
       columns.push(column);
 
       for (const row of board.rows) {
@@ -318,8 +318,8 @@ export function deleteCreatorCard(board: BoardState, columnId: ColumnId): BoardS
   };
 }
 
-export function getDefaultChannelName(row: number) {
-  return starterChannelNames[row] ?? `Channel ${row + 1}`;
+export function getDefaultStreamName(row: number) {
+  return starterStreamNames[row] ?? `Stream ${row + 1}`;
 }
 
 export function getDeletedCardLabelFallback(columnId: ColumnId) {
@@ -328,8 +328,8 @@ export function getDeletedCardLabelFallback(columnId: ColumnId) {
   return `Card ${cardPosition ?? 1}`;
 }
 
-export function resolveCreatorChannelName(row: number, value: string) {
-  return value.trim() === "" ? getDefaultChannelName(row) : value;
+export function resolveCreatorStreamName(row: number, value: string) {
+  return value.trim() === "" ? getDefaultStreamName(row) : value;
 }
 
 export function resolveCreatorCardLabel(columnId: ColumnId, value: string) {
@@ -362,15 +362,15 @@ export function swapCreatorBoardRows(board: BoardState, fromRow: number, toRow: 
 
   return {
     ...board,
-    channelIdsByRow: {
-      ...board.channelIdsByRow,
-      [fromRow]: board.channelIdsByRow[toRow],
-      [toRow]: board.channelIdsByRow[fromRow],
+    streamIdsByRow: {
+      ...board.streamIdsByRow,
+      [fromRow]: board.streamIdsByRow[toRow],
+      [toRow]: board.streamIdsByRow[fromRow],
     },
-    channelNamesByRow: {
-      ...board.channelNamesByRow,
-      [fromRow]: board.channelNamesByRow[toRow],
-      [toRow]: board.channelNamesByRow[fromRow],
+    streamNamesByRow: {
+      ...board.streamNamesByRow,
+      [fromRow]: board.streamNamesByRow[toRow],
+      [toRow]: board.streamNamesByRow[fromRow],
     },
     cells: nextCells,
   };
@@ -393,9 +393,9 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
     deckTemplateId: board.deckTemplateId,
     title: board.deckTitle,
     category: board.category,
-    channels: board.rows.map((row) => ({
-      id: board.channelIdsByRow[row],
-      title: resolveCreatorChannelName(row, board.channelNamesByRow[row] ?? ""),
+    streams: board.rows.map((row) => ({
+      id: board.streamIdsByRow[row],
+      title: resolveCreatorStreamName(row, board.streamNamesByRow[row] ?? ""),
     })),
     cards: getCardColumns(board.columns).map((column) => {
       const cardTitle = column.cardTitle ?? "";
@@ -427,7 +427,7 @@ function createBaseCells(columns: Column[], rows: number[]) {
   return columns.reduce<Record<CellId, CellState>>((nextCells, column) => {
     for (const row of rows) {
       nextCells[getCreatorCellId(column.id, row)] = {
-        kind: column.kind === "channel" ? "locked" : "empty",
+        kind: column.kind === "stream" ? "locked" : "empty",
         pairId: null,
       };
     }
@@ -436,23 +436,23 @@ function createBaseCells(columns: Column[], rows: number[]) {
   }, {} as Record<CellId, CellState>);
 }
 
-function createBlankChannelIds(rows: number[]) {
-  return rows.reduce<Record<number, string>>((nextChannelIds, row) => {
-    nextChannelIds[row] = createCreatorId("channel");
-    return nextChannelIds;
+function createBlankStreamIds(rows: number[]) {
+  return rows.reduce<Record<number, string>>((nextStreamIds, row) => {
+    nextStreamIds[row] = createCreatorId("stream");
+    return nextStreamIds;
   }, {});
 }
 
-function createTemplateChannelIds(template: DeckTemplate, rows: number[]) {
-  return rows.reduce<Record<number, string>>((nextChannelIds, row) => {
-    nextChannelIds[row] = template.channels[row]?.id ?? createCreatorId("channel");
-    return nextChannelIds;
+function createTemplateStreamIds(template: DeckTemplate, rows: number[]) {
+  return rows.reduce<Record<number, string>>((nextStreamIds, row) => {
+    nextStreamIds[row] = template.streams[row]?.id ?? createCreatorId("stream");
+    return nextStreamIds;
   }, {});
 }
 
 function createBlankColumns(): Column[] {
   return creatorColumns.map((column, columnIndex) => {
-    if (column.kind === "channel") {
+    if (column.kind === "stream") {
       return column;
     }
 
@@ -477,7 +477,7 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
   const templateCards = template.cards.slice(0, creatorColumns.length - 1);
 
   return creatorColumns.map((column, columnIndex) => {
-    if (column.kind === "channel") {
+    if (column.kind === "stream") {
       return column;
     }
 
@@ -523,10 +523,10 @@ export function createBlankCreatorBoard(): BoardState {
     category: null,
     columns,
     rows,
-    channelIdsByRow: createBlankChannelIds(rows),
-    channelNamesByRow: starterChannelNames.reduce<Record<number, string>>((nextChannels, channel, index) => {
-      nextChannels[index] = getDefaultChannelName(index);
-      return nextChannels;
+    streamIdsByRow: createBlankStreamIds(rows),
+    streamNamesByRow: starterStreamNames.reduce<Record<number, string>>((nextStreams, stream, index) => {
+      nextStreams[index] = getDefaultStreamName(index);
+      return nextStreams;
     }, {}),
     cells,
     pairs,
@@ -570,10 +570,10 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
     category: template.category,
     columns,
     rows,
-    channelIdsByRow: createTemplateChannelIds(template, rows),
-    channelNamesByRow: template.channels.reduce<Record<number, string>>((nextChannels, channel, index) => {
-      nextChannels[index] = channel.title;
-      return nextChannels;
+    streamIdsByRow: createTemplateStreamIds(template, rows),
+    streamNamesByRow: template.streams.reduce<Record<number, string>>((nextStreams, stream, index) => {
+      nextStreams[index] = stream.title;
+      return nextStreams;
     }, {}),
     cells,
     pairs,

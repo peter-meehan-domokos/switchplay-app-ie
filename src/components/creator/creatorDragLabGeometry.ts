@@ -26,11 +26,11 @@ export const CREATOR_GEOMETRY = {
   addCardControlWidth: 58,
   rowCount: 3,
   cellPadding: 6,
-  channelHandleWidth: 28,
-  channelHandleHeight: 32,
-  channelHandleVisibleWidth: 24,
-  channelHandleVisibleHeight: 24,
-  channelHandleGap: 6,
+  streamHandleWidth: 28,
+  streamHandleHeight: 32,
+  streamHandleVisibleWidth: 24,
+  streamHandleVisibleHeight: 24,
+  streamHandleGap: 6,
   panGutterHeight: 44,
   panGutterMobileHeight: 44,
   panGutterGap: 6,
@@ -88,11 +88,11 @@ type CreatorGeometryCssProperties = CSSProperties & {
   "--creator-column-header-padding": string;
   "--creator-row-count": number;
   "--creator-cell-padding": string;
-  "--creator-channel-handle-width": string;
-  "--creator-channel-handle-height": string;
-  "--creator-channel-handle-visible-width": string;
-  "--creator-channel-handle-visible-height": string;
-  "--creator-channel-handle-gap": string;
+  "--creator-stream-handle-width": string;
+  "--creator-stream-handle-height": string;
+  "--creator-stream-handle-visible-width": string;
+  "--creator-stream-handle-visible-height": string;
+  "--creator-stream-handle-gap": string;
   "--creator-pan-gutter-height": string;
   "--creator-pan-gutter-mobile-height": string;
   "--creator-pan-gutter-gap": string;
@@ -153,11 +153,11 @@ export function getCreatorGeometryStyle(): CreatorGeometryCssProperties {
     "--creator-column-header-padding": toPx(CREATOR_GEOMETRY.columnHeaderPadding),
     "--creator-row-count": CREATOR_GEOMETRY.rowCount,
     "--creator-cell-padding": toPx(CREATOR_GEOMETRY.cellPadding),
-    "--creator-channel-handle-width": toPx(CREATOR_GEOMETRY.channelHandleWidth),
-    "--creator-channel-handle-height": toPx(CREATOR_GEOMETRY.channelHandleHeight),
-    "--creator-channel-handle-visible-width": toPx(CREATOR_GEOMETRY.channelHandleVisibleWidth),
-    "--creator-channel-handle-visible-height": toPx(CREATOR_GEOMETRY.channelHandleVisibleHeight),
-    "--creator-channel-handle-gap": toPx(CREATOR_GEOMETRY.channelHandleGap),
+    "--creator-stream-handle-width": toPx(CREATOR_GEOMETRY.streamHandleWidth),
+    "--creator-stream-handle-height": toPx(CREATOR_GEOMETRY.streamHandleHeight),
+    "--creator-stream-handle-visible-width": toPx(CREATOR_GEOMETRY.streamHandleVisibleWidth),
+    "--creator-stream-handle-visible-height": toPx(CREATOR_GEOMETRY.streamHandleVisibleHeight),
+    "--creator-stream-handle-gap": toPx(CREATOR_GEOMETRY.streamHandleGap),
     "--creator-pan-gutter-height": toPx(CREATOR_GEOMETRY.panGutterHeight),
     "--creator-pan-gutter-mobile-height": toPx(CREATOR_GEOMETRY.panGutterMobileHeight),
     "--creator-pan-gutter-gap": toPx(CREATOR_GEOMETRY.panGutterGap),

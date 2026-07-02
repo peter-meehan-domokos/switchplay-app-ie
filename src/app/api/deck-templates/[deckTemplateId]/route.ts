@@ -7,6 +7,7 @@ import {
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { reconcileDeckDataWithTemplate } from "@/lib/deckDataReconciliation";
+import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
 import { getCollection } from "@/lib/mongodb";
 import {
   hasNonEmptyString,
@@ -116,16 +117,20 @@ export async function PATCH(request: Request, context: DeckTemplateRouteContext)
     }
 
     const updatedAt = new Date();
+    const existingPublishedTemplate = normalizeDeckTemplateForRuntime(existingTemplate.template);
     const updatedTemplate = {
       ...template,
       deckTemplateId,
     };
     const previousVersions: DeckTemplatePreviousVersion[] = [
       {
-        template: existingTemplate.template,
+        template: existingPublishedTemplate,
         savedAt: updatedAt,
       },
-      ...(existingTemplate.previousVersions ?? []),
+      ...(existingTemplate.previousVersions ?? []).map((previousVersion) => ({
+        ...previousVersion,
+        template: normalizeDeckTemplateForRuntime(previousVersion.template),
+      })),
     ].slice(0, MAX_PREVIOUS_VERSIONS);
 
     const updateResult = await collection.findOneAndUpdate(
@@ -155,7 +160,7 @@ export async function PATCH(request: Request, context: DeckTemplateRouteContext)
         userId: user.id,
         deckTemplateId,
         existingDeckData,
-        oldTemplate: existingTemplate.template,
+        oldTemplate: existingPublishedTemplate,
         newTemplate: updatedTemplate,
         updatedAt,
       });

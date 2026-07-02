@@ -2,9 +2,25 @@ import type {
   ClientUserCardData,
   ClientUserDeckData,
   CompletionStatus,
+  DeckTemplate,
+  StreamTemplate,
   UserCardData,
   UserDeckData,
 } from "@/components/decks/types";
+
+type RawDeckTemplateWithLegacyStreams = Omit<DeckTemplate, "streams"> & {
+  channels?: StreamTemplate[];
+  streams?: StreamTemplate[];
+};
+
+export function normalizeDeckTemplateForRuntime(rawTemplate: RawDeckTemplateWithLegacyStreams): DeckTemplate {
+  const { streams: _streams, channels: _channels, ...templateWithoutStreamFields } = rawTemplate;
+
+  return {
+    ...templateWithoutStreamFields,
+    streams: rawTemplate.streams ?? rawTemplate.channels ?? [],
+  };
+}
 
 function normalizeServerItemsToClientSteps(serverItems: UserCardData["items"]): ClientUserCardData["steps"] {
   return serverItems.map((item) => ({
