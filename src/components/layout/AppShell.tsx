@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import DeckDetail from "@/components/decks/DeckDetail";
@@ -34,7 +34,10 @@ const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const deckLayouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users }));
+  const [viewMode, setViewMode] = useState<"mine" | "shared">("mine");
+  const [sharedDecks, setSharedDecks] = useState<Deck[] | null>(null);
+  const [isLoadingSharedDecks, setIsLoadingSharedDecks] = useState(false);
+  const [sharedDeckError, setSharedDeckError] = useState<string | null>(null);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [pendingDeckOpenId, setPendingDeckOpenId] = useState<string | null>(null);
   const [instantiatingDeckTemplateId, setInstantiatingDeckTemplateId] = useState<string | null>(null);
@@ -42,11 +45,27 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
   const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasHandledOpenDeckParamRef = useRef(false);
-  const selectedDeck = deckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
+  const myDeckLayouts = useMemo(() => decks.map((deck) => buildDeckLayout(deck, { currentUserId, users })), [currentUserId, decks, users]);
+  const sharedDeckLayouts = useMemo(
+    () => sharedDecks?.map((deck) => buildDeckLayout(deck, { currentUserId, users })) ?? null,
+    [currentUserId, sharedDecks, users],
+  );
+  const activeDeckLayouts = viewMode === "shared" ? sharedDeckLayouts ?? [] : myDeckLayouts;
+  const selectedDeck = activeDeckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
   const isDeckInteractionLocked = Boolean(instantiatingDeckTemplateId) || Boolean(pendingDeckOpenId);
   const selectedDeckFlipState = selectedDeck ? deckFlipStateById[selectedDeck.id] : null;
   const isSelectedDeckFlipped = selectedDeckFlipState?.isFlipped ?? false;
   const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
+  const overviewError = viewMode === "shared" ? sharedDeckError : deckInstantiationError;
+
+  function clearSelectedDeckAndPendingRefresh() {
+    setSelectedDeckId(null);
+
+    if (overviewRefreshTimeoutRef.current) {
+      clearTimeout(overviewRefreshTimeoutRef.current);
+      overviewRefreshTimeoutRef.current = null;
+    }
+  }
 
   //console.log("Rendering AppShell", {
     //decks
@@ -57,7 +76,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       return;
     }
 
-    const pendingDeck = deckLayouts.find((deck) => deck.id === pendingDeckOpenId);
+    const pendingDeck = myDeckLayouts.find((deck) => deck.id === pendingDeckOpenId);
 
     if (pendingDeck && pendingDeck.hasUserDeckData) {
       setSelectedDeckId(pendingDeckOpenId);
@@ -65,7 +84,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       setInstantiatingDeckTemplateId(null);
       setDeckInstantiationError(null);
     }
-  }, [deckLayouts, pendingDeckOpenId]);
+  }, [myDeckLayouts, pendingDeckOpenId]);
 
   useEffect(() => {
     if (hasHandledOpenDeckParamRef.current) {
@@ -79,7 +98,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       return;
     }
 
-    const requestedDeck = deckLayouts.find((deck) => deck.id === requestedDeckId);
+    const requestedDeck = myDeckLayouts.find((deck) => deck.id === requestedDeckId);
 
     if (!requestedDeck) {
       hasHandledOpenDeckParamRef.current = true;
@@ -92,7 +111,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
 
     hasHandledOpenDeckParamRef.current = true;
     void handleSelectDeck(requestedDeck.id);
-  }, [deckLayouts, isDeckInteractionLocked, searchParams]);
+  }, [isDeckInteractionLocked, myDeckLayouts, searchParams]);
 
   useEffect(() => {
     return () => {
@@ -117,18 +136,65 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     }
   }
 
+  async function loadSharedDecks() {
+    if (sharedDecks !== null || isLoadingSharedDecks) {
+      return;
+    }
+
+    setSelectedDeckId(null);
+    setPendingDeckOpenId(null);
+    setInstantiatingDeckTemplateId(null);
+    setDeckInstantiationError(null);
+    setIsLoadingSharedDecks(true);
+    setSharedDeckError(null);
+
+    try {
+      const response = await fetch("/api/decks-data/shared", {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Unable to load shared decks.");
+      }
+
+      const payload = (await response.json()) as { decks?: Deck[] };
+      setSharedDecks(Array.isArray(payload.decks) ? payload.decks : []);
+      setViewMode("shared");
+      clearSelectedDeckAndPendingRefresh();
+    } catch (error) {
+      setSharedDeckError(error instanceof Error ? error.message : "Unable to load shared decks.");
+    } finally {
+      setIsLoadingSharedDecks(false);
+    }
+  }
+
+  function showMyDecks() {
+    if (viewMode === "mine") {
+      return;
+    }
+
+    setSelectedDeckId(null);
+    setPendingDeckOpenId(null);
+    setInstantiatingDeckTemplateId(null);
+    setDeckInstantiationError(null);
+    setViewMode("mine");
+    setSharedDeckError(null);
+    clearSelectedDeckAndPendingRefresh();
+  }
+
   async function handleSelectDeck(deckId: string) {
     if (isDeckInteractionLocked) {
       return;
     }
 
-    const deck = deckLayouts.find((candidateDeck) => candidateDeck.id === deckId);
+    const deck = activeDeckLayouts.find((candidateDeck) => candidateDeck.id === deckId);
 
     if (!deck) {
       return;
     }
 
-    if (deck.hasUserDeckData) {
+    if (viewMode === "shared" || deck.hasUserDeckData) {
       setDeckInstantiationError(null);
       setSelectedDeckId(deckId);
       return;
@@ -159,7 +225,11 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   };
 
   const handleCloseDeckDetail = () => {
-    setSelectedDeckId(null);
+    clearSelectedDeckAndPendingRefresh();
+
+    if (viewMode === "shared") {
+      return;
+    }
 
     if (overviewRefreshTimeoutRef.current) {
       clearTimeout(overviewRefreshTimeoutRef.current);
@@ -184,7 +254,13 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
             ease: "easeOut",
           }}
         >
-          <OverviewMenu username={userName} />
+          <OverviewMenu
+            currentViewMode={viewMode}
+            isLoadingSharedDecks={isLoadingSharedDecks}
+            username={userName}
+            onSelectMyDecks={showMyDecks}
+            onSelectSharedWithMe={loadSharedDecks}
+          />
         </motion.div>
       )}
         <AnimatePresence initial={false}>
@@ -197,9 +273,13 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <p className="eyebrow">{userName}</p>
-              <h1>Your decks</h1>
-              <p className="overview-summary">{deckLayouts.length} active skill paths</p>
-              {deckInstantiationError ? <p className="auth-error">{deckInstantiationError}</p> : null}
+              <h1>{viewMode === "shared" ? "Shared with me" : "Your decks"}</h1>
+              <p className="overview-summary">
+                {viewMode === "shared"
+                  ? `${activeDeckLayouts.length} shared skill paths`
+                  : `${activeDeckLayouts.length} active skill paths`}
+              </p>
+              {overviewError ? <p className="auth-error">{overviewError}</p> : null}
             </motion.header>
           ) : null}
         </AnimatePresence>
@@ -225,7 +305,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               transition={{ duration: 0.18, ease: "easeOut" }}
             >
               <DeckGrid
-                decks={deckLayouts}
+                decks={activeDeckLayouts}
                 instantiatingDeckTemplateId={instantiatingDeckTemplateId}
                 isInteractionLocked={isDeckInteractionLocked}
                 onSelectDeck={handleSelectDeck}

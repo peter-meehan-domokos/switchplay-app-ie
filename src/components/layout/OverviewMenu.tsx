@@ -6,9 +6,19 @@ import { useState, useTransition } from "react";
 
 type OverviewMenuProps = {
   username: string;
+  currentViewMode: "mine" | "shared";
+  isLoadingSharedDecks: boolean;
+  onSelectMyDecks: () => void;
+  onSelectSharedWithMe: () => void;
 };
 
-export default function OverviewMenu({ username }: OverviewMenuProps) {
+export default function OverviewMenu({
+  username,
+  currentViewMode,
+  isLoadingSharedDecks,
+  onSelectMyDecks,
+  onSelectSharedWithMe,
+}: OverviewMenuProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -42,13 +52,34 @@ export default function OverviewMenu({ username }: OverviewMenuProps) {
       </button>
       {isOpen ? (
         <div className="deck-menu-popover" role="menu">
-          <Link className="deck-menu-item" href="/creator/new" role="menuitem">
+          <button
+            className="deck-menu-item overview-menu-item-button"
+            disabled={isLoadingSharedDecks}
+            role="menuitem"
+            onClick={() => {
+              setIsOpen(false);
+              if (currentViewMode === "shared") {
+                onSelectMyDecks();
+                return;
+              }
+
+              onSelectSharedWithMe();
+            }}
+            type="button"
+          >
+            {currentViewMode === "shared" ? "My decks" : isLoadingSharedDecks ? "Loading shared decks..." : "Shared with me"}
+          </button>
+          <Link className="deck-menu-item" href="/creator/new" role="menuitem" onClick={() => setIsOpen(false)}>
             Create
           </Link>
           <button
             className="deck-menu-item overview-menu-item-button"
             disabled={isPending}
-            onClick={handleLogout}
+            role="menuitem"
+            onClick={() => {
+              setIsOpen(false);
+              void handleLogout();
+            }}
             type="button"
           >
             {isPending ? "Signing out..." : "Sign out"}
