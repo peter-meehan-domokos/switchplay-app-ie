@@ -3,6 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId, type WithId } from "mongodb";
 import type { UserDeckData } from "@/components/decks/types";
+import { normalizeUserDeckDataSharingFields } from "@/lib/deckApiTransforms";
 import { getCollection } from "@/lib/mongodb";
 
 const USERS_COLLECTION = "users";
@@ -20,9 +21,15 @@ export type UserDocument = {
 	username: string;
 	passwordHash: string;
 	decksData: UserDeckData[];
+	sharedDeckData?: SharedDeckDataReference[];
 	isAdmin?: boolean;
 	createdAt: Date;
 	updatedAt: Date;
+};
+
+export type SharedDeckDataReference = {
+	deckTemplateId: string;
+	deckUserId: string; // user whose DeckData/progress this is, not template creator
 };
 
 export type AuthUser = {
@@ -30,6 +37,7 @@ export type AuthUser = {
 	email: string;
 	username: string;
 	decksData: UserDeckData[];
+	sharedDeckData: SharedDeckDataReference[];
 	isAdmin: boolean;
 	createdAt: string;
 	updatedAt: string;
@@ -53,12 +61,26 @@ function toIsoString(value: Date | string) {
 	return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+function normalizeSharedDeckData(value: unknown): SharedDeckDataReference[] {
+	if (!Array.isArray(value)) {
+		return [];
+	}
+
+	return value.filter((entry): entry is SharedDeckDataReference => (
+		typeof entry === "object" &&
+		entry !== null &&
+		typeof (entry as SharedDeckDataReference).deckTemplateId === "string" &&
+		typeof (entry as SharedDeckDataReference).deckUserId === "string"
+	));
+}
+
 function toAuthUser(user: WithId<UserDocument>): AuthUser {
 	return {
 		id: user._id.toHexString(),
 		email: user.email,
 		username: user.username,
-		decksData: user.decksData,
+		decksData: user.decksData.map(normalizeUserDeckDataSharingFields),
+		sharedDeckData: normalizeSharedDeckData(user.sharedDeckData),
 		isAdmin: user.isAdmin === true,
 		createdAt: toIsoString(user.createdAt),
 		updatedAt: toIsoString(user.updatedAt),

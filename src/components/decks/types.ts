@@ -91,6 +91,7 @@ export type UserDeckData = {
   deckTemplateId: string;
   activeCardId: string;
   cards: UserCardData[];
+  sharedWithUserIds: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -114,6 +115,7 @@ export type ClientUserDeckData = {
   deckTemplateId: string;
   activeCardId: string;
   cards: ClientUserCardData[];
+  sharedWithUserIds: string[];
   createdAt: string;
   updatedAt: string;
 };

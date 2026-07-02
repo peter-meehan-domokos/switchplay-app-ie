@@ -89,6 +89,7 @@ export function reconcileDeckDataWithTemplate({
         chats: existingCard.chats,
       };
     }),
+    sharedWithUserIds: existingDeckData.sharedWithUserIds ?? [],
     createdAt: existingDeckData.createdAt,
     updatedAt: existingDeckData.updatedAt,
   };

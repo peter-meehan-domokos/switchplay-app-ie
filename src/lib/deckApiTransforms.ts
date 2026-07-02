@@ -36,13 +36,31 @@ function normalizeClientStepsToServerItems(clientSteps: ClientUserCardData["step
   }));
 }
 
+function normalizeSharedWithUserIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((userId): userId is string => typeof userId === "string");
+}
+
+export function normalizeUserDeckDataSharingFields<T extends { sharedWithUserIds?: unknown }>(
+  deckData: T,
+): T & { sharedWithUserIds: string[] } {
+  return {
+    ...deckData,
+    sharedWithUserIds: normalizeSharedWithUserIds(deckData.sharedWithUserIds),
+  };
+}
+
 export function serverDeckDataItemsToClientDeckDataSteps(serverDeckData: UserDeckData[]): ClientUserDeckData[] {
   return serverDeckData.map((deckData) => {
     const deckDataWithoutChannels = { ...deckData } as UserDeckData & { channels?: unknown };
     delete deckDataWithoutChannels.channels;
+    const normalizedDeckData = normalizeUserDeckDataSharingFields(deckDataWithoutChannels);
 
     return {
-      ...deckDataWithoutChannels,
+      ...normalizedDeckData,
       cards: deckData.cards.map((card) => ({
         ...card,
         steps: normalizeServerItemsToClientSteps(card.items),
@@ -55,9 +73,10 @@ export function clientDeckDataStepsToServerDeckDataItems(clientDeckData: ClientU
   return clientDeckData.map((deckData) => {
     const deckDataWithoutChannels = { ...deckData } as ClientUserDeckData & { channels?: unknown };
     delete deckDataWithoutChannels.channels;
+    const normalizedDeckData = normalizeUserDeckDataSharingFields(deckDataWithoutChannels);
 
     return {
-      ...deckDataWithoutChannels,
+      ...normalizedDeckData,
       cards: deckData.cards.map((card) => ({
         ...card,
         items: normalizeClientStepsToServerItems(card.steps),
