@@ -600,6 +600,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
           <FocusedCardView
             card={optimisticDeck.cards[activeCardIndex]}
             cardIndex={activeCardIndex}
+            canMutate={deck.canMutate}
             totalCards={optimisticDeck.cards.length}
             onClose={closeFocusMode}
             onPrevious={goToPreviousFocusedCard}

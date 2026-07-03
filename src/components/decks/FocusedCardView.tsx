@@ -30,6 +30,7 @@ import {
 type FocusedCardViewProps = {
   card: CardLayout;
   cardIndex: number;
+  canMutate: boolean;
   isDeckFlipped: boolean;
   totalCards: number;
   onClose: () => void;
@@ -197,6 +198,7 @@ function useFocusedCardScale() {
 export default function FocusedCardView({
   card,
   cardIndex,
+  canMutate,
   isDeckFlipped,
   totalCards,
   onClose,
@@ -674,6 +676,7 @@ export default function FocusedCardView({
                 card={card}
                 dateLabel={dateLabel}
                 variant="focused"
+                canMutate={canMutate}
                 onCommitSignalReading={onCommitSignalReading}
                 onEditReflection={onCommitReflection ? openReflectionEditor : undefined}
                 onSignalNavigateNext={settleFocusedCardToPast}

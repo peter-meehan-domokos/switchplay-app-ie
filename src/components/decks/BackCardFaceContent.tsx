@@ -452,6 +452,7 @@ type BackCardFaceContentProps = {
   card: CardLayout;
   dateLabel: string;
   variant?: "focused" | "deck" | "preview";
+  canMutate?: boolean;
   onCommitSignalReading?: (cardId: string, signalId: string, reading: number) => void;
   onEditReflection?: (cardId: string) => void;
   onSignalNavigateNext?: () => void;
@@ -462,6 +463,7 @@ export default function BackCardFaceContent({
   card,
   dateLabel,
   variant = "focused",
+  canMutate = true,
   onCommitSignalReading,
   onEditReflection,
   onSignalNavigateNext,
@@ -481,9 +483,10 @@ export default function BackCardFaceContent({
   const externalCommentClassName =
     !hasBackMediaTrace && card.externalComment ? "focused-card-back-external-comment--no-media" : undefined;
   const commitSignalReading = onCommitSignalReading ?? (() => {});
+  const canAdjustSignals = isFocusedVariant && canMutate;
   // Deck/preview signals are passive markings. Only focused signals
   // participate in signal gesture handling.
-  const signalGestureShieldHandlers = isFocusedVariant
+  const signalGestureShieldHandlers = canAdjustSignals
     ? {
         onPointerDown: blockSignalBlockGesturePropagation,
         onPointerMove: blockSignalBlockGesturePropagation,
@@ -503,7 +506,7 @@ export default function BackCardFaceContent({
           {...signalGestureShieldHandlers}
         >
           {card.signals.map((signal) =>
-            isFocusedVariant ? (
+            canAdjustSignals ? (
               <FocusedSignalRow
                 key={signal.id}
                 cardId={card.id}
