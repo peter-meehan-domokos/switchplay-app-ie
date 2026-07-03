@@ -10,6 +10,7 @@ import { normalizeCompletionStatus } from "@/lib/progress";
 
 type StepItemProps = {
   index: number;
+  linksEnabled?: boolean;
   onOpenStepView?: (stepIndex: number) => void;
   step: WeeklyCardStep;
   onCycleStatus?: (stepId: string) => void;
@@ -34,7 +35,7 @@ type StepItemProps = {
  * }
  */
 
-export default function StepItem({ index, onOpenStepView, step, onCycleStatus }: StepItemProps) {
+export default function StepItem({ index, linksEnabled, onOpenStepView, step, onCycleStatus }: StepItemProps) {
   const completionStatus = normalizeCompletionStatus(step.completionStatus);
   const isStepViewTrigger = typeof onOpenStepView === "function";
   const openStepView = () => {
@@ -64,7 +65,7 @@ export default function StepItem({ index, onOpenStepView, step, onCycleStatus }:
       <span className="step-play-icon" aria-hidden="true" />
       <span className="step-copy">
         <span className="step-description">
-          <StepDescriptionText content={step.descriptionContent} fallback={step.description} />
+          <StepDescriptionText content={step.descriptionContent} fallback={step.description} linksEnabled={linksEnabled} />
         </span>
         <StepProgressStrip
           completionStatus={completionStatus}
