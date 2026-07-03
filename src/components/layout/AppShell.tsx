@@ -137,7 +137,18 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   }
 
   async function loadSharedDecks() {
-    if (sharedDecks !== null || isLoadingSharedDecks) {
+    if (isLoadingSharedDecks) {
+      return;
+    }
+
+    if (sharedDecks !== null) {
+      setSelectedDeckId(null);
+      setPendingDeckOpenId(null);
+      setInstantiatingDeckTemplateId(null);
+      setDeckInstantiationError(null);
+      setViewMode("shared");
+      setSharedDeckError(null);
+      clearSelectedDeckAndPendingRefresh();
       return;
     }
 
@@ -273,7 +284,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <p className="eyebrow">{userName}</p>
-              <h1>{viewMode === "shared" ? "Shared with me" : "Your decks"}</h1>
+              <h1>{viewMode === "shared" ? "Shared with me" : "My decks"}</h1>
               <p className="overview-summary">
                 {viewMode === "shared"
                   ? `${activeDeckLayouts.length} shared skill paths`
