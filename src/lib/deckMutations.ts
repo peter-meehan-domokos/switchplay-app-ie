@@ -1,6 +1,26 @@
 import type { CompletionStatus } from "@/components/decks/types";
 import { clientStepCompletionToServerItemCompletion } from "@/lib/deckApiTransforms";
 
+type SharedDeckCommentMutationResult = {
+  chat: {
+    id: string;
+    comments: Array<{
+      id: string;
+      creatorId: string;
+      createdAt: string;
+      text: string;
+      isRetained: boolean;
+    }>;
+  };
+  comment: {
+    id: string;
+    creatorId: string;
+    createdAt: string;
+    text: string;
+    isRetained: boolean;
+  };
+};
+
 export async function persistActiveCardId(deckTemplateId: string, activeCardId: string) {
   const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
     method: "PATCH",
@@ -101,4 +121,40 @@ export async function persistSignalReading(
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(payload?.error ?? "Unable to update signal reading.");
   }
+}
+
+export async function createSharedCardComment(
+  deckTemplateId: string,
+  cardId: string,
+  deckUserId: string,
+  text: string,
+): Promise<SharedDeckCommentMutationResult> {
+  const response = await fetch(
+    `/api/decks-data/shared/${encodeURIComponent(deckTemplateId)}/cards/${encodeURIComponent(cardId)}/comments`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        deckUserId,
+        text,
+      }),
+    },
+  );
+
+  const payload = (await response.json().catch(() => null)) as
+    | (SharedDeckCommentMutationResult & { error?: string })
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Unable to add shared deck comment.");
+  }
+
+  if (!payload || !("chat" in payload) || !("comment" in payload)) {
+    throw new Error("Unable to add shared deck comment.");
+  }
+
+  return payload;
 }

@@ -94,7 +94,11 @@ function getExternalCommentAuthor(comment: RawCardComment, users: LayoutUser[]) 
 function normalizeExternalComment(card: WeeklyCard, options: CardLayoutOptions): CardLayoutExternalComment | null {
   const retainedExternalComment = card.chats
     .flatMap((chat) => chat.comments)
-    .find((comment) => comment.creatorId !== options.currentUserId && comment.isRetained === true);
+    .filter((comment) => comment.isRetained === true)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0];
 
   if (!retainedExternalComment) {
     return null;

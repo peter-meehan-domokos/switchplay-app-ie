@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
@@ -21,6 +21,7 @@ import {
 } from "@/constants/cardStack";
 import {
   persistActiveCardId,
+  createSharedCardComment,
   persistCardReflection,
   persistCardTargetDate,
   persistSignalReading,
@@ -40,6 +41,7 @@ type DeckDetailProps = {
 
 const stepProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
 const ACTIVE_SETTLE_PREVIEW_MAX_Y = 8;
+const SHARED_COMMENT_MAX_CHARS = 20;
 
 type DeckSceneLayout = {
   frameHeight: number | null;
@@ -192,6 +194,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
+  const [isSharedCommentEditorOpen, setIsSharedCommentEditorOpen] = useState(false);
+  const [sharedCommentDraft, setSharedCommentDraft] = useState("");
+  const [sharedCommentError, setSharedCommentError] = useState<string | null>(null);
+  const [isSavingSharedComment, setIsSavingSharedComment] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
   const deckDetailRef = useRef<HTMLElement | null>(null);
   const deckSceneFrameRef = useRef<HTMLDivElement | null>(null);
@@ -203,6 +209,8 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   // while deck identity and persistence fields continue to come from `deck`.
   const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
   const finalCardIndex = optimisticDeck.cards.length - 1;
+  const activeCard = cards[activeCardIndex] ?? null;
+  const canAddSharedComment = deck.hasUserDeckData && !deck.canMutate && !deck.isOwnedByCurrentUser;
 
   useEffect(() => {
     cardsRef.current = cards;
@@ -276,6 +284,74 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
   const closeFocusMode = () => {
     setIsFocusModeOpen(false);
+  };
+
+  const openSharedCommentEditor = () => {
+    if (!canAddSharedComment || !activeCard) {
+      return;
+    }
+
+    setSharedCommentDraft("");
+    setSharedCommentError(null);
+    setIsSharedCommentEditorOpen(true);
+  };
+
+  const closeSharedCommentEditor = () => {
+    if (isSavingSharedComment) {
+      return;
+    }
+
+    setIsSharedCommentEditorOpen(false);
+    setSharedCommentError(null);
+  };
+
+  const stopSharedCommentEditorGesturePropagation = (event: PointerEvent<HTMLFormElement>) => {
+    event.stopPropagation();
+  };
+
+  const submitSharedComment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!canAddSharedComment || !activeCard) {
+      setSharedCommentError("Unable to save comment for this deck.");
+      return;
+    }
+
+    const nextCommentText = sharedCommentDraft.trim();
+
+    if (!nextCommentText) {
+      setSharedCommentError("Comment is required.");
+      return;
+    }
+
+    if (nextCommentText.length > SHARED_COMMENT_MAX_CHARS) {
+      setSharedCommentError(`Comment must be ${SHARED_COMMENT_MAX_CHARS} characters or fewer.`);
+      return;
+    }
+
+    setIsSavingSharedComment(true);
+    setSharedCommentError(null);
+
+    try {
+      const payload = await createSharedCardComment(deck.deckTemplateId, activeCard.id, deck.ownerUserId, nextCommentText);
+
+      setCards((currentCards) =>
+        currentCards.map((card) =>
+          card.id === activeCard.id
+            ? {
+                ...card,
+                chats: [...card.chats, payload.chat],
+              }
+            : card,
+        ),
+      );
+      setSharedCommentDraft("");
+      setIsSharedCommentEditorOpen(false);
+    } catch (error) {
+      setSharedCommentError(error instanceof Error ? error.message : "Unable to save comment.");
+    } finally {
+      setIsSavingSharedComment(false);
+    }
   };
 
   const moveFocusedCard = (nextCardIndex: number) => {
@@ -532,10 +608,68 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onAdjustTargetDate={adjustFocusedCardTargetDate}
             onCommitSignalReading={commitFocusedSignalReading}
             onCommitReflection={deck.canMutate && deck.hasUserDeckData ? commitFocusedReflection : undefined}
+            onRequestAddComment={canAddSharedComment ? openSharedCommentEditor : undefined}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}
           />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSharedCommentEditorOpen ? (
+          <motion.div
+            className="creator-modal-backdrop reflection-editor-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14 }}
+            role="presentation"
+          >
+            <form
+              className="creator-modal creator-modal--reflection-editor reflection-editor-modal"
+              onPointerCancel={stopSharedCommentEditorGesturePropagation}
+              onPointerDown={stopSharedCommentEditorGesturePropagation}
+              onPointerMove={stopSharedCommentEditorGesturePropagation}
+              onPointerUp={stopSharedCommentEditorGesturePropagation}
+              onSubmit={submitSharedComment}
+            >
+              <header className="creator-modal-header">
+                <p>Add comment</p>
+                <button className="creator-modal-close" disabled={isSavingSharedComment} onClick={closeSharedCommentEditor} type="button">
+                  Close
+                </button>
+              </header>
+              <p className="creator-modal-note">Maximum {SHARED_COMMENT_MAX_CHARS} characters.</p>
+              <textarea
+                autoFocus
+                className="creator-modal-field creator-modal-field--reflection"
+                maxLength={SHARED_COMMENT_MAX_CHARS}
+                onChange={(changeEvent) => {
+                  const nextValue = changeEvent.target.value;
+
+                  if (nextValue.length > SHARED_COMMENT_MAX_CHARS) {
+                    return;
+                  }
+
+                  setSharedCommentDraft(nextValue);
+                }}
+                value={sharedCommentDraft}
+              />
+              <p className="creator-modal-counter">
+                {sharedCommentDraft.length}/{SHARED_COMMENT_MAX_CHARS} characters
+              </p>
+              {sharedCommentError ? <p className="creator-modal-error">{sharedCommentError}</p> : null}
+              <div className="creator-modal-actions">
+                <button className="creator-modal-secondary" disabled={isSavingSharedComment} onClick={closeSharedCommentEditor} type="button">
+                  Cancel
+                </button>
+                <button className="creator-modal-primary" disabled={isSavingSharedComment} type="submit">
+                  {isSavingSharedComment ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
         ) : null}
       </AnimatePresence>
     </motion.section>

@@ -34,6 +34,7 @@ const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [layoutUsers, setLayoutUsers] = useState<LayoutUser[]>(users);
   const [viewMode, setViewMode] = useState<"mine" | "shared">("mine");
   const [sharedDecks, setSharedDecks] = useState<Deck[] | null>(null);
   const [isLoadingSharedDecks, setIsLoadingSharedDecks] = useState(false);
@@ -45,10 +46,13 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
   const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasHandledOpenDeckParamRef = useRef(false);
-  const myDeckLayouts = useMemo(() => decks.map((deck) => buildDeckLayout(deck, { currentUserId, users })), [currentUserId, decks, users]);
+  const myDeckLayouts = useMemo(
+    () => decks.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers })),
+    [currentUserId, decks, layoutUsers],
+  );
   const sharedDeckLayouts = useMemo(
-    () => sharedDecks?.map((deck) => buildDeckLayout(deck, { currentUserId, users })) ?? null,
-    [currentUserId, sharedDecks, users],
+    () => sharedDecks?.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers })) ?? null,
+    [currentUserId, layoutUsers, sharedDecks],
   );
   const activeDeckLayouts = viewMode === "shared" ? sharedDeckLayouts ?? [] : myDeckLayouts;
   const selectedDeck = activeDeckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
@@ -112,6 +116,34 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     hasHandledOpenDeckParamRef.current = true;
     void handleSelectDeck(requestedDeck.id);
   }, [isDeckInteractionLocked, myDeckLayouts, searchParams]);
+
+  useEffect(() => {
+    let isCanceled = false;
+
+    async function loadLayoutUsers() {
+      try {
+        const response = await fetch("/api/users", { method: "GET" });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as { users?: LayoutUser[] };
+
+        if (!isCanceled && Array.isArray(payload.users)) {
+          setLayoutUsers(payload.users);
+        }
+      } catch {
+        // Keep existing users list when lookup refresh fails.
+      }
+    }
+
+    void loadLayoutUsers();
+
+    return () => {
+      isCanceled = true;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {

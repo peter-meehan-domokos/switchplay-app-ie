@@ -39,6 +39,7 @@ type FocusedCardViewProps = {
   onAdjustTargetDate: (direction: -1 | 1) => void;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
+  onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
 };
@@ -205,6 +206,7 @@ export default function FocusedCardView({
   onAdjustTargetDate,
   onCommitSignalReading,
   onCommitReflection,
+  onRequestAddComment,
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
@@ -697,6 +699,13 @@ export default function FocusedCardView({
           </motion.div>
         </motion.article>
       </AnimatePresence>
+      {isFlipped && onRequestAddComment ? (
+        <div className="focused-shared-comment-actions">
+          <button className="deck-shared-comment-button" onClick={onRequestAddComment} type="button">
+            Add comment
+          </button>
+        </div>
+      ) : null}
       {isVideoHostVisible && activeCloudflareVideoMediaItem ? (
         <div className="switchplay-video-host-layer" aria-hidden="true">
           {isVideoExpanded ? <div className="switchplay-video-expanded-backdrop" /> : null}
