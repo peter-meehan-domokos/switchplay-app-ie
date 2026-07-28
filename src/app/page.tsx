@@ -2,6 +2,7 @@ import Image from "next/image";
 import PublicLayout from "@/components/public-site/PublicLayout";
 import PublicHeader from "@/components/public-site/PublicHeader";
 import CreatorSection from "@/components/public-site/CreatorSection";
+import HowItWorksSection from "@/components/public-site/HowItWorksSection";
 import buttonStyles from "@/components/public-site/PublicButton.module.css";
 import styles from "./HomePage.module.css";
 
@@ -40,6 +41,7 @@ export default function Home() {
         </figure>
       </section>
       <CreatorSection />
+      <HowItWorksSection />
     </PublicLayout>
   );
 }
