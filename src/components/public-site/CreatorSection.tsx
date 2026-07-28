@@ -15,6 +15,10 @@ const supportPoints = [
     title: "Share it in your own voice",
     body: "You remain the creator. Switchplay provides the structure and support without making your story feel generic.",
   },
+  {
+    title: "Get paid to create",
+    body: "We pay creators for selected paths and offer further paid opportunities, including commissioned paths for companies and organisations.",
+  },
 ];
 
 export default function CreatorSection() {
@@ -42,7 +46,7 @@ export default function CreatorSection() {
       <section className={styles.support} aria-labelledby="creator-support-title">
         <header className={styles.supportHeader}>
           <h2 className={styles.supportTitle} id="creator-support-title">
-            You won’t have to work it all out alone.
+            We’ll help you turn your experience into a path.
           </h2>
           <p>
             We guide you through the process, ask the right questions and help you shape your experience into something

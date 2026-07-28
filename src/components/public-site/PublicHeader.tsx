@@ -8,9 +8,12 @@ export default function PublicHeader() {
         Switchplay
       </Link>
       <nav className={styles.nav} aria-label="Public navigation">
-        <Link className={styles.navLink} href="/contact">
+        <a className={styles.navLink} href="#early-access">
+          Join
+        </a>
+        <a className={styles.navLink} href="/contact">
           Contact
-        </Link>
+        </a>
         <Link className={styles.navLink} href="/login">
           Log in
         </Link>

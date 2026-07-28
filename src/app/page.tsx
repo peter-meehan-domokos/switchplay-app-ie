@@ -2,7 +2,7 @@ import Image from "next/image";
 import PublicLayout from "@/components/public-site/PublicLayout";
 import PublicHeader from "@/components/public-site/PublicHeader";
 import CreatorSection from "@/components/public-site/CreatorSection";
-import HowItWorksSection from "@/components/public-site/HowItWorksSection";
+import HowItWorksSection, { FollowerInterestSection } from "@/components/public-site/HowItWorksSection";
 import buttonStyles from "@/components/public-site/PublicButton.module.css";
 import styles from "./HomePage.module.css";
 
@@ -16,16 +16,15 @@ export default function Home() {
             Learn from people like you.
           </h1>
           <p className={styles.supportingText}>
-            Discover real journeys shared by ordinary people who have already achieved something meaningful. Follow
-            their path, learn what worked, and create your own when you&apos;re ready.
+            Follow real paths from people who have been where you are and have achieved what you want to achieve.
           </p>
           <div className={styles.actions}>
-            <button className={`${buttonStyles.button} ${buttonStyles.primary}`} type="button">
-              Be one of our first creators
-            </button>
-            <button className={`${buttonStyles.button} ${buttonStyles.secondary}`} type="button">
-              Learn more
-            </button>
+            <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
+              Join early access
+            </a>
+            <a className={`${buttonStyles.button} ${buttonStyles.secondary}`} href="#creator-interest">
+              Become a creator
+            </a>
           </div>
         </div>
         <figure className={styles.artworkPanel}>
@@ -40,8 +39,9 @@ export default function Home() {
           />
         </figure>
       </section>
-      <CreatorSection />
       <HowItWorksSection />
+      <CreatorSection />
+      <FollowerInterestSection />
     </PublicLayout>
   );
 }

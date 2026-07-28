@@ -3,6 +3,7 @@
   gap: clamp(34px, 9vw, 72px);
   padding-block: clamp(54px, 13vw, 112px) clamp(64px, 14vw, 120px);
   border-top: 1px solid rgba(255, 250, 240, 0.12);
+  scroll-margin-block-start: 24px;
 }
 
 .header {
@@ -76,8 +77,12 @@
 .followerSection {
   display: grid;
   gap: 24px;
+  min-height: clamp(280px, 45vw, 420px);
   border-left: 3px solid var(--sp-site-accent-blue);
+  border-top: 1px solid rgba(255, 250, 240, 0.12);
+  padding-block: clamp(54px, 13vw, 112px) clamp(84px, 16vw, 152px);
   padding-left: clamp(20px, 5vw, 34px);
+  scroll-margin-block-start: 24px;
 }
 
 .followerCopy {

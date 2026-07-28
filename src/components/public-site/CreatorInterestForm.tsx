@@ -147,7 +147,7 @@ export default function CreatorInterestForm() {
 
   if (status === "success") {
     return (
-      <section className={styles.formSection} aria-labelledby="creator-interest-title">
+      <section className={styles.formSection} id="creator-interest" aria-labelledby="creator-interest-title">
         <div className={styles.successMessage} ref={successRef} tabIndex={-1} role="status" aria-live="polite">
           <h2 id="creator-interest-title">Thanks — we’ve received your interest.</h2>
           <p>We’ll review what you shared and get in touch if it looks like a good fit for the early creator group.</p>
@@ -164,7 +164,7 @@ export default function CreatorInterestForm() {
   }
 
   return (
-    <section className={styles.formSection} aria-labelledby="creator-interest-title">
+    <section className={styles.formSection} id="creator-interest" aria-labelledby="creator-interest-title">
       <header className={styles.formHeader}>
         <h2 id="creator-interest-title">Interested in creating a path?</h2>
         <p>
