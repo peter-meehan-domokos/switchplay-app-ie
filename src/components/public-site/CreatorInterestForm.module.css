@@ -1,0 +1,158 @@
+.formSection {
+  display: grid;
+  gap: clamp(24px, 7vw, 42px);
+  max-width: 58rem;
+}
+
+.formHeader {
+  display: grid;
+  gap: 14px;
+  max-width: 42rem;
+}
+
+.formHeader h2,
+.successMessage h2 {
+  color: var(--sp-site-text);
+  font-size: clamp(2rem, 9vw, 4rem);
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.formHeader p,
+.successMessage p,
+.hint,
+.statusText {
+  color: var(--sp-site-text-muted);
+  font-size: clamp(1rem, 3.9vw, 1.14rem);
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 22px;
+}
+
+.fieldGrid {
+  display: grid;
+  gap: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field label {
+  color: var(--sp-site-text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: calc(var(--sp-site-card-radius) - 6px);
+  background: rgba(255, 250, 240, 0.06);
+  color: var(--sp-site-text);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+  outline: none;
+  padding: 14px 16px;
+}
+
+.field input {
+  min-height: 50px;
+}
+
+.field textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(198, 204, 214, 0.62);
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--sp-site-accent-blue);
+  box-shadow: 0 0 0 3px rgba(168, 214, 228, 0.18);
+}
+
+.field input[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+  border-color: #f0a6a6;
+}
+
+.fieldError,
+.formError {
+  color: #ffd2d2;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.formError {
+  border-left: 3px solid #f0a6a6;
+  margin: 0;
+  padding-left: 14px;
+}
+
+.submitRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  padding-top: 4px;
+}
+
+.submitRow button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.statusText {
+  min-height: 1.6em;
+}
+
+.honeypot {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.successMessage {
+  display: grid;
+  gap: 18px;
+  max-width: 42rem;
+  border: 1px solid rgba(168, 214, 228, 0.2);
+  border-radius: var(--sp-site-card-radius);
+  background: rgba(255, 250, 240, 0.045);
+  padding: clamp(24px, 7vw, 38px);
+}
+
+.successMessage:focus {
+  outline: none;
+}
+
+.successMessage:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 4px;
+}
+
+.successMessage button {
+  justify-self: start;
+}
+
+@media (min-width: 720px) {
+  .fieldGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

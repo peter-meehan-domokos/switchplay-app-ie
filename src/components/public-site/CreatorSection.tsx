@@ -1,4 +1,5 @@
 import buttonStyles from "./PublicButton.module.css";
+import CreatorInterestForm from "./CreatorInterestForm";
 import styles from "./CreatorSection.module.css";
 
 const supportPoints = [
@@ -62,6 +63,8 @@ export default function CreatorSection() {
         <p>“This is making me think things I didn’t know were possible.”</p>
         <cite>Joe, early Switchplay creator</cite>
       </blockquote>
+
+      <CreatorInterestForm />
     </section>
   );
 }
