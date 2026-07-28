@@ -169,6 +169,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     const users = await getCollection<UserDocument>(USERS_COLLECTION);
     const userObjectId = new ObjectId(user.id);
     const now = new Date();
+    const sharedWithUserIds = existingDeckData.sharedWithUserIds ?? [];
 
     if (bodyRecord.type === "update-card-reflection") {
       const cardIdRaw = bodyRecord.cardId;
@@ -208,6 +209,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         {
           $set: {
             "decksData.$[deck].cards.$[card].reflection": reflection,
+            "decksData.$[deck].sharedWithUserIds": sharedWithUserIds,
             "decksData.$[deck].updatedAt": now.toISOString(),
             updatedAt: now,
           },
@@ -260,6 +262,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         {
           $set: {
             "decksData.$.activeCardId": activeCardId,
+            "decksData.$.sharedWithUserIds": sharedWithUserIds,
             "decksData.$.updatedAt": now.toISOString(),
             updatedAt: now,
           },
@@ -338,6 +341,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
           {
             $set: {
               "decksData.$[deck].cards.$[card].signalReadings.$[signal].reading": reading,
+              "decksData.$[deck].sharedWithUserIds": sharedWithUserIds,
               "decksData.$[deck].updatedAt": now.toISOString(),
               updatedAt: now,
             },
@@ -399,6 +403,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
             },
           },
           $set: {
+            "decksData.$[deck].sharedWithUserIds": sharedWithUserIds,
             "decksData.$[deck].updatedAt": now.toISOString(),
             updatedAt: now,
           },
@@ -463,6 +468,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         {
           $set: {
             "decksData.$[deck].cards.$[card].targetDate": targetDate,
+            "decksData.$[deck].sharedWithUserIds": sharedWithUserIds,
             "decksData.$[deck].updatedAt": now.toISOString(),
             updatedAt: now,
           },
@@ -532,6 +538,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         {
           $set: {
             "decksData.$[deck].cards.$[card].items.$[item].completionStatus": completionStatus,
+            "decksData.$[deck].sharedWithUserIds": sharedWithUserIds,
             "decksData.$[deck].updatedAt": now.toISOString(),
             updatedAt: now,
           },

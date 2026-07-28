@@ -30,6 +30,7 @@ import {
 type FocusedCardViewProps = {
   card: CardLayout;
   cardIndex: number;
+  canMutate: boolean;
   isDeckFlipped: boolean;
   totalCards: number;
   onClose: () => void;
@@ -39,6 +40,7 @@ type FocusedCardViewProps = {
   onAdjustTargetDate: (direction: -1 | 1) => void;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
+  onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
 };
@@ -196,6 +198,7 @@ function useFocusedCardScale() {
 export default function FocusedCardView({
   card,
   cardIndex,
+  canMutate,
   isDeckFlipped,
   totalCards,
   onClose,
@@ -205,6 +208,7 @@ export default function FocusedCardView({
   onAdjustTargetDate,
   onCommitSignalReading,
   onCommitReflection,
+  onRequestAddComment,
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
@@ -672,6 +676,7 @@ export default function FocusedCardView({
                 card={card}
                 dateLabel={dateLabel}
                 variant="focused"
+                canMutate={canMutate}
                 onCommitSignalReading={onCommitSignalReading}
                 onEditReflection={onCommitReflection ? openReflectionEditor : undefined}
                 onSignalNavigateNext={settleFocusedCardToPast}
@@ -697,6 +702,13 @@ export default function FocusedCardView({
           </motion.div>
         </motion.article>
       </AnimatePresence>
+      {isFlipped && onRequestAddComment ? (
+        <div className="focused-shared-comment-actions">
+          <button className="deck-shared-comment-button" onClick={onRequestAddComment} type="button">
+            Add comment
+          </button>
+        </div>
+      ) : null}
       {isVideoHostVisible && activeCloudflareVideoMediaItem ? (
         <div className="switchplay-video-host-layer" aria-hidden="true">
           {isVideoExpanded ? <div className="switchplay-video-expanded-backdrop" /> : null}

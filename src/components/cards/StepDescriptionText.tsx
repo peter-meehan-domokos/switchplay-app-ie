@@ -4,13 +4,14 @@ import type { StepDescriptionSpan } from "@/components/decks/types";
 type StepDescriptionTextProps = {
   content?: StepDescriptionSpan[];
   fallback: string | null;
+  linksEnabled?: boolean;
 };
 
 function stopLinkPropagation(event: MouseEvent<HTMLAnchorElement> | PointerEvent<HTMLAnchorElement>) {
   event.stopPropagation();
 }
 
-export default function StepDescriptionText({ content, fallback }: StepDescriptionTextProps) {
+export default function StepDescriptionText({ content, fallback, linksEnabled = true }: StepDescriptionTextProps) {
   if (!content || content.length === 0) {
     return fallback;
   }
@@ -22,7 +23,7 @@ export default function StepDescriptionText({ content, fallback }: StepDescripti
           return span.text;
         }
 
-        return (
+        return linksEnabled ? (
           <a
             className="step-description-link"
             href={span.url}
@@ -34,6 +35,10 @@ export default function StepDescriptionText({ content, fallback }: StepDescripti
           >
             {span.text}
           </a>
+        ) : (
+          <span className="step-description-link" key={`${span.url}:${index}`}>
+            {span.text}
+          </span>
         );
       })}
     </>

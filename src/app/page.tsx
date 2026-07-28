@@ -11,7 +11,6 @@ import {
 } from "@/lib/deckTemplateDocuments";
 import { getVisibleDeckTemplateDocumentsForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
-import { mockSocialUsers } from "@/mocks/mockSocialUsers";
 
 const USERS_COLLECTION = "users";
 
@@ -106,23 +105,13 @@ export default async function Home() {
     ? adminDeckData.decks
     : await getVisibleLibraryDecks(user);
 
-  // Authenticated user identity is handled separately from social users.
-  // Social users will come from a dedicated lookup layer, but mock social data
-  // can be enabled for design and UI testing.
+  // Full user lookup now hydrates on the client via /api/users.
   const users = adminDeckData
     ? adminDeckData.users.map((deckOwner) => ({
         id: deckOwner._id.toHexString(),
         name: deckOwner.username,
       }))
-    : user.username !== 'Michael' //Michael is the only user with mock social data in this mock setup
-    ? [
-        {
-          id: user.id,
-          name: user.username,
-        },
-        ...mockSocialUsers,
-      ]
-    : [];
+    : [{ id: user.id, name: user.username }];
 
   return (
     <>

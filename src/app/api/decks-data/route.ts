@@ -29,6 +29,7 @@ function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckD
       mediaItems: [],
       chats: [],
     })),
+    sharedWithUserIds: [],
     createdAt: timestamp,
     updatedAt: timestamp,
   };

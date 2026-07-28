@@ -5,6 +5,7 @@ import type { WeeklyCard } from "@/components/decks/types";
 
 type StepListProps = {
   steps: WeeklyCard["steps"];
+  linksEnabled?: boolean;
   onCycleStepStatus?: (stepId: string) => void;
   onOpenStepView?: (stepIndex: number) => void;
   onStepNavigateNext?: () => void;
@@ -80,6 +81,7 @@ function getStepItemIndexFromEventTarget(eventTarget: EventTarget | null) {
 
 export default function StepList({
   steps,
+  linksEnabled,
   onCycleStepStatus,
   onOpenStepView,
   onStepNavigateNext,
@@ -273,7 +275,14 @@ export default function StepList({
       {...gestureShieldHandlers}
     >
       {steps.map((step, index) => (
-        <StepItem key={step.stepId} index={index} onOpenStepView={onOpenStepView} step={step} onCycleStatus={onCycleStepStatus} />
+        <StepItem
+          key={step.stepId}
+          index={index}
+          linksEnabled={linksEnabled}
+          onOpenStepView={onOpenStepView}
+          step={step}
+          onCycleStatus={onCycleStepStatus}
+        />
       ))}
     </ol>
   );

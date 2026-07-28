@@ -197,12 +197,39 @@ input {
   opacity: 0.45;
 }
 
+.overview-menu {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  z-index: 20;
+}
+
+.overview-menu .deck-menu-popover {
+  min-width: 142px;
+}
+
+.overview-menu-item-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
 @media (max-width: 640px) {
   .auth-card {
     padding: 24px 20px;
   }
 
   .session-actions {
+    top: max(10px, calc(env(safe-area-inset-top) + 10px));
+    right: 10px;
+  }
+
+  .overview-menu {
     top: max(10px, calc(env(safe-area-inset-top) + 10px));
     right: 10px;
   }
@@ -1682,6 +1709,31 @@ input {
   position: relative;
   transform: scale(1);
   transform-origin: top center;
+}
+
+.focused-shared-comment-actions {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, calc(env(safe-area-inset-bottom) + 12px));
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+.deck-shared-comment-button {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.72);
+  color: rgba(255, 250, 240, 0.84);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0 14px;
+}
+
+.deck-shared-comment-button:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .card-progression-scene {

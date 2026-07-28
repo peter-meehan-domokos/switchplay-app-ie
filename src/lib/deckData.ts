@@ -58,6 +58,7 @@ export function mergeDeckTemplatesWithUserData(
       deckTemplateId: template.deckTemplateId,
       activeCardId: getFirstCardId(template),
       cards: template.cards.map((templateCard) => createEmptyClientUserCardDataFromTemplate(templateCard)),
+      sharedWithUserIds: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

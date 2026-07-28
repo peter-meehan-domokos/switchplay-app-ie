@@ -50,6 +50,7 @@ async function seedUser() {
     passwordHash,
     isAdmin,
     decksData: [],
+    sharedDeckData: [],
     createdAt: now,
     updatedAt: now,
   });

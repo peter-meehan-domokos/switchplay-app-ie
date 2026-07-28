@@ -37,6 +37,7 @@ export default function ActiveCardFront({
       />
       <StepList
         steps={card.steps}
+        linksEnabled={variant === "focused"}
         onCycleStepStatus={variant === "focused" ? onCycleStepStatus : undefined}
         onOpenStepView={variant === "focused" ? onOpenStepView : undefined}
         onStepNavigateNext={variant === "focused" ? onStepNavigateNext : undefined}
