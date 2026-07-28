@@ -1216,7 +1216,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const activeStreamName = activeStreamRow === null ? null : board.streamNamesByRow[activeStreamRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
-  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
+  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
   const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0;

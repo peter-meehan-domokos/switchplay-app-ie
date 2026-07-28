@@ -3,7 +3,11 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 
-export default function AuthScreen() {
+type AuthScreenProps = {
+  redirectTo?: string;
+};
+
+export default function AuthScreen({ redirectTo }: AuthScreenProps) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -29,6 +33,11 @@ export default function AuthScreen() {
     }
 
     startTransition(() => {
+      if (redirectTo) {
+        router.replace(redirectTo);
+        return;
+      }
+
       router.refresh();
     });
   }
