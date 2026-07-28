@@ -1,0 +1,30 @@
+.shell {
+  --sp-site-background: #090b10;
+  --sp-site-text: #fffaf0;
+  --sp-site-text-muted: #c6ccd6;
+  --sp-site-accent-blue: rgba(168, 214, 228, 0.9);
+  --sp-site-font-family: Arial, Helvetica, sans-serif;
+  --sp-site-content-max-width: 1120px;
+  --sp-site-spacing-comfortable: clamp(24px, 7vw, 72px);
+  --sp-site-card-radius: 18px;
+
+  min-height: 100svh;
+  background: var(--sp-site-background);
+  color: var(--sp-site-text);
+  font-family: var(--sp-site-font-family);
+}
+
+.container {
+  width: min(100% - clamp(32px, 8vw, 96px), var(--sp-site-content-max-width));
+  margin: 0 auto;
+}
+
+.main {
+  min-height: 100svh;
+  padding-block: var(--sp-site-spacing-comfortable);
+}
+
+.footer {
+  min-height: clamp(48px, 12vw, 84px);
+  padding-block: 24px;
+}

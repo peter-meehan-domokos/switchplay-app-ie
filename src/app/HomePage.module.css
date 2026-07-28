@@ -1,0 +1,19 @@
+.intro {
+  display: grid;
+  gap: 10px;
+  min-height: calc(100svh - var(--sp-site-spacing-comfortable) - var(--sp-site-spacing-comfortable));
+  align-content: center;
+}
+
+.title {
+  color: var(--sp-site-text);
+  font-size: clamp(2.25rem, 14vw, 5rem);
+  font-weight: 800;
+  line-height: 0.95;
+}
+
+.placeholder {
+  color: var(--sp-site-text-muted);
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  line-height: 1.5;
+}
