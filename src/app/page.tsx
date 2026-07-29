@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import PublicLayout from "@/components/public-site/PublicLayout";
 import PublicHeader from "@/components/public-site/PublicHeader";
@@ -5,6 +6,28 @@ import CreatorSection from "@/components/public-site/CreatorSection";
 import HowItWorksSection, { FollowerInterestSection } from "@/components/public-site/HowItWorksSection";
 import buttonStyles from "@/components/public-site/PublicButton.module.css";
 import styles from "./HomePage.module.css";
+
+const homeTitle = "Switchplay — Learn from people like you";
+const homeDescription =
+  "Follow real paths created by people who have been where you are and have achieved what you want to achieve.";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: homeTitle,
+  },
+  description: homeDescription,
+  openGraph: {
+    title: homeTitle,
+    description: homeDescription,
+    siteName: "Switchplay",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: homeTitle,
+    description: homeDescription,
+  },
+};
 
 export default function Home() {
   return (

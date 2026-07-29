@@ -37,9 +37,9 @@ export default function CreatorSection() {
             meaningful, the way you did it could help someone else.
           </p>
           <p>Switchplay helps you turn that experience into a clear path people can follow.</p>
-          <button className={`${buttonStyles.button} ${buttonStyles.primary}`} type="button">
+          <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#creator-interest">
             Create a path with us
-          </button>
+          </a>
         </div>
       </div>
 

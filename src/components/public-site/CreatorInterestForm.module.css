@@ -2,6 +2,7 @@
   display: grid;
   gap: clamp(24px, 7vw, 42px);
   max-width: 58rem;
+  scroll-margin-top: clamp(24px, 7vw, 72px);
 }
 
 .formHeader {

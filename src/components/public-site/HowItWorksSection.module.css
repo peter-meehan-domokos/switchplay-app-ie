@@ -82,6 +82,7 @@
   padding-block: clamp(54px, 13vw, 112px) clamp(84px, 16vw, 152px);
   padding-left: clamp(20px, 5vw, 34px);
   scroll-margin-block-start: 24px;
+  scroll-margin-top: clamp(24px, 7vw, 72px);
 }
 
 .followerCopy {

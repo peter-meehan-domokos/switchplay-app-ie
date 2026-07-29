@@ -53,7 +53,7 @@
   max-width: 40rem;
 }
 
-.recruitmentCopy button {
+.recruitmentCopy a {
   justify-self: start;
   margin-top: 8px;
 }
