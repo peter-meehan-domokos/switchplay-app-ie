@@ -77,7 +77,6 @@
 .followerSection {
   display: grid;
   gap: 24px;
-  min-height: clamp(280px, 45vw, 420px);
   border-left: 3px solid var(--sp-site-accent-blue);
   border-top: 1px solid rgba(255, 250, 240, 0.12);
   padding-block: clamp(54px, 13vw, 112px) clamp(84px, 16vw, 152px);
@@ -90,11 +89,14 @@
 }
 
 .followerCopy h2 {
-  max-width: 11ch;
+  max-width: 13ch;
 }
 
-.followerSection button {
-  justify-self: start;
+.followerFormWrap {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  max-width: 42rem;
 }
 
 @media (min-width: 760px) {
@@ -103,8 +105,8 @@
   }
 
   .followerSection {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
+    grid-template-columns: minmax(16rem, 0.75fr) minmax(0, 1.25fr);
+    align-items: start;
     gap: clamp(34px, 7vw, 72px);
   }
 }

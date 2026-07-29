@@ -1,4 +1,4 @@
-import buttonStyles from "./PublicButton.module.css";
+import EarlyAccessForm from "./EarlyAccessForm";
 import styles from "./HowItWorksSection.module.css";
 
 const steps = [
@@ -51,15 +51,5 @@ export default function HowItWorksSection() {
 }
 
 export function FollowerInterestSection() {
-  return (
-    <section className={styles.followerSection} id="early-access" aria-labelledby="follower-interest-title">
-      <div className={styles.followerCopy}>
-        <h2 id="follower-interest-title">Interested in following paths?</h2>
-        <p>Join our early access list and we&apos;ll let you know when Switchplay is ready to explore.</p>
-      </div>
-      <button className={`${buttonStyles.button} ${buttonStyles.primary}`} type="button">
-        Join early access
-      </button>
-    </section>
-  );
+  return <EarlyAccessForm />;
 }

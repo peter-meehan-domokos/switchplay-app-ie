@@ -11,7 +11,8 @@
 }
 
 .formHeader h2,
-.successMessage h2 {
+.successMessage h2,
+.successMessage h3 {
   color: var(--sp-site-text);
   font-size: clamp(2rem, 9vw, 4rem);
   font-weight: 850;
