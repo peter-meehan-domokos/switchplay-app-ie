@@ -10,7 +10,8 @@ const CREATOR_INTEREST_COLLECTION = "creatorInterestSubmissions";
 
 type CreatorInterestSubmissionDocument = {
   name: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   age: number;
   location: string;
   creatorIdea: string;
@@ -22,6 +23,10 @@ type CreatorInterestSubmissionDocument = {
 
 function jsonResponse<TBody>(body: TBody, status: number) {
   return Response.json(body, { status });
+}
+
+function isDuplicateKeyError(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
 }
 
 export async function POST(request: Request) {
@@ -71,6 +76,17 @@ export async function POST(request: Request) {
 
   try {
     const collection = await getCollection<CreatorInterestSubmissionDocument>(CREATOR_INTEREST_COLLECTION);
+    const duplicateConditions = [
+      validation.data.email ? { email: validation.data.email } : null,
+      validation.data.phone ? { phone: validation.data.phone } : null,
+    ].filter((condition): condition is { email: string } | { phone: string } => Boolean(condition));
+
+    const existingSubmission =
+      duplicateConditions.length > 0 ? await collection.findOne({ $or: duplicateConditions }) : null;
+
+    if (existingSubmission) {
+      return jsonResponse<CreatorInterestSuccessResponse>({ ok: true }, 200);
+    }
 
     await collection.insertOne({
       ...validation.data,
@@ -81,6 +97,10 @@ export async function POST(request: Request) {
 
     return jsonResponse<CreatorInterestSuccessResponse>({ ok: true }, 201);
   } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      return jsonResponse<CreatorInterestSuccessResponse>({ ok: true }, 200);
+    }
+
     console.error("Unable to store creator interest submission", error);
 
     return jsonResponse<CreatorInterestErrorResponse>(

@@ -9,13 +9,13 @@ const steps = [
   },
   {
     eyebrow: "Step 2",
-    title: "Learn from real experience",
-    body: "See how someone else approached the challenges, decisions and setbacks along the way.",
+    title: "Complete the steps",
+    body: "Do the steps outlined in the path to make progress towards your goal.",
   },
   {
     eyebrow: "Step 3",
-    title: "Create your own",
-    body: "As your experience grows, you can build a path that helps the next person.",
+    title: "Learn from real experience",
+    body: "See how the path creator approached the challenges, decisions and setbacks along the way.",
   },
 ];
 

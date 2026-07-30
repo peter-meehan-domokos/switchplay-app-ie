@@ -10,13 +10,17 @@ import {
   type EarlyAccessSuccessResponse,
   validateEarlyAccessInput,
 } from "@/lib/publicEarlyAccess";
+import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phoneCountries";
 import buttonStyles from "./PublicButton.module.css";
 import formStyles from "./CreatorInterestForm.module.css";
 import sectionStyles from "./HowItWorksSection.module.css";
+import PublicPhoneInput from "./PublicPhoneInput";
 
 const initialValues: EarlyAccessFormValues = {
   name: "",
   email: "",
+  phone: "",
+  phoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
   goals: "",
   additionalInformation: "",
   companyWebsite: "",
@@ -24,7 +28,14 @@ const initialValues: EarlyAccessFormValues = {
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
-const FIELD_ORDER: EarlyAccessFieldName[] = ["name", "email", "goals", "additionalInformation"];
+const FIELD_ORDER: Array<EarlyAccessFieldName | "contact"> = [
+  "name",
+  "contact",
+  "email",
+  "phone",
+  "goals",
+  "additionalInformation",
+];
 
 export default function EarlyAccessForm() {
   const [values, setValues] = useState<EarlyAccessFormValues>(initialValues);
@@ -54,6 +65,24 @@ export default function EarlyAccessForm() {
 
       const nextErrors = { ...currentErrors };
       delete nextErrors[fieldName];
+      if (fieldName === "email" || fieldName === "phone") {
+        delete nextErrors.contact;
+      }
+      return nextErrors;
+    });
+    setFormError("");
+  }
+
+  function updatePhoneValue(phone: string) {
+    setValues((currentValues) => ({ ...currentValues, phone }));
+    setFieldErrors((currentErrors) => {
+      if (!currentErrors.phone && !currentErrors.contact) {
+        return currentErrors;
+      }
+
+      const nextErrors = { ...currentErrors };
+      delete nextErrors.phone;
+      delete nextErrors.contact;
       return nextErrors;
     });
     setFormError("");
@@ -63,7 +92,11 @@ export default function EarlyAccessForm() {
     const firstInvalidField = FIELD_ORDER.find((fieldName) => errors[fieldName]);
 
     if (firstInvalidField) {
-      fieldRefs.current[firstInvalidField]?.focus();
+      if (firstInvalidField === "contact") {
+        fieldRefs.current.email?.focus();
+      } else {
+        fieldRefs.current[firstInvalidField]?.focus();
+      }
     }
   }
 
@@ -165,21 +198,23 @@ export default function EarlyAccessForm() {
                 type="text"
                 value={values.name}
               />
-              <Field
-                error={fieldErrors.email}
-                inputMode="email"
-                label="Email address"
-                maxLength={EARLY_ACCESS_LIMITS.email}
-                name="email"
-                onChange={updateValue}
-                required
-                setRef={(element) => {
-                  fieldRefs.current.email = element;
-                }}
-                type="email"
-                value={values.email}
-              />
             </div>
+
+            <ContactSection
+              contactError={fieldErrors.contact}
+              emailError={fieldErrors.email}
+              emailValue={values.email}
+              onChange={updateValue}
+              onPhoneChange={updatePhoneValue}
+              phoneError={fieldErrors.phone}
+              phoneValue={values.phone}
+              setEmailRef={(element) => {
+                fieldRefs.current.email = element;
+              }}
+              setPhoneRef={(element) => {
+                fieldRefs.current.phone = element;
+              }}
+            />
 
             <TextAreaField
               error={fieldErrors.goals}
@@ -240,7 +275,9 @@ export default function EarlyAccessForm() {
 }
 
 type FieldProps = {
+  describedBy?: string;
   error?: string;
+  forceInvalid?: boolean;
   inputMode: "email" | "text";
   label: string;
   maxLength?: number;
@@ -252,9 +289,23 @@ type FieldProps = {
   value: string;
 };
 
-function Field({ error, inputMode, label, maxLength, name, onChange, required, setRef, type, value }: FieldProps) {
+function Field({
+  describedBy,
+  error,
+  forceInvalid = false,
+  inputMode,
+  label,
+  maxLength,
+  name,
+  onChange,
+  required,
+  setRef,
+  type,
+  value,
+}: FieldProps) {
   const inputId = `early-access-${name}`;
   const errorId = `${inputId}-error`;
+  const resolvedDescribedBy = [describedBy, error ? errorId : undefined].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className={formStyles.field}>
@@ -263,8 +314,8 @@ function Field({ error, inputMode, label, maxLength, name, onChange, required, s
         {required ? <span aria-label="required"> *</span> : null}
       </label>
       <input
-        aria-describedby={error ? errorId : undefined}
-        aria-invalid={error ? "true" : "false"}
+        aria-describedby={resolvedDescribedBy}
+        aria-invalid={error || forceInvalid ? "true" : "false"}
         autoComplete={name === "email" ? "email" : "name"}
         id={inputId}
         inputMode={inputMode}
@@ -282,6 +333,72 @@ function Field({ error, inputMode, label, maxLength, name, onChange, required, s
         </p>
       ) : null}
     </div>
+  );
+}
+
+type ContactSectionProps = {
+  contactError?: string;
+  emailError?: string;
+  emailValue: string;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onPhoneChange: (value: string) => void;
+  phoneError?: string;
+  phoneValue: string;
+  setEmailRef: (element: HTMLInputElement | null) => void;
+  setPhoneRef: (element: HTMLInputElement | null) => void;
+};
+
+function ContactSection({
+  contactError,
+  emailError,
+  emailValue,
+  onChange,
+  onPhoneChange,
+  phoneError,
+  phoneValue,
+  setEmailRef,
+  setPhoneRef,
+}: ContactSectionProps) {
+  const contactErrorId = "early-access-contact-error";
+
+  return (
+    <section className={formStyles.contactSection} aria-labelledby="early-access-contact-title">
+      <header className={formStyles.contactHeader}>
+        <h3 id="early-access-contact-title">How can we contact you?</h3>
+        <p>Provide whichever contact method suits you best. You can also provide both.</p>
+      </header>
+      {contactError ? (
+        <p className={formStyles.fieldError} id={contactErrorId}>
+          {contactError}
+        </p>
+      ) : null}
+      <div className={formStyles.fieldGrid}>
+        <Field
+          describedBy={contactError ? contactErrorId : undefined}
+          error={emailError}
+          forceInvalid={Boolean(contactError)}
+          inputMode="email"
+          label="Email address"
+          maxLength={EARLY_ACCESS_LIMITS.email}
+          name="email"
+          onChange={onChange}
+          required={false}
+          setRef={setEmailRef}
+          type="email"
+          value={emailValue}
+        />
+        <PublicPhoneInput
+          contactErrorId={contactError ? contactErrorId : undefined}
+          error={phoneError}
+          forceInvalid={Boolean(contactError)}
+          idPrefix="early-access"
+          maxLength={EARLY_ACCESS_LIMITS.phone}
+          onPhoneChange={onPhoneChange}
+          setRef={setPhoneRef}
+          value={phoneValue}
+        />
+      </div>
+    </section>
   );
 }
 

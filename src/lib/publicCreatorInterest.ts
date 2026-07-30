@@ -1,6 +1,10 @@
+import { formatPhoneAsE164, normalizePhoneNumberFallback } from "@/lib/phoneCountries";
+
 export type CreatorInterestFormValues = {
   name: string;
   email: string;
+  phone: string;
+  phoneCountryCode: string;
   age: string;
   location: string;
   creatorIdea: string;
@@ -11,6 +15,8 @@ export type CreatorInterestFormValues = {
 export type CreatorInterestRequestData = {
   name?: unknown;
   email?: unknown;
+  phone?: unknown;
+  phoneCountryCode?: unknown;
   age?: unknown;
   location?: unknown;
   creatorIdea?: unknown;
@@ -20,7 +26,8 @@ export type CreatorInterestRequestData = {
 
 export type ValidatedCreatorInterestData = {
   name: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   age: number;
   location: string;
   creatorIdea: string;
@@ -29,7 +36,7 @@ export type ValidatedCreatorInterestData = {
 
 export type CreatorInterestFieldName = keyof CreatorInterestFormValues;
 
-export type CreatorInterestFieldErrors = Partial<Record<CreatorInterestFieldName, string>>;
+export type CreatorInterestFieldErrors = Partial<Record<CreatorInterestFieldName | "contact", string>>;
 
 export type CreatorInterestSuccessResponse = {
   ok: true;
@@ -44,6 +51,7 @@ export type CreatorInterestErrorResponse = {
 export const CREATOR_INTEREST_LIMITS = {
   name: 100,
   email: 254,
+  phone: 30,
   ageMin: 18,
   ageMax: 120,
   location: 120,
@@ -52,10 +60,13 @@ export const CREATOR_INTEREST_LIMITS = {
 } as const;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_PATTERN = /^\+?[0-9\s()-]+$/;
 
 function toTrimmedString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
+
+export const normalizePhoneNumber = normalizePhoneNumberFallback;
 
 function parseAge(value: unknown) {
   if (typeof value === "number") {
@@ -74,6 +85,9 @@ export function validateCreatorInterestInput(input: CreatorInterestRequestData):
   | { ok: false; fieldErrors: CreatorInterestFieldErrors } {
   const name = toTrimmedString(input.name);
   const email = toTrimmedString(input.email).toLowerCase();
+  const phone = toTrimmedString(input.phone);
+  const phoneCountryCode = toTrimmedString(input.phoneCountryCode);
+  const normalizedPhone = formatPhoneAsE164(phone, phoneCountryCode);
   const location = toTrimmedString(input.location);
   const creatorIdea = toTrimmedString(input.creatorIdea);
   const additionalInformation = toTrimmedString(input.additionalInformation);
@@ -86,10 +100,18 @@ export function validateCreatorInterestInput(input: CreatorInterestRequestData):
     fieldErrors.name = `Name must be ${CREATOR_INTEREST_LIMITS.name} characters or fewer.`;
   }
 
-  if (!email) {
-    fieldErrors.email = "Please enter your email address.";
-  } else if (email.length > CREATOR_INTEREST_LIMITS.email || !EMAIL_PATTERN.test(email)) {
+  if (!email && !phone) {
+    fieldErrors.contact = "Please provide either an email address or a mobile phone number.";
+  }
+
+  if (email && (email.length > CREATOR_INTEREST_LIMITS.email || !EMAIL_PATTERN.test(email))) {
     fieldErrors.email = "Please enter a valid email address.";
+  }
+
+  if (phone.length > CREATOR_INTEREST_LIMITS.phone) {
+    fieldErrors.phone = `Mobile phone number must be ${CREATOR_INTEREST_LIMITS.phone} characters or fewer.`;
+  } else if (phone && (!PHONE_PATTERN.test(phone) || normalizedPhone.length < 5)) {
+    fieldErrors.phone = "Please enter a valid mobile phone number.";
   }
 
   if (!Number.isFinite(age)) {
@@ -127,7 +149,8 @@ export function validateCreatorInterestInput(input: CreatorInterestRequestData):
     ok: true,
     data: {
       name,
-      email,
+      email: email || null,
+      phone: normalizedPhone || null,
       age,
       location,
       creatorIdea,

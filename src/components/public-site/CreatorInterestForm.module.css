@@ -45,6 +45,29 @@
   gap: 8px;
 }
 
+.contactSection {
+  display: grid;
+  gap: 14px;
+}
+
+.contactHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.contactHeader h3 {
+  color: var(--sp-site-text);
+  font-size: clamp(1.1rem, 4vw, 1.28rem);
+  font-weight: 820;
+  line-height: 1.2;
+}
+
+.contactHeader p {
+  color: var(--sp-site-text-muted);
+  font-size: clamp(0.95rem, 3.7vw, 1.05rem);
+  line-height: 1.5;
+}
+
 .field label {
   color: var(--sp-site-text);
   font-size: 0.95rem;
@@ -53,7 +76,8 @@
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.phoneInput :global(.PhoneInputInput) {
   width: 100%;
   border: 1px solid rgba(168, 214, 228, 0.24);
   border-radius: calc(var(--sp-site-card-radius) - 6px);
@@ -70,6 +94,27 @@
   min-height: 50px;
 }
 
+.phoneInput {
+  --PhoneInputCountryFlag-height: 1.05rem;
+  --PhoneInputCountrySelectArrow-color: var(--sp-site-text);
+  --PhoneInputCountrySelectArrow-opacity: 0.72;
+  --PhoneInput-color--focus: var(--sp-site-accent-blue);
+  align-items: stretch;
+  gap: 10px;
+}
+
+.phoneInput :global(.PhoneInputCountry) {
+  min-height: 50px;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: calc(var(--sp-site-card-radius) - 6px);
+  background: rgba(168, 214, 228, 0.08);
+  padding: 0 12px;
+}
+
+.phoneInput :global(.PhoneInputCountrySelect) {
+  cursor: pointer;
+}
+
 .field textarea {
   min-height: 150px;
   resize: vertical;
@@ -81,13 +126,24 @@
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.phoneInput :global(.PhoneInputInput:focus) {
+  border-color: var(--sp-site-accent-blue);
+  box-shadow: 0 0 0 3px rgba(168, 214, 228, 0.18);
+}
+
+.phoneInput:focus-within :global(.PhoneInputCountry) {
   border-color: var(--sp-site-accent-blue);
   box-shadow: 0 0 0 3px rgba(168, 214, 228, 0.18);
 }
 
 .field input[aria-invalid="true"],
 .field textarea[aria-invalid="true"] {
+  border-color: #f0a6a6;
+}
+
+.phoneInputInvalid :global(.PhoneInputCountry),
+.phoneInputInvalid :global(.PhoneInputInput) {
   border-color: #f0a6a6;
 }
 

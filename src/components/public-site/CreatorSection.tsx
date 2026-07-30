@@ -8,12 +8,8 @@ const supportPoints = [
     body: "We help you uncover the decisions, obstacles and lessons that made the difference.",
   },
   {
-    title: "Build a path people can follow",
-    body: "We help you organise your journey into simple stages and practical steps.",
-  },
-  {
-    title: "Share it in your own voice",
-    body: "You remain the creator. Switchplay provides the structure and support without making your story feel generic.",
+    title: "Turn your experience into a path",
+    body: "We help you organise your journey into simple stages and practical steps, while keeping it in your own voice.",
   },
   {
     title: "Get paid to create",

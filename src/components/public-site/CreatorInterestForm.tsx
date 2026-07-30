@@ -10,12 +10,16 @@ import {
   type CreatorInterestSuccessResponse,
   validateCreatorInterestInput,
 } from "@/lib/publicCreatorInterest";
+import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phoneCountries";
 import buttonStyles from "./PublicButton.module.css";
+import PublicPhoneInput from "./PublicPhoneInput";
 import styles from "./CreatorInterestForm.module.css";
 
 const initialValues: CreatorInterestFormValues = {
   name: "",
   email: "",
+  phone: "",
+  phoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
   age: "",
   location: "",
   creatorIdea: "",
@@ -25,9 +29,11 @@ const initialValues: CreatorInterestFormValues = {
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
-const FIELD_ORDER: CreatorInterestFieldName[] = [
+const FIELD_ORDER: Array<CreatorInterestFieldName | "contact"> = [
   "name",
+  "contact",
   "email",
+  "phone",
   "age",
   "location",
   "creatorIdea",
@@ -63,6 +69,24 @@ export default function CreatorInterestForm() {
 
       const nextErrors = { ...currentErrors };
       delete nextErrors[fieldName];
+      if (fieldName === "email" || fieldName === "phone") {
+        delete nextErrors.contact;
+      }
+      return nextErrors;
+    });
+    setFormError("");
+  }
+
+  function updatePhoneValue(phone: string) {
+    setValues((currentValues) => ({ ...currentValues, phone }));
+    setFieldErrors((currentErrors) => {
+      if (!currentErrors.phone && !currentErrors.contact) {
+        return currentErrors;
+      }
+
+      const nextErrors = { ...currentErrors };
+      delete nextErrors.phone;
+      delete nextErrors.contact;
       return nextErrors;
     });
     setFormError("");
@@ -72,7 +96,11 @@ export default function CreatorInterestForm() {
     const firstInvalidField = FIELD_ORDER.find((fieldName) => errors[fieldName]);
 
     if (firstInvalidField) {
-      fieldRefs.current[firstInvalidField]?.focus();
+      if (firstInvalidField === "contact") {
+        fieldRefs.current.email?.focus();
+      } else {
+        fieldRefs.current[firstInvalidField]?.focus();
+      }
     }
   }
 
@@ -196,20 +224,6 @@ export default function CreatorInterestForm() {
             value={values.name}
           />
           <Field
-            error={fieldErrors.email}
-            inputMode="email"
-            label="Email address"
-            maxLength={CREATOR_INTEREST_LIMITS.email}
-            name="email"
-            onChange={updateValue}
-            required
-            setRef={(element) => {
-              fieldRefs.current.email = element;
-            }}
-            type="email"
-            value={values.email}
-          />
-          <Field
             error={fieldErrors.age}
             inputMode="numeric"
             label="Your age"
@@ -240,6 +254,22 @@ export default function CreatorInterestForm() {
             value={values.location}
           />
         </div>
+
+        <ContactSection
+          contactError={fieldErrors.contact}
+          emailError={fieldErrors.email}
+          emailValue={values.email}
+          onChange={updateValue}
+          onPhoneChange={updatePhoneValue}
+          phoneError={fieldErrors.phone}
+          phoneValue={values.phone}
+          setEmailRef={(element) => {
+            fieldRefs.current.email = element;
+          }}
+          setPhoneRef={(element) => {
+            fieldRefs.current.phone = element;
+          }}
+        />
 
         <TextAreaField
           error={fieldErrors.creatorIdea}
@@ -298,8 +328,10 @@ export default function CreatorInterestForm() {
 }
 
 type FieldProps = {
+  describedBy?: string;
   error?: string;
-  inputMode: "email" | "numeric" | "text";
+  forceInvalid?: boolean;
+  inputMode: "email" | "numeric" | "tel" | "text";
   label: string;
   max?: number;
   maxLength?: number;
@@ -309,12 +341,14 @@ type FieldProps = {
   placeholder?: string;
   required: boolean;
   setRef: (element: HTMLInputElement | null) => void;
-  type: "email" | "number" | "text";
+  type: "email" | "number" | "tel" | "text";
   value: string;
 };
 
 function Field({
+  describedBy,
   error,
+  forceInvalid = false,
   inputMode,
   label,
   max,
@@ -330,6 +364,7 @@ function Field({
 }: FieldProps) {
   const inputId = `creator-interest-${name}`;
   const errorId = `${inputId}-error`;
+  const resolvedDescribedBy = [describedBy, error ? errorId : undefined].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className={styles.field}>
@@ -338,9 +373,9 @@ function Field({
         {required ? <span aria-label="required"> *</span> : null}
       </label>
       <input
-        aria-describedby={error ? errorId : undefined}
-        aria-invalid={error ? "true" : "false"}
-        autoComplete={name === "email" ? "email" : "off"}
+        aria-describedby={resolvedDescribedBy}
+        aria-invalid={error || forceInvalid ? "true" : "false"}
+        autoComplete={name === "email" ? "email" : name === "phone" ? "tel" : "off"}
         id={inputId}
         inputMode={inputMode}
         max={max}
@@ -360,6 +395,72 @@ function Field({
         </p>
       ) : null}
     </div>
+  );
+}
+
+type ContactSectionProps = {
+  contactError?: string;
+  emailError?: string;
+  emailValue: string;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onPhoneChange: (value: string) => void;
+  phoneError?: string;
+  phoneValue: string;
+  setEmailRef: (element: HTMLInputElement | null) => void;
+  setPhoneRef: (element: HTMLInputElement | null) => void;
+};
+
+function ContactSection({
+  contactError,
+  emailError,
+  emailValue,
+  onChange,
+  onPhoneChange,
+  phoneError,
+  phoneValue,
+  setEmailRef,
+  setPhoneRef,
+}: ContactSectionProps) {
+  const contactErrorId = "creator-interest-contact-error";
+
+  return (
+    <section className={styles.contactSection} aria-labelledby="creator-interest-contact-title">
+      <header className={styles.contactHeader}>
+        <h3 id="creator-interest-contact-title">How can we contact you?</h3>
+        <p>Provide whichever contact method suits you best. You can also provide both.</p>
+      </header>
+      {contactError ? (
+        <p className={styles.fieldError} id={contactErrorId}>
+          {contactError}
+        </p>
+      ) : null}
+      <div className={styles.fieldGrid}>
+        <Field
+          describedBy={contactError ? contactErrorId : undefined}
+          error={emailError}
+          forceInvalid={Boolean(contactError)}
+          inputMode="email"
+          label="Email address"
+          maxLength={CREATOR_INTEREST_LIMITS.email}
+          name="email"
+          onChange={onChange}
+          required={false}
+          setRef={setEmailRef}
+          type="email"
+          value={emailValue}
+        />
+        <PublicPhoneInput
+          contactErrorId={contactError ? contactErrorId : undefined}
+          error={phoneError}
+          forceInvalid={Boolean(contactError)}
+          idPrefix="creator-interest"
+          maxLength={CREATOR_INTEREST_LIMITS.phone}
+          onPhoneChange={onPhoneChange}
+          setRef={setPhoneRef}
+          value={phoneValue}
+        />
+      </div>
+    </section>
   );
 }
 
