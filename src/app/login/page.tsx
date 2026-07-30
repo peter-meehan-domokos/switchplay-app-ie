@@ -1,4 +1,6 @@
 import AuthScreen from "@/components/auth/AuthScreen";
+import PublicHeader from "@/components/public-site/PublicHeader";
+import PublicLayout from "@/components/public-site/PublicLayout";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getSafeReturnTo } from "@/lib/returnTo";
@@ -18,5 +20,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     redirect(redirectTo);
   }
 
-  return <AuthScreen redirectTo={redirectTo} />;
+  return (
+    <PublicLayout>
+      <PublicHeader showJoinLink={false} showLoginLink={false} />
+      <AuthScreen redirectTo={redirectTo} />
+    </PublicLayout>
+  );
 }

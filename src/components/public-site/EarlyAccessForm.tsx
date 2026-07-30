@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
 import {
   EARLY_ACCESS_LIMITS,
@@ -11,6 +12,7 @@ import {
   validateEarlyAccessInput,
 } from "@/lib/publicEarlyAccess";
 import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phoneCountries";
+import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import buttonStyles from "./PublicButton.module.css";
 import formStyles from "./CreatorInterestForm.module.css";
 import sectionStyles from "./HowItWorksSection.module.css";
@@ -41,7 +43,7 @@ export default function EarlyAccessForm() {
   const [values, setValues] = useState<EarlyAccessFormValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<EarlyAccessFieldErrors>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState(false);
   const [successMessage, setSuccessMessage] = useState("Thanks, you are on the early access list.");
   const isSubmittingRef = useRef(false);
   const fieldRefs = useRef<Partial<Record<EarlyAccessFieldName, HTMLInputElement | HTMLTextAreaElement | null>>>({});
@@ -70,7 +72,7 @@ export default function EarlyAccessForm() {
       }
       return nextErrors;
     });
-    setFormError("");
+    setFormError(false);
   }
 
   function updatePhoneValue(phone: string) {
@@ -85,7 +87,7 @@ export default function EarlyAccessForm() {
       delete nextErrors.contact;
       return nextErrors;
     });
-    setFormError("");
+    setFormError(false);
   }
 
   function focusFirstInvalidField(errors: EarlyAccessFieldErrors) {
@@ -111,7 +113,7 @@ export default function EarlyAccessForm() {
 
     if (!validation.ok) {
       setFieldErrors(validation.fieldErrors);
-      setFormError("");
+      setFormError(false);
       focusFirstInvalidField(validation.fieldErrors);
       return;
     }
@@ -119,7 +121,7 @@ export default function EarlyAccessForm() {
     isSubmittingRef.current = true;
     setStatus("submitting");
     setFieldErrors({});
-    setFormError("");
+    setFormError(false);
 
     try {
       const response = await fetch("/api/public/early-access", {
@@ -135,11 +137,7 @@ export default function EarlyAccessForm() {
         const nextFieldErrors = !responseBody.ok && responseBody.fieldErrors ? responseBody.fieldErrors : {};
 
         setFieldErrors(nextFieldErrors);
-        setFormError(
-          Object.keys(nextFieldErrors).length > 0
-            ? ""
-            : "Something went wrong and your response was not sent. Please try again.",
-        );
+        setFormError(Object.keys(nextFieldErrors).length === 0);
         setStatus("error");
         isSubmittingRef.current = false;
 
@@ -153,7 +151,7 @@ export default function EarlyAccessForm() {
       setSuccessMessage(responseBody.message ?? "Thanks, you are on the early access list.");
       setStatus("success");
     } catch {
-      setFormError("Something went wrong and your response was not sent. Please try again.");
+      setFormError(true);
       setStatus("error");
       isSubmittingRef.current = false;
     }
@@ -164,7 +162,7 @@ export default function EarlyAccessForm() {
       <div className={sectionStyles.followerCopy}>
         <h2 id="early-access-title">Join early access</h2>
         <p>
-          Join the Switchplay early access list. We&rsquo;ll let you know as new paths and ways
+          Join the Switchplay early access list. We&rsquo;ll let you know when new paths and ways
           to get involved become available.
         </p>
       </div>
@@ -177,9 +175,7 @@ export default function EarlyAccessForm() {
       ) : (
         <div className={sectionStyles.followerFormWrap}>
           {formError ? (
-            <p className={formStyles.formError} role="alert">
-              {formError}
-            </p>
+            <SupportErrorMessage className={formStyles.formError} />
           ) : null}
 
           <form className={formStyles.form} onSubmit={handleSubmit} noValidate>
@@ -267,6 +263,10 @@ export default function EarlyAccessForm() {
                 {status === "submitting" ? "Sending your interest." : ""}
               </p>
             </div>
+            <p className={formStyles.privacyNotice}>
+              By submitting this form, you agree that Switchplay may use your details to respond to you. See our{" "}
+              <Link href="/privacy">Privacy Policy</Link>.
+            </p>
           </form>
         </div>
       )}

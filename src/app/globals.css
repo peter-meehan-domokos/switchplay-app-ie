@@ -192,6 +192,61 @@ input {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
+.app-utility-nav {
+  position: fixed;
+  left: 16px;
+  top: max(14px, calc(env(safe-area-inset-top) + 14px));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-utility-nav a {
+  display: inline-grid;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.72);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1;
+  padding: 0 12px;
+  text-decoration: none;
+}
+
+.app-utility-nav a:hover {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.app-utility-nav a:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.5);
+  outline-offset: 3px;
+}
+
+.app-utility-nav--creator a {
+  border-color: rgba(17, 19, 24, 0.16);
+  background: rgba(255, 255, 255, 0.84);
+  color: rgba(17, 19, 24, 0.72);
+}
+
+.app-utility-nav--creator a:hover {
+  border-color: rgba(17, 19, 24, 0.32);
+  background: #ffffff;
+  color: #111318;
+}
+
+.auth-error a,
+.session-error a {
+  color: currentColor;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .session-logout:disabled {
   cursor: wait;
   opacity: 0.45;
@@ -227,6 +282,16 @@ input {
   .session-actions {
     top: max(10px, calc(env(safe-area-inset-top) + 10px));
     right: 10px;
+  }
+
+  .app-utility-nav {
+    left: 10px;
+    top: max(10px, calc(env(safe-area-inset-top) + 10px));
+  }
+
+  .app-utility-nav a {
+    min-height: 34px;
+    padding-inline: 10px;
   }
 
   .overview-menu {

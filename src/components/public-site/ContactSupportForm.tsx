@@ -2,55 +2,50 @@
 
 import Link from "next/link";
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
-import {
-  CREATOR_INTEREST_LIMITS,
-  type CreatorInterestErrorResponse,
-  type CreatorInterestFieldErrors,
-  type CreatorInterestFieldName,
-  type CreatorInterestFormValues,
-  type CreatorInterestSuccessResponse,
-  validateCreatorInterestInput,
-} from "@/lib/publicCreatorInterest";
 import { DEFAULT_PHONE_COUNTRY_CODE } from "@/lib/phoneCountries";
+import {
+  CONTACT_SUPPORT_LIMITS,
+  CONTACT_SUPPORT_PURPOSES,
+  type ContactSupportErrorResponse,
+  type ContactSupportFieldErrors,
+  type ContactSupportFieldName,
+  type ContactSupportFormValues,
+  type ContactSupportSuccessResponse,
+  validateContactSupportInput,
+} from "@/lib/publicContactSupport";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import buttonStyles from "./PublicButton.module.css";
 import PublicPhoneInput from "./PublicPhoneInput";
 import styles from "./CreatorInterestForm.module.css";
 
-const initialValues: CreatorInterestFormValues = {
+const initialValues: ContactSupportFormValues = {
   name: "",
   email: "",
   phone: "",
   phoneCountryCode: DEFAULT_PHONE_COUNTRY_CODE,
-  age: "",
-  location: "",
-  creatorIdea: "",
-  additionalInformation: "",
+  purpose: "",
+  message: "",
   companyWebsite: "",
 };
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
-const FIELD_ORDER: Array<CreatorInterestFieldName | "contact"> = [
+const FIELD_ORDER: Array<ContactSupportFieldName | "contact"> = [
   "name",
   "contact",
   "email",
   "phone",
-  "age",
-  "location",
-  "creatorIdea",
-  "additionalInformation",
+  "purpose",
+  "message",
 ];
 
-export default function CreatorInterestForm() {
-  const [values, setValues] = useState<CreatorInterestFormValues>(initialValues);
-  const [fieldErrors, setFieldErrors] = useState<CreatorInterestFieldErrors>({});
+export default function ContactSupportForm() {
+  const [values, setValues] = useState<ContactSupportFormValues>(initialValues);
+  const [fieldErrors, setFieldErrors] = useState<ContactSupportFieldErrors>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [formError, setFormError] = useState(false);
   const isSubmittingRef = useRef(false);
-  const fieldRefs = useRef<Partial<Record<CreatorInterestFieldName, HTMLInputElement | HTMLTextAreaElement | null>>>(
-    {},
-  );
+  const fieldRefs = useRef<Partial<Record<ContactSupportFieldName, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>>({});
   const successRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -59,19 +54,17 @@ export default function CreatorInterestForm() {
     }
   }, [status]);
 
-  function updateValue(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    const { name, value } = event.target;
-    const fieldName = name as CreatorInterestFieldName;
-
-    setValues((currentValues) => ({ ...currentValues, [fieldName]: value }));
+  function clearFieldError(fieldName: ContactSupportFieldName) {
     setFieldErrors((currentErrors) => {
-      if (!currentErrors[fieldName]) {
+      const shouldClearContact = fieldName === "email" || fieldName === "phone";
+
+      if (!currentErrors[fieldName] && (!shouldClearContact || !currentErrors.contact)) {
         return currentErrors;
       }
 
       const nextErrors = { ...currentErrors };
       delete nextErrors[fieldName];
-      if (fieldName === "email" || fieldName === "phone") {
+      if (shouldClearContact) {
         delete nextErrors.contact;
       }
       return nextErrors;
@@ -79,22 +72,20 @@ export default function CreatorInterestForm() {
     setFormError(false);
   }
 
-  function updatePhoneValue(phone: string) {
-    setValues((currentValues) => ({ ...currentValues, phone }));
-    setFieldErrors((currentErrors) => {
-      if (!currentErrors.phone && !currentErrors.contact) {
-        return currentErrors;
-      }
+  function updateValue(event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
+    const { name, value } = event.target;
+    const fieldName = name as ContactSupportFieldName;
 
-      const nextErrors = { ...currentErrors };
-      delete nextErrors.phone;
-      delete nextErrors.contact;
-      return nextErrors;
-    });
-    setFormError(false);
+    setValues((currentValues) => ({ ...currentValues, [fieldName]: value }));
+    clearFieldError(fieldName);
   }
 
-  function focusFirstInvalidField(errors: CreatorInterestFieldErrors) {
+  function updatePhoneValue(phone: string) {
+    setValues((currentValues) => ({ ...currentValues, phone }));
+    clearFieldError("phone");
+  }
+
+  function focusFirstInvalidField(errors: ContactSupportFieldErrors) {
     const firstInvalidField = FIELD_ORDER.find((fieldName) => errors[fieldName]);
 
     if (firstInvalidField) {
@@ -113,7 +104,7 @@ export default function CreatorInterestForm() {
       return;
     }
 
-    const validation = validateCreatorInterestInput(values);
+    const validation = validateContactSupportInput(values);
 
     if (!validation.ok) {
       setFieldErrors(validation.fieldErrors);
@@ -128,17 +119,14 @@ export default function CreatorInterestForm() {
     setFormError(false);
 
     try {
-      const response = await fetch("/api/public/creator-interest", {
+      const response = await fetch("/api/public/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...values,
-          age: validation.data.age,
-        }),
+        body: JSON.stringify(values),
       });
-      const responseBody = (await response.json()) as CreatorInterestSuccessResponse | CreatorInterestErrorResponse;
+      const responseBody = (await response.json()) as ContactSupportSuccessResponse | ContactSupportErrorResponse;
 
       if (!response.ok || !responseBody.ok) {
         const nextFieldErrors = !responseBody.ok && responseBody.fieldErrors ? responseBody.fieldErrors : {};
@@ -163,7 +151,7 @@ export default function CreatorInterestForm() {
     }
   }
 
-  function handleSendAnotherResponse() {
+  function handleSendAnotherMessage() {
     isSubmittingRef.current = false;
     setValues(initialValues);
     setFieldErrors({});
@@ -173,43 +161,31 @@ export default function CreatorInterestForm() {
 
   if (status === "success") {
     return (
-      <section className={styles.formSection} id="creator-interest" aria-labelledby="creator-interest-title">
-        <div className={styles.successMessage} ref={successRef} tabIndex={-1} role="status" aria-live="polite">
-          <h2 id="creator-interest-title">Thanks — we’ve received your interest.</h2>
-          <p>We’ll review what you shared and get in touch if it looks like a good fit for the early creator group.</p>
-          <button
-            className={`${buttonStyles.button} ${buttonStyles.secondary}`}
-            type="button"
-            onClick={handleSendAnotherResponse}
-          >
-            Send another response
-          </button>
-        </div>
-      </section>
+      <div className={styles.successMessage} ref={successRef} tabIndex={-1} role="status" aria-live="polite">
+        <h2>Thanks, we have received your message.</h2>
+        <p>We will get back to you as soon as we can.</p>
+        <button
+          className={`${buttonStyles.button} ${buttonStyles.secondary}`}
+          type="button"
+          onClick={handleSendAnotherMessage}
+        >
+          Send another message
+        </button>
+      </div>
     );
   }
 
   return (
-    <section className={styles.formSection} id="creator-interest" aria-labelledby="creator-interest-title">
-      <header className={styles.formHeader}>
-        <h2 id="creator-interest-title">Interested in creating a path?</h2>
-        <p>
-          Tell us a little about yourself and what you might want to share. You do not need to have your idea fully
-          worked out.
-        </p>
-      </header>
-
-      {formError ? (
-        <SupportErrorMessage className={styles.formError} />
-      ) : null}
+    <>
+      {formError ? <SupportErrorMessage className={styles.formError} /> : null}
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <div className={styles.fieldGrid}>
           <Field
             error={fieldErrors.name}
             inputMode="text"
-            label="Your name"
-            maxLength={CREATOR_INTEREST_LIMITS.name}
+            label="Name"
+            maxLength={CONTACT_SUPPORT_LIMITS.name}
             name="name"
             onChange={updateValue}
             required
@@ -218,36 +194,6 @@ export default function CreatorInterestForm() {
             }}
             type="text"
             value={values.name}
-          />
-          <Field
-            error={fieldErrors.age}
-            inputMode="numeric"
-            label="Your age"
-            max={CREATOR_INTEREST_LIMITS.ageMax}
-            min={CREATOR_INTEREST_LIMITS.ageMin}
-            name="age"
-            onChange={updateValue}
-            required
-            setRef={(element) => {
-              fieldRefs.current.age = element;
-            }}
-            type="number"
-            value={values.age}
-          />
-          <Field
-            error={fieldErrors.location}
-            inputMode="text"
-            label="Where are you based?"
-            maxLength={CREATOR_INTEREST_LIMITS.location}
-            name="location"
-            onChange={updateValue}
-            placeholder="For example, Galway"
-            required
-            setRef={(element) => {
-              fieldRefs.current.location = element;
-            }}
-            type="text"
-            value={values.location}
           />
         </div>
 
@@ -267,37 +213,34 @@ export default function CreatorInterestForm() {
           }}
         />
 
-        <TextAreaField
-          error={fieldErrors.creatorIdea}
-          hint="A rough idea is enough. You can tell us about something you learned, achieved or worked through."
-          label="What experience or achievement might you want to share?"
-          maxLength={CREATOR_INTEREST_LIMITS.creatorIdea}
-          name="creatorIdea"
+        <SelectField
+          error={fieldErrors.purpose}
+          label="Purpose"
+          name="purpose"
           onChange={updateValue}
-          required
           setRef={(element) => {
-            fieldRefs.current.creatorIdea = element;
+            fieldRefs.current.purpose = element;
           }}
-          value={values.creatorIdea}
+          value={values.purpose}
         />
+
         <TextAreaField
-          error={fieldErrors.additionalInformation}
-          label="Anything else you would like us to know?"
-          maxLength={CREATOR_INTEREST_LIMITS.additionalInformation}
-          name="additionalInformation"
+          error={fieldErrors.message}
+          label="Message"
+          maxLength={CONTACT_SUPPORT_LIMITS.message}
+          name="message"
           onChange={updateValue}
-          required={false}
           setRef={(element) => {
-            fieldRefs.current.additionalInformation = element;
+            fieldRefs.current.message = element;
           }}
-          value={values.additionalInformation}
+          value={values.message}
         />
 
         <div className={styles.honeypot} aria-hidden="true">
-          <label htmlFor="creator-interest-company-website">Company website</label>
+          <label htmlFor="contact-support-company-website">Company website</label>
           <input
             autoComplete="off"
-            id="creator-interest-company-website"
+            id="contact-support-company-website"
             name="companyWebsite"
             onChange={updateValue}
             tabIndex={-1}
@@ -312,10 +255,10 @@ export default function CreatorInterestForm() {
             disabled={status === "submitting"}
             type="submit"
           >
-            {status === "submitting" ? "Sending..." : "Send my interest"}
+            {status === "submitting" ? "Sending..." : "Send message"}
           </button>
           <p className={styles.statusText} role="status" aria-live="polite">
-            {status === "submitting" ? "Sending your interest." : ""}
+            {status === "submitting" ? "Sending your message." : ""}
           </p>
         </div>
         <p className={styles.privacyNotice}>
@@ -323,7 +266,7 @@ export default function CreatorInterestForm() {
           <Link href="/privacy">Privacy Policy</Link>.
         </p>
       </form>
-    </section>
+    </>
   );
 }
 
@@ -331,17 +274,14 @@ type FieldProps = {
   describedBy?: string;
   error?: string;
   forceInvalid?: boolean;
-  inputMode: "email" | "numeric" | "tel" | "text";
+  inputMode: "email" | "text";
   label: string;
-  max?: number;
-  maxLength?: number;
-  min?: number;
-  name: Exclude<CreatorInterestFieldName, "additionalInformation" | "companyWebsite" | "creatorIdea">;
+  maxLength: number;
+  name: "email" | "name";
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
   required: boolean;
   setRef: (element: HTMLInputElement | null) => void;
-  type: "email" | "number" | "tel" | "text";
+  type: "email" | "text";
   value: string;
 };
 
@@ -351,18 +291,15 @@ function Field({
   forceInvalid = false,
   inputMode,
   label,
-  max,
   maxLength,
-  min,
   name,
   onChange,
-  placeholder,
   required,
   setRef,
   type,
   value,
 }: FieldProps) {
-  const inputId = `creator-interest-${name}`;
+  const inputId = `contact-support-${name}`;
   const errorId = `${inputId}-error`;
   const resolvedDescribedBy = [describedBy, error ? errorId : undefined].filter(Boolean).join(" ") || undefined;
 
@@ -375,15 +312,12 @@ function Field({
       <input
         aria-describedby={resolvedDescribedBy}
         aria-invalid={error || forceInvalid ? "true" : "false"}
-        autoComplete={name === "email" ? "email" : name === "phone" ? "tel" : "off"}
+        autoComplete={name === "email" ? "email" : "name"}
         id={inputId}
         inputMode={inputMode}
-        max={max}
         maxLength={maxLength}
-        min={min}
         name={name}
         onChange={onChange}
-        placeholder={placeholder}
         ref={setRef}
         required={required}
         type={type}
@@ -421,12 +355,12 @@ function ContactSection({
   setEmailRef,
   setPhoneRef,
 }: ContactSectionProps) {
-  const contactErrorId = "creator-interest-contact-error";
+  const contactErrorId = "contact-support-contact-error";
 
   return (
-    <section className={styles.contactSection} aria-labelledby="creator-interest-contact-title">
+    <section className={styles.contactSection} aria-labelledby="contact-support-contact-title">
       <header className={styles.contactHeader}>
-        <h3 id="creator-interest-contact-title">How can we contact you?</h3>
+        <h3 id="contact-support-contact-title">How can we contact you?</h3>
         <p>Provide whichever contact method suits you best. You can also provide both.</p>
       </header>
       {contactError ? (
@@ -441,7 +375,7 @@ function ContactSection({
           forceInvalid={Boolean(contactError)}
           inputMode="email"
           label="Email address"
-          maxLength={CREATOR_INTEREST_LIMITS.email}
+          maxLength={CONTACT_SUPPORT_LIMITS.email}
           name="email"
           onChange={onChange}
           required={false}
@@ -453,8 +387,8 @@ function ContactSection({
           contactErrorId={contactError ? contactErrorId : undefined}
           error={phoneError}
           forceInvalid={Boolean(contactError)}
-          idPrefix="creator-interest"
-          maxLength={CREATOR_INTEREST_LIMITS.phone}
+          idPrefix="contact-support"
+          maxLength={CONTACT_SUPPORT_LIMITS.phone}
           onPhoneChange={onPhoneChange}
           setRef={setPhoneRef}
           value={phoneValue}
@@ -464,55 +398,81 @@ function ContactSection({
   );
 }
 
-type TextAreaFieldProps = {
+type SelectFieldProps = {
   error?: string;
-  hint?: string;
   label: string;
-  maxLength: number;
-  name: "additionalInformation" | "creatorIdea";
-  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
-  required: boolean;
-  setRef: (element: HTMLTextAreaElement | null) => void;
+  name: "purpose";
+  onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+  setRef: (element: HTMLSelectElement | null) => void;
   value: string;
 };
 
-function TextAreaField({
-  error,
-  hint,
-  label,
-  maxLength,
-  name,
-  onChange,
-  required,
-  setRef,
-  value,
-}: TextAreaFieldProps) {
-  const inputId = `creator-interest-${name}`;
-  const hintId = hint ? `${inputId}-hint` : undefined;
+function SelectField({ error, label, name, onChange, setRef, value }: SelectFieldProps) {
+  const inputId = `contact-support-${name}`;
   const errorId = `${inputId}-error`;
-  const describedBy = [hintId, error ? errorId : undefined].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className={styles.field}>
       <label htmlFor={inputId}>
         {label}
-        {required ? <span aria-label="required"> *</span> : null}
+        <span aria-label="required"> *</span>
       </label>
-      {hint ? (
-        <p className={styles.hint} id={hintId}>
-          {hint}
+      <select
+        aria-describedby={error ? errorId : undefined}
+        aria-invalid={error ? "true" : "false"}
+        id={inputId}
+        name={name}
+        onChange={onChange}
+        ref={setRef}
+        required
+        value={value}
+      >
+        <option value="">Choose a purpose</option>
+        {CONTACT_SUPPORT_PURPOSES.map((purpose) => (
+          <option key={purpose} value={purpose}>
+            {purpose}
+          </option>
+        ))}
+      </select>
+      {error ? (
+        <p className={styles.fieldError} id={errorId}>
+          {error}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+type TextAreaFieldProps = {
+  error?: string;
+  label: string;
+  maxLength: number;
+  name: "message";
+  onChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  setRef: (element: HTMLTextAreaElement | null) => void;
+  value: string;
+};
+
+function TextAreaField({ error, label, maxLength, name, onChange, setRef, value }: TextAreaFieldProps) {
+  const inputId = `contact-support-${name}`;
+  const errorId = `${inputId}-error`;
+
+  return (
+    <div className={styles.field}>
+      <label htmlFor={inputId}>
+        {label}
+        <span aria-label="required"> *</span>
+      </label>
       <textarea
-        aria-describedby={describedBy}
+        aria-describedby={error ? errorId : undefined}
         aria-invalid={error ? "true" : "false"}
         id={inputId}
         maxLength={maxLength}
         name={name}
         onChange={onChange}
         ref={setRef}
-        required={required}
-        rows={5}
+        required
+        rows={6}
         value={value}
       />
       {error ? (

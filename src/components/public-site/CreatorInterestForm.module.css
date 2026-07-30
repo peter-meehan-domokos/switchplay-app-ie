@@ -24,7 +24,8 @@
 .formHeader p,
 .successMessage p,
 .hint,
-.statusText {
+.statusText,
+.privacyNotice {
   color: var(--sp-site-text-muted);
   font-size: clamp(1rem, 3.9vw, 1.14rem);
   line-height: 1.6;
@@ -76,6 +77,7 @@
 }
 
 .field input,
+.field select,
 .field textarea,
 .phoneInput :global(.PhoneInputInput) {
   width: 100%;
@@ -92,6 +94,16 @@
 
 .field input {
   min-height: 50px;
+}
+
+.field select {
+  min-height: 50px;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--sp-site-text-muted) 50%) right 18px center / 7px 7px no-repeat,
+    linear-gradient(135deg, var(--sp-site-text-muted) 50%, transparent 50%) right 13px center / 7px 7px no-repeat,
+    rgba(255, 250, 240, 0.06);
+  padding-right: 42px;
 }
 
 .phoneInput {
@@ -126,6 +138,7 @@
 }
 
 .field input:focus,
+.field select:focus,
 .field textarea:focus,
 .phoneInput :global(.PhoneInputInput:focus) {
   border-color: var(--sp-site-accent-blue);
@@ -138,8 +151,15 @@
 }
 
 .field input[aria-invalid="true"],
+.field select[aria-invalid="true"],
 .field textarea[aria-invalid="true"] {
   border-color: #f0a6a6;
+}
+
+.formError a {
+  color: #fffaf0;
+  text-decoration-color: rgba(255, 210, 210, 0.72);
+  text-underline-offset: 3px;
 }
 
 .phoneInputInvalid :global(.PhoneInputCountry),
@@ -176,6 +196,23 @@
 
 .statusText {
   min-height: 1.6em;
+}
+
+.privacyNotice {
+  max-width: 44rem;
+  font-size: clamp(0.86rem, 3.4vw, 0.95rem);
+  margin-top: -8px;
+}
+
+.privacyNotice a {
+  color: var(--sp-site-text);
+  text-decoration-color: rgba(168, 214, 228, 0.64);
+  text-underline-offset: 3px;
+}
+
+.privacyNotice a:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 4px;
 }
 
 .honeypot {

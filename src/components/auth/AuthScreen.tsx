@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
+import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 
 type AuthScreenProps = {
   redirectTo?: string;
@@ -27,8 +28,7 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
     });
 
     if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setError(payload?.error ?? "Unable to sign in.");
+      setError("support");
       return;
     }
 
@@ -43,10 +43,10 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
   }
 
   return (
-    <main className="auth-screen">
+    <section className="auth-screen" aria-labelledby="auth-title">
       <section className="auth-card">
         <p className="eyebrow">Switchplay</p>
-        <h1>Sign in</h1>
+        <h1 id="auth-title">Sign in</h1>
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="auth-field">
             <span>Username or email</span>
@@ -72,13 +72,13 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
             />
           </label>
 
-          {error ? <p className="auth-error">{error}</p> : null}
+          {error ? <SupportErrorMessage className="auth-error" /> : null}
 
           <button className="auth-submit" disabled={isPending} type="submit">
             {isPending ? "Signing in..." : "Sign in"}
           </button>
         </form>
       </section>
-    </main>
+    </section>
   );
 }

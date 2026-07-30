@@ -8,7 +8,9 @@ import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
 import type { LayoutUser } from "@/components/cards/cardLayout";
+import AppUtilityNav from "@/components/layout/AppUtilityNav";
 import OverviewMenu from "@/components/layout/OverviewMenu";
+import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 
 type AppShellProps = {
   currentUserId: string;
@@ -287,6 +289,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   return (
     <LayoutGroup>
       <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
+      <AppUtilityNav />
       {selectedDeckId === null && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -322,7 +325,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
                   ? `${activeDeckLayouts.length} shared skill paths`
                   : `${activeDeckLayouts.length} active skill paths`}
               </p>
-              {overviewError ? <p className="auth-error">{overviewError}</p> : null}
+              {overviewError ? <SupportErrorMessage className="auth-error" /> : null}
             </motion.header>
           ) : null}
         </AnimatePresence>
