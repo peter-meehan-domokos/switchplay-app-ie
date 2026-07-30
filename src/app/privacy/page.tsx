@@ -74,6 +74,15 @@ export default function PrivacyPage() {
         </section>
 
         <section className={styles.section}>
+          <h2>Website analytics</h2>
+          <p>
+            Switchplay uses Vercel Analytics to understand general website usage, such as which pages are visited. We
+            use this information to improve the website. We do not intentionally send names, email addresses, phone
+            numbers or form contents to analytics.
+          </p>
+        </section>
+
+        <section className={styles.section}>
           <h2>Your rights</h2>
           <p>
             Depending on where you live, you may have rights to request access to your personal information, ask for it
