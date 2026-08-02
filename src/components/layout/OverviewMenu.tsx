@@ -72,6 +72,7 @@ export default function OverviewMenu({
           <Link className="deck-menu-item" href="/creator/new" role="menuitem" onClick={() => setIsOpen(false)}>
             Create
           </Link>
+          <div className="overview-menu-divider" role="separator" aria-orientation="horizontal" />
           <Link className="deck-menu-item" href="/contact" role="menuitem" onClick={() => setIsOpen(false)}>
             Support
           </Link>

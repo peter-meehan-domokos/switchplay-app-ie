@@ -274,6 +274,12 @@ input {
   text-align: left;
 }
 
+.overview-menu-divider {
+  height: 1px;
+  margin: 12px 4px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
 @media (max-width: 640px) {
   .auth-card {
     padding: 24px 20px;
