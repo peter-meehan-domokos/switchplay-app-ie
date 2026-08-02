@@ -1,0 +1,11 @@
+.standaloneLogin {
+  display: grid;
+  place-items: center;
+}
+
+.standaloneLogin :global(.auth-screen) {
+  min-height: min(620px, calc(100svh - 190px));
+  width: 100%;
+  padding: clamp(24px, 8vw, 72px) 0;
+  background: transparent;
+}
