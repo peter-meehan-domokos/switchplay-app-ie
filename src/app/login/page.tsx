@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <PublicLayout>
-      <PublicHeader showJoinLink={false} showLoginLink={false} />
+      <PublicHeader showJoinLink={false} />
       <div className={styles.standaloneLogin}>
         <AuthScreen redirectTo={redirectTo} />
       </div>

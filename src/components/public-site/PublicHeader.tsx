@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 import styles from "./PublicHeader.module.css";
 
 type PublicHeaderProps = {
@@ -6,7 +7,10 @@ type PublicHeaderProps = {
   showLoginLink?: boolean;
 };
 
-export default function PublicHeader({ showJoinLink = true, showLoginLink = true }: PublicHeaderProps) {
+export default async function PublicHeader({ showJoinLink = true, showLoginLink = true }: PublicHeaderProps) {
+  const user = await getCurrentUser();
+  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Log in" };
+
   return (
     <header className={styles.header}>
       <Link className={styles.wordmark} href="/" aria-label="Switchplay home">
@@ -22,8 +26,8 @@ export default function PublicHeader({ showJoinLink = true, showLoginLink = true
           Contact
         </Link>
         {showLoginLink ? (
-          <Link className={styles.navLink} href="/login">
-            Log in
+          <Link className={styles.navLink} href={authLink.href}>
+            {authLink.label}
           </Link>
         ) : null}
       </nav>
