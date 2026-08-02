@@ -2,7 +2,6 @@ import Link from "next/link";
 import AuthScreen from "@/components/auth/AuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
 import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
-import AppUtilityNav from "@/components/layout/AppUtilityNav";
 import { getCurrentUser } from "@/lib/auth";
 import { getVisibleDeckTemplateDocumentByIdForUser } from "@/lib/deckTemplateQueries";
 
@@ -36,7 +35,6 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   if (!templateDocument) {
     return (
       <main className="creator-not-found">
-        <AppUtilityNav />
         <p>Template not found.</p>
         <Link href="/decks">Back to decks</Link>
       </main>

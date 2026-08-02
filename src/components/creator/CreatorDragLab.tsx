@@ -38,7 +38,6 @@ import {
   type Pair,
   type PairId,
 } from "@/components/creator/creatorBoardState";
-import AppUtilityNav from "@/components/layout/AppUtilityNav";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
@@ -1937,7 +1936,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   return (
     <main className="creator-lab" style={creatorGeometryStyle}>
-      <AppUtilityNav className="app-utility-nav app-utility-nav--creator" />
       <header className="creator-header">
         <div>
           <p className="creator-kicker">{mode === "edit" ? "Edit Template" : "Create New Deck"}</p>

@@ -8,7 +8,6 @@ import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
 import type { LayoutUser } from "@/components/cards/cardLayout";
-import AppUtilityNav from "@/components/layout/AppUtilityNav";
 import OverviewMenu from "@/components/layout/OverviewMenu";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 
@@ -289,7 +288,6 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   return (
     <LayoutGroup>
       <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
-      <AppUtilityNav />
       {selectedDeckId === null && (
         <motion.div
           initial={{ opacity: 0 }}

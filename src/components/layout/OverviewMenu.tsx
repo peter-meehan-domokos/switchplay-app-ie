@@ -72,6 +72,12 @@ export default function OverviewMenu({
           <Link className="deck-menu-item" href="/creator/new" role="menuitem" onClick={() => setIsOpen(false)}>
             Create
           </Link>
+          <Link className="deck-menu-item" href="/contact" role="menuitem" onClick={() => setIsOpen(false)}>
+            Support
+          </Link>
+          <Link className="deck-menu-item" href="/" role="menuitem" onClick={() => setIsOpen(false)}>
+            Website
+          </Link>
           <button
             className="deck-menu-item overview-menu-item-button"
             disabled={isPending}
