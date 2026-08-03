@@ -1,0 +1,24 @@
+.embeddedAuthScreen {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(168, 214, 228, 0.14), transparent 20rem),
+    radial-gradient(circle at 80% 0%, rgba(244, 224, 171, 0.12), transparent 22rem),
+    linear-gradient(180deg, #121721 0%, #090b10 100%);
+}
+
+.brandRow {
+  width: min(100% - clamp(32px, 8vw, 96px), 1120px);
+  margin: 0 auto;
+  padding-top: clamp(24px, 7vw, 72px);
+}
+
+.authArea {
+  min-height: 0;
+}
+
+.authArea :global(.auth-screen) {
+  min-height: 100%;
+  background: transparent;
+}

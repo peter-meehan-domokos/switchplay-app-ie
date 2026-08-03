@@ -1,0 +1,62 @@
+.hero {
+  display: grid;
+  gap: clamp(34px, 9vw, 72px);
+  padding-block: clamp(10px, 3vw, 24px) clamp(48px, 12vw, 96px);
+}
+
+.heroCopy {
+  display: grid;
+  gap: 22px;
+  max-width: 680px;
+}
+
+.title {
+  color: var(--sp-site-text);
+  font-size: clamp(3.1rem, 17vw, 6.5rem);
+  font-weight: 850;
+  line-height: 1;
+  max-width: 9.12ch;
+}
+
+.supportingText {
+  color: var(--sp-site-text-muted);
+  font-size: clamp(1.04rem, 4.2vw, 1.28rem);
+  line-height: 1.55;
+  max-width: 38rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin-top: 4px;
+}
+
+.artworkPanel {
+  border: 1px solid rgba(168, 214, 228, 0.2);
+  border-radius: var(--sp-site-card-radius);
+  background:
+    linear-gradient(135deg, rgba(255, 250, 240, 0.09), rgba(168, 214, 228, 0.08)),
+    rgba(255, 255, 255, 0.035);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  justify-self: center;
+  max-width: 520px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.artworkImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (min-width: 840px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.82fr);
+    align-items: center;
+    min-height: calc(100svh - 150px - var(--sp-site-spacing-comfortable) - var(--sp-site-spacing-comfortable));
+  }
+
+}

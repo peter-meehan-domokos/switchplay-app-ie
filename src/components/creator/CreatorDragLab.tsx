@@ -18,7 +18,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
-  createCreatorDeckTemplateId,
   creatorBoardToDeckTemplate,
   deleteCreatorCard,
   getCardColumns,
@@ -40,6 +39,7 @@ import {
   type PairId,
 } from "@/components/creator/creatorBoardState";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
+import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
@@ -108,6 +108,7 @@ type UploadSession = {
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
+const SUPPORT_ERROR_MESSAGE = "support";
 
 function createStepLinkId() {
   return `step-link-${crypto.randomUUID()}`;
@@ -1216,11 +1217,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const activeStreamName = activeStreamRow === null ? null : board.streamNamesByRow[activeStreamRow] ?? null;
   const canDeleteActiveCard = editSession?.target.type === "card-title" && getCardColumns(board.columns).length > 1;
-  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/" };
+  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
   const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0;
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
+  const shouldShowLeaveConfirm = isLeaveConfirmOpen && hasUnpublishedChanges;
   const publishButtonLabel =
     publishStatus === "publishing" ? "Publishing…" : hasMediaUploadInFlight ? "Uploading…" : hasUnpublishedChanges || !hasPublishedBaseline ? "Publish" : "Published";
 
@@ -1229,23 +1231,20 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }, [board]);
 
   useEffect(() => {
+    const pairUploadSessions = pairUploadSessionsRef.current;
+    const introUploadSessions = introUploadSessionsRef.current;
+
     return () => {
-      for (const session of pairUploadSessionsRef.current.values()) {
+      for (const session of pairUploadSessions.values()) {
         session.controller.abort();
       }
-      for (const session of introUploadSessionsRef.current.values()) {
+      for (const session of introUploadSessions.values()) {
         session.controller.abort();
       }
-      pairUploadSessionsRef.current.clear();
-      introUploadSessionsRef.current.clear();
+      pairUploadSessions.clear();
+      introUploadSessions.clear();
     };
   }, []);
-
-  useEffect(() => {
-    if (!hasUnpublishedChanges) {
-      setIsLeaveConfirmOpen(false);
-    }
-  }, [hasUnpublishedChanges]);
 
   function clearExpiredClickSuppression() {
     if (suppressClickUntilRef.current && Date.now() > suppressClickUntilRef.current) {
@@ -1319,9 +1318,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setPublishMessage("");
 
       return nextBoard;
-    } catch (error) {
+    } catch {
       setPublishStatus("error");
-      setPublishMessage(error instanceof Error ? error.message : "Unable to save draft.");
+      setPublishMessage(SUPPORT_ERROR_MESSAGE);
 
       return null;
     }
@@ -1422,9 +1421,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       router.replace(`/creator/edit/${encodeURIComponent(nextDeckTemplateId)}`);
 
       return true;
-    } catch (error) {
+    } catch {
       setPublishStatus("error");
-      setPublishMessage(error instanceof Error ? error.message : "Unable to publish template.");
+      setPublishMessage(SUPPORT_ERROR_MESSAGE);
 
       return false;
     }
@@ -1785,7 +1784,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       }
 
       setPublishStatus("error");
-      setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
+      setPublishMessage(SUPPORT_ERROR_MESSAGE);
     } finally {
       finishPairUpload(pairId, uploadSession);
     }
@@ -1834,7 +1833,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       }
 
       setPublishStatus("error");
-      setPublishMessage(error instanceof Error ? error.message : "Unable to upload video.");
+      setPublishMessage(SUPPORT_ERROR_MESSAGE);
     } finally {
       finishIntroUpload(columnId, uploadSession);
     }
@@ -1959,11 +1958,17 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           >
             {publishButtonLabel}
           </button>
-          {publishMessage ? <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}</p> : null}
+          {publishMessage ? (
+            publishStatus === "error" && publishMessage === SUPPORT_ERROR_MESSAGE ? (
+              <SupportErrorMessage className={`creator-save-message creator-save-message--${publishStatus}`} />
+            ) : (
+              <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}</p>
+            )
+          ) : null}
           <Link className="creator-back-link" href={resolvedCreatorReturnTarget.href} onClick={handleReturnClick}>
             {resolvedCreatorReturnTarget.label}
           </Link>
-          {isLeaveConfirmOpen ? (
+          {shouldShowLeaveConfirm ? (
             <div className="creator-leave-confirm" role="dialog" aria-label="Leave Creator confirmation">
               <p className="creator-leave-confirm-title">Leave Creator?</p>
               <p className="creator-leave-confirm-body">Your changes are saved as a draft. They will not appear in the live deck until you publish.</p>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import AuthScreen from "@/components/auth/AuthScreen";
+import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
 import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
 import { getCurrentUser } from "@/lib/auth";
@@ -23,7 +23,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   const user = await getCurrentUser();
 
   if (!user) {
-    return <AuthScreen />;
+    return <EmbeddedAuthScreen />;
   }
 
   const { deckTemplateId } = await params;
@@ -36,7 +36,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
     return (
       <main className="creator-not-found">
         <p>Template not found.</p>
-        <Link href="/">Back to decks</Link>
+        <Link href="/decks">Back to decks</Link>
       </main>
     );
   }
@@ -46,8 +46,8 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   const publishedBoard = createCreatorBoardFromTemplate(templateDocument.template);
   const creatorReturnTarget =
     returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
-      ? { label: "Deck" as const, href: `/?openDeck=${encodeURIComponent(returnDeckId)}` }
-      : { label: "Decks" as const, href: "/" };
+      ? { label: "Deck" as const, href: `/decks?openDeck=${encodeURIComponent(returnDeckId)}` }
+      : { label: "Decks" as const, href: "/decks" };
 
   return (
     <CreatorDragLab

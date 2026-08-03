@@ -1,0 +1,130 @@
+.creatorSection {
+  display: grid;
+  gap: clamp(48px, 12vw, 96px);
+  padding-block: clamp(54px, 13vw, 112px) clamp(64px, 14vw, 120px);
+  border-top: 1px solid rgba(255, 250, 240, 0.12);
+}
+
+.recruitment {
+  display: grid;
+  gap: 26px;
+}
+
+.recruitmentHeader,
+.supportHeader {
+  display: grid;
+  gap: 14px;
+}
+
+.eyebrow {
+  color: var(--sp-site-accent-blue);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.recruitmentTitle,
+.supportTitle {
+  color: var(--sp-site-text);
+  font-size: clamp(2.15rem, 10vw, 4.4rem);
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 0.98;
+  max-width: 10ch;
+}
+
+.supportTitle {
+  max-width: 12ch;
+}
+
+.recruitmentCopy,
+.supportHeader p,
+.supportPoint p {
+  color: var(--sp-site-text-muted);
+  font-size: clamp(1rem, 3.9vw, 1.16rem);
+  line-height: 1.6;
+}
+
+.recruitmentCopy {
+  display: grid;
+  gap: 18px;
+  max-width: 40rem;
+}
+
+.recruitmentCopy a {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+.support {
+  display: grid;
+  gap: 28px;
+}
+
+.supportHeader {
+  max-width: 43rem;
+}
+
+.supportGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.supportPoint {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(168, 214, 228, 0.18);
+  border-radius: var(--sp-site-card-radius);
+  background: rgba(255, 250, 240, 0.035);
+  padding: clamp(20px, 6vw, 28px);
+}
+
+.supportPoint h3 {
+  color: var(--sp-site-text);
+  font-size: clamp(1.2rem, 5vw, 1.45rem);
+  font-weight: 820;
+  line-height: 1.15;
+}
+
+.testimonial {
+  display: grid;
+  gap: 18px;
+  max-width: 48rem;
+  border-left: 3px solid var(--sp-site-accent-blue);
+  margin: 0;
+  padding: 4px 0 4px clamp(20px, 5vw, 34px);
+}
+
+.testimonial p {
+  color: var(--sp-site-text);
+  font-size: clamp(1.75rem, 8vw, 3.4rem);
+  font-weight: 780;
+  line-height: 1.06;
+}
+
+.testimonial cite {
+  color: var(--sp-site-text-muted);
+  font-size: 1rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+@media (min-width: 760px) {
+  .recruitment {
+    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+    align-items: start;
+    gap: clamp(42px, 7vw, 78px);
+  }
+
+  .supportGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1080px) {
+  .supportGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

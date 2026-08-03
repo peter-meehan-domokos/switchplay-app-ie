@@ -1,0 +1,16 @@
+.brandLink {
+  color: #fffaf0;
+  font-size: 1.05rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.brandLink:hover {
+  color: #fffaf0;
+}
+
+.brandLink:focus-visible {
+  outline: 3px solid rgba(168, 214, 228, 0.9);
+  outline-offset: 4px;
+}
