@@ -52,7 +52,7 @@ export const CREATOR_INTEREST_LIMITS = {
   name: 100,
   email: 254,
   phone: 30,
-  ageMin: 18,
+  ageMin: 1,
   ageMax: 120,
   location: 120,
   creatorIdea: 1200,
@@ -119,7 +119,7 @@ export function validateCreatorInterestInput(input: CreatorInterestRequestData):
   } else if (!Number.isInteger(age)) {
     fieldErrors.age = "Please enter your age as a whole number.";
   } else if (age < CREATOR_INTEREST_LIMITS.ageMin) {
-    fieldErrors.age = "You need to be 18 or over to register interest as a creator.";
+    fieldErrors.age = "Please enter a valid age.";
   } else if (age > CREATOR_INTEREST_LIMITS.ageMax) {
     fieldErrors.age = "Please enter a valid age.";
   }

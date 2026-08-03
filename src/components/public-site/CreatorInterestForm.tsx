@@ -163,27 +163,12 @@ export default function CreatorInterestForm() {
     }
   }
 
-  function handleSendAnotherResponse() {
-    isSubmittingRef.current = false;
-    setValues(initialValues);
-    setFieldErrors({});
-    setFormError(false);
-    setStatus("idle");
-  }
-
   if (status === "success") {
     return (
       <section className={styles.formSection} id="creator-interest" aria-labelledby="creator-interest-title">
         <div className={styles.successMessage} ref={successRef} tabIndex={-1} role="status" aria-live="polite">
           <h2 id="creator-interest-title">Thanks — we’ve received your interest.</h2>
           <p>We’ll review what you shared and get in touch if it looks like a good fit for the early creator group.</p>
-          <button
-            className={`${buttonStyles.button} ${buttonStyles.secondary}`}
-            type="button"
-            onClick={handleSendAnotherResponse}
-          >
-            Send another response
-          </button>
         </div>
       </section>
     );
