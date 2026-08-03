@@ -7,14 +7,6 @@
   padding-block: 4px clamp(28px, 7vw, 56px);
 }
 
-.wordmark {
-  color: var(--sp-site-text);
-  font-size: 1.05rem;
-  font-weight: 850;
-  letter-spacing: 0;
-  text-decoration: none;
-}
-
 .nav {
   display: flex;
   flex-wrap: wrap;
@@ -41,8 +33,7 @@
   color: var(--sp-site-text);
 }
 
-.navLink:focus-visible,
-.wordmark:focus-visible {
+.navLink:focus-visible {
   outline: 3px solid var(--sp-site-accent-blue);
   outline-offset: 4px;
 }

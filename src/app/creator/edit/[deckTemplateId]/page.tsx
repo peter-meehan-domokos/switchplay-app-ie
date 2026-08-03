@@ -1,5 +1,5 @@
 import Link from "next/link";
-import AuthScreen from "@/components/auth/AuthScreen";
+import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
 import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
 import { getCurrentUser } from "@/lib/auth";
@@ -23,7 +23,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   const user = await getCurrentUser();
 
   if (!user) {
-    return <AuthScreen />;
+    return <EmbeddedAuthScreen />;
   }
 
   const { deckTemplateId } = await params;

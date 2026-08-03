@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SwitchplayBrandLink from "@/components/brand/SwitchplayBrandLink";
 import { getCurrentUser } from "@/lib/auth";
 import styles from "./PublicHeader.module.css";
 
@@ -13,9 +14,7 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
 
   return (
     <header className={styles.header}>
-      <Link className={styles.wordmark} href="/" aria-label="Switchplay home">
-        Switchplay
-      </Link>
+      <SwitchplayBrandLink />
       <nav className={styles.nav} aria-label="Public navigation">
         {showJoinLink ? (
           <Link className={styles.navLink} href="/#early-access">

@@ -1,4 +1,4 @@
-import AuthScreen from "@/components/auth/AuthScreen";
+import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import AppShell from "@/components/layout/AppShell";
 import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
@@ -97,7 +97,7 @@ export default async function DecksPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    return <AuthScreen />;
+    return <EmbeddedAuthScreen />;
   }
 
   const adminDeckData = user.isAdmin ? await getAdminDecks(user.id) : null;
