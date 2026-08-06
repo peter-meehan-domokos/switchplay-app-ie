@@ -144,7 +144,7 @@ export default function CloudflareStreamPlayer({
   const iframeSrc = useMemo(
     () =>
       isSwitchplayControlsMode && sdkStatus !== "failed"
-        ? getCloudflareStreamIframeUrlWithControls(mediaItem, false, true)
+        ? getCloudflareStreamIframeUrlWithControls(mediaItem, false, false)
         : getCloudflareStreamIframeUrl(mediaItem),
     [isSwitchplayControlsMode, mediaItem, sdkStatus]
   );
@@ -215,7 +215,7 @@ export default function CloudflareStreamPlayer({
           return;
         }
         player.controls = false;
-        player.muted = true;
+        player.muted = false;
         playerRef.current = player;
         player.addEventListener?.("loadedmetadata", emitRenderable);
         player.addEventListener?.("canplay", emitRenderable);
@@ -286,7 +286,7 @@ export default function CloudflareStreamPlayer({
       return;
     }
 
-    player.muted = true;
+    player.muted = false;
     const playResult = player.play?.();
 
     if (playResult instanceof Promise) {
@@ -304,7 +304,7 @@ export default function CloudflareStreamPlayer({
     }
 
     if (isPaused || isEnded) {
-      player.muted = true;
+      player.muted = false;
       const playResult = player.play?.();
 
       if (playResult instanceof Promise) {
