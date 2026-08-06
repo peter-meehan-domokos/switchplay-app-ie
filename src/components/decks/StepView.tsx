@@ -1,11 +1,12 @@
 import { motion, type Transition } from "motion/react";
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type MouseEvent, type RefCallback } from "react";
+import { type PointerEvent, type MouseEvent, type RefCallback } from "react";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import StepDescriptionText from "@/components/cards/StepDescriptionText";
 import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
 import {
   type CloudflareStreamVideoMediaItem,
   isCloudflareStreamVideoMediaItem,
+  isKnownLandscapeCloudflareStreamVideoMediaItem,
   isKnownPortraitCloudflareStreamVideoMediaItem,
 } from "@/lib/media";
 
@@ -29,11 +30,9 @@ const stepViewTransition: Transition = {
   duration: 0.28,
   ease: [0.22, 0.72, 0.18, 1],
 };
-const PORTRAIT_MEDIA_REFERENCE_HEIGHT_PX = 199;
-const PORTRAIT_MEDIA_MIN_HEIGHT_PX = 160;
 
-function getStepViewItemLabel(item: StepViewItem) {
-  return item.type === "intro" ? "Intro" : `Step ${item.stepIndex + 1}`;
+function getStepViewItemLabel(itemIndex: number) {
+  return `STEP ${itemIndex + 1}`;
 }
 
 function getStepViewItemText(card: CardLayout, item: StepViewItem) {
@@ -50,6 +49,22 @@ function getStepViewItemContent(card: CardLayout, item: StepViewItem) {
 
 function getStepViewMediaItem(card: CardLayout, item: StepViewItem) {
   return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
+}
+
+function getStepViewVideoSurfaceModifierClass(mediaItem: CloudflareStreamVideoMediaItem | null) {
+  if (!mediaItem) {
+    return null;
+  }
+
+  if (isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem)) {
+    return "step-view-video-placeholder--portrait";
+  }
+
+  if (isKnownLandscapeCloudflareStreamVideoMediaItem(mediaItem)) {
+    return "step-view-video-placeholder--landscape";
+  }
+
+  return "step-view-video-placeholder--landscape";
 }
 
 function stopStepViewPropagation(event: PointerEvent<HTMLElement> | MouseEvent<HTMLElement>) {
@@ -79,12 +94,6 @@ function renderStepViewMedia(
   return mediaItem.mediaType === "video" ? "Video not ready yet" : "Unsupported media";
 }
 
-function isStepViewPortraitMedia(card: CardLayout, item: StepViewItem) {
-  const mediaItem = getStepViewMediaItem(card, item);
-
-  return isCloudflareStreamVideoMediaItem(mediaItem) && isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem);
-}
-
 export default function StepView({
   card,
   cloudflareVideoAnchorRef,
@@ -96,53 +105,14 @@ export default function StepView({
   onPrevious,
   useCloudflareVideoHost = false,
 }: StepViewProps) {
-  const titleRef = useRef<HTMLHeadingElement | null>(null);
-  const [portraitMediaMaxHeight, setPortraitMediaMaxHeight] = useState(PORTRAIT_MEDIA_REFERENCE_HEIGHT_PX);
-  const itemLabel = getStepViewItemLabel(item);
+  const itemLabel = getStepViewItemLabel(itemIndex);
   const itemText = getStepViewItemText(card, item);
   const itemContent = getStepViewItemContent(card, item);
   const hasItemContent = Boolean(itemContent?.length);
-  const isPortraitMedia = isStepViewPortraitMedia(card, item);
-  const bodyStyle = isPortraitMedia
-    ? ({
-        "--step-view-portrait-media-max-height": `${portraitMediaMaxHeight}px`,
-      } as CSSProperties)
-    : undefined;
-
-  useEffect(() => {
-    if (!isPortraitMedia) {
-      setPortraitMediaMaxHeight(PORTRAIT_MEDIA_REFERENCE_HEIGHT_PX);
-      return;
-    }
-
-    const titleElement = titleRef.current;
-
-    if (!titleElement) {
-      return;
-    }
-
-    const updatePortraitMediaMaxHeight = () => {
-      const titleHeight = titleElement.getBoundingClientRect().height;
-      const lineHeight = Number.parseFloat(window.getComputedStyle(titleElement).lineHeight);
-      const singleLineHeight = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : titleHeight;
-      const extraTitleHeight = Math.max(0, titleHeight - singleLineHeight);
-      const nextMaxHeight = Math.max(
-        PORTRAIT_MEDIA_MIN_HEIGHT_PX,
-        Math.round(PORTRAIT_MEDIA_REFERENCE_HEIGHT_PX - extraTitleHeight)
-      );
-
-      setPortraitMediaMaxHeight(nextMaxHeight);
-    };
-
-    updatePortraitMediaMaxHeight();
-
-    const resizeObserver = new ResizeObserver(updatePortraitMediaMaxHeight);
-    resizeObserver.observe(titleElement);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [isPortraitMedia, itemContent, itemText]);
+  const mediaItem = getStepViewMediaItem(card, item);
+  const cloudflareVideoMediaItem = isCloudflareStreamVideoMediaItem(mediaItem) ? mediaItem : null;
+  const videoSurfaceModifierClass = getStepViewVideoSurfaceModifierClass(cloudflareVideoMediaItem);
+  const videoPlaceholderClassName = `step-view-video-placeholder${videoSurfaceModifierClass ? ` ${videoSurfaceModifierClass}` : ""}`;
 
   return (
     <motion.section
@@ -161,12 +131,12 @@ export default function StepView({
     >
       <header className="step-view-header">
         <p className="step-view-kicker">{itemLabel}</p>
-        <button className="step-view-close" onClick={onClose} type="button" aria-label="Back to stage">
-          Back
+        <button className="step-view-close" onClick={onClose} type="button" aria-label="Close step view">
+          &times;
         </button>
       </header>
-      <main className={`step-view-body${isPortraitMedia ? " step-view-body--portrait-media" : ""}`} style={bodyStyle}>
-        <h2 className="step-view-title" ref={titleRef}>
+      <main className="step-view-body">
+        <h2 className="step-view-title">
           {itemText || hasItemContent ? (
             <StepDescriptionText content={itemContent} fallback={itemText} />
           ) : (
@@ -174,7 +144,7 @@ export default function StepView({
           )}
         </h2>
         <div
-          className={`step-view-video-placeholder${isPortraitMedia ? " step-view-video-placeholder--portrait" : ""}`}
+          className={videoPlaceholderClassName}
           onClick={stopStepViewPropagation}
           onPointerDown={stopStepViewPropagation}
           onPointerMove={stopStepViewPropagation}
