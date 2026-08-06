@@ -57,7 +57,7 @@ export default function Home() {
             height={1402}
             priority
             sizes="(min-width: 840px) 38vw, calc(100vw - 32px)"
-            src="/images/hero/hero-illustration.png"
+            src="/images/hero/hero-illustration4.png"
             width={1122}
           />
         </figure>
