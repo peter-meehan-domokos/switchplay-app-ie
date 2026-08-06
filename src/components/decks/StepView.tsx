@@ -31,8 +31,12 @@ const stepViewTransition: Transition = {
   ease: [0.22, 0.72, 0.18, 1],
 };
 
-function getStepViewItemLabel(itemIndex: number) {
-  return `STEP ${itemIndex + 1}`;
+function getStepViewItemLabel(item: StepViewItem) {
+  if (item.type === "intro") {
+    return "INTRO";
+  }
+
+  return `STEP ${item.stepIndex + 1}`;
 }
 
 function getStepViewItemText(card: CardLayout, item: StepViewItem) {
@@ -105,7 +109,7 @@ export default function StepView({
   onPrevious,
   useCloudflareVideoHost = false,
 }: StepViewProps) {
-  const itemLabel = getStepViewItemLabel(itemIndex);
+  const itemLabel = getStepViewItemLabel(item);
   const itemText = getStepViewItemText(card, item);
   const itemContent = getStepViewItemContent(card, item);
   const hasItemContent = Boolean(itemContent?.length);
