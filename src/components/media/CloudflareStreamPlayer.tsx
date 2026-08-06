@@ -8,6 +8,7 @@ type CloudflareStreamPlayerInstance = {
   addEventListener?: (eventName: string, listener: () => void) => void;
   controls?: boolean;
   ended?: boolean;
+  muted?: boolean;
   pause?: () => void;
   paused?: boolean;
   play?: () => Promise<void> | void;
@@ -66,11 +67,16 @@ export function getCloudflareStreamIframeUrl(mediaItem: CloudflareStreamVideoMed
     : createCloudflareStreamIframeUrl(mediaItem.assetId);
 }
 
-function getCloudflareStreamIframeUrlWithControls(mediaItem: CloudflareStreamVideoMediaItem, controls: boolean) {
+function getCloudflareStreamIframeUrlWithControls(
+  mediaItem: CloudflareStreamVideoMediaItem,
+  controls: boolean,
+  muted: boolean
+) {
   const iframeUrl = getCloudflareStreamIframeUrl(mediaItem);
   const url = new URL(iframeUrl);
 
   url.searchParams.set("controls", controls ? "true" : "false");
+  url.searchParams.set("muted", muted ? "true" : "false");
 
   return url.toString();
 }
@@ -138,7 +144,7 @@ export default function CloudflareStreamPlayer({
   const iframeSrc = useMemo(
     () =>
       isSwitchplayControlsMode && sdkStatus !== "failed"
-        ? getCloudflareStreamIframeUrlWithControls(mediaItem, false)
+        ? getCloudflareStreamIframeUrlWithControls(mediaItem, false, true)
         : getCloudflareStreamIframeUrl(mediaItem),
     [isSwitchplayControlsMode, mediaItem, sdkStatus]
   );
@@ -209,6 +215,7 @@ export default function CloudflareStreamPlayer({
           return;
         }
         player.controls = false;
+        player.muted = true;
         playerRef.current = player;
         player.addEventListener?.("loadedmetadata", emitRenderable);
         player.addEventListener?.("canplay", emitRenderable);
@@ -279,6 +286,7 @@ export default function CloudflareStreamPlayer({
       return;
     }
 
+    player.muted = true;
     const playResult = player.play?.();
 
     if (playResult instanceof Promise) {
@@ -296,6 +304,7 @@ export default function CloudflareStreamPlayer({
     }
 
     if (isPaused || isEnded) {
+      player.muted = true;
       const playResult = player.play?.();
 
       if (playResult instanceof Promise) {
