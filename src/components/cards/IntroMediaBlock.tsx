@@ -57,6 +57,7 @@ export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavi
   const introTitle = card.intro.title ?? "";
   const thumbnailSrc = isCloudflareStreamVideoMediaItem(mediaItem) ? getCloudflareStreamThumbnailUrl(mediaItem) : null;
   const isPortraitThumbnail = isCloudflareStreamVideoMediaItem(mediaItem) && isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem);
+  const identityClassName = `active-card-identity${isPortraitThumbnail ? " active-card-identity--portrait-intro" : ""}${!mediaItem ? " active-card-identity--no-media" : ""}`;
   const [failedThumbnailSrc, setFailedThumbnailSrc] = useState<string | null>(null);
   const shouldShowThumbnail = Boolean(thumbnailSrc && failedThumbnailSrc !== thumbnailSrc);
   const isIntroViewTrigger = typeof onOpenIntroView === "function";
@@ -238,7 +239,7 @@ export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavi
 
   return (
     <div
-      className={`active-card-identity${mediaItem ? "" : " active-card-identity--no-media"}`}
+      className={identityClassName}
       onClickCapture={isIntroViewTrigger ? handleClickCapture : undefined}
       onKeyDown={isIntroViewTrigger ? handleKeyDown : undefined}
       onLostPointerCapture={isIntroViewTrigger ? handleLostPointerCapture : undefined}

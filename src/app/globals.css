@@ -2271,6 +2271,10 @@ input {
   padding-top: 1px;
 }
 
+.active-card-identity--portrait-intro {
+  grid-template-columns: 52px minmax(0, 1fr);
+}
+
 .active-card-identity--no-media {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -2282,7 +2286,7 @@ input {
   width: 58px;
   aspect-ratio: 1 / 0.78;
   place-items: center;
-  border-radius: 13px;
+  border-radius: 15px;
   background:
     radial-gradient(circle at 38% 30%, rgba(239, 224, 191, 0.18), transparent 38%),
     linear-gradient(145deg, rgba(121, 168, 169, 0.16), rgba(255, 255, 255, 0.035)),
@@ -2300,10 +2304,18 @@ input {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 16px;
 }
 
 .intro-media-thumb--portrait .intro-media-thumbnail {
   object-fit: contain;
+  object-position: center;
+}
+
+.active-card-identity--portrait-intro .intro-media-thumb {
+  width: 52px;
+  aspect-ratio: 52 / 64;
+  background: transparent;
 }
 
 .intro-media-play,
