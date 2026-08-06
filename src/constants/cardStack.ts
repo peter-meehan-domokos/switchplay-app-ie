@@ -16,7 +16,7 @@ export const PROGRESSION_CARD_WIDTH = `${DECK_CARD_BASELINE_WIDTH}px`;
 export const FOCUSED_CARD_WIDTH = "min(92vw, 430px)";
 // Focused mode keeps a baseline stage for layout continuity while the inner object receives viewport-fit scale.
 export const FOCUSED_CARD_BASELINE_WIDTH = DECK_CARD_BASELINE_WIDTH;
-export const FOCUSED_CARD_STAGE_WIDTH = `min(64vw, ${FOCUSED_CARD_BASELINE_WIDTH}px)`;
+export const FOCUSED_CARD_STAGE_WIDTH = `${FOCUSED_CARD_BASELINE_WIDTH}px`;
 export const FOCUSED_CARD_PREFERRED_VISUAL_WIDTH = 394;
 export const FOCUSED_CARD_MAX_VISUAL_WIDTH = 430;
 export const FOCUSED_CARD_MIN_VISUAL_WIDTH = 284;

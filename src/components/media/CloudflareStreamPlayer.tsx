@@ -8,6 +8,7 @@ type CloudflareStreamPlayerInstance = {
   addEventListener?: (eventName: string, listener: () => void) => void;
   controls?: boolean;
   ended?: boolean;
+  muted?: boolean;
   pause?: () => void;
   paused?: boolean;
   play?: () => Promise<void> | void;
@@ -21,6 +22,7 @@ declare global {
 }
 
 type CloudflareStreamPlayerProps = {
+  autoplayRequestKey?: string | null;
   controlsMode?: "native" | "switchplay";
   displayMode?: "embedded" | "expanded";
   mediaItem: CloudflareStreamVideoMediaItem;
@@ -65,11 +67,16 @@ export function getCloudflareStreamIframeUrl(mediaItem: CloudflareStreamVideoMed
     : createCloudflareStreamIframeUrl(mediaItem.assetId);
 }
 
-function getCloudflareStreamIframeUrlWithControls(mediaItem: CloudflareStreamVideoMediaItem, controls: boolean) {
+function getCloudflareStreamIframeUrlWithControls(
+  mediaItem: CloudflareStreamVideoMediaItem,
+  controls: boolean,
+  muted: boolean
+) {
   const iframeUrl = getCloudflareStreamIframeUrl(mediaItem);
   const url = new URL(iframeUrl);
 
   url.searchParams.set("controls", controls ? "true" : "false");
+  url.searchParams.set("muted", muted ? "true" : "false");
 
   return url.toString();
 }
@@ -118,6 +125,7 @@ function stopPlayerControlPropagation(event: PointerEvent<HTMLButtonElement>) {
 }
 
 export default function CloudflareStreamPlayer({
+  autoplayRequestKey = null,
   controlsMode = "native",
   displayMode = "embedded",
   mediaItem,
@@ -127,6 +135,7 @@ export default function CloudflareStreamPlayer({
 }: CloudflareStreamPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<CloudflareStreamPlayerInstance | null>(null);
+  const lastAutoplayRequestKeyRef = useRef<string | null>(null);
   const [isPaused, setIsPaused] = useState(true);
   const [isEnded, setIsEnded] = useState(false);
   const [sdkStatus, setSdkStatus] = useState<"idle" | "ready" | "failed">("idle");
@@ -135,7 +144,7 @@ export default function CloudflareStreamPlayer({
   const iframeSrc = useMemo(
     () =>
       isSwitchplayControlsMode && sdkStatus !== "failed"
-        ? getCloudflareStreamIframeUrlWithControls(mediaItem, false)
+        ? getCloudflareStreamIframeUrlWithControls(mediaItem, false, false)
         : getCloudflareStreamIframeUrl(mediaItem),
     [isSwitchplayControlsMode, mediaItem, sdkStatus]
   );
@@ -206,6 +215,7 @@ export default function CloudflareStreamPlayer({
           return;
         }
         player.controls = false;
+        player.muted = false;
         playerRef.current = player;
         player.addEventListener?.("loadedmetadata", emitRenderable);
         player.addEventListener?.("canplay", emitRenderable);
@@ -228,6 +238,7 @@ export default function CloudflareStreamPlayer({
 
     return () => {
       isCancelled = true;
+      player?.pause?.();
       player?.removeEventListener?.("loadedmetadata", emitRenderable);
       player?.removeEventListener?.("canplay", emitRenderable);
       player?.removeEventListener?.("playing", emitRenderable);
@@ -254,6 +265,37 @@ export default function CloudflareStreamPlayer({
     playerRef.current.controls = false;
   }, [isSwitchplayControlsMode, sdkStatus, displayMode]);
 
+  useEffect(() => {
+    if (!isSwitchplayControlsMode || sdkStatus !== "ready") {
+      return;
+    }
+
+    if (!autoplayRequestKey) {
+      lastAutoplayRequestKeyRef.current = null;
+      return;
+    }
+
+    if (lastAutoplayRequestKeyRef.current === autoplayRequestKey) {
+      return;
+    }
+
+    lastAutoplayRequestKeyRef.current = autoplayRequestKey;
+    const player = playerRef.current;
+
+    if (!player) {
+      return;
+    }
+
+    player.muted = false;
+    const playResult = player.play?.();
+
+    if (playResult instanceof Promise) {
+      void playResult.catch(() => {
+        setIsPaused(true);
+      });
+    }
+  }, [autoplayRequestKey, isSwitchplayControlsMode, sdkStatus]);
+
   const togglePlayback = () => {
     const player = playerRef.current;
 
@@ -262,6 +304,7 @@ export default function CloudflareStreamPlayer({
     }
 
     if (isPaused || isEnded) {
+      player.muted = false;
       const playResult = player.play?.();
 
       if (playResult instanceof Promise) {

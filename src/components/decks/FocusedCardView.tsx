@@ -269,6 +269,12 @@ export default function FocusedCardView({
     activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
   );
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
+  const activeVideoAutoplayPhase =
+    activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId ? "renderable" : "pending";
+  const activeStepViewAutoplayRequestKey =
+    stepViewItemIndex !== null && activeCloudflareVideoMediaItem
+      ? `${card.id}:${stepViewItemIndex}:${activeCloudflareVideoMediaItem.assetId}:${activeVideoAutoplayPhase}`
+      : null;
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
@@ -756,6 +762,7 @@ export default function FocusedCardView({
                 ) : null}
                 <div className="switchplay-video-player-layer" style={shouldConcealCloudflarePlayer ? { visibility: "hidden" } : undefined}>
                   <CloudflareStreamPlayer
+                    autoplayRequestKey={activeStepViewAutoplayRequestKey}
                     controlsMode="switchplay"
                     displayMode={isVideoExpanded ? "expanded" : "embedded"}
                     mediaItem={activeCloudflareVideoMediaItem}

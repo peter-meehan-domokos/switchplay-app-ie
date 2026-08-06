@@ -2,6 +2,248 @@ import type { DeckTemplate } from "@/components/decks/types";
 
 export const deckTemplates: DeckTemplate[] = [
   {
+    deckTemplateId: "ibrahim-feed-the-fire-001",
+    title: "Feed the Fire",
+    category: "personal-growth",
+    streams: [
+      { id: "find-the-signal", title: "Find the Signal" },
+      { id: "work-the-craft", title: "Work the Craft" },
+      { id: "build-the-life", title: "Build the Life" }
+    ],
+    cards: [
+      {
+        cardId: "card-001",
+        label: "Card 1",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Break the Pattern",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-001-step-1",
+            description: "Step outside your normal routine and notice what genuinely wakes you up.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-001-step-2",
+            description: "Test the interest in a real situation, rather than only thinking or talking about it.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-001-step-3",
+            description: "Spend time with purposeful people and notice what their choices and standards demand.",
+            mediaItem: null
+          }
+        ]
+      },
+      {
+        cardId: "card-002",
+        label: "Card 2",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Recognise the Pull",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-002-step-1",
+            description: "Return to what gave you energy and see whether it keeps calling you back.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-002-step-2",
+            description: "Get closer to people doing it seriously and allow their standard to raise yours.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-002-step-3",
+            description: "Give the feeling time to prove itself instead of demanding immediate certainty.",
+            mediaItem: null
+          }
+        ]
+      },
+      {
+        cardId: "card-003",
+        label: "Card 3",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Choose It Seriously",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-003-step-1",
+            description: "Use your lived experience, values and faith to answer why this path matters to you.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-003-step-2",
+            description: "Study deeply, seek honest feedback and repeat the small details until the work improves.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-003-step-3",
+            description: "Let the choice reshape your routine, work or environment so the path has room to grow.",
+            mediaItem: null
+          }
+        ]
+      },
+      {
+        cardId: "card-004",
+        label: "Card 4",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Stay in the Game",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-004-step-1",
+            description: "Return to the original feeling when pressure, waiting or recognition starts getting loud.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-004-step-2",
+            description: "Keep building daily momentum, but move with strategy rather than panic.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-004-step-3",
+            description: "Protect recovery, social media boundaries and the people who keep you level.",
+            mediaItem: null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    deckTemplateId: "daniel-build-your-first-muscle-up-001",
+    title: "Build Your First Muscle-Up",
+    category: "fitness",
+    streams: [
+      { id: "build-strength", title: "Build the Strength" },
+      { id: "refine-technique", title: "Refine the Technique" },
+      { id: "stay-in-journey", title: "Stay in the Journey" }
+    ],
+    cards: [
+      {
+        cardId: "card-001",
+        label: "Build the Foundation",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Build the Foundation",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-001-step-1",
+            description: "Build a solid base with 3 sets of 5 clean pull-ups.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-001-step-2",
+            description: "Learn a relaxed, controlled swing without forcing the movement.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-001-step-3",
+            description: "Set your intention: train consistently, stay patient, and don't quit.",
+            mediaItem: null
+          }
+        ]
+      },
+      {
+        cardId: "card-002",
+        label: "Build Momentum",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Build Momentum",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-002-step-1",
+            description: "Build up to 3 sets of 8 clean pull-ups. Don't chase failure.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-002-step-2",
+            description: "Time your pull as soon as your body starts travelling backwards.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-002-step-3",
+            description: "Write what you'll say when frustrated, then use it in the moment.",
+            mediaItem: null
+          }
+        ]
+      },
+      {
+        cardId: "card-003",
+        label: "Put It Together",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Put It Together",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-003-step-1",
+            description: "Optionally try weighted pull-ups, or build towards 3 sets of 10.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-003-step-2",
+            description: "Drive your knees towards your chest to get around the bar.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-003-step-3",
+            description: "If progress is slow, reflect on what needs your focus next.",
+            mediaItem: null
+          }
+        ]
+      },
+      {
+        cardId: "card-004",
+        label: "Own the Muscle-Up",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Own the Muscle-Up",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-004-step-1",
+            description: "Once you have it, use less swing until you rely on pulling strength.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-004-step-2",
+            description: "Bring swing, timing and knee drive together, then press to the top.",
+            mediaItem: null
+          },
+          {
+            stepId: "card-004-step-3",
+            description: "Remember the discipline you built and use it in your next challenge.",
+            mediaItem: null
+          }
+        ]
+      }
+    ]
+  }
+]
+  /*
+  {
     deckTemplateId: "Simeon-deck-12-weeks-nicene-creed-001",
     title: "12 Weeks in the Nicene Creed",
     category: "spiritual",
@@ -146,6 +388,7 @@ export const deckTemplates: DeckTemplate[] = [
     ]
   },
 ];
+*/
 
 
 
