@@ -1175,7 +1175,6 @@ type CreatorDragLabProps = {
 export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialPublishedBoard, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
-  console.log("CreatorDragLab board", board);
   const [publishedTemplateSnapshot, setPublishedTemplateSnapshot] = useState(() => createTemplateSnapshot(initialPublishedBoard ?? initialBoard));
   const [hasPublishedBaseline, setHasPublishedBaseline] = useState(mode === "edit");
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
@@ -1280,7 +1279,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   function previewTemplateOutput() {
-    console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
+    //console.log("Creator DeckTemplate preview", creatorBoardToDeckTemplate(board));
   }
 
   async function persistSavedDraft(nextBoard: BoardState) {

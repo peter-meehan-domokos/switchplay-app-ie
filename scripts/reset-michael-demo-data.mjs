@@ -31,7 +31,7 @@ async function resetMichaelDemoData() {
     throw new Error('Unable to reset demo data: user "Michael" was not found.');
   }
 
-  console.log(`Reset Michael demo data with ${demoDeckData.length} decks.`);
+  //console.log(`Reset Michael demo data with ${demoDeckData.length} decks.`);
 }
 
 try {
