@@ -1,4 +1,4 @@
-export const STREAM_DIRECT_UPLOAD_MAX_DURATION_SECONDS = 120;
+export const STREAM_DIRECT_UPLOAD_MAX_DURATION_SECONDS = 150;
 
 type CloudflareStreamConfig = {
   accountId: string;
