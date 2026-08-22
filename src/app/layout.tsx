@@ -5,10 +5,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Switchplay — Learn from people like you",
-    template: "%s | Switchplay",
+    default: "Puckle — People like you. Showing you how.",
+    template: "%s | Puckle",
   },
-  description: "Follow real paths from people who have been where you are and have achieved what you want to achieve.",
+  description: "A clear path, not just another video. Follow the steps of someone who's done it.",
 };
 
 export default function RootLayout({

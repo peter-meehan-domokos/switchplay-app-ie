@@ -1,8 +1,10 @@
 .brandLink {
   color: #fffaf0;
-  font-size: 1.05rem;
+  font-family: "Nunito Sans", "Arial Rounded MT Bold", Arial, Helvetica, sans-serif;
+  font-size: clamp(1.42rem, 6.2vw, 1.72rem);
   font-weight: 850;
   letter-spacing: 0;
+  line-height: 1;
   text-decoration: none;
 }
 

@@ -1,36 +1,68 @@
 .hero {
   display: grid;
-  gap: clamp(34px, 9vw, 72px);
+  gap: clamp(6px, 2.5vw, 72px);
   padding-block: clamp(10px, 3vw, 24px) clamp(48px, 12vw, 96px);
 }
 
 .heroCopy {
   display: grid;
-  gap: 22px;
+  gap: 12px;
   max-width: 680px;
 }
 
 .title {
   color: var(--sp-site-text);
-  font-size: clamp(3.1rem, 17vw, 6.5rem);
+  font-size: clamp(2.05rem, 10vw, 6.5rem);
   font-weight: 850;
-  line-height: 1;
-  max-width: 9.12ch;
+  line-height: 0.98;
+  max-width: none;
+}
+
+.title span {
+  display: block;
+  white-space: nowrap;
 }
 
 .supportingText {
   color: var(--sp-site-text-muted);
-  font-size: clamp(1.04rem, 4.2vw, 1.28rem);
+  font-size: clamp(0.96rem, 4.1vw, 1.28rem);
   line-height: 1.55;
-  max-width: 38rem;
+  max-width: 31rem;
+}
+
+.supportingText span {
+  display: block;
+  white-space: nowrap;
 }
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 12px 18px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 6px;
+  width: fit-content;
+}
+
+.primaryAction {
+  min-height: 44px;
+  padding-inline: 20px;
+}
+
+.secondaryAction {
+  min-height: auto;
+  padding: 2px 0;
+  color: var(--sp-site-text-muted);
+  font-size: 0.93rem;
+  font-weight: 750;
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 214, 228, 0.5);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+}
+
+.secondaryAction:hover {
+  color: var(--sp-site-accent-blue);
 }
 
 .artworkPanel {
@@ -52,11 +84,51 @@
   height: auto;
 }
 
+.creatorArtworkPanel {
+  margin: clamp(36px, 8vw, 88px) auto clamp(16px, 4vw, 40px);
+  max-width: 900px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.creatorArtworkImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 @media (min-width: 840px) {
   .hero {
+    gap: clamp(18px, 6vw, 72px);
     grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.82fr);
     align-items: center;
     min-height: calc(100svh - 150px - var(--sp-site-spacing-comfortable) - var(--sp-site-spacing-comfortable));
+  }
+
+  .heroCopy {
+    gap: 18px;
+  }
+
+  .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 18px;
+    margin-top: 4px;
+    width: auto;
+  }
+
+  .primaryAction {
+    min-height: 48px;
+    padding-inline: 22px;
+  }
+
+  .secondaryAction {
+    min-height: 48px;
+    padding: 0 8px;
+    color: var(--sp-site-text);
+    font-size: 0.95rem;
+    text-decoration: none;
   }
 
 }

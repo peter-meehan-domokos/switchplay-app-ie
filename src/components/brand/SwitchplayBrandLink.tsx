@@ -9,8 +9,8 @@ export default function SwitchplayBrandLink({ className }: SwitchplayBrandLinkPr
   const linkClassName = className ? `${styles.brandLink} ${className}` : styles.brandLink;
 
   return (
-    <Link className={linkClassName} href="/" aria-label="Switchplay home">
-      Switchplay
+    <Link className={linkClassName} href="/" aria-label="Puckle home">
+      Puckle
     </Link>
   );
 }

@@ -7,9 +7,9 @@ import HowItWorksSection, { FollowerInterestSection } from "@/components/public-
 import buttonStyles from "@/components/public-site/PublicButton.module.css";
 import styles from "./HomePage.module.css";
 
-const homeTitle = "Switchplay — Learn from people like you";
+const homeTitle = "Puckle — People like you. Showing you how.";
 const homeDescription =
-  "Follow real paths created by people who have been where you are and have achieved what you want to achieve.";
+  "A clear path, not just another video. Follow the steps of someone who's done it.";
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: homeTitle,
     description: homeDescription,
-    siteName: "Switchplay",
+    siteName: "Puckle",
     type: "website",
   },
   twitter: {
@@ -35,17 +35,22 @@ export default function Home() {
       <PublicHeader />
       <section className={styles.hero} aria-labelledby="home-hero-title">
         <div className={styles.heroCopy}>
-          <h1 className={styles.title} id="home-hero-title">
-            Learn from people like you.
+          <h1 className={styles.title} id="home-hero-title" aria-label="People like you. Showing you how.">
+            <span>People like you.</span>
+            <span>Showing you how.</span>
           </h1>
-          <p className={styles.supportingText}>
-            Follow real paths from people who have been where you are and have achieved what you want to achieve.
+          <p
+            className={styles.supportingText}
+            aria-label="A clear path, not just another video. Follow the steps of someone who's done it."
+          >
+            <span>A clear path, not just another video.</span>
+            <span>Follow the steps of someone who&apos;s done it.</span>
           </p>
           <div className={styles.actions}>
-            <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
+            <a className={`${buttonStyles.button} ${buttonStyles.primary} ${styles.primaryAction}`} href="#early-access">
               Join early access
             </a>
-            <a className={`${buttonStyles.button} ${buttonStyles.secondary}`} href="#creator-interest">
+            <a className={`${buttonStyles.button} ${buttonStyles.secondary} ${styles.secondaryAction}`} href="#creator-interest">
               Become a creator
             </a>
           </div>
@@ -57,12 +62,22 @@ export default function Home() {
             height={1402}
             priority
             sizes="(min-width: 840px) 38vw, calc(100vw - 32px)"
-            src="/images/hero/hero-illustration4.png"
+            src="/images/hero/hero-illustration8.png"
             width={1122}
           />
         </figure>
       </section>
       <HowItWorksSection />
+      <figure className={styles.creatorArtworkPanel}>
+        <Image
+          alt="People collaborating around a Switchplay path"
+          className={styles.creatorArtworkImage}
+          height={1086}
+          sizes="(min-width: 840px) 70vw, calc(100vw - 32px)"
+          src="/images/other/second-illustration.png"
+          width={1448}
+        />
+      </figure>
       <CreatorSection />
       <FollowerInterestSection />
     </PublicLayout>

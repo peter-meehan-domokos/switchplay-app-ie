@@ -2,7 +2,6 @@
   display: grid;
   gap: clamp(48px, 12vw, 96px);
   padding-block: clamp(54px, 13vw, 112px) clamp(64px, 14vw, 120px);
-  border-top: 1px solid rgba(255, 250, 240, 0.12);
 }
 
 .recruitment {

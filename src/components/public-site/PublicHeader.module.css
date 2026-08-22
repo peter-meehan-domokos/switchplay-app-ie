@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding-block: 4px clamp(28px, 7vw, 56px);
+  padding-block: 4px clamp(8px, 3vw, 42px);
 }
 
 .nav {
