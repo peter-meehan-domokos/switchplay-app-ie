@@ -16,7 +16,7 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
     <header className={styles.header}>
       <SwitchplayBrandLink />
       <nav className={styles.nav} aria-label="Public navigation">
-        {showJoinLink ? (
+        {showJoinLink && !user ? (
           <Link className={styles.navLink} href="/#early-access">
             Join
           </Link>
