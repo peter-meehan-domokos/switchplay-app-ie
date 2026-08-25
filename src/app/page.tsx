@@ -43,7 +43,7 @@ export default function Home() {
             className={styles.supportingText}
             aria-label="A clear path, not just another video. Follow the steps of someone who's done it."
           >
-            <span>A clear path, not just another video.</span>
+            <span>The unofficial way to get there.</span>
             <span>Follow the steps of someone who&apos;s done it.</span>
           </p>
           <div className={styles.actions}>
