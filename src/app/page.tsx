@@ -7,7 +7,7 @@ import HowItWorksSection, { FollowerInterestSection } from "@/components/public-
 import buttonStyles from "@/components/public-site/PublicButton.module.css";
 import styles from "./HomePage.module.css";
 
-const homeTitle = "Puckle — People like you. Showing you how.";
+const homeTitle = "STRAT17 — People like you. Showing you how.";
 const homeDescription =
   "A clear path, not just another video. Follow the steps of someone who's done it.";
 
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: homeTitle,
     description: homeDescription,
-    siteName: "Puckle",
+    siteName: "STRAT17",
     type: "website",
   },
   twitter: {

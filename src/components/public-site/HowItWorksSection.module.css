@@ -11,6 +11,27 @@
   max-width: 52rem;
 }
 
+.eyebrowRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepMotif {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  width: max-content;
+}
+
+.stepMotif span {
+  display: block;
+  width: 4px;
+  height: 15px;
+  border-radius: 1px;
+  background: rgba(255, 250, 240, 0.72);
+}
+
 .eyebrow,
 .stepEyebrow {
   color: var(--sp-site-accent-blue);
@@ -64,6 +85,11 @@
   border-radius: var(--sp-site-card-radius);
   background: rgba(255, 250, 240, 0.035);
   padding: clamp(20px, 6vw, 28px);
+}
+
+.stepCard .stepMotif span {
+  height: 13px;
+  background: rgba(168, 214, 228, 0.55);
 }
 
 .stepCard h3 {

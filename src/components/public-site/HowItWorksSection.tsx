@@ -23,7 +23,14 @@ export default function HowItWorksSection() {
   return (
     <section className={styles.section} aria-labelledby="how-it-works-title">
       <header className={styles.header}>
-        <p className={styles.eyebrow}>How it works</p>
+        <div className={styles.eyebrowRow}>
+          <span className={styles.stepMotif} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <p className={styles.eyebrow}>How it works</p>
+        </div>
         <h2 id="how-it-works-title">Small steps. Real experience. Meaningful progress.</h2>
         <div className={styles.intro}>
           <p>Switchplay helps you learn from people who have already achieved something meaningful.</p>
@@ -40,6 +47,11 @@ export default function HowItWorksSection() {
       <div className={styles.steps} aria-label="How Switchplay works">
         {steps.map((step) => (
           <article className={styles.stepCard} key={step.title}>
+            <span className={styles.stepMotif} aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
             <p className={styles.stepEyebrow}>{step.eyebrow}</p>
             <h3>{step.title}</h3>
             <p>{step.body}</p>

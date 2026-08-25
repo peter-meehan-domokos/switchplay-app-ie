@@ -1,15 +1,20 @@
 .brandLink {
   color: #fffaf0;
-  font-family: "Nunito Sans", "Arial Rounded MT Bold", Arial, Helvetica, sans-serif;
-  font-size: clamp(1.42rem, 6.2vw, 1.72rem);
-  font-weight: 850;
-  letter-spacing: 0;
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(1.23rem, 5.28vw, 1.52rem);
+  font-weight: 630;
+  letter-spacing: -0.024em;
   line-height: 1;
   text-decoration: none;
+  text-transform: uppercase;
 }
 
 .brandLink:hover {
   color: #fffaf0;
+}
+
+.brandNumber {
+  margin-left: 0.04em;
 }
 
 .brandLink:focus-visible {
