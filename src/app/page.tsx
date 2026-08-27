@@ -35,15 +35,16 @@ export default function Home() {
       <PublicHeader />
       <section className={styles.hero} aria-labelledby="home-hero-title">
         <div className={styles.heroCopy}>
-          <h1 className={styles.title} id="home-hero-title" aria-label="People like you. Showing you how.">
-            <span>People like you.</span>
-            <span>Showing you how.</span>
+          <h1 className={styles.title} id="home-hero-title" aria-label="The unofficial way to get there.">
+            <span className={styles.titleLine}>
+              The <span className={styles.unofficialMark}>unofficial</span> way
+            </span>
+            <span className={styles.titleLine}>to get there</span>
           </h1>
           <p
             className={styles.supportingText}
             aria-label="A clear path, not just another video. Follow the steps of someone who's done it."
           >
-            <span>The unofficial way to get there.</span>
             <span>Follow the steps of someone who&apos;s done it.</span>
           </p>
           <div className={styles.actions}>

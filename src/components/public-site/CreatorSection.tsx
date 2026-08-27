@@ -32,7 +32,7 @@ export default function CreatorSection() {
             You do not need to be an expert, an influencer or an experienced teacher. If you have achieved something
             meaningful, the way you did it could help someone else.
           </p>
-          <p>Switchplay helps you turn that experience into a clear path people can follow.</p>
+          <p>Strat17 helps you turn that experience into a clear path people can follow.</p>
           <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#creator-interest">
             Create a path with us
           </a>
@@ -61,7 +61,7 @@ export default function CreatorSection() {
 
       <blockquote className={styles.testimonial}>
         <p>“This is making me think things I didn’t know were possible.”</p>
-        <cite>Joe, early Switchplay creator</cite>
+        <cite>Joe, early Strat17 creator</cite>
       </blockquote>
 
       <CreatorInterestForm />

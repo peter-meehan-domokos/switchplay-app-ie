@@ -33,7 +33,7 @@ export default function HowItWorksSection() {
         </div>
         <h2 id="how-it-works-title">Small steps. Real experience. Meaningful progress.</h2>
         <div className={styles.intro}>
-          <p>Switchplay helps you learn from people who have already achieved something meaningful.</p>
+          <p>Strat17 helps you learn from people who have already achieved something meaningful.</p>
           <p>
             Instead of trying to work everything out alone, you can follow a clear path built from someone else&apos;s
             real experience.
@@ -44,7 +44,7 @@ export default function HowItWorksSection() {
         </div>
       </header>
 
-      <div className={styles.steps} aria-label="How Switchplay works">
+      <div className={styles.steps} aria-label="How Strat17 works">
         {steps.map((step) => (
           <article className={styles.stepCard} key={step.title}>
             <span className={styles.stepMotif} aria-hidden="true">

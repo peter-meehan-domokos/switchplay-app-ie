@@ -162,7 +162,7 @@ export default function EarlyAccessForm() {
       <div className={sectionStyles.followerCopy}>
         <h2 id="early-access-title">Join early access</h2>
         <p>
-          Join the Switchplay early access list. We&rsquo;ll let you know when new paths and ways
+          Join the Strat17 early access list. We&rsquo;ll let you know when new paths and ways
           to get involved become available.
         </p>
       </div>
@@ -264,7 +264,7 @@ export default function EarlyAccessForm() {
               </p>
             </div>
             <p className={formStyles.privacyNotice}>
-              By submitting this form, you agree that Switchplay may use your details to respond to you. See our{" "}
+              By submitting this form, you agree that Strat17 may use your details to respond to you. See our{" "}
               <Link href="/privacy">Privacy Policy</Link>.
             </p>
           </form>
