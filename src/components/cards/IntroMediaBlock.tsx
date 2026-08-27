@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
-import { getCloudflareStreamThumbnailUrl } from "@/components/media/CloudflareStreamPlayer";
+import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import type { WeeklyCard } from "@/components/decks/types";
 import {

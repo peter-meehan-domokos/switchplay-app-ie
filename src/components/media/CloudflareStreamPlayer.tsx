@@ -1,4 +1,5 @@
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
+import { createCloudflareStreamIframeUrl } from "@/lib/cloudflareStreamPlayback";
 import { CollapseVideoIcon, ExpandVideoIcon } from "@/components/icons/videoControlIcons";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
@@ -22,7 +23,6 @@ declare global {
 }
 
 type CloudflareStreamPlayerProps = {
-  autoplayRequestKey?: string | null;
   controlsMode?: "native" | "switchplay";
   displayMode?: "embedded" | "expanded";
   mediaItem: CloudflareStreamVideoMediaItem;
@@ -33,29 +33,11 @@ type CloudflareStreamPlayerProps = {
 
 let cloudflareStreamSdkPromise: Promise<void> | null = null;
 
-function createCloudflareStreamIframeUrl(assetId: string) {
-  return `https://iframe.videodelivery.net/${encodeURIComponent(assetId)}`;
-}
-
-function createCloudflareStreamThumbnailUrl(assetId: string) {
-  return `https://videodelivery.net/${encodeURIComponent(assetId)}/thumbnails/thumbnail.jpg`;
-}
-
 function isValidCloudflareStreamIframeUrl(value: string) {
   try {
     const url = new URL(value);
 
     return url.protocol === "https:" && url.hostname === "iframe.videodelivery.net";
-  } catch {
-    return false;
-  }
-}
-
-function isValidCloudflareStreamThumbnailUrl(value: string) {
-  try {
-    const url = new URL(value);
-
-    return url.protocol === "https:";
   } catch {
     return false;
   }
@@ -79,12 +61,6 @@ function getCloudflareStreamIframeUrlWithControls(
   url.searchParams.set("muted", muted ? "true" : "false");
 
   return url.toString();
-}
-
-export function getCloudflareStreamThumbnailUrl(mediaItem: CloudflareStreamVideoMediaItem) {
-  return mediaItem.thumbnailSrc && isValidCloudflareStreamThumbnailUrl(mediaItem.thumbnailSrc)
-    ? mediaItem.thumbnailSrc
-    : createCloudflareStreamThumbnailUrl(mediaItem.assetId);
 }
 
 function loadCloudflareStreamSdk() {
@@ -125,7 +101,6 @@ function stopPlayerControlPropagation(event: PointerEvent<HTMLButtonElement>) {
 }
 
 export default function CloudflareStreamPlayer({
-  autoplayRequestKey = null,
   controlsMode = "native",
   displayMode = "embedded",
   mediaItem,
@@ -135,7 +110,6 @@ export default function CloudflareStreamPlayer({
 }: CloudflareStreamPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<CloudflareStreamPlayerInstance | null>(null);
-  const lastAutoplayRequestKeyRef = useRef<string | null>(null);
   const [isPaused, setIsPaused] = useState(true);
   const [isEnded, setIsEnded] = useState(false);
   const [sdkStatus, setSdkStatus] = useState<"idle" | "ready" | "failed">("idle");
@@ -264,37 +238,6 @@ export default function CloudflareStreamPlayer({
 
     playerRef.current.controls = false;
   }, [isSwitchplayControlsMode, sdkStatus, displayMode]);
-
-  useEffect(() => {
-    if (!isSwitchplayControlsMode || sdkStatus !== "ready") {
-      return;
-    }
-
-    if (!autoplayRequestKey) {
-      lastAutoplayRequestKeyRef.current = null;
-      return;
-    }
-
-    if (lastAutoplayRequestKeyRef.current === autoplayRequestKey) {
-      return;
-    }
-
-    lastAutoplayRequestKeyRef.current = autoplayRequestKey;
-    const player = playerRef.current;
-
-    if (!player) {
-      return;
-    }
-
-    player.muted = false;
-    const playResult = player.play?.();
-
-    if (playResult instanceof Promise) {
-      void playResult.catch(() => {
-        setIsPaused(true);
-      });
-    }
-  }, [autoplayRequestKey, isSwitchplayControlsMode, sdkStatus]);
 
   const togglePlayback = () => {
     const player = playerRef.current;
