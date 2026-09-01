@@ -133,6 +133,10 @@
     gap: 18px;
   }
 
+  .title {
+    font-size: clamp(2.65rem, 3.825vw, 3.9375rem);
+  }
+
   .actions {
     flex-direction: row;
     flex-wrap: wrap;
