@@ -100,18 +100,25 @@ export type BoardState = {
   pairs: Record<PairId, Pair>;
 };
 
-const creatorColumns: Column[] = [
-  { id: "streams", kind: "stream", label: "Streams" },
-  { id: "card-1", kind: "card", label: "Card" },
-  { id: "card-2", kind: "card", label: "Card" },
-  { id: "card-3", kind: "card", label: "Card" },
-  { id: "card-4", kind: "card", label: "Card" },
-];
-
+const DEFAULT_CREATOR_CARD_COUNT = 4;
+const streamColumn: Column = { id: "streams", kind: "stream", label: "Streams" };
 const starterCardTitles = ["Get started", "Make progress", "Build momentum", "Feel the difference"];
 const starterTargetDates = ["2026-06-07", "2026-06-14", "2026-06-21", "2026-06-28"];
 const starterStreamNames = ["Stream 1", "Stream 2", "Stream 3"];
 const newCardTitle = "My New Card";
+
+function createCreatorColumns(cardCount: number): Column[] {
+  const normalizedCardCount = Math.max(0, Math.floor(cardCount));
+
+  return [
+    streamColumn,
+    ...Array.from({ length: normalizedCardCount }, (_, index): Column => ({
+      id: createCardColumnId(index + 1),
+      kind: "card",
+      label: "Card",
+    })),
+  ];
+}
 
 function getDefaultCardLabel(cardIndex: number) {
   return `Stage ${cardIndex + 1}`;
@@ -470,7 +477,7 @@ function createTemplateStreamIds(template: DeckTemplate, rows: number[]) {
 }
 
 function createBlankColumns(): Column[] {
-  return creatorColumns.map((column, columnIndex) => {
+  return createCreatorColumns(DEFAULT_CREATOR_CARD_COUNT).map((column, columnIndex) => {
     if (column.kind === "stream") {
       return column;
     }
@@ -493,9 +500,9 @@ function createBlankColumns(): Column[] {
 }
 
 function createTemplateColumns(template: DeckTemplate): Column[] {
-  const templateCards = template.cards.slice(0, creatorColumns.length - 1);
+  const templateCards = template.cards;
 
-  return creatorColumns.map((column, columnIndex) => {
+  return createCreatorColumns(templateCards.length).map((column, columnIndex) => {
     if (column.kind === "stream") {
       return column;
     }
@@ -554,7 +561,7 @@ export function createBlankCreatorBoard(): BoardState {
 
 export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardState {
   const rows = getCreatorRows();
-  const templateCards = template.cards.slice(0, creatorColumns.length - 1);
+  const templateCards = template.cards;
   const columns = createTemplateColumns(template);
   const cells = createBaseCells(columns, rows);
   const pairs = columns.reduce<Record<PairId, Pair>>((nextPairs, column, columnIndex) => {
