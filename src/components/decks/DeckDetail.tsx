@@ -27,6 +27,7 @@ import {
   persistSignalReading,
   persistStepCompletionStatus,
 } from "@/lib/deckMutations";
+import { addDaysToDateOnly } from "@/lib/dateOnly";
 import { normalizeCompletionStatus } from "@/lib/progress";
 import { roundSignalReadingForStorage } from "@/lib/signals";
 
@@ -148,36 +149,8 @@ function getNextCompletionStatus(currentStatus: CompletionStatus) {
   return stepProgressCycle[(currentIndex + 1) % stepProgressCycle.length];
 }
 
-function isValidDateString(dateString: string) {
-  const normalizedDateString = dateString.trim();
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDateString)) {
-    return false;
-  }
-
-  const [yearRaw, monthRaw, dayRaw] = normalizedDateString.split("-");
-  const year = Number(yearRaw);
-  const month = Number(monthRaw);
-  const day = Number(dayRaw);
-  const candidateDate = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    candidateDate.getUTCFullYear() === year &&
-    candidateDate.getUTCMonth() === month - 1 &&
-    candidateDate.getUTCDate() === day
-  );
-}
-
 function addDaysToDateString(dateString: string, amount: number) {
-  if (!isValidDateString(dateString)) {
-    return null;
-  }
-
-  const [yearRaw, monthRaw, dayRaw] = dateString.split("-");
-  const baseDate = new Date(Date.UTC(Number(yearRaw), Number(monthRaw) - 1, Number(dayRaw)));
-  baseDate.setUTCDate(baseDate.getUTCDate() + amount);
-
-  return baseDate.toISOString().slice(0, 10);
+  return addDaysToDateOnly(dateString, amount);
 }
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {

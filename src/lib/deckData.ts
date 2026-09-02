@@ -4,6 +4,7 @@ import {
   type Deck,
   type DeckTemplate,
 } from "@/components/decks/types";
+import { resolveDateOnly } from "@/lib/dateOnly";
 import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 function getFirstCardId(template: DeckTemplate) {
@@ -13,7 +14,7 @@ function getFirstCardId(template: DeckTemplate) {
 function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["cards"][number]): ClientUserCardData {
   return {
     cardId: templateCard.cardId,
-    targetDate: templateCard.suggestedTargetDate,
+    targetDate: resolveDateOnly(templateCard.suggestedTargetDate),
     steps: templateCard.steps.map((step) => ({
       stepId: step.stepId,
       completionStatus: "todo",
@@ -74,7 +75,7 @@ export function mergeDeckTemplatesWithUserData(
       return {
         id: templateCard.cardId,
         label: templateCard.label,
-        targetDate: cardData.targetDate || templateCard.suggestedTargetDate,
+        targetDate: resolveDateOnly(cardData.targetDate, resolveDateOnly(templateCard.suggestedTargetDate)),
         intro: templateCard.intro,
         steps: templateCard.steps.map((step) => ({
           stepId: step.stepId,

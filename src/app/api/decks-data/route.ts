@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
 import { getCurrentUser } from "@/lib/auth";
+import { resolveDateOnly } from "@/lib/dateOnly";
 import { getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 import { getCollection } from "@/lib/mongodb";
 import { DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
@@ -16,7 +17,7 @@ function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckD
     activeCardId: template.cards[0]?.cardId ?? "",
     cards: template.cards.map((card) => ({
       cardId: card.cardId,
-      targetDate: card.suggestedTargetDate,
+      targetDate: resolveDateOnly(card.suggestedTargetDate),
       items: card.steps.map((step) => ({
         itemId: step.stepId,
         completionStatus: "todo",

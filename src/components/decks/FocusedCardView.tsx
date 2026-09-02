@@ -18,6 +18,7 @@ import {
   isKnownPortraitCloudflareStreamVideoMediaItem,
   type MediaItem,
 } from "@/lib/media";
+import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 import {
   CARD_ASPECT_RATIO,
   CARD_HEIGHT_RATIO,
@@ -278,7 +279,7 @@ export default function FocusedCardView({
   );
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
-  const dateLabel = dateFormatter.format(new Date(card.targetDate));
+  const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
   const focusedCardTransition: Transition = {
