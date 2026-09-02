@@ -262,7 +262,7 @@ export default function ContactSupportForm() {
           </p>
         </div>
         <p className={styles.privacyNotice}>
-          By submitting this form, you agree that Switchplay may use your details to respond to you. See our{" "}
+          By submitting this form, you agree that Strat17 may use your details to respond to you. See our{" "}
           <Link href="/privacy">Privacy Policy</Link>.
         </p>
       </form>

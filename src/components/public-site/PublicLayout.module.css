@@ -3,6 +3,7 @@
   --sp-site-text: #fffaf0;
   --sp-site-text-muted: #c6ccd6;
   --sp-site-accent-blue: rgba(168, 214, 228, 0.9);
+  --sp-site-accent-orange: #e08a2e;
   --sp-site-font-family: Arial, Helvetica, sans-serif;
   --sp-site-content-max-width: 1120px;
   --sp-site-spacing-comfortable: clamp(24px, 7vw, 72px);

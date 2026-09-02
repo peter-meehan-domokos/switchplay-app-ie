@@ -18,9 +18,33 @@
   max-width: none;
 }
 
-.title span {
+.titleLine {
   display: block;
   white-space: nowrap;
+}
+
+.unofficialMark {
+  position: relative;
+  display: inline-block;
+  margin-inline: 0.01em 0.03em;
+  padding-bottom: 0.08em;
+  color: var(--sp-site-accent-orange);
+  transform: skewX(-3deg);
+  transform-origin: left bottom;
+}
+
+.unofficialMark::after {
+  position: absolute;
+  left: 17.5%;
+  bottom: -0.01em;
+  width: 59%;
+  height: clamp(1px, 0.034em, 3px);
+  border-radius: 999px 70% 999px 60%;
+  background: var(--sp-site-accent-orange);
+  content: "";
+  opacity: 0.88;
+  transform: rotate(-3deg);
+  transform-origin: left center;
 }
 
 .supportingText {
@@ -107,6 +131,10 @@
 
   .heroCopy {
     gap: 18px;
+  }
+
+  .title {
+    font-size: clamp(2.65rem, 3.825vw, 3.9375rem);
   }
 
   .actions {
