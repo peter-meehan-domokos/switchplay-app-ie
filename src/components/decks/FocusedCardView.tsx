@@ -4,15 +4,18 @@ import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
-import CloudflareStreamPlayer, { getCloudflareStreamThumbnailUrl } from "@/components/media/CloudflareStreamPlayer";
+import CloudflareHlsVideoPlayer, {
+  type CloudflareHlsVideoPlayerHandle,
+  type VideoPlaybackIntent,
+} from "@/components/media/CloudflareHlsVideoPlayer";
 import StepView, { type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
+import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import {
   isCloudflareStreamVideoMediaItem,
   isKnownLandscapeCloudflareStreamVideoMediaItem,
   isKnownPortraitCloudflareStreamVideoMediaItem,
-  type CloudflareStreamVideoMediaItem,
   type MediaItem,
 } from "@/lib/media";
 import {
@@ -234,6 +237,11 @@ export default function FocusedCardView({
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoHostElementRef = useRef<HTMLDivElement | null>(null);
   const videoFrameElementRef = useRef<HTMLDivElement | null>(null);
+  const videoPlayerRef = useRef<CloudflareHlsVideoPlayerHandle | null>(null);
+  const stepViewStateRef = useRef<StepViewState | null>(null);
+  const videoPlaybackIntentRef = useRef<VideoPlaybackIntent>("idle");
+  const activeVideoAssetIdRef = useRef<string | null>(null);
+  const isDeckFlippedRef = useRef(isDeckFlipped);
   const focusedCardScale = useFocusedCardScale();
   const deckSideFlipState: FocusedFlipState = {
     cardId: card.id,
@@ -269,12 +277,6 @@ export default function FocusedCardView({
     activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
   );
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
-  const activeVideoAutoplayPhase =
-    activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId ? "renderable" : "pending";
-  const activeStepViewAutoplayRequestKey =
-    stepViewItemIndex !== null && activeCloudflareVideoMediaItem
-      ? `${card.id}:${stepViewItemIndex}:${activeCloudflareVideoMediaItem.assetId}:${activeVideoAutoplayPhase}`
-      : null;
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(new Date(card.targetDate));
   const isFirstCard = cardIndex === 0;
@@ -299,6 +301,15 @@ export default function FocusedCardView({
       focusedGestureLockTimeoutRef.current = null;
     }, durationMs);
   };
+  const updateVideoPlaybackIntent = useCallback((intent: VideoPlaybackIntent) => {
+    videoPlaybackIntentRef.current = intent;
+  }, []);
+  const resetVideoDisplayState = useCallback(() => {
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFailedVideoPosterSrc(null);
+    setFadingPosterAssetId(null);
+  }, []);
   const toggleFocusedCardSide = (commitment: GestureCommitment, vector: GestureVector) => {
     if (isFocusedGestureLocked) {
       return;
@@ -341,20 +352,32 @@ export default function FocusedCardView({
       return;
     }
 
-    setStepViewState({
+    const nextStepViewState = {
       cardId: card.id,
       itemIndex: stepIndex + 1,
-    });
+    };
+
+    stepViewStateRef.current = nextStepViewState;
+    updateVideoPlaybackIntent("idle");
+    resetVideoDisplayState();
+    setIsVideoExpanded(false);
+    setStepViewState(nextStepViewState);
   };
   const openIntroView = () => {
     if (isFlipped) {
       return;
     }
 
-    setStepViewState({
+    const nextStepViewState = {
       cardId: card.id,
       itemIndex: 0,
-    });
+    };
+
+    stepViewStateRef.current = nextStepViewState;
+    updateVideoPlaybackIntent("idle");
+    resetVideoDisplayState();
+    setIsVideoExpanded(false);
+    setStepViewState(nextStepViewState);
   };
   const openReflectionEditor = (cardId: string) => {
     if (!onCommitReflection || !isFlipped) {
@@ -399,36 +422,62 @@ export default function FocusedCardView({
     }
   };
   const closeStepView = () => {
+    videoPlayerRef.current?.pauseAndReset();
+    stepViewStateRef.current = null;
+    activeVideoAssetIdRef.current = null;
+    updateVideoPlaybackIntent("idle");
     setIsVideoExpanded(false);
     setVideoHostRect(null);
     setVideoAnchorElement(null);
     setStepViewState(null);
   };
-  const goToPreviousStepViewItem = () => {
-    setIsVideoExpanded(false);
-    setStepViewState((currentStepViewState) => {
-      if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
-        return currentStepViewState;
-      }
+  const goToStepViewItem = (direction: -1 | 1) => {
+    const currentStepViewState = stepViewStateRef.current;
 
-      return {
-        ...currentStepViewState,
-        itemIndex: Math.max(0, currentStepViewState.itemIndex - 1),
-      };
-    });
+    if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
+      return;
+    }
+
+    const nextItemIndex = Math.max(
+      0,
+      Math.min(stepViewSequence.length - 1, currentStepViewState.itemIndex + direction)
+    );
+
+    if (nextItemIndex === currentStepViewState.itemIndex) {
+      return;
+    }
+
+    const nextStepViewItem = stepViewSequence[nextItemIndex];
+    const nextMediaItem = nextStepViewItem ? getStepViewMediaItem(card, nextStepViewItem) : null;
+    const nextCloudflareVideoMediaItem =
+      nextMediaItem && isCloudflareStreamVideoMediaItem(nextMediaItem) ? nextMediaItem : null;
+    const shouldContinuePlayback = videoPlaybackIntentRef.current === "continue";
+    const nextStepViewState = {
+      ...currentStepViewState,
+      itemIndex: nextItemIndex,
+    };
+
+    setIsVideoExpanded(false);
+
+    if (nextCloudflareVideoMediaItem) {
+      activeVideoAssetIdRef.current = nextCloudflareVideoMediaItem.assetId;
+      resetVideoDisplayState();
+      videoPlayerRef.current?.loadMedia(nextCloudflareVideoMediaItem, { shouldPlay: shouldContinuePlayback });
+    } else {
+      activeVideoAssetIdRef.current = null;
+      videoPlayerRef.current?.pauseAndReset();
+      resetVideoDisplayState();
+      updateVideoPlaybackIntent("idle");
+    }
+
+    stepViewStateRef.current = nextStepViewState;
+    setStepViewState(nextStepViewState);
+  };
+  const goToPreviousStepViewItem = () => {
+    goToStepViewItem(-1);
   };
   const goToNextStepViewItem = () => {
-    setIsVideoExpanded(false);
-    setStepViewState((currentStepViewState) => {
-      if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
-        return currentStepViewState;
-      }
-
-      return {
-        ...currentStepViewState,
-        itemIndex: Math.min(stepViewSequence.length - 1, currentStepViewState.itemIndex + 1),
-      };
-    });
+    goToStepViewItem(1);
   };
   const handleVideoAnchorRef = useCallback((nextAnchorElement: HTMLDivElement | null) => {
     // Ignore transient null callbacks during re-render so the hosted player remains mounted.
@@ -447,8 +496,17 @@ export default function FocusedCardView({
     onFlip: toggleFocusedCardSide,
   });
 
+  useLayoutEffect(() => {
+    stepViewStateRef.current = stepViewState;
+    activeVideoAssetIdRef.current = activeVideoAssetId;
+    isDeckFlippedRef.current = isDeckFlipped;
+  }, [activeVideoAssetId, isDeckFlipped, stepViewState]);
+
   useEffect(() => {
     if (!activeCloudflareVideoMediaItem) {
+      videoPlayerRef.current?.pauseAndReset();
+      activeVideoAssetIdRef.current = null;
+      updateVideoPlaybackIntent("idle");
       setIsVideoExpanded(false);
       setExpandedLandscapeFrameSize(null);
       setRenderableVideoAssetId(null);
@@ -458,7 +516,7 @@ export default function FocusedCardView({
       setVideoHostRect(null);
       setVideoAnchorElement(null);
     }
-  }, [activeCloudflareVideoMediaItem]);
+  }, [activeCloudflareVideoMediaItem, updateVideoPlaybackIntent]);
 
   useEffect(() => {
     setRenderableVideoAssetId(null);
@@ -589,7 +647,15 @@ export default function FocusedCardView({
   }, [videoAnchorElement]);
 
   useEffect(() => {
-    setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
+    videoPlayerRef.current?.pauseAndReset();
+    stepViewStateRef.current = null;
+    activeVideoAssetIdRef.current = null;
+    updateVideoPlaybackIntent("idle");
+    setFlipState({
+      cardId: card.id,
+      side: getDeckFlipSide(isDeckFlippedRef.current),
+      rotationY: getDeckFlipRotation(isDeckFlippedRef.current),
+    });
     setIsVideoExpanded(false);
     setExpandedLandscapeFrameSize(null);
     setRenderableVideoAssetId(null);
@@ -598,9 +664,10 @@ export default function FocusedCardView({
     setFadingPosterAssetId(null);
     setVideoHostRect(null);
     setVideoAnchorElement(null);
+    setStepViewState(null);
     setReflectionEditorState(null);
     setReflectionEditorError(null);
-  }, [card.id]);
+  }, [card.id, updateVideoPlaybackIntent]);
 
   useEffect(() => {
     setFlipState((currentFlipState) => {
@@ -761,13 +828,12 @@ export default function FocusedCardView({
                   />
                 ) : null}
                 <div className="switchplay-video-player-layer" style={shouldConcealCloudflarePlayer ? { visibility: "hidden" } : undefined}>
-                  <CloudflareStreamPlayer
-                    autoplayRequestKey={activeStepViewAutoplayRequestKey}
-                    controlsMode="switchplay"
+                  <CloudflareHlsVideoPlayer
+                    ref={videoPlayerRef}
                     displayMode={isVideoExpanded ? "expanded" : "embedded"}
                     mediaItem={activeCloudflareVideoMediaItem}
                     onMediaDisplayStateChange={({ assetId, state }) => {
-                      if (assetId !== activeVideoAssetId) {
+                      if (assetId !== activeVideoAssetIdRef.current) {
                         return;
                       }
 
@@ -785,6 +851,7 @@ export default function FocusedCardView({
                     onRequestExpand={() => {
                       setIsVideoExpanded(true);
                     }}
+                    onPlaybackIntentChange={updateVideoPlaybackIntent}
                   />
                 </div>
               </div>
