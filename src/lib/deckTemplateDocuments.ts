@@ -56,6 +56,7 @@ export const seedDeckTemplateOwnership: SeedDeckTemplateOwnership[] = [
     ownerUsername: "Peter",
     visibility: "private",
     deckTemplateIds: [
+      "peter-fiddle-deck-1",
       "deck-2026-06-music-001",
       "deck-2026-06-switchplay-001",
       "deck-2026-06-tebo-studio-001",

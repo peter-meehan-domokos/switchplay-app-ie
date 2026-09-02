@@ -10,6 +10,7 @@ import {
   DECK_CARD_BASELINE_WIDTH,
   PAST_CARD_BASELINE_WIDTH,
 } from "@/constants/cardStack";
+import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
   card: CardLayout;
@@ -49,7 +50,7 @@ export default function DeckCard({
   transition,
 }: DeckCardProps) {
   const cardStateClass = showHeader || showProgress ? `is-${stackZone}` : `is-${stackZone} is-compressed`;
-  const dateLabel = dateFormatter.format(new Date(card.targetDate));
+  const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
   const backFaceVariant = stackZone === "past" ? "preview" : "deck";
   const renderSurfaceStyle = stackZone === "past"
     ? {

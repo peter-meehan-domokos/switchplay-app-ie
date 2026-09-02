@@ -1,6 +1,110 @@
 import type { DeckTemplate } from "@/components/decks/types";
 
+
+//NOTE: Must add the deckTemplateID to USER IN  src/lib/deckTemplateDocuments
+//WARNING: suggested date is supposed to be a date string not an empty string
 export const deckTemplates: DeckTemplate[] = [
+  {
+    deckTemplateId: "peter-fiddle-deck-1",
+
+    title: "Sit With the Tune",
+
+    category: "Trad Fiddle",
+
+    streams: [
+      { id: "listen-and-absorb", title: "Listen and Absorb" },
+      { id: "play-and-practice", title: "Play & Practice" },
+      { id: "awareness-and-reflection", title: "Awareness & Reflection" }
+    ],
+
+    cards: [
+      {
+        cardId: "card-001",
+        label: "Card 1",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Fall for the Tune",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-001-step-1",
+            description: "Listen to the tune and fall in love with it",
+            mediaItem: null
+          },
+          {
+            stepId: "card-001-step-2",
+            description: "Go home and play the basics, leaving difficult bits if they’re too hard",
+            mediaItem: null
+          },
+          {
+            stepId: "card-001-step-3",
+            description: "Get into the habit of taking a moment to sit with the tune in gratitude",
+            mediaItem: null
+          }
+        ]
+      },
+
+      {
+        cardId: "card-002",
+        label: "Card 2",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Get Inside It",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-002-step-1",
+            description: "Listen closely to the hardest bits until they become clear",
+            mediaItem: null
+          },
+          {
+            stepId: "card-002-step-2",
+            description: "Finesse the hardest bits — or accommodate them if you have to",
+            mediaItem: null
+          },
+          {
+            stepId: "card-002-step-3",
+            description: "Imitate the player and version you learned from",
+            mediaItem: null
+          }
+        ]
+      },
+
+      {
+        cardId: "card-003",
+        label: "Card 3",
+        suggestedTargetDate: "",
+        intro: {
+          title: "Let It Become Yours",
+          description: "",
+          mediaItem: null
+        },
+        steps: [
+          {
+            stepId: "card-003-step-1",
+            description: "Record yourself, listen back alongside the source, and try to match it",
+            mediaItem: null
+          },
+          {
+            stepId: "card-003-step-2",
+            description: "Play the tune loads — even obsessively — and keep discovering it",
+            mediaItem: null
+          },
+          {
+            stepId: "card-003-step-3",
+            description: "Notice when copying reaches a plateau, then begin to let go",
+            mediaItem: null
+          }
+        ]
+      }
+    ]
+  }
+]
+/*
   {
     deckTemplateId: "ibrahim-feed-the-fire-001",
     title: "Feed the Fire",
@@ -240,9 +344,7 @@ export const deckTemplates: DeckTemplate[] = [
         ]
       }
     ]
-  }
-]
-  /*
+  },
   {
     deckTemplateId: "Simeon-deck-12-weeks-nicene-creed-001",
     title: "12 Weeks in the Nicene Creed",

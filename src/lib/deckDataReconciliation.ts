@@ -1,4 +1,5 @@
 import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
+import { resolveDateOnly } from "@/lib/dateOnly";
 import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 export type ReconcileDeckDataInput = {
@@ -11,7 +12,7 @@ export type ReconcileDeckDataInput = {
 function createFreshCardData(templateCard: DeckTemplate["cards"][number]): UserDeckData["cards"][number] {
   return {
     cardId: templateCard.cardId,
-    targetDate: templateCard.suggestedTargetDate,
+    targetDate: resolveDateOnly(templateCard.suggestedTargetDate),
     items: templateCard.steps.map((step) => ({
       itemId: step.stepId,
       completionStatus: "todo",
@@ -57,7 +58,7 @@ export function reconcileDeckDataWithTemplate({
 
       return {
         cardId: newCard.cardId,
-        targetDate: existingCard.targetDate,
+        targetDate: resolveDateOnly(existingCard.targetDate, resolveDateOnly(newCard.suggestedTargetDate)),
         items: newCard.steps.map((newStep) => {
           const oldStep = oldStepsById.get(newStep.stepId);
           const existingItem = existingItemsById.get(newStep.stepId);
