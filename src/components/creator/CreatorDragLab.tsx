@@ -653,9 +653,10 @@ function CreatorEditModal({
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const isLongText = session.inputKind === "long-text";
+  const isDeckIntroduction = session.target.type === "deck-title";
   const isCardTitle = session.target.type === "card-title";
   const isStepText = session.target.type === "pair-step";
-  const modalClassName = `creator-modal creator-modal--${session.target.type}`;
+  const modalClassName = `creator-modal creator-modal--${isDeckIntroduction ? "deck-introduction" : session.target.type}`;
   const fieldClassName = [
     "creator-modal-field",
     session.target.type === "pair-step" ? "creator-modal-field--step" : undefined,
@@ -781,31 +782,50 @@ function CreatorEditModal({
     <div className="creator-modal-backdrop" role="presentation">
       <form className={modalClassName} onSubmit={handleSubmit}>
         <header className="creator-modal-header">
-          <p>{session.label}</p>
+          <p>{isDeckIntroduction ? "Deck introduction" : session.label}</p>
           <button className="creator-modal-close" onClick={onClose} type="button">
             Close
           </button>
         </header>
         {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
-        {isLongText ? (
-          <textarea
-            autoFocus
-            className={fieldClassName}
-            onChange={(event) => handleDraftValueChange(event.target.value)}
-            ref={textareaRef}
-            value={draftValue}
-          />
-        ) : (
-          <input
-            autoFocus
-            className="creator-modal-text-input"
-            maxLength={maxLength}
-            onChange={(event) => handleDraftValueChange(event.target.value)}
-            type="text"
-            value={draftValue}
-          />
-        )}
+        <section className={isDeckIntroduction ? "creator-deck-introduction-section" : undefined}>
+          {isDeckIntroduction ? <h2>Deck title</h2> : null}
+          {isLongText ? (
+            <textarea
+              autoFocus
+              className={fieldClassName}
+              onChange={(event) => handleDraftValueChange(event.target.value)}
+              ref={textareaRef}
+              value={draftValue}
+            />
+          ) : (
+            <input
+              autoFocus
+              className="creator-modal-text-input"
+              maxLength={maxLength}
+              onChange={(event) => handleDraftValueChange(event.target.value)}
+              type="text"
+              value={draftValue}
+            />
+          )}
+        </section>
         {session.target.type === "card-label" ? <p className="creator-modal-counter">{draftValue.length}/{CARD_LABEL_MAX_LENGTH} characters</p> : null}
+        {isDeckIntroduction ? (
+          <>
+            <section className="creator-deck-introduction-section">
+              <h2>Intro image</h2>
+              <div className="creator-deck-introduction-placeholder" aria-label="Intro image upload placeholder">
+                <span>Add image</span>
+              </div>
+            </section>
+            <section className="creator-deck-introduction-section">
+              <h2>Intro video</h2>
+              <div className="creator-deck-introduction-placeholder" aria-label="Intro video upload placeholder">
+                <span>Add video</span>
+              </div>
+            </section>
+          </>
+        ) : null}
         {showStepCounter ? (
           <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>
             {isStepWarningVisible ? `${draftValue.length} characters - this may truncate on the card.` : `${draftValue.length} characters`}
@@ -1938,9 +1958,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       <header className="creator-header">
         <div>
           <p className="creator-kicker">{mode === "edit" ? "Edit Template" : "Create New Deck"}</p>
-          <button className="creator-editable creator-deck-title" onClick={() => openEdit({ type: "deck-title" })} type="button">
-            {board.deckTitle}
-          </button>
           <p className="creator-edit-hint">Tap text to edit</p>
         </div>
         <div className="creator-header-actions">
@@ -2037,7 +2054,15 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                         />
                       </>
                     ) : (
-                      <span className="creator-stream-header">Streams</span>
+                      <button
+                        aria-label="Edit deck title and introduction"
+                        className="creator-editable creator-stream-header creator-deck-introduction-trigger"
+                        onClick={() => openEdit({ type: "deck-title" })}
+                        type="button"
+                      >
+                        <span>{board.deckTitle}</span>
+                        <small>Edit intro</small>
+                      </button>
                     )}
                   </header>
                   <div className="creator-column-cells">

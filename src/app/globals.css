@@ -403,6 +403,10 @@ input {
   text-align: left;
 }
 
+.creator-header .creator-edit-hint {
+  margin-top: 2px;
+}
+
 .creator-edit-hint {
   margin-top: var(--creator-card-header-gap);
   color: #6f7680;
@@ -706,6 +710,34 @@ input {
   color: #424850;
   font-size: 0.92rem;
   font-weight: 800;
+}
+
+.creator-deck-introduction-trigger {
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  height: 100%;
+  color: #111318;
+  text-align: left;
+}
+
+.creator-deck-introduction-trigger span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 1rem;
+  font-weight: 850;
+  line-height: 1.04;
+}
+
+.creator-deck-introduction-trigger small {
+  color: #6a737c;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .creator-column-cells {
@@ -1201,6 +1233,38 @@ input {
 .creator-modal-field--card-title,
 .creator-modal-field--deck-title {
   min-height: calc(var(--creator-modal-textarea-min-height) * 0.5);
+}
+
+.creator-modal--deck-introduction {
+  gap: 14px;
+}
+
+.creator-modal--deck-introduction .creator-modal-field--deck-title {
+  min-height: 92px;
+}
+
+.creator-deck-introduction-section {
+  display: grid;
+  gap: 8px;
+}
+
+.creator-deck-introduction-section h2 {
+  margin: 0;
+  color: #111318;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.creator-deck-introduction-placeholder {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  border: 1px dashed #b3bbc2;
+  background: #f6f7f5;
+  color: #5f6871;
+  font-size: 0.86rem;
+  font-weight: 750;
 }
 
 .creator-date-field {
