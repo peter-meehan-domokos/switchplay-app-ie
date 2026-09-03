@@ -1595,6 +1595,59 @@ input {
   box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
 }
 
+.tile-mini-card--intro-poster {
+  overflow: hidden;
+}
+
+.tile-mini-card-poster {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.82) brightness(0.88);
+}
+
+.tile-mini-card-poster-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(8, 10, 15, 0.08),
+      rgba(8, 10, 15, 0.4)
+    );
+  pointer-events: none;
+}
+
+.tile-mini-card-play-affordance {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 250, 240, 0.22);
+  border-radius: 999px;
+  background: rgba(10, 13, 19, 0.44);
+  box-shadow: 0 7px 15px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.tile-mini-card-play-affordance::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 52%;
+  width: 0;
+  height: 0;
+  border-block: 6px solid transparent;
+  border-left: 9px solid rgba(255, 250, 240, 0.86);
+  transform: translate(-40%, -50%);
+}
+
 .deck-preview-streams {
   position: absolute;
   top: 40%;
