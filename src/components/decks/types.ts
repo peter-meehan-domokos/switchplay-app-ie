@@ -170,6 +170,7 @@ export type Deck = {
   activeCardId: string;
   title: string;
   category: DeckCategory;
+  introduction: DeckIntroduction | null;
   streams?: StreamTemplate[];
   cards: WeeklyCard[];
 };

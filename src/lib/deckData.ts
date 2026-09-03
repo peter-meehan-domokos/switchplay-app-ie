@@ -120,6 +120,7 @@ export function mergeDeckTemplatesWithUserData(
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,
+      introduction: template.introduction ?? null,
       streams: template.streams,
       cards,
     };
