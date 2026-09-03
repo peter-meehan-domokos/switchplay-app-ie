@@ -1,8 +1,9 @@
-import type { CardTemplateStep, DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
+import type { CardTemplateStep, RuntimeDeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import {
   isCloudflareStreamVideoMediaItem,
   isImageMediaItem,
   isLegacyProviderlessVideoMediaItem,
+  isVideoMediaItem,
   isYouTubeVideoMediaItem,
 } from "@/lib/media";
 import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
@@ -10,7 +11,7 @@ import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
 export type TemplateSaveValidationResult =
   | {
       ok: true;
-      template: DeckTemplate;
+      template: RuntimeDeckTemplate;
     }
   | {
       ok: false;
@@ -88,7 +89,8 @@ function validateStepDescriptionContentForSave(value: unknown): { ok: true; cont
 }
 
 function normalizeStepDescriptionContentForSave(step: CardTemplateStep): CardTemplateStep {
-  const { descriptionContent: _descriptionContent, ...stepWithoutDescriptionContent } = step;
+  const stepWithoutDescriptionContent = { ...step };
+  delete stepWithoutDescriptionContent.descriptionContent;
   const validation = validateStepDescriptionContentForSave(step.descriptionContent);
 
   if (!validation.ok || !validation.content) {
@@ -130,6 +132,34 @@ function validateMediaItemForSave(mediaItem: unknown, fieldPath: string): string
   return `${fieldPath}.mediaType must be image or video.`;
 }
 
+function validateDeckIntroductionForSave(introduction: unknown): string | null {
+  if (introduction === undefined || introduction === null) {
+    return null;
+  }
+
+  if (!isPlainObject(introduction)) {
+    return "template.introduction must be an object or null.";
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(introduction, "image")) {
+    return "template.introduction.image is required when template.introduction is provided.";
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(introduction, "video")) {
+    return "template.introduction.video is required when template.introduction is provided.";
+  }
+
+  if (introduction.image !== null && !isImageMediaItem(introduction.image)) {
+    return "template.introduction.image must be a valid image media item or null.";
+  }
+
+  if (introduction.video !== null && !isVideoMediaItem(introduction.video)) {
+    return "template.introduction.video must be a valid video media item or null.";
+  }
+
+  return null;
+}
+
 export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidationResult {
   if (!isPlainObject(body)) {
     return { ok: false, error: "Invalid request body." };
@@ -151,6 +181,12 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
 
   if (!isStringOrNull(template.category)) {
     return { ok: false, error: "template.category must be a string or null." };
+  }
+
+  const introductionError = validateDeckIntroductionForSave(template.introduction);
+
+  if (introductionError) {
+    return { ok: false, error: introductionError };
   }
 
   const streams = Array.isArray(template.streams) ? template.streams : template.channels;

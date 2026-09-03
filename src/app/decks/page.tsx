@@ -1,6 +1,7 @@
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import AppShell from "@/components/layout/AppShell";
 import { ObjectId } from "mongodb";
+import type { RuntimeDeckTemplate } from "@/components/decks/types";
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
@@ -42,7 +43,7 @@ async function getAdminDecks(currentUserId: string) {
     const ownerUserId = deckOwner._id.toHexString();
     const templates = deckOwner.decksData
       .map((deckData) => templatesById.get(deckData.deckTemplateId))
-      .filter((template): template is DeckTemplateDocument["template"] => Boolean(template));
+      .filter((template): template is RuntimeDeckTemplate => Boolean(template));
     const decksData = serverDeckDataItemsToClientDeckDataSteps(deckOwner.decksData);
 
     return mergeDeckTemplatesWithUserData(templates, decksData, ownerUserId, {
