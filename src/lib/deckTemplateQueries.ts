@@ -1,5 +1,5 @@
 import type { Filter } from "mongodb";
-import type { DeckTemplate } from "@/components/decks/types";
+import type { RuntimeDeckTemplate } from "@/components/decks/types";
 import type { AuthUser } from "@/lib/auth";
 import {
   DECK_TEMPLATES_COLLECTION,
@@ -7,6 +7,16 @@ import {
 } from "@/lib/deckTemplateDocuments";
 import { normalizeDeckTemplateForRuntime } from "@/lib/deckApiTransforms";
 import { getCollection } from "@/lib/mongodb";
+
+type RuntimeDeckTemplatePreviousVersion = Omit<NonNullable<DeckTemplateDocument["previousVersions"]>[number], "template"> & {
+  template: RuntimeDeckTemplate;
+};
+
+type RuntimeDeckTemplateDocument = Omit<DeckTemplateDocument, "previousVersions" | "savedTemplate" | "template"> & {
+  template: RuntimeDeckTemplate;
+  savedTemplate?: RuntimeDeckTemplate;
+  previousVersions?: RuntimeDeckTemplatePreviousVersion[];
+};
 
 function createVisibleTemplateQuery(
   user: AuthUser,
@@ -25,21 +35,25 @@ async function getDeckTemplatesCollection() {
   return getCollection<DeckTemplateDocument>(DECK_TEMPLATES_COLLECTION);
 }
 
-function normalizeDeckTemplateDocumentForRuntime(document: DeckTemplateDocument): DeckTemplateDocument {
+function normalizeDeckTemplateDocumentForRuntime(document: DeckTemplateDocument): RuntimeDeckTemplateDocument {
   return {
     ...document,
     template: normalizeDeckTemplateForRuntime(document.template),
     savedTemplate: document.savedTemplate ? normalizeDeckTemplateForRuntime(document.savedTemplate) : undefined,
+    previousVersions: document.previousVersions?.map((previousVersion) => ({
+      ...previousVersion,
+      template: normalizeDeckTemplateForRuntime(previousVersion.template),
+    })),
   };
 }
 
-export async function getVisibleDeckTemplatesForUser(user: AuthUser): Promise<DeckTemplate[]> {
+export async function getVisibleDeckTemplatesForUser(user: AuthUser): Promise<RuntimeDeckTemplate[]> {
   const documents = await getVisibleDeckTemplateDocumentsForUser(user);
 
   return documents.map((document) => document.template);
 }
 
-export async function getVisibleDeckTemplateDocumentsForUser(user: AuthUser): Promise<DeckTemplateDocument[]> {
+export async function getVisibleDeckTemplateDocumentsForUser(user: AuthUser): Promise<RuntimeDeckTemplateDocument[]> {
   const collection = await getDeckTemplatesCollection();
   const documents = await collection
     .find(createVisibleTemplateQuery(user))
@@ -52,7 +66,7 @@ export async function getVisibleDeckTemplateDocumentsForUser(user: AuthUser): Pr
 export async function getVisibleDeckTemplateByIdForUser(
   user: AuthUser,
   deckTemplateId: string,
-): Promise<DeckTemplate | null> {
+): Promise<RuntimeDeckTemplate | null> {
   const collection = await getDeckTemplatesCollection();
   const document = await collection.findOne(createVisibleTemplateQuery(user, deckTemplateId));
 
@@ -62,7 +76,7 @@ export async function getVisibleDeckTemplateByIdForUser(
 export async function getVisibleDeckTemplateDocumentByIdForUser(
   user: AuthUser,
   deckTemplateId: string,
-): Promise<DeckTemplateDocument | null> {
+): Promise<RuntimeDeckTemplateDocument | null> {
   const collection = await getDeckTemplatesCollection();
 
   const document = await collection.findOne(createVisibleTemplateQuery(user, deckTemplateId));
@@ -70,7 +84,7 @@ export async function getVisibleDeckTemplateDocumentByIdForUser(
   return document ? normalizeDeckTemplateDocumentForRuntime(document) : null;
 }
 
-export async function getDeckTemplateById(deckTemplateId: string): Promise<DeckTemplate | null> {
+export async function getDeckTemplateById(deckTemplateId: string): Promise<RuntimeDeckTemplate | null> {
   const collection = await getDeckTemplatesCollection();
   const document = await collection.findOne({ deckTemplateId });
 
@@ -80,7 +94,7 @@ export async function getDeckTemplateById(deckTemplateId: string): Promise<DeckT
 export async function assertDeckTemplateVisibleToUser(
   user: AuthUser,
   deckTemplateId: string,
-): Promise<DeckTemplate> {
+): Promise<RuntimeDeckTemplate> {
   const template = await getVisibleDeckTemplateByIdForUser(user, deckTemplateId);
 
   if (!template) {

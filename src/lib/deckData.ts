@@ -3,6 +3,7 @@ import {
   type ClientUserDeckData,
   type Deck,
   type DeckTemplate,
+  type RuntimeDeckTemplate,
 } from "@/components/decks/types";
 import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
@@ -37,7 +38,7 @@ function getStreamTitle(template: DeckTemplate, index: number) {
 }
 
 export function mergeDeckTemplatesWithUserData(
-  templates: DeckTemplate[],
+  templates: RuntimeDeckTemplate[],
   decksData: ClientUserDeckData[],
   userId: string,
   options?: {
@@ -120,7 +121,7 @@ export function mergeDeckTemplatesWithUserData(
       activeCardId: resolvedDeckData.activeCardId || getFirstCardId(template),
       title: template.title,
       category: template.category,
-      introduction: template.introduction ?? null,
+      introduction: template.introduction,
       streams: template.streams,
       cards,
     };
