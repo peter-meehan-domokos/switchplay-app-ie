@@ -1,5 +1,6 @@
-import type { DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
+import type { DeckIntroduction, DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
+import { normalizeDeckIntroductionForRuntime } from "@/lib/deckApiTransforms";
 import type { MediaItem } from "@/lib/media";
 
 export type CardColumnId = `card-${number}`;
@@ -92,6 +93,7 @@ export type BoardState = {
   deckTemplateId: string;
   deckTitle: string;
   category: DeckTemplate["category"];
+  deckIntroduction: DeckIntroduction | null;
   columns: Column[];
   rows: number[];
   cells: Record<CellId, CellState>;
@@ -411,6 +413,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
     deckTemplateId: board.deckTemplateId,
     title: board.deckTitle,
     category: board.category,
+    introduction: board.deckIntroduction,
     streams: board.rows.map((row) => ({
       id: board.streamIdsByRow[row],
       title: resolveCreatorStreamName(row, board.streamNamesByRow[row] ?? ""),
@@ -540,6 +543,7 @@ export function createBlankCreatorBoard(): BoardState {
     deckTemplateId: createCreatorDeckTemplateId(),
     deckTitle: "My Next Path",
     category: null,
+    deckIntroduction: null,
     columns,
     rows,
     streamIdsByRow: createBlankStreamIds(rows),
@@ -588,6 +592,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
     deckTemplateId: template.deckTemplateId,
     deckTitle: template.title,
     category: template.category,
+    deckIntroduction: normalizeDeckIntroductionForRuntime(template.introduction),
     columns,
     rows,
     streamIdsByRow: createTemplateStreamIds(template, rows),
