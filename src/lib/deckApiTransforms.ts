@@ -2,22 +2,42 @@ import type {
   ClientUserCardData,
   ClientUserDeckData,
   CompletionStatus,
+  DeckIntroduction,
   DeckTemplate,
+  RuntimeDeckTemplate,
   StreamTemplate,
   UserCardData,
   UserDeckData,
 } from "@/components/decks/types";
 
-type RawDeckTemplateWithLegacyStreams = Omit<DeckTemplate, "streams"> & {
+type RawDeckTemplateWithLegacyStreams = Omit<DeckTemplate, "introduction" | "streams"> & {
   channels?: StreamTemplate[];
+  introduction?: DeckIntroduction | null;
   streams?: StreamTemplate[];
 };
 
-export function normalizeDeckTemplateForRuntime(rawTemplate: RawDeckTemplateWithLegacyStreams): DeckTemplate {
-  const { streams: _streams, channels: _channels, ...templateWithoutStreamFields } = rawTemplate;
+export function normalizeDeckIntroductionForRuntime(
+  introduction: DeckIntroduction | null | undefined,
+): DeckIntroduction | null {
+  if (introduction == null) {
+    return null;
+  }
 
   return {
-    ...templateWithoutStreamFields,
+    image: introduction.image ?? null,
+    video: introduction.video ?? null,
+  };
+}
+
+export function normalizeDeckTemplateForRuntime(rawTemplate: RawDeckTemplateWithLegacyStreams): RuntimeDeckTemplate {
+  const templateWithoutNormalizedFields = { ...rawTemplate };
+  delete templateWithoutNormalizedFields.introduction;
+  delete templateWithoutNormalizedFields.streams;
+  delete templateWithoutNormalizedFields.channels;
+
+  return {
+    ...templateWithoutNormalizedFields,
+    introduction: normalizeDeckIntroductionForRuntime(rawTemplate.introduction),
     streams: rawTemplate.streams ?? rawTemplate.channels ?? [],
   };
 }

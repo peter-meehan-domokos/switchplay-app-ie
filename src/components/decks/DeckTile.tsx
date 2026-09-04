@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import type { DeckLayout } from "@/components/decks/deckLayout";
+import { getDeckIntroductionPosterImage } from "@/components/decks/deckIntroductionPoster";
 
 type DeckTileProps = {
   deck: DeckLayout;
@@ -12,6 +13,8 @@ type DeckTileProps = {
 export default function DeckTile({ deck, isDisabled = false, isPreparing = false, onSelect, transition }: DeckTileProps) {
   const roundedProgressPercentage = Math.round(deck.progressPercentage);
   const progressMetaLabel = roundedProgressPercentage === 100 ? "Completed" : `${roundedProgressPercentage}%`;
+  const introPosterImage = getDeckIntroductionPosterImage(deck);
+  const hasIntroPoster = introPosterImage !== null;
 
   return (
     <motion.button
@@ -31,14 +34,25 @@ export default function DeckTile({ deck, isDisabled = false, isPreparing = false
       <motion.div className="tile-card-stack" layout>
         {deck.cards.slice(0, 3).map((card, index) => (
           <span
-            className="tile-mini-card"
+            className={`tile-mini-card${hasIntroPoster && index === 0 ? " tile-mini-card--intro-poster" : ""}`}
             key={card.id}
             style={{
               transform: `translate(${index * 8}px, ${index * -6}px) rotate(${index * 2 - 2}deg)`,
               zIndex: 3 - index,
             }}
           >
-            {index === 0 && deck.streams?.length ? (
+            {hasIntroPoster && index === 0 ? (
+              <>
+                <img
+                  className="tile-mini-card-poster"
+                  src={introPosterImage.src}
+                  alt=""
+                  aria-hidden="true"
+                />
+                <span className="tile-mini-card-poster-overlay" aria-hidden="true" />
+                <span className="tile-mini-card-play-affordance" aria-hidden="true" />
+              </>
+            ) : index === 0 && deck.streams?.length ? (
               <div className="deck-preview-streams" aria-hidden="true">
                 {deck.streams.slice(0, 3).map((stream) => (
                   <div key={stream.id} className="deck-preview-stream-title">

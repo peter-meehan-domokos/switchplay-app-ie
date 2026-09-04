@@ -229,6 +229,15 @@ export const deckTemplates: DeckTemplate[] = [
     deckTemplateId: "daniel-build-your-first-muscle-up-001",
     title: "Build Your First Muscle-Up",
     category: "fitness",
+    introduction: {
+      image: {
+        id: "daniel-intro-still",
+        mediaType: "image",
+        description: "Build Your First Muscle-Up",
+        src: "/images/daniel-intro-still.png"
+      },
+      video: null
+    },
     streams: [
       { id: "build-strength", title: "Build the Strength" },
       { id: "refine-technique", title: "Refine the Technique" },

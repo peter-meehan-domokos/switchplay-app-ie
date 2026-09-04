@@ -1,4 +1,4 @@
-import type { MediaItem } from "@/lib/media";
+import type { ImageMediaItem, MediaItem, VideoMediaItem } from "@/lib/media";
 
 export type DeckCategory = string | null;
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
@@ -59,12 +59,22 @@ export type StreamTemplate = {
   title: string;
 };
 
+export type DeckIntroduction = {
+  image: ImageMediaItem | null;
+  video: VideoMediaItem | null;
+};
+
 export type DeckTemplate = {
   deckTemplateId: string;
   title: string;
   category: DeckCategory;
+  introduction?: DeckIntroduction | null;
   streams: StreamTemplate[];
   cards: CardTemplate[];
+};
+
+export type RuntimeDeckTemplate = Omit<DeckTemplate, "introduction"> & {
+  introduction: DeckIntroduction | null;
 };
 
 export type UserCardItemData = {
@@ -160,6 +170,7 @@ export type Deck = {
   activeCardId: string;
   title: string;
   category: DeckCategory;
+  introduction: DeckIntroduction | null;
   streams?: StreamTemplate[];
   cards: WeeklyCard[];
 };
