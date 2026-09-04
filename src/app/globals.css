@@ -1248,6 +1248,30 @@ input {
   gap: 8px;
 }
 
+.creator-deck-introduction-image-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.creator-deck-introduction-image-preview {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  border: 1px solid #d3d9dc;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.creator-deck-introduction-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.creator-deck-introduction-image-input {
+  display: none;
+}
+
 .creator-deck-introduction-section h2 {
   margin: 0;
   color: #111318;

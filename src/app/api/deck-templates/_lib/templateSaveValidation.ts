@@ -122,7 +122,7 @@ function validateMediaItemForSave(mediaItem: unknown, fieldPath: string): string
   }
 
   if (mediaItem.mediaType === "image") {
-    return `${fieldPath} image media must include non-empty id, description, and src.`;
+    return `${fieldPath} image media must include non-empty id, description, and src. Cloudflare-backed images also require provider and assetId.`;
   }
 
   if (mediaItem.mediaType === "video") {

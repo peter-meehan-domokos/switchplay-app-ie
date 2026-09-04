@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   creatorBoardToDeckTemplate,
@@ -31,6 +31,7 @@ import {
   resolveCreatorCardTitle,
   resolveCreatorStreamName,
   swapCreatorBoardRows,
+  setBoardDeckIntroductionImage,
   type BoardState,
   type CellId,
   type CellState,
@@ -42,7 +43,8 @@ import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot"
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
-import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
+import { isSupportedImageUploadContentType } from "@/lib/imageUploadContentTypes";
+import type { CloudflareStreamVideoMediaItem, ImageMediaItem } from "@/lib/media";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -90,6 +92,12 @@ type StreamDirectUploadResponse = {
   maxDurationSeconds: number;
 };
 
+type ImagesDirectUploadResponse = {
+  assetId: string;
+  uploadURL: string;
+  deliveryUrl: string;
+};
+
 type VideoDimensions = {
   width: number;
   height: number;
@@ -108,6 +116,7 @@ type UploadSession = {
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 70;
 const CARD_LABEL_MAX_LENGTH = 8;
+const MAX_INTRO_IMAGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const SUPPORT_ERROR_MESSAGE = "support";
 
 function createStepLinkId() {
@@ -315,6 +324,22 @@ function isStreamDirectUploadResponse(value: unknown): value is StreamDirectUplo
   );
 }
 
+function isImagesDirectUploadResponse(value: unknown): value is ImagesDirectUploadResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "assetId" in value &&
+    typeof value.assetId === "string" &&
+    value.assetId.trim() !== "" &&
+    "uploadURL" in value &&
+    typeof value.uploadURL === "string" &&
+    value.uploadURL.trim() !== "" &&
+    "deliveryUrl" in value &&
+    typeof value.deliveryUrl === "string" &&
+    value.deliveryUrl.trim() !== ""
+  );
+}
+
 function createCloudflareStreamPlaybackUrl(uid: string) {
   return `https://iframe.videodelivery.net/${encodeURIComponent(uid)}`;
 }
@@ -417,6 +442,57 @@ async function uploadFileToCloudflareStream(uploadURL: string, file: File, signa
   if (!response.ok) {
     throw new Error("Video upload failed.");
   }
+}
+
+async function requestImagesDirectUpload(file: File, deckTemplateId: string, signal: AbortSignal): Promise<ImagesDirectUploadResponse> {
+  const response = await fetch("/api/media/images/direct-upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ contentType: file.type, deckTemplateId }),
+    signal,
+  });
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(getPublishErrorMessage(responseBody, "Unable to prepare image upload."));
+  }
+
+  if (!isImagesDirectUploadResponse(responseBody)) {
+    throw new Error("Image upload could not be prepared.");
+  }
+
+  return responseBody;
+}
+
+async function uploadFileToR2(uploadURL: string, file: File, signal: AbortSignal) {
+  const response = await fetch(uploadURL, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+    },
+    body: file,
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error("Image upload failed.");
+  }
+}
+
+function createCreatorIntroductionImageMediaItem(assetId: string, deliveryUrl: string, description: string): ImageMediaItem {
+  const assetName = assetId.split("/").at(-1) ?? assetId;
+  const assetStem = assetName.replace(/\.[^.]+$/, "") || assetName;
+
+  return {
+    id: `image-${assetStem}`,
+    mediaType: "image",
+    provider: "cloudflare-r2",
+    assetId,
+    src: deliveryUrl,
+    description,
+  };
 }
 
 async function uploadCreatorVideo(file: File, signal: AbortSignal): Promise<CloudflareStreamVideoMediaItem> {
@@ -633,15 +709,25 @@ function getEditTargetKey(target: EditTarget) {
 
 function CreatorEditModal({
   canDeleteCard = false,
+  deckIntroductionImage,
+  deckIntroductionImageMessage,
+  isDeckIntroImageUploading = false,
   onClose,
   onDeleteCard,
+  onRemoveDeckIntroductionImage,
   onSave,
+  onUploadDeckIntroductionImage,
   session,
 }: {
   canDeleteCard?: boolean;
+  deckIntroductionImage: ImageMediaItem | null;
+  deckIntroductionImageMessage?: string | null;
+  isDeckIntroImageUploading?: boolean;
   onClose: () => void;
   onDeleteCard?: () => void;
+  onRemoveDeckIntroductionImage: () => void;
   onSave: (value: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
 }) {
   const [draftValue, setDraftValue] = useState(session.value);
@@ -668,6 +754,23 @@ function CreatorEditModal({
   const showStepCounter = session.target.type === "pair-step";
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
+  const introImageInputRef = useRef<HTMLInputElement | null>(null);
+
+  function handleDeckIntroductionImageButtonClick() {
+    introImageInputRef.current?.click();
+  }
+
+  function handleDeckIntroductionImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = "";
+
+    if (!selectedFile) {
+      return;
+    }
+
+    onUploadDeckIntroductionImage(selectedFile);
+  }
 
   function handleDraftValueChange(value: string) {
     setLinkRanges((currentRanges) => adjustStepLinkRangesForTextChange(draftValue, value, currentRanges));
@@ -814,8 +917,34 @@ function CreatorEditModal({
           <>
             <section className="creator-deck-introduction-section">
               <h2>Intro image</h2>
-              <div className="creator-deck-introduction-placeholder" aria-label="Intro image upload placeholder">
-                <span>Add image</span>
+              <div className="creator-deck-introduction-image-shell">
+                {deckIntroductionImage ? (
+                  <img alt={deckIntroductionImage.description} className="creator-deck-introduction-image-preview" src={deckIntroductionImage.src} />
+                ) : null}
+                <div className="creator-deck-introduction-image-actions">
+                  <input
+                    accept="image/*"
+                    className="creator-deck-introduction-image-input"
+                    disabled={isDeckIntroImageUploading}
+                    onChange={handleDeckIntroductionImageChange}
+                    ref={introImageInputRef}
+                    type="file"
+                  />
+                  <button
+                    className="creator-modal-secondary"
+                    disabled={isDeckIntroImageUploading}
+                    onClick={handleDeckIntroductionImageButtonClick}
+                    type="button"
+                  >
+                    {deckIntroductionImage ? "Replace image" : isDeckIntroImageUploading ? "Uploading..." : "Add image"}
+                  </button>
+                  {deckIntroductionImage ? (
+                    <button className="creator-modal-secondary" disabled={isDeckIntroImageUploading} onClick={onRemoveDeckIntroductionImage} type="button">
+                      Remove image
+                    </button>
+                  ) : null}
+                </div>
+                {deckIntroductionImageMessage ? <p className="creator-modal-error">{deckIntroductionImageMessage}</p> : null}
               </div>
             </section>
             <section className="creator-deck-introduction-section">
@@ -1208,9 +1337,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
   const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
+  const [isDeckIntroImageUploading, setIsDeckIntroImageUploading] = useState(false);
+  const [deckIntroImageMessage, setDeckIntroImageMessage] = useState<string | null>(null);
   const boardRef = useRef<BoardState>(initialBoard);
   const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
   const introUploadSessionsRef = useRef<Map<ColumnId, UploadSession>>(new Map());
+  const deckIntroImageUploadSessionRef = useRef<UploadSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -1239,7 +1371,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
-  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0;
+  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0 || isDeckIntroImageUploading;
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const shouldShowLeaveConfirm = isLeaveConfirmOpen && hasUnpublishedChanges;
   const publishButtonLabel =
@@ -1252,6 +1384,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   useEffect(() => {
     const pairUploadSessions = pairUploadSessionsRef.current;
     const introUploadSessions = introUploadSessionsRef.current;
+    const deckIntroImageUploadSession = deckIntroImageUploadSessionRef.current;
 
     return () => {
       for (const session of pairUploadSessions.values()) {
@@ -1260,8 +1393,10 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       for (const session of introUploadSessions.values()) {
         session.controller.abort();
       }
+      deckIntroImageUploadSession?.controller.abort();
       pairUploadSessions.clear();
       introUploadSessions.clear();
+      deckIntroImageUploadSessionRef.current = null;
     };
   }, []);
 
@@ -1729,6 +1864,41 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     clearIntroUploadState(columnId);
   }
 
+  function createDeckIntroImageUploadSession() {
+    deckIntroImageUploadSessionRef.current?.controller.abort();
+
+    const session: UploadSession = {
+      controller: new AbortController(),
+      token: Symbol("deck-intro-image"),
+    };
+
+    deckIntroImageUploadSessionRef.current = session;
+    setIsDeckIntroImageUploading(true);
+
+    return session;
+  }
+
+  function finishDeckIntroImageUpload(session: UploadSession) {
+    if (deckIntroImageUploadSessionRef.current?.token !== session.token) {
+      return;
+    }
+
+    deckIntroImageUploadSessionRef.current = null;
+    setIsDeckIntroImageUploading(false);
+  }
+
+  function cancelDeckIntroImageUpload() {
+    const session = deckIntroImageUploadSessionRef.current;
+
+    if (!session) {
+      return;
+    }
+
+    session.controller.abort();
+    deckIntroImageUploadSessionRef.current = null;
+    setIsDeckIntroImageUploading(false);
+  }
+
   function cancelPairMediaUpload(pairId: PairId) {
     const session = pairUploadSessionsRef.current.get(pairId);
 
@@ -1856,6 +2026,62 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     } finally {
       finishIntroUpload(columnId, uploadSession);
     }
+  }
+
+  async function uploadDeckIntroductionImage(file: File) {
+    if (!isSupportedImageUploadContentType(file.type)) {
+      setDeckIntroImageMessage("Choose an image file.");
+      return;
+    }
+
+    if (file.size > MAX_INTRO_IMAGE_FILE_SIZE_BYTES) {
+      setDeckIntroImageMessage("Choose an image smaller than 10 MB.");
+      return;
+    }
+
+    const uploadSession = createDeckIntroImageUploadSession();
+
+    setDeckIntroImageMessage(null);
+    setPublishMessage("");
+    setPublishStatus("idle");
+
+    try {
+      const directUpload = await requestImagesDirectUpload(file, boardRef.current.deckTemplateId, uploadSession.controller.signal);
+
+      if (uploadSession.controller.signal.aborted) {
+        return;
+      }
+
+      await uploadFileToR2(directUpload.uploadURL, file, uploadSession.controller.signal);
+
+      if (uploadSession.controller.signal.aborted) {
+        return;
+      }
+
+      finishDeckIntroImageUpload(uploadSession);
+
+      const nextBoard = setBoardDeckIntroductionImage(
+        boardRef.current,
+        createCreatorIntroductionImageMediaItem(directUpload.assetId, directUpload.deliveryUrl, file.name || "Introduction image")
+      );
+
+      boardRef.current = nextBoard;
+      setBoard(nextBoard);
+      await persistSavedDraft(nextBoard);
+    } catch (error) {
+      if (uploadSession.controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
+      setDeckIntroImageMessage(error instanceof Error ? error.message : "Unable to upload intro image.");
+    } finally {
+      finishDeckIntroImageUpload(uploadSession);
+    }
+  }
+
+  function removeDeckIntroductionImage() {
+    updateBoardAndSaveDraft((currentBoard) => setBoardDeckIntroductionImage(currentBoard, null));
+    setDeckIntroImageMessage(null);
   }
 
   function saveDateEdit(value: string) {
@@ -2105,11 +2331,16 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {editSession ? (
         <CreatorEditModal
           canDeleteCard={canDeleteActiveCard}
+          deckIntroductionImage={board.deckIntroduction?.image ?? null}
+          deckIntroductionImageMessage={deckIntroImageMessage}
+          isDeckIntroImageUploading={isDeckIntroImageUploading}
           key={getEditTargetKey(editSession.target)}
           session={editSession}
           onClose={() => setEditSession(null)}
           onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
           onSave={saveEdit}
+          onRemoveDeckIntroductionImage={removeDeckIntroductionImage}
+          onUploadDeckIntroductionImage={uploadDeckIntroductionImage}
         />
       ) : null}
       {dateEditSession ? <CreatorDateEditModal session={dateEditSession} onClose={() => setDateEditSession(null)} onSave={saveDateEdit} /> : null}

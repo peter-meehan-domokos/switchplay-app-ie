@@ -3,10 +3,21 @@ export type BaseMediaItem = {
   description: string;
 };
 
-export type ImageMediaItem = BaseMediaItem & {
+export type CloudflareR2ImageMediaItem = BaseMediaItem & {
+  mediaType: "image";
+  provider: "cloudflare-r2";
+  assetId: string;
+  src: string;
+};
+
+export type LegacyProviderlessImageMediaItem = BaseMediaItem & {
   mediaType: "image";
   src: string;
 };
+
+export type ImageMediaItem =
+  | CloudflareR2ImageMediaItem
+  | LegacyProviderlessImageMediaItem;
 
 export type CloudflareStreamVideoMediaItem = BaseMediaItem & {
   mediaType: "video";
@@ -70,13 +81,31 @@ function isBaseMediaItem(value: unknown): value is BaseMediaItem {
   return isRecord(value) && hasStringField(value, "id") && hasStringField(value, "description");
 }
 
-export function isImageMediaItem(value: unknown): value is ImageMediaItem {
+export function isCloudflareR2ImageMediaItem(value: unknown): value is CloudflareR2ImageMediaItem {
   if (!isBaseMediaItem(value) || !isRecord(value)) {
     return false;
   }
   const mediaItem = value as BaseMediaItem & Record<string, unknown>;
 
-  return mediaItem.mediaType === "image" && hasStringField(mediaItem, "src");
+  return (
+    mediaItem.mediaType === "image" &&
+    mediaItem.provider === "cloudflare-r2" &&
+    hasStringField(mediaItem, "assetId") &&
+    hasStringField(mediaItem, "src")
+  );
+}
+
+export function isLegacyProviderlessImageMediaItem(value: unknown): value is LegacyProviderlessImageMediaItem {
+  if (!isBaseMediaItem(value) || !isRecord(value)) {
+    return false;
+  }
+  const mediaItem = value as BaseMediaItem & Record<string, unknown>;
+
+  return mediaItem.mediaType === "image" && mediaItem.provider === undefined && hasStringField(mediaItem, "src");
+}
+
+export function isImageMediaItem(value: unknown): value is ImageMediaItem {
+  return isCloudflareR2ImageMediaItem(value) || isLegacyProviderlessImageMediaItem(value);
 }
 
 export function isCloudflareStreamVideoMediaItem(value: unknown): value is CloudflareStreamVideoMediaItem {

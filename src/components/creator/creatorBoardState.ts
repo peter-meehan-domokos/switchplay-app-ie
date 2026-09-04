@@ -445,6 +445,27 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
   };
 }
 
+export function updateBoardDeckIntroductionImage(board: BoardState, image: DeckIntroduction["image"]): BoardState {
+  const currentIntroduction = board.deckIntroduction;
+
+  return {
+    ...board,
+    deckIntroduction:
+      currentIntroduction === null
+        ? image === null
+          ? null
+          : { image, video: null }
+        : {
+            ...currentIntroduction,
+            image,
+          },
+  };
+}
+
+export function setBoardDeckIntroductionImage(board: BoardState, image: DeckIntroduction["image"]): BoardState {
+  return updateBoardDeckIntroductionImage(board, image);
+}
+
 function createBaseCells(columns: Column[], rows: number[]) {
   return columns.reduce<Record<CellId, CellState>>((nextCells, column) => {
     for (const row of rows) {

@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import type { DeckLayout } from "@/components/decks/deckLayout";
-
-const DANIEL_INTRO_POSTER_DECK_TEMPLATE_ID = "daniel-build-your-first-muscle-up-001";
+import { getDeckIntroductionPosterImage } from "@/components/decks/deckIntroductionPoster";
 
 type DeckTileProps = {
   deck: DeckLayout;
@@ -14,7 +13,8 @@ type DeckTileProps = {
 export default function DeckTile({ deck, isDisabled = false, isPreparing = false, onSelect, transition }: DeckTileProps) {
   const roundedProgressPercentage = Math.round(deck.progressPercentage);
   const progressMetaLabel = roundedProgressPercentage === 100 ? "Completed" : `${roundedProgressPercentage}%`;
-  const hasIntroPoster = deck.deckTemplateId === DANIEL_INTRO_POSTER_DECK_TEMPLATE_ID;
+  const introPosterImage = getDeckIntroductionPosterImage(deck);
+  const hasIntroPoster = introPosterImage !== null;
 
   return (
     <motion.button
@@ -45,7 +45,7 @@ export default function DeckTile({ deck, isDisabled = false, isPreparing = false
               <>
                 <img
                   className="tile-mini-card-poster"
-                  src="/images/daniel-intro-still1.png"
+                  src={introPosterImage.src}
                   alt=""
                   aria-hidden="true"
                 />
@@ -53,7 +53,6 @@ export default function DeckTile({ deck, isDisabled = false, isPreparing = false
                 <span className="tile-mini-card-play-affordance" aria-hidden="true" />
               </>
             ) : index === 0 && deck.streams?.length ? (
-              // Temporarily hidden only for Daniel's intro-poster prototype.
               <div className="deck-preview-streams" aria-hidden="true">
                 {deck.streams.slice(0, 3).map((stream) => (
                   <div key={stream.id} className="deck-preview-stream-title">
