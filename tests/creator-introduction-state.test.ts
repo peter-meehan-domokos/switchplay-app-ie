@@ -4,6 +4,7 @@ import {
   createCreatorBoardFromTemplate,
   creatorBoardToDeckTemplate,
   setBoardDeckIntroductionImage,
+  setBoardDeckIntroductionVideo,
 } from "../src/components/creator/creatorBoardState";
 import type { DeckIntroduction, DeckTemplate } from "../src/components/decks/types";
 import type { CloudflareR2ImageMediaItem, LegacyProviderlessImageMediaItem, CloudflareStreamVideoMediaItem } from "../src/lib/media";
@@ -98,5 +99,63 @@ test("creator board to template preserves R2 image media", () => {
   assert.deepEqual(template.introduction as DeckIntroduction | null, {
     image: cloudflareImage,
     video: null,
+  });
+});
+
+test("video upload result is inserted into a null introduction", () => {
+  const board = createCreatorBoardFromTemplate({
+    ...baseTemplate,
+    introduction: null,
+  });
+  const nextBoard = setBoardDeckIntroductionVideo(board, introVideo);
+
+  assert.deepEqual(nextBoard.deckIntroduction, {
+    image: null,
+    video: introVideo,
+  });
+});
+
+test("adding intro video preserves the existing image", () => {
+  const board = createCreatorBoardFromTemplate({
+    ...baseTemplate,
+    introduction: { image: cloudflareImage, video: null },
+  });
+  const nextBoard = setBoardDeckIntroductionVideo(board, introVideo);
+
+  assert.deepEqual(nextBoard.deckIntroduction, {
+    image: cloudflareImage,
+    video: introVideo,
+  });
+});
+
+test("replacing intro video preserves the existing image", () => {
+  const existingVideo = {
+    ...introVideo,
+    id: "video-existing",
+    assetId: "video-existing-asset",
+    src: "https://iframe.videodelivery.net/video-existing-asset",
+  } satisfies CloudflareStreamVideoMediaItem;
+  const board = createCreatorBoardFromTemplate({
+    ...baseTemplate,
+    introduction: { image: legacyImage, video: existingVideo },
+  });
+  const nextBoard = setBoardDeckIntroductionVideo(board, introVideo);
+
+  assert.deepEqual(nextBoard.deckIntroduction, {
+    image: legacyImage,
+    video: introVideo,
+  });
+});
+
+test("creator board to template preserves Stream intro video", () => {
+  const board = createCreatorBoardFromTemplate({
+    ...baseTemplate,
+    introduction: { image: cloudflareImage, video: introVideo },
+  });
+  const template = creatorBoardToDeckTemplate(board);
+
+  assert.deepEqual(template.introduction as DeckIntroduction | null, {
+    image: cloudflareImage,
+    video: introVideo,
   });
 });

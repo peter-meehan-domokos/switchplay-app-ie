@@ -1253,6 +1253,25 @@ input {
   gap: 10px;
 }
 
+.creator-deck-introduction-video-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.creator-deck-introduction-video-preview {
+  overflow: hidden;
+  border: 1px solid #d3d9dc;
+  border-radius: 10px;
+  background: #0f1115;
+}
+
+.creator-deck-introduction-video-preview iframe {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  border: 0;
+}
+
 .creator-deck-introduction-image-preview {
   display: block;
   width: 100%;
