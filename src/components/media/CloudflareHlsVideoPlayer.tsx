@@ -13,23 +13,31 @@ import {
   type PointerEvent,
 } from "react";
 import { CollapseVideoIcon, ExpandVideoIcon } from "@/components/icons/videoControlIcons";
+import { shouldRecordPlaybackPause, type VideoPlaybackIntent } from "@/components/media/videoPlaybackState";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { getCloudflareStreamHlsManifestUrl, getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 
-export type VideoPlaybackIntent = "idle" | "continue" | "paused";
+export type { VideoPlaybackIntent } from "@/components/media/videoPlaybackState";
+
+export type VideoPlaybackState = "idle" | "loading" | "playing" | "paused" | "ended" | "blocked" | "failed";
 
 export type CloudflareHlsVideoPlayerHandle = {
   loadMedia: (mediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean }) => void;
   pauseAndReset: () => void;
+  togglePlayback: () => void;
 };
 
 type CloudflareHlsVideoPlayerProps = {
   displayMode?: "embedded" | "expanded";
-  mediaItem: CloudflareStreamVideoMediaItem;
+  mediaItem?: CloudflareStreamVideoMediaItem | null;
   onMediaDisplayStateChange?: (state: { assetId: string; state: "failed" | "renderable" }) => void;
   onPlaybackIntentChange?: (intent: VideoPlaybackIntent) => void;
+  onPlaybackStateChange?: (state: { assetId: string | null; state: VideoPlaybackState }) => void;
   onRequestCollapse?: () => void;
   onRequestExpand?: () => void;
+  previewControlDisabled?: boolean;
+  previewLabel?: string;
+  variant?: "standard" | "deck-preview";
 };
 
 type InternalTransition = {
@@ -61,8 +69,12 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       mediaItem,
       onMediaDisplayStateChange,
       onPlaybackIntentChange,
+      onPlaybackStateChange,
       onRequestCollapse,
       onRequestExpand,
+      previewControlDisabled = false,
+      previewLabel = "Introduction video",
+      variant = "standard",
     },
     ref
   ) {
@@ -74,9 +86,16 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const internalTransitionRef = useRef<InternalTransition | null>(null);
     const [isPlayable, setIsPlayable] = useState(false);
     const [hasFailed, setHasFailed] = useState(false);
+    const [isPaused, setIsPaused] = useState(true);
+    const [isEnded, setIsEnded] = useState(false);
     const isExpandedMode = displayMode === "expanded";
-    const manifestUrl = useMemo(() => getCloudflareStreamHlsManifestUrl(mediaItem), [mediaItem]);
-    const posterUrl = useMemo(() => getCloudflareStreamThumbnailUrl(mediaItem), [mediaItem]);
+    const isDeckPreview = variant === "deck-preview";
+    const manifestUrl = useMemo(() => mediaItem ? getCloudflareStreamHlsManifestUrl(mediaItem) : null, [mediaItem]);
+    const posterUrl = useMemo(() => mediaItem ? getCloudflareStreamThumbnailUrl(mediaItem) : null, [mediaItem]);
+
+    const emitPlaybackState = useCallback((state: VideoPlaybackState, assetId = activeAssetIdRef.current) => {
+      onPlaybackStateChange?.({ assetId, state });
+    }, [onPlaybackStateChange]);
 
     const clearInternalTransition = useCallback((token?: number) => {
       const transition = internalTransitionRef.current;
@@ -118,8 +137,10 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const markFailed = useCallback((assetId: string) => {
       setIsPlayable(false);
       setHasFailed(true);
+      setIsPaused(true);
+      emitPlaybackState("failed", assetId);
       onMediaDisplayStateChange?.({ assetId, state: "failed" });
-    }, [onMediaDisplayStateChange]);
+    }, [emitPlaybackState, onMediaDisplayStateChange]);
 
     const requestUnmutedPlayback = useCallback((video: HTMLVideoElement, operationId: number) => {
       video.defaultMuted = false;
@@ -140,11 +161,13 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
             clearInternalTransition();
             setIsPlayable(false);
+            setIsPaused(true);
+            emitPlaybackState("blocked", activeAssetIdRef.current);
             onPlaybackIntentChange?.("paused");
             console.warn("Unable to play Cloudflare Stream HLS video.", error);
           });
       }
-    }, [clearInternalTransition, onPlaybackIntentChange]);
+    }, [clearInternalTransition, emitPlaybackState, onPlaybackIntentChange]);
 
     const loadMedia = useCallback((nextMediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean }) => {
       const video = videoRef.current;
@@ -162,6 +185,8 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       if (isSameSource) {
         if (options?.shouldPlay) {
           operationIdRef.current = operationId;
+          setIsEnded(false);
+          emitPlaybackState("loading", nextMediaItem.assetId);
           requestUnmutedPlayback(video, operationId);
         }
 
@@ -174,6 +199,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       video.playsInline = true;
       setHasFailed(false);
       setIsPlayable(false);
+      setIsPaused(true);
+      setIsEnded(false);
+      emitPlaybackState("loading", nextMediaItem.assetId);
 
       const transitionToken = beginInternalTransition();
 
@@ -225,7 +253,30 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       markFailed,
       markRenderable,
       requestUnmutedPlayback,
+      emitPlaybackState,
     ]);
+
+    const togglePlayback = useCallback(() => {
+      const video = videoRef.current;
+
+      if (!video || !activeAssetIdRef.current) {
+        return;
+      }
+
+      if (video.paused || video.ended) {
+        if (video.ended) {
+          video.currentTime = 0;
+        }
+
+        operationIdRef.current += 1;
+        setIsEnded(false);
+        emitPlaybackState("loading");
+        requestUnmutedPlayback(video, operationIdRef.current);
+        return;
+      }
+
+      video.pause();
+    }, [emitPlaybackState, requestUnmutedPlayback]);
 
     const pauseAndReset = useCallback(() => {
       const video = videoRef.current;
@@ -239,6 +290,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       activeManifestUrlRef.current = null;
       setIsPlayable(false);
       setHasFailed(false);
+      setIsPaused(true);
+      setIsEnded(false);
+      emitPlaybackState("idle", null);
 
       if (!video) {
         clearInternalTransition(transitionToken);
@@ -249,19 +303,22 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       video.removeAttribute("src");
       video.load();
       window.setTimeout(() => clearInternalTransition(transitionToken), 0);
-    }, [beginInternalTransition, clearInternalTransition, destroyHls]);
+    }, [beginInternalTransition, clearInternalTransition, destroyHls, emitPlaybackState]);
 
     useImperativeHandle(
       ref,
       () => ({
         loadMedia,
         pauseAndReset,
+        togglePlayback,
       }),
-      [loadMedia, pauseAndReset]
+      [loadMedia, pauseAndReset, togglePlayback]
     );
 
     useEffect(() => {
-      loadMedia(mediaItem, { shouldPlay: false });
+      if (mediaItem) {
+        loadMedia(mediaItem, { shouldPlay: false });
+      }
     }, [loadMedia, mediaItem, manifestUrl]);
 
     useEffect(() => {
@@ -273,33 +330,58 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
       const handleLoadedMetadata = () => {
         clearInternalTransition();
-        markRenderable(activeAssetIdRef.current ?? mediaItem.assetId);
+        const assetId = activeAssetIdRef.current;
+        if (assetId) {
+          markRenderable(assetId);
+        }
       };
       const handleCanPlay = () => {
         clearInternalTransition();
-        markRenderable(activeAssetIdRef.current ?? mediaItem.assetId);
+        const assetId = activeAssetIdRef.current;
+        if (assetId) {
+          markRenderable(assetId);
+        }
       };
       const handlePlay = () => {
+        setIsPaused(false);
+        setIsEnded(false);
         onPlaybackIntentChange?.("continue");
       };
       const handlePlaying = () => {
         clearInternalTransition();
-        markRenderable(activeAssetIdRef.current ?? mediaItem.assetId);
+        const assetId = activeAssetIdRef.current;
+        if (assetId) {
+          markRenderable(assetId);
+        }
+        setIsPaused(false);
+        setIsEnded(false);
+        emitPlaybackState("playing");
         onPlaybackIntentChange?.("continue");
       };
       const handlePause = () => {
-        if (internalTransitionRef.current || video.ended) {
+        if (!shouldRecordPlaybackPause({
+          hasEnded: video.ended,
+          isInternalTransition: Boolean(internalTransitionRef.current),
+        })) {
           return;
         }
 
+        setIsPaused(true);
+        emitPlaybackState("paused");
         onPlaybackIntentChange?.("paused");
       };
       const handleEnded = () => {
         clearInternalTransition();
+        setIsPaused(true);
+        setIsEnded(true);
+        emitPlaybackState("ended");
       };
       const handleError = () => {
         clearInternalTransition();
-        markFailed(activeAssetIdRef.current ?? mediaItem.assetId);
+        const assetId = activeAssetIdRef.current;
+        if (assetId) {
+          markFailed(assetId);
+        }
       };
 
       video.addEventListener("loadedmetadata", handleLoadedMetadata);
@@ -319,7 +401,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         video.removeEventListener("ended", handleEnded);
         video.removeEventListener("error", handleError);
       };
-    }, [clearInternalTransition, markFailed, markRenderable, mediaItem.assetId, onPlaybackIntentChange]);
+    }, [clearInternalTransition, emitPlaybackState, markFailed, markRenderable, onPlaybackIntentChange]);
 
     useEffect(() => {
       return () => {
@@ -335,22 +417,40 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       event.stopPropagation();
       onRequestCollapse?.();
     };
+    const handlePreviewPlaybackClick = (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      togglePlayback();
+    };
+
+    const activeMediaLabel = previewLabel || mediaItem?.description || "Introduction video";
 
     return (
-      <div className="cloudflare-stream-player-shell">
+      <div className={`cloudflare-stream-player-shell${isDeckPreview ? " cloudflare-stream-player-shell--deck-preview" : ""}`}>
         <video
           ref={videoRef}
           className="cloudflare-stream-player"
-          controls
+          controls={!isDeckPreview}
           playsInline
-          preload="metadata"
-          poster={posterUrl}
-          aria-label={mediaItem.description || "Step video"}
+          preload={mediaItem ? "metadata" : "none"}
+          poster={posterUrl ?? undefined}
+          aria-hidden={isDeckPreview ? "true" : undefined}
+          aria-label={isDeckPreview ? undefined : mediaItem?.description || "Step video"}
+          tabIndex={isDeckPreview ? -1 : undefined}
         />
-        {hasFailed ? (
+        {hasFailed && !isDeckPreview ? (
           <p className="cloudflare-stream-player-status">Video unavailable.</p>
         ) : null}
-        {!isExpandedMode ? (
+        {isDeckPreview ? (
+          <button
+            className={`deck-intro-preview-control${isPaused || isEnded ? " deck-intro-preview-control--paused" : ""}`}
+            disabled={previewControlDisabled}
+            onClick={handlePreviewPlaybackClick}
+            type="button"
+            aria-label={`${isPaused || isEnded ? "Play" : "Pause"} ${activeMediaLabel}`}
+          >
+            <span className="deck-intro-preview-control-icon" aria-hidden="true" />
+          </button>
+        ) : !isExpandedMode ? (
           <button
             className="cloudflare-stream-player-frame-control"
             disabled={!isPlayable || !onRequestExpand}

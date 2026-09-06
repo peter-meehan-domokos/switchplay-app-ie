@@ -349,6 +349,7 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
               transition={{ duration: 0.18, ease: "easeOut" }}
             >
               <DeckGrid
+                key={`deck-grid-${viewMode}`}
                 decks={activeDeckLayouts}
                 instantiatingDeckTemplateId={instantiatingDeckTemplateId}
                 isInteractionLocked={isDeckInteractionLocked}
