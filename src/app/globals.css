@@ -1873,6 +1873,51 @@ input {
   pointer-events: auto;
 }
 
+.deck-grid-intro-expanded-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(168, 214, 228, 0.065), transparent 52%),
+    rgba(5, 7, 10, 0.76);
+  pointer-events: none;
+  animation: switchplay-video-backdrop-in 180ms ease-out both;
+}
+
+.deck-grid-intro-host--expanded {
+  position: fixed;
+  inset:
+    max(12px, calc(env(safe-area-inset-top) + 8px))
+    max(12px, calc(env(safe-area-inset-right) + 8px))
+    max(12px, calc(env(safe-area-inset-bottom) + 8px))
+    max(12px, calc(env(safe-area-inset-left) + 8px));
+  z-index: 40;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  transform: none;
+}
+
+.deck-grid-intro-player-frame--expanded {
+  position: relative;
+  width: min(100%, 980px);
+  height: min(100%, 980px);
+}
+
+.deck-grid-intro-host--expanded.deck-grid-intro-host--portrait .deck-grid-intro-player-frame--expanded {
+  height: 100%;
+  width: auto;
+  max-width: min(100%, 470px);
+}
+
+.deck-grid-intro-host--expanded.deck-grid-intro-host--landscape .deck-grid-intro-player-frame--expanded {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
 .deck-grid-intro-player-frame {
   min-width: 0;
   min-height: 0;
@@ -1989,16 +2034,131 @@ input {
   padding: calc(44px + env(safe-area-inset-top)) 4px 14px;
 }
 
+.detail-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px 14px;
+  flex-wrap: wrap;
+}
+
 .detail-progress {
+  margin: 0;
   color: rgba(198, 204, 214, 0.72);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
+.deck-intro-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.44);
+  color: rgba(255, 250, 240, 0.76);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.deck-intro-action:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 250, 240, 0.9);
+}
+
+.deck-intro-action:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.62);
+  outline-offset: 2px;
+}
+
 .detail-heading h1 {
   margin-top: 4px;
   font-size: clamp(2.05rem, 10vw, 4rem);
+}
+
+.deck-intro-viewer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+}
+
+.deck-intro-viewer-layer--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.deck-intro-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(168, 214, 228, 0.065), transparent 52%),
+    rgba(5, 7, 10, 0.76);
+  pointer-events: none;
+  animation: switchplay-video-backdrop-in 180ms ease-out both;
+}
+
+.deck-intro-viewer-host {
+  position: absolute;
+  inset:
+    max(12px, calc(env(safe-area-inset-top) + 8px))
+    max(12px, calc(env(safe-area-inset-right) + 8px))
+    max(12px, calc(env(safe-area-inset-bottom) + 8px))
+    max(12px, calc(env(safe-area-inset-left) + 8px));
+  display: grid;
+  place-items: center;
+  visibility: hidden;
+}
+
+.deck-intro-viewer-layer--visible .deck-intro-viewer-host {
+  visibility: visible;
+}
+
+.deck-intro-viewer-frame {
+  min-width: 0;
+  min-height: 0;
+}
+
+.deck-intro-viewer-frame--expanded {
+  position: relative;
+  width: min(100%, 980px);
+  height: min(100%, 980px);
+}
+
+.deck-intro-viewer-host--portrait .deck-intro-viewer-frame--expanded {
+  height: 100%;
+  width: auto;
+  max-width: min(100%, 470px);
+}
+
+.deck-intro-viewer-host--landscape .deck-intro-viewer-frame--expanded {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+}
+
+.deck-intro-viewer-host .cloudflare-stream-player-shell {
+  min-height: 0;
+}
+
+.deck-intro-viewer-host .cloudflare-stream-player,
+.deck-intro-viewer-host .cloudflare-stream-player-shell {
+  border-radius: 15px;
+}
+
+.deck-intro-viewer-host .cloudflare-stream-player-shell,
+.deck-intro-viewer-host .cloudflare-stream-player {
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  margin-top: -1px;
+  margin-left: -1px;
 }
 
 .card-stack {

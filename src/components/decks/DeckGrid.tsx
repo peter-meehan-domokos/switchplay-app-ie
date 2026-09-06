@@ -41,11 +41,21 @@ export default function DeckGrid({
   const activeVideoRef = useRef<{ assetId: string; deckId: string } | null>(null);
   const previewStateRef = useRef(initialDeckIntroPreviewState);
   const [previewState, setPreviewState] = useState(initialDeckIntroPreviewState);
+  const [isIntroExpanded, setIsIntroExpanded] = useState(false);
   const [hostRect, setHostRect] = useState<IntroHostRect | null>(null);
   const activeDeck = decks.find((deck) => deck.id === previewState.activeDeckId) ?? null;
   const activeVideo = activeDeck ? getPlayableDeckIntroductionVideo(activeDeck) : null;
+  const activeVideoWidth = activeVideo?.width ?? 9;
+  const activeVideoHeight = activeVideo?.height ?? 16;
   const containedVideoSize = activeVideo ? getContainedIntroVideoSize(activeVideo) : null;
   const isPlayerVisible = previewState.visibleDeckId === previewState.activeDeckId;
+  const isExpandedVideoPortrait = activeVideoHeight > activeVideoWidth;
+  const canExpandIntroPreview = Boolean(
+    isPlayerVisible &&
+    activeVideo &&
+    previewState.status === "playing" &&
+    !isInteractionLocked
+  );
 
   const applyPreviewAction = useCallback((action: DeckIntroPreviewAction) => {
     const nextState = reduceDeckIntroPreviewState(previewStateRef.current, action);
@@ -76,9 +86,11 @@ export default function DeckGrid({
   }, []);
 
   const clearPreview = useCallback(() => {
+    console.log("[DIAG DECKGRID] clearPreview called, calling pauseAndReset");
     activeVideoRef.current = null;
-    playerRef.current?.pauseAndReset();
+    playerRef.current?.pauseAndReset("deckgrid: clearPreview");
     applyPreviewAction({ type: "clear" });
+    setIsIntroExpanded(false);
     setHostRect(null);
   }, [applyPreviewAction]);
 
@@ -88,6 +100,16 @@ export default function DeckGrid({
     }
 
     const video = getPlayableDeckIntroductionVideo(deck);
+
+    console.log("[DIAG DECKGRID] front card action", {
+      deckId: deck.id,
+      hasVideo: Boolean(video),
+      mediaType: video?.mediaType ?? null,
+      provider: video?.provider ?? null,
+      assetId: video?.assetId ?? null,
+      src: video?.src ?? null,
+      playerRefExists: Boolean(playerRef.current),
+    });
 
     if (!video) {
       clearPreview();
@@ -103,12 +125,14 @@ export default function DeckGrid({
     }
 
     if (currentState.activeDeckId === deck.id && currentState.status === "failed") {
-      playerRef.current?.pauseAndReset();
+      playerRef.current?.pauseAndReset("deckgrid: retry after failed state");
     }
 
     activeVideoRef.current = { assetId: video.assetId, deckId: deck.id };
     applyPreviewAction({ type: "activate", deckId: deck.id });
     updateHostRect(deck.id);
+
+    console.log("[DIAG DECKGRID] calling loadMedia", { assetId: video.assetId, src: video.src, shouldPlay: true });
     playerRef.current?.loadMedia(video, { shouldPlay: true });
   }, [applyPreviewAction, clearPreview, isInteractionLocked, onSelectDeck, updateHostRect]);
 
@@ -118,6 +142,7 @@ export default function DeckGrid({
   }, [clearPreview, onSelectDeck]);
 
   const handlePlaybackStateChange = useCallback(({ assetId, state }: { assetId: string | null; state: VideoPlaybackState }) => {
+    console.log("[DIAG DECKGRID] onPlaybackStateChange", { assetId, state });
     const activeVideoIdentity = activeVideoRef.current;
 
     if (!activeVideoIdentity || assetId !== activeVideoIdentity.assetId) {
@@ -166,6 +191,36 @@ export default function DeckGrid({
     };
   }, [previewState.activeDeckId, updateHostRect]);
 
+  useEffect(() => {
+    if (isPlayerVisible || !isIntroExpanded) {
+      return;
+    }
+
+    setIsIntroExpanded(false);
+  }, [isIntroExpanded, isPlayerVisible]);
+
+  useEffect(() => {
+    if (!isIntroExpanded) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsIntroExpanded(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isIntroExpanded]);
+
+  const isHostVisible = isIntroExpanded
+    ? Boolean(previewState.activeDeckId && activeVideo)
+    : Boolean(isPlayerVisible && hostRect);
+
   const hostStyle: CSSProperties | undefined = hostRect
     ? {
         height: hostRect.height,
@@ -174,12 +229,18 @@ export default function DeckGrid({
         width: hostRect.width,
       }
     : undefined;
-  const playerFrameStyle: CSSProperties | undefined = containedVideoSize
+  const embeddedPlayerFrameStyle: CSSProperties | undefined = containedVideoSize
     ? {
         height: `${containedVideoSize.heightPercentage}%`,
         width: `${containedVideoSize.widthPercentage}%`,
       }
     : undefined;
+  const expandedPlayerFrameStyle: CSSProperties | undefined =
+    isIntroExpanded && activeVideo
+      ? {
+          aspectRatio: `${activeVideoWidth} / ${activeVideoHeight}`,
+        }
+      : undefined;
 
   return (
     <div className="deck-grid" ref={gridRef}>
@@ -203,19 +264,28 @@ export default function DeckGrid({
           transition={transition}
         />
       ))}
+      {isIntroExpanded ? <div className="deck-grid-intro-expanded-backdrop" aria-hidden="true" /> : null}
       <div
-        className={`deck-grid-intro-host${isPlayerVisible && hostRect ? " deck-grid-intro-host--visible" : ""}`}
-        aria-hidden={!isPlayerVisible}
-        style={hostStyle}
+        className={`deck-grid-intro-host${isHostVisible ? " deck-grid-intro-host--visible" : ""}${
+          isIntroExpanded ? " deck-grid-intro-host--expanded" : ""
+        }${isExpandedVideoPortrait ? " deck-grid-intro-host--portrait" : " deck-grid-intro-host--landscape"}`}
+        aria-hidden={!isHostVisible}
+        style={isIntroExpanded ? undefined : hostStyle}
       >
-        <div className="deck-grid-intro-player-frame" style={playerFrameStyle}>
+        <div
+          className={`deck-grid-intro-player-frame${isIntroExpanded ? " deck-grid-intro-player-frame--expanded" : ""}`}
+          style={isIntroExpanded ? expandedPlayerFrameStyle : embeddedPlayerFrameStyle}
+        >
           <CloudflareHlsVideoPlayer
             ref={playerRef}
+            displayMode={isIntroExpanded ? "expanded" : "embedded"}
             mediaItem={null}
             onPlaybackStateChange={handlePlaybackStateChange}
+            onRequestCollapse={isIntroExpanded ? () => setIsIntroExpanded(false) : undefined}
+            onRequestExpand={canExpandIntroPreview ? () => setIsIntroExpanded(true) : undefined}
             previewControlDisabled={!isPlayerVisible}
             previewLabel={`introduction for ${activeDeck?.title ?? "deck"}`}
-            variant="deck-preview"
+            variant={isIntroExpanded ? "standard" : "deck-preview"}
           />
         </div>
       </div>

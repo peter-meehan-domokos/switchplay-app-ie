@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import { getPlayableDeckIntroductionVideo } from "@/components/decks/deckIntroPreview";
 import DeckMenu from "@/components/decks/DeckMenu";
 import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
 import type { DeckLayout } from "@/components/decks/deckLayout";
@@ -12,6 +13,10 @@ import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardVi
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
+import CloudflareHlsVideoPlayer, {
+  type CloudflareHlsVideoPlayerHandle,
+  type VideoPlaybackState,
+} from "@/components/media/CloudflareHlsVideoPlayer";
 import type { CompletionStatus } from "@/components/decks/types";
 import {
   DECK_SCENE_BASELINE_HEIGHT,
@@ -172,8 +177,12 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const [sharedCommentError, setSharedCommentError] = useState<string | null>(null);
   const [isSavingSharedComment, setIsSavingSharedComment] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
+  const [isDeckIntroExpanded, setIsDeckIntroExpanded] = useState(false);
+  const [deckIntroPlaybackState, setDeckIntroPlaybackState] = useState<VideoPlaybackState>("idle");
   const deckDetailRef = useRef<HTMLElement | null>(null);
   const deckSceneFrameRef = useRef<HTMLDivElement | null>(null);
+  const introPlayerRef = useRef<CloudflareHlsVideoPlayerHandle | null>(null);
+  const introActionRef = useRef<HTMLButtonElement | null>(null);
   const roleTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deckSceneLayout = useDeckSceneLayout(deckDetailRef, deckSceneFrameRef);
   // `deck` is the stable shell from the parent (identity/persistence fields remain authoritative).
@@ -181,6 +190,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   // Re-derive layout progress from local cards so progress text/strips update immediately,
   // while deck identity and persistence fields continue to come from `deck`.
   const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
+  const deckIntroVideo = getPlayableDeckIntroductionVideo(optimisticDeck);
+  const deckIntroVideoWidth = deckIntroVideo?.width ?? 9;
+  const deckIntroVideoHeight = deckIntroVideo?.height ?? 16;
+  const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
   const finalCardIndex = optimisticDeck.cards.length - 1;
   const activeCard = cards[activeCardIndex] ?? null;
   const canAddSharedComment = deck.hasUserDeckData && !deck.canMutate && !deck.isOwnedByCurrentUser;
@@ -195,6 +208,44 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         clearTimeout(roleTransitionTimeoutRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (!isDeckIntroExpanded) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      console.log("[DIAG DECKDETAIL] Escape key pressed while intro expanded, calling pausePlayback");
+      introPlayerRef.current?.pausePlayback("deckdetail: escape key");
+      setIsDeckIntroExpanded(false);
+      introActionRef.current?.focus();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isDeckIntroExpanded]);
+
+  useEffect(() => {
+    if (!isFocusModeOpen || !isDeckIntroExpanded) {
+      return;
+    }
+
+    console.log("[DIAG DECKDETAIL] focus mode opened while intro expanded, calling pausePlayback");
+    introPlayerRef.current?.pausePlayback("deckdetail: focus mode opened, closing intro overlay");
+    setIsDeckIntroExpanded(false);
+  }, [isDeckIntroExpanded, isFocusModeOpen]);
+
+  const handleDeckIntroPlaybackStateChange = useCallback(({ assetId, state }: { assetId: string | null; state: VideoPlaybackState }) => {
+    console.log("[DIAG DECKDETAIL] onPlaybackStateChange", { assetId, state });
+    setDeckIntroPlaybackState(state);
   }, []);
 
   const commitActiveCardIndex = (nextCardIndex: number) => {
@@ -257,6 +308,51 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
   const closeFocusMode = () => {
     setIsFocusModeOpen(false);
+  };
+
+  const openDeckIntroViewer = () => {
+    console.log("[DIAG DECKDETAIL] Intro button clicked", {
+      deckId: deck.id,
+      deckTitle: deck.title,
+      hasDeckIntroVideo: Boolean(deckIntroVideo),
+      mediaType: deckIntroVideo?.mediaType ?? null,
+      provider: deckIntroVideo?.provider ?? null,
+      assetId: deckIntroVideo?.assetId ?? null,
+      src: deckIntroVideo?.src ?? null,
+      introPlayerRefExists: Boolean(introPlayerRef.current),
+    });
+
+    if (!deckIntroVideo || isFocusModeOpen) {
+      console.log("[DIAG DECKDETAIL] Intro click ignored", {
+        hasDeckIntroVideo: Boolean(deckIntroVideo),
+        isFocusModeOpen,
+      });
+      return;
+    }
+
+    if (deckIntroPlaybackState === "ended") {
+      console.log("[DIAG DECKDETAIL] calling pauseAndReset before replay (intro previously ended)");
+      introPlayerRef.current?.pauseAndReset("deckdetail: intro previously ended, resetting before replay");
+    }
+
+    const player = introPlayerRef.current;
+
+    console.log("[DIAG DECKDETAIL] calling loadMedia", {
+      assetId: deckIntroVideo.assetId,
+      src: deckIntroVideo.src,
+      shouldPlay: true,
+      playerExists: Boolean(player),
+    });
+
+    player?.loadMedia(deckIntroVideo, { shouldPlay: true });
+    setIsDeckIntroExpanded(true);
+  };
+
+  const closeDeckIntroViewer = () => {
+    console.log("[DIAG DECKDETAIL] closeDeckIntroViewer called, calling pausePlayback");
+    introPlayerRef.current?.pausePlayback("deckdetail: close intro viewer");
+    setIsDeckIntroExpanded(false);
+    introActionRef.current?.focus();
   };
 
   const openSharedCommentEditor = () => {
@@ -542,7 +638,21 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} />
 
       <motion.div className="detail-heading" layout>
-        <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>
+        <div className="detail-progress-row">
+          <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>
+          {deckIntroVideo && !isFocusModeOpen ? (
+            <button
+              ref={introActionRef}
+              className="deck-intro-action"
+              onClick={openDeckIntroViewer}
+              type="button"
+              aria-label={`Play introduction video for ${deck.title}`}
+            >
+              <span aria-hidden="true">&#9654;</span>
+              <span>Intro</span>
+            </button>
+          ) : null}
+        </div>
         <h1>{deck.title}</h1>
       </motion.div>
 
@@ -589,6 +699,39 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
           />
         ) : null}
       </AnimatePresence>
+
+      {deckIntroVideo ? (
+        <div className={`deck-intro-viewer-layer${isDeckIntroExpanded ? " deck-intro-viewer-layer--visible" : ""}`} aria-hidden={!isDeckIntroExpanded}>
+          {isDeckIntroExpanded ? <div className="deck-intro-viewer-backdrop" /> : null}
+          <div
+            className={`deck-intro-viewer-host${isDeckIntroExpanded ? " deck-intro-viewer-host--expanded" : ""}${
+              isDeckIntroPortrait ? " deck-intro-viewer-host--portrait" : " deck-intro-viewer-host--landscape"
+            }`}
+          >
+            <div
+              className={`deck-intro-viewer-frame${isDeckIntroExpanded ? " deck-intro-viewer-frame--expanded" : ""}`}
+              style={
+                  deckIntroVideo
+                  ? {
+                      aspectRatio: `${deckIntroVideoWidth} / ${deckIntroVideoHeight}`,
+                    }
+                  : undefined
+              }
+            >
+              <CloudflareHlsVideoPlayer
+                ref={introPlayerRef}
+                displayMode={isDeckIntroExpanded ? "expanded" : "embedded"}
+                mediaItem={null}
+                onPlaybackStateChange={handleDeckIntroPlaybackStateChange}
+                onRequestCollapse={isDeckIntroExpanded ? closeDeckIntroViewer : undefined}
+                onRequestExpand={!isDeckIntroExpanded && deckIntroVideo ? openDeckIntroViewer : undefined}
+                previewLabel={`introduction for ${deck.title}`}
+                variant="standard"
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <AnimatePresence>
         {isSharedCommentEditorOpen ? (
