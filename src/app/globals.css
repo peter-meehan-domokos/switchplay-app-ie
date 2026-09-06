@@ -1687,8 +1687,8 @@ input {
   position: relative;
   align-self: center;
   justify-self: center;
-  width: min(84%, 132px);
-  aspect-ratio: 0.72;
+  width: min(80.5%, 126.5px);
+  aspect-ratio: 0.69;
   margin: 8px 0;
 }
 
