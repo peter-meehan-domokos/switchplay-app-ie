@@ -30,6 +30,7 @@ import {
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
   resolveCreatorStreamName,
+  setBoardDeckIntroductionVideo,
   swapCreatorBoardRows,
   setBoardDeckIntroductionImage,
   type BoardState,
@@ -40,11 +41,17 @@ import {
   type PairId,
 } from "@/components/creator/creatorBoardState";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
+import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { DeckTemplate, StepDescriptionSpan } from "@/components/decks/types";
 import { isSupportedImageUploadContentType } from "@/lib/imageUploadContentTypes";
-import type { CloudflareStreamVideoMediaItem, ImageMediaItem } from "@/lib/media";
+import {
+  isCloudflareStreamVideoMediaItem,
+  type CloudflareStreamVideoMediaItem,
+  type ImageMediaItem,
+  type VideoMediaItem,
+} from "@/lib/media";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -711,22 +718,30 @@ function CreatorEditModal({
   canDeleteCard = false,
   deckIntroductionImage,
   deckIntroductionImageMessage,
+  deckIntroductionVideo,
+  deckIntroductionVideoMessage,
   isDeckIntroImageUploading = false,
+  isDeckIntroVideoUploading = false,
   onClose,
   onDeleteCard,
   onRemoveDeckIntroductionImage,
   onSave,
+  onUploadDeckIntroductionVideo,
   onUploadDeckIntroductionImage,
   session,
 }: {
   canDeleteCard?: boolean;
   deckIntroductionImage: ImageMediaItem | null;
   deckIntroductionImageMessage?: string | null;
+  deckIntroductionVideo: VideoMediaItem | null;
+  deckIntroductionVideoMessage?: string | null;
   isDeckIntroImageUploading?: boolean;
+  isDeckIntroVideoUploading?: boolean;
   onClose: () => void;
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
   onSave: (value: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  onUploadDeckIntroductionVideo: (file: File) => void;
   onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
 }) {
@@ -755,6 +770,9 @@ function CreatorEditModal({
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
   const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
   const introImageInputRef = useRef<HTMLInputElement | null>(null);
+  const introVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const hasDeckIntroductionVideo = deckIntroductionVideo !== null;
+  const streamIntroVideo = isCloudflareStreamVideoMediaItem(deckIntroductionVideo) ? deckIntroductionVideo : null;
 
   function handleDeckIntroductionImageButtonClick() {
     introImageInputRef.current?.click();
@@ -770,6 +788,22 @@ function CreatorEditModal({
     }
 
     onUploadDeckIntroductionImage(selectedFile);
+  }
+
+  function handleDeckIntroductionVideoButtonClick() {
+    introVideoInputRef.current?.click();
+  }
+
+  function handleDeckIntroductionVideoChange(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = "";
+
+    if (!selectedFile) {
+      return;
+    }
+
+    onUploadDeckIntroductionVideo(selectedFile);
   }
 
   function handleDraftValueChange(value: string) {
@@ -949,8 +983,35 @@ function CreatorEditModal({
             </section>
             <section className="creator-deck-introduction-section">
               <h2>Intro video</h2>
-              <div className="creator-deck-introduction-placeholder" aria-label="Intro video upload placeholder">
-                <span>Add video</span>
+              <div className="creator-deck-introduction-video-shell">
+                {streamIntroVideo ? (
+                  <div className="creator-deck-introduction-video-preview" data-creator-pan-exempt>
+                    <CloudflareStreamPlayer mediaItem={streamIntroVideo} />
+                  </div>
+                ) : (
+                  <div className="creator-deck-introduction-placeholder" aria-label="Intro video upload placeholder">
+                    <span>{hasDeckIntroductionVideo ? deckIntroductionVideo?.description ?? "Intro video attached" : "Add video"}</span>
+                  </div>
+                )}
+                <div className="creator-deck-introduction-image-actions">
+                  <input
+                    accept="video/*"
+                    className="creator-deck-introduction-image-input"
+                    disabled={isDeckIntroVideoUploading}
+                    onChange={handleDeckIntroductionVideoChange}
+                    ref={introVideoInputRef}
+                    type="file"
+                  />
+                  <button
+                    className="creator-modal-secondary"
+                    disabled={isDeckIntroVideoUploading}
+                    onClick={handleDeckIntroductionVideoButtonClick}
+                    type="button"
+                  >
+                    {hasDeckIntroductionVideo ? "Replace video" : isDeckIntroVideoUploading ? "Uploading..." : "Add video"}
+                  </button>
+                </div>
+                {deckIntroductionVideoMessage ? <p className="creator-modal-error">{deckIntroductionVideoMessage}</p> : null}
               </div>
             </section>
           </>
@@ -1339,10 +1400,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [uploadingIntroMediaColumnIds, setUploadingIntroMediaColumnIds] = useState<ReadonlySet<ColumnId>>(() => new Set());
   const [isDeckIntroImageUploading, setIsDeckIntroImageUploading] = useState(false);
   const [deckIntroImageMessage, setDeckIntroImageMessage] = useState<string | null>(null);
+  const [isDeckIntroVideoUploading, setIsDeckIntroVideoUploading] = useState(false);
+  const [deckIntroVideoMessage, setDeckIntroVideoMessage] = useState<string | null>(null);
   const boardRef = useRef<BoardState>(initialBoard);
   const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
   const introUploadSessionsRef = useRef<Map<ColumnId, UploadSession>>(new Map());
   const deckIntroImageUploadSessionRef = useRef<UploadSession | null>(null);
+  const deckIntroVideoUploadSessionRef = useRef<UploadSession | null>(null);
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -1371,7 +1435,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
   const currentTemplateSnapshot = useMemo(() => createTemplateSnapshot(board), [board]);
   const hasUnpublishedChanges = currentTemplateSnapshot !== publishedTemplateSnapshot;
-  const hasMediaUploadInFlight = uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0 || isDeckIntroImageUploading;
+  const hasMediaUploadInFlight =
+    uploadingMediaPairIds.size > 0 || uploadingIntroMediaColumnIds.size > 0 || isDeckIntroImageUploading || isDeckIntroVideoUploading;
   const isPublishedState = publishStatus !== "publishing" && !hasUnpublishedChanges && hasPublishedBaseline;
   const shouldShowLeaveConfirm = isLeaveConfirmOpen && hasUnpublishedChanges;
   const publishButtonLabel =
@@ -1385,6 +1450,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     const pairUploadSessions = pairUploadSessionsRef.current;
     const introUploadSessions = introUploadSessionsRef.current;
     const deckIntroImageUploadSession = deckIntroImageUploadSessionRef.current;
+    const deckIntroVideoUploadSession = deckIntroVideoUploadSessionRef.current;
 
     return () => {
       for (const session of pairUploadSessions.values()) {
@@ -1394,9 +1460,11 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         session.controller.abort();
       }
       deckIntroImageUploadSession?.controller.abort();
+      deckIntroVideoUploadSession?.controller.abort();
       pairUploadSessions.clear();
       introUploadSessions.clear();
       deckIntroImageUploadSessionRef.current = null;
+      deckIntroVideoUploadSessionRef.current = null;
     };
   }, []);
 
@@ -1899,6 +1967,29 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     setIsDeckIntroImageUploading(false);
   }
 
+  function createDeckIntroVideoUploadSession() {
+    deckIntroVideoUploadSessionRef.current?.controller.abort();
+
+    const session: UploadSession = {
+      controller: new AbortController(),
+      token: Symbol("deck-intro-video"),
+    };
+
+    deckIntroVideoUploadSessionRef.current = session;
+    setIsDeckIntroVideoUploading(true);
+
+    return session;
+  }
+
+  function finishDeckIntroVideoUpload(session: UploadSession) {
+    if (deckIntroVideoUploadSessionRef.current?.token !== session.token) {
+      return;
+    }
+
+    deckIntroVideoUploadSessionRef.current = null;
+    setIsDeckIntroVideoUploading(false);
+  }
+
   function cancelPairMediaUpload(pairId: PairId) {
     const session = pairUploadSessionsRef.current.get(pairId);
 
@@ -2076,6 +2167,43 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setDeckIntroImageMessage(error instanceof Error ? error.message : "Unable to upload intro image.");
     } finally {
       finishDeckIntroImageUpload(uploadSession);
+    }
+  }
+
+  async function uploadDeckIntroductionVideo(file: File) {
+    if (file.type && !file.type.startsWith("video/")) {
+      setDeckIntroVideoMessage("Choose a video file.");
+      return;
+    }
+
+    const uploadSession = createDeckIntroVideoUploadSession();
+
+    setDeckIntroVideoMessage(null);
+    setPublishMessage("");
+    setPublishStatus("idle");
+
+    try {
+      const mediaItem = await uploadCreatorVideo(file, uploadSession.controller.signal);
+
+      if (uploadSession.controller.signal.aborted) {
+        return;
+      }
+
+      finishDeckIntroVideoUpload(uploadSession);
+
+      const nextBoard = setBoardDeckIntroductionVideo(boardRef.current, mediaItem);
+
+      boardRef.current = nextBoard;
+      setBoard(nextBoard);
+      await persistSavedDraft(nextBoard);
+    } catch (error) {
+      if (uploadSession.controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
+      setDeckIntroVideoMessage(error instanceof Error ? error.message : "Unable to upload intro video.");
+    } finally {
+      finishDeckIntroVideoUpload(uploadSession);
     }
   }
 
@@ -2333,13 +2461,17 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           canDeleteCard={canDeleteActiveCard}
           deckIntroductionImage={board.deckIntroduction?.image ?? null}
           deckIntroductionImageMessage={deckIntroImageMessage}
+          deckIntroductionVideo={board.deckIntroduction?.video ?? null}
+          deckIntroductionVideoMessage={deckIntroVideoMessage}
           isDeckIntroImageUploading={isDeckIntroImageUploading}
+          isDeckIntroVideoUploading={isDeckIntroVideoUploading}
           key={getEditTargetKey(editSession.target)}
           session={editSession}
           onClose={() => setEditSession(null)}
           onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
           onSave={saveEdit}
           onRemoveDeckIntroductionImage={removeDeckIntroductionImage}
+          onUploadDeckIntroductionVideo={uploadDeckIntroductionVideo}
           onUploadDeckIntroductionImage={uploadDeckIntroductionImage}
         />
       ) : null}

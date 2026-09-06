@@ -473,6 +473,27 @@ export function setBoardDeckIntroductionImage(board: BoardState, image: DeckIntr
   return updateBoardDeckIntroductionImage(board, image);
 }
 
+export function updateBoardDeckIntroductionVideo(board: BoardState, video: DeckIntroduction["video"]): BoardState {
+  const currentIntroduction = board.deckIntroduction;
+
+  return {
+    ...board,
+    deckIntroduction:
+      currentIntroduction === null
+        ? video === null
+          ? null
+          : { image: null, video }
+        : {
+            ...currentIntroduction,
+            video,
+          },
+  };
+}
+
+export function setBoardDeckIntroductionVideo(board: BoardState, video: DeckIntroduction["video"]): BoardState {
+  return updateBoardDeckIntroductionVideo(board, video);
+}
+
 function createBaseCells(columns: Column[], rows: number[]) {
   return columns.reduce<Record<CellId, CellState>>((nextCells, column) => {
     for (const row of rows) {
