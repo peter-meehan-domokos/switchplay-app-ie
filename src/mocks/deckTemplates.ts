@@ -5,6 +5,137 @@ import type { DeckTemplate } from "@/components/decks/types";
 //WARNING: suggested date is supposed to be a date string not an empty string
 export const deckTemplates: DeckTemplate[] = [
   {
+    "deckTemplateId": "borrow-blend-and-drive",
+    "title": "Borrow, Blend, and Drive",
+    "category": "Trad Fiddle",
+    "streams": [
+      {
+        "id": "let-rhythm-lead",
+        "title": "Let Rhythm Lead"
+      },
+      {
+        "id": "borrow-combine-make-your-own",
+        "title": "Borrow, Combine, Make Your Own"
+      },
+      {
+        "id": "get-beside-players",
+        "title": "Get Beside Players"
+      }
+    ],
+    "cards": [
+      {
+        "cardId": "card-001",
+        "label": "Card 1",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "The First Pass",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-001-step-1",
+            "description": "Emulate the heavy down-bow rhythm early on, prioritizing the drive over stopping to correct wrong notes.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-001-step-2",
+            "description": "Pick one ornament you admire, practice it completely isolated for one minute focusing purely on bow weight, then drop it straight back into the phrase.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-001-step-3",
+            "description": "Play along with a recording at high volume to find the notes without being able to hear your own mistakes.",
+            "mediaItem": null
+          }
+        ]
+      },
+      {
+        "cardId": "card-002",
+        "label": "Card 2",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "The Mechanics of Borrowing",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-002-step-1",
+            "description": "Adjust your bow tension—loosening it slightly for string crossings—to stop the bow from flicking off the strings.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-002-step-2",
+            "description": "Try an idea from another instrument you play (like a banjo cut) or another tune, and figure out how to fit it into your current fiddle phrase.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-002-step-3",
+            "description": "Sit directly next to a player you admire in a session and explicitly ask them to show you a specific technique.",
+            "mediaItem": null
+          }
+        ]
+      },
+      {
+        "cardId": "card-003",
+        "label": "Card 3",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "Testing the Blend",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-003-step-1",
+            "description": "Record yourself playing a new variation, listen back away from the instrument, and check if it feels rushed or steals time.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-003-step-2",
+            "description": "Smooth out difficult phrases by applying mechanical tricks observed in other players, such as flattening a finger to bar strings or ending a run-up on an up-bow.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-003-step-3",
+            "description": "Use the loud noise of other people playing in a session as a safety net to test out chords or variations you would hold back from playing alone.",
+            "mediaItem": null
+          }
+        ]
+      },
+      {
+        "cardId": "card-004",
+        "label": "Card 4",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "Driving the Set",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-004-step-1",
+            "description": "Change your approach on the third time round of a tune by introducing a new dynamic—such as sliding up to a heavy chord—to keep the rhythm driving.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-004-step-2",
+            "description": "Hit a loud chord (like a low A and E) at the end of a section to audibly signal to the other players that you are moving into a new part.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-004-step-3",
+            "description": "Adjust the downward pressure on your bow to deliberately match the volume and tone of a different instrument beside you, such as pipes or an accordion.",
+            "mediaItem": null
+          }
+        ]
+      }
+    ]
+  }
+]
+  /*
+  {
     deckTemplateId: "peter-fiddle-deck-1",
 
     title: "Sit With the Tune",
@@ -102,9 +233,7 @@ export const deckTemplates: DeckTemplate[] = [
         ]
       }
     ]
-  }
-]
-/*
+  },
   {
     deckTemplateId: "ibrahim-feed-the-fire-001",
     title: "Feed the Fire",
