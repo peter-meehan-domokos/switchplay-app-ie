@@ -5,8 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "STRAT17 — The unofficial way to get there.",
-    template: "%s | STRAT17",
+    default: "SWITCHPLAY — The unofficial way to get there.",
+    template: "%s | SWITCHPLAY",
   },
   description: "A clear path, not just another video. Follow the steps of someone who's done it.",
 };

@@ -18,7 +18,7 @@ export default function SwitchplayBrandLink({ className }: SwitchplayBrandLinkPr
     : `${spaceGrotesk.variable} ${styles.brandLink}`;
 
   return (
-    <Link className={linkClassName} href="/" aria-label="STRAT17 home">
+    <Link className={linkClassName} href="/" aria-label="SWITCHPLAY home">
       STRAT<span className={styles.brandNumber}>17</span>
     </Link>
   );
