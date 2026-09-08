@@ -915,6 +915,25 @@ function CreatorEditModal({
     onSave(draftValue, isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined);
   }
 
+  const primaryField = isLongText ? (
+    <textarea
+      autoFocus
+      className={fieldClassName}
+      onChange={(event) => handleDraftValueChange(event.target.value)}
+      ref={textareaRef}
+      value={draftValue}
+    />
+  ) : (
+    <input
+      autoFocus
+      className="creator-modal-text-input"
+      maxLength={maxLength}
+      onChange={(event) => handleDraftValueChange(event.target.value)}
+      type="text"
+      value={draftValue}
+    />
+  );
+
   return (
     <div className="creator-modal-backdrop" role="presentation">
       <form className={modalClassName} onSubmit={handleSubmit}>
@@ -925,27 +944,12 @@ function CreatorEditModal({
           </button>
         </header>
         {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
-        <section className={isDeckIntroduction ? "creator-deck-introduction-section" : undefined}>
-          {isDeckIntroduction ? <h2>Deck title</h2> : null}
-          {isLongText ? (
-            <textarea
-              autoFocus
-              className={fieldClassName}
-              onChange={(event) => handleDraftValueChange(event.target.value)}
-              ref={textareaRef}
-              value={draftValue}
-            />
-          ) : (
-            <input
-              autoFocus
-              className="creator-modal-text-input"
-              maxLength={maxLength}
-              onChange={(event) => handleDraftValueChange(event.target.value)}
-              type="text"
-              value={draftValue}
-            />
-          )}
-        </section>
+        {isDeckIntroduction ? (
+          <section className="creator-deck-introduction-section">
+            <h2>Deck title</h2>
+            {primaryField}
+          </section>
+        ) : primaryField}
         {session.target.type === "card-label" ? <p className="creator-modal-counter">{draftValue.length}/{CARD_LABEL_MAX_LENGTH} characters</p> : null}
         {isDeckIntroduction ? (
           <>
