@@ -7,7 +7,7 @@ import HowItWorksSection, { FollowerInterestSection } from "@/components/public-
 import buttonStyles from "@/components/public-site/PublicButton.module.css";
 import styles from "./HomePage.module.css";
 
-const homeTitle = "SWITCHPLAY — People like you. Showing you how.";
+const homeTitle = "SWITCHPLAY — The unofficial way to get there.";
 const homeDescription =
   "A clear path, not just another video. Follow the steps of someone who's done it.";
 
