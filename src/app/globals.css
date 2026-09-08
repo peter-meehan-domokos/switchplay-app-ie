@@ -1817,6 +1817,11 @@ input {
   line-height: 1.05;
 }
 
+.deck-tile-title-chevron {
+  color: rgba(255, 250, 240, 0.48);
+  font-weight: 600;
+}
+
 .deck-tile-meta {
   position: relative;
   z-index: 1;

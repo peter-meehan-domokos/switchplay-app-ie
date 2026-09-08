@@ -95,7 +95,9 @@ export default function DeckTile({
         ))}
       </motion.div>
 
-      <span className="deck-tile-title">{deck.title}</span>
+      <span className="deck-tile-title">
+        {deck.title} <span className="deck-tile-title-chevron" aria-hidden="true">›</span>
+      </span>
       <span className="deck-tile-meta">{isPreparing ? "Preparing deck..." : `${deck.cards.length} weeks · ${progressMetaLabel}`}</span>
       <button className="deck-tile-open-action" disabled={isDisabled} onClick={onSelect} type="button" aria-label={`Open ${deck.title}`} />
     </motion.article>
