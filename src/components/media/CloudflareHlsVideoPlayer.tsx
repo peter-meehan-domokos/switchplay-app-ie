@@ -12,7 +12,7 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
-import { CollapseVideoIcon, ExpandVideoIcon } from "@/components/icons/videoControlIcons";
+import { CloseVideoIcon, CollapseVideoIcon, DeckIntroSemiExpandIcon, ExpandVideoIcon } from "@/components/icons/videoControlIcons";
 import { shouldRecordPlaybackPause, type VideoPlaybackIntent } from "@/components/media/videoPlaybackState";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { getCloudflareStreamHlsManifestUrl, getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -604,7 +604,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
             {canShowPreviewExpandControl ? (
               isExpandedMode ? (
                 <button
-                  className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit"
+                  className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit cloudflare-stream-player-frame-control--deck-intro-close"
                   disabled={!onRequestCollapse}
                   onClick={handleCollapseClick}
                   onPointerCancel={stopPlayerControlPropagation}
@@ -628,7 +628,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
                   type="button"
                   aria-label="Expand video"
                 >
-                  <ExpandVideoIcon className="cloudflare-stream-player-frame-control-icon" />
+                  <DeckIntroSemiExpandIcon className="cloudflare-stream-player-frame-control-icon" />
                 </button>
               )
             ) : null}
@@ -649,16 +649,16 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
           </button>
         ) : isExpandedMode && onRequestCollapse ? (
           <button
-            className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit"
+            className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit cloudflare-stream-player-frame-control--deck-intro-close"
             onClick={handleCollapseClick}
             onPointerCancel={stopPlayerControlPropagation}
             onPointerDown={stopPlayerControlPropagation}
             onPointerMove={stopPlayerControlPropagation}
             onPointerUp={stopPlayerControlPropagation}
             type="button"
-            aria-label="Exit fullscreen"
+            aria-label="Close enlarged video"
           >
-            <CollapseVideoIcon className="cloudflare-stream-player-frame-control-icon" />
+            <CloseVideoIcon className="cloudflare-stream-player-frame-control-icon" />
           </button>
         ) : null}
       </div>

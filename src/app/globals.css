@@ -3922,6 +3922,12 @@ input {
   background: rgba(5, 7, 10, 0.48);
 }
 
+.cloudflare-stream-player-frame-control--deck-intro-close {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .cloudflare-stream-player-frame-control:disabled {
   cursor: wait;
   opacity: 0.56;
