@@ -3922,10 +3922,30 @@ input {
   background: rgba(5, 7, 10, 0.48);
 }
 
+.cloudflare-stream-player-frame-control--deck-intro-expand {
+  width: 28px;
+  height: 28px;
+}
+
+.cloudflare-stream-player-frame-control--deck-intro-expand::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 999px;
+  background: transparent;
+}
+
 .cloudflare-stream-player-frame-control--deck-intro-close {
+  width: 38px;
+  height: 38px;
   right: auto;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.cloudflare-stream-player-frame-control--deck-intro-close .cloudflare-stream-player-frame-control-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .cloudflare-stream-player-frame-control:disabled {

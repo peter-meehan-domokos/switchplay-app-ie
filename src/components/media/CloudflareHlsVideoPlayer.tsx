@@ -618,7 +618,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
                 </button>
               ) : (
                 <button
-                  className="cloudflare-stream-player-frame-control"
+                  className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--deck-intro-expand"
                   disabled={previewControlDisabled || !onRequestExpand}
                   onClick={handleExpandClick}
                   onPointerCancel={stopPlayerControlPropagation}
