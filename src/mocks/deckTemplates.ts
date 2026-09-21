@@ -5,6 +5,109 @@ import type { DeckTemplate } from "@/components/decks/types";
 //WARNING: suggested date is supposed to be a date string not an empty string
 export const deckTemplates: DeckTemplate[] = [
   {
+    "deckTemplateId": "deck-2026-09-18-maths-formulae-1",
+    "title": "Using and Rearranging Formulae",
+    "category": "Leaving Cert O",
+    "streams": [
+      {
+        "id": "recognise-the-structure",
+        "title": "Recognise the Structure"
+      },
+      {
+        "id": "use-and-undo-operations",
+        "title": "Use and Undo Operations"
+      },
+      {
+        "id": "check-it-makes-sense",
+        "title": "Check It Makes Sense"
+      }
+    ],
+    "cards": [
+      {
+        "cardId": "card-001",
+        "label": "Card 1",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "Read a Formula",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-001-step-1",
+            "description": "Identify what each letter represents, which values are given, and which value you need to find.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-001-step-2",
+            "description": "Follow the formula from the unknown outwards and identify the operations being applied and the order they happen in.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-001-step-3",
+            "description": "Explain in words what the formula is doing and check that its structure makes sense in the context of the question.",
+            "mediaItem": null
+          }
+        ]
+      },
+      {
+        "cardId": "card-002",
+        "label": "Card 2",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "Substitute Into a Formula",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-002-step-1",
+            "description": "Match each given value to the correct letter and substitute all known values into the formula.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-002-step-2",
+            "description": "Keep the structure of the formula intact and use BIDMAS to identify the order in which the remaining operations are applied.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-002-step-3",
+            "description": "Check that every given value has been substituted correctly and that the remaining unknown is the value you were asked to find.",
+            "mediaItem": null
+          }
+        ]
+      },
+      {
+        "cardId": "card-003",
+        "label": "Card 3",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "Rearrange to Find the Unknown",
+          "description": "",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-003-step-1",
+            "description": "Find the outermost operation around the unknown and decide which operation must be undone first.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-003-step-2",
+            "description": "Undo each operation using its inverse, working in the reverse order and applying the same operation to both sides.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-003-step-3",
+            "description": "Substitute your answer back into the original formula and check that it gives the expected value and makes sense in context.",
+            "mediaItem": null
+          }
+        ]
+      }
+    ]
+  }
+]
+  /*{
     "deckTemplateId": "borrow-blend-and-drive",
     "title": "Borrow, Blend, and Drive",
     "category": "Trad Fiddle",
@@ -132,8 +235,7 @@ export const deckTemplates: DeckTemplate[] = [
         ]
       }
     ]
-  }
-]
+  },
   /*
   {
     deckTemplateId: "peter-fiddle-deck-1",
