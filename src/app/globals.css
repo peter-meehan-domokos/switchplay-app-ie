@@ -1907,20 +1907,20 @@ input {
 
 .deck-grid-intro-player-frame--expanded {
   position: relative;
-  width: min(100%, 980px);
-  height: min(100%, 980px);
+  width: min(78vw, 900px);
+  height: min(72svh, 720px);
 }
 
 .deck-grid-intro-host--expanded.deck-grid-intro-host--portrait .deck-grid-intro-player-frame--expanded {
-  height: 100%;
+  height: min(72svh, 720px);
   width: auto;
-  max-width: min(100%, 470px);
+  max-width: min(78vw, 900px);
 }
 
 .deck-grid-intro-host--expanded.deck-grid-intro-host--landscape .deck-grid-intro-player-frame--expanded {
-  width: 100%;
+  width: min(78vw, 900px);
   height: auto;
-  max-height: 100%;
+  max-height: min(72svh, 720px);
 }
 
 .deck-grid-intro-player-frame {
@@ -2133,20 +2133,20 @@ input {
 
 .deck-intro-viewer-frame--expanded {
   position: relative;
-  width: min(100%, 980px);
-  height: min(100%, 980px);
+  width: min(78vw, 900px);
+  height: min(72svh, 720px);
 }
 
 .deck-intro-viewer-host--portrait .deck-intro-viewer-frame--expanded {
-  height: 100%;
+  height: min(72svh, 720px);
   width: auto;
-  max-width: min(100%, 470px);
+  max-width: min(78vw, 900px);
 }
 
 .deck-intro-viewer-host--landscape .deck-intro-viewer-frame--expanded {
-  width: 100%;
+  width: min(78vw, 900px);
   height: auto;
-  max-height: 100%;
+  max-height: min(72svh, 720px);
 }
 
 .deck-intro-viewer-host .cloudflare-stream-player-shell {
