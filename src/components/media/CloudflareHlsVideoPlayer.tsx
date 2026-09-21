@@ -633,10 +633,10 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
               )
             ) : null}
           </>
-        ) : !isExpandedMode ? (
+        ) : !isExpandedMode && onRequestExpand ? (
           <button
             className="cloudflare-stream-player-frame-control"
-            disabled={!isPlayable || !onRequestExpand}
+            disabled={!isPlayable}
             onClick={handleExpandClick}
             onPointerCancel={stopPlayerControlPropagation}
             onPointerDown={stopPlayerControlPropagation}
@@ -647,10 +647,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
           >
             <ExpandVideoIcon className="cloudflare-stream-player-frame-control-icon" />
           </button>
-        ) : (
+        ) : isExpandedMode && onRequestCollapse ? (
           <button
             className="cloudflare-stream-player-frame-control cloudflare-stream-player-frame-control--exit"
-            disabled={!onRequestCollapse}
             onClick={handleCollapseClick}
             onPointerCancel={stopPlayerControlPropagation}
             onPointerDown={stopPlayerControlPropagation}
@@ -661,7 +660,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
           >
             <CollapseVideoIcon className="cloudflare-stream-player-frame-control-icon" />
           </button>
-        )}
+        ) : null}
       </div>
     );
   }

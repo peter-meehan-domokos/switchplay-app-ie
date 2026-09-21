@@ -846,12 +846,6 @@ export default function FocusedCardView({
 
                       setFailedVideoAssetId(assetId);
                     }}
-                    onRequestCollapse={() => {
-                      setIsVideoExpanded(false);
-                    }}
-                    onRequestExpand={() => {
-                      setIsVideoExpanded(true);
-                    }}
                     onPlaybackIntentChange={updateVideoPlaybackIntent}
                   />
                 </div>
