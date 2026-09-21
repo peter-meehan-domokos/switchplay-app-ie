@@ -2708,12 +2708,12 @@ input {
 }
 
 .intro-media-thumb--portrait .intro-media-thumbnail {
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
 }
 
 .active-card-identity--portrait-intro .intro-media-thumb {
-  width: 52px;
+  width: 44px;
   aspect-ratio: 52 / 64;
   background: transparent;
 }
