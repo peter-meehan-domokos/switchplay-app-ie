@@ -33,6 +33,7 @@ function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckD
     sharedWithUserIds: [],
     createdAt: timestamp,
     updatedAt: timestamp,
+    openedAt: timestamp,
   };
 }
 

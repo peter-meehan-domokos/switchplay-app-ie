@@ -160,6 +160,9 @@ test.describe("deck introduction runtime propagation", () => {
       id: "user-1:deck-introduction-runtime",
       deckTemplateId: "deck-introduction-runtime",
       hasUserDeckData: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      openedAt: null,
       canMutate: false,
       isOwnedByCurrentUser: false,
       ownerUserId: "user-1",
@@ -206,17 +209,38 @@ test.describe("deck introduction runtime propagation", () => {
       "canMutate",
       "cards",
       "category",
+      "createdAt",
       "deckTemplateId",
       "hasUserDeckData",
       "id",
       "introduction",
       "isOwnedByCurrentUser",
+      "openedAt",
       "ownerUserId",
       "ownerUsername",
       "showOwnerTag",
       "streams",
       "title",
+      "updatedAt",
     ]);
+  });
+
+  test("deck timestamps survive merge and per-deck layout derivation", () => {
+    const template = normalizeDeckTemplateForRuntime(createTemplate());
+    const userDeckData = createUserDeckData({ openedAt: "2026-01-03T00:00:00.000Z" });
+    const deck = mergeDeckTemplatesWithUserData([template], [userDeckData], "user-1")[0];
+
+    if (!deck) {
+      throw new Error("Expected merged deck.");
+    }
+
+    const deckLayout = buildDeckLayout(deck, { currentUserId: "user-1", users: [] });
+
+    expect(deckLayout).toMatchObject({
+      createdAt: userDeckData.createdAt,
+      updatedAt: userDeckData.updatedAt,
+      openedAt: userDeckData.openedAt,
+    });
   });
 
   test("deck layout preserves introduction", () => {

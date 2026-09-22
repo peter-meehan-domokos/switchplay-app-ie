@@ -104,6 +104,7 @@ export type UserDeckData = {
   sharedWithUserIds: string[];
   createdAt: string;
   updatedAt: string;
+  openedAt?: string | null;
 };
 
 export type ClientUserCardStepData = {
@@ -128,6 +129,7 @@ export type ClientUserDeckData = {
   sharedWithUserIds: string[];
   createdAt: string;
   updatedAt: string;
+  openedAt?: string | null;
 };
 
 export type WeeklyCardStep = {
@@ -162,6 +164,9 @@ export type Deck = {
   id: string;
   deckTemplateId: string;
   hasUserDeckData: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  openedAt?: string | null;
   canMutate: boolean;
   isOwnedByCurrentUser: boolean;
   ownerUserId: string;

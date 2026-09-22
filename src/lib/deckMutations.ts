@@ -21,6 +21,21 @@ type SharedDeckCommentMutationResult = {
   };
 };
 
+export async function persistDeckOpenedAt(deckTemplateId: string) {
+  const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ type: "record-open" }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? "Unable to record deck opening.");
+  }
+}
+
 export async function persistActiveCardId(deckTemplateId: string, activeCardId: string) {
   const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
     method: "PATCH",

@@ -102,7 +102,7 @@ export default async function DecksPage() {
   }
 
   const adminDeckData = user.isAdmin ? await getAdminDecks(user.id) : null;
-  const renderDecks = adminDeckData
+  const decksToRender = adminDeckData
     ? adminDeckData.decks
     : await getVisibleLibraryDecks(user);
 
@@ -118,7 +118,7 @@ export default async function DecksPage() {
     <>
       <AppShell
         currentUserId={user.id}
-        decks={renderDecks}
+        decks={decksToRender}
         userName={user.username}
         users={users}
       />

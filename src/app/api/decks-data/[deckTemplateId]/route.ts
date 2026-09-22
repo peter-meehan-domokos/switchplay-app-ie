@@ -112,18 +112,21 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     // - cardId + itemId + completionStatus
     // - cardId + targetDate
     // - cardId + signalId + reading
+    // - type: "record-open"
     // - type: "update-card-reflection" + cardId + reflection
     //
     // New mutations (reflections, media, chats, etc.) must be added carefully to
     // avoid ambiguous request bodies and silent routing to the wrong branch.
 
     if (hasTypeField) {
-      if (bodyRecord.type !== "update-card-reflection") {
+      if (bodyRecord.type !== "record-open" && bodyRecord.type !== "update-card-reflection") {
         return Response.json({ error: "Unknown mutation type." }, { status: 400 });
       }
 
-      const allowedReflectionMutationFields = new Set(["type", "cardId", "reflection"]);
-      const hasUnexpectedField = Object.keys(bodyRecord).some((key) => !allowedReflectionMutationFields.has(key));
+      const allowedMutationFields = bodyRecord.type === "record-open"
+        ? new Set(["type"])
+        : new Set(["type", "cardId", "reflection"]);
+      const hasUnexpectedField = Object.keys(bodyRecord).some((key) => !allowedMutationFields.has(key));
 
       if (hasUnexpectedField) {
         return Response.json({ error: "Request body must contain only one mutation shape." }, { status: 400 });
@@ -170,6 +173,35 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     const userObjectId = new ObjectId(user.id);
     const now = new Date();
     const sharedWithUserIds = existingDeckData.sharedWithUserIds ?? [];
+
+    if (bodyRecord.type === "record-open") {
+      const openedAt = now.toISOString();
+      const updateResult = await users.updateOne(
+        {
+          _id: userObjectId,
+          "decksData.deckTemplateId": deckTemplateId,
+        },
+        {
+          $set: {
+            "decksData.$.openedAt": openedAt,
+          },
+        },
+      );
+
+      if (updateResult.matchedCount === 0) {
+        return Response.json({ error: "Deck data has not been initialized." }, { status: 404 });
+      }
+
+      if (!updateResult.acknowledged) {
+        return Response.json({ error: "Failed Mongo update for deck opening." }, { status: 500 });
+      }
+
+      return Response.json({
+        ok: true,
+        deckTemplateId,
+        openedAt,
+      });
+    }
 
     if (bodyRecord.type === "update-card-reflection") {
       const cardIdRaw = bodyRecord.cardId;

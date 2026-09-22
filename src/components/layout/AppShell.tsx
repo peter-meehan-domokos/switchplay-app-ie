@@ -7,9 +7,11 @@ import DeckDetail from "@/components/decks/DeckDetail";
 import DeckGrid from "@/components/decks/DeckGrid";
 import type { Deck } from "@/components/decks/types";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
+import { buildMyDecksLayout } from "@/components/decks/myDecksLayout";
 import type { LayoutUser } from "@/components/cards/cardLayout";
 import OverviewMenu from "@/components/layout/OverviewMenu";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
+import { persistDeckOpenedAt } from "@/lib/deckMutations";
 
 type AppShellProps = {
   currentUserId: string;
@@ -46,11 +48,13 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const [deckInstantiationError, setDeckInstantiationError] = useState<string | null>(null);
   const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
   const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDeckOpenedAtPersistenceRef = useRef<Promise<void> | null>(null);
   const hasHandledOpenDeckParamRef = useRef(false);
-  const myDeckLayouts = useMemo(
-    () => decks.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers })),
-    [currentUserId, decks, layoutUsers],
-  );
+  const myDeckLayouts = useMemo(() => {
+    const layouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers }));
+
+    return buildMyDecksLayout(layouts);
+  }, [currentUserId, decks, layoutUsers]);
   const sharedDeckLayouts = useMemo(
     () => sharedDecks?.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers })) ?? null,
     [currentUserId, layoutUsers, sharedDecks],
@@ -63,13 +67,16 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
   const overviewError = viewMode === "shared" ? sharedDeckError : deckInstantiationError;
 
-  function clearSelectedDeckAndPendingRefresh() {
-    setSelectedDeckId(null);
-
+  function cancelPendingOverviewRefresh() {
     if (overviewRefreshTimeoutRef.current) {
       clearTimeout(overviewRefreshTimeoutRef.current);
       overviewRefreshTimeoutRef.current = null;
     }
+  }
+
+  function clearSelectedDeckAndPendingRefresh() {
+    setSelectedDeckId(null);
+    cancelPendingOverviewRefresh();
   }
 
   //console.log("Rendering AppShell", {
@@ -238,9 +245,29 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       return;
     }
 
-    if (viewMode === "shared" || deck.hasUserDeckData) {
+    cancelPendingOverviewRefresh();
+
+    if (viewMode === "shared") {
       setDeckInstantiationError(null);
       setSelectedDeckId(deckId);
+      return;
+    }
+
+    if (deck.hasUserDeckData) {
+      setDeckInstantiationError(null);
+      setSelectedDeckId(deckId);
+      if (deck.isOwnedByCurrentUser) {
+        const persistence = persistDeckOpenedAt(deck.deckTemplateId).catch((error) => {
+          console.warn("Unable to record deck opening.", error);
+        });
+
+        pendingDeckOpenedAtPersistenceRef.current = persistence;
+        void persistence.then(() => {
+          if (pendingDeckOpenedAtPersistenceRef.current === persistence) {
+            pendingDeckOpenedAtPersistenceRef.current = null;
+          }
+        });
+      }
       return;
     }
 
@@ -269,6 +296,8 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   };
 
   const handleCloseDeckDetail = () => {
+    const pendingDeckOpenedAtPersistence = pendingDeckOpenedAtPersistenceRef.current;
+    pendingDeckOpenedAtPersistenceRef.current = null;
     clearSelectedDeckAndPendingRefresh();
 
     if (viewMode === "shared") {
@@ -279,10 +308,21 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       clearTimeout(overviewRefreshTimeoutRef.current);
     }
 
-    overviewRefreshTimeoutRef.current = setTimeout(() => {
-      router.refresh();
-      overviewRefreshTimeoutRef.current = null;
+    const refreshTimeout = setTimeout(() => {
+      void (async () => {
+        if (pendingDeckOpenedAtPersistence) {
+          await pendingDeckOpenedAtPersistence;
+        }
+
+        if (overviewRefreshTimeoutRef.current !== refreshTimeout) {
+          return;
+        }
+
+        router.refresh();
+        overviewRefreshTimeoutRef.current = null;
+      })();
     }, OVERVIEW_REFRESH_AFTER_CLOSE_MS);
+    overviewRefreshTimeoutRef.current = refreshTimeout;
   };
 
   return (

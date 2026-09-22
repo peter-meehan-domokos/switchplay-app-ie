@@ -93,5 +93,6 @@ export function reconcileDeckDataWithTemplate({
     sharedWithUserIds: existingDeckData.sharedWithUserIds ?? [],
     createdAt: existingDeckData.createdAt,
     updatedAt: existingDeckData.updatedAt,
+    openedAt: existingDeckData.openedAt,
   };
 }
