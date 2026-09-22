@@ -106,6 +106,22 @@ export default async function DecksPage() {
     ? adminDeckData.decks
     : await getVisibleLibraryDecks(user);
 
+  const ownedDeckSummary = decksToRender
+    .filter((deck) => deck.ownerUserId === user.id)
+    .map((deck) => ({
+      id: deck.id,
+      templateId: deck.deckTemplateId,
+      openedAt: deck.openedAt ?? null,
+    }));
+
+  console.log("[DIAG OPEN-RACE] DecksPage render", {
+    at: new Date().toISOString(),
+    userId: user.id,
+    userName: user.username,
+    ownedDeckCount: ownedDeckSummary.length,
+    ownedDecksByOrder: ownedDeckSummary,
+  });
+
   // Full user lookup now hydrates on the client via /api/users.
   const users = adminDeckData
     ? adminDeckData.users.map((deckOwner) => ({

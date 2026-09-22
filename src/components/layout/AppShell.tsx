@@ -37,6 +37,7 @@ const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
 export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const appShellInstanceRef = useRef(`app-shell-${Math.random().toString(36).slice(2, 8)}`);
   const [layoutUsers, setLayoutUsers] = useState<LayoutUser[]>(users);
   const [viewMode, setViewMode] = useState<"mine" | "shared">("mine");
   const [sharedDecks, setSharedDecks] = useState<Deck[] | null>(null);
@@ -66,6 +67,42 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
   const isSelectedDeckFlipped = selectedDeckFlipState?.isFlipped ?? false;
   const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
   const overviewError = viewMode === "shared" ? sharedDeckError : deckInstantiationError;
+
+  useEffect(() => {
+    const summary = decks
+      .filter((deck) => deck.isOwnedByCurrentUser)
+      .map((deck) => ({
+        id: deck.id,
+        templateId: deck.deckTemplateId,
+        openedAt: deck.openedAt ?? null,
+      }));
+
+    console.log("[DIAG OPEN-RACE] AppShell decks prop updated", {
+      instanceId: appShellInstanceRef.current,
+      at: new Date().toISOString(),
+      viewMode,
+      selectedDeckId,
+      ownedDeckCount: summary.length,
+      ownedDecksByOrder: summary,
+    });
+  }, [decks, selectedDeckId, viewMode]);
+
+  useEffect(() => {
+    const summary = myDeckLayouts
+      .filter((deck) => deck.isOwnedByCurrentUser)
+      .map((deck) => ({
+        id: deck.id,
+        templateId: deck.deckTemplateId,
+        openedAt: deck.openedAt ?? null,
+      }));
+
+    console.log("[DIAG OPEN-RACE] myDeckLayouts recomputed", {
+      instanceId: appShellInstanceRef.current,
+      at: new Date().toISOString(),
+      selectedDeckId,
+      ownedDecksByOrder: summary,
+    });
+  }, [myDeckLayouts, selectedDeckId]);
 
   function cancelPendingOverviewRefresh() {
     if (overviewRefreshTimeoutRef.current) {
@@ -257,12 +294,26 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
       setDeckInstantiationError(null);
       setSelectedDeckId(deckId);
       if (deck.isOwnedByCurrentUser) {
+        console.log("[DIAG OPEN-RACE] persistDeckOpenedAt start", {
+          instanceId: appShellInstanceRef.current,
+          at: new Date().toISOString(),
+          deckId,
+          deckTemplateId: deck.deckTemplateId,
+        });
         const persistence = persistDeckOpenedAt(deck.deckTemplateId).catch((error) => {
           console.warn("Unable to record deck opening.", error);
         });
 
         pendingDeckOpenedAtPersistenceRef.current = persistence;
         void persistence.then(() => {
+          console.log("[DIAG OPEN-RACE] persistDeckOpenedAt settled", {
+            instanceId: appShellInstanceRef.current,
+            at: new Date().toISOString(),
+            deckId,
+            deckTemplateId: deck.deckTemplateId,
+            isCurrentPendingPromise: pendingDeckOpenedAtPersistenceRef.current === persistence,
+          });
+
           if (pendingDeckOpenedAtPersistenceRef.current === persistence) {
             pendingDeckOpenedAtPersistenceRef.current = null;
           }
@@ -297,6 +348,12 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
 
   const handleCloseDeckDetail = () => {
     const pendingDeckOpenedAtPersistence = pendingDeckOpenedAtPersistenceRef.current;
+    console.log("[DIAG OPEN-RACE] close requested", {
+      instanceId: appShellInstanceRef.current,
+      at: new Date().toISOString(),
+      selectedDeckId,
+      hasPendingPersistence: Boolean(pendingDeckOpenedAtPersistence),
+    });
     pendingDeckOpenedAtPersistenceRef.current = null;
     clearSelectedDeckAndPendingRefresh();
 
@@ -311,13 +368,31 @@ export default function AppShell({ currentUserId, decks, userName, users }: AppS
     const refreshTimeout = setTimeout(() => {
       void (async () => {
         if (pendingDeckOpenedAtPersistence) {
+          console.log("[DIAG OPEN-RACE] awaiting pending persistence before refresh", {
+            instanceId: appShellInstanceRef.current,
+            at: new Date().toISOString(),
+            selectedDeckId,
+          });
           await pendingDeckOpenedAtPersistence;
+          console.log("[DIAG OPEN-RACE] pending persistence await complete", {
+            instanceId: appShellInstanceRef.current,
+            at: new Date().toISOString(),
+            selectedDeckId,
+          });
         }
 
         if (overviewRefreshTimeoutRef.current !== refreshTimeout) {
+          console.log("[DIAG OPEN-RACE] refresh suppressed due to stale timeout identity", {
+            instanceId: appShellInstanceRef.current,
+            at: new Date().toISOString(),
+          });
           return;
         }
 
+        console.log("[DIAG OPEN-RACE] router.refresh invoked from close flow", {
+          instanceId: appShellInstanceRef.current,
+          at: new Date().toISOString(),
+        });
         router.refresh();
         overviewRefreshTimeoutRef.current = null;
       })();
