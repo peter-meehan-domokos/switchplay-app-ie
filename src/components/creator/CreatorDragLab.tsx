@@ -770,7 +770,8 @@ function CreatorEditModal({
     .join(" ");
   const showStepCounter = session.target.type === "pair-step";
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
-  const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
+  const combinedLength = draftTitle.length + draftValue.length;
+  const isStepWarningVisible = showStepCounter && combinedLength > STEP_TEXT_WARNING_LENGTH;
   const introImageInputRef = useRef<HTMLInputElement | null>(null);
   const introVideoInputRef = useRef<HTMLInputElement | null>(null);
   const hasDeckIntroductionVideo = deckIntroductionVideo !== null;
@@ -1040,7 +1041,7 @@ function CreatorEditModal({
         ) : null}
         {showStepCounter ? (
           <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>
-            {isStepWarningVisible ? `${draftValue.length} characters - this may truncate on the card.` : `${draftValue.length} characters`}
+            {isStepWarningVisible ? `${combinedLength} characters - this may truncate on the card.` : `${combinedLength} characters`}
           </p>
         ) : null}
         {isStepText ? (
