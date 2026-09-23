@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
@@ -8,16 +8,20 @@ import CloudflareHlsVideoPlayer, {
   type CloudflareHlsVideoPlayerHandle,
   type VideoPlaybackIntent,
 } from "@/components/media/CloudflareHlsVideoPlayer";
+import MediaUploadPanel from "@/components/media/MediaUploadPanel";
+import { useMediaUploadController } from "@/components/media/useMediaUploadController";
 import StepView, { type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import {
+  isCloudflareR2ImageMediaItem,
   isCloudflareStreamVideoMediaItem,
   isKnownLandscapeCloudflareStreamVideoMediaItem,
   isKnownPortraitCloudflareStreamVideoMediaItem,
   type MediaItem,
 } from "@/lib/media";
+import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 import {
   CARD_ASPECT_RATIO,
@@ -35,6 +39,7 @@ type FocusedCardViewProps = {
   card: CardLayout;
   cardIndex: number;
   canMutate: boolean;
+  deckTemplateId: string;
   isDeckFlipped: boolean;
   totalCards: number;
   onClose: () => void;
@@ -44,6 +49,8 @@ type FocusedCardViewProps = {
   onAdjustTargetDate: (direction: -1 | 1) => void;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
+  onCommitCardMedia?: (cardId: string, mediaItem: ModernUserCardMediaItem) => Promise<void>;
+  onRemoveCardMedia?: (cardId: string, mediaItemId: string) => Promise<void>;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
@@ -203,6 +210,7 @@ export default function FocusedCardView({
   card,
   cardIndex,
   canMutate,
+  deckTemplateId,
   isDeckFlipped,
   totalCards,
   onClose,
@@ -212,6 +220,8 @@ export default function FocusedCardView({
   onAdjustTargetDate,
   onCommitSignalReading,
   onCommitReflection,
+  onCommitCardMedia,
+  onRemoveCardMedia,
   onRequestAddComment,
   traversalDirection,
   transition,
@@ -226,6 +236,9 @@ export default function FocusedCardView({
   const [reflectionDraftValue, setReflectionDraftValue] = useState("");
   const [reflectionEditorError, setReflectionEditorError] = useState<string | null>(null);
   const [isSavingReflection, setIsSavingReflection] = useState(false);
+  const [mediaEditorCardId, setMediaEditorCardId] = useState<string | null>(null);
+  const [mediaRemovalError, setMediaRemovalError] = useState<string | null>(null);
+  const [isRemovingImage, setIsRemovingImage] = useState(false);
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
@@ -280,6 +293,31 @@ export default function FocusedCardView({
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
+  const mediaUploadTarget = useMemo(
+    () => ({ scope: "user-card" as const, deckTemplateId, cardId: card.id }),
+    [card.id, deckTemplateId],
+  );
+  const commitCompletedMediaUpload = useCallback(
+    async ({ mediaItem }: { mediaItem: ModernUserCardMediaItem }) => {
+      if (!onCommitCardMedia) {
+        throw new Error("Unable to save media for this card.");
+      }
+
+      await onCommitCardMedia(card.id, mediaItem);
+    },
+    [card.id, onCommitCardMedia],
+  );
+  const mediaUploadController = useMediaUploadController({
+    target: mediaUploadTarget,
+    onUploadStarted: (kind) => {
+      if (kind === "image") {
+        setMediaRemovalError(null);
+      }
+    },
+    onUploadCompleted: commitCompletedMediaUpload,
+  });
+  const cardImage = card.backMediaItems.find(isCloudflareR2ImageMediaItem) ?? null;
+  const cardVideo = card.backMediaItems.find(isCloudflareStreamVideoMediaItem) ?? null;
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
   const focusedCardTransition: Transition = {
@@ -391,6 +429,37 @@ export default function FocusedCardView({
     setReflectionDraftValue(card.reflection);
     setReflectionEditorError(null);
   };
+  const openMediaEditor = (cardId: string) => {
+    if (!onCommitCardMedia || !onRemoveCardMedia || !isFlipped) {
+      return;
+    }
+
+    setMediaEditorCardId(cardId);
+    setMediaRemovalError(null);
+  };
+  const closeMediaEditor = () => {
+    setMediaEditorCardId(null);
+    setMediaRemovalError(null);
+  };
+  const removeCardImage = async () => {
+    if (!cardImage || !onRemoveCardMedia) {
+      return;
+    }
+
+    setIsRemovingImage(true);
+    setMediaRemovalError(null);
+
+    try {
+      await onRemoveCardMedia(card.id, cardImage.id);
+    } catch (error) {
+      setMediaRemovalError(error instanceof Error ? error.message : "Unable to remove card image.");
+    } finally {
+      setIsRemovingImage(false);
+    }
+  };
+  const stopMediaEditorGesturePropagation = (event: PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+  };
   const closeReflectionEditor = () => {
     if (isSavingReflection) {
       return;
@@ -491,7 +560,12 @@ export default function FocusedCardView({
   const focusedGestures = useDeckGestures({
     mode: "focus",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
-    locked: isFocusedGestureLocked || Boolean(stepViewItem) || Boolean(reflectionEditorState) || isVideoExpanded,
+    locked:
+      isFocusedGestureLocked ||
+      Boolean(stepViewItem) ||
+      Boolean(reflectionEditorState) ||
+      Boolean(mediaEditorCardId) ||
+      isVideoExpanded,
     onSettleToPast: settleFocusedCardToPast,
     onRestoreFromPast: restoreFocusedCardFromPast,
     onFlip: toggleFocusedCardSide,
@@ -668,6 +742,8 @@ export default function FocusedCardView({
     setStepViewState(null);
     setReflectionEditorState(null);
     setReflectionEditorError(null);
+    setMediaEditorCardId(null);
+    setMediaRemovalError(null);
   }, [card.id, updateVideoPlaybackIntent]);
 
   useEffect(() => {
@@ -752,6 +828,7 @@ export default function FocusedCardView({
                 variant="focused"
                 canMutate={canMutate}
                 onCommitSignalReading={onCommitSignalReading}
+                onEditMedia={onCommitCardMedia && onRemoveCardMedia ? openMediaEditor : undefined}
                 onEditReflection={onCommitReflection ? openReflectionEditor : undefined}
                 onSignalNavigateNext={settleFocusedCardToPast}
                 onSignalNavigatePrevious={restoreFocusedCardFromPast}
@@ -854,6 +931,49 @@ export default function FocusedCardView({
           </div>
         </div>
       ) : null}
+      <AnimatePresence>
+        {mediaEditorCardId === card.id ? (
+          <motion.div
+            className="creator-modal-backdrop reflection-editor-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14 }}
+            role="presentation"
+          >
+            <div
+              aria-labelledby="card-media-editor-title"
+              aria-modal="true"
+              className="creator-modal creator-modal--deck-introduction card-media-upload-modal"
+              onPointerCancel={stopMediaEditorGesturePropagation}
+              onPointerDown={stopMediaEditorGesturePropagation}
+              onPointerMove={stopMediaEditorGesturePropagation}
+              onPointerUp={stopMediaEditorGesturePropagation}
+              role="dialog"
+            >
+              <header className="creator-modal-header">
+                <p id="card-media-editor-title">Card media</p>
+                <button className="creator-modal-close" onClick={closeMediaEditor} type="button">
+                  Close
+                </button>
+              </header>
+              <MediaUploadPanel
+                image={cardImage}
+                imageError={mediaUploadController.imageError ?? mediaRemovalError}
+                imageHeading="Image"
+                isImageUploading={mediaUploadController.isImageUploading || isRemovingImage}
+                isVideoUploading={mediaUploadController.isVideoUploading}
+                onRemoveImage={() => void removeCardImage()}
+                onUploadImage={(file) => void mediaUploadController.uploadImage(file)}
+                onUploadVideo={(file) => void mediaUploadController.uploadVideo(file)}
+                video={cardVideo}
+                videoError={mediaUploadController.videoError}
+                videoHeading="Video"
+              />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       <AnimatePresence>
         {reflectionEditorState ? (
           <motion.div

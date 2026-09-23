@@ -1,5 +1,7 @@
 import type { CompletionStatus } from "@/components/decks/types";
 import { clientStepCompletionToServerItemCompletion } from "@/lib/deckApiTransforms";
+import type { MediaItem } from "@/lib/media";
+import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
 
 type SharedDeckCommentMutationResult = {
   chat: {
@@ -20,6 +22,43 @@ type SharedDeckCommentMutationResult = {
     isRetained: boolean;
   };
 };
+
+type CardMediaMutationResult = {
+  cardId: string;
+  deckTemplateId: string;
+  mediaItems: MediaItem[];
+  ok: true;
+};
+
+async function readCardMediaMutationResponse(response: Response, fallbackError: string) {
+  const payload = (await response.json().catch(() => null)) as (Partial<CardMediaMutationResult> & { error?: string }) | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? fallbackError);
+  }
+
+  if (!payload || payload.ok !== true || !Array.isArray(payload.mediaItems)) {
+    throw new Error(fallbackError);
+  }
+
+  return payload as CardMediaMutationResult;
+}
+
+export function createCardMediaUpsertRequestBody(cardId: string, mediaItem: ModernUserCardMediaItem) {
+  return {
+    type: "upsert-card-media" as const,
+    cardId,
+    mediaItem,
+  };
+}
+
+export function createCardMediaRemovalRequestBody(cardId: string, mediaItemId: string) {
+  return {
+    type: "remove-card-media" as const,
+    cardId,
+    mediaItemId,
+  };
+}
 
 export async function persistDeckOpenedAt(deckTemplateId: string) {
   const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
@@ -112,6 +151,34 @@ export async function persistCardReflection(deckTemplateId: string, cardId: stri
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(payload?.error ?? "Unable to update card reflection.");
   }
+}
+
+export async function persistCardMediaItem(
+  deckTemplateId: string,
+  cardId: string,
+  mediaItem: ModernUserCardMediaItem,
+) {
+  const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(createCardMediaUpsertRequestBody(cardId, mediaItem)),
+  });
+
+  return readCardMediaMutationResponse(response, "Unable to save card media.");
+}
+
+export async function removeCardMediaItem(deckTemplateId: string, cardId: string, mediaItemId: string) {
+  const response = await fetch(`/api/decks-data/${deckTemplateId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(createCardMediaRemovalRequestBody(cardId, mediaItemId)),
+  });
+
+  return readCardMediaMutationResponse(response, "Unable to remove card media.");
 }
 
 export async function persistSignalReading(

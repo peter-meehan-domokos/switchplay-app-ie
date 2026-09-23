@@ -1,9 +1,9 @@
 import type { WeeklyCard } from "@/components/decks/types";
 import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSignal";
 import type { MediaItem } from "@/lib/media";
-import { isImageMediaItem, isLegacyProviderlessVideoMediaItem, isVideoMediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
 import { clampSignalReading, roundSignalReadingForDisplay, signalReadingToNormalized } from "@/lib/signals";
+import { selectVisibleUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
 
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
@@ -38,7 +38,7 @@ export type CardLayoutSignal = {
 };
 
 export type CardLayout = Omit<WeeklyCard, "signals"> & {
-  backMediaTrace: MediaItem | null;
+  backMediaItems: ModernUserCardMediaItem[];
   externalComment: CardLayoutExternalComment | null;
   ecologicalOccupancy: number;
   ecologicalOccupancyRatio: number;
@@ -71,22 +71,6 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
   };
 }
 
-function normalizeMediaItem(mediaItem: WeeklyCard["mediaItems"][number] | undefined): MediaItem | null {
-  if (!mediaItem) {
-    return null;
-  }
-
-  if (isImageMediaItem(mediaItem) || isVideoMediaItem(mediaItem)) {
-    return mediaItem;
-  }
-
-  if (isLegacyProviderlessVideoMediaItem(mediaItem)) {
-    return null;
-  }
-
-  return null;
-}
-
 function getExternalCommentAuthor(comment: RawCardComment, users: LayoutUser[]) {
   return users.find((user) => user.id === comment.creatorId)?.name ?? "Unknown";
 }
@@ -112,28 +96,46 @@ function normalizeExternalComment(card: WeeklyCard, options: CardLayoutOptions):
 }
 
 export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): CardLayout {
-  const backMediaTrace = normalizeMediaItem(card.mediaItems[0]);
+  const backMediaItems = selectVisibleUserCardMediaItems(card.mediaItems);
   const externalComment = normalizeExternalComment(card, options);
   const hasReflection = Boolean(card.reflection);
   const progressPercentage = getProgressPercentage(
     card.steps.map((step) => ({ completionStatus: step.completionStatus })),
   );
   const ecologicalOccupancy =
-    Number(Boolean(backMediaTrace)) +
+    Number(backMediaItems.length > 0) +
     Number(Boolean(externalComment)) +
     Number(hasReflection);
   const ecologicalOccupancyRatio = ecologicalOccupancy / 3;
-  const reflectionVerticalOffset = backMediaTrace ? 0 : sparseReflectionOffset;
+  const reflectionVerticalOffset = backMediaItems.length > 0 ? 0 : sparseReflectionOffset;
 
   return {
     ...card,
-    backMediaTrace,
+    backMediaItems,
     externalComment,
     ecologicalOccupancy,
     ecologicalOccupancyRatio,
     progressPercentage,
     reflectionVerticalOffset,
     signals: card.signals.map(normalizeSignal),
+  };
+}
+
+export function withCardMediaItems(card: CardLayout, mediaItems: MediaItem[]): CardLayout {
+  const backMediaItems = selectVisibleUserCardMediaItems(mediaItems);
+  const hasBackMedia = backMediaItems.length > 0;
+  const ecologicalOccupancy =
+    Number(hasBackMedia) +
+    Number(Boolean(card.externalComment)) +
+    Number(Boolean(card.reflection));
+
+  return {
+    ...card,
+    mediaItems,
+    backMediaItems,
+    ecologicalOccupancy,
+    ecologicalOccupancyRatio: ecologicalOccupancy / 3,
+    reflectionVerticalOffset: hasBackMedia ? 0 : sparseReflectionOffset,
   };
 }
 

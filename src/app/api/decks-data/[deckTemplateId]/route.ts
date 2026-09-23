@@ -2,8 +2,10 @@ import { ObjectId } from "mongodb";
 import type { UserDocument } from "@/lib/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { getDeckTemplateById, getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
+import { createR2UserDataPublicObjectUrl } from "@/lib/cloudflareR2";
 import { getCollection } from "@/lib/mongodb";
 import { IMPLICIT_SIGNAL_IDS, SIGNAL_MAX, SIGNAL_MIN } from "@/lib/signals";
+import { validateUserCardMediaItem } from "@/lib/userCardMedia";
 
 type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
 
@@ -114,18 +116,30 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     // - cardId + signalId + reading
     // - type: "record-open"
     // - type: "update-card-reflection" + cardId + reflection
+    // - type: "upsert-card-media" + cardId + mediaItem
+    // - type: "remove-card-media" + cardId + mediaItemId
     //
     // New mutations (reflections, media, chats, etc.) must be added carefully to
     // avoid ambiguous request bodies and silent routing to the wrong branch.
 
     if (hasTypeField) {
-      if (bodyRecord.type !== "record-open" && bodyRecord.type !== "update-card-reflection") {
+      if (
+        bodyRecord.type !== "record-open" &&
+        bodyRecord.type !== "update-card-reflection" &&
+        bodyRecord.type !== "upsert-card-media" &&
+        bodyRecord.type !== "remove-card-media"
+      ) {
         return Response.json({ error: "Unknown mutation type." }, { status: 400 });
       }
 
-      const allowedMutationFields = bodyRecord.type === "record-open"
-        ? new Set(["type"])
-        : new Set(["type", "cardId", "reflection"]);
+      const allowedMutationFields =
+        bodyRecord.type === "record-open"
+          ? new Set(["type"])
+          : bodyRecord.type === "update-card-reflection"
+            ? new Set(["type", "cardId", "reflection"])
+            : bodyRecord.type === "upsert-card-media"
+              ? new Set(["type", "cardId", "mediaItem"])
+              : new Set(["type", "cardId", "mediaItemId"]);
       const hasUnexpectedField = Object.keys(bodyRecord).some((key) => !allowedMutationFields.has(key));
 
       if (hasUnexpectedField) {
@@ -268,6 +282,155 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         deckTemplateId,
         cardId,
         reflection,
+      });
+    }
+
+    if (bodyRecord.type === "upsert-card-media" || bodyRecord.type === "remove-card-media") {
+      const cardIdRaw = bodyRecord.cardId;
+
+      if (!hasNonEmptyString(cardIdRaw)) {
+        return Response.json({ error: "cardId is required." }, { status: 400 });
+      }
+
+      const cardId = cardIdRaw.trim();
+      const templateCard = template.cards.find((card) => card.cardId === cardId);
+
+      if (!templateCard) {
+        return Response.json({ error: "cardId is not part of this deck template." }, { status: 400 });
+      }
+
+      const existingCardData = existingDeckData.cards.find((card) => card.cardId === cardId);
+
+      if (!existingCardData) {
+        return Response.json({ error: "cardId is not part of this initialized deck data." }, { status: 400 });
+      }
+
+      let retainedMediaCondition: Record<string, unknown>;
+      let appendedMediaItems: Record<string, unknown> | unknown[] = [];
+
+      if (bodyRecord.type === "upsert-card-media") {
+        if (!hasOwnProperty(bodyRecord, "mediaItem")) {
+          return Response.json({ error: "mediaItem is required." }, { status: 400 });
+        }
+
+        const validation = validateUserCardMediaItem(
+          bodyRecord.mediaItem,
+          {
+            userId: user.id,
+            deckTemplateId,
+            cardId,
+          },
+          createR2UserDataPublicObjectUrl,
+        );
+
+        if (!validation.ok) {
+          return Response.json({ error: validation.error }, { status: 400 });
+        }
+
+        retainedMediaCondition = { $ne: ["$$mediaItem.mediaType", validation.mediaItem.mediaType] };
+        appendedMediaItems = { $literal: [validation.mediaItem] };
+      } else {
+        if (!hasNonEmptyString(bodyRecord.mediaItemId)) {
+          return Response.json({ error: "mediaItemId is required." }, { status: 400 });
+        }
+
+        const mediaItemId = bodyRecord.mediaItemId.trim();
+
+        if (!existingCardData.mediaItems.some((mediaItem) => mediaItem.id === mediaItemId)) {
+          return Response.json({ error: "mediaItemId is not part of this card." }, { status: 404 });
+        }
+
+        retainedMediaCondition = { $ne: ["$$mediaItem.id", mediaItemId] };
+      }
+
+      const updatedDocument = await users.findOneAndUpdate(
+        {
+          _id: userObjectId,
+          decksData: {
+            $elemMatch: {
+              deckTemplateId,
+              cards: { $elemMatch: { cardId } },
+            },
+          },
+        },
+        [
+          {
+            $set: {
+              decksData: {
+                $map: {
+                  input: "$decksData",
+                  as: "deck",
+                  in: {
+                    $cond: [
+                      { $eq: ["$$deck.deckTemplateId", deckTemplateId] },
+                      {
+                        $mergeObjects: [
+                          "$$deck",
+                          {
+                            cards: {
+                              $map: {
+                                input: "$$deck.cards",
+                                as: "card",
+                                in: {
+                                  $cond: [
+                                    { $eq: ["$$card.cardId", cardId] },
+                                    {
+                                      $mergeObjects: [
+                                        "$$card",
+                                        {
+                                          mediaItems: {
+                                            $concatArrays: [
+                                              {
+                                                $filter: {
+                                                  input: { $ifNull: ["$$card.mediaItems", []] },
+                                                  as: "mediaItem",
+                                                  cond: retainedMediaCondition,
+                                                },
+                                              },
+                                              appendedMediaItems,
+                                            ],
+                                          },
+                                        },
+                                      ],
+                                    },
+                                    "$$card",
+                                  ],
+                                },
+                              },
+                            },
+                            sharedWithUserIds,
+                            updatedAt: now.toISOString(),
+                          },
+                        ],
+                      },
+                      "$$deck",
+                    ],
+                  },
+                },
+              },
+              updatedAt: now,
+            },
+          },
+        ],
+        { returnDocument: "after" },
+      );
+
+      if (!updatedDocument) {
+        return Response.json({ error: "Deck data has not been initialized." }, { status: 404 });
+      }
+
+      const updatedDeckData = updatedDocument.decksData.find((deckData) => deckData.deckTemplateId === deckTemplateId);
+      const updatedCardData = updatedDeckData?.cards.find((card) => card.cardId === cardId);
+
+      if (!updatedCardData) {
+        return Response.json({ error: "Unable to update card media." }, { status: 500 });
+      }
+
+      return Response.json({
+        ok: true,
+        deckTemplateId,
+        cardId,
+        mediaItems: updatedCardData.mediaItems,
       });
     }
 

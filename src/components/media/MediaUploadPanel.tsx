@@ -9,6 +9,7 @@ import { clearSelectedFileInput } from "@/lib/mediaUploadClient";
 type MediaUploadPanelProps = {
   image: ImageMediaItem | null;
   imageError?: string | null;
+  imageHeading?: string;
   isImageUploading?: boolean;
   isVideoUploading?: boolean;
   onRemoveImage: () => void;
@@ -16,11 +17,13 @@ type MediaUploadPanelProps = {
   onUploadVideo: (file: File) => void;
   video: VideoMediaItem | null;
   videoError?: string | null;
+  videoHeading?: string;
 };
 
 export default function MediaUploadPanel({
   image,
   imageError,
+  imageHeading = "Intro image",
   isImageUploading = false,
   isVideoUploading = false,
   onRemoveImage,
@@ -28,6 +31,7 @@ export default function MediaUploadPanel({
   onUploadVideo,
   video,
   videoError,
+  videoHeading = "Intro video",
 }: MediaUploadPanelProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -57,7 +61,7 @@ export default function MediaUploadPanel({
   return (
     <>
       <section className="creator-deck-introduction-section">
-        <h2>Intro image</h2>
+        <h2>{imageHeading}</h2>
         <div className="creator-deck-introduction-image-shell">
           {image ? (
             // The extracted creator preview deliberately retains the existing raw image behavior.
@@ -91,7 +95,7 @@ export default function MediaUploadPanel({
         </div>
       </section>
       <section className="creator-deck-introduction-section">
-        <h2>Intro video</h2>
+        <h2>{videoHeading}</h2>
         <div className="creator-deck-introduction-video-shell">
           {streamVideo ? (
             <div className="creator-deck-introduction-video-preview" data-creator-pan-exempt>
