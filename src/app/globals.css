@@ -2847,6 +2847,12 @@ input {
   text-decoration: none;
 }
 
+.step-title {
+  color: rgba(168, 214, 228, 0.94);
+  font-weight: 780;
+  margin-right: 0.4em;
+}
+
 .step-description-link:hover,
 .step-description-link:focus-visible {
   color: rgba(188, 229, 240, 0.98);

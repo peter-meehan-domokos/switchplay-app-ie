@@ -65,7 +65,10 @@ export default function StepItem({ index, linksEnabled, onOpenStepView, step, on
       <span className="step-play-icon" aria-hidden="true" />
       <span className="step-copy">
         <span className="step-description">
-          <StepDescriptionText content={step.descriptionContent} fallback={step.description} linksEnabled={linksEnabled} />
+          {step.title ? <span className="step-title">{step.title}</span> : null}
+          {step.description || (step.descriptionContent && step.descriptionContent.length > 0) ? (
+            <StepDescriptionText content={step.descriptionContent} fallback={step.description} linksEnabled={linksEnabled} />
+          ) : null}
         </span>
         <StepProgressStrip
           completionStatus={completionStatus}
