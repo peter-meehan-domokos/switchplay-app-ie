@@ -1245,6 +1245,11 @@ input {
   width: 100%;
 }
 
+.creator-step-title-inline {
+  color: #1b6a8e;
+  margin-right: 0.4em;
+}
+
 .creator-modal-field--card-title,
 .creator-modal-field--deck-title {
   min-height: calc(var(--creator-modal-textarea-min-height) * 0.5);

@@ -1216,7 +1216,14 @@ function PairBlock({
   return (
     <div className={`creator-pair${isDragging ? " creator-pair--dragging" : ""}`} ref={setNodeRef}>
       <button className={stepClassName} onClick={() => onEdit({ type: "pair-step", pairId: pair.id })} type="button">
-        {getStepDisplayText(pair)}
+        {pair.stepTitle ? (
+          <>
+            <span className="creator-step-title-inline">{pair.stepTitle}</span>
+            {pair.stepText && pair.stepText.trim() !== "" ? pair.stepText : null}
+          </>
+        ) : (
+          getStepDisplayText(pair)
+        )}
       </button>
       <div className="creator-pair-handle-row">
         {/* Touch reorder is intentionally handle-only and requires dnd-kit long-press activation. */}
@@ -1264,7 +1271,16 @@ function PairPreview({ pair }: { pair: Pair }) {
 
   return (
     <div className="creator-pair creator-pair--preview">
-      <div className={stepClassName}>{getStepDisplayText(pair)}</div>
+      <div className={stepClassName}>
+        {pair.stepTitle ? (
+          <>
+            <span className="creator-step-title-inline">{pair.stepTitle}</span>
+            {pair.stepText && pair.stepText.trim() !== "" ? pair.stepText : null}
+          </>
+        ) : (
+          getStepDisplayText(pair)
+        )}
+      </div>
       <div className="creator-pair-handle-row">
         <span className="creator-drag-handle creator-drag-handle--preview" aria-hidden="true">
           <DragHandleMark />
