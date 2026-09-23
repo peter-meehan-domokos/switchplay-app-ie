@@ -89,6 +89,19 @@ test("replacing intro image preserves the intro video", () => {
   });
 });
 
+test("removing intro image preserves the intro video", () => {
+  const board = createCreatorBoardFromTemplate({
+    ...baseTemplate,
+    introduction: { image: cloudflareImage, video: introVideo },
+  });
+  const nextBoard = setBoardDeckIntroductionImage(board, null);
+
+  assert.deepEqual(nextBoard.deckIntroduction, {
+    image: null,
+    video: introVideo,
+  });
+});
+
 test("creator board to template preserves R2 image media", () => {
   const board = createCreatorBoardFromTemplate({
     ...baseTemplate,
