@@ -24,9 +24,8 @@ import {
   getCreatorCellId,
   getStepDisplayText,
   getStepMediaDisplayText,
-  isPairEmpty,
-  isStepMediaEmpty,
   isStepEmpty,
+  isStepMediaEmpty,
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
   resolveCreatorStreamName,
@@ -1188,9 +1187,9 @@ function PairBlock({
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
     data: { type: "pair" },
-    disabled: isPairEmpty(pair),
+    disabled: isStepEmpty(pair),
   });
-  const isEmptyPair = isPairEmpty(pair);
+  const isEmptyPair = isStepEmpty(pair);
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
@@ -1345,7 +1344,7 @@ function BoardCell({
   });
   const isOccupied = Boolean(cell.pairId);
   const isLocked = cell.kind === "locked";
-  const canDropActivePair = Boolean(isOver && activePairId && pair && pair.id !== activePairId && isPairEmpty(pair));
+  const canDropActivePair = Boolean(isOver && activePairId && pair && pair.id !== activePairId && isStepEmpty(pair));
   const isEmptyPanSurface = cell.kind === "empty" && !cell.pairId;
   const isStreamRowDragging = activeStreamRow === row;
   const isStreamRowTarget = activeStreamOverRow === row && activeStreamOverRow !== activeStreamRow;
@@ -1689,7 +1688,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     const pairId = String(event.active.id);
     const activePairCandidate = board.pairs[pairId];
 
-    setActivePairId(activePairCandidate && !isPairEmpty(activePairCandidate) ? pairId : null);
+    setActivePairId(activePairCandidate && !isStepEmpty(activePairCandidate) ? pairId : null);
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -1733,7 +1732,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       const targetPairId = targetCell?.pairId;
       const targetPair = targetPairId ? currentBoard.pairs[targetPairId] : undefined;
 
-      if (!originCellId || originCellId === targetCellId || !sourcePair || isPairEmpty(sourcePair) || !targetPair || !isPairEmpty(targetPair)) {
+      if (!originCellId || originCellId === targetCellId || !sourcePair || isStepEmpty(sourcePair) || !targetPair || !isStepEmpty(targetPair)) {
         return currentBoard;
       }
 

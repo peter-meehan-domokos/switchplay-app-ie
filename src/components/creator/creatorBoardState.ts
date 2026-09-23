@@ -30,6 +30,7 @@ export type CellState = {
 export type Pair = {
   id: PairId;
   stepId: string;
+  stepTitle?: string | null;
   stepDescriptionContent?: StepDescriptionSpan[];
   stepMediaItem: MediaItem | null;
   stepText: string | null;
@@ -37,9 +38,6 @@ export type Pair = {
 
 export const STEP_PLACEHOLDER_TEXT = "Describe the step";
 export const VIDEO_PLACEHOLDER_TEXT = "Video placeholder";
-
-type StepEmptyInput = Pick<Pair, "stepText"> | string | null;
-type StepMediaEmptyInput = Pick<Pair, "stepMediaItem"> | MediaItem | null;
 
 function createCreatorId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -49,13 +47,11 @@ export function createCreatorDeckTemplateId() {
   return createCreatorId("deck");
 }
 
-export function isStepEmpty(pairOrStepText: StepEmptyInput) {
-  const stepText = typeof pairOrStepText === "string" || pairOrStepText === null ? pairOrStepText : pairOrStepText.stepText;
-
-  return stepText === null || stepText.trim() === "";
+function isStepTextEmpty(pair: Pair): boolean {
+  return pair.stepText === null || pair.stepText.trim() === "";
 }
 
-export function isStepMediaEmpty(pairOrStepMediaItem: StepMediaEmptyInput) {
+export function isStepMediaEmpty(pairOrStepMediaItem: Pair | MediaItem | null): boolean {
   const stepMediaItem =
     pairOrStepMediaItem === null || "mediaType" in pairOrStepMediaItem
       ? pairOrStepMediaItem
@@ -64,12 +60,21 @@ export function isStepMediaEmpty(pairOrStepMediaItem: StepMediaEmptyInput) {
   return stepMediaItem === null;
 }
 
-export function isPairEmpty(pair: Pair) {
-  return isStepEmpty(pair) && isStepMediaEmpty(pair) && (pair.stepDescriptionContent?.length ?? 0) === 0;
+/**
+ * A step is empty only when ALL content fields are absent:
+ * title, description text, rich description content, and media.
+ */
+export function isStepEmpty(pair: Pair): boolean {
+  const titleEmpty = !pair.stepTitle || pair.stepTitle.trim() === "";
+  const textEmpty = isStepTextEmpty(pair);
+  const contentEmpty = (pair.stepDescriptionContent?.length ?? 0) === 0;
+  const mediaEmpty = isStepMediaEmpty(pair);
+
+  return titleEmpty && textEmpty && contentEmpty && mediaEmpty;
 }
 
 export function getStepDisplayText(pair: Pair) {
-  return isStepEmpty(pair) ? STEP_PLACEHOLDER_TEXT : pair.stepText;
+  return isStepTextEmpty(pair) ? STEP_PLACEHOLDER_TEXT : pair.stepText;
 }
 
 export function getStepMediaDisplayText(pair: Pair) {
@@ -80,6 +85,7 @@ export function createEmptyPair(pairId: PairId, stepId = createCreatorId("step")
   return {
     id: pairId,
     stepId,
+    stepTitle: null,
     stepMediaItem: null,
     stepText: null,
   };
@@ -439,9 +445,11 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
         },
         steps: board.rows.map((row) => {
           const pair = getPairForTemplateSlot(board, column.id, row);
+          const normalizedTitle = normalizeCreatorText(pair?.stepTitle);
 
           return {
             stepId: pair?.stepId ?? `${column.cardId ?? column.id}-step-${row + 1}`,
+            ...(normalizedTitle ? { title: normalizedTitle } : {}),
             description: normalizeCreatorText(pair?.stepText),
             descriptionContent: normalizeCreatorStepDescriptionContent(pair?.stepDescriptionContent),
             mediaItem: pair?.stepMediaItem ?? null,
@@ -626,6 +634,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
         step
           ? {
               ...emptyPair,
+              stepTitle: step.title ?? null,
               stepDescriptionContent: step.descriptionContent,
               stepMediaItem: step.mediaItem ?? null,
               stepText: step.description,
