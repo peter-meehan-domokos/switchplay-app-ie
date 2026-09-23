@@ -5,12 +5,21 @@ import {
   CloudflareR2PresignError,
   CloudflareR2ValidationError,
   createCloudflareR2DirectUpload,
+  createCloudflareR2UserCardImageDirectUpload,
 } from "@/lib/cloudflareR2";
 import { isSupportedImageUploadContentType } from "@/lib/imageUploadContentTypes";
+import { authorizeUserCardUpload } from "@/lib/userCardUploadAuthorization";
 
-type DirectUploadRequestBody = {
+type TemplateImageDirectUploadRequestBody = {
   contentType?: string;
   deckTemplateId?: string;
+};
+
+type UserCardImageDirectUploadRequestBody = {
+  cardId?: string;
+  contentType?: string;
+  deckTemplateId?: string;
+  scope?: string;
 };
 
 const DECK_TEMPLATE_ID_FOR_OBJECT_KEY_PATTERN = /^[a-zA-Z0-9-]+$/;
@@ -19,12 +28,24 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function validateDirectUploadRequestBody(body: unknown): { ok: true; body: DirectUploadRequestBody } | { ok: false; error: string } {
+function hasNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function validateDirectUploadRequestBody(
+  body: unknown,
+):
+  | { ok: true; body: TemplateImageDirectUploadRequestBody; scope: "template-image" }
+  | { ok: true; body: Required<UserCardImageDirectUploadRequestBody>; scope: "user-card" }
+  | { ok: false; error: string } {
   if (!isPlainObject(body)) {
     return { ok: false, error: "Request body must be an object." };
   }
 
-  const allowedFields = new Set(["contentType", "deckTemplateId"]);
+  const isUserCardScope = body.scope === "user-card";
+  const allowedFields = isUserCardScope
+    ? new Set(["scope", "contentType", "deckTemplateId", "cardId"])
+    : new Set(["contentType", "deckTemplateId"]);
   const unsupportedField = Object.keys(body).find((fieldName) => !allowedFields.has(fieldName));
 
   if (unsupportedField) {
@@ -51,7 +72,24 @@ function validateDirectUploadRequestBody(body: unknown): { ok: true; body: Direc
     return { ok: false, error: "deckTemplateId contains unsupported characters." };
   }
 
-  return { ok: true, body: { contentType, deckTemplateId } };
+  if (!isUserCardScope) {
+    return { ok: true, body: { contentType, deckTemplateId }, scope: "template-image" };
+  }
+
+  if (!hasNonEmptyString(body.cardId)) {
+    return { ok: false, error: "cardId is required." };
+  }
+
+  return {
+    ok: true,
+    body: {
+      scope: "user-card",
+      contentType,
+      deckTemplateId,
+      cardId: body.cardId.trim(),
+    },
+    scope: "user-card",
+  };
 }
 
 export async function POST(request: Request) {
@@ -71,6 +109,23 @@ export async function POST(request: Request) {
 
     if (!validation.ok) {
       return Response.json({ error: validation.error }, { status: 400 });
+    }
+
+    if (validation.scope === "user-card") {
+      const authorization = await authorizeUserCardUpload(user, validation.body.deckTemplateId, validation.body.cardId);
+
+      if (!authorization.ok) {
+        return Response.json({ error: authorization.error }, { status: authorization.status });
+      }
+
+      const directUpload = await createCloudflareR2UserCardImageDirectUpload({
+        creator: user.id,
+        contentType: validation.body.contentType,
+        deckTemplateId: validation.body.deckTemplateId,
+        cardId: validation.body.cardId,
+      });
+
+      return Response.json(directUpload, { status: 201 });
     }
 
     const directUpload = await createCloudflareR2DirectUpload({
