@@ -64,6 +64,7 @@ type EditSession = {
   helperText?: string;
   inputKind: "long-text" | "short-text";
   label: string;
+  stepTitle?: string;
   target: EditTarget;
   value: string;
 };
@@ -679,6 +680,7 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
       helperText: "Aim for 1-2 short lines on the card.",
       inputKind: "long-text",
       label: "Step text",
+      stepTitle: pair.stepTitle ?? "",
       target,
       value: pair.stepText ?? "",
     };
@@ -739,12 +741,13 @@ function CreatorEditModal({
   onClose: () => void;
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
-  onSave: (value: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) => void;
   onUploadDeckIntroductionVideo: (file: File) => void;
   onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
 }) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const [draftTitle, setDraftTitle] = useState(session.stepTitle ?? "");
   const [linkRanges, setLinkRanges] = useState<StepLinkRange[]>(() =>
     getLinkRangesFromDescriptionContent(session.descriptionContent, session.value)
   );
@@ -911,7 +914,11 @@ function CreatorEditModal({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSave(draftValue, isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined);
+    onSave(
+      draftValue,
+      isStepText ? draftTitle : undefined,
+      isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined
+    );
   }
 
   const primaryField = isLongText ? (
@@ -943,6 +950,18 @@ function CreatorEditModal({
           </button>
         </header>
         {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
+        {isStepText ? (
+          <label className="creator-step-title-group">
+            <span className="creator-step-title-label">Title (optional)</span>
+            <input
+              className="creator-modal-text-input creator-step-title-input"
+              onChange={(event) => setDraftTitle(event.target.value)}
+              placeholder="e.g. Listen closely"
+              type="text"
+              value={draftTitle}
+            />
+          </label>
+        ) : null}
         {isDeckIntroduction ? (
           <section className="creator-deck-introduction-section">
             <h2>Deck title</h2>
@@ -1790,7 +1809,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
 
-  function saveEdit(value: string, descriptionContent?: StepDescriptionSpan[]) {
+  function saveEdit(value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) {
     if (!editSession) {
       return;
     }
@@ -1840,6 +1859,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
+            stepTitle: title?.trim() || null,
             stepDescriptionContent: descriptionContent,
             stepText: value.trim() === "" ? null : value,
           },

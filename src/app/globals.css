@@ -1230,6 +1230,21 @@ input {
   min-height: calc(var(--creator-modal-textarea-min-height) * 0.8);
 }
 
+.creator-step-title-group {
+  display: grid;
+  gap: 4px;
+}
+
+.creator-step-title-label {
+  color: #5b626b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.creator-step-title-input {
+  width: 100%;
+}
+
 .creator-modal-field--card-title,
 .creator-modal-field--deck-title {
   min-height: calc(var(--creator-modal-textarea-min-height) * 0.5);
