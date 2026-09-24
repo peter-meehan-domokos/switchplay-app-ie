@@ -69,6 +69,14 @@ test("video replacement leaves no hidden duplicate", () => {
   expect(nextItems.filter((item) => item.mediaType === "video")).toHaveLength(1);
 });
 
+test("concurrent image and video upserts retain both media items in either completion order", () => {
+  const imageThenVideo = upsertUserCardMediaItem(upsertUserCardMediaItem([], image), video);
+  const videoThenImage = upsertUserCardMediaItem(upsertUserCardMediaItem([], video), image);
+
+  expect(imageThenVideo).toEqual([image, video]);
+  expect(videoThenImage).toEqual([video, image]);
+});
+
 test("removal filters by media-item id without touching the provider asset", () => {
   expect(removeUserCardMediaItem([image, video], image.id)).toEqual([video]);
 });

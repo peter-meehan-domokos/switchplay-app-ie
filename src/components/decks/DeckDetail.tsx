@@ -18,6 +18,7 @@ import CloudflareHlsVideoPlayer, {
   type CloudflareHlsVideoPlayerHandle,
   type VideoPlaybackState,
 } from "@/components/media/CloudflareHlsVideoPlayer";
+import type { UserCardMediaUploadTarget } from "@/components/media/useKeyedUserCardMediaUploadController";
 import type { CompletionStatus } from "@/components/decks/types";
 import {
   DECK_SCENE_BASELINE_HEIGHT,
@@ -597,13 +598,17 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     cardsRef.current = nextCards;
     setCards(nextCards);
   };
-  const commitFocusedCardMedia = async (cardId: string, mediaItem: ModernUserCardMediaItem) => {
+  const commitFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => {
     if (!deck.canMutate || !deck.hasUserDeckData) {
       throw new Error("Unable to save media for this deck.");
     }
 
-    await persistCardMediaItem(deck.deckTemplateId, cardId, mediaItem);
-    applyConfirmedCardMedia(cardId, (mediaItems) => upsertUserCardMediaItem(mediaItems, mediaItem));
+    if (target.deckTemplateId !== deck.deckTemplateId) {
+      throw new Error("Unable to save media for this deck.");
+    }
+
+    await persistCardMediaItem(target.deckTemplateId, target.cardId, mediaItem);
+    applyConfirmedCardMedia(target.cardId, (mediaItems) => upsertUserCardMediaItem(mediaItems, mediaItem));
   };
   const removeFocusedCardMedia = async (cardId: string, mediaItemId: string) => {
     if (!deck.canMutate || !deck.hasUserDeckData) {

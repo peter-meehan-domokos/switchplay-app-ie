@@ -9,7 +9,12 @@ import CloudflareHlsVideoPlayer, {
   type VideoPlaybackIntent,
 } from "@/components/media/CloudflareHlsVideoPlayer";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
-import { useMediaUploadController } from "@/components/media/useMediaUploadController";
+import {
+  createUserCardMediaUploadKey,
+  useKeyedUserCardMediaUploadController,
+  type CompletedUserCardMediaUpload,
+  type UserCardMediaUploadTarget,
+} from "@/components/media/useKeyedUserCardMediaUploadController";
 import StepView, { type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
@@ -49,7 +54,7 @@ type FocusedCardViewProps = {
   onAdjustTargetDate: (direction: -1 | 1) => void;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
-  onCommitCardMedia?: (cardId: string, mediaItem: ModernUserCardMediaItem) => Promise<void>;
+  onCommitCardMedia?: (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => Promise<void>;
   onRemoveCardMedia?: (cardId: string, mediaItemId: string) => Promise<void>;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
@@ -73,6 +78,11 @@ type StepViewState = {
 
 type ReflectionEditorState = {
   cardId: string;
+};
+
+type CardMediaRemovalState = {
+  error: string | null;
+  isRemoving: boolean;
 };
 
 type VideoHostRect = {
@@ -237,8 +247,7 @@ export default function FocusedCardView({
   const [reflectionEditorError, setReflectionEditorError] = useState<string | null>(null);
   const [isSavingReflection, setIsSavingReflection] = useState(false);
   const [mediaEditorCardId, setMediaEditorCardId] = useState<string | null>(null);
-  const [mediaRemovalError, setMediaRemovalError] = useState<string | null>(null);
-  const [isRemovingImage, setIsRemovingImage] = useState(false);
+  const [mediaRemovalStatesByKey, setMediaRemovalStatesByKey] = useState<Record<string, CardMediaRemovalState>>({});
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
@@ -297,25 +306,40 @@ export default function FocusedCardView({
     () => ({ scope: "user-card" as const, deckTemplateId, cardId: card.id }),
     [card.id, deckTemplateId],
   );
+  const mediaUploadKey = createUserCardMediaUploadKey(mediaUploadTarget);
   const commitCompletedMediaUpload = useCallback(
-    async ({ mediaItem }: { mediaItem: ModernUserCardMediaItem }) => {
+    async ({ mediaItem, target }: CompletedUserCardMediaUpload) => {
       if (!onCommitCardMedia) {
         throw new Error("Unable to save media for this card.");
       }
 
-      await onCommitCardMedia(card.id, mediaItem);
+      await onCommitCardMedia(target, mediaItem);
     },
-    [card.id, onCommitCardMedia],
+    [onCommitCardMedia],
   );
-  const mediaUploadController = useMediaUploadController({
-    target: mediaUploadTarget,
-    onUploadStarted: (kind) => {
+  const mediaUploadController = useKeyedUserCardMediaUploadController({
+    onUploadStarted: (target, kind) => {
       if (kind === "image") {
-        setMediaRemovalError(null);
+        const key = createUserCardMediaUploadKey(target);
+
+        setMediaRemovalStatesByKey((currentStates) => {
+          const currentState = currentStates[key];
+
+          if (!currentState?.error) {
+            return currentStates;
+          }
+
+          return {
+            ...currentStates,
+            [key]: { ...currentState, error: null },
+          };
+        });
       }
     },
     onUploadCompleted: commitCompletedMediaUpload,
   });
+  const mediaUploadState = mediaUploadController.getState(mediaUploadTarget);
+  const mediaRemovalState = mediaRemovalStatesByKey[mediaUploadKey] ?? { error: null, isRemoving: false };
   const cardImage = card.backMediaItems.find(isCloudflareR2ImageMediaItem) ?? null;
   const cardVideo = card.backMediaItems.find(isCloudflareStreamVideoMediaItem) ?? null;
   const isFirstCard = cardIndex === 0;
@@ -435,26 +459,53 @@ export default function FocusedCardView({
     }
 
     setMediaEditorCardId(cardId);
-    setMediaRemovalError(null);
+    setMediaRemovalStatesByKey((currentStates) => {
+      const currentState = currentStates[mediaUploadKey];
+
+      if (!currentState?.error) {
+        return currentStates;
+      }
+
+      return {
+        ...currentStates,
+        [mediaUploadKey]: { ...currentState, error: null },
+      };
+    });
   };
   const closeMediaEditor = () => {
     setMediaEditorCardId(null);
-    setMediaRemovalError(null);
   };
   const removeCardImage = async () => {
     if (!cardImage || !onRemoveCardMedia) {
       return;
     }
 
-    setIsRemovingImage(true);
-    setMediaRemovalError(null);
+    const target = mediaUploadTarget;
+    const key = createUserCardMediaUploadKey(target);
+
+    setMediaRemovalStatesByKey((currentStates) => ({
+      ...currentStates,
+      [key]: { error: null, isRemoving: true },
+    }));
 
     try {
-      await onRemoveCardMedia(card.id, cardImage.id);
+      await onRemoveCardMedia(target.cardId, cardImage.id);
     } catch (error) {
-      setMediaRemovalError(error instanceof Error ? error.message : "Unable to remove card image.");
+      setMediaRemovalStatesByKey((currentStates) => ({
+        ...currentStates,
+        [key]: {
+          error: error instanceof Error ? error.message : "Unable to remove card image.",
+          isRemoving: false,
+        },
+      }));
     } finally {
-      setIsRemovingImage(false);
+      setMediaRemovalStatesByKey((currentStates) => ({
+        ...currentStates,
+        [key]: {
+          error: currentStates[key]?.error ?? null,
+          isRemoving: false,
+        },
+      }));
     }
   };
   const stopMediaEditorGesturePropagation = (event: PointerEvent<HTMLDivElement>) => {
@@ -743,7 +794,6 @@ export default function FocusedCardView({
     setReflectionEditorState(null);
     setReflectionEditorError(null);
     setMediaEditorCardId(null);
-    setMediaRemovalError(null);
   }, [card.id, updateVideoPlaybackIntent]);
 
   useEffect(() => {
@@ -959,15 +1009,15 @@ export default function FocusedCardView({
               </header>
               <MediaUploadPanel
                 image={cardImage}
-                imageError={mediaUploadController.imageError ?? mediaRemovalError}
+                imageError={mediaUploadState.imageError ?? mediaRemovalState.error}
                 imageHeading="Image"
-                isImageUploading={mediaUploadController.isImageUploading || isRemovingImage}
-                isVideoUploading={mediaUploadController.isVideoUploading}
+                isImageUploading={mediaUploadState.isImageUploading || mediaRemovalState.isRemoving}
+                isVideoUploading={mediaUploadState.isVideoUploading}
                 onRemoveImage={() => void removeCardImage()}
-                onUploadImage={(file) => void mediaUploadController.uploadImage(file)}
-                onUploadVideo={(file) => void mediaUploadController.uploadVideo(file)}
+                onUploadImage={(file) => void mediaUploadController.uploadImage(mediaUploadTarget, file)}
+                onUploadVideo={(file) => void mediaUploadController.uploadVideo(mediaUploadTarget, file)}
                 video={cardVideo}
-                videoError={mediaUploadController.videoError}
+                videoError={mediaUploadState.videoError}
                 videoHeading="Video"
               />
             </div>
