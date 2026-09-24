@@ -88,17 +88,27 @@ function validateStepDescriptionContentForSave(value: unknown): { ok: true; cont
   return content.length > 0 ? { ok: true, content } : { ok: true };
 }
 
-function normalizeStepDescriptionContentForSave(step: CardTemplateStep): CardTemplateStep {
-  const stepWithoutDescriptionContent = { ...step };
+function normalizeStepForSave(step: CardTemplateStep): CardTemplateStep {
+  // Normalize title: omit entirely when absent or whitespace-only.
+  const rawTitle = (step as Record<string, unknown>).title;
+  const normalizedTitle =
+    typeof rawTitle === "string" && rawTitle.trim() !== "" ? rawTitle.trim() : undefined;
+
+  const stepWithoutDescriptionContent = { ...step } as CardTemplateStep & { descriptionContent?: unknown };
   delete stepWithoutDescriptionContent.descriptionContent;
   const validation = validateStepDescriptionContentForSave(step.descriptionContent);
 
+  const base: CardTemplateStep = {
+    ...stepWithoutDescriptionContent,
+    ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
+  };
+
   if (!validation.ok || !validation.content) {
-    return stepWithoutDescriptionContent;
+    return base;
   }
 
   return {
-    ...stepWithoutDescriptionContent,
+    ...base,
     descriptionContent: validation.content,
   };
 }
@@ -227,6 +237,10 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
         return { ok: false, error: "Each step must have a stepId." };
       }
 
+      if (step.title !== undefined && typeof step.title !== "string") {
+        return { ok: false, error: "step.title must be a string when provided." };
+      }
+
       const stepMediaError = validateMediaItemForSave(step.mediaItem, "step.mediaItem");
 
       if (stepMediaError) {
@@ -259,7 +273,7 @@ export function validateDeckTemplateForSave(body: unknown): TemplateSaveValidati
       ...normalizedTemplate,
       cards: normalizedTemplate.cards.map((card) => ({
         ...card,
-        steps: card.steps.map(normalizeStepDescriptionContentForSave),
+        steps: card.steps.map(normalizeStepForSave),
       })),
     },
   };

@@ -1230,6 +1230,26 @@ input {
   min-height: calc(var(--creator-modal-textarea-min-height) * 0.8);
 }
 
+.creator-step-title-group {
+  display: grid;
+  gap: 4px;
+}
+
+.creator-step-title-label {
+  color: #5b626b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.creator-step-title-input {
+  width: 100%;
+}
+
+.creator-step-title-inline {
+  color: #1b6a8e;
+  margin-right: 0.4em;
+}
+
 .creator-modal-field--card-title,
 .creator-modal-field--deck-title {
   min-height: calc(var(--creator-modal-textarea-min-height) * 0.5);
@@ -2825,6 +2845,12 @@ input {
   color: rgba(168, 214, 228, 0.94);
   font-weight: 780;
   text-decoration: none;
+}
+
+.step-title {
+  color: rgba(168, 214, 228, 0.94);
+  font-weight: 780;
+  margin-right: 0.4em;
 }
 
 .step-description-link:hover,

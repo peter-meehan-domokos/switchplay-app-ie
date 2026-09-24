@@ -39,6 +39,10 @@ function getStepViewItemLabel(item: StepViewItem) {
   return `STEP ${item.stepIndex + 1}`;
 }
 
+function getStepViewItemTitle(card: CardLayout, item: StepViewItem) {
+  return item.type === "step" ? card.steps[item.stepIndex]?.title : null;
+}
+
 function getStepViewItemText(card: CardLayout, item: StepViewItem) {
   if (item.type === "intro") {
     return card.intro.title ?? card.label;
@@ -110,6 +114,7 @@ export default function StepView({
   useCloudflareVideoHost = false,
 }: StepViewProps) {
   const itemLabel = getStepViewItemLabel(item);
+  const itemTitle = getStepViewItemTitle(card, item);
   const itemText = getStepViewItemText(card, item);
   const itemContent = getStepViewItemContent(card, item);
   const hasItemContent = Boolean(itemContent?.length);
@@ -141,11 +146,12 @@ export default function StepView({
       </header>
       <main className="step-view-body">
         <h2 className="step-view-title">
+          {itemTitle ? <span className="step-title">{itemTitle}</span> : null}
           {itemText || hasItemContent ? (
             <StepDescriptionText content={itemContent} fallback={itemText} />
-          ) : (
+          ) : !itemTitle ? (
             "No description yet."
-          )}
+          ) : null}
         </h2>
         <div
           className={videoPlaceholderClassName}

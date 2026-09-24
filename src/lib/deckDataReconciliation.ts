@@ -62,11 +62,14 @@ export function reconcileDeckDataWithTemplate({
         items: newCard.steps.map((newStep) => {
           const oldStep = oldStepsById.get(newStep.stepId);
           const existingItem = existingItemsById.get(newStep.stepId);
-          const canPreserveCompletionStatus = oldStep !== undefined && oldStep.description === newStep.description;
+          const isContentUnchanged =
+            oldStep !== undefined &&
+            oldStep.description === newStep.description &&
+            (oldStep.title ?? null) === (newStep.title ?? null);
 
           return {
             itemId: newStep.stepId,
-            completionStatus: existingItem && canPreserveCompletionStatus ? existingItem.completionStatus : "todo",
+            completionStatus: existingItem && isContentUnchanged ? existingItem.completionStatus : "todo",
           };
         }),
         signalReadings: IMPLICIT_SIGNAL_IDS.map((signalId, signalIndex) => {
