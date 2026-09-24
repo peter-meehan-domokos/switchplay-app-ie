@@ -874,6 +874,7 @@ export default function FocusedCardView({
             <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
               <BackCardFaceContent
                 card={card}
+                deckTemplateId={deckTemplateId}
                 dateLabel={dateLabel}
                 variant="focused"
                 canMutate={canMutate}
@@ -1019,6 +1020,8 @@ export default function FocusedCardView({
                 video={cardVideo}
                 videoError={mediaUploadState.videoError}
                 videoHeading="Video"
+                videoReadinessTarget={mediaUploadTarget}
+                videoUploadStage={mediaUploadState.videoUploadStage}
               />
             </div>
           </motion.div>

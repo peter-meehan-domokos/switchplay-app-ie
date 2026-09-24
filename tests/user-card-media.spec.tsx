@@ -136,11 +136,16 @@ test("visible card media includes modern R2 and Stream items only", () => {
 });
 
 test("the media renderer reserves no region when there is no modern media", () => {
-  expect(BackCardMediaTrace({ items: [] })).toBeNull();
+  expect(BackCardMediaTrace({ items: [], target: { scope: "user-card", deckTemplateId: "deck-1", cardId: "card-003" } })).toBeNull();
 });
 
 test("the media renderer emits an R2 image and Stream player for modern items", () => {
-  const renderedTree = JSON.stringify(BackCardMediaTrace({ items: [image, video] }));
+  const renderedTree = JSON.stringify(
+    BackCardMediaTrace({
+      items: [image, video],
+      target: { scope: "user-card", deckTemplateId: "deck-1", cardId: "card-003" },
+    }),
+  );
 
   expect(renderedTree).toContain("focused-card-back-media");
   expect(renderedTree).toContain(imagePublicUrl);

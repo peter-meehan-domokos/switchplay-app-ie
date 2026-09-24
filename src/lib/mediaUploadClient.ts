@@ -27,6 +27,21 @@ export type StreamDirectUploadResponse = {
   uploadURL: string;
 };
 
+export type StreamVideoReadinessStatus = {
+  progress?: number;
+  status: "failed" | "processing" | "ready";
+};
+
+export class StreamVideoReadinessRequestError extends Error {
+  retryable: boolean;
+
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.name = "StreamVideoReadinessRequestError";
+    this.retryable = retryable;
+  }
+}
+
 type VideoDimensions = {
   height: number;
   width: number;
@@ -98,6 +113,16 @@ function isStreamDirectUploadResponse(value: unknown): value is StreamDirectUplo
     value.uploadURL.trim() !== "" &&
     "maxDurationSeconds" in value &&
     typeof value.maxDurationSeconds === "number"
+  );
+}
+
+function isStreamVideoReadinessStatus(value: unknown): value is StreamVideoReadinessStatus {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "status" in value &&
+    (value.status === "processing" || value.status === "ready" || value.status === "failed") &&
+    (!("progress" in value) || value.progress === undefined || (typeof value.progress === "number" && Number.isFinite(value.progress)))
   );
 }
 
@@ -178,6 +203,57 @@ export async function requestStreamDirectUpload(
 
   if (!isStreamDirectUploadResponse(responseBody)) {
     throw new Error("Video upload could not be prepared.");
+  }
+
+  return responseBody;
+}
+
+export function createStreamVideoReadinessRequestUrl(target: MediaUploadTarget, assetId: string) {
+  const searchParams = new URLSearchParams({
+    assetId,
+    deckTemplateId: target.deckTemplateId,
+    scope: target.scope,
+  });
+
+  if (target.scope === "user-card") {
+    searchParams.set("cardId", target.cardId);
+  }
+
+  return `/api/media/stream/status?${searchParams.toString()}`;
+}
+
+export async function requestStreamVideoReadiness(
+  target: MediaUploadTarget,
+  assetId: string,
+  signal: AbortSignal,
+): Promise<StreamVideoReadinessStatus> {
+  let response: Response;
+
+  try {
+    response = await fetch(createStreamVideoReadinessRequestUrl(target, assetId), {
+      cache: "no-store",
+      signal,
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
+    throw new StreamVideoReadinessRequestError("Unable to check video processing status.", true);
+  }
+
+  const responseBody: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+    throw new StreamVideoReadinessRequestError(
+      getUploadErrorMessage(responseBody, "Unable to check video processing status."),
+      retryable,
+    );
+  }
+
+  if (!isStreamVideoReadinessStatus(responseBody)) {
+    throw new StreamVideoReadinessRequestError("Video processing status could not be read.", true);
   }
 
   return responseBody;

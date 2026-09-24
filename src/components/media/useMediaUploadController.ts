@@ -27,6 +27,7 @@ export type MediaUploadControllerState = {
   imageError: string | null;
   isImageUploading: boolean;
   isVideoUploading: boolean;
+  videoUploadStage: "idle" | "saving" | "uploading";
   videoError: string | null;
 };
 
@@ -34,6 +35,7 @@ type MediaUploadKind = "image" | "video";
 
 type MediaUploadControllerAction =
   | { type: "start"; kind: MediaUploadKind }
+  | { type: "saving"; kind: "video" }
   | { type: "finish"; kind: MediaUploadKind }
   | { type: "error"; kind: MediaUploadKind; message: string }
   | { type: "clear-error"; kind: MediaUploadKind };
@@ -47,6 +49,7 @@ export const initialMediaUploadControllerState: MediaUploadControllerState = {
   imageError: null,
   isImageUploading: false,
   isVideoUploading: false,
+  videoUploadStage: "idle",
   videoError: null,
 };
 
@@ -68,13 +71,16 @@ export function mediaUploadControllerReducer(
   }
 
   if (action.type === "start") {
-    return { ...state, isVideoUploading: true, videoError: null };
+    return { ...state, isVideoUploading: true, videoError: null, videoUploadStage: "uploading" };
   }
   if (action.type === "finish") {
-    return { ...state, isVideoUploading: false };
+    return { ...state, isVideoUploading: false, videoUploadStage: "idle" };
+  }
+  if (action.type === "saving") {
+    return { ...state, videoUploadStage: "saving" };
   }
   if (action.type === "error") {
-    return { ...state, videoError: action.message };
+    return { ...state, videoError: action.message, videoUploadStage: "idle" };
   }
   return { ...state, videoError: null };
 }
@@ -194,7 +200,7 @@ export function useMediaUploadController({
         return;
       }
 
-      finishVideoSession(session);
+      dispatch({ type: "saving", kind: "video" });
       await onUploadCompleted({ file, kind: "video", mediaItem });
     } catch (error) {
       if (session.controller.signal.aborted || isAbortError(error)) {

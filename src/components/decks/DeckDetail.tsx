@@ -702,6 +702,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
           <CardStack
             cards={optimisticDeck.cards}
+            deckTemplateId={deck.deckTemplateId}
             activeCardIndex={activeCardIndex}
             isDeckFlipped={isDeckFlipped}
             deckFlipRotationY={deckFlipRotationY}

@@ -1,12 +1,14 @@
-import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
+import StreamVideoReadinessPreview from "@/components/media/StreamVideoReadinessPreview";
 import { isCloudflareR2ImageMediaItem, isCloudflareStreamVideoMediaItem } from "@/lib/media";
+import type { MediaUploadTarget } from "@/lib/mediaUploadClient";
 import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
 
 type BackCardMediaTraceProps = {
   items: ModernUserCardMediaItem[];
+  target: Extract<MediaUploadTarget, { scope: "user-card" }>;
 };
 
-export default function BackCardMediaTrace({ items }: BackCardMediaTraceProps) {
+export default function BackCardMediaTrace({ items, target }: BackCardMediaTraceProps) {
   if (items.length === 0) {
     return null;
   }
@@ -27,7 +29,7 @@ export default function BackCardMediaTrace({ items }: BackCardMediaTraceProps) {
         if (isCloudflareStreamVideoMediaItem(item)) {
           return (
             <div className="back-card-media-trace back-card-media-trace--video" data-creator-pan-exempt key={item.id}>
-              <CloudflareStreamPlayer mediaItem={item} />
+              <StreamVideoReadinessPreview mediaItem={item} target={target} />
             </div>
           );
         }

@@ -450,6 +450,7 @@ function FocusedSignalRow({
 
 type BackCardFaceContentProps = {
   card: CardLayout;
+  deckTemplateId?: string;
   dateLabel: string;
   variant?: "focused" | "deck" | "preview";
   canMutate?: boolean;
@@ -462,6 +463,7 @@ type BackCardFaceContentProps = {
 
 export default function BackCardFaceContent({
   card,
+  deckTemplateId,
   dateLabel,
   variant = "focused",
   canMutate = true,
@@ -517,7 +519,12 @@ export default function BackCardFaceContent({
             Add media
           </button>
         ) : null}
-        <BackCardMediaTrace items={card.backMediaItems} />
+        {deckTemplateId ? (
+          <BackCardMediaTrace
+            items={card.backMediaItems}
+            target={{ scope: "user-card", deckTemplateId, cardId: card.id }}
+          />
+        ) : null}
         <section
           className={backSignalsClassName}
           aria-label="Reflective card signals"

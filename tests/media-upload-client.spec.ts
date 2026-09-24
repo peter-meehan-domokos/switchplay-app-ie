@@ -10,8 +10,11 @@ import {
   createImageDirectUploadRequestBody,
   createImageMediaItem,
   createStreamDirectUploadRequestBody,
+  createStreamVideoReadinessRequestUrl,
   createStreamVideoMediaItem,
 } from "@/lib/mediaUploadClient";
+import { deriveCloudflareStreamVideoStatus } from "@/lib/cloudflareStream";
+import { streamVideoReadinessPolling } from "@/components/media/useStreamVideoReadiness";
 
 const deckIntroductionTarget = {
   scope: "deck-introduction",
@@ -52,6 +55,35 @@ test("user-card video request body includes its scoped card target", () => {
     deckTemplateId: "deck-1",
     cardId: "card-3",
     originalFilename: "clip.mp4",
+  });
+});
+
+test("Stream readiness requests retain the target scope without exposing server credentials", () => {
+  expect(createStreamVideoReadinessRequestUrl(deckIntroductionTarget, "intro-video")).toBe(
+    "/api/media/stream/status?assetId=intro-video&deckTemplateId=deck-1&scope=deck-introduction",
+  );
+  expect(createStreamVideoReadinessRequestUrl(userCardTarget, "card-video")).toBe(
+    "/api/media/stream/status?assetId=card-video&deckTemplateId=deck-1&scope=user-card&cardId=card-3",
+  );
+});
+
+test("Cloudflare video details distinguish processing, ready, and permanent failure", () => {
+  expect(deriveCloudflareStreamVideoStatus({ success: true, result: { status: { state: "inprogress", pctComplete: 42 } } })).toEqual({
+    status: "processing",
+    progress: 42,
+  });
+  expect(deriveCloudflareStreamVideoStatus({ success: true, result: { readyToStream: true, status: { state: "ready" } } })).toEqual({
+    status: "ready",
+  });
+  expect(deriveCloudflareStreamVideoStatus({ success: true, result: { status: { state: "error" } } })).toEqual({
+    status: "failed",
+  });
+});
+
+test("Stream readiness polling has a bounded processing window", () => {
+  expect(streamVideoReadinessPolling).toEqual({
+    intervalMs: 3_000,
+    maxChecks: 40,
   });
 });
 
@@ -114,7 +146,19 @@ test("image and video busy and error state remain independent", () => {
     imageError: null,
     isImageUploading: true,
     isVideoUploading: false,
+    videoUploadStage: "idle",
     videoError: "Video failed.",
+  });
+});
+
+test("a successful video upload stays busy while its media item is being saved", () => {
+  const uploading = mediaUploadControllerReducer(initialMediaUploadControllerState, { type: "start", kind: "video" });
+  const saving = mediaUploadControllerReducer(uploading, { type: "saving", kind: "video" });
+
+  expect(saving).toMatchObject({
+    isVideoUploading: true,
+    videoError: null,
+    videoUploadStage: "saving",
   });
 });
 

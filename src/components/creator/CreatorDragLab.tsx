@@ -489,12 +489,14 @@ function getEditTargetKey(target: EditTarget) {
 
 function CreatorEditModal({
   canDeleteCard = false,
+  deckTemplateId,
   deckIntroductionImage,
   deckIntroductionImageMessage,
   deckIntroductionVideo,
   deckIntroductionVideoMessage,
   isDeckIntroImageUploading = false,
   isDeckIntroVideoUploading = false,
+  deckIntroductionVideoUploadStage = "idle",
   onClose,
   onDeleteCard,
   onRemoveDeckIntroductionImage,
@@ -504,12 +506,14 @@ function CreatorEditModal({
   session,
 }: {
   canDeleteCard?: boolean;
+  deckTemplateId: string;
   deckIntroductionImage: ImageMediaItem | null;
   deckIntroductionImageMessage?: string | null;
   deckIntroductionVideo: VideoMediaItem | null;
   deckIntroductionVideoMessage?: string | null;
   isDeckIntroImageUploading?: boolean;
   isDeckIntroVideoUploading?: boolean;
+  deckIntroductionVideoUploadStage?: "idle" | "saving" | "uploading";
   onClose: () => void;
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
@@ -698,6 +702,8 @@ function CreatorEditModal({
             onUploadVideo={onUploadDeckIntroductionVideo}
             video={deckIntroductionVideo}
             videoError={deckIntroductionVideoMessage}
+            videoReadinessTarget={{ scope: "deck-introduction", deckTemplateId }}
+            videoUploadStage={deckIntroductionVideoUploadStage}
           />
         ) : null}
         {showStepCounter ? (
@@ -2020,12 +2026,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {editSession ? (
         <CreatorEditModal
           canDeleteCard={canDeleteActiveCard}
+          deckTemplateId={board.deckTemplateId}
           deckIntroductionImage={board.deckIntroduction?.image ?? null}
           deckIntroductionImageMessage={deckIntroductionUpload.imageError}
           deckIntroductionVideo={board.deckIntroduction?.video ?? null}
           deckIntroductionVideoMessage={deckIntroductionUpload.videoError}
           isDeckIntroImageUploading={deckIntroductionUpload.isImageUploading}
           isDeckIntroVideoUploading={deckIntroductionUpload.isVideoUploading}
+          deckIntroductionVideoUploadStage={deckIntroductionUpload.videoUploadStage}
           key={getEditTargetKey(editSession.target)}
           session={editSession}
           onClose={() => setEditSession(null)}

@@ -18,6 +18,7 @@ export type UserCardMediaUploadState = {
   imageError: string | null;
   isImageUploading: boolean;
   isVideoUploading: boolean;
+  videoUploadStage: "idle" | "saving" | "uploading";
   videoError: string | null;
 };
 
@@ -39,7 +40,7 @@ type UserCardMediaUploadAction = {
   key: string;
   kind: UserCardMediaUploadKind;
   message?: string;
-  type: "clear-error" | "error" | "finish" | "start";
+  type: "clear-error" | "error" | "finish" | "saving" | "start";
 };
 
 type UserCardMediaUploadSession = {
@@ -56,6 +57,7 @@ export const initialUserCardMediaUploadState: UserCardMediaUploadState = {
   imageError: null,
   isImageUploading: false,
   isVideoUploading: false,
+  videoUploadStage: "idle",
   videoError: null,
 };
 
@@ -88,13 +90,16 @@ function updateUserCardMediaUploadState(
   }
 
   if (action.type === "start") {
-    return { ...state, isVideoUploading: true, videoError: null };
+    return { ...state, isVideoUploading: true, videoError: null, videoUploadStage: "uploading" };
   }
   if (action.type === "finish") {
-    return { ...state, isVideoUploading: false };
+    return { ...state, isVideoUploading: false, videoUploadStage: "idle" };
+  }
+  if (action.type === "saving") {
+    return { ...state, videoUploadStage: "saving" };
   }
   if (action.type === "error") {
-    return { ...state, videoError: action.message ?? "Unable to upload card video." };
+    return { ...state, videoError: action.message ?? "Unable to upload card video.", videoUploadStage: "idle" };
   }
   return { ...state, videoError: null };
 }
@@ -269,7 +274,7 @@ export function useKeyedUserCardMediaUploadController({
         return;
       }
 
-      finishSession(session);
+      dispatch({ key: session.key, kind: "video", type: "saving" });
       await onUploadCompleted({ file, kind: "video", mediaItem, target: session.target });
     } catch (error) {
       if (session.controller.signal.aborted || isAbortError(error)) {

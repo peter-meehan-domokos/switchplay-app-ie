@@ -48,6 +48,7 @@ import {
 
 type CardStackProps = {
   cards: CardLayout[];
+  deckTemplateId: string;
   activeCardIndex: number;
   isDeckFlipped: boolean;
   deckFlipRotationY: number;
@@ -291,6 +292,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
 
 export default function CardStack({
   cards,
+  deckTemplateId,
   activeCardIndex,
   isDeckFlipped,
   deckFlipRotationY,
@@ -327,6 +329,7 @@ export default function CardStack({
             <DeckCard
               key={card.id}
               card={card}
+              deckTemplateId={deckTemplateId}
               isDeckFlipped={isDeckFlipped}
               deckFlipRotationY={deckFlipRotationY}
               stackZone={baseStackStyle.zone}

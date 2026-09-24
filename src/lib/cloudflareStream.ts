@@ -20,10 +20,27 @@ type CloudflareDirectUploadResponse = {
   };
 };
 
+type CloudflareVideoDetailsResponse = {
+  success?: boolean;
+  errors?: CloudflareStreamError[];
+  result?: {
+    readyToStream?: boolean;
+    status?: {
+      pctComplete?: number;
+      state?: string;
+    };
+  };
+};
+
 export type StreamDirectUpload = {
   uid: string;
   uploadURL: string;
   maxDurationSeconds: number;
+};
+
+export type CloudflareStreamVideoStatus = {
+  progress?: number;
+  status: "failed" | "processing" | "ready";
 };
 
 export class CloudflareStreamConfigError extends Error {
@@ -64,7 +81,7 @@ function getCloudflareStreamConfig(): CloudflareStreamConfig {
   return { accountId, apiToken, customerCode };
 }
 
-function getCloudflareErrorMessage(responseBody: CloudflareDirectUploadResponse) {
+function getCloudflareErrorMessage(responseBody: Pick<CloudflareDirectUploadResponse, "errors">) {
   return responseBody.errors?.find((error) => error.message)?.message ?? "Cloudflare Stream direct upload creation failed.";
 }
 
@@ -110,4 +127,56 @@ export async function createCloudflareStreamDirectUpload({
   }
 
   return assertDirectUploadResponse(responseBody);
+}
+
+export function deriveCloudflareStreamVideoStatus(responseBody: CloudflareVideoDetailsResponse): CloudflareStreamVideoStatus {
+  const result = responseBody.result;
+
+  if (!result) {
+    throw new CloudflareStreamApiError("Cloudflare Stream returned an invalid video-status response.", 502);
+  }
+
+  const streamState = result.status?.state;
+  const pctComplete = result.status?.pctComplete;
+  const progress = typeof pctComplete === "number" && Number.isFinite(pctComplete)
+    ? Math.max(0, Math.min(100, pctComplete))
+    : undefined;
+
+  if (result.readyToStream === true || streamState === "ready") {
+    return { status: "ready" };
+  }
+
+  if (streamState === "error") {
+    return { status: "failed" };
+  }
+
+  return progress === undefined ? { status: "processing" } : { status: "processing", progress };
+}
+
+export async function getCloudflareStreamVideoStatus(uid: string): Promise<CloudflareStreamVideoStatus> {
+  const streamUid = uid.trim();
+
+  if (!streamUid) {
+    throw new CloudflareStreamApiError("Cloudflare Stream video uid is required.", 400);
+  }
+
+  const { accountId, apiToken } = getCloudflareStreamConfig();
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/stream/${encodeURIComponent(streamUid)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+      },
+    },
+  );
+  const responseBody = await response.json().catch(() => null) as CloudflareVideoDetailsResponse | null;
+
+  if (!response.ok || !responseBody?.success) {
+    throw new CloudflareStreamApiError(
+      responseBody ? getCloudflareErrorMessage(responseBody) : "Cloudflare Stream returned a non-JSON video-status response.",
+      response.status,
+    );
+  }
+
+  return deriveCloudflareStreamVideoStatus(responseBody);
 }

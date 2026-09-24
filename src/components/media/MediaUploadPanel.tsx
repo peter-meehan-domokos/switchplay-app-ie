@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, type ChangeEvent } from "react";
-import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
+import StreamVideoReadinessPreview from "@/components/media/StreamVideoReadinessPreview";
 import type { ImageMediaItem, VideoMediaItem } from "@/lib/media";
 import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
-import { clearSelectedFileInput } from "@/lib/mediaUploadClient";
+import { clearSelectedFileInput, type MediaUploadTarget } from "@/lib/mediaUploadClient";
 
 type MediaUploadPanelProps = {
   image: ImageMediaItem | null;
@@ -18,6 +18,8 @@ type MediaUploadPanelProps = {
   video: VideoMediaItem | null;
   videoError?: string | null;
   videoHeading?: string;
+  videoReadinessTarget?: MediaUploadTarget;
+  videoUploadStage?: "idle" | "saving" | "uploading";
 };
 
 export default function MediaUploadPanel({
@@ -32,11 +34,14 @@ export default function MediaUploadPanel({
   video,
   videoError,
   videoHeading = "Intro video",
+  videoReadinessTarget,
+  videoUploadStage = "idle",
 }: MediaUploadPanelProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const hasVideo = video !== null;
   const streamVideo = isCloudflareStreamVideoMediaItem(video) ? video : null;
+  const videoUploadLabel = videoUploadStage === "saving" ? "Saving video…" : "Uploading video…";
 
   function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
     const selectedFile = event.currentTarget.files?.[0] ?? null;
@@ -97,9 +102,13 @@ export default function MediaUploadPanel({
       <section className="creator-deck-introduction-section">
         <h2>{videoHeading}</h2>
         <div className="creator-deck-introduction-video-shell">
-          {streamVideo ? (
+          {isVideoUploading ? (
+            <div className="creator-deck-introduction-placeholder" aria-live="polite" aria-label="Video upload status">
+              <span>{videoUploadLabel}</span>
+            </div>
+          ) : streamVideo && !videoError && videoReadinessTarget ? (
             <div className="creator-deck-introduction-video-preview" data-creator-pan-exempt>
-              <CloudflareStreamPlayer mediaItem={streamVideo} />
+              <StreamVideoReadinessPreview key={streamVideo.assetId} mediaItem={streamVideo} target={videoReadinessTarget} />
             </div>
           ) : (
             <div className="creator-deck-introduction-placeholder" aria-label="Intro video upload placeholder">
@@ -121,7 +130,7 @@ export default function MediaUploadPanel({
               onClick={() => videoInputRef.current?.click()}
               type="button"
             >
-              {hasVideo ? "Replace video" : isVideoUploading ? "Uploading..." : "Add video"}
+              {isVideoUploading ? videoUploadLabel : hasVideo ? "Replace video" : "Add video"}
             </button>
           </div>
           {videoError ? <p className="creator-modal-error">{videoError}</p> : null}

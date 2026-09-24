@@ -73,6 +73,18 @@ test("upload errors are isolated by card", () => {
   expect(getUserCardMediaUploadState(states, cardBTarget).videoError).toBeNull();
 });
 
+test("card-A saving state remains isolated from card B", () => {
+  const cardAKey = createUserCardMediaUploadKey(cardATarget);
+  const uploading = userCardMediaUploadStateReducer({}, { key: cardAKey, kind: "video", type: "start" });
+  const states = userCardMediaUploadStateReducer(uploading, { key: cardAKey, kind: "video", type: "saving" });
+
+  expect(getUserCardMediaUploadState(states, cardATarget)).toMatchObject({
+    isVideoUploading: true,
+    videoUploadStage: "saving",
+  });
+  expect(getUserCardMediaUploadState(states, cardBTarget)).toEqual(initialUserCardMediaUploadState);
+});
+
 test("same-card same-type replacement aborts only the earlier card-A session", () => {
   const sessionStore = new UserCardMediaUploadSessionStore();
   const firstCardASession = sessionStore.replace(cardATarget, "video");
