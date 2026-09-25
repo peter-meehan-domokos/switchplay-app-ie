@@ -3,14 +3,13 @@ import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
 import {
   createCardMediaAppendRequestBody,
   createCardMediaRemovalRequestBody,
-  createCardMediaUpsertRequestBody,
 } from "@/lib/deckMutations";
 import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem, MediaItem } from "@/lib/media";
 import {
   appendUserCardMediaItem,
   removeUserCardMediaItem,
+  selectAllModernUserCardMediaItems,
   selectVisibleUserCardMediaItems,
-  upsertUserCardMediaItem,
   validateUserCardMediaItem,
 } from "@/lib/userCardMedia";
 
@@ -70,37 +69,7 @@ test("an owner-scoped modern image is accepted and can be added", () => {
   const validation = validateUserCardMediaItem(image, context, createImagePublicUrl);
 
   expect(validation).toEqual({ ok: true, mediaItem: image });
-  expect(upsertUserCardMediaItem([], image)).toEqual([image]);
-});
-
-test("same-type replacement removes every old image and keeps the video slot", () => {
-  const legacyImage = {
-    id: "legacy-image",
-    description: "Legacy image",
-    mediaType: "image",
-    src: "/legacy/image.png",
-  } as const;
-  const oldModernImage = { ...image, id: "image-old", assetId: `${imageAssetId}.old`, src: `${imagePublicUrl}.old` };
-  const nextItems = upsertUserCardMediaItem([legacyImage, oldModernImage, video], image);
-
-  expect(nextItems).toEqual([video, image]);
-  expect(nextItems.filter((item) => item.mediaType === "image")).toHaveLength(1);
-});
-
-test("video replacement leaves no hidden duplicate", () => {
-  const olderVideo = { ...video, id: "stream-older", assetId: "older", src: "https://iframe.videodelivery.net/older" };
-  const nextItems = upsertUserCardMediaItem([image, olderVideo, video], video);
-
-  expect(nextItems).toEqual([image, video]);
-  expect(nextItems.filter((item) => item.mediaType === "video")).toHaveLength(1);
-});
-
-test("concurrent image and video upserts retain both media items in either completion order", () => {
-  const imageThenVideo = upsertUserCardMediaItem(upsertUserCardMediaItem([], image), video);
-  const videoThenImage = upsertUserCardMediaItem(upsertUserCardMediaItem([], video), image);
-
-  expect(imageThenVideo).toEqual([image, video]);
-  expect(videoThenImage).toEqual([video, image]);
+  expect(appendUserCardMediaItem([], image)).toEqual([image]);
 });
 
 test("append preserves three images on the same card", () => {
@@ -187,6 +156,7 @@ test("independent card appends preserve both card media arrays", () => {
 
 test("removal filters by media-item id without touching the provider asset", () => {
   expect(removeUserCardMediaItem([image, video], image.id)).toEqual([video]);
+  expect(removeUserCardMediaItem([image, video], video.id)).toEqual([image]);
 });
 
 test("foreign image paths and mismatched public URLs are rejected", () => {
@@ -222,11 +192,6 @@ test("Stream persistence requires the conventional id and iframe URL", () => {
 });
 
 test("card media request bodies use explicit mutation types", () => {
-  expect(createCardMediaUpsertRequestBody("card-003", image)).toEqual({
-    type: "upsert-card-media",
-    cardId: "card-003",
-    mediaItem: image,
-  });
   expect(createCardMediaAppendRequestBody("card-003", image)).toEqual({
     type: "append-card-media",
     cardId: "card-003",
@@ -259,6 +224,10 @@ test("visible card media includes modern R2 and Stream items only", () => {
 
   expect(selectVisibleUserCardMediaItems([...unsupportedItems, image, video])).toEqual([image, video]);
   expect(selectVisibleUserCardMediaItems(unsupportedItems)).toEqual([]);
+  expect(selectAllModernUserCardMediaItems([...unsupportedItems, image, video, image, video])).toEqual({
+    images: [image, image],
+    videos: [video, video],
+  });
 });
 
 test("the media renderer reserves no region when there is no modern media", () => {

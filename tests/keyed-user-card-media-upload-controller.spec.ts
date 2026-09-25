@@ -52,7 +52,7 @@ test("returning to card A exposes its continuing upload state", () => {
 
 test("a completion session retains card A even while card B is visible", () => {
   const sessionStore = new UserCardMediaUploadSessionStore();
-  const cardASession = sessionStore.replace(cardATarget, "video");
+  const cardASession = sessionStore.start(cardATarget, "video")!;
   const visibleTarget = cardBTarget;
 
   expect(sessionStore.isActive(cardASession)).toBe(true);
@@ -85,24 +85,48 @@ test("card-A saving state remains isolated from card B", () => {
   expect(getUserCardMediaUploadState(states, cardBTarget)).toEqual(initialUserCardMediaUploadState);
 });
 
-test("same-card same-type replacement aborts only the earlier card-A session", () => {
+test("same-card same-type start is prevented without aborting the earlier session", () => {
   const sessionStore = new UserCardMediaUploadSessionStore();
-  const firstCardASession = sessionStore.replace(cardATarget, "video");
-  const replacementCardASession = sessionStore.replace(cardATarget, "video");
+  const firstCardASession = sessionStore.start(cardATarget, "video")!;
+  const secondCardASession = sessionStore.start(cardATarget, "video");
 
-  expect(firstCardASession.controller.signal.aborted).toBe(true);
-  expect(sessionStore.isActive(firstCardASession)).toBe(false);
-  expect(sessionStore.isActive(replacementCardASession)).toBe(true);
+  expect(secondCardASession).toBeNull();
+  expect(firstCardASession.controller.signal.aborted).toBe(false);
+  expect(sessionStore.isActive(firstCardASession)).toBe(true);
+  expect(sessionStore.finish(firstCardASession)).toBe(true);
+  expect(sessionStore.start(cardATarget, "video")).not.toBeNull();
 });
 
 test("same-type sessions on different cards do not abort one another", () => {
   const sessionStore = new UserCardMediaUploadSessionStore();
-  const cardASession = sessionStore.replace(cardATarget, "video");
-  const cardBSession = sessionStore.replace(cardBTarget, "video");
+  const cardASession = sessionStore.start(cardATarget, "video")!;
+  const cardBSession = sessionStore.start(cardBTarget, "video")!;
 
   expect(cardASession.controller.signal.aborted).toBe(false);
   expect(sessionStore.isActive(cardASession)).toBe(true);
   expect(sessionStore.isActive(cardBSession)).toBe(true);
+});
+
+test("one card can upload image and video independently while both remain busy through saving", () => {
+  const sessionStore = new UserCardMediaUploadSessionStore();
+  const imageSession = sessionStore.start(cardATarget, "image")!;
+  const videoSession = sessionStore.start(cardATarget, "video")!;
+  const key = createUserCardMediaUploadKey(cardATarget);
+  const imageUploading = userCardMediaUploadStateReducer({}, { key, kind: "image", type: "start" });
+  const bothUploading = userCardMediaUploadStateReducer(imageUploading, { key, kind: "video", type: "start" });
+  const imageSaving = userCardMediaUploadStateReducer(bothUploading, { key, kind: "image", type: "saving" });
+  const bothSaving = userCardMediaUploadStateReducer(imageSaving, { key, kind: "video", type: "saving" });
+
+  expect(bothSaving[key]).toMatchObject({
+    isImageUploading: true,
+    imageUploadStage: "saving",
+    isVideoUploading: true,
+    videoUploadStage: "saving",
+  });
+  expect(sessionStore.start(cardATarget, "image")).toBeNull();
+  expect(sessionStore.start(cardATarget, "video")).toBeNull();
+  expect(sessionStore.isActive(imageSession)).toBe(true);
+  expect(sessionStore.isActive(videoSession)).toBe(true);
 });
 
 test("the creator controller remains a single-target same-type replacement controller", () => {

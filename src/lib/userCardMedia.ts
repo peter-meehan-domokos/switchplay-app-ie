@@ -89,16 +89,6 @@ export function validateUserCardMediaItem(
   return { ok: false, error: "mediaItem must be a modern R2 image or Cloudflare Stream video." };
 }
 
-export function upsertUserCardMediaItem(
-  mediaItems: MediaItem[],
-  mediaItem: ModernUserCardMediaItem,
-): MediaItem[] {
-  return [
-    ...mediaItems.filter((existingItem) => existingItem.mediaType !== mediaItem.mediaType),
-    mediaItem,
-  ];
-}
-
 export function appendUserCardMediaItem(
   mediaItems: MediaItem[],
   mediaItem: ModernUserCardMediaItem,
@@ -112,6 +102,13 @@ export function appendUserCardMediaItem(
 
 export function removeUserCardMediaItem(mediaItems: MediaItem[], mediaItemId: string): MediaItem[] {
   return mediaItems.filter((mediaItem) => mediaItem.id !== mediaItemId);
+}
+
+export function selectAllModernUserCardMediaItems(mediaItems: MediaItem[]) {
+  return {
+    images: mediaItems.filter(isCloudflareR2ImageMediaItem),
+    videos: mediaItems.filter(isCloudflareStreamVideoMediaItem),
+  };
 }
 
 export function selectVisibleUserCardMediaItems(mediaItems: MediaItem[]): ModernUserCardMediaItem[] {

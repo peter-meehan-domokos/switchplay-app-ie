@@ -16,6 +16,7 @@ export type UserCardMediaUploadKind = "image" | "video";
 
 export type UserCardMediaUploadState = {
   imageError: string | null;
+  imageUploadStage: "idle" | "saving" | "uploading";
   isImageUploading: boolean;
   isVideoUploading: boolean;
   videoUploadStage: "idle" | "saving" | "uploading";
@@ -55,6 +56,7 @@ type UserCardMediaUploadSessionSlots = Partial<Record<UserCardMediaUploadKind, U
 
 export const initialUserCardMediaUploadState: UserCardMediaUploadState = {
   imageError: null,
+  imageUploadStage: "idle",
   isImageUploading: false,
   isVideoUploading: false,
   videoUploadStage: "idle",
@@ -78,13 +80,16 @@ function updateUserCardMediaUploadState(
 ): UserCardMediaUploadState {
   if (action.kind === "image") {
     if (action.type === "start") {
-      return { ...state, imageError: null, isImageUploading: true };
+      return { ...state, imageError: null, imageUploadStage: "uploading", isImageUploading: true };
+    }
+    if (action.type === "saving") {
+      return { ...state, imageUploadStage: "saving" };
     }
     if (action.type === "finish") {
-      return { ...state, isImageUploading: false };
+      return { ...state, imageUploadStage: "idle", isImageUploading: false };
     }
     if (action.type === "error") {
-      return { ...state, imageError: action.message ?? "Unable to upload card image." };
+      return { ...state, imageError: action.message ?? "Unable to upload card image.", imageUploadStage: "idle" };
     }
     return { ...state, imageError: null };
   }
@@ -119,12 +124,14 @@ export function userCardMediaUploadStateReducer(
 export class UserCardMediaUploadSessionStore {
   private readonly sessionsByKey = new Map<string, UserCardMediaUploadSessionSlots>();
 
-  replace(target: UserCardMediaUploadTarget, kind: UserCardMediaUploadKind) {
+  start(target: UserCardMediaUploadTarget, kind: UserCardMediaUploadKind) {
     const immutableTarget = { ...target };
     const key = createUserCardMediaUploadKey(immutableTarget);
     const slots = this.sessionsByKey.get(key) ?? {};
 
-    slots[kind]?.controller.abort();
+    if (slots[kind]) {
+      return null;
+    }
 
     const session: UserCardMediaUploadSession = {
       controller: new AbortController(),
@@ -215,7 +222,7 @@ export function useKeyedUserCardMediaUploadController({
       return;
     }
 
-    const session = sessionStoreRef.current?.replace(target, "image");
+    const session = sessionStoreRef.current?.start(target, "image");
 
     if (!session) {
       return;
@@ -231,8 +238,12 @@ export function useKeyedUserCardMediaUploadController({
         return;
       }
 
-      finishSession(session);
-      await onUploadCompleted({ file, kind: "image", mediaItem, target: session.target });
+      dispatch({ key: session.key, kind: "image", type: "saving" });
+      try {
+        await onUploadCompleted({ file, kind: "image", mediaItem, target: session.target });
+      } catch (error) {
+        throw new Error(`Image uploaded, but could not be saved. ${error instanceof Error ? error.message : "Please try again."}`);
+      }
     } catch (error) {
       if (session.controller.signal.aborted || isAbortError(error)) {
         return;
@@ -258,7 +269,7 @@ export function useKeyedUserCardMediaUploadController({
       return;
     }
 
-    const session = sessionStoreRef.current?.replace(target, "video");
+    const session = sessionStoreRef.current?.start(target, "video");
 
     if (!session) {
       return;
@@ -275,7 +286,11 @@ export function useKeyedUserCardMediaUploadController({
       }
 
       dispatch({ key: session.key, kind: "video", type: "saving" });
-      await onUploadCompleted({ file, kind: "video", mediaItem, target: session.target });
+      try {
+        await onUploadCompleted({ file, kind: "video", mediaItem, target: session.target });
+      } catch (error) {
+        throw new Error(`Video uploaded, but could not be saved. ${error instanceof Error ? error.message : "Please try again."}`);
+      }
     } catch (error) {
       if (session.controller.signal.aborted || isAbortError(error)) {
         return;

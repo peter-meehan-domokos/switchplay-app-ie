@@ -18,6 +18,87 @@ export type StreamVideoReadinessState =
 const POLL_INTERVAL_MS = 3_000;
 const MAX_PROCESSING_CHECKS = 40;
 
+type ReadinessPollerOptions = {
+  cancelScheduled?: (timeoutId: number) => void;
+  requestStatus?: typeof requestStreamVideoReadiness;
+  schedule?: (callback: () => void, delayMs: number) => number;
+};
+
+export function startStreamVideoReadinessPolling(
+  target: MediaUploadTarget,
+  assetId: string,
+  onState: (state: StreamVideoReadinessState) => void,
+  options: ReadinessPollerOptions = {},
+) {
+  const controller = new AbortController();
+  const requestStatus = options.requestStatus ?? requestStreamVideoReadiness;
+  const schedule = options.schedule ?? ((callback: () => void, delayMs: number) => window.setTimeout(callback, delayMs));
+  const cancelScheduled = options.cancelScheduled ?? ((timeoutId: number) => window.clearTimeout(timeoutId));
+  let timeoutId: number | null = null;
+  let isDisposed = false;
+  let checks = 0;
+
+  const scheduleNextCheck = () => {
+    timeoutId = schedule(() => {
+      void checkStatus();
+    }, POLL_INTERVAL_MS);
+  };
+
+  const checkStatus = async () => {
+    try {
+      const result = await requestStatus(target, assetId, controller.signal);
+
+      if (isDisposed) {
+        return;
+      }
+
+      if (result.status === "ready" || result.status === "failed") {
+        onState({ status: result.status });
+        return;
+      }
+
+      checks += 1;
+
+      if (checks >= MAX_PROCESSING_CHECKS) {
+        onState({ status: "waiting" });
+        return;
+      }
+
+      onState(result.progress === undefined ? { status: "processing" } : { progress: result.progress, status: "processing" });
+      scheduleNextCheck();
+    } catch (error) {
+      if (isDisposed || controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+
+      if (error instanceof StreamVideoReadinessRequestError && !error.retryable) {
+        onState({ status: "unavailable" });
+        return;
+      }
+
+      checks += 1;
+
+      if (checks >= MAX_PROCESSING_CHECKS) {
+        onState({ status: "waiting" });
+        return;
+      }
+
+      onState({ status: "processing" });
+      scheduleNextCheck();
+    }
+  };
+
+  void checkStatus();
+
+  return () => {
+    isDisposed = true;
+    controller.abort();
+    if (timeoutId !== null) {
+      cancelScheduled(timeoutId);
+    }
+  };
+}
+
 function getUserCardId(target: MediaUploadTarget) {
   return target.scope === "user-card" ? target.cardId : null;
 }
@@ -45,70 +126,7 @@ export function useStreamVideoReadiness(target: MediaUploadTarget, assetId: stri
       return;
     }
 
-    const controller = new AbortController();
-    let timeoutId: number | null = null;
-    let isDisposed = false;
-    let checks = 0;
-
-    const scheduleNextCheck = () => {
-      timeoutId = window.setTimeout(() => {
-        void checkStatus();
-      }, POLL_INTERVAL_MS);
-    };
-
-    const checkStatus = async () => {
-      try {
-        const result = await requestStreamVideoReadiness(stableTarget, assetId, controller.signal);
-
-        if (isDisposed) {
-          return;
-        }
-
-        if (result.status === "ready" || result.status === "failed") {
-          setState({ status: result.status });
-          return;
-        }
-
-        checks += 1;
-
-        if (checks >= MAX_PROCESSING_CHECKS) {
-          setState({ status: "waiting" });
-          return;
-        }
-
-        setState(result.progress === undefined ? { status: "processing" } : { progress: result.progress, status: "processing" });
-        scheduleNextCheck();
-      } catch (error) {
-        if (isDisposed || controller.signal.aborted || isAbortError(error)) {
-          return;
-        }
-
-        if (error instanceof StreamVideoReadinessRequestError && !error.retryable) {
-          setState({ status: "unavailable" });
-          return;
-        }
-
-        checks += 1;
-
-        if (checks >= MAX_PROCESSING_CHECKS) {
-          setState({ status: "waiting" });
-          return;
-        }
-
-        setState({ status: "processing" });
-        scheduleNextCheck();
-      }
-    };
-
-    void checkStatus();
-
-    return () => {
-      isDisposed = true;
-      controller.abort();
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
+    return startStreamVideoReadinessPolling(stableTarget, assetId, setState);
   }, [assetId, attempt, enabled, stableTarget]);
 
   return { retry, state };

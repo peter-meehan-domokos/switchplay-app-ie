@@ -29,7 +29,7 @@ import {
 import {
   persistActiveCardId,
   createSharedCardComment,
-  persistCardMediaItem,
+  appendCardMediaItem,
   persistCardReflection,
   persistCardTargetDate,
   persistSignalReading,
@@ -41,7 +41,7 @@ import { normalizeCompletionStatus } from "@/lib/progress";
 import { roundSignalReadingForStorage } from "@/lib/signals";
 import type { MediaItem } from "@/lib/media";
 import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
-import { removeUserCardMediaItem, upsertUserCardMediaItem } from "@/lib/userCardMedia";
+import { UserCardMediaMutationQueue } from "@/lib/userCardMediaMutationQueue";
 
 type DeckDetailProps = {
   deck: DeckLayout;
@@ -173,6 +173,11 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   // This avoids missed persistence updates and prepares the interaction for future
   // long-press acceleration.
   const cardsRef = useRef(cards);
+  const cardMediaMutationQueueRef = useRef<UserCardMediaMutationQueue | null>(null);
+
+  if (cardMediaMutationQueueRef.current === null) {
+    cardMediaMutationQueueRef.current = new UserCardMediaMutationQueue();
+  }
   const [activeCardIndex, setActiveCardIndex] = useState(() => {
     const initialCardIndex = deck.cards.findIndex((card) => card.id === deck.activeCardId);
     return initialCardIndex >= 0 ? initialCardIndex : 0;
@@ -589,14 +594,16 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
   const applyConfirmedCardMedia = (
     cardId: string,
-    updateMediaItems: (mediaItems: MediaItem[]) => MediaItem[],
+    mediaItems: MediaItem[],
   ) => {
     const nextCards = cardsRef.current.map((card) =>
-      card.id === cardId ? withCardMediaItems(card, updateMediaItems(card.mediaItems)) : card,
+      card.id === cardId ? withCardMediaItems(card, mediaItems) : card,
     );
 
     cardsRef.current = nextCards;
-    setCards(nextCards);
+    setCards((currentCards) => currentCards.map((card) =>
+      card.id === cardId ? withCardMediaItems(card, mediaItems) : card,
+    ));
   };
   const commitFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => {
     if (!deck.canMutate || !deck.hasUserDeckData) {
@@ -607,16 +614,34 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       throw new Error("Unable to save media for this deck.");
     }
 
-    await persistCardMediaItem(target.deckTemplateId, target.cardId, mediaItem);
-    applyConfirmedCardMedia(target.cardId, (mediaItems) => upsertUserCardMediaItem(mediaItems, mediaItem));
+    await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
+      const result = await appendCardMediaItem(target.deckTemplateId, target.cardId, mediaItem);
+
+      if (result.deckTemplateId !== target.deckTemplateId || result.cardId !== target.cardId) {
+        throw new Error("Card media was saved to an unexpected card.");
+      }
+
+      applyConfirmedCardMedia(target.cardId, result.mediaItems);
+    });
   };
-  const removeFocusedCardMedia = async (cardId: string, mediaItemId: string) => {
+  const removeFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItemId: string) => {
     if (!deck.canMutate || !deck.hasUserDeckData) {
       throw new Error("Unable to remove media from this deck.");
     }
 
-    await removeCardMediaItem(deck.deckTemplateId, cardId, mediaItemId);
-    applyConfirmedCardMedia(cardId, (mediaItems) => removeUserCardMediaItem(mediaItems, mediaItemId));
+    if (target.deckTemplateId !== deck.deckTemplateId) {
+      throw new Error("Unable to remove media from this deck.");
+    }
+
+    await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
+      const result = await removeCardMediaItem(target.deckTemplateId, target.cardId, mediaItemId);
+
+      if (result.deckTemplateId !== target.deckTemplateId || result.cardId !== target.cardId) {
+        throw new Error("Card media was removed from an unexpected card.");
+      }
+
+      applyConfirmedCardMedia(target.cardId, result.mediaItems);
+    });
   };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;

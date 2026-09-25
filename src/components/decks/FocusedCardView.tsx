@@ -8,9 +8,8 @@ import CloudflareHlsVideoPlayer, {
   type CloudflareHlsVideoPlayerHandle,
   type VideoPlaybackIntent,
 } from "@/components/media/CloudflareHlsVideoPlayer";
-import MediaUploadPanel from "@/components/media/MediaUploadPanel";
+import UserCardMediaUploadPanel, { type UserCardMediaRemovalState } from "@/components/media/UserCardMediaUploadPanel";
 import {
-  createUserCardMediaUploadKey,
   useKeyedUserCardMediaUploadController,
   type CompletedUserCardMediaUpload,
   type UserCardMediaUploadTarget,
@@ -20,13 +19,13 @@ import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import {
-  isCloudflareR2ImageMediaItem,
   isCloudflareStreamVideoMediaItem,
   isKnownLandscapeCloudflareStreamVideoMediaItem,
   isKnownPortraitCloudflareStreamVideoMediaItem,
   type MediaItem,
 } from "@/lib/media";
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { selectAllModernUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { createUserCardMediaMutationKey } from "@/lib/userCardMediaMutationQueue";
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 import {
   CARD_ASPECT_RATIO,
@@ -55,7 +54,7 @@ type FocusedCardViewProps = {
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
   onCommitCardMedia?: (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => Promise<void>;
-  onRemoveCardMedia?: (cardId: string, mediaItemId: string) => Promise<void>;
+  onRemoveCardMedia?: (target: UserCardMediaUploadTarget, mediaItemId: string) => Promise<void>;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
@@ -78,11 +77,6 @@ type StepViewState = {
 
 type ReflectionEditorState = {
   cardId: string;
-};
-
-type CardMediaRemovalState = {
-  error: string | null;
-  isRemoving: boolean;
 };
 
 type VideoHostRect = {
@@ -247,7 +241,8 @@ export default function FocusedCardView({
   const [reflectionEditorError, setReflectionEditorError] = useState<string | null>(null);
   const [isSavingReflection, setIsSavingReflection] = useState(false);
   const [mediaEditorCardId, setMediaEditorCardId] = useState<string | null>(null);
-  const [mediaRemovalStatesByKey, setMediaRemovalStatesByKey] = useState<Record<string, CardMediaRemovalState>>({});
+  const [mediaRemovalStatesByKey, setMediaRemovalStatesByKey] = useState<Record<string, UserCardMediaRemovalState>>({});
+  const mediaRemovalInFlightKeysRef = useRef(new Set<string>());
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
@@ -306,7 +301,6 @@ export default function FocusedCardView({
     () => ({ scope: "user-card" as const, deckTemplateId, cardId: card.id }),
     [card.id, deckTemplateId],
   );
-  const mediaUploadKey = createUserCardMediaUploadKey(mediaUploadTarget);
   const commitCompletedMediaUpload = useCallback(
     async ({ mediaItem, target }: CompletedUserCardMediaUpload) => {
       if (!onCommitCardMedia) {
@@ -318,30 +312,16 @@ export default function FocusedCardView({
     [onCommitCardMedia],
   );
   const mediaUploadController = useKeyedUserCardMediaUploadController({
-    onUploadStarted: (target, kind) => {
-      if (kind === "image") {
-        const key = createUserCardMediaUploadKey(target);
-
-        setMediaRemovalStatesByKey((currentStates) => {
-          const currentState = currentStates[key];
-
-          if (!currentState?.error) {
-            return currentStates;
-          }
-
-          return {
-            ...currentStates,
-            [key]: { ...currentState, error: null },
-          };
-        });
-      }
-    },
     onUploadCompleted: commitCompletedMediaUpload,
   });
   const mediaUploadState = mediaUploadController.getState(mediaUploadTarget);
-  const mediaRemovalState = mediaRemovalStatesByKey[mediaUploadKey] ?? { error: null, isRemoving: false };
-  const cardImage = card.backMediaItems.find(isCloudflareR2ImageMediaItem) ?? null;
-  const cardVideo = card.backMediaItems.find(isCloudflareStreamVideoMediaItem) ?? null;
+  const { images: cardImages, videos: cardVideos } = selectAllModernUserCardMediaItems(card.mediaItems);
+  const removalStatesById = Object.fromEntries(
+    [...cardImages, ...cardVideos].map((item) => [
+      item.id,
+      mediaRemovalStatesByKey[`${createUserCardMediaMutationKey(mediaUploadTarget)}:${encodeURIComponent(item.id)}`],
+    ]),
+  );
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
   const focusedCardTransition: Transition = {
@@ -459,29 +439,23 @@ export default function FocusedCardView({
     }
 
     setMediaEditorCardId(cardId);
-    setMediaRemovalStatesByKey((currentStates) => {
-      const currentState = currentStates[mediaUploadKey];
-
-      if (!currentState?.error) {
-        return currentStates;
-      }
-
-      return {
-        ...currentStates,
-        [mediaUploadKey]: { ...currentState, error: null },
-      };
-    });
   };
   const closeMediaEditor = () => {
     setMediaEditorCardId(null);
   };
-  const removeCardImage = async () => {
-    if (!cardImage || !onRemoveCardMedia) {
+  const removeCardMedia = async (item: ModernUserCardMediaItem) => {
+    if (!onRemoveCardMedia) {
       return;
     }
 
-    const target = mediaUploadTarget;
-    const key = createUserCardMediaUploadKey(target);
+    const target = { ...mediaUploadTarget };
+    const key = `${createUserCardMediaMutationKey(target)}:${encodeURIComponent(item.id)}`;
+
+    if (mediaRemovalInFlightKeysRef.current.has(key)) {
+      return;
+    }
+
+    mediaRemovalInFlightKeysRef.current.add(key);
 
     setMediaRemovalStatesByKey((currentStates) => ({
       ...currentStates,
@@ -489,23 +463,22 @@ export default function FocusedCardView({
     }));
 
     try {
-      await onRemoveCardMedia(target.cardId, cardImage.id);
+      await onRemoveCardMedia(target, item.id);
+      setMediaRemovalStatesByKey((currentStates) => {
+        const nextStates = { ...currentStates };
+        delete nextStates[key];
+        return nextStates;
+      });
     } catch (error) {
       setMediaRemovalStatesByKey((currentStates) => ({
         ...currentStates,
         [key]: {
-          error: error instanceof Error ? error.message : "Unable to remove card image.",
+          error: error instanceof Error ? error.message : "Unable to remove card media.",
           isRemoving: false,
         },
       }));
     } finally {
-      setMediaRemovalStatesByKey((currentStates) => ({
-        ...currentStates,
-        [key]: {
-          error: currentStates[key]?.error ?? null,
-          isRemoving: false,
-        },
-      }));
+      mediaRemovalInFlightKeysRef.current.delete(key);
     }
   };
   const stopMediaEditorGesturePropagation = (event: PointerEvent<HTMLDivElement>) => {
@@ -1008,20 +981,15 @@ export default function FocusedCardView({
                   Close
                 </button>
               </header>
-              <MediaUploadPanel
-                image={cardImage}
-                imageError={mediaUploadState.imageError ?? mediaRemovalState.error}
-                imageHeading="Image"
-                isImageUploading={mediaUploadState.isImageUploading || mediaRemovalState.isRemoving}
-                isVideoUploading={mediaUploadState.isVideoUploading}
-                onRemoveImage={() => void removeCardImage()}
-                onUploadImage={(file) => void mediaUploadController.uploadImage(mediaUploadTarget, file)}
-                onUploadVideo={(file) => void mediaUploadController.uploadVideo(mediaUploadTarget, file)}
-                video={cardVideo}
-                videoError={mediaUploadState.videoError}
-                videoHeading="Video"
-                videoReadinessTarget={mediaUploadTarget}
-                videoUploadStage={mediaUploadState.videoUploadStage}
+              <UserCardMediaUploadPanel
+                images={cardImages}
+                videos={cardVideos}
+                target={mediaUploadTarget}
+                uploadState={mediaUploadState}
+                removalStatesById={removalStatesById}
+                onAddImage={(file) => void mediaUploadController.uploadImage(mediaUploadTarget, file)}
+                onAddVideo={(file) => void mediaUploadController.uploadVideo(mediaUploadTarget, file)}
+                onRemoveMedia={(item) => void removeCardMedia(item)}
               />
             </div>
           </motion.div>

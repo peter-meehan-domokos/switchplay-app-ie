@@ -116,7 +116,6 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     // - cardId + signalId + reading
     // - type: "record-open"
     // - type: "update-card-reflection" + cardId + reflection
-    // - type: "upsert-card-media" + cardId + mediaItem
     // - type: "append-card-media" + cardId + mediaItem
     // - type: "remove-card-media" + cardId + mediaItemId
     //
@@ -127,7 +126,6 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
       if (
         bodyRecord.type !== "record-open" &&
         bodyRecord.type !== "update-card-reflection" &&
-        bodyRecord.type !== "upsert-card-media" &&
         bodyRecord.type !== "append-card-media" &&
         bodyRecord.type !== "remove-card-media"
       ) {
@@ -139,7 +137,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
           ? new Set(["type"])
           : bodyRecord.type === "update-card-reflection"
             ? new Set(["type", "cardId", "reflection"])
-            : bodyRecord.type === "upsert-card-media" || bodyRecord.type === "append-card-media"
+            : bodyRecord.type === "append-card-media"
               ? new Set(["type", "cardId", "mediaItem"])
               : new Set(["type", "cardId", "mediaItemId"]);
       const hasUnexpectedField = Object.keys(bodyRecord).some((key) => !allowedMutationFields.has(key));
@@ -288,7 +286,6 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     }
 
     if (
-      bodyRecord.type === "upsert-card-media" ||
       bodyRecord.type === "append-card-media" ||
       bodyRecord.type === "remove-card-media"
     ) {
@@ -313,7 +310,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
 
       let mediaItemsExpression: Record<string, unknown>;
 
-      if (bodyRecord.type === "upsert-card-media" || bodyRecord.type === "append-card-media") {
+      if (bodyRecord.type === "append-card-media") {
         if (!hasOwnProperty(bodyRecord, "mediaItem")) {
           return Response.json({ error: "mediaItem is required." }, { status: 400 });
         }
@@ -332,48 +329,33 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
           return Response.json({ error: validation.error }, { status: 400 });
         }
 
-        if (bodyRecord.type === "upsert-card-media") {
-          mediaItemsExpression = {
-            $concatArrays: [
-              {
-                $filter: {
-                  input: { $ifNull: ["$$card.mediaItems", []] },
-                  as: "mediaItem",
-                  cond: { $ne: ["$$mediaItem.mediaType", validation.mediaItem.mediaType] },
-                },
-              },
-              { $literal: [validation.mediaItem] },
-            ],
-          };
-        } else {
-          mediaItemsExpression = {
-            $let: {
-              vars: {
-                currentMediaItems: { $ifNull: ["$$card.mediaItems", []] },
-              },
-              in: {
-                $cond: [
-                  {
-                    $in: [
-                      validation.mediaItem.id,
-                      {
-                        $map: {
-                          input: "$$currentMediaItems",
-                          as: "existingMediaItem",
-                          in: "$$existingMediaItem.id",
-                        },
-                      },
-                    ],
-                  },
-                  "$$currentMediaItems",
-                  {
-                    $concatArrays: ["$$currentMediaItems", { $literal: [validation.mediaItem] }],
-                  },
-                ],
-              },
+        mediaItemsExpression = {
+          $let: {
+            vars: {
+              currentMediaItems: { $ifNull: ["$$card.mediaItems", []] },
             },
-          };
-        }
+            in: {
+              $cond: [
+                {
+                  $in: [
+                    validation.mediaItem.id,
+                    {
+                      $map: {
+                        input: "$$currentMediaItems",
+                        as: "existingMediaItem",
+                        in: "$$existingMediaItem.id",
+                      },
+                    },
+                  ],
+                },
+                "$$currentMediaItems",
+                {
+                  $concatArrays: ["$$currentMediaItems", { $literal: [validation.mediaItem] }],
+                },
+              ],
+            },
+          },
+        };
       } else {
         if (!hasNonEmptyString(bodyRecord.mediaItemId)) {
           return Response.json({ error: "mediaItemId is required." }, { status: 400 });

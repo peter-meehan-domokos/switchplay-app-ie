@@ -44,14 +44,6 @@ async function readCardMediaMutationResponse(response: Response, fallbackError: 
   return payload as CardMediaMutationResult;
 }
 
-export function createCardMediaUpsertRequestBody(cardId: string, mediaItem: ModernUserCardMediaItem) {
-  return {
-    type: "upsert-card-media" as const,
-    cardId,
-    mediaItem,
-  };
-}
-
 export function createCardMediaAppendRequestBody(cardId: string, mediaItem: ModernUserCardMediaItem) {
   return {
     type: "append-card-media" as const,
@@ -161,7 +153,7 @@ export async function persistCardReflection(deckTemplateId: string, cardId: stri
   }
 }
 
-export async function persistCardMediaItem(
+export async function appendCardMediaItem(
   deckTemplateId: string,
   cardId: string,
   mediaItem: ModernUserCardMediaItem,
@@ -171,7 +163,7 @@ export async function persistCardMediaItem(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(createCardMediaUpsertRequestBody(cardId, mediaItem)),
+    body: JSON.stringify(createCardMediaAppendRequestBody(cardId, mediaItem)),
   });
 
   return readCardMediaMutationResponse(response, "Unable to save card media.");
