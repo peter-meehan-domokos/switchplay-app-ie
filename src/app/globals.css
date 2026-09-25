@@ -4441,3 +4441,12 @@ input {
 .back-card-media-carousel-play-affordance svg {
   margin-left: 2px;
 }
+
+/* Phase 2 (static): 4 and 5 items */
+.back-card-media-carousel--count-4 .back-card-media-carousel-item,
+.back-card-media-carousel--count-5 .back-card-media-carousel-item {
+  flex: 0 1 46px;
+  max-width: 46px;
+  height: auto;
+  aspect-ratio: 46 / 58;
+}

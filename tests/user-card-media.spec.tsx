@@ -246,17 +246,79 @@ test("the media carousel renders a pair layout for 2 items", () => {
   const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: [image, video] }));
   expect(renderedTree).toContain("back-card-media-carousel--count-2");
   expect(renderedTree).toContain(image.src);
-  expect(renderedTree).toContain("thumbnail.jpg"); // For video
+  // The video item is passed by ID into the MediaItem sub-component
+  expect(renderedTree).toContain(video.id);
 });
 
-test("the media carousel renders only the first three items as a strip for 3 or more items", () => {
-  const extraVideo = createTestVideo("stream-extra");
-  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: [image, video, extraVideo, createTestImage("hidden")] }));
+test("the media carousel renders all three items as a strip for exactly 3 items", () => {
+  const img2 = createTestImage("123e4567-e89b-42d3-a456-426614174001");
+  const img3 = createTestImage("123e4567-e89b-42d3-a456-426614174002");
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: [image, img2, img3] }));
   expect(renderedTree).toContain("back-card-media-carousel--count-3");
   expect(renderedTree).toContain(image.src);
-  // It shouldn't render the 4th item
-  expect(renderedTree).not.toContain("hidden.png");
+  expect(renderedTree).toContain(img2.src);
+  expect(renderedTree).toContain(img3.src);
 });
+
+test("the media carousel renders four items as a static row", () => {
+  const img2 = createTestImage("123e4567-e89b-42d3-a456-426614174001");
+  const vid2 = createTestVideo("stream-b");
+  const items = [image, video, img2, vid2];
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-4");
+  expect(renderedTree).toContain(image.id);
+  expect(renderedTree).toContain(video.id);
+  expect(renderedTree).toContain(img2.id);
+  expect(renderedTree).toContain(vid2.id);
+});
+
+test("the media carousel renders five same-type images as a static row", () => {
+  const imgs = [
+    createTestImage("img-1"),
+    createTestImage("img-2"),
+    createTestImage("img-3"),
+    createTestImage("img-4"),
+    createTestImage("img-5"),
+  ];
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: imgs }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-5");
+  imgs.forEach((img) => expect(renderedTree).toContain(img.id));
+});
+
+test("the media carousel renders five same-type videos as a static row", () => {
+  const vids = [
+    createTestVideo("vid-a"),
+    createTestVideo("vid-b"),
+    createTestVideo("vid-c"),
+    createTestVideo("vid-d"),
+    createTestVideo("vid-e"),
+  ];
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: vids }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-5");
+  vids.forEach((v) => expect(renderedTree).toContain(v.id));
+});
+
+test("the media carousel renders no more than five items when six or more are provided", () => {
+  const imgs = [
+    createTestImage("img-1"),
+    createTestImage("img-2"),
+    createTestImage("img-3"),
+    createTestImage("img-4"),
+    createTestImage("img-5"),
+    createTestImage("img-6"), // 6th item
+  ];
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: imgs }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-5");
+
+  // The first 5 should be present
+  for (let i = 0; i < 5; i++) {
+    expect(renderedTree).toContain(imgs[i].id);
+  }
+
+  // The 6th should not be rendered
+  expect(renderedTree).not.toContain(imgs[5].id);
+});
+
 
 test("all visible card media preserves multiple items of the same type", () => {
   const imageOne = createTestImage("123e4567-e89b-42d3-a456-426614174001");
@@ -267,4 +329,19 @@ test("all visible card media preserves multiple items of the same type", () => {
   expect(selectAllVisibleUserCardMediaItems([imageOne, imageTwo])).toEqual([imageOne, imageTwo]);
   expect(selectAllVisibleUserCardMediaItems([videoOne, videoTwo])).toEqual([videoOne, videoTwo]);
   expect(selectAllVisibleUserCardMediaItems([imageOne, videoOne, imageTwo, videoTwo])).toEqual([imageOne, videoOne, imageTwo, videoTwo]);
+});
+
+test("the original upload-panel selector still returns at most one image and one video", () => {
+  const imageOne = createTestImage("123e4567-e89b-42d3-a456-426614174001");
+  const imageTwo = createTestImage("123e4567-e89b-42d3-a456-426614174002");
+  const videoOne = createTestVideo("stream-1");
+  const videoTwo = createTestVideo("stream-2");
+  const rawItems = [imageOne, videoOne, imageTwo, videoTwo];
+
+  // First image and first video should be returned; second pair should not appear
+  expect(selectVisibleUserCardMediaItems(rawItems)).toEqual([imageOne, videoOne]);
+  // Removing the first image promotes imageTwo
+  expect(selectVisibleUserCardMediaItems(rawItems.filter((i) => i.id !== imageOne.id))).toEqual([imageTwo, videoOne]);
+  // Removing the first video promotes videoTwo
+  expect(selectVisibleUserCardMediaItems(rawItems.filter((i) => i.id !== videoOne.id))).toEqual([imageOne, videoTwo]);
 });
