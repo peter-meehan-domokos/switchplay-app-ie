@@ -144,7 +144,7 @@ export type WeeklyCardStep = {
 
 export type WeeklyCardSignal = {
   id: string;
-  streamTitle: string;
+  title: string;
   order: SignalOrder | null;
   reading: number;
   unit: string | null;
