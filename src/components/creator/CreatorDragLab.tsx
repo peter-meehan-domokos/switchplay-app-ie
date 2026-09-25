@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent, type ChangeEvent } from "react";
 import {
   appendCreatorCard,
   creatorBoardToDeckTemplate,
@@ -39,6 +39,7 @@ import {
   type Pair,
   type PairId,
 } from "@/components/creator/creatorBoardState";
+import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
 import { useMediaUploadController, type CompletedMediaUpload } from "@/components/media/useMediaUploadController";
