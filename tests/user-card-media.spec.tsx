@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
 import {
+  createCardMediaAppendRequestBody,
   createCardMediaRemovalRequestBody,
   createCardMediaUpsertRequestBody,
 } from "@/lib/deckMutations";
 import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem, MediaItem } from "@/lib/media";
 import {
+  appendUserCardMediaItem,
   removeUserCardMediaItem,
   selectVisibleUserCardMediaItems,
   upsertUserCardMediaItem,
@@ -39,6 +41,30 @@ const video: CloudflareStreamVideoMediaItem = {
   height: 1080,
 };
 const createImagePublicUrl = (assetId: string) => `https://user-uploads.example.com/${assetId}`;
+
+function createTestImage(uuid: string): CloudflareR2ImageMediaItem {
+  const assetId = `user-decks/507f1f77bcf86cd799439011/deck-1/cards/card-003/${uuid}.png`;
+
+  return {
+    id: `image-${uuid}`,
+    description: `Card image ${uuid}`,
+    mediaType: "image",
+    provider: "cloudflare-r2",
+    assetId,
+    src: createImagePublicUrl(assetId),
+  };
+}
+
+function createTestVideo(uid: string): CloudflareStreamVideoMediaItem {
+  return {
+    id: `stream-${uid}`,
+    description: `Card video ${uid}`,
+    mediaType: "video",
+    provider: "cloudflare-stream",
+    assetId: uid,
+    src: `https://iframe.videodelivery.net/${uid}`,
+  };
+}
 
 test("an owner-scoped modern image is accepted and can be added", () => {
   const validation = validateUserCardMediaItem(image, context, createImagePublicUrl);
@@ -77,6 +103,88 @@ test("concurrent image and video upserts retain both media items in either compl
   expect(videoThenImage).toEqual([video, image]);
 });
 
+test("append preserves three images on the same card", () => {
+  const images = [
+    createTestImage("123e4567-e89b-42d3-a456-426614174001"),
+    createTestImage("123e4567-e89b-42d3-a456-426614174002"),
+    createTestImage("123e4567-e89b-42d3-a456-426614174003"),
+  ];
+
+  const mediaItems = images.reduce<MediaItem[]>(appendUserCardMediaItem, []);
+
+  expect(mediaItems).toEqual(images);
+});
+
+test("append preserves three videos on the same card", () => {
+  const videos = [createTestVideo("stream-1"), createTestVideo("stream-2"), createTestVideo("stream-3")];
+
+  const mediaItems = videos.reduce<MediaItem[]>(appendUserCardMediaItem, []);
+
+  expect(mediaItems).toEqual(videos);
+});
+
+test("mixed appends preserve every image and video in raw insertion order", () => {
+  const imageOne = createTestImage("123e4567-e89b-42d3-a456-426614174004");
+  const videoOne = createTestVideo("stream-mixed-1");
+  const imageTwo = createTestImage("123e4567-e89b-42d3-a456-426614174005");
+  const videoTwo = createTestVideo("stream-mixed-2");
+
+  const mediaItems = [imageOne, videoOne, imageTwo, videoTwo].reduce<MediaItem[]>(appendUserCardMediaItem, []);
+
+  expect(mediaItems).toEqual([imageOne, videoOne, imageTwo, videoTwo]);
+});
+
+test("append is idempotent by media-item id", () => {
+  const original = createTestImage("123e4567-e89b-42d3-a456-426614174006");
+  const sameIdWithDifferentDescription = { ...original, description: "A retried request" };
+
+  const mediaItems = appendUserCardMediaItem(
+    appendUserCardMediaItem([], original),
+    sameIdWithDifferentDescription,
+  );
+
+  expect(mediaItems).toEqual([original]);
+});
+
+test("same-card concurrent append completion orders preserve all media items", () => {
+  const imageOne = createTestImage("123e4567-e89b-42d3-a456-426614174007");
+  const imageTwo = createTestImage("123e4567-e89b-42d3-a456-426614174008");
+  const videoOne = createTestVideo("stream-concurrent-1");
+  const completionOrders = [
+    [imageOne, imageTwo, videoOne],
+    [videoOne, imageTwo, imageOne],
+  ];
+
+  for (const completionOrder of completionOrders) {
+    const mediaItems = completionOrder.reduce<MediaItem[]>(appendUserCardMediaItem, []);
+
+    expect(mediaItems).toHaveLength(3);
+    expect(new Set(mediaItems.map((mediaItem) => mediaItem.id))).toEqual(
+      new Set([imageOne.id, imageTwo.id, videoOne.id]),
+    );
+  }
+});
+
+test("independent card appends preserve both card media arrays", () => {
+  const cardOneImage = createTestImage("123e4567-e89b-42d3-a456-426614174009");
+  const cardTwoVideo = createTestVideo("stream-card-two");
+  const cardMediaById: Record<string, MediaItem[]> = {
+    "card-003": [],
+    "card-004": [],
+  };
+
+  const nextCardMediaById = {
+    ...cardMediaById,
+    "card-003": appendUserCardMediaItem(cardMediaById["card-003"], cardOneImage),
+    "card-004": appendUserCardMediaItem(cardMediaById["card-004"], cardTwoVideo),
+  };
+
+  expect(nextCardMediaById).toEqual({
+    "card-003": [cardOneImage],
+    "card-004": [cardTwoVideo],
+  });
+});
+
 test("removal filters by media-item id without touching the provider asset", () => {
   expect(removeUserCardMediaItem([image, video], image.id)).toEqual([video]);
 });
@@ -93,6 +201,19 @@ test("foreign image paths and mismatched public URLs are rejected", () => {
   expect(validateUserCardMediaItem(wrongUrlImage, context, createImagePublicUrl)).toMatchObject({ ok: false });
 });
 
+test("non-modern and malformed Stream media are rejected", () => {
+  const providerlessImage = {
+    id: "legacy-image",
+    description: "Legacy image",
+    mediaType: "image",
+    src: "/legacy/image.png",
+  };
+  const malformedStreamItem = { ...video, assetId: "stream uid with spaces", id: "stream-stream uid with spaces" };
+
+  expect(validateUserCardMediaItem(providerlessImage, context, createImagePublicUrl)).toMatchObject({ ok: false });
+  expect(validateUserCardMediaItem(malformedStreamItem, context, createImagePublicUrl)).toMatchObject({ ok: false });
+});
+
 test("Stream persistence requires the conventional id and iframe URL", () => {
   expect(validateUserCardMediaItem(video, context, createImagePublicUrl)).toEqual({ ok: true, mediaItem: video });
   expect(
@@ -103,6 +224,11 @@ test("Stream persistence requires the conventional id and iframe URL", () => {
 test("card media request bodies use explicit mutation types", () => {
   expect(createCardMediaUpsertRequestBody("card-003", image)).toEqual({
     type: "upsert-card-media",
+    cardId: "card-003",
+    mediaItem: image,
+  });
+  expect(createCardMediaAppendRequestBody("card-003", image)).toEqual({
+    type: "append-card-media",
     cardId: "card-003",
     mediaItem: image,
   });

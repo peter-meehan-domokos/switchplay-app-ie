@@ -99,6 +99,17 @@ export function upsertUserCardMediaItem(
   ];
 }
 
+export function appendUserCardMediaItem(
+  mediaItems: MediaItem[],
+  mediaItem: ModernUserCardMediaItem,
+): MediaItem[] {
+  if (mediaItems.some((existingItem) => existingItem.id === mediaItem.id)) {
+    return mediaItems;
+  }
+
+  return [...mediaItems, mediaItem];
+}
+
 export function removeUserCardMediaItem(mediaItems: MediaItem[], mediaItemId: string): MediaItem[] {
   return mediaItems.filter((mediaItem) => mediaItem.id !== mediaItemId);
 }

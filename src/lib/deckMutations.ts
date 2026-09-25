@@ -52,6 +52,14 @@ export function createCardMediaUpsertRequestBody(cardId: string, mediaItem: Mode
   };
 }
 
+export function createCardMediaAppendRequestBody(cardId: string, mediaItem: ModernUserCardMediaItem) {
+  return {
+    type: "append-card-media" as const,
+    cardId,
+    mediaItem,
+  };
+}
+
 export function createCardMediaRemovalRequestBody(cardId: string, mediaItemId: string) {
   return {
     type: "remove-card-media" as const,

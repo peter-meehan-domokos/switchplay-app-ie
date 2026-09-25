@@ -117,6 +117,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
     // - type: "record-open"
     // - type: "update-card-reflection" + cardId + reflection
     // - type: "upsert-card-media" + cardId + mediaItem
+    // - type: "append-card-media" + cardId + mediaItem
     // - type: "remove-card-media" + cardId + mediaItemId
     //
     // New mutations (reflections, media, chats, etc.) must be added carefully to
@@ -127,6 +128,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         bodyRecord.type !== "record-open" &&
         bodyRecord.type !== "update-card-reflection" &&
         bodyRecord.type !== "upsert-card-media" &&
+        bodyRecord.type !== "append-card-media" &&
         bodyRecord.type !== "remove-card-media"
       ) {
         return Response.json({ error: "Unknown mutation type." }, { status: 400 });
@@ -137,7 +139,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
           ? new Set(["type"])
           : bodyRecord.type === "update-card-reflection"
             ? new Set(["type", "cardId", "reflection"])
-            : bodyRecord.type === "upsert-card-media"
+            : bodyRecord.type === "upsert-card-media" || bodyRecord.type === "append-card-media"
               ? new Set(["type", "cardId", "mediaItem"])
               : new Set(["type", "cardId", "mediaItemId"]);
       const hasUnexpectedField = Object.keys(bodyRecord).some((key) => !allowedMutationFields.has(key));
@@ -285,7 +287,11 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
       });
     }
 
-    if (bodyRecord.type === "upsert-card-media" || bodyRecord.type === "remove-card-media") {
+    if (
+      bodyRecord.type === "upsert-card-media" ||
+      bodyRecord.type === "append-card-media" ||
+      bodyRecord.type === "remove-card-media"
+    ) {
       const cardIdRaw = bodyRecord.cardId;
 
       if (!hasNonEmptyString(cardIdRaw)) {
@@ -305,10 +311,9 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
         return Response.json({ error: "cardId is not part of this initialized deck data." }, { status: 400 });
       }
 
-      let retainedMediaCondition: Record<string, unknown>;
-      let appendedMediaItems: Record<string, unknown> | unknown[] = [];
+      let mediaItemsExpression: Record<string, unknown>;
 
-      if (bodyRecord.type === "upsert-card-media") {
+      if (bodyRecord.type === "upsert-card-media" || bodyRecord.type === "append-card-media") {
         if (!hasOwnProperty(bodyRecord, "mediaItem")) {
           return Response.json({ error: "mediaItem is required." }, { status: 400 });
         }
@@ -327,8 +332,48 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
           return Response.json({ error: validation.error }, { status: 400 });
         }
 
-        retainedMediaCondition = { $ne: ["$$mediaItem.mediaType", validation.mediaItem.mediaType] };
-        appendedMediaItems = { $literal: [validation.mediaItem] };
+        if (bodyRecord.type === "upsert-card-media") {
+          mediaItemsExpression = {
+            $concatArrays: [
+              {
+                $filter: {
+                  input: { $ifNull: ["$$card.mediaItems", []] },
+                  as: "mediaItem",
+                  cond: { $ne: ["$$mediaItem.mediaType", validation.mediaItem.mediaType] },
+                },
+              },
+              { $literal: [validation.mediaItem] },
+            ],
+          };
+        } else {
+          mediaItemsExpression = {
+            $let: {
+              vars: {
+                currentMediaItems: { $ifNull: ["$$card.mediaItems", []] },
+              },
+              in: {
+                $cond: [
+                  {
+                    $in: [
+                      validation.mediaItem.id,
+                      {
+                        $map: {
+                          input: "$$currentMediaItems",
+                          as: "existingMediaItem",
+                          in: "$$existingMediaItem.id",
+                        },
+                      },
+                    ],
+                  },
+                  "$$currentMediaItems",
+                  {
+                    $concatArrays: ["$$currentMediaItems", { $literal: [validation.mediaItem] }],
+                  },
+                ],
+              },
+            },
+          };
+        }
       } else {
         if (!hasNonEmptyString(bodyRecord.mediaItemId)) {
           return Response.json({ error: "mediaItemId is required." }, { status: 400 });
@@ -340,7 +385,13 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
           return Response.json({ error: "mediaItemId is not part of this card." }, { status: 404 });
         }
 
-        retainedMediaCondition = { $ne: ["$$mediaItem.id", mediaItemId] };
+        mediaItemsExpression = {
+          $filter: {
+            input: { $ifNull: ["$$card.mediaItems", []] },
+            as: "mediaItem",
+            cond: { $ne: ["$$mediaItem.id", mediaItemId] },
+          },
+        };
       }
 
       const updatedDocument = await users.findOneAndUpdate(
@@ -378,18 +429,7 @@ export async function PATCH(request: Request, context: DeckDataRouteContext) {
                                       $mergeObjects: [
                                         "$$card",
                                         {
-                                          mediaItems: {
-                                            $concatArrays: [
-                                              {
-                                                $filter: {
-                                                  input: { $ifNull: ["$$card.mediaItems", []] },
-                                                  as: "mediaItem",
-                                                  cond: retainedMediaCondition,
-                                                },
-                                              },
-                                              appendedMediaItems,
-                                            ],
-                                          },
+                                          mediaItems: mediaItemsExpression,
                                         },
                                       ],
                                     },
