@@ -117,3 +117,7 @@ export function selectVisibleUserCardMediaItems(mediaItems: MediaItem[]): Modern
 
   return [image, video].filter((mediaItem): mediaItem is ModernUserCardMediaItem => Boolean(mediaItem));
 }
+
+export function selectAllVisibleUserCardMediaItems(mediaItems: MediaItem[]): ModernUserCardMediaItem[] {
+  return mediaItems.filter(isModernUserCardMediaItem);
+}

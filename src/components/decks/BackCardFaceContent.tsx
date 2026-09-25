@@ -11,7 +11,7 @@ import {
   type PointerEvent,
 } from "react";
 import BackCardExternalComment from "@/components/decks/BackCardExternalComment";
-import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
+import BackCardMediaCarousel from "@/components/decks/BackCardMediaCarousel";
 import BackCardReflectionFragment from "@/components/decks/BackCardReflectionFragment";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
@@ -520,9 +520,8 @@ export default function BackCardFaceContent({
           </button>
         ) : null}
         {deckTemplateId ? (
-          <BackCardMediaTrace
+          <BackCardMediaCarousel
             items={card.backMediaItems}
-            target={{ scope: "user-card", deckTemplateId, cardId: card.id }}
           />
         ) : null}
         <section

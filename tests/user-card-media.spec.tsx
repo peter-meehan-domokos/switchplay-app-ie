@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
+import BackCardMediaCarousel from "@/components/decks/BackCardMediaCarousel";
 import {
   createCardMediaAppendRequestBody,
   createCardMediaRemovalRequestBody,
@@ -10,6 +10,7 @@ import {
   removeUserCardMediaItem,
   selectAllModernUserCardMediaItems,
   selectVisibleUserCardMediaItems,
+  selectAllVisibleUserCardMediaItems,
   validateUserCardMediaItem,
 } from "@/lib/userCardMedia";
 
@@ -230,19 +231,40 @@ test("visible card media includes modern R2 and Stream items only", () => {
   });
 });
 
-test("the media renderer reserves no region when there is no modern media", () => {
-  expect(BackCardMediaTrace({ items: [], target: { scope: "user-card", deckTemplateId: "deck-1", cardId: "card-003" } })).toBeNull();
+
+test("the media carousel reserves no region when there are 0 items", () => {
+  expect(BackCardMediaCarousel({ items: [] })).toBeNull();
 });
 
-test("the media renderer emits an R2 image and Stream player for modern items", () => {
-  const renderedTree = JSON.stringify(
-    BackCardMediaTrace({
-      items: [image, video],
-      target: { scope: "user-card", deckTemplateId: "deck-1", cardId: "card-003" },
-    }),
-  );
+test("the media carousel renders a solo layout for 1 item", () => {
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: [image] }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-1");
+  expect(renderedTree).toContain(image.src);
+});
 
-  expect(renderedTree).toContain("focused-card-back-media");
-  expect(renderedTree).toContain(imagePublicUrl);
-  expect(renderedTree).toContain("streamUid123");
+test("the media carousel renders a pair layout for 2 items", () => {
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: [image, video] }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-2");
+  expect(renderedTree).toContain(image.src);
+  expect(renderedTree).toContain("thumbnail.jpg"); // For video
+});
+
+test("the media carousel renders only the first three items as a strip for 3 or more items", () => {
+  const extraVideo = createTestVideo("stream-extra");
+  const renderedTree = JSON.stringify(BackCardMediaCarousel({ items: [image, video, extraVideo, createTestImage("hidden")] }));
+  expect(renderedTree).toContain("back-card-media-carousel--count-3");
+  expect(renderedTree).toContain(image.src);
+  // It shouldn't render the 4th item
+  expect(renderedTree).not.toContain("hidden.png");
+});
+
+test("all visible card media preserves multiple items of the same type", () => {
+  const imageOne = createTestImage("123e4567-e89b-42d3-a456-426614174001");
+  const imageTwo = createTestImage("123e4567-e89b-42d3-a456-426614174002");
+  const videoOne = createTestVideo("stream-1");
+  const videoTwo = createTestVideo("stream-2");
+
+  expect(selectAllVisibleUserCardMediaItems([imageOne, imageTwo])).toEqual([imageOne, imageTwo]);
+  expect(selectAllVisibleUserCardMediaItems([videoOne, videoTwo])).toEqual([videoOne, videoTwo]);
+  expect(selectAllVisibleUserCardMediaItems([imageOne, videoOne, imageTwo, videoTwo])).toEqual([imageOne, videoOne, imageTwo, videoTwo]);
 });

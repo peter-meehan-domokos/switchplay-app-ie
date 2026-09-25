@@ -112,7 +112,6 @@ input {
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(239, 224, 191, 0.18), rgba(168, 214, 228, 0.14));
   color: #fffaf0;
-  cursor: pointer;
   font-weight: 800;
   padding: 0 16px;
 }
@@ -126,7 +125,6 @@ input {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  cursor: pointer;
   box-shadow: none;
 }
 
@@ -270,7 +268,6 @@ input {
   width: 100%;
   border: 0;
   background: transparent;
-  cursor: pointer;
   text-align: left;
 }
 
@@ -417,6 +414,7 @@ input {
 .creator-back-link {
   border: 1px solid #a8adb3;
   color: #111318;
+  cursor: pointer;
   padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
   text-decoration: none;
 }
@@ -432,7 +430,6 @@ input {
   border: 1px solid rgba(17, 19, 24, 0.22);
   background: transparent;
   color: rgba(17, 19, 24, 0.62);
-  cursor: pointer;
   padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
 }
 
@@ -445,7 +442,6 @@ input {
   border: 1px solid #111318;
   background: #111318;
   color: #ffffff;
-  cursor: pointer;
   padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
 }
 
@@ -515,7 +511,6 @@ input {
   border: 1px solid #a8adb3;
   background: #ffffff;
   color: #111318;
-  cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
@@ -686,7 +681,6 @@ input {
   border: 1px dashed #a8b0b7;
   background: #f6f7f5;
   color: #58636c;
-  cursor: pointer;
   font: inherit;
   font-size: 1.6rem;
   font-weight: 650;
@@ -803,7 +797,6 @@ input {
   border: 0;
   background: transparent;
   color: inherit;
-  cursor: pointer;
   font: inherit;
   padding: 0;
 }
@@ -973,7 +966,6 @@ input {
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  cursor: pointer;
 }
 
 .creator-media-upload-slot--intro {
@@ -1046,7 +1038,6 @@ input {
   border-radius: 50%;
   background: transparent;
   color: #5e6b73;
-  cursor: pointer;
   font-size: 1rem;
   font-weight: 800;
   line-height: 1;
@@ -1152,6 +1143,7 @@ input {
 
 .creator-modal-header,
 .creator-modal-actions {
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1178,7 +1170,6 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  cursor: pointer;
   text-align: left;
 }
 
@@ -1210,7 +1201,6 @@ input {
   border: 0;
   background: #ffffff;
   color: #111318;
-  cursor: pointer;
   font: inherit;
   padding: var(--creator-cell-padding);
   text-align: left;
@@ -1431,7 +1421,6 @@ input {
   border: 0;
   background: transparent;
   color: #253b61;
-  cursor: pointer;
   padding: 0;
   text-decoration: underline;
 }
@@ -1516,7 +1505,6 @@ input {
   border: 1px solid #8f969e;
   background: #ffffff;
   color: #111318;
-  cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 750;
@@ -1577,7 +1565,6 @@ input {
   border: 0;
   background: transparent;
   color: #5b626b;
-  cursor: pointer;
   font: inherit;
   font-size: 0.7rem;
   font-weight: 800;
@@ -1587,10 +1574,10 @@ input {
 .creator-modal-close,
 .creator-modal-secondary,
 .creator-modal-primary {
+  cursor: pointer;
   border: 1px solid #8f969e;
   background: #ffffff;
   color: #111318;
-  cursor: pointer;
   padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
 }
 
@@ -1700,7 +1687,6 @@ input {
   border: 0;
   background: transparent;
   color: #b42318;
-  cursor: pointer;
   font: inherit;
   font-weight: 700;
   padding: 0;
@@ -1738,7 +1724,6 @@ input {
   border: 1px solid #b42318;
   background: #b42318;
   color: #ffffff;
-  cursor: pointer;
   padding: var(--creator-back-link-padding-y) var(--creator-back-link-padding-x);
 }
 
@@ -1851,7 +1836,6 @@ input {
   border: 0;
   border-radius: inherit;
   background: transparent;
-  cursor: pointer;
   padding: 0;
   touch-action: manipulation;
 }
@@ -1977,7 +1961,6 @@ input {
   border: 0;
   border-radius: 9px;
   background: transparent;
-  cursor: pointer;
   padding: 0;
   touch-action: manipulation;
 }
@@ -2095,7 +2078,6 @@ input {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.052);
   color: #fffaf0;
-  cursor: pointer;
   font-size: 0.84rem;
   font-weight: 800;
   padding: 7px 11px;
@@ -2126,7 +2108,6 @@ input {
   border-radius: 999px;
   background: rgba(8, 10, 16, 0.34);
   color: rgba(255, 250, 240, 0.58);
-  cursor: pointer;
   font-size: 0.9rem;
   line-height: 1;
 }
@@ -2200,7 +2181,6 @@ input {
   border-radius: 999px;
   background: rgba(8, 10, 16, 0.44);
   color: rgba(255, 250, 240, 0.76);
-  cursor: pointer;
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
@@ -2333,7 +2313,6 @@ input {
   border-radius: 999px;
   background: rgba(8, 10, 16, 0.72);
   color: rgba(255, 250, 240, 0.84);
-  cursor: pointer;
   font-size: 0.8rem;
   font-weight: 600;
   padding: 0 14px;
@@ -2679,7 +2658,6 @@ input {
   margin: 0;
   background: transparent;
   color: inherit;
-  cursor: pointer;
   appearance: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -3004,7 +2982,7 @@ input {
  *   display: flex;
  *   align-items: center;
  *   gap: 3px;
- *   width: 54px;
+ *   width: 46px;
  *   height: 9px;
  *   opacity: 0.44;
  *   pointer-events: none;
@@ -3108,7 +3086,6 @@ input {
   border-radius: 999px;
   background: transparent;
   color: inherit;
-  cursor: pointer;
   margin: 0 0 -5px;
   padding: 0 14px 0 0;
   text-align: left;
@@ -3429,7 +3406,6 @@ input {
   background:
     radial-gradient(ellipse at 50% 50%, rgba(12, 15, 22, 0.14), rgba(5, 7, 11, 0.26) 64%, rgba(3, 4, 8, 0.36) 100%),
     linear-gradient(180deg, rgba(3, 4, 8, 0.56), rgba(5, 7, 11, 0.4) 24%, rgba(7, 9, 14, 0.25) 54%, rgba(5, 7, 11, 0.18) 78%, rgba(2, 3, 6, 0.26));
-  cursor: pointer;
   touch-action: manipulation;
 }
 
@@ -3572,6 +3548,7 @@ input {
 }
 
 .focused-card-back-media-action {
+  cursor: pointer;
   position: absolute;
   top: 42px;
   right: 32px;
@@ -3579,7 +3556,6 @@ input {
   border: 0;
   background: transparent;
   color: rgba(255, 250, 240, 0.52);
-  cursor: pointer;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 650;
@@ -3690,7 +3666,6 @@ input {
   display: grid;
   gap: 13px;
   justify-items: start;
-  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -3811,6 +3786,7 @@ input {
 }
 
 .focused-card-back-reflection-fragment {
+  cursor: pointer;
   position: absolute;
   right: 38px;
   bottom: 62px;
@@ -3920,7 +3896,6 @@ input {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.035);
   color: rgba(255, 250, 240, 0.78);
-  cursor: pointer;
   font: inherit;
   font-size: 0.62rem;
   font-weight: 720;
@@ -3940,7 +3915,6 @@ input {
   border-radius: 999px;
   background: transparent;
   color: rgba(255, 250, 240, 0.72);
-  cursor: pointer;
   font: inherit;
   font-size: 1.38rem;
   font-weight: 320;
@@ -4050,12 +4024,12 @@ input {
 }
 
 .cloudflare-stream-player-surface-control {
+  cursor: pointer;
   position: absolute;
   inset: 0;
   z-index: 1;
   border: 0;
   background: transparent;
-  cursor: pointer;
   padding: 0;
 }
 
@@ -4064,6 +4038,7 @@ input {
 }
 
 .cloudflare-stream-player-control {
+  cursor: pointer;
   position: absolute;
   left: 50%;
   bottom: 12px;
@@ -4073,7 +4048,6 @@ input {
   border-radius: 999px;
   background: rgba(5, 7, 10, 0.68);
   color: rgba(255, 250, 240, 0.92);
-  cursor: pointer;
   font: inherit;
   font-size: 0.68rem;
   font-weight: 760;
@@ -4093,6 +4067,7 @@ input {
 }
 
 .cloudflare-stream-player-frame-control {
+  cursor: pointer;
   position: absolute;
   top: 8px;
   right: 8px;
@@ -4105,11 +4080,11 @@ input {
   border-radius: 999px;
   background: rgba(5, 7, 10, 0.58);
   color: rgba(255, 250, 240, 0.9);
-  cursor: pointer;
   box-shadow: 0 7px 18px rgba(0, 0, 0, 0.24);
 }
 
 .cloudflare-stream-player-frame-control--exit {
+  cursor: pointer;
   width: 26px;
   height: 26px;
   top: 12px;
@@ -4197,7 +4172,6 @@ input {
   z-index: 2;
   border: 0;
   background: transparent;
-  cursor: pointer;
   padding: 0;
   touch-action: manipulation;
 }
@@ -4376,6 +4350,8 @@ input {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
+
+
 .back-card-media-carousel--count-1 .back-card-media-carousel-item {
   height: 75px;
   width: 60px; /* Deliberate solo portrait biased preview */
@@ -4396,6 +4372,8 @@ input {
   transform: scale(1.02);
   z-index: 1;
 }
+
+
 
 .back-card-media-carousel-image {
   display: block;
