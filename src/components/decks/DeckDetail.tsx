@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
+import { withCardMediaItems } from "@/components/cards/cardLayout";
 import { getPlayableDeckIntroductionVideo } from "@/components/decks/deckIntroPreview";
 import DeckMenu from "@/components/decks/DeckMenu";
 import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
@@ -17,6 +18,7 @@ import CloudflareHlsVideoPlayer, {
   type CloudflareHlsVideoPlayerHandle,
   type VideoPlaybackState,
 } from "@/components/media/CloudflareHlsVideoPlayer";
+import type { UserCardMediaUploadTarget } from "@/components/media/useKeyedUserCardMediaUploadController";
 import type { CompletionStatus } from "@/components/decks/types";
 import {
   DECK_SCENE_BASELINE_HEIGHT,
@@ -27,14 +29,19 @@ import {
 import {
   persistActiveCardId,
   createSharedCardComment,
+  appendCardMediaItem,
   persistCardReflection,
   persistCardTargetDate,
   persistSignalReading,
   persistStepCompletionStatus,
+  removeCardMediaItem,
 } from "@/lib/deckMutations";
 import { addDaysToDateOnly } from "@/lib/dateOnly";
 import { normalizeCompletionStatus } from "@/lib/progress";
 import { roundSignalReadingForStorage } from "@/lib/signals";
+import type { MediaItem } from "@/lib/media";
+import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { UserCardMediaMutationQueue } from "@/lib/userCardMediaMutationQueue";
 
 type DeckDetailProps = {
   deck: DeckLayout;
@@ -166,6 +173,11 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   // This avoids missed persistence updates and prepares the interaction for future
   // long-press acceleration.
   const cardsRef = useRef(cards);
+  const cardMediaMutationQueueRef = useRef<UserCardMediaMutationQueue | null>(null);
+
+  if (cardMediaMutationQueueRef.current === null) {
+    cardMediaMutationQueueRef.current = new UserCardMediaMutationQueue();
+  }
   const [activeCardIndex, setActiveCardIndex] = useState(() => {
     const initialCardIndex = deck.cards.findIndex((card) => card.id === deck.activeCardId);
     return initialCardIndex >= 0 ? initialCardIndex : 0;
@@ -580,6 +592,57 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       throw error;
     }
   };
+  const applyConfirmedCardMedia = (
+    cardId: string,
+    mediaItems: MediaItem[],
+  ) => {
+    const nextCards = cardsRef.current.map((card) =>
+      card.id === cardId ? withCardMediaItems(card, mediaItems) : card,
+    );
+
+    cardsRef.current = nextCards;
+    setCards((currentCards) => currentCards.map((card) =>
+      card.id === cardId ? withCardMediaItems(card, mediaItems) : card,
+    ));
+  };
+  const commitFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => {
+    if (!deck.canMutate || !deck.hasUserDeckData) {
+      throw new Error("Unable to save media for this deck.");
+    }
+
+    if (target.deckTemplateId !== deck.deckTemplateId) {
+      throw new Error("Unable to save media for this deck.");
+    }
+
+    await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
+      const result = await appendCardMediaItem(target.deckTemplateId, target.cardId, mediaItem);
+
+      if (result.deckTemplateId !== target.deckTemplateId || result.cardId !== target.cardId) {
+        throw new Error("Card media was saved to an unexpected card.");
+      }
+
+      applyConfirmedCardMedia(target.cardId, result.mediaItems);
+    });
+  };
+  const removeFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItemId: string) => {
+    if (!deck.canMutate || !deck.hasUserDeckData) {
+      throw new Error("Unable to remove media from this deck.");
+    }
+
+    if (target.deckTemplateId !== deck.deckTemplateId) {
+      throw new Error("Unable to remove media from this deck.");
+    }
+
+    await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
+      const result = await removeCardMediaItem(target.deckTemplateId, target.cardId, mediaItemId);
+
+      if (result.deckTemplateId !== target.deckTemplateId || result.cardId !== target.cardId) {
+        throw new Error("Card media was removed from an unexpected card.");
+      }
+
+      applyConfirmedCardMedia(target.cardId, result.mediaItems);
+    });
+  };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {
     const directionDelta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
 
@@ -664,6 +727,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
           <CardStack
             cards={optimisticDeck.cards}
+            deckTemplateId={deck.deckTemplateId}
             activeCardIndex={activeCardIndex}
             isDeckFlipped={isDeckFlipped}
             deckFlipRotationY={deckFlipRotationY}
@@ -684,6 +748,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             card={optimisticDeck.cards[activeCardIndex]}
             cardIndex={activeCardIndex}
             canMutate={deck.canMutate}
+            deckTemplateId={deck.deckTemplateId}
             totalCards={optimisticDeck.cards.length}
             onClose={closeFocusMode}
             onPrevious={goToPreviousFocusedCard}
@@ -692,6 +757,8 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onAdjustTargetDate={adjustFocusedCardTargetDate}
             onCommitSignalReading={commitFocusedSignalReading}
             onCommitReflection={deck.canMutate && deck.hasUserDeckData ? commitFocusedReflection : undefined}
+            onCommitCardMedia={deck.canMutate && deck.hasUserDeckData ? commitFocusedCardMedia : undefined}
+            onRemoveCardMedia={deck.canMutate && deck.hasUserDeckData ? removeFocusedCardMedia : undefined}
             onRequestAddComment={canAddSharedComment ? openSharedCommentEditor : undefined}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}

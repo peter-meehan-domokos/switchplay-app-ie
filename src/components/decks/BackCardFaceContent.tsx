@@ -450,10 +450,12 @@ function FocusedSignalRow({
 
 type BackCardFaceContentProps = {
   card: CardLayout;
+  deckTemplateId?: string;
   dateLabel: string;
   variant?: "focused" | "deck" | "preview";
   canMutate?: boolean;
   onCommitSignalReading?: (cardId: string, signalId: string, reading: number) => void;
+  onEditMedia?: (cardId: string) => void;
   onEditReflection?: (cardId: string) => void;
   onSignalNavigateNext?: () => void;
   onSignalNavigatePrevious?: () => void;
@@ -461,27 +463,29 @@ type BackCardFaceContentProps = {
 
 export default function BackCardFaceContent({
   card,
+  deckTemplateId,
   dateLabel,
   variant = "focused",
   canMutate = true,
   onCommitSignalReading,
+  onEditMedia,
   onEditReflection,
   onSignalNavigateNext,
   onSignalNavigatePrevious,
 }: BackCardFaceContentProps) {
-  const hasBackMediaTrace = Boolean(card.backMediaTrace);
+  const hasBackMedia = card.backMediaItems.length > 0;
   const isFocusedVariant = variant === "focused";
   const shouldShowReflectionPlaceholder = variant === "deck" || isFocusedVariant;
   const canEditReflection = isFocusedVariant && Boolean(onEditReflection);
   const layoutClassName = ["focused-card-back-layout", "back-card-face-content", `back-card-face-content--${variant}`].join(" ");
   const backSignalsClassName = [
     "focused-card-back-signals",
-    !hasBackMediaTrace ? "focused-card-back-signals--no-media" : undefined,
+    !hasBackMedia ? "focused-card-back-signals--no-media" : undefined,
   ]
     .filter(Boolean)
     .join(" ");
   const externalCommentClassName =
-    !hasBackMediaTrace && card.externalComment ? "focused-card-back-external-comment--no-media" : undefined;
+    !hasBackMedia && card.externalComment ? "focused-card-back-external-comment--no-media" : undefined;
   const commitSignalReading = onCommitSignalReading ?? (() => {});
   const canAdjustSignals = isFocusedVariant && canMutate;
   // Deck/preview signals are passive markings. Only focused signals
@@ -499,7 +503,28 @@ export default function BackCardFaceContent({
     <div className={layoutClassName}>
       <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
       <div className="focused-card-back-shell">
-        <BackCardMediaTrace trace={card.backMediaTrace} />
+        {isFocusedVariant && canMutate && onEditMedia ? (
+          <button
+            className="focused-card-back-media-action"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEditMedia(card.id);
+            }}
+            onPointerCancel={blockSignalBlockGesturePropagation}
+            onPointerDown={blockSignalBlockGesturePropagation}
+            onPointerMove={blockSignalBlockGesturePropagation}
+            onPointerUp={blockSignalBlockGesturePropagation}
+            type="button"
+          >
+            Add media
+          </button>
+        ) : null}
+        {deckTemplateId ? (
+          <BackCardMediaTrace
+            items={card.backMediaItems}
+            target={{ scope: "user-card", deckTemplateId, cardId: card.id }}
+          />
+        ) : null}
         <section
           className={backSignalsClassName}
           aria-label="Reflective card signals"

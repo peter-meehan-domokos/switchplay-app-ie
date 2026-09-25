@@ -5,6 +5,8 @@ import {
   createBlankCreatorBoard,
   createCreatorBoardFromTemplate,
   creatorBoardToDeckTemplate,
+  setBoardDeckIntroductionImage,
+  setBoardDeckIntroductionVideo,
   swapCreatorBoardRows,
   type BoardState,
 } from "@/components/creator/creatorBoardState";
@@ -110,6 +112,40 @@ test.describe("creator deck introduction state", () => {
   test("template image and video introduction is preserved", () => {
     expect(convertTemplateIntroduction({ image: validImage, video: validVideo })).toEqual({
       image: validImage,
+      video: validVideo,
+    });
+  });
+
+  test("creator image replacement preserves the video slot", () => {
+    const replacementImage = { ...validImage, id: "replacement-image", src: "/images/replacement.png" };
+    const board = createBoardWithIntroduction({ image: validImage, video: validVideo });
+
+    expect(setBoardDeckIntroductionImage(board, replacementImage).deckIntroduction).toEqual({
+      image: replacementImage,
+      video: validVideo,
+    });
+  });
+
+  test("creator video replacement preserves the image slot", () => {
+    const replacementVideo = {
+      ...validVideo,
+      id: "replacement-video",
+      assetId: "replacement-stream-id",
+      src: "https://iframe.videodelivery.net/replacement-stream-id",
+    };
+    const board = createBoardWithIntroduction({ image: validImage, video: validVideo });
+
+    expect(setBoardDeckIntroductionVideo(board, replacementVideo).deckIntroduction).toEqual({
+      image: validImage,
+      video: replacementVideo,
+    });
+  });
+
+  test("creator image removal preserves the video slot", () => {
+    const board = createBoardWithIntroduction({ image: validImage, video: validVideo });
+
+    expect(setBoardDeckIntroductionImage(board, null).deckIntroduction).toEqual({
+      image: null,
       video: validVideo,
     });
   });

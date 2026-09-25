@@ -14,6 +14,7 @@ import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
   card: CardLayout;
+  deckTemplateId: string;
   isDeckFlipped: boolean;
   deckFlipRotationY: number;
   stackZone: "past" | "active" | "future";
@@ -38,6 +39,7 @@ const deckFlipTransition = {
 
 export default function DeckCard({
   card,
+  deckTemplateId,
   isDeckFlipped,
   deckFlipRotationY,
   stackZone,
@@ -107,7 +109,7 @@ export default function DeckCard({
             </div>
           </div>
           <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
-            {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} variant={backFaceVariant} /> : null}
+            {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} deckTemplateId={deckTemplateId} variant={backFaceVariant} /> : null}
           </div>
         </div>
       </motion.div>
