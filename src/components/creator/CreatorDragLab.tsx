@@ -24,9 +24,8 @@ import {
   getCreatorCellId,
   getStepDisplayText,
   getStepMediaDisplayText,
-  isPairEmpty,
-  isStepMediaEmpty,
   isStepEmpty,
+  isStepMediaEmpty,
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
   resolveCreatorStreamName,
@@ -61,6 +60,7 @@ type EditSession = {
   helperText?: string;
   inputKind: "long-text" | "short-text";
   label: string;
+  stepTitle?: string;
   target: EditTarget;
   value: string;
 };
@@ -453,6 +453,7 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
       helperText: "Aim for 1-2 short lines on the card.",
       inputKind: "long-text",
       label: "Step text",
+      stepTitle: pair.stepTitle ?? "",
       target,
       value: pair.stepText ?? "",
     };
@@ -517,12 +518,13 @@ function CreatorEditModal({
   onClose: () => void;
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
-  onSave: (value: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) => void;
   onUploadDeckIntroductionVideo: (file: File) => void;
   onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
 }) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const [draftTitle, setDraftTitle] = useState(session.stepTitle ?? "");
   const [linkRanges, setLinkRanges] = useState<StepLinkRange[]>(() =>
     getLinkRangesFromDescriptionContent(session.descriptionContent, session.value)
   );
@@ -545,7 +547,45 @@ function CreatorEditModal({
     .join(" ");
   const showStepCounter = session.target.type === "pair-step";
   const maxLength = session.target.type === "card-label" ? CARD_LABEL_MAX_LENGTH : undefined;
-  const isStepWarningVisible = showStepCounter && draftValue.length > STEP_TEXT_WARNING_LENGTH;
+  const combinedLength = draftTitle.length + draftValue.length;
+  const isStepWarningVisible = showStepCounter && combinedLength > STEP_TEXT_WARNING_LENGTH;
+  const introImageInputRef = useRef<HTMLInputElement | null>(null);
+  const introVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const hasDeckIntroductionVideo = deckIntroductionVideo !== null;
+  const streamIntroVideo = isCloudflareStreamVideoMediaItem(deckIntroductionVideo) ? deckIntroductionVideo : null;
+
+  function handleDeckIntroductionImageButtonClick() {
+    introImageInputRef.current?.click();
+  }
+
+  function handleDeckIntroductionImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = "";
+
+    if (!selectedFile) {
+      return;
+    }
+
+    onUploadDeckIntroductionImage(selectedFile);
+  }
+
+  function handleDeckIntroductionVideoButtonClick() {
+    introVideoInputRef.current?.click();
+  }
+
+  function handleDeckIntroductionVideoChange(event: ChangeEvent<HTMLInputElement>) {
+    const selectedFile = event.currentTarget.files?.[0] ?? null;
+
+    event.currentTarget.value = "";
+
+    if (!selectedFile) {
+      return;
+    }
+
+    onUploadDeckIntroductionVideo(selectedFile);
+  }
+
   function handleDraftValueChange(value: string) {
     setLinkRanges((currentRanges) => adjustStepLinkRangesForTextChange(draftValue, value, currentRanges));
     setDraftValue(value);
@@ -652,7 +692,11 @@ function CreatorEditModal({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSave(draftValue, isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined);
+    onSave(
+      draftValue,
+      isStepText ? draftTitle : undefined,
+      isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined
+    );
   }
 
   const primaryField = isLongText ? (
@@ -684,6 +728,18 @@ function CreatorEditModal({
           </button>
         </header>
         {session.helperText ? <p className="creator-modal-note">{session.helperText}</p> : null}
+        {isStepText ? (
+          <label className="creator-step-title-group">
+            <span className="creator-step-title-label">Title (optional)</span>
+            <input
+              className="creator-modal-text-input creator-step-title-input"
+              onChange={(event) => setDraftTitle(event.target.value)}
+              placeholder="e.g. Listen closely"
+              type="text"
+              value={draftTitle}
+            />
+          </label>
+        ) : null}
         {isDeckIntroduction ? (
           <section className="creator-deck-introduction-section">
             <h2>Deck title</h2>
@@ -708,7 +764,7 @@ function CreatorEditModal({
         ) : null}
         {showStepCounter ? (
           <p className={`creator-modal-counter${isStepWarningVisible ? " creator-modal-counter--warning" : ""}`}>
-            {isStepWarningVisible ? `${draftValue.length} characters - this may truncate on the card.` : `${draftValue.length} characters`}
+            {isStepWarningVisible ? `${combinedLength} characters - this may truncate on the card.` : `${combinedLength} characters`}
           </p>
         ) : null}
         {isStepText ? (
@@ -874,9 +930,9 @@ function PairBlock({
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
     data: { type: "pair" },
-    disabled: isPairEmpty(pair),
+    disabled: isStepEmpty(pair),
   });
-  const isEmptyPair = isPairEmpty(pair);
+  const isEmptyPair = isStepEmpty(pair);
   const stepClassName = `creator-editable creator-pair-step${isStepEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const mediaClassName = `creator-pair-media${isStepMediaEmpty(pair) ? " creator-pair-title--placeholder" : ""}`;
   const handleClassName = `creator-drag-handle${isEmptyPair ? " creator-drag-handle--disabled" : ""}`;
@@ -884,7 +940,14 @@ function PairBlock({
   return (
     <div className={`creator-pair${isDragging ? " creator-pair--dragging" : ""}`} ref={setNodeRef}>
       <button className={stepClassName} onClick={() => onEdit({ type: "pair-step", pairId: pair.id })} type="button">
-        {getStepDisplayText(pair)}
+        {pair.stepTitle ? (
+          <>
+            <span className="creator-step-title-inline">{pair.stepTitle}</span>
+            {pair.stepText && pair.stepText.trim() !== "" ? pair.stepText : null}
+          </>
+        ) : (
+          getStepDisplayText(pair)
+        )}
       </button>
       <div className="creator-pair-handle-row">
         {/* Touch reorder is intentionally handle-only and requires dnd-kit long-press activation. */}
@@ -932,7 +995,16 @@ function PairPreview({ pair }: { pair: Pair }) {
 
   return (
     <div className="creator-pair creator-pair--preview">
-      <div className={stepClassName}>{getStepDisplayText(pair)}</div>
+      <div className={stepClassName}>
+        {pair.stepTitle ? (
+          <>
+            <span className="creator-step-title-inline">{pair.stepTitle}</span>
+            {pair.stepText && pair.stepText.trim() !== "" ? pair.stepText : null}
+          </>
+        ) : (
+          getStepDisplayText(pair)
+        )}
+      </div>
       <div className="creator-pair-handle-row">
         <span className="creator-drag-handle creator-drag-handle--preview" aria-hidden="true">
           <DragHandleMark />
@@ -1031,7 +1103,7 @@ function BoardCell({
   });
   const isOccupied = Boolean(cell.pairId);
   const isLocked = cell.kind === "locked";
-  const canDropActivePair = Boolean(isOver && activePairId && pair && pair.id !== activePairId && isPairEmpty(pair));
+  const canDropActivePair = Boolean(isOver && activePairId && pair && pair.id !== activePairId && isStepEmpty(pair));
   const isEmptyPanSurface = cell.kind === "empty" && !cell.pairId;
   const isStreamRowDragging = activeStreamRow === row;
   const isStreamRowTarget = activeStreamOverRow === row && activeStreamOverRow !== activeStreamRow;
@@ -1375,7 +1447,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     const pairId = String(event.active.id);
     const activePairCandidate = board.pairs[pairId];
 
-    setActivePairId(activePairCandidate && !isPairEmpty(activePairCandidate) ? pairId : null);
+    setActivePairId(activePairCandidate && !isStepEmpty(activePairCandidate) ? pairId : null);
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -1419,7 +1491,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       const targetPairId = targetCell?.pairId;
       const targetPair = targetPairId ? currentBoard.pairs[targetPairId] : undefined;
 
-      if (!originCellId || originCellId === targetCellId || !sourcePair || isPairEmpty(sourcePair) || !targetPair || !isPairEmpty(targetPair)) {
+      if (!originCellId || originCellId === targetCellId || !sourcePair || isStepEmpty(sourcePair) || !targetPair || !isStepEmpty(targetPair)) {
         return currentBoard;
       }
 
@@ -1477,7 +1549,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
 
-  function saveEdit(value: string, descriptionContent?: StepDescriptionSpan[]) {
+  function saveEdit(value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) {
     if (!editSession) {
       return;
     }
@@ -1527,6 +1599,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           ...currentBoard.pairs,
           [target.pairId]: {
             ...pair,
+            stepTitle: title?.trim() || null,
             stepDescriptionContent: descriptionContent,
             stepText: value.trim() === "" ? null : value,
           },

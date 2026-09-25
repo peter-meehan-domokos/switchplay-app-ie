@@ -80,6 +80,7 @@ export function mergeDeckTemplatesWithUserData(
         intro: templateCard.intro,
         steps: templateCard.steps.map((step) => ({
           stepId: step.stepId,
+          title: step.title,
           description: step.description,
           descriptionContent: step.descriptionContent,
           mediaItem: step.mediaItem,

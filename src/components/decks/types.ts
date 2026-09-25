@@ -25,6 +25,7 @@ export type CardIntro = {
 
 export type CardTemplateStep = {
   stepId: string;
+  title?: string;
   description: string | null;
   descriptionContent?: StepDescriptionSpan[];
   mediaItem?: MediaItem | null;
@@ -134,6 +135,7 @@ export type ClientUserDeckData = {
 
 export type WeeklyCardStep = {
   stepId: string;
+  title?: string;
   description: string | null;
   descriptionContent?: StepDescriptionSpan[];
   completionStatus: string;
