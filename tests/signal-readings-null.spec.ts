@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { mergeDeckTemplatesWithUserData, createEmptyClientUserCardDataFromTemplate } from "../src/lib/deckData";
 import { reconcileDeckDataWithTemplate } from "../src/lib/deckDataReconciliation";
-import { DeckTemplate } from "../src/components/decks/types";
+import { DeckTemplate, RuntimeDeckTemplate } from "../src/components/decks/types";
 
-const dummyTemplate: DeckTemplate = {
+const dummyTemplate: RuntimeDeckTemplate = {
   deckTemplateId: "test-deck",
   title: "Test",
   category: null,
+  introduction: null,
   streams: [{ id: "stream-0", title: "Stream 0" }],
   cards: [
     {
@@ -33,7 +34,7 @@ test("mergeDeckTemplatesWithUserData preserves raw reading null, but reading is 
     updatedAt: new Date().toISOString(),
     cards: [{
       cardId: "card-1",
-      targetDate: null,
+      targetDate: "",
       steps: [],
       mediaItems: [],
       chats: [],
@@ -65,7 +66,7 @@ test("reconcileDeckDataWithTemplate handles null", () => {
     updatedAt: new Date().toISOString(),
     cards: [{
       cardId: "card-1",
-      targetDate: null,
+      targetDate: "",
       items: [],
       mediaItems: [],
       chats: [],

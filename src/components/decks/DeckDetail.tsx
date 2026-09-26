@@ -11,6 +11,7 @@ import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import type { FocusedTraversalDirection } from "@/components/decks/FocusedCardView";
+import { OptimisticSignalManager } from "@/lib/OptimisticSignalManager";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
@@ -173,6 +174,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   // This avoids missed persistence updates and prepares the interaction for future
   // long-press acceleration.
   const cardsRef = useRef(cards);
+  const pendingSignalUpdatesRef = useRef<Record<string, symbol>>({});
   const cardMediaMutationQueueRef = useRef<UserCardMediaMutationQueue | null>(null);
 
   if (cardMediaMutationQueueRef.current === null) {
@@ -530,12 +532,44 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       console.warn("Unable to persist card target date.", error);
     });
   };
+  const optimisticSignalManagerRef = useRef<OptimisticSignalManager | null>(null);
+  if (optimisticSignalManagerRef.current === null) {
+    optimisticSignalManagerRef.current = new OptimisticSignalManager(
+      async (cardId: string, signalId: string, reading: number) => {
+        await persistSignalReading(deck.deckTemplateId, cardId, signalId, reading);
+      },
+      (cardId: string, signalId: string, restored) => {
+        setCards((currentCards) => {
+          const revertedCards = currentCards.map((c) =>
+            c.id === cardId
+              ? {
+                  ...c,
+                  signals: c.signals.map((s) =>
+                    s.id === signalId ? { ...s, reading: restored.reading, rawReading: restored.rawReading } : s
+                  ),
+                }
+              : c
+          );
+          cardsRef.current = revertedCards;
+          return revertedCards;
+        });
+      }
+    );
+  }
+
   const commitFocusedSignalReading = (cardId: string, signalId: string, reading: number) => {
     if (!deck.canMutate) {
       return;
     }
 
     const nextReading = roundSignalReadingForStorage(reading);
+    const manager = optimisticSignalManagerRef.current!;
+
+    // Capture baseline before optimistic update
+    const currentCard = cardsRef.current.find((c) => c.id === cardId);
+    const currentSignal = currentCard?.signals.find((s) => s.id === signalId);
+    manager.getConfirmedSignal(cardId, signalId, currentSignal?.reading ?? null, currentSignal?.rawReading ?? null);
+
     const nextCards = cardsRef.current.map((card) => {
       if (card.id !== cardId) {
         return card;
@@ -548,6 +582,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             ? {
                 ...signal,
                 reading: nextReading,
+                rawReading: nextReading,
               }
             : signal
         ),
@@ -561,9 +596,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       return;
     }
 
-    void persistSignalReading(deck.deckTemplateId, cardId, signalId, nextReading).catch((error) => {
-      console.warn("Unable to persist signal reading.", error);
-    });
+    manager.setOptimisticReading(cardId, signalId, nextReading);
   };
   const commitFocusedReflection = async (cardId: string, reflection: string) => {
     if (!deck.canMutate || !deck.hasUserDeckData) {

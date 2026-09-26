@@ -35,11 +35,17 @@ export function normalizedToSignalReading(normalizedValue: number) {
 export function getDeckConfidenceScore(
   cards: Array<{ signals: Array<{ rawReading: number | null | unknown }> }>
 ): number | null {
-  const validReadings = cards
-    .flatMap((card) => card.signals.map((s) => s.rawReading))
-    .filter((r): r is number => typeof r === "number" && Number.isFinite(r) && r >= 1 && r <= 10);
+  const allReadings = cards.flatMap((card) => card.signals.map((s) => s.rawReading));
 
-  const result = mean(validReadings);
+  const result = mean(allReadings, (r) => {
+    if (r === null) {
+      return null;
+    }
+    if (typeof r === "number" && Number.isFinite(r) && r >= 1 && r <= 10) {
+      return r;
+    }
+    return undefined; // D3 ignores undefined
+  });
 
   return result === undefined ? null : Math.round(result);
 }
