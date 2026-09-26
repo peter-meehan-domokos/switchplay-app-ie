@@ -3,7 +3,7 @@ import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSigna
 import type { MediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
 import { clampSignalReading, roundSignalReadingForDisplay, signalReadingToNormalized } from "@/lib/signals";
-import { selectVisibleUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { selectAllVisibleUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
 
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
@@ -29,7 +29,7 @@ export type CardLayoutExternalComment = {
 
 export type CardLayoutSignal = {
   id: string;
-  streamTitle: string;
+  title: string;
   value: number;
   reading: number;
   variant: SignalVariant;
@@ -62,7 +62,7 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
 
   return {
     id: signal.id,
-    streamTitle: signal.streamTitle,
+    title: signal.title,
     value: signalReadingToNormalized(reading),
     reading,
     variant: signalVariants[index] ?? "movement",
@@ -96,7 +96,7 @@ function normalizeExternalComment(card: WeeklyCard, options: CardLayoutOptions):
 }
 
 export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): CardLayout {
-  const backMediaItems = selectVisibleUserCardMediaItems(card.mediaItems);
+  const backMediaItems = selectAllVisibleUserCardMediaItems(card.mediaItems);
   const externalComment = normalizeExternalComment(card, options);
   const hasReflection = Boolean(card.reflection);
   const progressPercentage = getProgressPercentage(
@@ -122,7 +122,7 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
 }
 
 export function withCardMediaItems(card: CardLayout, mediaItems: MediaItem[]): CardLayout {
-  const backMediaItems = selectVisibleUserCardMediaItems(mediaItems);
+  const backMediaItems = selectAllVisibleUserCardMediaItems(mediaItems);
   const hasBackMedia = backMediaItems.length > 0;
   const ecologicalOccupancy =
     Number(hasBackMedia) +

@@ -97,9 +97,12 @@ export function mergeDeckTemplatesWithUserData(
                 ? clampSignalReading(legacyReading)
                 : DEFAULT_SIGNAL_READING;
 
+          const step = templateCard.steps[signalIndex];
+          const displayTitle = step?.title || legacySignal?.title || getStreamTitle(template, signalIndex);
+
           return {
             id: signalId,
-            streamTitle: getStreamTitle(template, signalIndex),
+            title: displayTitle,
             order: "increasing" as const,
             reading,
             unit: null,

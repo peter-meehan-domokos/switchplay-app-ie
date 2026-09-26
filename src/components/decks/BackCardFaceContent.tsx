@@ -11,7 +11,7 @@ import {
   type PointerEvent,
 } from "react";
 import BackCardExternalComment from "@/components/decks/BackCardExternalComment";
-import BackCardMediaTrace from "@/components/decks/BackCardMediaTrace";
+import BackCardMediaCarousel from "@/components/decks/BackCardMediaCarousel";
 import BackCardReflectionFragment from "@/components/decks/BackCardReflectionFragment";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
@@ -112,7 +112,7 @@ function PassiveSignalRow({ signal }: { signal: CardLayout["signals"][number] })
 
   return (
     <div className="focused-card-signal-slot">
-      <p>{signal.streamTitle}</p>
+      <p>{signal.title}</p>
       <div
         className="focused-card-signal-track"
         style={{ "--signal-value-position": getSignalValuePositionPercent(signal.value) } as CSSProperties}
@@ -424,7 +424,7 @@ function FocusedSignalRow({
       className={signalRowClassName}
       role="button"
       tabIndex={0}
-      aria-label={`Adjust ${signal.streamTitle} reading`}
+      aria-label={`Adjust ${signal.title} reading`}
       onPointerDown={handleRowPointerDown}
       onPointerMove={handleRowPointerMove}
       onPointerUp={finishRowPointerInteraction}
@@ -433,7 +433,7 @@ function FocusedSignalRow({
       onClick={handleRowClick}
       onKeyDown={handleRowKeyDown}
     >
-      <p>{signal.streamTitle}</p>
+      <p>{signal.title}</p>
       <div
         ref={signalTrackRef}
         className="focused-card-signal-track"
@@ -520,9 +520,8 @@ export default function BackCardFaceContent({
           </button>
         ) : null}
         {deckTemplateId ? (
-          <BackCardMediaTrace
+          <BackCardMediaCarousel
             items={card.backMediaItems}
-            target={{ scope: "user-card", deckTemplateId, cardId: card.id }}
           />
         ) : null}
         <section
