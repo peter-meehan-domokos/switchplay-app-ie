@@ -1,3 +1,5 @@
+import { mean } from "d3-array";
+
 export const SIGNAL_MIN = 1;
 export const SIGNAL_MAX = 10;
 export const DEFAULT_SIGNAL_READING = SIGNAL_MIN;
@@ -28,4 +30,16 @@ export function normalizedToSignalReading(normalizedValue: number) {
   const clampedNormalizedValue = Math.min(Math.max(normalizedValue, 0), 1);
 
   return SIGNAL_MIN + clampedNormalizedValue * (SIGNAL_MAX - SIGNAL_MIN);
+}
+
+export function getDeckConfidenceScore(
+  cards: Array<{ signals: Array<{ rawReading: number | null | unknown }> }>
+): number | null {
+  const validReadings = cards
+    .flatMap((card) => card.signals.map((s) => s.rawReading))
+    .filter((r): r is number => typeof r === "number" && Number.isFinite(r) && r >= 1 && r <= 10);
+
+  const result = mean(validReadings);
+
+  return result === undefined ? null : Math.round(result);
 }

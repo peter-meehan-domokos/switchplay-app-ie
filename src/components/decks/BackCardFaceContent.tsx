@@ -39,7 +39,7 @@ type SignalDragSession = {
   moved: boolean;
 };
 
-function clampNormalized(value: number) {
+export function clampNormalized(value: number) {
   return Math.min(Math.max(value, 0), 1);
 }
 
@@ -55,7 +55,7 @@ function formatDisplayedSignalReading(signal: CardLayout["signals"][number], dis
   return "";
 }
 
-function getSignalGestureAxis(deltaX: number, deltaY: number): "horizontal" | "vertical" | null {
+export function getSignalGestureAxis(deltaX: number, deltaY: number): "horizontal" | "vertical" | null {
   const absoluteX = Math.abs(deltaX);
   const absoluteY = Math.abs(deltaY);
   const distance = Math.hypot(deltaX, deltaY);
@@ -190,14 +190,20 @@ function FocusedSignalRow({
 
   const effectiveNormalized = clampNormalized(previewNormalized ?? signal.value);
   const displayedReading = useMemo(() => {
+    if (signal.reading === null && previewNormalized === null) {
+      return null;
+    }
     const reading = normalizedToSignalReading(effectiveNormalized);
 
     return clampSignalReading(snapReadingToInteger(reading));
-  }, [effectiveNormalized]);
-  const displayedReadingLabel = useMemo(
-    () => formatDisplayedSignalReading(signal, displayedReading),
-    [displayedReading, signal]
-  );
+  }, [effectiveNormalized, signal.reading, previewNormalized]);
+  
+  const displayedReadingLabel = useMemo(() => {
+    if (displayedReading === null) {
+      return "Drag to set";
+    }
+    return formatDisplayedSignalReading(signal, displayedReading);
+  }, [displayedReading, signal]);
 
   const getMovementRangePx = () => {
     const trackWidth = signalTrackRef.current?.getBoundingClientRect().width ?? 0;

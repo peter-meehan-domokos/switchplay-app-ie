@@ -31,7 +31,8 @@ export type CardLayoutSignal = {
   id: string;
   title: string;
   value: number;
-  reading: number;
+  reading: number | null;
+  rawReading: number | null;
   variant: SignalVariant;
   unit: string | null;
   order: SignalOrder;
@@ -58,13 +59,14 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
   const order = "increasing";
 
   // Keep reading precision for field position continuity; display rounding stays in UI.
-  const reading = clampSignalReading(signal.reading);
+  const reading = signal.reading === null ? null : clampSignalReading(signal.reading);
 
   return {
     id: signal.id,
     title: signal.title,
-    value: signalReadingToNormalized(reading),
+    value: reading === null ? 0 : signalReadingToNormalized(reading),
     reading,
+    rawReading: signal.rawReading ?? null,
     variant: signalVariants[index] ?? "movement",
     unit: signal.unit,
     order,

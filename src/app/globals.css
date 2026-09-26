@@ -1967,6 +1967,10 @@ input {
   font-size: 0.78rem;
 }
 
+.deck-tile-meta-confidence {
+  margin-left: 0.75rem;
+}
+
 .deck-tile-open-action {
   position: absolute;
   right: 10px;
@@ -2184,7 +2188,8 @@ input {
   flex-wrap: wrap;
 }
 
-.detail-progress {
+.detail-progress,
+.detail-confidence {
   margin: 0;
   color: rgba(198, 204, 214, 0.72);
   font-size: 0.78rem;

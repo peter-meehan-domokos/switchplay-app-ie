@@ -703,6 +703,9 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       <motion.div className="detail-heading" layout>
         <div className="detail-progress-row">
           <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p>
+          {optimisticDeck.confidenceScore !== null && (
+            <p className="detail-confidence">Confidence {optimisticDeck.confidenceScore}</p>
+          )}
           {deckIntroVideo && !isFocusModeOpen ? (
             <button
               ref={introActionRef}

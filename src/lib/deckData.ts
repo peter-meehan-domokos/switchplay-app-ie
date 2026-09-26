@@ -12,7 +12,7 @@ function getFirstCardId(template: DeckTemplate) {
   return template.cards[0]?.cardId ?? "";
 }
 
-function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["cards"][number]): ClientUserCardData {
+export function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["cards"][number]): ClientUserCardData {
   return {
     cardId: templateCard.cardId,
     targetDate: resolveDateOnly(templateCard.suggestedTargetDate),
@@ -22,7 +22,7 @@ function createEmptyClientUserCardDataFromTemplate(templateCard: DeckTemplate["c
     })),
     signalReadings: IMPLICIT_SIGNAL_IDS.map((signalId) => ({
       signalId,
-      reading: DEFAULT_SIGNAL_READING,
+      reading: null,
     })),
     reflection: "",
     mediaItems: [],
@@ -90,12 +90,14 @@ export function mergeDeckTemplatesWithUserData(
           const fixedReading = signalReadingById.get(signalId);
           const legacySignal = templateCard.signals?.[signalIndex];
           const legacyReading = legacySignal ? signalReadingById.get(legacySignal.signalId) : undefined;
-          const reading =
+          const rawReading =
             fixedReading !== undefined
-              ? clampSignalReading(fixedReading)
+              ? fixedReading
               : legacyReading !== undefined
-                ? clampSignalReading(legacyReading)
-                : DEFAULT_SIGNAL_READING;
+                ? legacyReading
+                : null;
+                
+          const reading = rawReading === null ? null : clampSignalReading(rawReading);
 
           const step = templateCard.steps[signalIndex];
           const displayTitle = step?.title || legacySignal?.title || getStreamTitle(template, signalIndex);
@@ -105,6 +107,7 @@ export function mergeDeckTemplatesWithUserData(
             title: displayTitle,
             order: "increasing" as const,
             reading,
+            rawReading,
             unit: null,
           };
         }),
