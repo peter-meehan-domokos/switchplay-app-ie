@@ -5,21 +5,21 @@ import type { DeckTemplate } from "@/components/decks/types";
 //WARNING: suggested date is supposed to be a date string not an empty string
 export const deckTemplates: DeckTemplate[] = [
   {
-    "deckTemplateId": "deck-2026-09-18-maths-formulae-1",
-    "title": "Using and Rearranging Formulae",
-    "category": "Leaving Cert O",
+    "deckTemplateId": "deck-2026-09-26-basketball-match-dunking-1",
+    "title": "Dunking Under Match Conditions",
+    "category": "Basketball",
     "streams": [
       {
-        "id": "recognise-the-structure",
-        "title": "Recognise the Structure"
+        "id": "build-a-repeatable-approach",
+        "title": "Build a Repeatable Approach"
       },
       {
-        "id": "use-and-undo-operations",
-        "title": "Use and Undo Operations"
+        "id": "stay-loose-under-pressure",
+        "title": "Stay Loose Under Pressure"
       },
       {
-        "id": "check-it-makes-sense",
-        "title": "Check It Makes Sense"
+        "id": "rehearse-the-game-moment",
+        "title": "Rehearse the Game Moment"
       }
     ],
     "cards": [
@@ -28,24 +28,27 @@ export const deckTemplates: DeckTemplate[] = [
         "label": "Card 1",
         "suggestedTargetDate": "",
         "intro": {
-          "title": "Read a Formula",
-          "description": "",
+          "title": "Find Your Match-Ready Take-Off",
+          "description": "Build an approach you can trust when the game is moving fast.",
           "mediaItem": null
         },
         "steps": [
           {
             "stepId": "card-001-step-1",
-            "description": "Identify what each letter represents, which values are given, and which value you need to find.",
+            "title": "Set Run-Up",
+            "description": "Choose a run-up you can repeat at game speed.",
             "mediaItem": null
           },
           {
             "stepId": "card-001-step-2",
-            "description": "Follow the formula from the unknown outwards and identify the operations being applied and the order they happen in.",
+            "title": "Gather Fast",
+            "description": "Take the ball from a dribble with your eyes up.",
             "mediaItem": null
           },
           {
             "stepId": "card-001-step-3",
-            "description": "Explain in words what the formula is doing and check that its structure makes sense in the context of the question.",
+            "title": "Film It",
+            "description": "Keep the approach and gather that give your cleanest finish.",
             "mediaItem": null
           }
         ]
@@ -55,24 +58,27 @@ export const deckTemplates: DeckTemplate[] = [
         "label": "Card 2",
         "suggestedTargetDate": "",
         "intro": {
-          "title": "Substitute Into a Formula",
-          "description": "",
+          "title": "Finish a Dunk Through Traffic",
+          "description": "Make the skill useful when there are bodies, contact and less space.",
           "mediaItem": null
         },
         "steps": [
           {
             "stepId": "card-002-step-1",
-            "description": "Match each given value to the correct letter and substitute all known values into the formula.",
+            "title": "Drive Direct",
+            "description": "Attack from a wing or slot; commit to one strong finish.",
             "mediaItem": null
           },
           {
             "stepId": "card-002-step-2",
-            "description": "Keep the structure of the formula intact and use BIDMAS to identify the order in which the remaining operations are applied.",
+            "title": "Add Contact",
+            "description": "Use a pad or passive defender to test your safest finish.",
             "mediaItem": null
           },
           {
             "stepId": "card-002-step-3",
-            "description": "Check that every given value has been substituted correctly and that the remaining unknown is the value you were asked to find.",
+            "title": "Go Live",
+            "description": "Use recovering and rotating defenders; choose when to go up.",
             "mediaItem": null
           }
         ]
@@ -82,24 +88,57 @@ export const deckTemplates: DeckTemplate[] = [
         "label": "Card 3",
         "suggestedTargetDate": "",
         "intro": {
-          "title": "Rearrange to Find the Unknown",
-          "description": "",
+          "title": "Stay Relaxed When the Chance Comes",
+          "description": "Replace the rush to prove you can dunk with a calm, decisive finish.",
           "mediaItem": null
         },
         "steps": [
           {
             "stepId": "card-003-step-1",
-            "description": "Find the outermost operation around the unknown and decide which operation must be undone first.",
+            "title": "Reset Breath",
+            "description": "Before each rep, take one slow breath and use one cue.",
             "mediaItem": null
           },
           {
             "stepId": "card-003-step-2",
-            "description": "Undo each operation using its inverse, working in the reverse order and applying the same operation to both sides.",
+            "title": "Add Pressure",
+            "description": "Dunk after a sprint, miss or turnover, with a score.",
             "mediaItem": null
           },
           {
             "stepId": "card-003-step-3",
-            "description": "Substitute your answer back into the original formula and check that it gives the expected value and makes sense in context.",
+            "title": "Move On",
+            "description": "After a miss, reset and take the next good chance.",
+            "mediaItem": null
+          }
+        ]
+      },
+      {
+        "cardId": "card-004",
+        "label": "Card 4",
+        "suggestedTargetDate": "",
+        "intro": {
+          "title": "Rehearse Your Game Dunk",
+          "description": "Prepare your mind for the exact moment a real opportunity appears.",
+          "mediaItem": null
+        },
+        "steps": [
+          {
+            "stepId": "card-004-step-1",
+            "title": "Picture It",
+            "description": "At night, picture one game dunk: space, defender, finish.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-004-step-2",
+            "title": "Vary It",
+            "description": "Picture an open break, late help and a close game.",
+            "mediaItem": null
+          },
+          {
+            "stepId": "card-004-step-3",
+            "title": "Judge Well",
+            "description": "In a game, judge the decision and calmness, not only makes.",
             "mediaItem": null
           }
         ]

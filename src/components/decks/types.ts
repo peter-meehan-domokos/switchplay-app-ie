@@ -85,7 +85,7 @@ export type UserCardItemData = {
 
 export type UserCardSignalReading = {
   signalId: string;
-  reading: number;
+  reading: number | null;
 };
 
 export type UserCardData = {
@@ -146,7 +146,8 @@ export type WeeklyCardSignal = {
   id: string;
   title: string;
   order: SignalOrder | null;
-  reading: number;
+  reading: number | null;
+  rawReading: number | null;
   unit: string | null;
 };
 
