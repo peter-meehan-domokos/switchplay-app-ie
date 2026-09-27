@@ -1,3 +1,4 @@
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
@@ -55,6 +56,8 @@ type FocusedCardViewProps = {
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
   onCommitCardMedia?: (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => Promise<void>;
   onRemoveCardMedia?: (target: UserCardMediaUploadTarget, mediaItemId: string) => Promise<void>;
+  onOpenMedia?: OpenCardMedia;
+  isMediaViewerOpen?: boolean;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
@@ -226,6 +229,8 @@ export default function FocusedCardView({
   onCommitReflection,
   onCommitCardMedia,
   onRemoveCardMedia,
+  onOpenMedia,
+  isMediaViewerOpen = false,
   onRequestAddComment,
   traversalDirection,
   transition,
@@ -585,6 +590,7 @@ export default function FocusedCardView({
     mode: "focus",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
     locked:
+      isMediaViewerOpen ||
       isFocusedGestureLocked ||
       Boolean(stepViewItem) ||
       Boolean(reflectionEditorState) ||
@@ -852,6 +858,11 @@ export default function FocusedCardView({
                 variant="focused"
                 canMutate={canMutate}
                 onCommitSignalReading={onCommitSignalReading}
+                onOpenMedia={onOpenMedia ? (cardId, itemId, source) => {
+                  if (!isFlipped || isFocusedGestureLocked || stepViewItem || reflectionEditorState || mediaEditorCardId) return;
+                  videoPlayerRef.current?.pauseAndReset("opening card media viewer");
+                  onOpenMedia(cardId, itemId, source);
+                } : undefined}
                 onEditMedia={onCommitCardMedia && onRemoveCardMedia ? openMediaEditor : undefined}
                 onEditReflection={onCommitReflection ? openReflectionEditor : undefined}
                 onSignalNavigateNext={settleFocusedCardToPast}

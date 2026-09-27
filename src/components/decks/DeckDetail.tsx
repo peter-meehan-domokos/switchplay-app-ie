@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import CardMediaViewer from "@/components/media/CardMediaViewer";
+import { resolveMediaSelection, type MediaSelection, type OpenCardMedia } from "@/lib/cardMediaViewer";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
 import { withCardMediaItems } from "@/components/cards/cardLayout";
@@ -167,6 +169,9 @@ function addDaysToDateString(dateString: string, amount: number) {
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
   const [cards, setCards] = useState(deck.cards);
+  const [mediaViewer, setMediaViewer] = useState<(MediaSelection & { cardId: string; contextCardId: string; focused: boolean }) | null>(null);
+  const mediaSourceRef = useRef<HTMLButtonElement | null>(null);
+  const closeMediaViewer = useCallback(() => setMediaViewer(null), []);
   // cardsRef is the immediate optimistic source of truth for target-date edits.
   // We update it synchronously before setCards(...) so rapid taps always calculate
   // from the latest optimistic state rather than waiting for React render/effect timing.
@@ -209,6 +214,31 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const finalCardIndex = optimisticDeck.cards.length - 1;
   const activeCard = cards[activeCardIndex] ?? null;
   const canAddSharedComment = deck.hasUserDeckData && !deck.canMutate && !deck.isOwnedByCurrentUser;
+  const viewerCard = mediaViewer ? optimisticDeck.cards.find((candidate) => candidate.id === mediaViewer.cardId) : null;
+  const viewerSelection = mediaViewer && viewerCard ? resolveMediaSelection(viewerCard.backMediaItems, mediaViewer) : null;
+  const viewerContextValid = mediaViewer?.contextCardId === activeCard?.id && mediaViewer?.focused === isFocusModeOpen;
+  const isMediaViewerOpen = Boolean(mediaViewer);
+  useEffect(() => {
+    if (!mediaViewer) return;
+    // Reconcile live upload/removal results without briefly selecting another item.
+    if (!viewerSelection || !viewerContextValid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMediaViewer(null);
+    } else if (viewerSelection.mediaItemId !== mediaViewer.mediaItemId || viewerSelection.index !== mediaViewer.index) {
+      setMediaViewer((current) => current ? { ...current, ...viewerSelection } : null);
+    }
+  }, [mediaViewer, viewerSelection, viewerContextValid]);
+  const openCardMedia: OpenCardMedia = (cardId, mediaItemId, source) => {
+    if (transitionPhase || isSharedCommentEditorOpen || mediaViewer || document.querySelector(".creator-modal-backdrop")) return;
+    const card = optimisticDeck.cards.find((candidate) => candidate.id === cardId);
+    const index = card?.backMediaItems.findIndex((item) => item.id === mediaItemId) ?? -1;
+    if (index < 0 || !activeCard) return;
+    introPlayerRef.current?.pauseAndReset("opening card media viewer");
+    setIsDeckIntroExpanded(false);
+    mediaSourceRef.current = source;
+    setMediaViewer({ cardId, mediaItemId, index, contextCardId: activeCard.id, focused: isFocusModeOpen });
+  };
+
 
   useEffect(() => {
     cardsRef.current = cards;
@@ -651,7 +681,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const deckGestures = useDeckGestures({
     mode: "deck",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
-    locked: transitionPhase !== null || isFocusModeOpen,
+    locked: isMediaViewerOpen || transitionPhase !== null || isFocusModeOpen,
     onSettleToPast: goToNextCard,
     onRestoreFromPast: goToPreviousCard,
     onFlip: toggleDeckSide,
@@ -659,7 +689,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const latestPastGestures = useDeckGestures({
     mode: "deck",
     allowedIntents: ["restoreFromPast"],
-    locked: transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
+    locked: isMediaViewerOpen || transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
     onRestoreFromPast: goToPreviousCard,
   });
   const activeGesturePreviewY =
@@ -733,6 +763,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             deckFlipRotationY={deckFlipRotationY}
             transitionPhase={transitionPhase}
             onFocusCard={openFocusMode}
+            onOpenMedia={openCardMedia}
             activeGestureHandlers={deckGestures.handlers}
             latestPastGestureHandlers={latestPastGestures.handlers}
             activeGesturePreviewY={activeGesturePreviewY}
@@ -742,6 +773,15 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         </div>
       </div>
 
+      {mediaViewer && viewerCard && viewerSelection && viewerContextValid ? <CardMediaViewer
+        items={viewerCard.backMediaItems}
+        index={viewerSelection.index}
+        target={{ deckUserId: deck.ownerUserId, deckTemplateId: deck.deckTemplateId, cardId: viewerCard.id }}
+        sourceRef={mediaSourceRef}
+        backgroundRef={deckDetailRef}
+        onSelect={(mediaItemId, index) => setMediaViewer((current) => current ? { ...current, mediaItemId, index } : null)}
+        onClose={closeMediaViewer}
+      /> : null}
       <AnimatePresence>
         {isFocusModeOpen ? (
           <FocusedCardView
@@ -751,6 +791,8 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             deckTemplateId={deck.deckTemplateId}
             totalCards={optimisticDeck.cards.length}
             onClose={closeFocusMode}
+            onOpenMedia={openCardMedia}
+            isMediaViewerOpen={isMediaViewerOpen}
             onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard}
             onCycleStepStatus={cycleFocusedStepStatus}

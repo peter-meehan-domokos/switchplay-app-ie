@@ -1,3 +1,4 @@
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { motion, type MotionStyle } from "motion/react";
 import type { CSSProperties } from "react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
@@ -20,6 +21,7 @@ type DeckCardProps = {
   stackZone: "past" | "active" | "future";
   showHeader: boolean;
   showProgress: boolean;
+  onOpenMedia?: OpenCardMedia;
   onActivate?: () => void;
   gestureHandlers?: DeckGestureHandlers;
   suppressActivation?: boolean;
@@ -45,6 +47,7 @@ export default function DeckCard({
   stackZone,
   showHeader,
   showProgress,
+  onOpenMedia,
   onActivate,
   gestureHandlers,
   suppressActivation = false,
@@ -84,7 +87,8 @@ export default function DeckCard({
       data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
       layoutId={`week-card-${card.id}`}
-      role={onActivate ? "button" : undefined}
+      role={onActivate ? (isDeckFlipped && onOpenMedia ? "group" : "button") : undefined}
+      aria-label={isDeckFlipped && onOpenMedia ? `${card.label}. Press Enter to focus this card, or open a media item.` : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onClick={onActivate ? handleActivate : undefined}
       onKeyDown={handleKeyDown}
@@ -99,7 +103,7 @@ export default function DeckCard({
         transition={deckFlipTransition}
       >
         <div className="deck-card-render-surface" style={renderSurfaceStyle}>
-          <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped}>
+          <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped} inert={isDeckFlipped}>
             <div className="deck-card-content">
               {stackZone === "active" || stackZone === "past" ? (
                 <ActiveCardFront card={card} dateLabel={dateLabel} />
@@ -108,8 +112,8 @@ export default function DeckCard({
               ) : null}
             </div>
           </div>
-          <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
-            {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} deckTemplateId={deckTemplateId} variant={backFaceVariant} /> : null}
+          <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped} inert={!isDeckFlipped}>
+            {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} deckTemplateId={deckTemplateId} variant={backFaceVariant} onOpenMedia={isDeckFlipped ? onOpenMedia : undefined} /> : null}
           </div>
         </div>
       </motion.div>

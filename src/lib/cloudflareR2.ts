@@ -1,9 +1,18 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getFileExtensionForImageUploadContentType, isSupportedImageUploadContentType, type SupportedImageUploadContentType } from "@/lib/imageUploadContentTypes";
 import type { CloudflareR2ImageMediaItem } from "@/lib/media";
 
 export const R2_PRESIGNED_UPLOAD_EXPIRATION_SECONDS = 300;
+
+// Only call with an object key resolved from an authorized persisted media record.
+export async function createUserCardImageDownloadUrl(objectKey: string, signedUrlImpl = getSignedUrl) {
+  const config = getCloudflareR2UserDataConfig();
+  return signedUrlImpl(createCloudflareR2S3Client(config), new GetObjectCommand({
+    Bucket: config.bucketName,
+    Key: objectKey,
+  }), { expiresIn: 300 });
+}
 
 type CloudflareR2Config = {
   accessKeyId: string;
