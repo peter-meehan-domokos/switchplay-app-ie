@@ -140,6 +140,37 @@ export function withCardMediaItems(card: CardLayout, mediaItems: MediaItem[]): C
     reflectionVerticalOffset: hasBackMedia ? 0 : sparseReflectionOffset,
   };
 }
+export function withUpdatedSignalReading(card: CardLayout, signalId: string, nextReading: number | null): CardLayout {
+  return {
+    ...card,
+    signals: card.signals.map(signal => {
+      if (signal.id !== signalId) return signal;
+      const reading = nextReading === null ? null : clampSignalReading(nextReading);
+      return {
+        ...signal,
+        reading,
+        rawReading: nextReading,
+        value: reading === null ? 0 : signalReadingToNormalized(reading),
+      };
+    })
+  };
+}
+
+export function withUpdatedReflection(card: CardLayout, reflection: string): CardLayout {
+  const hasBackMedia = card.backMediaItems.length > 0;
+  const ecologicalOccupancy =
+    Number(hasBackMedia) +
+    Number(Boolean(card.externalComment)) +
+    Number(Boolean(reflection));
+
+  return {
+    ...card,
+    reflection,
+    ecologicalOccupancy,
+    ecologicalOccupancyRatio: ecologicalOccupancy / 3,
+    reflectionVerticalOffset: hasBackMedia ? 0 : sparseReflectionOffset,
+  };
+}
 
 export function withDerivedCardProgress(card: CardLayout): CardLayout {
   return {
