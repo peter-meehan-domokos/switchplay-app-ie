@@ -32,6 +32,13 @@ export type SeedDeckTemplateOwnership = {
 
 export const seedDeckTemplateOwnership: SeedDeckTemplateOwnership[] = [
   {
+    ownerUsername: "Joe",
+    visibility: "private",
+    deckTemplateIds: [
+      "deck-2026-09-26-basketball-match-dunking-1"
+    ],
+  },
+  {
     ownerUsername: "Eamonn",
     visibility: "private",
     deckTemplateIds: [

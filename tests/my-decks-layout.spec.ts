@@ -23,6 +23,7 @@ function createDeckLayout(id: string, openedAt?: string | null): DeckLayout {
     streams: [],
     cards: [],
     progressPercentage: 0,
+    confidenceScore: null,
   };
 }
 

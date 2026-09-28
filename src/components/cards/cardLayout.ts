@@ -31,7 +31,8 @@ export type CardLayoutSignal = {
   id: string;
   title: string;
   value: number;
-  reading: number;
+  reading: number | null;
+  rawReading: number | null;
   variant: SignalVariant;
   unit: string | null;
   order: SignalOrder;
@@ -58,13 +59,14 @@ function normalizeSignal(signal: RawCardSignal, index: number): CardLayoutSignal
   const order = "increasing";
 
   // Keep reading precision for field position continuity; display rounding stays in UI.
-  const reading = clampSignalReading(signal.reading);
+  const reading = signal.reading === null ? null : clampSignalReading(signal.reading);
 
   return {
     id: signal.id,
     title: signal.title,
-    value: signalReadingToNormalized(reading),
+    value: reading === null ? 0 : signalReadingToNormalized(reading),
     reading,
+    rawReading: signal.rawReading ?? null,
     variant: signalVariants[index] ?? "movement",
     unit: signal.unit,
     order,
@@ -133,6 +135,37 @@ export function withCardMediaItems(card: CardLayout, mediaItems: MediaItem[]): C
     ...card,
     mediaItems,
     backMediaItems,
+    ecologicalOccupancy,
+    ecologicalOccupancyRatio: ecologicalOccupancy / 3,
+    reflectionVerticalOffset: hasBackMedia ? 0 : sparseReflectionOffset,
+  };
+}
+export function withUpdatedSignalReading(card: CardLayout, signalId: string, nextReading: number | null): CardLayout {
+  return {
+    ...card,
+    signals: card.signals.map(signal => {
+      if (signal.id !== signalId) return signal;
+      const reading = nextReading === null ? null : clampSignalReading(nextReading);
+      return {
+        ...signal,
+        reading,
+        rawReading: nextReading,
+        value: reading === null ? 0 : signalReadingToNormalized(reading),
+      };
+    })
+  };
+}
+
+export function withUpdatedReflection(card: CardLayout, reflection: string): CardLayout {
+  const hasBackMedia = card.backMediaItems.length > 0;
+  const ecologicalOccupancy =
+    Number(hasBackMedia) +
+    Number(Boolean(card.externalComment)) +
+    Number(Boolean(reflection));
+
+  return {
+    ...card,
+    reflection,
     ecologicalOccupancy,
     ecologicalOccupancyRatio: ecologicalOccupancy / 3,
     reflectionVerticalOffset: hasBackMedia ? 0 : sparseReflectionOffset,

@@ -24,7 +24,7 @@ function createServerUserDeckDataFromTemplate(template: DeckTemplate): UserDeckD
       })),
       signalReadings: IMPLICIT_SIGNAL_IDS.map((signalId) => ({
         signalId,
-        reading: DEFAULT_SIGNAL_READING,
+        reading: null,
       })),
       reflection: "",
       mediaItems: [],

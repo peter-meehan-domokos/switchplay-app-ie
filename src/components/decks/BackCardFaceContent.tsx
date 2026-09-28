@@ -40,7 +40,7 @@ type SignalDragSession = {
   moved: boolean;
 };
 
-function clampNormalized(value: number) {
+export function clampNormalized(value: number) {
   return Math.min(Math.max(value, 0), 1);
 }
 
@@ -56,7 +56,7 @@ function formatDisplayedSignalReading(signal: CardLayout["signals"][number], dis
   return "";
 }
 
-function getSignalGestureAxis(deltaX: number, deltaY: number): "horizontal" | "vertical" | null {
+export function getSignalGestureAxis(deltaX: number, deltaY: number): "horizontal" | "vertical" | null {
   const absoluteX = Math.abs(deltaX);
   const absoluteY = Math.abs(deltaY);
   const distance = Math.hypot(deltaX, deltaY);
@@ -108,8 +108,8 @@ type FocusedSignalRowProps = {
 };
 
 function PassiveSignalRow({ signal }: { signal: CardLayout["signals"][number] }) {
-  const displayedReading = snapReadingToInteger(signal.reading);
-  const displayedReadingLabel = formatDisplayedSignalReading(signal, displayedReading);
+  const displayedReading = signal.reading === null ? null : snapReadingToInteger(signal.reading);
+  const displayedReadingLabel = displayedReading === null ? "" : formatDisplayedSignalReading(signal, displayedReading);
 
   return (
     <div className="focused-card-signal-slot">
@@ -127,7 +127,25 @@ function PassiveSignalRow({ signal }: { signal: CardLayout["signals"][number] })
   );
 }
 
-function FocusedSignalRow({
+export function getFocusedSignalDisplayState(
+  signal: CardLayout["signals"][number],
+  previewNormalized: number | null,
+  isValueVisible: boolean
+) {
+  const effectiveNormalized = clampNormalized(previewNormalized ?? signal.value);
+
+  const displayedReading = signal.reading === null && previewNormalized === null
+    ? null
+    : clampSignalReading(snapReadingToInteger(normalizedToSignalReading(effectiveNormalized)));
+
+  const label = displayedReading === null ? "Drag to set" : formatDisplayedSignalReading(signal, displayedReading);
+  const isUnset = signal.reading === null && previewNormalized === null;
+  const isVisible = isValueVisible || isUnset;
+
+  return { label, isVisible, isUnset, effectiveNormalized };
+}
+
+export function FocusedSignalRow({
   cardId,
   signal,
   onCommitSignalReading,
@@ -189,16 +207,13 @@ function FocusedSignalRow({
     };
   }, [clearHideTimer, releaseDragSession]);
 
-  const effectiveNormalized = clampNormalized(previewNormalized ?? signal.value);
-  const displayedReading = useMemo(() => {
-    const reading = normalizedToSignalReading(effectiveNormalized);
-
-    return clampSignalReading(snapReadingToInteger(reading));
-  }, [effectiveNormalized]);
-  const displayedReadingLabel = useMemo(
-    () => formatDisplayedSignalReading(signal, displayedReading),
-    [displayedReading, signal]
+  const displayState = useMemo(
+    () => getFocusedSignalDisplayState(signal, previewNormalized, isValueVisible),
+    [signal, previewNormalized, isValueVisible]
   );
+
+  const displayedReadingLabel = displayState.label;
+  const isUnset = displayState.isUnset;
 
   const getMovementRangePx = () => {
     const trackWidth = signalTrackRef.current?.getBoundingClientRect().width ?? 0;
@@ -246,7 +261,7 @@ function FocusedSignalRow({
       pointerId: event.pointerId,
       startPointerX: event.clientX,
       startPointerY: event.clientY,
-      startNormalized: effectiveNormalized,
+      startNormalized: displayState.effectiveNormalized,
       movementRangePx,
       intent: "pending",
       moved: false,
@@ -417,8 +432,9 @@ function FocusedSignalRow({
   const signalRowClassName = "focused-card-signal-slot";
   const signalValueClassName = [
     "focused-card-signal-value",
-    isValueVisible ? "focused-card-signal-value--visible" : "focused-card-signal-value--hidden",
-  ].join(" ");
+    isValueVisible || isUnset ? "focused-card-signal-value--visible" : "focused-card-signal-value--hidden",
+    isUnset ? "focused-card-signal-value--unset" : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <div
@@ -438,12 +454,12 @@ function FocusedSignalRow({
       <div
         ref={signalTrackRef}
         className="focused-card-signal-track"
-        style={{ "--signal-value-position": getSignalValuePositionPercent(effectiveNormalized) } as CSSProperties}
+        style={{ "--signal-value-position": getSignalValuePositionPercent(displayState.effectiveNormalized) } as CSSProperties}
       >
-        <span className={signalValueClassName} aria-hidden={!isValueVisible}>
+        <span className={signalValueClassName} aria-hidden={!(isValueVisible || isUnset)}>
           {displayedReadingLabel}
         </span>
-        <PulseFieldSignal value={effectiveNormalized} variant={signal.variant} className="focused-card-signal-trace" />
+        <PulseFieldSignal value={displayState.effectiveNormalized} variant={signal.variant} className="focused-card-signal-trace" />
       </div>
     </div>
   );

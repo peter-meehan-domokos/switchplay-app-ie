@@ -27,7 +27,7 @@ function createFreshCardData(templateCard: DeckTemplate["cards"][number]): UserD
 function createDefaultSignalReadings() {
   return IMPLICIT_SIGNAL_IDS.map((signalId) => ({
     signalId,
-    reading: DEFAULT_SIGNAL_READING,
+    reading: null,
   }));
 }
 
@@ -76,12 +76,14 @@ export function reconcileDeckDataWithTemplate({
           const existingFixedReading = existingSignalReadingsById.get(signalId);
           const legacySignal = oldCard.signals?.[signalIndex];
           const existingLegacyReading = legacySignal ? existingSignalReadingsById.get(legacySignal.signalId) : undefined;
-          const reading =
+          const rawReading =
             existingFixedReading !== undefined
-              ? clampSignalReading(existingFixedReading.reading)
+              ? existingFixedReading.reading
               : existingLegacyReading !== undefined
-                ? clampSignalReading(existingLegacyReading.reading)
-                : DEFAULT_SIGNAL_READING;
+                ? existingLegacyReading.reading
+                : null;
+                
+          const reading = rawReading === null ? null : clampSignalReading(rawReading);
 
           return {
             signalId,
