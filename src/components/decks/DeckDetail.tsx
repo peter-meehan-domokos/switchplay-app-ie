@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { AnimatePresence, motion } from "motion/react";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
-import { withCardMediaItems } from "@/components/cards/cardLayout";
+import { withCardMediaItems, withUpdatedSignalReading, withUpdatedReflection } from "@/components/cards/cardLayout";
 import { getPlayableDeckIntroductionVideo } from "@/components/decks/deckIntroPreview";
 import DeckMenu from "@/components/decks/DeckMenu";
 import { buildOptimisticDeckLayout } from "@/components/decks/deckLayout";
@@ -542,12 +542,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         setCards((currentCards) => {
           const revertedCards = currentCards.map((c) =>
             c.id === cardId
-              ? {
-                  ...c,
-                  signals: c.signals.map((s) =>
-                    s.id === signalId ? { ...s, reading: restored.reading, rawReading: restored.rawReading } : s
-                  ),
-                }
+              ? withUpdatedSignalReading(c, signalId, restored.rawReading)
               : c
           );
           cardsRef.current = revertedCards;
@@ -570,24 +565,9 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     const currentSignal = currentCard?.signals.find((s) => s.id === signalId);
     manager.getConfirmedSignal(cardId, signalId, currentSignal?.reading ?? null, currentSignal?.rawReading ?? null);
 
-    const nextCards = cardsRef.current.map((card) => {
-      if (card.id !== cardId) {
-        return card;
-      }
-
-      return {
-        ...card,
-        signals: card.signals.map((signal) =>
-          signal.id === signalId
-            ? {
-                ...signal,
-                reading: nextReading,
-                rawReading: nextReading,
-              }
-            : signal
-        ),
-      };
-    });
+    const nextCards = cardsRef.current.map((card) =>
+      card.id === cardId ? withUpdatedSignalReading(card, signalId, nextReading) : card
+    );
 
     cardsRef.current = nextCards;
     setCards(nextCards);
@@ -606,12 +586,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     const normalizedReflection = reflection.trim();
     const previousCards = cardsRef.current;
     const nextCards = previousCards.map((card) =>
-      card.id === cardId
-        ? {
-            ...card,
-            reflection: normalizedReflection,
-          }
-        : card,
+      card.id === cardId ? withUpdatedReflection(card, normalizedReflection) : card
     );
 
     cardsRef.current = nextCards;
