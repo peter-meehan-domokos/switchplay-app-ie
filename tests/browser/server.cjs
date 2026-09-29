@@ -30,12 +30,19 @@ webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'f
     if (request.url?.startsWith('/api/media/card')) {
       response.setHeader('Content-Type', 'application/json');
       const action = new URL(request.url, 'http://localhost').searchParams.get('action');
-      if (action === 'playback') response.end(JSON.stringify({ status: 'ready' }));
-      else response.end(JSON.stringify({ status: 'ready', url: '/api/media/card/file?fixture=1', filename: 'written-work.png' }));
+      if (action === 'playback') { response.end(JSON.stringify({ status: 'ready' })); return; }
+      const reply = (mediaItemId) => response.end(JSON.stringify(mediaItemId?.startsWith('stream-')
+        ? { status: 'ready', url: `https://customer-test.cloudflarestream.com/${mediaItemId}/downloads/default.mp4?filename=Practice`, filename: 'Practice.mp4' }
+        : { status: 'ready', url: '/api/media/card/file?fixture=1', filename: 'written-work.png' }));
+      if (request.method === 'POST') {
+        let body = '';
+        request.on('data', (chunk) => { body += chunk; });
+        request.on('end', () => { reply(JSON.parse(body).mediaItemId); });
+      } else reply(new URL(request.url, 'http://localhost').searchParams.get('mediaItemId'));
       return;
     }
     response.setHeader('Content-Type', 'text/html');
-    response.end('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><div id="fixture-root"></div><script src="/fixture.js"></script></body></html>');
+    response.end('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><div id="fixture-root"></div><script src="/fixture.js"></script></body></html>');
   });
   server.listen(4178, '127.0.0.1', () => console.log('Media viewer fixture ready on 4178'));
   const close = () => server.close(() => { fs.rmSync(output, { recursive: true, force: true }); process.exit(0); });

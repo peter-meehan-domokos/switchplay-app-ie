@@ -77,6 +77,15 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
     onKeyDown={(event) => {
       event.stopPropagation();
       const node = event.target as HTMLElement;
+      if (event.key === "Tab") {
+        const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href], video[controls], [tabindex]:not([tabindex='-1'])") ?? [])
+          .filter((control) => control.getClientRects().length > 0 && !control.closest("[inert]"));
+        const first = controls[0];
+        const last = controls.at(-1);
+        if (event.shiftKey && node === first && last) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && node === last && first) { event.preventDefault(); first.focus(); }
+        return;
+      }
       if (event.key === "Escape" && !isVideoFullscreen()) { event.preventDefault(); close(); }
       if (event.altKey || event.ctrlKey || event.metaKey || node.closest("video, input, textarea, select, [role=slider]")) return;
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); navigate(event.key === "ArrowLeft" ? -1 : 1); }
