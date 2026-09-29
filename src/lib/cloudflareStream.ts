@@ -1,5 +1,28 @@
 export const STREAM_DIRECT_UPLOAD_MAX_DURATION_SECONDS = 150;
 
+export type StreamDownload = { status: "ready" | "inprogress" | "error"; url?: string; percentComplete?: number };
+
+// GET observes generation; POST requests it. Never send this API URL/token to a client.
+export async function requestCloudflareStreamDownload(uid: string, method: "GET" | "POST" = "GET"): Promise<StreamDownload | null> {
+  const { accountId, apiToken } = getCloudflareStreamConfig();
+  const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/stream/${encodeURIComponent(uid)}/downloads`, {
+    method,
+    headers: { Authorization: `Bearer ${apiToken}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body = await response.json().catch(() => null);
+  // An existing MP4 is optional; a POST can create one once playback is ready.
+  if (method === "GET" && response.status === 404) return null;
+  if (!response.ok || !body?.success) {
+    throw new CloudflareStreamApiError("Unable to prepare the Stream MP4 download.", response.status);
+  }
+  const download = body.result?.default;
+  if (!download) return null;
+  if (!["ready", "inprogress", "error"].includes(download.status)) throw new CloudflareStreamApiError("Invalid Stream download status.", 502);
+  return download as StreamDownload;
+}
+
 type CloudflareStreamConfig = {
   accountId: string;
   apiToken: string;

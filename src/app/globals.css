@@ -4461,3 +4461,16 @@ input {
   height: auto;
   aspect-ratio: 46 / 58;
 }
+
+/* Interactive card-media thumbnails retain the existing five-item geometry. */
+.back-card-media-carousel-item--button {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.back-card-media-carousel-item--button:focus-visible {
+  outline: 2px solid #c9e6ee;
+  outline-offset: -3px;
+}

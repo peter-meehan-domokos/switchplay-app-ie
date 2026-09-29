@@ -1,3 +1,4 @@
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { snapReadingToInteger, type CardLayout } from "@/components/cards/cardLayout";
 import {
   useCallback,
@@ -471,6 +472,7 @@ type BackCardFaceContentProps = {
   variant?: "focused" | "deck" | "preview";
   canMutate?: boolean;
   onCommitSignalReading?: (cardId: string, signalId: string, reading: number) => void;
+  onOpenMedia?: OpenCardMedia;
   onEditMedia?: (cardId: string) => void;
   onEditReflection?: (cardId: string) => void;
   onSignalNavigateNext?: () => void;
@@ -484,6 +486,7 @@ export default function BackCardFaceContent({
   variant = "focused",
   canMutate = true,
   onCommitSignalReading,
+  onOpenMedia,
   onEditMedia,
   onEditReflection,
   onSignalNavigateNext,
@@ -538,6 +541,7 @@ export default function BackCardFaceContent({
         {deckTemplateId ? (
           <BackCardMediaCarousel
             items={card.backMediaItems}
+            onOpen={onOpenMedia ? (itemId, source) => onOpenMedia(card.id, itemId, source) : undefined}
           />
         ) : null}
         <section

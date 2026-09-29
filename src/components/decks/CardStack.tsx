@@ -1,3 +1,4 @@
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { motion } from "motion/react";
 import type { MotionStyle } from "motion/react";
 import type { CardLayout } from "@/components/cards/cardLayout";
@@ -53,6 +54,7 @@ type CardStackProps = {
   isDeckFlipped: boolean;
   deckFlipRotationY: number;
   transitionPhase: CardTransitionPhase | null;
+  onOpenMedia?: OpenCardMedia;
   onFocusCard: (cardIndex: number) => void;
   activeGestureHandlers?: DeckGestureHandlers;
   latestPastGestureHandlers?: DeckGestureHandlers;
@@ -297,6 +299,7 @@ export default function CardStack({
   isDeckFlipped,
   deckFlipRotationY,
   transitionPhase,
+  onOpenMedia,
   onFocusCard,
   activeGestureHandlers,
   latestPastGestureHandlers,
@@ -329,6 +332,7 @@ export default function CardStack({
             <DeckCard
               key={card.id}
               card={card}
+              onOpenMedia={!transitionPhase ? onOpenMedia : undefined}
               deckTemplateId={deckTemplateId}
               isDeckFlipped={isDeckFlipped}
               deckFlipRotationY={deckFlipRotationY}
