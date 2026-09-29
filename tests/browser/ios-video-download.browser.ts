@@ -105,6 +105,7 @@ test.describe("iPhone Safari simulation", () => {
   test("failed fetch offers retry and a second direct gesture if activation expires", async ({ page }) => {
     await mockShare(page);
     let attempts = 0;
+    await page.route("**/api/media/card/video-file*", (route) => route.abort());
     await page.route(streamUrl, (route) => {
       attempts += 1;
       if (attempts === 1) return route.abort();
@@ -114,6 +115,7 @@ test.describe("iPhone Safari simulation", () => {
     await viewer.getByRole("button", { name: "Save video" }).click();
     await expect(viewer.getByRole("alert")).toBeVisible();
     await expect(viewer.getByRole("button", { name: "Retry save" })).toBeVisible();
+    await expect(viewer.locator("details")).toContainText("Cloudflare: stage=fetch");
     await page.evaluate(() => { (window as Window & { __activationActive?: boolean }).__activationActive = false; });
     await viewer.getByRole("button", { name: "Retry save" }).click();
     await expect(viewer.getByRole("button", { name: "Open share sheet" })).toBeVisible();
@@ -121,6 +123,21 @@ test.describe("iPhone Safari simulation", () => {
     await viewer.getByRole("button", { name: "Open share sheet" }).click();
     await expect.poll(() => shareCalls(page)).toHaveLength(1);
     await expect(viewer).toBeVisible();
+  });
+
+  test("a rejected direct fetch uses same-origin delivery for the share File", async ({ page }) => {
+    await mockShare(page);
+    await page.route(streamUrl, (route) => route.abort());
+    await page.route("**/api/media/card/video-file*", (route) => route.fulfill({ status: 200, headers: {
+      "content-type": "video/mp4", "content-length": "3",
+    }, body: Buffer.from([1, 2, 3]) }));
+    const viewer = await openPreparedVideo(page);
+    await viewer.getByRole("button", { name: "Save video" }).click();
+    await expect.poll(() => shareCalls(page)).toEqual([{ filename: "Practice.mp4", mimeType: "video/mp4", title: "Practice.mp4" }]);
+    await expect(viewer.locator("details")).toContainText("Cloudflare: stage=fetch");
+    await expect(viewer.locator("details")).toContainText("App delivery: stage=file");
+    await expect(viewer).toBeVisible();
+    expect(page.url()).toBe("http://127.0.0.1:4178/");
   });
 
   test("large MP4 offers a new-tab fallback and leaves the viewer page intact", async ({ page }) => {
@@ -136,6 +153,7 @@ test.describe("iPhone Safari simulation", () => {
     await viewer.getByRole("button", { name: "Download in new tab" }).click();
     expect(await page.evaluate(() => (window as Window & { __newTabs?: unknown[] }).__newTabs?.length)).toBe(1);
     expect(await page.evaluate(() => (window as Window & { __newTabs?: Array<{ target: string }> }).__newTabs?.[0]?.target)).toBe("_blank");
+    expect(await page.evaluate(() => (window as Window & { __newTabs?: Array<{ url: string }> }).__newTabs?.[0]?.url)).toContain("/api/media/card/video-file?");
     await expect(viewer).toBeVisible();
     expect(page.url()).toBe("http://127.0.0.1:4178/");
   });
@@ -151,6 +169,7 @@ test.describe("iPhone Safari simulation", () => {
     expect(fetches).toBe(0);
     await viewer.getByRole("button", { name: "Download in new tab" }).click();
     expect(await page.evaluate(() => (window as Window & { __newTabs?: Array<{ target: string }> }).__newTabs?.[0]?.target)).toBe("_blank");
+    expect(await page.evaluate(() => (window as Window & { __newTabs?: Array<{ url: string }> }).__newTabs?.[0]?.url)).toContain("/api/media/card/video-file?");
     await expect(viewer).toBeVisible();
   });
 

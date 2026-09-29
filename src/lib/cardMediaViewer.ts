@@ -34,6 +34,10 @@ export function cardMediaFileUrl(target: CardMediaRequest) {
   return `/api/media/card/file?${new URLSearchParams(target)}`;
 }
 
+export function cardMediaVideoFileUrl(target: CardMediaRequest) {
+  return `/api/media/card/video-file?${new URLSearchParams(target)}`;
+}
+
 export type CardMediaDownload =
   | { status: "ready"; url: string; filename: string }
   | { status: "preparing"; progress?: number }

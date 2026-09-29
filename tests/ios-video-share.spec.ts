@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fetchShareableVideoFile, isIphoneOrIpadSafari, isShareCancellation } from "@/lib/iosVideoShare";
+import { fetchShareableVideoFile, isIphoneOrIpadSafari, isShareCancellation, type VideoFetchDiagnostic } from "@/lib/iosVideoShare";
 
 const browser = (userAgent: string, platform = "iPhone", maxTouchPoints = 5) => ({ userAgent, platform, maxTouchPoints });
 
@@ -13,17 +13,41 @@ test("iPhone and desktop-mode iPad Safari use the file-share path while macOS Ch
 
 test("a small MP4 becomes a named File and an advertised large file is not materialised", async () => {
   const signal = new AbortController().signal;
+  let diagnostic: VideoFetchDiagnostic | undefined;
   const file = await fetchShareableVideoFile("https://stream.example/video.mp4", "Practice.mp4", signal,
-    async () => new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "video/mp4", "Content-Length": "3" } }));
+    async () => new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "video/mp4", "Content-Length": "3" } }),
+    (details) => { diagnostic = details; });
   expect(file).toBeInstanceOf(File);
   expect(file?.name).toBe("Practice.mp4");
   expect(file?.type).toBe("video/mp4");
   expect(file?.size).toBe(3);
+  expect(diagnostic).toMatchObject({ stage: "file", status: 200, contentType: "video/mp4", contentLength: "3", size: 3 });
   const large = await fetchShareableVideoFile("https://stream.example/video.mp4", "Practice.mp4", signal,
     async () => new Response(new Uint8Array([1]), { headers: { "Content-Length": String(33 * 1024 * 1024) } }));
   expect(large).toBeNull();
   expect(isShareCancellation(new DOMException("Cancelled", "AbortError"))).toBe(true);
   expect(isShareCancellation(new Error("Network failed"))).toBe(false);
+});
+
+test("fetch diagnostics distinguish an HTTP response from a request exception", async () => {
+  const signal = new AbortController().signal;
+  let diagnostic: VideoFetchDiagnostic | undefined;
+  await expect(fetchShareableVideoFile("https://stream.example/video.mp4", "Practice.mp4", signal,
+    async () => new Response(null, { status: 403 }), (details) => { diagnostic = details; })).rejects.toThrow("HTTP 403");
+  expect(diagnostic).toMatchObject({ stage: "response", status: 403, exception: "Error: HTTP 403" });
+  await expect(fetchShareableVideoFile("https://stream.example/video.mp4", "Practice.mp4", signal,
+    async () => { throw new TypeError("Load failed"); }, (details) => { diagnostic = details; })).rejects.toThrow("Load failed");
+  expect(diagnostic).toMatchObject({ stage: "fetch", exception: "TypeError: Load failed" });
+  expect(diagnostic?.status).toBeUndefined();
+});
+
+test("a known small response can use Blob conversion even without a readable stream", async () => {
+  const response = new Response(null, { headers: { "Content-Type": "video/mp4", "Content-Length": "3" } });
+  Object.defineProperty(response, "blob", { value: async () => new Blob([new Uint8Array([1, 2, 3])]) });
+  const file = await fetchShareableVideoFile("https://stream.example/video.mp4", "Practice", new AbortController().signal, async () => response);
+  expect(file).toBeInstanceOf(File);
+  expect(file?.name).toBe("Practice.mp4");
+  expect(file?.size).toBe(3);
 });
 
 test("a stream with no length stops once it exceeds the mobile memory cap", async () => {

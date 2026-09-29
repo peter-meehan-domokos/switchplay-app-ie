@@ -3,6 +3,7 @@ import { boundImageTransform, gallerySwipeDirection, resolveMediaSelection, type
 import { CardMediaAccessError, readCardMediaRequest, resolveAccessibleCardMedia } from "@/lib/cardMediaAccess";
 import { createCardMediaHandler } from "@/lib/cardMediaApi";
 import { createCardMediaFileHandler } from "@/lib/cardMediaFile";
+import { createCardMediaVideoFileHandler } from "@/lib/cardMediaVideoFile";
 import { getCardMediaDownload, mediaDownloadFilename } from "@/lib/cardMediaDownloads";
 import { startCardMediaDownload, type DownloadState } from "@/lib/cardMediaClient";
 import { createUserCardImageDownloadUrl } from "@/lib/cloudflareR2";
@@ -114,6 +115,34 @@ test("image download streams the authorized full image with attachment headers",
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
   expect(requested).toEqual([image.assetId]);
   expect((await handler(new Request(`https://app.example/api/media/card/file?${new URLSearchParams({ ...target, mediaItemId: "missing" })}`))).status).toBe(404);
+});
+
+test("Safari video delivery streams an authorized MP4 with attachment headers and no Cloudflare API credentials", async () => {
+  const requestTarget = { ...target, mediaItemId: video.id };
+  const url = `https://app.example/api/media/card/video-file?${new URLSearchParams(requestTarget)}`;
+  const upstreamUrl = "https://customer-test.cloudflarestream.com/video-1/downloads/default.mp4?filename=Practice";
+  const handler = createCardMediaVideoFileHandler({
+    currentUser: async () => viewer,
+    resolveMedia: (user, request) => resolveAccessibleCardMedia(user, request, accessDeps),
+    download: async () => ({ status: "ready", url: upstreamUrl, filename: "Practice.mp4" }),
+    fetchVideo: async (input, init) => {
+      expect(String(input)).toBe(upstreamUrl);
+      expect(new Headers(init?.headers).has("authorization")).toBe(false);
+      expect(new Headers(init?.headers).get("origin")).toBe("https://app.example");
+      return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "video/mp4", "Content-Length": "3", "Access-Control-Allow-Origin": "*" } });
+    },
+  });
+  const response = await handler(new Request(url));
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("video/mp4");
+  expect(response.headers.get("content-length")).toBe("3");
+  expect(response.headers.get("content-disposition")).toBe('attachment; filename="Practice.mp4"');
+  expect(response.headers.get("x-media-upstream-status")).toBe("200");
+  expect(response.headers.get("x-media-upstream-content-type")).toBe("video/mp4");
+  expect(response.headers.get("x-media-upstream-allow-origin")).toBe("*");
+  expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+  expect((await handler(new Request(`https://app.example/api/media/card/video-file?${new URLSearchParams(target)}`))).status).toBe(400);
+  expect((await handler(new Request(`https://app.example/api/media/card/video-file?${new URLSearchParams({ ...target, mediaItemId: "missing" })}`))).status).toBe(404);
 });
 
 test("Cloudflare MP4 provider follows documented GET/POST envelope and keeps token server-side", async () => {
