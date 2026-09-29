@@ -36,9 +36,6 @@
 .download { justify-self: end; text-align: right; }
 .iosDownload { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .downloadStatus { position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 48px); right: max(12px, env(safe-area-inset-right)); z-index: 2; max-width: min(360px, calc(100% - 24px)); padding: 10px; background: #282b31; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 20px #0008; }
-.deliveryDiagnostics { position: absolute; top: calc(max(8px, env(safe-area-inset-top)) + 100px); right: max(12px, env(safe-area-inset-right)); z-index: 3; width: min(360px, calc(100% - 24px)); max-height: 40vh; overflow: auto; padding: 8px; border-radius: 8px; background: #282b31; text-align: left; font-size: 12px; overflow-wrap: anywhere; }
-.deliveryDiagnostics summary { cursor: pointer; }
-.deliveryDiagnostics p { margin: 8px 0 0; }
 .content { flex: 1; min-height: 0; min-width: 0; display: flex; }
 .navigation { display: flex; justify-content: space-between; gap: 16px; flex: 0 0 auto; }
 .imageArea { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; width: 100%; }

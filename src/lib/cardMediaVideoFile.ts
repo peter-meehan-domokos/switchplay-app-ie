@@ -8,22 +8,11 @@ const dependencies = {
   fetchVideo: fetch,
 };
 
-const errorResponse = (message: string, status: number, diagnosticHeaders?: Headers) => Response.json({ error: message }, {
-  status, headers: diagnosticHeaders ?? { "Cache-Control": "private, no-store" },
+const errorResponse = (message: string, status: number) => Response.json({ error: message }, {
+  status, headers: { "Cache-Control": "private, no-store" },
 });
 
-function upstreamDiagnostics(upstream: Response) {
-  const headers = new Headers({ "Cache-Control": "private, no-store" });
-  headers.set("X-Media-Upstream-URL", upstream.url);
-  headers.set("X-Media-Upstream-Status", String(upstream.status));
-  headers.set("X-Media-Upstream-Content-Type", upstream.headers.get("content-type") ?? "");
-  headers.set("X-Media-Upstream-Content-Length", upstream.headers.get("content-length") ?? "");
-  headers.set("X-Media-Upstream-Allow-Origin", upstream.headers.get("access-control-allow-origin") ?? "");
-  return headers;
-}
-
-// Safari fetches this authorized same-origin stream if a direct Cloudflare fetch fails.
-// The same route also supplies an attachment download fallback without exposing API tokens.
+// Safari fetches this authorized same-origin stream for sharing or an attachment download.
 export function createCardMediaVideoFileHandler(deps = dependencies) {
   return async function GET(request: Request) {
     try {
@@ -44,17 +33,16 @@ export function createCardMediaVideoFileHandler(deps = dependencies) {
           ...(range ? { Range: range } : {}),
         },
       });
-      const diagnosticHeaders = upstreamDiagnostics(upstream);
       if (!upstream.ok || !upstream.body) {
         await upstream.body?.cancel();
-        return errorResponse("Cloudflare could not deliver this video. Please retry.", upstream.status === 404 ? 404 : 502, diagnosticHeaders);
+        return errorResponse("Cloudflare could not deliver this video. Please retry.", upstream.status === 404 ? 404 : 502);
       }
       const contentType = upstream.headers.get("content-type") ?? "";
       if (contentType && !/^video\/mp4(?:;|$)|^application\/octet-stream(?:;|$)/i.test(contentType)) {
         await upstream.body.cancel();
-        return errorResponse("Cloudflare returned a non-video response.", 502, diagnosticHeaders);
+        return errorResponse("Cloudflare returned a non-video response.", 502);
       }
-      const headers = new Headers(diagnosticHeaders);
+      const headers = new Headers();
       Object.entries({
         "Content-Type": "video/mp4",
         "Content-Disposition": `attachment; filename="${download.filename}"`,

@@ -137,9 +137,7 @@ test("Safari video delivery streams an authorized MP4 with attachment headers an
   expect(response.headers.get("content-type")).toBe("video/mp4");
   expect(response.headers.get("content-length")).toBe("3");
   expect(response.headers.get("content-disposition")).toBe('attachment; filename="Practice.mp4"');
-  expect(response.headers.get("x-media-upstream-status")).toBe("200");
-  expect(response.headers.get("x-media-upstream-content-type")).toBe("video/mp4");
-  expect(response.headers.get("x-media-upstream-allow-origin")).toBe("*");
+  expect(response.headers.has("x-media-upstream-url")).toBe(false);
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
   expect((await handler(new Request(`https://app.example/api/media/card/video-file?${new URLSearchParams(target)}`))).status).toBe(400);
   expect((await handler(new Request(`https://app.example/api/media/card/video-file?${new URLSearchParams({ ...target, mediaItemId: "missing" })}`))).status).toBe(404);

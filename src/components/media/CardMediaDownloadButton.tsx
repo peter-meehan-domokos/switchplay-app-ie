@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { startCardMediaDownload, type DownloadState } from "@/lib/cardMediaClient";
-import { fetchShareableVideoFile, formatVideoFetchDiagnostic, isIphoneOrIpadSafari, isShareCancellation, type VideoFetchDiagnostic } from "@/lib/iosVideoShare";
+import { fetchShareableVideoFile, isIphoneOrIpadSafari, isShareCancellation } from "@/lib/iosVideoShare";
 import { cardMediaVideoFileUrl, type CardMediaRequest } from "@/lib/cardMediaViewer";
 import styles from "./CardMediaViewer.module.css";
 
@@ -14,7 +14,6 @@ type IosDeliveryState =
 export default function CardMediaDownloadButton({ target, isVideo }: { target: CardMediaRequest; isVideo: boolean }) {
   const [state, setState] = useState<DownloadState>({ status: "idle" });
   const [iosDelivery, setIosDelivery] = useState<IosDeliveryState>({ status: "ready" });
-  const [deliveryDiagnostics, setDeliveryDiagnostics] = useState<string[]>([]);
   const stopRef = useRef<(() => void) | null>(null);
   const fileFetchRef = useRef<AbortController | null>(null);
   const shareFileRef = useRef<File | null>(null);
@@ -63,21 +62,9 @@ export default function CardMediaDownloadButton({ target, isVideo }: { target: C
       let file = shareFileRef.current;
       if (!file) {
         setIosDelivery({ status: "loading" });
-        setDeliveryDiagnostics([]);
         const controller = new AbortController();
         fileFetchRef.current = controller;
-        const record = (source: string) => (details: VideoFetchDiagnostic) => {
-          if (!mounted.current) return;
-          // Temporary real-device diagnostic. URLs stay in the device console; the UI redacts path tokens.
-          console.info("Safari video delivery diagnostic", source, details);
-          setDeliveryDiagnostics((previous) => [...previous, `${source}: ${formatVideoFetchDiagnostic(details)}`]);
-        };
-        try {
-          file = await fetchShareableVideoFile(state.url, state.filename, controller.signal, fetch, record("Cloudflare"));
-        } catch {
-          if (!mounted.current || controller.signal.aborted) return;
-          file = await fetchShareableVideoFile(cardMediaVideoFileUrl(target), state.filename, controller.signal, fetch, record("App delivery"));
-        }
+        file = await fetchShareableVideoFile(cardMediaVideoFileUrl(target), state.filename, controller.signal);
         fileFetchRef.current = null;
         if (!mounted.current) return;
         if (!file) {
@@ -141,11 +128,6 @@ export default function CardMediaDownloadButton({ target, isVideo }: { target: C
       {iosDelivery.status === "tap-again" || iosDelivery.status === "fallback" || iosDelivery.status === "error" ?
         <span className={styles.downloadStatus} role={iosDelivery.status === "error" ? "alert" : "status"}>{iosDelivery.message}</span> : null}
       {iosDelivery.status === "ready" && iosDelivery.message ? <span className={styles.downloadStatus} role="status">{iosDelivery.message}</span> : null}
-      {deliveryDiagnostics.length ? <details className={styles.deliveryDiagnostics}>
-        <summary>Video delivery details</summary>
-        {deliveryDiagnostics.map((detail, index) => <p key={index}>{detail}</p>)}
-        <p>Browser request: CORS mode, no custom headers, no Cloudflare cookies or API credentials. A rejected fetch has no readable HTTP response; compare the app delivery result to investigate CORS.</p>
-      </details> : null}
     </> : state.status === "ready" ? <a className={styles.control} href={state.url} download={state.filename} target="_blank" rel="noopener noreferrer">Download ready</a> :
       <button className={styles.control} type="button" disabled={state.status === "preparing"} onClick={start} aria-label={isVideo ? "Download encoded MP4" : "Download image"}>
         {state.status === "preparing" ? "Preparing…" : state.status === "error" ? "Retry download" : "Download"}

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const streamUrl = "**/downloads/default.mp4*";
+const appVideoUrl = "**/api/media/card/video-file*";
 const iphoneSafari = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 async function openPreparedVideo(page: Page) {
@@ -65,8 +66,8 @@ test.describe("iPhone Safari simulation", () => {
 
   test("small MP4 opens file sharing without replacing the viewer page", async ({ page }) => {
     await mockShare(page);
-    await page.route(streamUrl, (route) => route.fulfill({ status: 200, headers: {
-      "content-type": "video/mp4", "content-length": "4", "access-control-allow-origin": "*",
+    await page.route(appVideoUrl, (route) => route.fulfill({ status: 200, headers: {
+      "content-type": "video/mp4", "content-length": "4",
     }, body: Buffer.from([0, 0, 0, 0]) }));
     const viewer = await openPreparedVideo(page);
     await expect(viewer.getByRole("button", { name: "Save video" })).toBeVisible();
@@ -81,7 +82,7 @@ test.describe("iPhone Safari simulation", () => {
 
   test("repeated share denial becomes a retryable failure", async ({ page }) => {
     await mockShare(page, "deny");
-    await page.route(streamUrl, (route) => route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "access-control-allow-origin": "*" }, body: Buffer.from([1]) }));
+    await page.route(appVideoUrl, (route) => route.fulfill({ status: 200, headers: { "content-type": "video/mp4" }, body: Buffer.from([1]) }));
     const viewer = await openPreparedVideo(page);
     await viewer.getByRole("button", { name: "Save video" }).click();
     await expect(viewer.getByRole("button", { name: "Open share sheet" })).toBeVisible();
@@ -93,7 +94,7 @@ test.describe("iPhone Safari simulation", () => {
 
   test("share cancellation returns to ready without reporting a save", async ({ page }) => {
     await mockShare(page, "cancel");
-    await page.route(streamUrl, (route) => route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "access-control-allow-origin": "*" }, body: Buffer.from([1]) }));
+    await page.route(appVideoUrl, (route) => route.fulfill({ status: 200, headers: { "content-type": "video/mp4" }, body: Buffer.from([1]) }));
     const viewer = await openPreparedVideo(page);
     await viewer.getByRole("button", { name: "Save video" }).click();
     await expect(viewer.getByText("Sharing cancelled. The video is still ready.")).toBeVisible();
@@ -105,17 +106,15 @@ test.describe("iPhone Safari simulation", () => {
   test("failed fetch offers retry and a second direct gesture if activation expires", async ({ page }) => {
     await mockShare(page);
     let attempts = 0;
-    await page.route("**/api/media/card/video-file*", (route) => route.abort());
-    await page.route(streamUrl, (route) => {
+    await page.route(appVideoUrl, (route) => {
       attempts += 1;
       if (attempts === 1) return route.abort();
-      return route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "access-control-allow-origin": "*" }, body: Buffer.from([1, 2]) });
+      return route.fulfill({ status: 200, headers: { "content-type": "video/mp4" }, body: Buffer.from([1, 2]) });
     });
     const viewer = await openPreparedVideo(page);
     await viewer.getByRole("button", { name: "Save video" }).click();
     await expect(viewer.getByRole("alert")).toBeVisible();
     await expect(viewer.getByRole("button", { name: "Retry save" })).toBeVisible();
-    await expect(viewer.locator("details")).toContainText("Cloudflare: stage=fetch");
     await page.evaluate(() => { (window as Window & { __activationActive?: boolean }).__activationActive = false; });
     await viewer.getByRole("button", { name: "Retry save" }).click();
     await expect(viewer.getByRole("button", { name: "Open share sheet" })).toBeVisible();
@@ -125,25 +124,25 @@ test.describe("iPhone Safari simulation", () => {
     await expect(viewer).toBeVisible();
   });
 
-  test("a rejected direct fetch uses same-origin delivery for the share File", async ({ page }) => {
+  test("Safari uses app delivery without fetching the Cloudflare URL", async ({ page }) => {
     await mockShare(page);
-    await page.route(streamUrl, (route) => route.abort());
-    await page.route("**/api/media/card/video-file*", (route) => route.fulfill({ status: 200, headers: {
+    let directFetches = 0;
+    await page.route(streamUrl, (route) => { directFetches += 1; return route.abort(); });
+    await page.route(appVideoUrl, (route) => route.fulfill({ status: 200, headers: {
       "content-type": "video/mp4", "content-length": "3",
     }, body: Buffer.from([1, 2, 3]) }));
     const viewer = await openPreparedVideo(page);
     await viewer.getByRole("button", { name: "Save video" }).click();
     await expect.poll(() => shareCalls(page)).toEqual([{ filename: "Practice.mp4", mimeType: "video/mp4", title: "Practice.mp4" }]);
-    await expect(viewer.locator("details")).toContainText("Cloudflare: stage=fetch");
-    await expect(viewer.locator("details")).toContainText("App delivery: stage=file");
+    expect(directFetches).toBe(0);
     await expect(viewer).toBeVisible();
     expect(page.url()).toBe("http://127.0.0.1:4178/");
   });
 
   test("large MP4 offers a new-tab fallback and leaves the viewer page intact", async ({ page }) => {
     await mockShare(page);
-    await page.route(streamUrl, (route) => route.fulfill({ status: 200, headers: {
-      "content-type": "video/mp4", "content-length": String(33 * 1024 * 1024), "access-control-allow-origin": "*",
+    await page.route(appVideoUrl, (route) => route.fulfill({ status: 200, headers: {
+      "content-type": "video/mp4", "content-length": String(33 * 1024 * 1024),
     }, body: Buffer.from([1]) }));
     const viewer = await openPreparedVideo(page);
     await viewer.getByRole("button", { name: "Save video" }).click();
@@ -161,7 +160,7 @@ test.describe("iPhone Safari simulation", () => {
   test("unavailable file sharing offers a fallback without fetching the MP4", async ({ page }) => {
     await mockShare(page);
     let fetches = 0;
-    await page.route(streamUrl, (route) => { fetches += 1; return route.abort(); });
+    await page.route(appVideoUrl, (route) => { fetches += 1; return route.abort(); });
     const viewer = await openPreparedVideo(page);
     await page.evaluate(() => { Object.defineProperty(navigator, "canShare", { configurable: true, value: undefined }); });
     await viewer.getByRole("button", { name: "Save video" }).click();
@@ -176,10 +175,10 @@ test.describe("iPhone Safari simulation", () => {
   test("repeated taps start one file fetch and navigation ignores its late response", async ({ page }) => {
     await mockShare(page);
     let fetches = 0;
-    await page.route(streamUrl, async (route) => {
+    await page.route(appVideoUrl, async (route) => {
       fetches += 1;
       await new Promise((resolve) => setTimeout(resolve, 400));
-      await route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "access-control-allow-origin": "*" }, body: Buffer.from([1]) }).catch(() => {});
+      await route.fulfill({ status: 200, headers: { "content-type": "video/mp4" }, body: Buffer.from([1]) }).catch(() => {});
     });
     const viewer = await openPreparedVideo(page);
     const save = viewer.getByRole("button", { name: "Save video" });
