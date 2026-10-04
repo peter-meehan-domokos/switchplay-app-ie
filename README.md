@@ -20,6 +20,30 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Test baseline
+
+Run these independently from the project root:
+
+```bash
+npm run test:e2e   # Playwright: tests/**/*.spec.ts and .spec.tsx only
+npm run test:unit  # node:test via tsx: tests/*.test.ts only
+npm run typecheck # Clean generated route types, next typegen, then tsc --noEmit
+npm run build     # Production build
+git diff --check
+```
+
+The current Playwright suite tests helpers and rendered components without starting
+a browser or application server. The node:test suite requires no live database or
+Cloudflare assets. Keep node:test files directly in `tests/` so the explicit command
+includes them; fixtures can live in subdirectories.
+
+Run `typecheck` with the development server stopped: it removes only generated
+`.next/types` and `.next/dev/types`, then regenerates route definitions with the
+installed Next CLI. It does not exclude generated types from TypeScript checking.
+
+Characterisation tests describe legacy behaviour before the first-class Card
+refactor. Intentional changes in later phases should update those expectations.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

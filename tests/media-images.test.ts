@@ -7,7 +7,7 @@ import {
   isImageMediaItem,
   isLegacyProviderlessImageMediaItem,
 } from "../src/lib/media";
-import { deckTemplates } from "../src/mocks/deckTemplates";
+import { normalizeDeckIntroductionForRuntime } from "../src/lib/deckApiTransforms";
 
 const legacyImage = {
   id: "legacy-image-1",
@@ -57,9 +57,10 @@ test("unknown provider-backed image is rejected", () => {
   );
 });
 
-test("existing Daniel legacy fixture remains valid", () => {
-  const danielTemplate = deckTemplates.find((template) => template.deckTemplateId === "daniel-build-your-first-muscle-up-001");
+test("legacy providerless introduction image remains valid after runtime normalization", () => {
+  const introduction = normalizeDeckIntroductionForRuntime({ image: legacyImage, video: null });
 
-  assert.equal(isImageMediaItem(danielTemplate?.introduction?.image ?? null), true);
-  assert.equal(isLegacyProviderlessImageMediaItem(danielTemplate?.introduction?.image ?? null), true);
+  assert.deepEqual(introduction, { image: legacyImage, video: null });
+  assert.equal(isImageMediaItem(introduction?.image), true);
+  assert.equal(isLegacyProviderlessImageMediaItem(introduction?.image), true);
 });

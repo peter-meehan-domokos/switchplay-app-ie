@@ -26,6 +26,7 @@ import {
   getStepMediaDisplayText,
   isStepEmpty,
   isStepMediaEmpty,
+  moveCreatorStepToEmptyCell,
   resolveCreatorCardLabel,
   resolveCreatorCardTitle,
   resolveCreatorStreamName,
@@ -1485,32 +1486,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       return;
     }
 
-    updateBoardLocally((currentBoard) => {
-      const originCellId = findPairCell(currentBoard.cells, pairId);
-      const targetCell = currentBoard.cells[targetCellId];
-      const sourcePair = currentBoard.pairs[pairId];
-      const targetPairId = targetCell?.pairId;
-      const targetPair = targetPairId ? currentBoard.pairs[targetPairId] : undefined;
-
-      if (!originCellId || originCellId === targetCellId || !sourcePair || isStepEmpty(sourcePair) || !targetPair || !isStepEmpty(targetPair)) {
-        return currentBoard;
-      }
-
-      return {
-        ...currentBoard,
-        pairs: {
-          ...currentBoard.pairs,
-          [pairId]: {
-            ...targetPair,
-            id: pairId,
-          },
-          [targetPair.id]: {
-            ...sourcePair,
-            id: targetPair.id,
-          },
-        },
-      };
-    });
+    updateBoardLocally((currentBoard) => moveCreatorStepToEmptyCell(currentBoard, pairId, targetCellId));
   }
 
   function handleDragCancel() {

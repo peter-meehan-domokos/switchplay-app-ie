@@ -360,6 +360,34 @@ export function getCreatorCellId(columnId: ColumnId, rowIndex: number): CellId {
   return `${columnId}:${rowIndex}`;
 }
 
+// Legacy drag operation: UI pair keys stay in their cells; Step IDs travel with content.
+export function moveCreatorStepToEmptyCell(board: BoardState, pairId: PairId, targetCellId: CellId): BoardState {
+  const originCellId = Object.entries(board.cells).find(([, cell]) => cell.pairId === pairId)?.[0];
+  const targetCell = board.cells[targetCellId];
+  const sourcePair = board.pairs[pairId];
+  const targetPairId = targetCell?.pairId;
+  const targetPair = targetPairId ? board.pairs[targetPairId] : undefined;
+
+  if (!originCellId || originCellId === targetCellId || !sourcePair || isStepEmpty(sourcePair) || !targetPair || !isStepEmpty(targetPair)) {
+    return board;
+  }
+
+  return {
+    ...board,
+    pairs: {
+      ...board.pairs,
+      [pairId]: {
+        ...targetPair,
+        id: pairId,
+      },
+      [targetPair.id]: {
+        ...sourcePair,
+        id: targetPair.id,
+      },
+    },
+  };
+}
+
 export function swapCreatorBoardRows(board: BoardState, fromRow: number, toRow: number): BoardState {
   if (fromRow === toRow || !board.rows.includes(fromRow) || !board.rows.includes(toRow)) {
     return board;
