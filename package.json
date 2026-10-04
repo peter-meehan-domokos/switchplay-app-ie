@@ -13,6 +13,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --import tsx --test --test-concurrency=1 tests/*.integration.ts",
+    "migration:plan": "node --import tsx scripts/migrate-first-class-cards.ts",
     "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit"
   },
   "dependencies": {
@@ -40,6 +42,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "mongodb-memory-server": "^11.3.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

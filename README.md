@@ -137,6 +137,149 @@ connection setup, projected `find`, cursor sorting/batch
 reads and connection/cursor cleanup. No database mutation, asset fetch or repair
 operation exists.
 
+## First-class Cards: Phase 1 foundation
+
+The new domain is isolated in `src/lib/cards/`. The existing UI/API still uses
+the legacy embedded-Card model; switch that private vertical slice in Phase 2
+before exposing migrated data. No production cutover has been performed.
+The read-only audit is unchanged and remains a separate utility.
+
+`model.ts` defines independent Card/Deck roots and immutable version documents.
+Roots hold owner, visibility, `latestVersion`, nullable draft, revision,
+timestamps and optional fork provenance (`null` when absent). Published versions
+hold `content`, publication metadata and an optional `updateNote`. Cadence is
+`{ intervalDays: 7 }` by default; Deck metadata contains `categories`, `themes`
+and `labelPrefix`. The pure `layout.ts` seam derives prefix plus position.
+
+Personal state remains inside `users`: `decksData` contains only membership,
+nullable adopted Deck version, global active Card ID, archive/timestamps and
+untouched sharing metadata; `cardsData` contains one retained record per global
+Card ID. Null adoption means unpublished, never personal version zero. CardData
+contains completion/signals keyed by Step ID, personal date, reflection, media,
+Deck-context chats and Boolean pass/fail tests. The future scheduler is not built;
+the date selection primitive supports existing → suggested → generated precedence.
+
+`repository.ts` requires an injected database/client (or its explicit application
+factory). Mutations derive owner/data access from persisted records and use
+field-level updates. First Deck draft creation also creates lightweight DeckData,
+but no CardData. Ownership alone never supplies My Decks membership. Archive and
+restore change only the archive flag/timestamp; restore preserves adoption.
+Concurrent ensure operations insert at most one personal record.
+
+Publication creates the next version, clears only that entity's draft and advances
+existing publisher adoption in the same transaction, including archived DeckData.
+Other users are unaffected. Publication does not create missing personal data,
+reconcile/delete learning state, publish another entity's draft, or publish Decks
+with never-published Cards. Empty/unchanged published-content saves leave a null
+draft. Update-note retrieval returns intervening non-empty notes chronologically.
+Public Deck publication promotes owned private Cards; foreign Cards must already
+be public. Card visibility has no public-to-private mutation operation.
+
+Steps remain embedded. UUID Step IDs are reserved globally by a technical
+`CardTemplateRoot.stepIds` array plus a unique partial multikey index. This is an
+index reservation, not Step ownership or another entity. Published historical
+IDs remain reserved. Initial cross-Card slot swaps atomically transfer both IDs
+and are prohibited if either Card or the Deck has published/forked history.
+Same-Card reorder retains identity. UI geometry remains a Phase 2 concern.
+
+Resolution boundaries are `resolveWorkingDeck` (membership/adopted versions),
+`resolveCreatorDeck` (owner drafts, foreign published content),
+`resolveDeckPreview` (latest versions without personal data) and
+`resolveHistoricalDeck` (historical Card pins). Reads batch referenced roots and
+versions. Runtime capabilities name template/data owners separately. Working
+Card mutation/upload authorization requires an active adopted Deck occurrence.
+
+New personal image helpers generate/validate
+`user-cards/{userId}/{cardTemplateId}/{uuid}.{ext}`. Stream asset IDs remain
+provider-generated. Migration copies trusted old media verbatim; browser validation
+does not accept the legacy namespace. Existing upload routes/storage keys are
+unchanged until Phase 2. Delivery confidentiality remains separate deferred work.
+
+The explicit `createFoundationIndexes` operation installs unique Card/Deck IDs,
+owner+ID indexes, unique entity+version indexes, the Deck Card-reference index and
+the Step reservation index. It is never called by an import or legacy route.
+Mongo clients are lazy; transaction callbacks use sequential operations and
+`withTransaction`, with no asset operations inside them.
+
+### Migration planning and disposable validation
+
+Create an offline plan (no Mongo connection):
+
+```bash
+npm run migration:plan -- --fixtures tests/fixtures/first-class-migration.json --plan migration-plans/review/plan.ejson
+```
+
+The `--fixtures` source must be raw JSON/Extended JSON with `deckTemplates` and
+`users` arrays. Planning validates sources and the entire target graph. Unknown
+authored fields are refused rather than silently lost. Existing plans are reused
+only when their hashes/source match; this retains generated Card/Step IDs across
+retries. `savedTemplate`/`previousVersions` are excluded from content and drift
+hashes. The plan is not an authorization to migrate production.
+
+Planning from a separately restored **local disposable clone** uses `--source`
+instead of `--fixtures PATH`, with `MIGRATION_SOURCE_URI` and
+`MIGRATION_SOURCE_DB`. It performs only projected Deck reads and raw User reads;
+no source writes, indexes or collection renames. The source database name must
+start with `switchplay_migration_`.
+
+To exercise writes against a separate local disposable replica-set target, set
+`MIGRATION_TARGET_URI` and `MIGRATION_TARGET_DB`, then run:
+
+```bash
+npm run migration:plan -- --apply --plan migration-plans/review/plan.ejson
+```
+
+Only loopback Mongo hosts and database names beginning `switchplay_migration_`
+are accepted. The app's `MONGODB_URI`/`MONGODB_DB` are never used. Production Atlas
+apply/rename functionality deliberately does not exist in this Phase 1 CLI.
+The target must be empty or exactly match this plan. Conflicting, partial or
+subsequently changed targets are refused. All data writes form one transaction;
+index setup is explicit before it. Exact reruns are no-ops. Source data stays intact.
+
+Migrated roots/versions start at v1, drafts null, revisions zero. Cards inherit
+Deck ownership/visibility; each embedded Card gets its own UUID without semantic
+deduplication. Steps get fresh UUIDs. Deck references pin Card v1 historically.
+Themes converge to `themes`, labels default to positional `Card X`, and no owner
+memberships are invented. Existing DeckData memberships adopt v1; active Card IDs
+are translated (stale selections fall back to the first live Card or null).
+
+Only personal media references survive from old Card state. Completion initializes
+`todo`, readings initialize `null` per current Step ID, reflection becomes empty,
+chats/tests empty and personal dates null. No storage objects/URLs/keys are changed
+and no assets are requested. Sharing field presence/values are fingerprinted and
+checked exactly. Counts are derived, never hardcoded to the live audit totals.
+
+Plans contain full transformed user records, potentially **authentication/private
+metadata**. They are ignored by Git, stored with mode 0600 in private run directories
+and must not be pasted into chat. Review `summary.json`/`run-status.json`; the
+`plan.ejson` retains mappings, hashes and preservation fingerprints locally.
+Application state changed since planning requires a new reviewed plan.
+
+### Foundation verification
+
+```bash
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+npm run typecheck
+npm run build
+git diff --check
+```
+
+Integration tests start disposable `MongoMemoryReplSet` instances, never read an
+Atlas URI and close clients/servers afterward. First execution may download a
+Mongo binary and needs permission to bind local ports. They cover real transaction
+rollback, concurrent ensures/publication, publisher adoption, archive retention,
+version selection, Step transfer and deterministic migration retry/conflict cases.
+Legacy Phase 0 characterization tests remain; the new suite supplements them with
+the intentional new rules, without changing the active Creator UI.
+
+Before exposing the new architecture in Phase 2, route the private Creator/My Decks/
+working Deck slice through these repositories/resolvers, remove legacy theme-row
+dragging and disable legacy shared-progress UI/mutations. Preserve parked sharing
+metadata. Production cutover follows a proven Phase 2 slice and a separately
+reviewed cutover procedure using the external backup; this CLI cannot perform it.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

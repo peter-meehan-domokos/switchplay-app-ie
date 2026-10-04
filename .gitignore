@@ -15,6 +15,7 @@
 /test-results/
 /playwright-report/
 /migration-audit/
+/migration-plans/
 
 # next.js
 /.next/
