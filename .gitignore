@@ -19,6 +19,8 @@
 
 # next.js
 /.next/
+/.next-phase2/
+/phase2-test-results/
 /out/
 
 # production

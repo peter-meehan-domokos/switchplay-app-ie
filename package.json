@@ -15,7 +15,9 @@
     "test:unit": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx --test --test-concurrency=1 tests/*.integration.ts",
     "migration:plan": "node --import tsx scripts/migrate-first-class-cards.ts",
-    "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit"
+    "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit",
+    "test:phase2": "node --import tsx scripts/test-phase2.ts",
+    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

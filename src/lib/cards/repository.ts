@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
+import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { getDatabase, getMongoClient, withMongoTransaction } from "../mongodb";
-import { assertAdoption, assertCardContent, assertDeckContent, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
-import type { AdoptedVersion, CardContent, CardTemplateRoot, CardTemplateVersion, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility } from "./model";
+import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
+import type { AdoptedVersion, CardContent, CardTemplateRoot, CardTemplateVersion, CreateAndAttachCardCommand, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility, DeckPublicationReview } from "./model";
 import type { CompletionStatus } from "../../components/decks/types";
-import { isIsoDateOnlyString } from "../dateOnly";
+import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
+import type { MediaItem } from "../media";
+import { assertDisposableDatabase } from "./localDatabase";
+import { createDefaultCardContent, restoreCreatorCardTitle, restoreCreatorDeckTitle } from "./creatorDefaults";
+import { cardPublicationIssue, deckPublicationIssue, deckDraftContent } from "./publicationRules";
 
 export const COLLECTIONS = { cards: "cardTemplates", cardVersions: "cardTemplateVersions", decks: "deckTemplates", deckVersions: "deckTemplateVersions", users: "users" } as const;
 function entityId(value: unknown) { requireCondition(nonblank(value), "INVALID_ENTITY_ID"); }
@@ -25,7 +29,7 @@ export async function createFoundationIndexes(db: Db) {
 
 export class CardRepository {
   constructor(readonly db: Db, readonly client: MongoClient) {}
-  static async application() { return new CardRepository(await getDatabase(), await getMongoClient()); }
+  static async application() { assertDisposableDatabase(); return new CardRepository(await getDatabase(), await getMongoClient()); }
   cards() { return this.db.collection<CardTemplateRoot>(COLLECTIONS.cards); }
   cardVersions() { return this.db.collection<CardTemplateVersion>(COLLECTIONS.cardVersions); }
   decks() { return this.db.collection<DeckTemplateRoot>(COLLECTIONS.decks); }
@@ -76,13 +80,94 @@ export class CardRepository {
     requireCondition(roots.every((card) => card.ownerUserId === actor || card.visibility === "public"), "PRIVATE_FOREIGN_CARD");
     requireCondition(roots.every((card) => card.ownerUserId === actor || card.latestVersion >= 1), "UNPUBLISHED_FOREIGN_CARD"); return roots;
   }
-  async createCardDraft(actor: string, content: CardContent, visibility: Visibility = "private") {
+  // Stable caller-generated IDs make an interrupted first save safely retryable.
+  async createPrivateGraph(actor: string, deckTemplateId: string, content: DeckContent,
+    cards: { cardTemplateId: string; content: CardContent }[]) {
+    entityId(deckTemplateId); assertDeckContent(content);
+    requireCondition(Array.isArray(cards) && cards.length === content.cards.length && cards.every((card) => card && typeof card === "object") && new Set(cards.map((card) => card.cardTemplateId)).size === cards.length, "INVALID_INITIAL_GRAPH");
+    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content); }
+    requireCondition(content.cards.every((ref) => cards.some((card) => card.cardTemplateId === ref.cardTemplateId)), "INVALID_INITIAL_GRAPH");
+    return this.transaction(async (session) => {
+      await this.assertUser(actor, session);
+      const existing = await this.decks().findOne({ deckTemplateId }, { session });
+      if (existing) {
+        requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && isDeepStrictEqual(existing.draft, content), "INITIAL_GRAPH_CONFLICT");
+        for (const card of cards) {
+          const root = await this.cards().findOne({ cardTemplateId: card.cardTemplateId }, { session });
+          requireCondition(root?.ownerUserId === actor && root.latestVersion === 0 && isDeepStrictEqual(root.draft, card.content), "INITIAL_GRAPH_CONFLICT");
+        }
+        return;
+      }
+      const now = new Date();
+      for (const card of cards) await this.cards().insertOne({ cardTemplateId: card.cardTemplateId, ownerUserId: actor,
+        visibility: "private", latestVersion: 0, draft: card.content, stepIds: card.content.steps.map((step) => step.stepId),
+        revision: 0, forkedFrom: null, createdAt: now, updatedAt: now }, { session });
+      const root: DeckTemplateRoot = { deckTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
+        draft: content, revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
+      await this.decks().insertOne(root, { session });
+      await this.ensureDeckDataInSession(actor, root, null, now, session);
+    });
+  }
+  async createCardDraft(actor: string, content: CardContent, visibility: Visibility = "private", cardTemplateId: string = randomUUID()) {
+    entityId(cardTemplateId);
     assertCardContent(content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
     const now = new Date();
-    const root: CardTemplateRoot = { cardTemplateId: randomUUID(), ownerUserId: actor, visibility, latestVersion: 0,
+    const root: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility, latestVersion: 0,
       draft: structuredClone(content), stepIds: content.steps.map((step) => step.stepId), revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
-    await this.transaction(async (session) => { await this.assertUser(actor, session); await this.cards().insertOne(root, { session }); });
-    return root;
+    const existing = await this.transaction(async (session) => {
+      await this.assertUser(actor, session);
+      const existing = await this.cards().findOne({ cardTemplateId }, { session });
+      if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && isDeepStrictEqual(existing.draft, content), "INITIAL_CARD_CONFLICT"); return existing; }
+      await this.cards().insertOne(root, { session }); return root;
+    });
+    return existing;
+  }
+  async createAndAttachCard(actor: string, command: CreateAndAttachCardCommand) {
+    const { deckTemplateId, expectedDeckRevision, cardTemplateId, stepIds, nextDeckContent } = command;
+    entityId(actor); entityId(deckTemplateId); entityId(cardTemplateId);
+    requireCondition(Number.isInteger(expectedDeckRevision) && expectedDeckRevision >= 0, "INVALID_REVISION");
+    requireCondition(Array.isArray(stepIds), "INVALID_STEP");
+    const content = createDefaultCardContent(stepIds);
+    assertCardContent(content); assertDeckContent(nextDeckContent);
+    requireCondition(nextDeckContent.cards.some((ref) => ref.cardTemplateId === cardTemplateId), "NEW_CARD_REFERENCE_REQUIRED");
+    return this.transaction(async (session) => {
+      await this.assertUser(actor, session);
+      const deck = await this.decks().findOne({ deckTemplateId }, { session });
+      requireCondition(deck?.ownerUserId === actor, "DECK_FORBIDDEN");
+      const existing = await this.cards().findOne({ cardTemplateId }, { session });
+      const published = deck.latestVersion >= 1 ? await this.getDeckVersion(deckTemplateId, deck.latestVersion, session) : null;
+      requireCondition(deck.latestVersion === 0 || published !== null, "MISSING_DECK_VERSION");
+      const publishedContent = published ? deckDraftContent(published.content) : null;
+      if (existing) {
+        // Recognize only the exact post-commit state. Subsequent edits/publication
+        // require explicit recovery; never guess or reattach after another tab removes it.
+        requireCondition(deck.revision === expectedDeckRevision + 1 && isDeepStrictEqual(deck.draft, nextDeckContent)
+          && existing.ownerUserId === actor && existing.visibility === "private" && existing.latestVersion === 0
+          && existing.revision === 0 && existing.forkedFrom === null && isDeepStrictEqual(existing.draft, content)
+          && isDeepStrictEqual(existing.stepIds, stepIds), "ADD_CARD_RECOVERY_CONFLICT");
+        const { _id: deckMongoId, ...deckRoot } = deck; void deckMongoId;
+        const { _id: cardMongoId, ...cardRoot } = existing; void cardMongoId;
+        return { deck: { root: deckRoot, content: deck.draft!, publishedContent }, card: { root: cardRoot, content, publishedContent: null } };
+      }
+      requireCondition(deck.revision === expectedDeckRevision, "STALE_REVISION");
+      await this.deckReferences(actor, { ...nextDeckContent, cards: nextDeckContent.cards.filter((ref) => ref.cardTemplateId !== cardTemplateId) }, session);
+      const now = new Date();
+      const cardRoot: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
+        draft: content, stepIds: [...stepIds], revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
+      await this.cards().insertOne({ ...cardRoot }, { session });
+      const result = await this.decks().updateOne({ deckTemplateId, revision: expectedDeckRevision }, {
+        $set: { draft: nextDeckContent, updatedAt: now }, $inc: { revision: 1 },
+      }, { session });
+      requireCondition(result.matchedCount === 1, "STALE_REVISION");
+      const { _id, ...deckRoot } = deck; void _id;
+      return { deck: { root: { ...deckRoot, draft: nextDeckContent, revision: expectedDeckRevision + 1, updatedAt: now },
+        content: nextDeckContent, publishedContent }, card: { root: cardRoot, content, publishedContent: null } };
+    }).catch((error: unknown) => {
+      if (error instanceof MongoServerError && error.code === 11000) {
+        throw new CardArchitectureError(error.keyPattern?.stepIds ? "STEP_RESERVATION_CONFLICT" : "ADD_CARD_RECOVERY_CONFLICT");
+      }
+      throw error;
+    });
   }
   async createDeckDraft(actor: string, content: DeckContent, visibility: Visibility = "private") {
     assertDeckContent(content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
@@ -100,7 +185,12 @@ export class CardRepository {
       const root = await this.ownerCard(actor, cardTemplateId, expectedRevision, session);
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_CARD_VERSION");
-      const draft = latest && isDeepStrictEqual(content, latest.content) ? null : content;
+      const current = root.draft ?? latest?.content;
+      // An explicit clearing edit restores the published/default title. An already
+      // stored blank title is not rewritten by an unrelated content edit.
+      const saved = !content.intro.title?.trim() && content.intro.title !== current?.intro.title
+        ? { ...content, intro: { ...content.intro, title: restoreCreatorCardTitle(content.intro.title, latest?.content.intro.title) } } : content;
+      const draft = latest && isDeepStrictEqual(saved, latest.content) ? null : saved;
       const stepIds = [...new Set([...root.stepIds, ...content.steps.map((step) => step.stepId)])];
       // A root retains historical identities; no other Card may claim them.
       const result = await this.cards().updateOne({ cardTemplateId, revision: expectedRevision }, {
@@ -116,9 +206,12 @@ export class CardRepository {
       await this.deckReferences(actor, content, session);
       const latest = root.latestVersion >= 1 ? await this.getDeckVersion(deckTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_DECK_VERSION");
-      const publishedContent = latest ? { ...latest.content, cards: latest.content.cards.map(({ cardTemplateId }) => ({ cardTemplateId })) } : null;
+      const publishedContent = latest ? deckDraftContent(latest.content) : null;
+      const current = root.draft ?? publishedContent;
+      const saved = !content.title.trim() && content.title !== current?.title
+        ? { ...content, title: restoreCreatorDeckTitle(content.title, latest?.content.title) } : content;
       const visibilityChanged = visibility !== undefined && visibility !== root.visibility;
-      const draft = !visibilityChanged && latest && isDeepStrictEqual(content, publishedContent) ? null : content;
+      const draft = !visibilityChanged && latest && isDeepStrictEqual(saved, publishedContent) ? null : saved;
       const result = await this.decks().updateOne({ deckTemplateId, revision: expectedRevision }, {
         $set: { draft, ...(visibility === undefined ? {} : { visibility }), updatedAt: new Date() }, $inc: { revision: 1 },
       }, { session }); requireCondition(result.matchedCount === 1, "STALE_REVISION"); return expectedRevision + 1;
@@ -133,6 +226,9 @@ export class CardRepository {
     return this.transaction(async (session) => {
       const root = await this.ownerCard(actor, cardTemplateId, expectedRevision, session);
       requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertCardContent(root.draft);
+      const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
+      const issue = cardPublicationIssue(root.latestVersion, root.draft, latest?.content ?? null);
+      requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
       const version = root.latestVersion + 1; const now = new Date();
       await this.cardVersions().insertOne({ cardTemplateId, version, content: root.draft, ...note, publishedAt: now, publishedByUserId: actor }, { session });
       const result = await this.cards().updateOne({ cardTemplateId, revision: expectedRevision }, { $set: { latestVersion: version, draft: null, updatedAt: now }, $inc: { revision: 1 } }, { session });
@@ -143,12 +239,44 @@ export class CardRepository {
       }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] }); return version;
     });
   }
-  async publishDeck(actor: string, deckTemplateId: string, expectedRevision: number, updateNote?: string) {
+  private publicationReview(root: DeckTemplateRoot, cards: CardTemplateRoot[]): DeckPublicationReview {
+    return { deckTemplateId: root.deckTemplateId, revision: root.revision, cards: root.draft!.cards.map(({ cardTemplateId }) => {
+      const card = cards.find((card) => card.cardTemplateId === cardTemplateId)!;
+      return { cardTemplateId, revision: card.revision, latestVersion: card.latestVersion, hasDraft: card.draft !== null };
+    }) };
+  }
+  async prepareDeckPublication(actor: string, deckTemplateId: string, expectedRevision: number) {
+    return this.transaction(async (session) => {
+      const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
+      requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES");
+      const cards = await this.deckReferences(actor, root.draft, session);
+      const latest = root.latestVersion ? await this.getDeckVersion(deckTemplateId, root.latestVersion, session) : null;
+      const issue = deckPublicationIssue(root.latestVersion, root.draft, latest ? deckDraftContent(latest.content) : null, cards);
+      // Equal-content later drafts can represent the existing visibility-only
+      // promotion marker. Normal equal-content saves have already cleared draft.
+      requireCondition(issue === null || root.latestVersion >= 1 && issue === "NO_UNPUBLISHED_CHANGES", issue ?? "NO_UNPUBLISHED_CHANGES");
+      return this.publicationReview(root, cards);
+    });
+  }
+  async publishDeck(actor: string, deckTemplateId: string, expectedRevision: number, updateNote?: string,
+    consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }) {
     const note = this.note(updateNote);
     return this.transaction(async (session) => {
       const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
       requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertDeckContent(root.draft);
       const cards = await this.deckReferences(actor, root.draft, session);
+      if (consent) {
+        requireCondition(isDeepStrictEqual(consent.review, this.publicationReview(root, cards)), "DECK_PUBLICATION_REVIEW_CONFLICT");
+        requireCondition(!cards.some((card) => card.draft !== null) || consent.acceptCardDrafts === true, "CARD_DRAFT_CONFIRMATION_REQUIRED");
+      }
+      const latest = root.latestVersion >= 1 ? await this.getDeckVersion(deckTemplateId, root.latestVersion, session) : null;
+      requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_DECK_VERSION");
+      if (root.latestVersion === 0) {
+        const issue = deckPublicationIssue(0, root.draft, null, cards);
+        requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
+      }
+      // saveDeckDraft clears content-equivalent drafts. Keep its existing explicit
+      // visibility-change draft marker, so public promotion remains publishable.
       requireCondition(cards.every((card) => card.latestVersion >= 1), "UNPUBLISHED_CARDS_BLOCK_DECK");
       const versions = cards.length ? await this.cardVersions().find({ $or: cards.map((card) => ({ cardTemplateId: card.cardTemplateId, version: card.latestVersion })) }, { session }).toArray() : [];
       if (cards.length) requireCondition(versions.length === cards.length, "MISSING_CARD_VERSION");
@@ -182,7 +310,7 @@ export class CardRepository {
   private async ensureDeckDataInSession(actor: string, root: DeckTemplateRoot, version: AdoptedVersion, now: Date, session: ClientSession) {
     await this.users().updateOne({ _id: userKey(actor), "decksData.deckTemplateId": { $ne: root.deckTemplateId } }, {
       $push: { decksData: { deckTemplateId: root.deckTemplateId, deckTemplateVersion: version, activeCardId: null,
-        archivedAt: null, sharedWithUserIds: [], createdAt: now, updatedAt: now, openedAt: null } },
+        archivedAt: null, sharedWithUserIds: [], createdAt: now, updatedAt: now, openedAt: null, cadenceAnchorDate: null } },
     }, { session });
   }
   async ensureDeckData(actor: string, deckTemplateId: string, version: AdoptedVersion) {
@@ -222,6 +350,73 @@ export class CardRepository {
   reactivateDeckData(actor: string, deckTemplateId: string) { return this.setArchive(actor, deckTemplateId, null); }
   async activeMemberships(actor: string): Promise<DeckData[]> {
     const user = await this.getPersonalUser(actor); return user?.decksData.filter((deck) => deck.archivedAt === null) ?? [];
+  }
+  async openWorkingDeck(actor: string, deckTemplateId: string, localDate: string) {
+    requireCondition(isIsoDateOnlyString(localDate) && localDate === localDate.trim(), "INVALID_CADENCE_ANCHOR");
+    await this.transaction(async (session) => {
+      const user = await this.assertUser(actor, session);
+      const data = user.decksData.find((item) => item.deckTemplateId === deckTemplateId);
+      requireCondition(data && data.archivedAt === null && data.deckTemplateVersion !== null, "WORKING_DECK_REQUIRED");
+      const root = await this.decks().findOne({ deckTemplateId }, { session });
+      requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "DECK_FORBIDDEN");
+      const version = await this.getDeckVersion(deckTemplateId, data.deckTemplateVersion, session);
+      requireCondition(version, "MISSING_DECK_VERSION");
+      const anchor = data.cadenceAnchorDate ?? localDate;
+      const now = new Date();
+      for (const [index, ref] of version.content.cards.entries()) {
+        const card = await this.cards().findOne({ cardTemplateId: ref.cardTemplateId }, { session });
+        requireCondition(card && (card.ownerUserId === actor || card.visibility === "public"), "CARD_FORBIDDEN");
+        const existing = user.cardsData.find((item) => item.cardTemplateId === ref.cardTemplateId);
+        const adoptedVersion = existing ? existing.cardTemplateVersion : card.latestVersion;
+        requireCondition(adoptedVersion !== null && adoptedVersion >= 1, "UNPUBLISHED_CARD_ADOPTION");
+        const adopted = await this.getCardVersion(ref.cardTemplateId, adoptedVersion, session);
+        requireCondition(adopted, "MISSING_CARD_VERSION");
+        const generated = addDaysToDateOnly(anchor, (index + 1) * version.content.cadence.intervalDays);
+        if (!existing) await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": { $ne: ref.cardTemplateId } }, {
+          $push: { cardsData: initialCardData(ref.cardTemplateId, adoptedVersion, adopted.content, now, generated) },
+        }, { session });
+        else if (existing.targetDate === null) await this.users().updateOne({ _id: userKey(actor) }, {
+          $set: { "cardsData.$[card].targetDate": adopted.content.suggestedTargetDate || generated, "cardsData.$[card].updatedAt": now },
+        }, { session, arrayFilters: [{ "card.cardTemplateId": ref.cardTemplateId }] });
+      }
+      const activeCardId = version.content.cards.some((ref) => ref.cardTemplateId === data.activeCardId)
+        ? data.activeCardId : version.content.cards[0]?.cardTemplateId ?? null;
+      await this.users().updateOne({ _id: userKey(actor) }, { $set: {
+        "decksData.$[deck].openedAt": now, "decksData.$[deck].updatedAt": now,
+        "decksData.$[deck].cadenceAnchorDate": anchor, "decksData.$[deck].activeCardId": activeCardId,
+      } }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
+    });
+  }
+  async setActiveCard(actor: string, deckTemplateId: string, cardTemplateId: string) {
+    await this.transaction(async (session) => {
+      await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+      await this.users().updateOne({ _id: userKey(actor) }, { $set: { "decksData.$[deck].activeCardId": cardTemplateId,
+        "decksData.$[deck].updatedAt": new Date() } }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
+    });
+  }
+  async setReflection(actor: string, deckTemplateId: string, cardTemplateId: string, reflection: string) {
+    requireCondition(typeof reflection === "string" && reflection.length <= 20000, "INVALID_REFLECTION");
+    await this.transaction(async (session) => {
+      await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+      await this.users().updateOne({ _id: userKey(actor) }, { $set: { "cardsData.$[card].reflection": reflection,
+        "cardsData.$[card].updatedAt": new Date() } }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });
+    });
+  }
+  async mutateMedia(actor: string, deckTemplateId: string, cardTemplateId: string,
+    change: { append: MediaItem } | { remove: string }, validate: (value: unknown) => MediaItem) {
+    return this.transaction(async (session) => {
+      const { data } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+      let mediaItems = data.mediaItems;
+      if ("append" in change) {
+        const item = validate(change.append);
+        const existing = mediaItems.find((media) => media.id === item.id);
+        requireCondition(!existing || isDeepStrictEqual(existing, item), "MEDIA_ID_CONFLICT");
+        if (!existing) mediaItems = [...mediaItems, item];
+      } else { entityId(change.remove); mediaItems = mediaItems.filter((item) => item.id !== change.remove); }
+      await this.users().updateOne({ _id: userKey(actor) }, { $set: { "cardsData.$[card].mediaItems": mediaItems,
+        "cardsData.$[card].updatedAt": new Date() } }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });
+      return mediaItems;
+    });
   }
   private async workingCard(actor: string, deckTemplateId: string, cardTemplateId: string, session: ClientSession) {
     const user = await this.assertUser(actor, session);

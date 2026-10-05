@@ -104,7 +104,7 @@ export function createMigrationPlan(sources: LegacySources, previous?: Migration
       const data: DeckData = { ...deckFields, deckTemplateId: oldDeck.deckTemplateId, deckTemplateVersion: 1,
         activeCardId: oldActive?.mapping.cardTemplateId ?? firstCard?.cardTemplateId ?? null,
         archivedAt: oldDeck.archivedAt == null ? null : asDate(oldDeck.archivedAt, now),
-        createdAt: asDate(oldDeck.createdAt, now), updatedAt: now, openedAt: oldDeck.openedAt == null ? null : asDate(oldDeck.openedAt, now) };
+        createdAt: asDate(oldDeck.createdAt, now), updatedAt: now, openedAt: oldDeck.openedAt == null ? null : asDate(oldDeck.openedAt, now), cadenceAnchorDate: null };
       decks.push(data); plan.counts.deckData++;
       plan.preservation.sharing.push({ userId, path: `decksData[${deckIndex}].sharedWithUserIds`, ...presentHash(oldDeck, "sharedWithUserIds") });
       for (const oldCard of Array.isArray(oldDeck.cards) ? oldDeck.cards : []) {
@@ -174,6 +174,7 @@ export function validateMigrationPlan(plan: MigrationPlan) {
     for (const [index, data] of user.decksData.entries()) {
       requireCondition(decks.has(data.deckTemplateId) && data.deckTemplateVersion === 1 && !Object.hasOwn(data, "cards") && !memberships.has(data.deckTemplateId), "INVALID_MIGRATED_MEMBERSHIP");
       memberships.add(data.deckTemplateId);
+      requireCondition(data.cadenceAnchorDate === null, "MIGRATED_CADENCE_ANCHOR_NOT_RESET");
       requireCondition(data.activeCardId === null || deckVersions.get(data.deckTemplateId)!.content.cards.some((ref) => ref.cardTemplateId === data.activeCardId), "INVALID_ACTIVE_CARD_MAPPING");
       foundSharing.push({ userId, path: `decksData[${index}].sharedWithUserIds`, ...presentHash(data, "sharedWithUserIds") });
     }

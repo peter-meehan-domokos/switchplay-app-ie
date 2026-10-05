@@ -1,9 +1,11 @@
 import Link from "next/link";
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
-import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
+import { creatorBoard } from "@/components/creator/cardArchitectureAdapter";
+import { CardRepository } from "@/lib/cards/repository";
+import { creatorDTO } from "@/lib/cards/readModels";
 import { getCurrentUser } from "@/lib/auth";
-import { getVisibleDeckTemplateDocumentByIdForUser } from "@/lib/deckTemplateQueries";
+
 
 type CreatorEditPageProps = {
   params: Promise<{
@@ -30,7 +32,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   const resolvedSearchParams = await searchParams;
   const returnTo = readFirstSearchParam(resolvedSearchParams.returnTo);
   const returnDeckId = readFirstSearchParam(resolvedSearchParams.returnDeckId);
-  const templateDocument = await getVisibleDeckTemplateDocumentByIdForUser(user, deckTemplateId);
+  const templateDocument = await creatorDTO(await CardRepository.application(), user.id, deckTemplateId).catch(() => null);
 
   if (!templateDocument) {
     return (
@@ -42,8 +44,6 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
   }
 
   const canPreviewOutput = user.isAdmin === true || user.username === "dev";
-  const editableTemplate = templateDocument.savedTemplate ?? templateDocument.template;
-  const publishedBoard = createCreatorBoardFromTemplate(templateDocument.template);
   const creatorReturnTarget =
     returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
       ? { label: "Deck" as const, href: `/decks?openDeck=${encodeURIComponent(returnDeckId)}` }
@@ -53,8 +53,8 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
     <CreatorDragLab
       canPreviewOutput={canPreviewOutput}
       creatorReturnTarget={creatorReturnTarget}
-      initialBoard={createCreatorBoardFromTemplate(editableTemplate)}
-      initialPublishedBoard={publishedBoard}
+      initialBoard={creatorBoard(templateDocument)}
+      initialCreator={templateDocument}
       mode="edit"
     />
   );

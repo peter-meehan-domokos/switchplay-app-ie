@@ -1,6 +1,7 @@
 import type { CardRepository } from "./repository";
 import { assertAdoption, nonblank, requireCondition } from "./domain";
 import type { Capabilities, CardData, CardTemplateRoot, DeckData, DeckTemplateRoot, PublishedDeckContent } from "./model";
+import { deckDraftContent } from "./publicationRules";
 
 export function capabilities(actor: string, dataOwnerUserId: string, deck: DeckTemplateRoot, card?: CardTemplateRoot, data?: CardData | null): Capabilities {
   const ownData = actor === dataOwnerUserId;
@@ -73,9 +74,9 @@ export async function resolveCreatorDeck(repo: CardRepository, actor: string, de
   requireCondition(nonblank(actor) && nonblank(deckTemplateId), "INVALID_ENTITY_ID");
   const root = await repo.decks().findOne({ deckTemplateId }); requireCondition(root?.ownerUserId === actor, "DECK_FORBIDDEN");
   const published = root.latestVersion >= 1 ? await repo.getDeckVersion(deckTemplateId, root.latestVersion) : null;
-  const content = root.draft ?? (published ? { ...published.content,
-    cards: published.content.cards.map(({ cardTemplateId }) => ({ cardTemplateId })),
-  } : null); requireCondition(content, "MISSING_DRAFT");
+  requireCondition(root.latestVersion === 0 || published, "MISSING_DECK_VERSION");
+  const publishedContent = published ? deckDraftContent(published.content) : null;
+  const content = root.draft ?? publishedContent; requireCondition(content, "MISSING_DRAFT");
   const cards = content.cards.length ? await repo.cards().find({ cardTemplateId: { $in: content.cards.map((ref) => ref.cardTemplateId) } }).toArray() : [];
   requireCondition(cards.length === content.cards.length, "MISSING_CARD_REFERENCE");
   requireCondition(cards.every((card) => card.ownerUserId === actor || card.visibility === "public"), "PRIVATE_FOREIGN_CARD");
@@ -83,13 +84,28 @@ export async function resolveCreatorDeck(repo: CardRepository, actor: string, de
   const versions = publishedCards.length ? await repo.cardVersions().find({ $or: publishedCards.map((card) => ({ cardTemplateId: card.cardTemplateId, version: card.latestVersion })) }).toArray() : [];
   const byId = new Map(cards.map((card) => [card.cardTemplateId, card]));
   const byVersion = new Map(versions.map((version) => [version.cardTemplateId, version]));
-  return { root, content, cards: content.cards.map((ref) => {
+  return { root, content, publishedContent, cards: content.cards.map((ref) => {
     const card = byId.get(ref.cardTemplateId)!;
-    const cardContent = card.ownerUserId === actor ? card.draft ?? byVersion.get(card.cardTemplateId)?.content : byVersion.get(card.cardTemplateId)?.content;
+    const publishedContent = byVersion.get(card.cardTemplateId)?.content ?? null;
+    requireCondition(card.latestVersion === 0 || publishedContent, "MISSING_CARD_VERSION");
+    const cardContent = card.ownerUserId === actor ? card.draft ?? publishedContent : publishedContent;
     requireCondition(cardContent, "MISSING_CARD_VERSION");
     // Never return another owner's draft.
-    return { root: card.ownerUserId === actor ? card : { ...card, draft: null }, content: cardContent };
+    return { root: card.ownerUserId === actor ? card : { ...card, draft: null }, content: cardContent, publishedContent };
   }) };
+}
+
+// Canonical editing is authorized by Card ownership, independently of placement.
+export async function resolveCreatorCard(repo: CardRepository, actor: string, cardTemplateId: string) {
+  requireCondition(nonblank(actor) && nonblank(cardTemplateId), "INVALID_ENTITY_ID");
+  const root = await repo.cards().findOne({ cardTemplateId });
+  requireCondition(root?.ownerUserId === actor, "CARD_FORBIDDEN");
+  const published = root.latestVersion >= 1 ? await repo.getCardVersion(cardTemplateId, root.latestVersion) : null;
+  requireCondition(root.latestVersion === 0 || published, "MISSING_CARD_VERSION");
+  const publishedContent = published?.content ?? null;
+  const content = root.draft ?? publishedContent;
+  requireCondition(content, "MISSING_DRAFT");
+  return { root, content, publishedContent };
 }
 
 export async function authorizeWorkingCard(repo: CardRepository, actor: string, deckTemplateId: string, cardTemplateId: string) {

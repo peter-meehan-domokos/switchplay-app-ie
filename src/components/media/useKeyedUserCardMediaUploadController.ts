@@ -64,7 +64,7 @@ export const initialUserCardMediaUploadState: UserCardMediaUploadState = {
 };
 
 export function createUserCardMediaUploadKey(target: UserCardMediaUploadTarget) {
-  return `user-card:${encodeURIComponent(target.deckTemplateId)}:${encodeURIComponent(target.cardId)}`;
+  return target.userId ? `user-card:${encodeURIComponent(target.userId)}:${encodeURIComponent(target.cardId)}` : `user-card:${encodeURIComponent(target.deckTemplateId)}:${encodeURIComponent(target.cardId)}`;
 }
 
 export function getUserCardMediaUploadState(

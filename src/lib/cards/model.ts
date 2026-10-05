@@ -18,6 +18,13 @@ export type DeckContent = {
 export type PublishedDeckContent = Omit<DeckContent, "cards"> & {
   cards: { cardTemplateId: string; cardVersionAtPublish: number }[];
 };
+export type CreateAndAttachCardCommand = {
+  deckTemplateId: string;
+  expectedDeckRevision: number;
+  cardTemplateId: string;
+  stepIds: string[];
+  nextDeckContent: DeckContent;
+};
 type Root<C, F> = {
   ownerUserId: string;
   visibility: Visibility;
@@ -59,6 +66,7 @@ export type DeckData = {
   createdAt: Date;
   updatedAt: Date;
   openedAt: Date | null;
+  cadenceAnchorDate: string | null; // Filled once, on the first successful working open.
 };
 export type PersonalUser = { _id: ObjectId | string; decksData: DeckData[]; cardsData: CardData[] };
 export type Capabilities = {
@@ -66,4 +74,11 @@ export type Capabilities = {
   canEditDeck: boolean; canPublishDeck: boolean; canArchiveDeck: boolean;
   canEditCard: boolean; canPublishCard: boolean; canForkCard: boolean;
   canMutateCardData: boolean; canUpdateCard: boolean;
+};
+// Ephemeral publication consent, never persisted. Ordered references and Card
+// revisions pin both the published versions and the draft state reviewed by UI.
+export type DeckPublicationReview = {
+  deckTemplateId: string;
+  revision: number;
+  cards: { cardTemplateId: string; revision: number; latestVersion: number; hasDraft: boolean }[];
 };

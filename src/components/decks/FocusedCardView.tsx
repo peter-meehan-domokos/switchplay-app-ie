@@ -24,7 +24,7 @@ import {
   isKnownPortraitCloudflareStreamVideoMediaItem,
   type MediaItem,
 } from "@/lib/media";
-import { selectAllModernUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { selectAllTrustedUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
 import { createUserCardMediaMutationKey } from "@/lib/userCardMediaMutationQueue";
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 import {
@@ -298,8 +298,8 @@ export default function FocusedCardView({
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
   const mediaUploadTarget = useMemo(
-    () => ({ scope: "user-card" as const, deckTemplateId, cardId: card.id }),
-    [card.id, deckTemplateId],
+    () => ({ scope: "user-card" as const, deckTemplateId, cardId: card.id, userId: card.dataOwnerUserId }),
+    [card.id, card.dataOwnerUserId, deckTemplateId],
   );
   const commitCompletedMediaUpload = useCallback(
     async ({ mediaItem, target }: CompletedUserCardMediaUpload) => {
@@ -315,7 +315,7 @@ export default function FocusedCardView({
     onUploadCompleted: commitCompletedMediaUpload,
   });
   const mediaUploadState = mediaUploadController.getState(mediaUploadTarget);
-  const { images: cardImages, videos: cardVideos } = selectAllModernUserCardMediaItems(card.mediaItems);
+  const { images: cardImages, videos: cardVideos } = selectAllTrustedUserCardMediaItems(card.mediaItems);
   const removalStatesById = Object.fromEntries(
     [...cardImages, ...cardVideos].map((item) => [
       item.id,
@@ -443,7 +443,7 @@ export default function FocusedCardView({
   const closeMediaEditor = () => {
     setMediaEditorCardId(null);
   };
-  const removeCardMedia = async (item: ModernUserCardMediaItem) => {
+  const removeCardMedia = async (item: import("@/lib/media").MediaItem) => {
     if (!onRemoveCardMedia) {
       return;
     }

@@ -3,7 +3,7 @@ import type { PulseFieldSignalVariant } from "@/components/decks/PulseFieldSigna
 import type { MediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
 import { clampSignalReading, roundSignalReadingForDisplay, signalReadingToNormalized } from "@/lib/signals";
-import { selectAllVisibleUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { selectAllVisibleUserCardMediaItems } from "@/lib/userCardMedia";
 
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
@@ -39,7 +39,7 @@ export type CardLayoutSignal = {
 };
 
 export type CardLayout = Omit<WeeklyCard, "signals"> & {
-  backMediaItems: ModernUserCardMediaItem[];
+  backMediaItems: MediaItem[];
   externalComment: CardLayoutExternalComment | null;
   ecologicalOccupancy: number;
   ecologicalOccupancyRatio: number;

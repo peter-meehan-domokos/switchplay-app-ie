@@ -99,7 +99,7 @@ export function swapConstructionSteps(source: CardTemplateRoot, destination: Car
   requireCondition([source, destination, deck].every((root) => root.latestVersion === 0 && root.forkedFrom === null), "CROSS_CARD_MOVE_AFTER_PUBLICATION");
   requireCondition(source.draft !== null && destination.draft !== null, "MISSING_DRAFT");
   assertCardContent(source.draft); assertCardContent(destination.draft);
-  requireCondition([sourceIndex, destinationIndex].every((i) => Number.isInteger(i) && i >= 0 && i < 3), "INVALID_STEP_POSITION");
+  requireCondition(Number.isInteger(sourceIndex) && sourceIndex >= 0 && sourceIndex < source.draft!.steps.length && Number.isInteger(destinationIndex) && destinationIndex >= 0 && destinationIndex < destination.draft!.steps.length, "INVALID_STEP_POSITION");
   const a = structuredClone(source.draft); const b = structuredClone(destination.draft);
   [a.steps[sourceIndex], b.steps[destinationIndex]] = [b.steps[destinationIndex], a.steps[sourceIndex]];
   return { source: a, destination: b };

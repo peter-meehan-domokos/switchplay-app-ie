@@ -139,9 +139,9 @@ operation exists.
 
 ## First-class Cards: Phase 1 foundation
 
-The new domain is isolated in `src/lib/cards/`. The existing UI/API still uses
-the legacy embedded-Card model; switch that private vertical slice in Phase 2
-before exposing migrated data. No production cutover has been performed.
+The new domain is isolated in `src/lib/cards/`. Phase 2 connects the private
+Creator/My Decks/working-Deck UI to these boundaries as described below.
+No production cutover has been performed.
 The read-only audit is unchanged and remains a separate utility.
 
 `model.ts` defines independent Card/Deck roots and immutable version documents.
@@ -192,8 +192,9 @@ Card mutation/upload authorization requires an active adopted Deck occurrence.
 New personal image helpers generate/validate
 `user-cards/{userId}/{cardTemplateId}/{uuid}.{ext}`. Stream asset IDs remain
 provider-generated. Migration copies trusted old media verbatim; browser validation
-does not accept the legacy namespace. Existing upload routes/storage keys are
-unchanged until Phase 2. Delivery confidentiality remains separate deferred work.
+does not accept the legacy namespace. Phase 2 upload routes use the new personal
+image identity while retaining trusted legacy references for display.
+Delivery confidentiality remains separate deferred work.
 
 The explicit `createFoundationIndexes` operation installs unique Card/Deck IDs,
 owner+ID indexes, unique entity+version indexes, the Deck Card-reference index and
@@ -272,13 +273,75 @@ Mongo binary and needs permission to bind local ports. They cover real transacti
 rollback, concurrent ensures/publication, publisher adoption, archive retention,
 version selection, Step transfer and deterministic migration retry/conflict cases.
 Legacy Phase 0 characterization tests remain; the new suite supplements them with
-the intentional new rules, without changing the active Creator UI.
+the intentional new rules. The private UI now consumes the new model in Phase 2.
 
-Before exposing the new architecture in Phase 2, route the private Creator/My Decks/
-working Deck slice through these repositories/resolvers, remove legacy theme-row
-dragging and disable legacy shared-progress UI/mutations. Preserve parked sharing
-metadata. Production cutover follows a proven Phase 2 slice and a separately
+Phase 2 routes the private Creator/My Decks/working Deck slice through these
+repositories/resolvers, removes legacy theme-row dragging and disables legacy
+shared-progress UI/mutations while preserving sharing metadata.
+Production cutover requires a separately
 reviewed cutover procedure using the external backup; this CLI cannot perform it.
+
+## First-class Cards: Phase 2 private vertical slice
+
+**This branch is local-only until a separately approved production cutover.**
+Application authentication and Card repository factories refuse Atlas/remote
+hosts before connecting. Local database names must begin with
+`switchplay_phase2_`, `switchplay_test_` or `switchplay_migration_`.
+Existing `.env.local` Atlas settings are not a Phase 2 development database.
+
+For a disposable browser review with no Atlas connection:
+
+```bash
+npm run dev:phase2
+```
+
+The command creates its own local replica set, indexes and test users, prints its
+application URL, and mocks R2/Stream service boundaries. Sign in with `phase2` /
+`local-test-only`. Ctrl+C stops the app and discards this database. Each run starts
+empty; it does not preserve your manual test work. Provider mocks do not prove
+real Cloudflare delivery, CORS or encoding. Next output is isolated in
+`.next-phase2`; logs and the test-only tsconfig are ignored under `phase2-test-results`.
+
+Creator stores separate Card/Deck drafts with revision checks. First persistence
+creates only lightweight DeckData membership. Individual Card and Deck publications
+use the foundation transactions and separate optional update notes. Publish and
+leave saves first, publishes outstanding Cards, then the Deck. Partial successes
+remain published; failures stay in Creator and retries read fresh revisions and
+publish only outstanding entities. There are no visibility controls or fork/reuse
+actions. Theme metadata remains editable, but theme-row dragging is removed.
+
+My Decks reads active DeckData only: null adoption opens Creator; published
+adoption opens working mode. Archive/restore changes membership without deleting
+personal data. Working opens select the exact adopted Deck/Card versions, initialize
+only absent CardData, and establish the personal cadence anchor once. Dates use
+existing personal → intrinsic suggested → fixed positional cadence precedence.
+Completion and signals are Step-linked; personal mutations use global Card IDs
+with field-level updates. Fresh opens supersede cached optimistic snapshots.
+
+The Shared with me and all-user admin progress views are parked. Shared-progress
+endpoints and destructive legacy reconciliation return fixed 410 responses before
+authentication, lookup or mutation. Unrelated writes preserve sharing metadata.
+Legacy pure helpers remain only for characterization coverage; live routes bypass
+embedded Card state and template reconciliation.
+
+Verification:
+
+```bash
+npm run test:unit
+npm run test:integration
+npm run test:e2e
+npm run test:phase2
+npm run typecheck
+npm run lint
+MONGODB_URI='' MONGODB_DB='' npm run build
+git diff --check
+```
+
+`test:phase2` owns its database and mocks, authenticates through real application
+routes, and exercises Creator, publication failures/retry, personal state/media,
+archive/restore, retained adoption and unauthorized access. It ignores any inherited
+Atlas URI. Browser traces on failure are under `phase2-test-results/artifacts`.
+No application route creates indexes or performs a production migration.
 
 ## Learn More
 

@@ -105,6 +105,11 @@ export default function StepList({
 
     suppressNextClickRef.current = false;
     pendingTapStepIndexRef.current = getStepItemIndexFromEventTarget(event.target);
+    // Buttons and links handle their own clicks. Capturing their pointer on
+    // the list retargets the eventual click and prevents those controls firing.
+    if (event.target instanceof Element && event.target.closest(".step-progress-hit-area, .step-description-link")) {
+      return;
+    }
     stepGestureSessionRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -228,7 +233,7 @@ export default function StepList({
   };
 
   const handleInteractiveClickCapture = (event: MouseEvent<HTMLOListElement>) => {
-    if (event.target instanceof HTMLElement && event.target.closest(".step-description-link")) {
+    if (event.target instanceof Element && event.target.closest(".step-progress-hit-area, .step-description-link")) {
       pendingTapStepIndexRef.current = null;
       return;
     }

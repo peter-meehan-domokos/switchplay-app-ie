@@ -2,6 +2,7 @@ import type { DeckIntroduction, DeckTemplate, StepDescriptionSpan } from "@/comp
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import { normalizeDeckIntroductionForRuntime } from "@/lib/deckApiTransforms";
 import type { MediaItem } from "@/lib/media";
+import { createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_DECK_CADENCE_DAYS, defaultCreatorThemeTitle, restoreCreatorCardTitle } from "@/lib/cards/creatorDefaults";
 
 export type CardColumnId = `card-${number}`;
 export type ColumnId = "streams" | CardColumnId;
@@ -108,12 +109,7 @@ export type BoardState = {
   pairs: Record<PairId, Pair>;
 };
 
-const DEFAULT_CREATOR_CARD_COUNT = 4;
 const streamColumn: Column = { id: "streams", kind: "stream", label: "Streams" };
-const starterCardTitles = ["Get started", "Make progress", "Build momentum", "Feel the difference"];
-const starterTargetDates = ["2026-06-07", "2026-06-14", "2026-06-21", "2026-06-28"];
-const starterStreamNames = ["Stream 1", "Stream 2", "Stream 3"];
-const newCardTitle = "My New Card";
 
 function createCreatorColumns(cardCount: number): Column[] {
   const normalizedCardCount = Math.max(0, Math.floor(cardCount));
@@ -200,14 +196,14 @@ export function getNextCardDate(columns: Column[], today = new Date()) {
   const previousTargetDate = previousCard?.targetDate ?? "";
 
   if (isIsoDateOnlyString(previousTargetDate)) {
-    return addDaysToIsoDate(previousTargetDate, 7);
+    return addDaysToIsoDate(previousTargetDate, DEFAULT_DECK_CADENCE_DAYS);
   }
 
-  return formatUtcDateOnly(addUtcDays(today, 7));
+  return formatUtcDateOnly(addUtcDays(today, DEFAULT_DECK_CADENCE_DAYS));
 }
 
 export function createNewCardColumn(columns: Column[]): Column & { id: CardColumnId; kind: "card" } {
-  const cardTitle = newCardTitle;
+  const cardTitle = DEFAULT_CREATOR_CARD_TITLE;
 
   return {
     id: createCardColumnId(getNextCardPosition(columns)),
@@ -268,7 +264,7 @@ export function deleteCreatorCard(board: BoardState, columnId: ColumnId): BoardS
   const cardColumns = getCardColumns(board.columns);
   const columnToDelete = cardColumns.find((column) => column.id === columnId);
 
-  if (!columnToDelete || cardColumns.length <= 1) {
+  if (!columnToDelete) {
     return board;
   }
 
@@ -335,7 +331,7 @@ export function deleteCreatorCard(board: BoardState, columnId: ColumnId): BoardS
 }
 
 export function getDefaultStreamName(row: number) {
-  return starterStreamNames[row] ?? `Stream ${row + 1}`;
+  return defaultCreatorThemeTitle(row);
 }
 
 export function getDeletedCardLabelFallback(columnId: ColumnId) {
@@ -352,8 +348,8 @@ export function resolveCreatorCardLabel(columnId: ColumnId, value: string) {
   return value.trim() === "" ? getDeletedCardLabelFallback(columnId) : value;
 }
 
-export function resolveCreatorCardTitle(column: Column, value: string) {
-  return value.trim() === "" ? column.defaultCardTitle ?? column.cardTitle ?? column.label : value;
+export function resolveCreatorCardTitle(column: Column, value: string, publishedTitle: string | null | undefined = column.defaultCardTitle) {
+  return restoreCreatorCardTitle(value, publishedTitle);
 }
 
 export function getCreatorCellId(columnId: ColumnId, rowIndex: number): CellId {
@@ -557,29 +553,6 @@ function createTemplateStreamIds(template: DeckTemplate, rows: number[]) {
   }, {});
 }
 
-function createBlankColumns(): Column[] {
-  return createCreatorColumns(DEFAULT_CREATOR_CARD_COUNT).map((column, columnIndex) => {
-    if (column.kind === "stream") {
-      return column;
-    }
-
-    const cardIndex = columnIndex - 1;
-
-    const cardTitle = starterCardTitles[cardIndex] ?? column.label;
-
-    return {
-      ...column,
-      cardId: createCreatorId("card"),
-      cardLabel: getDefaultCardLabel(cardIndex),
-      cardTitle,
-      defaultCardTitle: cardTitle,
-      introDescription: null,
-      introMediaItem: null,
-      targetDate: starterTargetDates[cardIndex] ?? "",
-    };
-  });
-}
-
 function createTemplateColumns(template: DeckTemplate): Column[] {
   const templateCards = template.cards;
 
@@ -607,37 +580,25 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
 
 export function createBlankCreatorBoard(): BoardState {
   const rows = getCreatorRows();
-  const columns = createBlankColumns();
+  const columns = createCreatorColumns(0);
   const cells = createBaseCells(columns, rows);
-  const pairs: Record<PairId, Pair> = {};
-
-  for (const column of columns) {
-    if (column.kind !== "card") {
-      continue;
-    }
-
-    for (const row of rows) {
-      const pairId = `starter-${column.id}-row-${row + 1}`;
-
-      pairs[pairId] = createEmptyPair(pairId);
-      cells[getCreatorCellId(column.id, row)] = { kind: "pair", pairId };
-    }
-  }
+  const streamIdsByRow = createBlankStreamIds(rows);
+  const defaults = createDefaultDeckContent(rows.map((row) => streamIdsByRow[row]));
 
   return {
     deckTemplateId: createCreatorDeckTemplateId(),
-    deckTitle: "My Next Path",
+    deckTitle: defaults.title,
     category: null,
     deckIntroduction: null,
     columns,
     rows,
-    streamIdsByRow: createBlankStreamIds(rows),
-    streamNamesByRow: starterStreamNames.reduce<Record<number, string>>((nextStreams, stream, index) => {
-      nextStreams[index] = getDefaultStreamName(index);
+    streamIdsByRow,
+    streamNamesByRow: rows.reduce<Record<number, string>>((nextStreams, row) => {
+      nextStreams[row] = defaultCreatorThemeTitle(row);
       return nextStreams;
     }, {}),
     cells,
-    pairs,
+    pairs: {},
   };
 }
 

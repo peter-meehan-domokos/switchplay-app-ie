@@ -11,6 +11,18 @@ import type { CardData } from "../src/lib/cards/model";
 import { layoutCardLabels } from "../src/lib/cards/layout";
 
 async function fixture(): Promise<LegacySources> { return JSON.parse(await readFile("tests/fixtures/first-class-migration.json", "utf8")); }
+test("migration preserves stored creation titles instead of applying new Creator defaults or first-publication gates", async () => {
+  const sources = await fixture();
+  sources.deckTemplates[0].template.title = "My Next Path";
+  sources.deckTemplates[0].template.cards[0].intro.title = "My New Card";
+  sources.deckTemplates[1].template.cards[0].intro.title = "My Next Card";
+  const before = structuredClone(sources), plan = createMigrationPlan(sources);
+  assert.equal(plan.targets.deckTemplateVersions[0].content.title, "My Next Path");
+  assert.deepEqual(plan.targets.cardTemplateVersions.map((version) => version.content.intro.title), ["My New Card", "My Next Card"]);
+  assert.ok(plan.targets.deckTemplates.every((root) => root.latestVersion === 1 && root.draft === null));
+  assert.ok(plan.targets.cardTemplates.every((root) => root.latestVersion === 1 && root.draft === null));
+  assert.equal(validateMigrationPlan(plan).valid, true); assert.deepEqual(sources, before);
+});
 test("migration extracts independent Cards/versions, regenerates global Step IDs and defaults themes/labels", async () => {
   const sources = await fixture(); const before = structuredClone(sources); const plan = createMigrationPlan(sources);
   assert.equal(plan.counts.decks, 2); assert.equal(plan.counts.cards, 2); assert.equal(plan.counts.steps, 6);

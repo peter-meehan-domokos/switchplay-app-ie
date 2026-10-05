@@ -152,6 +152,11 @@ export type WeeklyCardSignal = {
 };
 
 export type WeeklyCard = {
+  cardTemplateId?: string;
+  adoptedVersion?: number;
+  templateOwnerUserId?: string;
+  dataOwnerUserId?: string;
+  permissions?: import("@/lib/cards/model").Capabilities;
   id: string;
   label: string;
   targetDate: string;
@@ -164,6 +169,11 @@ export type WeeklyCard = {
 };
 
 export type Deck = {
+  templateOwnerUserId?: string;
+  dataOwnerUserId?: string;
+  context?: "working";
+  adoptedVersion?: number;
+  permissions?: import("@/lib/cards/model").Capabilities;
   id: string;
   deckTemplateId: string;
   hasUserDeckData: boolean;

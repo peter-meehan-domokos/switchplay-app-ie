@@ -1,6 +1,6 @@
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
-import { createBlankCreatorBoard } from "@/components/creator/creatorBoardState";
+import { blankPrivateBoard } from "@/components/creator/cardArchitectureAdapter";
 import { getCurrentUser } from "@/lib/auth";
 
 export default async function NewCreatorPage() {
@@ -15,7 +15,7 @@ export default async function NewCreatorPage() {
   return (
     <CreatorDragLab
       canPreviewOutput={canPreviewOutput}
-      initialBoard={createBlankCreatorBoard()}
+      initialBoard={blankPrivateBoard()}
       mode="new"
     />
   );

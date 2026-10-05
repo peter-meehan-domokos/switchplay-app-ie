@@ -103,7 +103,7 @@ export function isActiveMediaUploadSession(
 
 type UseMediaUploadControllerOptions = {
   onUploadCompleted: (result: CompletedMediaUpload) => void | Promise<void>;
-  onUploadStarted?: (kind: MediaUploadKind) => void;
+  onUploadStarted?: (kind: MediaUploadKind) => void | Promise<void>;
   target: MediaUploadTarget;
 };
 
@@ -154,9 +154,8 @@ export function useMediaUploadController({
     const session = replaceMediaUploadSession(imageSessionRef.current, "image");
     imageSessionRef.current = session;
     dispatch({ type: "start", kind: "image" });
-    onUploadStarted?.("image");
-
     try {
+      await onUploadStarted?.("image");
       const mediaItem = await uploadImageMedia(target, file, session.controller.signal);
 
       if (!isActiveMediaUploadSession(imageSessionRef.current, session)) {
@@ -191,9 +190,8 @@ export function useMediaUploadController({
     const session = replaceMediaUploadSession(videoSessionRef.current, "video");
     videoSessionRef.current = session;
     dispatch({ type: "start", kind: "video" });
-    onUploadStarted?.("video");
-
     try {
+      await onUploadStarted?.("video");
       const mediaItem = await uploadVideoMedia(target, file, session.controller.signal);
 
       if (!isActiveMediaUploadSession(videoSessionRef.current, session)) {

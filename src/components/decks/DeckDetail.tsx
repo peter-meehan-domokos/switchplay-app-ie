@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { workingCardStore } from "@/lib/cards/workingCardStore";
 import CardStack from "@/components/decks/CardStack";
 import type { CardTransitionPhase } from "@/components/decks/CardStack";
 import { withCardMediaItems, withUpdatedSignalReading, withUpdatedReflection } from "@/components/cards/cardLayout";
@@ -29,7 +30,6 @@ import {
 } from "@/constants/cardStack";
 import {
   persistActiveCardId,
-  createSharedCardComment,
   appendCardMediaItem,
   persistCardReflection,
   persistCardTargetDate,
@@ -55,7 +55,6 @@ type DeckDetailProps = {
 
 const stepProgressCycle: CompletionStatus[] = ["todo", "inProgress", "done", "skipped"];
 const ACTIVE_SETTLE_PREVIEW_MAX_Y = 8;
-const SHARED_COMMENT_MAX_CHARS = 20;
 
 type DeckSceneLayout = {
   frameHeight: number | null;
@@ -167,14 +166,17 @@ function addDaysToDateString(dateString: string, amount: number) {
 }
 
 export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onBack, onToggleDeckFlip, transition }: DeckDetailProps) {
-  const [cards, setCards] = useState(deck.cards);
+  const canMutate = deck.dataOwnerUserId != null && deck.cards.every((card) => card.permissions?.canMutateCardData && card.permissions.dataOwnerUserId === deck.dataOwnerUserId);
+  const [mutationError, setMutationError] = useState("");
+  const [cards, setCards] = useState(() => deck.dataOwnerUserId ? deck.cards.map((card) => workingCardStore.project(deck.dataOwnerUserId!, card)) : deck.cards);
+  const fieldTokens = useRef(new Map<string, symbol>());
+  const confirmedFields = useRef(new Map<string, unknown>());
   // cardsRef is the immediate optimistic source of truth for target-date edits.
   // We update it synchronously before setCards(...) so rapid taps always calculate
   // from the latest optimistic state rather than waiting for React render/effect timing.
   // This avoids missed persistence updates and prepares the interaction for future
   // long-press acceleration.
   const cardsRef = useRef(cards);
-  const pendingSignalUpdatesRef = useRef<Record<string, symbol>>({});
   const cardMediaMutationQueueRef = useRef<UserCardMediaMutationQueue | null>(null);
 
   if (cardMediaMutationQueueRef.current === null) {
@@ -186,10 +188,6 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
-  const [isSharedCommentEditorOpen, setIsSharedCommentEditorOpen] = useState(false);
-  const [sharedCommentDraft, setSharedCommentDraft] = useState("");
-  const [sharedCommentError, setSharedCommentError] = useState<string | null>(null);
-  const [isSavingSharedComment, setIsSavingSharedComment] = useState(false);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
   const [isDeckIntroExpanded, setIsDeckIntroExpanded] = useState(false);
   const [deckIntroPlaybackState, setDeckIntroPlaybackState] = useState<VideoPlaybackState>("idle");
@@ -209,12 +207,11 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const deckIntroVideoHeight = deckIntroVideo?.height ?? 16;
   const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
   const finalCardIndex = optimisticDeck.cards.length - 1;
-  const activeCard = cards[activeCardIndex] ?? null;
-  const canAddSharedComment = deck.hasUserDeckData && !deck.canMutate && !deck.isOwnedByCurrentUser;
 
   useEffect(() => {
     cardsRef.current = cards;
-  }, [cards]);
+    if (deck.dataOwnerUserId) workingCardStore.accept(deck.dataOwnerUserId, cards);
+  }, [cards, deck.dataOwnerUserId]);
 
   useEffect(() => {
     return () => {
@@ -276,13 +273,12 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
     setActiveCardIndex(nextCardIndex);
 
-    if (!deck.hasUserDeckData || !deck.canMutate) {
+    if (!deck.hasUserDeckData || !canMutate) {
       return;
     }
 
-    void persistActiveCardId(deck.deckTemplateId, nextActiveCardId).catch((error) => {
-      console.warn("Unable to persist active card position.", error);
-    });
+    void saveField(`deck:${deck.deckTemplateId}:active`, activeCardIndex, nextCardIndex,
+      () => persistActiveCardId(deck.deckTemplateId, nextActiveCardId), setActiveCardIndex);
   };
 
   const moveActiveCard = (nextCardIndex: number) => {
@@ -369,74 +365,6 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     introActionRef.current?.focus();
   };
 
-  const openSharedCommentEditor = () => {
-    if (!canAddSharedComment || !activeCard) {
-      return;
-    }
-
-    setSharedCommentDraft("");
-    setSharedCommentError(null);
-    setIsSharedCommentEditorOpen(true);
-  };
-
-  const closeSharedCommentEditor = () => {
-    if (isSavingSharedComment) {
-      return;
-    }
-
-    setIsSharedCommentEditorOpen(false);
-    setSharedCommentError(null);
-  };
-
-  const stopSharedCommentEditorGesturePropagation = (event: PointerEvent<HTMLFormElement>) => {
-    event.stopPropagation();
-  };
-
-  const submitSharedComment = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!canAddSharedComment || !activeCard) {
-      setSharedCommentError("Unable to save comment for this deck.");
-      return;
-    }
-
-    const nextCommentText = sharedCommentDraft.trim();
-
-    if (!nextCommentText) {
-      setSharedCommentError("Comment is required.");
-      return;
-    }
-
-    if (nextCommentText.length > SHARED_COMMENT_MAX_CHARS) {
-      setSharedCommentError(`Comment must be ${SHARED_COMMENT_MAX_CHARS} characters or fewer.`);
-      return;
-    }
-
-    setIsSavingSharedComment(true);
-    setSharedCommentError(null);
-
-    try {
-      const payload = await createSharedCardComment(deck.deckTemplateId, activeCard.id, deck.ownerUserId, nextCommentText);
-
-      setCards((currentCards) =>
-        currentCards.map((card) =>
-          card.id === activeCard.id
-            ? {
-                ...card,
-                chats: [...card.chats, payload.chat],
-              }
-            : card,
-        ),
-      );
-      setSharedCommentDraft("");
-      setIsSharedCommentEditorOpen(false);
-    } catch (error) {
-      setSharedCommentError(error instanceof Error ? error.message : "Unable to save comment.");
-    } finally {
-      setIsSavingSharedComment(false);
-    }
-  };
-
   const moveFocusedCard = (nextCardIndex: number) => {
     if (nextCardIndex === activeCardIndex) {
       return;
@@ -454,8 +382,21 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     moveFocusedCard(Math.min(activeCardIndex + 1, finalCardIndex));
   };
 
+  function updatePersonalCard(cardId: string, change: (card: typeof cards[number]) => typeof cards[number]) {
+    const next = cardsRef.current.map((card) => card.id === cardId ? change(card) : card);
+    cardsRef.current = next; setCards(next);
+  }
+  async function saveField<T>(key: string, previous: T, next: T, persist: () => Promise<unknown>, rollback: (value: T) => void) {
+    if (!confirmedFields.current.has(key)) confirmedFields.current.set(key, previous);
+    const token = Symbol(); fieldTokens.current.set(key, token);
+    try { await persist(); confirmedFields.current.set(key, next); }
+    catch (error) {
+      if (fieldTokens.current.get(key) === token) rollback(confirmedFields.current.get(key) as T);
+      setMutationError(error instanceof Error ? error.message : "Change could not be saved");
+    }
+  }
   const cycleFocusedStepStatus = (stepId: string) => {
-    if (!deck.canMutate) {
+    if (!canMutate) {
       return;
     }
 
@@ -465,7 +406,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
       return;
     }
 
-    const currentStep = activeCard.steps.find((step) => step.stepId === stepId);
+    const currentStep = cardsRef.current.find((card) => card.id === activeCard.id)?.steps.find((step) => step.stepId === stepId);
 
     if (!currentStep) {
       return;
@@ -473,8 +414,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
     const nextCompletionStatus = getNextCompletionStatus(normalizeCompletionStatus(currentStep.completionStatus));
 
-    setCards((currentCards) =>
-      currentCards.map((card, cardIndex) => {
+    const optimistic = cardsRef.current.map((card, cardIndex) => {
         if (cardIndex !== activeCardIndex) {
           return card;
         }
@@ -487,19 +427,20 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
               : step
           ),
         };
-      })
-    );
+      });
+    cardsRef.current = optimistic; setCards(optimistic);
 
     if (!deck.hasUserDeckData) {
       return;
     }
 
-    void persistStepCompletionStatus(deck.deckTemplateId, activeCard.id, stepId, nextCompletionStatus).catch((error) => {
-      console.warn("Unable to persist step completion status.", error);
-    });
+    void saveField(`${activeCard.id}:completion:${stepId}`, currentStep.completionStatus, nextCompletionStatus,
+      () => persistStepCompletionStatus(deck.deckTemplateId, activeCard.id, stepId, nextCompletionStatus),
+      (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, steps: card.steps.map((step) => step.stepId === stepId ? { ...step, completionStatus: value } : step) })));
+
   };
   const adjustFocusedCardTargetDate = (direction: -1 | 1) => {
-    if (!deck.hasUserDeckData || !deck.canMutate) {
+    if (!deck.hasUserDeckData || !canMutate) {
       return;
     }
 
@@ -528,9 +469,10 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     cardsRef.current = nextCards;
     setCards(nextCards);
 
-    void persistCardTargetDate(deck.deckTemplateId, activeCard.id, nextTargetDate).catch((error) => {
-      console.warn("Unable to persist card target date.", error);
-    });
+    void saveField(`${activeCard.id}:date`, activeCard.targetDate, nextTargetDate,
+      () => persistCardTargetDate(deck.deckTemplateId, activeCard.id, nextTargetDate),
+      (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, targetDate: value })));
+
   };
   const optimisticSignalManagerRef = useRef<OptimisticSignalManager | null>(null);
   if (optimisticSignalManagerRef.current === null) {
@@ -553,7 +495,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   }
 
   const commitFocusedSignalReading = (cardId: string, signalId: string, reading: number) => {
-    if (!deck.canMutate) {
+    if (!canMutate) {
       return;
     }
 
@@ -579,7 +521,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     manager.setOptimisticReading(cardId, signalId, nextReading);
   };
   const commitFocusedReflection = async (cardId: string, reflection: string) => {
-    if (!deck.canMutate || !deck.hasUserDeckData) {
+    if (!canMutate || !deck.hasUserDeckData) {
       throw new Error("Unable to save reflection for this deck.");
     }
 
@@ -595,8 +537,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     try {
       await persistCardReflection(deck.deckTemplateId, cardId, normalizedReflection);
     } catch (error) {
-      cardsRef.current = previousCards;
-      setCards(previousCards);
+      updatePersonalCard(cardId, (card) => withUpdatedReflection(card, previousCards.find((item) => item.id === cardId)?.reflection ?? ""));
       throw error;
     }
   };
@@ -614,7 +555,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     ));
   };
   const commitFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => {
-    if (!deck.canMutate || !deck.hasUserDeckData) {
+    if (!canMutate || !deck.hasUserDeckData) {
       throw new Error("Unable to save media for this deck.");
     }
 
@@ -633,7 +574,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     });
   };
   const removeFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItemId: string) => {
-    if (!deck.canMutate || !deck.hasUserDeckData) {
+    if (!canMutate || !deck.hasUserDeckData) {
       throw new Error("Unable to remove media from this deck.");
     }
 
@@ -706,7 +647,8 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <span aria-hidden="true">←</span>
         <span>Back</span>
       </motion.button>
-      <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} />
+      {mutationError && <p role="alert">{mutationError}</p>}
+      {deck.permissions?.canEditDeck && <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} />}
 
       <motion.div className="detail-heading" layout>
         <div className="detail-progress-row">
@@ -758,7 +700,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
           <FocusedCardView
             card={optimisticDeck.cards[activeCardIndex]}
             cardIndex={activeCardIndex}
-            canMutate={deck.canMutate}
+            canMutate={canMutate}
             deckTemplateId={deck.deckTemplateId}
             totalCards={optimisticDeck.cards.length}
             onClose={closeFocusMode}
@@ -767,10 +709,9 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             onCycleStepStatus={cycleFocusedStepStatus}
             onAdjustTargetDate={adjustFocusedCardTargetDate}
             onCommitSignalReading={commitFocusedSignalReading}
-            onCommitReflection={deck.canMutate && deck.hasUserDeckData ? commitFocusedReflection : undefined}
-            onCommitCardMedia={deck.canMutate && deck.hasUserDeckData ? commitFocusedCardMedia : undefined}
-            onRemoveCardMedia={deck.canMutate && deck.hasUserDeckData ? removeFocusedCardMedia : undefined}
-            onRequestAddComment={canAddSharedComment ? openSharedCommentEditor : undefined}
+            onCommitReflection={canMutate && deck.hasUserDeckData ? commitFocusedReflection : undefined}
+            onCommitCardMedia={canMutate && deck.hasUserDeckData ? commitFocusedCardMedia : undefined}
+            onRemoveCardMedia={canMutate && deck.hasUserDeckData ? removeFocusedCardMedia : undefined}
             isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection}
             transition={transition}
@@ -811,62 +752,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         </div>
       ) : null}
 
-      <AnimatePresence>
-        {isSharedCommentEditorOpen ? (
-          <motion.div
-            className="creator-modal-backdrop reflection-editor-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.14 }}
-            role="presentation"
-          >
-            <form
-              className="creator-modal creator-modal--reflection-editor reflection-editor-modal"
-              onPointerCancel={stopSharedCommentEditorGesturePropagation}
-              onPointerDown={stopSharedCommentEditorGesturePropagation}
-              onPointerMove={stopSharedCommentEditorGesturePropagation}
-              onPointerUp={stopSharedCommentEditorGesturePropagation}
-              onSubmit={submitSharedComment}
-            >
-              <header className="creator-modal-header">
-                <p>Add comment</p>
-                <button className="creator-modal-close" disabled={isSavingSharedComment} onClick={closeSharedCommentEditor} type="button">
-                  Close
-                </button>
-              </header>
-              <p className="creator-modal-note">Maximum {SHARED_COMMENT_MAX_CHARS} characters.</p>
-              <textarea
-                autoFocus
-                className="creator-modal-field creator-modal-field--reflection"
-                maxLength={SHARED_COMMENT_MAX_CHARS}
-                onChange={(changeEvent) => {
-                  const nextValue = changeEvent.target.value;
 
-                  if (nextValue.length > SHARED_COMMENT_MAX_CHARS) {
-                    return;
-                  }
-
-                  setSharedCommentDraft(nextValue);
-                }}
-                value={sharedCommentDraft}
-              />
-              <p className="creator-modal-counter">
-                {sharedCommentDraft.length}/{SHARED_COMMENT_MAX_CHARS} characters
-              </p>
-              {sharedCommentError ? <p className="creator-modal-error">{sharedCommentError}</p> : null}
-              <div className="creator-modal-actions">
-                <button className="creator-modal-secondary" disabled={isSavingSharedComment} onClick={closeSharedCommentEditor} type="button">
-                  Cancel
-                </button>
-                <button className="creator-modal-primary" disabled={isSavingSharedComment} type="submit">
-                  {isSavingSharedComment ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </motion.section>
   );
 }

@@ -1,9 +1,9 @@
-import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { isCloudflareStreamVideoMediaItem, isVideoMediaItem } from "@/lib/media";
+import type { MediaItem } from "@/lib/media";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 
 type BackCardMediaCarouselProps = {
-  items: ModernUserCardMediaItem[];
+  items: MediaItem[];
 };
 
 type LayoutMode = "count-1" | "count-2" | "count-3" | "count-4" | "count-5";
@@ -16,14 +16,14 @@ function getLayoutMode(count: number): LayoutMode {
   return "count-5";
 }
 
-function MediaItem({ item }: { item: ModernUserCardMediaItem }) {
-  const isVideo = isCloudflareStreamVideoMediaItem(item);
-  const src = isVideo ? getCloudflareStreamThumbnailUrl(item) : item.src;
+function MediaItem({ item }: { item: MediaItem }) {
+  const isVideo = isVideoMediaItem(item);
+  const src = isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : item.src;
 
   return (
     <div className="back-card-media-carousel-item">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={item.description || "Card media"} className="back-card-media-carousel-image" />
+      {src ? <img src={src} alt={item.description || "Card media"} className="back-card-media-carousel-image" /> : <span>{item.description || "Video"}</span>}
       {isVideo && (
         <div className="back-card-media-carousel-play-affordance">
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">

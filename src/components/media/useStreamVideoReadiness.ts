@@ -100,7 +100,7 @@ export function startStreamVideoReadinessPolling(
 }
 
 function getUserCardId(target: MediaUploadTarget) {
-  return target.scope === "user-card" ? target.cardId : null;
+  return target.scope === "user-card" ? target.cardId : target.scope === "card-template" ? target.cardTemplateId : null;
 }
 
 export function useStreamVideoReadiness(target: MediaUploadTarget, assetId: string, enabled = true) {
@@ -112,6 +112,7 @@ export function useStreamVideoReadiness(target: MediaUploadTarget, assetId: stri
   const stableTarget = useMemo(
     () => scope === "user-card" && cardId
       ? { scope: "user-card" as const, deckTemplateId, cardId }
+      : scope === "card-template" && cardId ? { scope: "card-template" as const, deckTemplateId, cardTemplateId: cardId }
       : { scope: "deck-introduction" as const, deckTemplateId },
     [cardId, deckTemplateId, scope],
   );
