@@ -153,6 +153,13 @@ export function FocusedSignalRow({
 }: FocusedSignalRowProps) {
   const [isValueVisible, setIsValueVisible] = useState(false);
   const [previewNormalized, setPreviewNormalized] = useState<number | null>(null);
+  const [previewSource, setPreviewSource] = useState({ id: signal.id, value: signal.value });
+  // Reset only gesture-local preview when its canonical signal changes, before
+  // rendering children. Keep the value-visibility timer's existing behaviour.
+  if (previewSource.id !== signal.id || previewSource.value !== signal.value) {
+    setPreviewSource({ id: signal.id, value: signal.value });
+    setPreviewNormalized(null);
+  }
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragSessionRef = useRef<SignalDragSession | null>(null);
   const suppressNextClickRef = useRef(false);
@@ -196,15 +203,15 @@ export function FocusedSignalRow({
   }, [clearHideTimer]);
 
   useEffect(() => {
-    releaseDragSession();
-  }, [releaseDragSession, signal.id, signal.value]);
+    dragSessionRef.current = null;
+  }, [signal.id, signal.value]);
 
   useEffect(() => {
     return () => {
       clearHideTimer();
-      releaseDragSession();
+      dragSessionRef.current = null;
     };
-  }, [clearHideTimer, releaseDragSession]);
+  }, [clearHideTimer]);
 
   const displayState = useMemo(
     () => getFocusedSignalDisplayState(signal, previewNormalized, isValueVisible),

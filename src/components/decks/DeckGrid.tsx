@@ -61,6 +61,7 @@ export default function DeckGrid({
     const nextState = reduceDeckIntroPreviewState(previewStateRef.current, action);
     previewStateRef.current = nextState;
     setPreviewState(nextState);
+    if (nextState.visibleDeckId !== nextState.activeDeckId) setIsIntroExpanded(false);
   }, []);
 
   const updateHostRect = useCallback((deckId: string) => {
@@ -190,14 +191,6 @@ export default function DeckGrid({
       window.removeEventListener("resize", handleLayoutChange);
     };
   }, [previewState.activeDeckId, updateHostRect]);
-
-  useEffect(() => {
-    if (isPlayerVisible || !isIntroExpanded) {
-      return;
-    }
-
-    setIsIntroExpanded(false);
-  }, [isIntroExpanded, isPlayerVisible]);
 
   useEffect(() => {
     if (!isIntroExpanded) {

@@ -245,16 +245,6 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     };
   }, [isDeckIntroExpanded]);
 
-  useEffect(() => {
-    if (!isFocusModeOpen || !isDeckIntroExpanded) {
-      return;
-    }
-
-    console.log("[DIAG DECKDETAIL] focus mode opened while intro expanded, calling pausePlayback");
-    introPlayerRef.current?.pausePlayback("deckdetail: focus mode opened, closing intro overlay");
-    setIsDeckIntroExpanded(false);
-  }, [isDeckIntroExpanded, isFocusModeOpen]);
-
   const handleDeckIntroPlaybackStateChange = useCallback(({ assetId, state }: { assetId: string | null; state: VideoPlaybackState }) => {
     console.log("[DIAG DECKDETAIL] onPlaybackStateChange", { assetId, state });
     setDeckIntroPlaybackState(state);
@@ -316,6 +306,11 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
 
   const openFocusMode = (cardIndex: number) => {
     if (!cards[cardIndex]) return;
+    if (isDeckIntroExpanded) {
+      console.log("[DIAG DECKDETAIL] focus mode opened while intro expanded, calling pausePlayback");
+      introPlayerRef.current?.pausePlayback("deckdetail: focus mode opened, closing intro overlay");
+      setIsDeckIntroExpanded(false);
+    }
     commitActiveCardIndex(cardIndex);
     setIsFocusModeOpen(true);
   };

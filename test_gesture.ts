@@ -15,7 +15,7 @@ function getSignalGestureAxis(deltaX: number, deltaY: number) {
     return null;
 }
 
-let session = {
+const session = {
     intent: "pending",
     startNormalized: 0,
     movementRangePx: 200
@@ -30,7 +30,8 @@ if (session.intent === "pending" && nextAxis === "horizontal") {
 console.log("Move 1 (10px right) -> intent:", session.intent);
 
 // Return left to 0px
-deltaX = 0, deltaY = 0;
+deltaX = 0;
+deltaY = 0;
 nextAxis = getSignalGestureAxis(deltaX, deltaY); // null, < 8px
 if (session.intent === "pending" && nextAxis === "horizontal") {
     session.intent = "signal";

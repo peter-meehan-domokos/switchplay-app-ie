@@ -133,6 +133,20 @@ test("private Creator → adopted work → media/state → recoverable publicati
     const stable = current === signalPosition; signalPosition = current; return stable;
   }).toBe(true);
   const signalBox = await page.getByRole("button", { name: "Adjust Start reading", exact: true }).boundingBox();
+  let rejectSignal = true;
+  await page.route(`**/api/decks-data/${id}`, (route) => {
+    if (rejectSignal && route.request().method() === "PATCH" && route.request().postDataJSON()?.type === "signal") {
+      rejectSignal = false; return route.fulfill({ status: 500, json: { error: "Simulated signal save failure" } });
+    }
+    return route.fallback();
+  });
+  const failedSignal = page.waitForResponse((response) => response.request().method() === "PATCH" && response.request().postDataJSON()?.type === "signal");
+  await page.mouse.move(signalBox!.x + signalBox!.width * 0.3, signalBox!.y + signalBox!.height / 2);
+  await page.mouse.down(); await page.mouse.move(signalBox!.x + signalBox!.width * 0.6, signalBox!.y + signalBox!.height / 2, { steps: 8 }); await page.mouse.up();
+  expect((await failedSignal).status()).toBe(500);
+  await expect(page.getByRole("button", { name: "Adjust Start reading", exact: true })).toContainText("Drag to set");
+  const unsetCard = (await database().collection("users").findOne({ _id: actor() }))!.cardsData.find((card: { cardTemplateId: string }) => card.cardTemplateId === cardId);
+  expect(unsetCard.signalReadings.find((item: { stepId: string }) => item.stepId === stepId).reading).toBeNull();
   const signalSaved = page.waitForResponse((response) => response.request().method() === "PATCH" && response.request().postDataJSON()?.type === "signal", { timeout: 15_000 });
   await page.mouse.move(signalBox!.x + signalBox!.width * 0.3, signalBox!.y + signalBox!.height / 2);
   await page.mouse.down(); await page.mouse.move(signalBox!.x + signalBox!.width * 0.6, signalBox!.y + signalBox!.height / 2, { steps: 8 }); await page.mouse.up();

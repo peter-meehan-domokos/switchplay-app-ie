@@ -6,7 +6,7 @@ import {
   type RuntimeDeckTemplate,
 } from "@/components/decks/types";
 import { resolveDateOnly } from "@/lib/dateOnly";
-import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
+import { clampSignalReading, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 function getFirstCardId(template: DeckTemplate) {
   return template.cards[0]?.cardId ?? "";

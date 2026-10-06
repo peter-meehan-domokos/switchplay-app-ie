@@ -1,6 +1,6 @@
 import type { DeckTemplate, UserDeckData } from "@/components/decks/types";
 import { resolveDateOnly } from "@/lib/dateOnly";
-import { clampSignalReading, DEFAULT_SIGNAL_READING, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
+import { clampSignalReading, IMPLICIT_SIGNAL_IDS } from "@/lib/signals";
 
 export type ReconcileDeckDataInput = {
   oldTemplate: DeckTemplate;

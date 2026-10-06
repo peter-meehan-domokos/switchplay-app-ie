@@ -25,7 +25,7 @@ import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { restoreCreatorDeckTitle } from "@/lib/cards/creatorDefaults";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
   deleteCreatorCard,
@@ -45,7 +45,6 @@ import {
   type Pair,
   type PairId,
 } from "@/components/creator/creatorBoardState";
-import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
 import { useMediaUploadController, type CompletedMediaUpload } from "@/components/media/useMediaUploadController";
@@ -420,43 +419,6 @@ function CreatorEditModal({
   const showStepCounter = session.target.type === "pair-step";
   const combinedLength = draftTitle.length + draftValue.length;
   const isStepWarningVisible = showStepCounter && combinedLength > STEP_TEXT_WARNING_LENGTH;
-  const introImageInputRef = useRef<HTMLInputElement | null>(null);
-  const introVideoInputRef = useRef<HTMLInputElement | null>(null);
-  const hasDeckIntroductionVideo = deckIntroductionVideo !== null;
-  const streamIntroVideo = isCloudflareStreamVideoMediaItem(deckIntroductionVideo) ? deckIntroductionVideo : null;
-
-  function handleDeckIntroductionImageButtonClick() {
-    introImageInputRef.current?.click();
-  }
-
-  function handleDeckIntroductionImageChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.currentTarget.files?.[0] ?? null;
-
-    event.currentTarget.value = "";
-
-    if (!selectedFile) {
-      return;
-    }
-
-    onUploadDeckIntroductionImage(selectedFile);
-  }
-
-  function handleDeckIntroductionVideoButtonClick() {
-    introVideoInputRef.current?.click();
-  }
-
-  function handleDeckIntroductionVideoChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.currentTarget.files?.[0] ?? null;
-
-    event.currentTarget.value = "";
-
-    if (!selectedFile) {
-      return;
-    }
-
-    onUploadDeckIntroductionVideo(selectedFile);
-  }
-
   function handleDraftValueChange(value: string) {
     setLinkRanges((currentRanges) => adjustStepLinkRangesForTextChange(draftValue, value, currentRanges));
     setDraftValue(value);

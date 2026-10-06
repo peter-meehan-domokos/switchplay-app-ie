@@ -303,7 +303,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       }
 
       video.pause();
-    }, [diagInstanceId]);
+    }, []);
 
     const pauseAndReset = useCallback((reason: string = "unspecified") => {
       const video = videoRef.current;
@@ -330,7 +330,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       video.removeAttribute("src");
       video.load();
       window.setTimeout(() => clearInternalTransition(transitionToken), 0);
-    }, [beginInternalTransition, clearInternalTransition, destroyHls, emitPlaybackState, diagInstanceId]);
+    }, [beginInternalTransition, clearInternalTransition, destroyHls, emitPlaybackState]);
 
     useImperativeHandle(
       ref,
@@ -466,7 +466,6 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       };
       // Lifecycle fix: deps intentionally empty so this only fires on genuine mount/unmount,
       // not whenever pauseAndReset's identity changes (e.g. due to displayMode/variant re-renders).
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleExpandClick = (event: MouseEvent<HTMLButtonElement>) => {
