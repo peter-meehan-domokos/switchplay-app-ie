@@ -6,6 +6,9 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { CardRepository, createFoundationIndexes } from "../src/lib/cards/repository";
 import { createStep } from "../src/lib/cards/domain";
 import { membershipDTO, workingDTO } from "../src/lib/cards/readModels";
+import { creatorDrafts } from "../src/lib/cards/creatorDrafts";
+import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
+import { buildDeckLayout } from "../src/components/decks/deckLayout";
 import { authorizeUpload } from "../src/lib/cards/uploadAuthorization";
 import { validateNewPersonalImage } from "../src/lib/cards/media";
 import type { CardContent, DeckContent } from "../src/lib/cards/model";
@@ -33,9 +36,90 @@ test("first graph save is atomic and idempotent; membership is explicit and crea
   assert.equal(await repo.cards().countDocuments(), 2); assert.equal(await repo.decks().countDocuments(), 1);
   const user = (await repo.getPersonalUser("alice"))!;
   assert.equal(user.cardsData.length, 0); assert.equal(user.decksData.length, 1); assert.equal(user.decksData[0].deckTemplateVersion, null);
-  const list = await membershipDTO(repo, "alice"); assert.equal(list[0].context, "creator");
+  assert.deepEqual(await membershipDTO(repo, "alice"), []);
   await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [] } });
   assert.deepEqual(await membershipDTO(repo, "alice"), []);
+});
+
+test("My Drafts is read-only, owner-scoped and includes default persisted work independently of null adoption/archive", async () => {
+  const { repo, id } = await setup();
+  assert.deepEqual(await creatorDrafts(repo, "alice"), []);
+  const content = createDefaultDeckContent([]);
+  await repo.createPrivateGraph("alice", id, content, []);
+  await repo.archiveDeckData("alice", id);
+  const before = await repo.getPersonalUser("alice");
+  const roots = await repo.decks().find().toArray();
+  const list = await creatorDrafts(repo, "alice");
+  assert.deepEqual(list.map(({ deckTemplateId, title, status }) => ({ deckTemplateId, title, status })), [{ deckTemplateId: id, title: "My Next Path", status: "unpublished" }]);
+  assert.deepEqual(Object.keys(list[0]).sort(), ["deckTemplateId", "status", "title", "updatedAt"]);
+  assert.deepEqual(await membershipDTO(repo, "alice"), []);
+  assert.deepEqual(await creatorDrafts(repo, "bob"), []);
+  assert.deepEqual(await repo.getPersonalUser("alice"), before);
+  assert.deepEqual(await repo.decks().find().toArray(), roots);
+  await repo.reactivateDeckData("alice", id);
+  assert.deepEqual(await membershipDTO(repo, "alice"), []);
+  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].deckTemplateVersion, null);
+  await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [] } });
+  assert.equal((await creatorDrafts(repo, "alice"))[0].deckTemplateId, id);
+});
+
+test("My Drafts includes Deck or referenced owned Card drafts, while My Decks retains adopted content", async () => {
+  const { repo, id, content, cards } = await published();
+  assert.deepEqual(await creatorDrafts(repo, "alice"), []);
+  await repo.saveDeckDraft("alice", id, 1, { ...content, title: "Unpublished Deck change" });
+  assert.equal((await creatorDrafts(repo, "alice"))[0].status, "deck-draft");
+  assert.equal((await membershipDTO(repo, "alice"))[0].title, "Private");
+  await repo.archiveDeckData("alice", id);
+  assert.equal((await creatorDrafts(repo, "alice"))[0].status, "deck-draft");
+  await repo.saveDeckDraft("alice", id, 2, content);
+  assert.deepEqual(await creatorDrafts(repo, "alice"), []);
+  await repo.saveCardDraft("alice", cards[0].cardTemplateId, 1, { ...cards[0].content, intro: { ...cards[0].content.intro, title: "Unpublished Card change" } });
+  assert.equal((await creatorDrafts(repo, "alice"))[0].status, "card-drafts");
+  const listing = await membershipDTO(repo, "alice");
+  assert.equal(listing[0].display!.cards[0].intro.title, "Practice");
+  assert.equal(listing[0].adoptedVersion, 1);
+  assert.notEqual(listing[0].archivedAt, null);
+  await repo.saveDeckDraft("alice", id, 3, { ...content, cards: content.cards.slice(1) });
+  await repo.publishDeck("alice", id, 4);
+  assert.deepEqual(await creatorDrafts(repo, "alice"), []); // detached Card still has its draft
+  assert.notEqual((await repo.cards().findOne({ cardTemplateId: cards[0].cardTemplateId }))!.draft, null);
+});
+
+test("foreign Card drafts and unreferenced owned Card drafts do not add clean Decks to My Drafts", async () => {
+  const { repo, cards, content } = await setup();
+  const foreign = await repo.createCardDraft("bob", cards[0].content, "public");
+  await repo.publishCard("bob", foreign.cardTemplateId, 0);
+  const deck = await repo.createDeckDraft("alice", { ...content, cards: [{ cardTemplateId: foreign.cardTemplateId }] });
+  await repo.publishDeck("alice", deck.deckTemplateId, 0);
+  await repo.saveCardDraft("bob", foreign.cardTemplateId, 1, { ...cards[0].content, suggestedTargetDate: "2027-01-01" });
+  await repo.createCardDraft("alice", cards[1].content);
+  assert.deepEqual(await creatorDrafts(repo, "alice"), []);
+  await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [] } });
+  assert.deepEqual(await membershipDTO(repo, "alice"), []); // ownership is not membership
+});
+
+test("empty working Deck opens/reopens with null active identity and retains its anchor after later Card addition", async () => {
+  const { repo, id, cards } = await setup();
+  const content = { ...createDefaultDeckContent([]), title: "Empty working Deck" };
+  await repo.createPrivateGraph("alice", id, content, []); await repo.publishDeck("alice", id, 0);
+  await repo.openWorkingDeck("alice", id, "2026-10-04");
+  await repo.openWorkingDeck("alice", id, "2026-12-25");
+  const dto = await workingDTO(repo, "alice", id), layout = buildDeckLayout(dto, { currentUserId: "alice", users: [] });
+  assert.deepEqual(dto.cards, []); assert.equal(layout.progressPercentage, 0); assert.equal(layout.confidenceScore, null);
+  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].activeCardId, null);
+  assert.equal((await repo.getPersonalUser("alice"))!.cardsData.length, 0);
+  await assert.rejects(repo.setActiveCard("alice", id, "missing"));
+  await repo.archiveDeckData("alice", id); await repo.reactivateDeckData("alice", id);
+  const cardTemplateId = cards[0].cardTemplateId, stepIds = cards[0].content.steps.map((step) => step.stepId);
+  await repo.createAndAttachCard("alice", { deckTemplateId: id, expectedDeckRevision: 1, cardTemplateId, stepIds,
+    nextDeckContent: { ...content, cards: [{ cardTemplateId }] } });
+  await repo.saveCardDraft("alice", cardTemplateId, 0, { ...createDefaultCardContent(stepIds), intro: { title: "Later Card", description: null, mediaItem: null } });
+  await repo.publishCard("alice", cardTemplateId, 1); await repo.publishDeck("alice", id, 2);
+  await repo.openWorkingDeck("alice", id, "2028-01-01");
+  const user = (await repo.getPersonalUser("alice"))!;
+  assert.equal(user.decksData[0].cadenceAnchorDate, "2026-10-04");
+  assert.equal(user.decksData[0].activeCardId, cardTemplateId);
+  assert.equal(user.cardsData[0].targetDate, "2026-10-11");
 });
 test("duplicate Step reservations abort an initial graph without partial roots or membership", async () => {
   const { repo, id, cards, content } = await setup(); cards[1].content.steps[0].stepId = cards[0].content.steps[0].stepId;

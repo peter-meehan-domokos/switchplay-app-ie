@@ -184,7 +184,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   }
   const [activeCardIndex, setActiveCardIndex] = useState(() => {
     const initialCardIndex = deck.cards.findIndex((card) => card.id === deck.activeCardId);
-    return initialCardIndex >= 0 ? initialCardIndex : 0;
+    return initialCardIndex >= 0 ? initialCardIndex : deck.cards.length ? 0 : -1;
   });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
   const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
@@ -207,6 +207,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const deckIntroVideoHeight = deckIntroVideo?.height ?? 16;
   const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
   const finalCardIndex = optimisticDeck.cards.length - 1;
+  const activeCard = optimisticDeck.cards[activeCardIndex];
 
   useEffect(() => {
     cardsRef.current = cards;
@@ -260,6 +261,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   }, []);
 
   const commitActiveCardIndex = (nextCardIndex: number) => {
+    if (!cards[nextCardIndex]) return;
     if (nextCardIndex === activeCardIndex) {
       return;
     }
@@ -282,6 +284,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const moveActiveCard = (nextCardIndex: number) => {
+    if (!cards[nextCardIndex]) return;
     if (nextCardIndex === activeCardIndex || transitionPhase) {
       return;
     }
@@ -312,6 +315,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const openFocusMode = (cardIndex: number) => {
+    if (!cards[cardIndex]) return;
     commitActiveCardIndex(cardIndex);
     setIsFocusModeOpen(true);
   };
@@ -366,6 +370,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   };
 
   const moveFocusedCard = (nextCardIndex: number) => {
+    if (!cards[nextCardIndex]) return;
     if (nextCardIndex === activeCardIndex) {
       return;
     }
@@ -600,7 +605,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const deckGestures = useDeckGestures({
     mode: "deck",
     allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
-    locked: transitionPhase !== null || isFocusModeOpen,
+    locked: !activeCard || transitionPhase !== null || isFocusModeOpen,
     onSettleToPast: goToNextCard,
     onRestoreFromPast: goToPreviousCard,
     onFlip: toggleDeckSide,
@@ -608,7 +613,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
   const latestPastGestures = useDeckGestures({
     mode: "deck",
     allowedIntents: ["restoreFromPast"],
-    locked: transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
+    locked: !activeCard || transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
     onRestoreFromPast: goToPreviousCard,
   });
   const activeGesturePreviewY =
@@ -672,7 +677,7 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
         <h1>{deck.title}</h1>
       </motion.div>
 
-      <div
+      {optimisticDeck.cards.length > 0 ? <div
         ref={deckSceneFrameRef}
         className="deck-scene-frame"
         style={deckSceneLayout.frameHeight === null ? undefined : { height: deckSceneLayout.frameHeight }}
@@ -693,12 +698,12 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
             transition={transition}
           />
         </div>
-      </div>
+      </div> : null}
 
       <AnimatePresence>
-        {isFocusModeOpen ? (
+        {isFocusModeOpen && activeCard ? (
           <FocusedCardView
-            card={optimisticDeck.cards[activeCardIndex]}
+            card={activeCard}
             cardIndex={activeCardIndex}
             canMutate={canMutate}
             deckTemplateId={deck.deckTemplateId}

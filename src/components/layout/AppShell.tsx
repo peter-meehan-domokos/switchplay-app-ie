@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import OverviewMenu from "./OverviewMenu";
 import DeckGrid from "@/components/decks/DeckGrid";
@@ -15,7 +14,6 @@ import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { flushPersonalMutations } from "@/lib/deckMutations";
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 export default function AppShell({ memberships, currentUserId, userName }: { memberships: MembershipDTO[]; currentUserId: string; userName: string }) {
-  const router = useRouter();
   const [records, setRecords] = useState(memberships);
   const [selected, setSelected] = useState<Deck | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -28,7 +26,6 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
   async function open(id: string) {
     const membership = active.find((item) => item.deckTemplateId === id);
     if (!membership || pending) return;
-    if (membership.context === "creator") { router.push(`/creator/edit/${encodeURIComponent(id)}`); return; }
     setPending(id); setError("");
     try {
       await flushPersonalMutations();
@@ -63,7 +60,6 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
       <DeckDetail key={`${selected.deckTemplateId}:${selected.adoptedVersion}:${selected.openedAt}`} deck={selectedLayout!} isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation} onBack={() => void close()} onToggleDeckFlip={(delta = 180) => setRotation((value) => value + delta)} transition={transition} />
     </> : <>
       <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1><Link href="/creator/new">Create Deck</Link></header>
-      {active.filter((item) => item.context === "creator").map((item) => <article key={item.deckTemplateId} className="deck-tile"><Link href={`/creator/edit/${encodeURIComponent(item.deckTemplateId)}`}>{item.title} — Draft</Link><button type="button" onClick={() => void membershipAction(item.deckTemplateId, "archive")}>Archive {item.title}</button></article>)}
       <DeckGrid decks={decks} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null} onSelectDeck={(id) => void open(id)} transition={transition} />
       {records.some((item) => item.archivedAt !== null) && <details><summary>Archived decks</summary>{records.filter((item) => item.archivedAt !== null).map((item) => <p key={item.deckTemplateId}>{item.title} <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "restore")}>Restore {item.title}</button></p>)}</details>}
     </>}

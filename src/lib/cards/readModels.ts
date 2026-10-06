@@ -55,19 +55,19 @@ function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof reso
 export async function membershipDTO(repo: CardRepository, actor: string) {
   const user = await repo.getPersonalUser(actor);
   requireCondition(user && Array.isArray(user.cardsData) && Array.isArray(user.decksData) && user.decksData.every((data) => !Object.hasOwn(data, "cards")), "NEW_MODEL_USER_REQUIRED");
-  const roots = await repo.decks().find({ deckTemplateId: { $in: user.decksData.map((data) => data.deckTemplateId) } }).toArray();
   const published = user.decksData.filter((data) => data.deckTemplateVersion !== null);
+  const roots = await repo.decks().find({ deckTemplateId: { $in: published.map((data) => data.deckTemplateId) } }).toArray();
   const versions = published.length ? await repo.deckVersions().find({ $or: published.map((data) => ({ deckTemplateId: data.deckTemplateId, version: data.deckTemplateVersion! })) }).toArray() : [];
   const cardIds = [...new Set(versions.flatMap((version) => version.content.cards.map((card) => card.cardTemplateId)))];
   const cardRoots = await repo.cards().find({ cardTemplateId: { $in: cardIds } }).toArray();
   const requests = cardRoots.map((root) => ({ cardTemplateId: root.cardTemplateId,
     version: user.cardsData.find((data) => data.cardTemplateId === root.cardTemplateId)?.cardTemplateVersion ?? root.latestVersion }));
   const cardVersions = requests.length ? await repo.cardVersions().find({ $or: requests }).toArray() : [];
-  return jsonDTO(user.decksData.map((data) => {
+  return jsonDTO(published.map((data) => {
     const root = roots.find((root) => root.deckTemplateId === data.deckTemplateId);
     requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "DECK_FORBIDDEN");
-    const content = data.deckTemplateVersion === null ? root.draft : versions.find((version) => version.deckTemplateId === data.deckTemplateId && version.version === data.deckTemplateVersion)?.content;
-    requireCondition(content && (data.deckTemplateVersion !== null || root.ownerUserId === actor), "MISSING_DECK_VERSION");
+    const content = versions.find((version) => version.deckTemplateId === data.deckTemplateId && version.version === data.deckTemplateVersion)?.content;
+    requireCondition(content, "MISSING_DECK_VERSION");
     const version = versions.find((item) => item.deckTemplateId === data.deckTemplateId && item.version === data.deckTemplateVersion);
     let display: Deck | null = null;
     if (version) {
@@ -87,7 +87,7 @@ export async function membershipDTO(repo: CardRepository, actor: string) {
     }
     return { display, deckTemplateId: data.deckTemplateId, title: content.title, cardCount: content.cards.length,
       archivedAt: data.archivedAt, openedAt: data.openedAt, adoptedVersion: data.deckTemplateVersion,
-      context: data.deckTemplateVersion === null ? "creator" as const : "working" as const,
+      context: "working" as const,
       templateOwnerUserId: root.ownerUserId, dataOwnerUserId: actor, canEditDeck: root.ownerUserId === actor };
   }));
 }

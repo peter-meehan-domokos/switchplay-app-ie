@@ -47,13 +47,16 @@ test("untouched Create makes no writes; rapid Add and immediate Card edit retain
   await open(page); const count = await db().collection("deckTemplates").countDocuments();
   await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save Draft", exact: true })).toHaveCount(0);
-  await page.goto("/decks"); expect(await db().collection("deckTemplates").countDocuments()).toBe(count);
+  await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Decks", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
+  expect(await db().collection("deckTemplates").countDocuments()).toBe(count);
   await page.goto("/creator/new");
   const pause = gate();
   await page.route("**/api/deck-templates", async (route) => { const response = await route.fetch(); await pause.promise; await route.fulfill({ response }); });
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   const first = (await page.locator(".creator-column[data-card-template-id]").first().getAttribute("data-card-template-id"))!;
-  await expect(card(page, first).getByRole("button", { name: "Publish Card 1", exact: true })).toBeDisabled();
+  await expect(card(page, first).getByRole("button", { name: "Publish Card 1", exact: true })).toHaveCount(0);
   await editTitle(page, first, "Immediate edit");
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   const second = (await page.locator(".creator-column[data-card-template-id]").last().getAttribute("data-card-template-id"))!;
@@ -61,7 +64,7 @@ test("untouched Create makes no writes; rapid Add and immediate Card edit retain
   await expect.poll(async () => (await cardRoot(first))?.draft?.intro.title).toBe("Immediate edit");
   await expect.poll(async () => !!await cardRoot(second)).toBe(true);
   await expect(card(page, first).getByRole("button", { name: "Publish Card 1", exact: true })).toBeEnabled();
-  await expect(card(page, second).getByRole("button", { name: "Publish Card 2", exact: true })).toBeDisabled();
+  await expect(card(page, second).getByRole("button", { name: "Publish Card 2", exact: true })).toHaveCount(0);
   const id = page.url().split("/").at(-1)!;
   await expect.poll(async () => (await db().collection("deckTemplates").findOne({ deckTemplateId: id }))?.draft?.cards.map((ref: { cardTemplateId: string }) => ref.cardTemplateId)).toEqual([first, second]);
 });
@@ -117,7 +120,6 @@ test("authorized intro upload keeps its original Card after renumbering and afte
   await remove(page, a); await expect(card(page, b).locator(".creator-card-label-button")).toHaveText("Card 1");
   await remove(page, b);
   await page.getByRole("link", { name: "Decks", exact: true }).click();
-  await page.getByRole("dialog", { name: "Leave Creator confirmation" }).getByRole("button", { name: "Save drafts and leave", exact: true }).click();
   await expect(page).toHaveURL(/\/decks$/); pause.resolve();
   await expect.poll(async () => (await cardRoot(b))?.draft.intro.mediaItem?.description).toBe("stable-target.mp4");
   expect((await cardRoot(a))!.draft.intro.mediaItem).toBeNull();
@@ -167,6 +169,14 @@ for (const width of [375, 390]) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
       failing = false; await retry.click(); await expect(page.locator(".creator-entity-save-error")).toHaveCount(0);
       await expect.poll(async () => (await cardRoot(a))?.draft.intro.title).toBe("Mobile retry check");
+      await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
+      await page.getByRole("link", { name: "Decks", exact: true }).click();
+      const leave = page.getByRole("dialog", { name: "Leave Creator confirmation" }); await expect(leave).toBeVisible();
+      const leaveBox = await leave.boundingBox(); expect(leaveBox!.x).toBeCloseTo(16); expect(width - leaveBox!.x - leaveBox!.width).toBeCloseTo(16);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+      const publishAndLeaveBox = await leave.getByRole("button", { name: "Publish and leave", exact: true }).boundingBox();
+      expect(publishAndLeaveBox!.x).toBeGreaterThanOrEqual(leaveBox!.x); expect(publishAndLeaveBox!.x + publishAndLeaveBox!.width).toBeLessThanOrEqual(leaveBox!.x + leaveBox!.width);
+      await leave.getByRole("button", { name: "Cancel", exact: true }).click();
     } finally { await context.close(); }
   });
 }
@@ -182,13 +192,15 @@ test("Publish and leave retains successful versions and retries only remaining p
   await page.route("**/api/deck-templates/*/publish", async (route) => {
     if (route.request().method() === "POST" && failDeck) await route.fulfill({ status: 400, json: { code: "SIMULATED_DECK_FAILURE" } }); else await route.continue();
   });
+  const leave = page.getByRole("button", { name: "Publish and leave", exact: true });
+  await expect(leave).toHaveCount(0);
   await page.getByRole("link", { name: "Decks", exact: true }).click();
-  const leave = page.getByRole("dialog", { name: "Leave Creator confirmation" });
-  await leave.getByRole("button", { name: "Publish and leave", exact: true }).click();
+  await leave.click();
   await expect(page.getByText(/SIMULATED_CARD_FAILURE/)).toBeVisible(); expect((await cardRoot(a))!.latestVersion).toBe(1); expect((await cardRoot(b))!.latestVersion).toBe(0);
-  failCard = false; await leave.getByRole("button", { name: "Publish and leave", exact: true }).click();
+  await expect(leave).toHaveCount(0);
+  failCard = false; await page.getByRole("link", { name: "Decks", exact: true }).click(); await leave.click();
   await expect(page.getByText(/SIMULATED_DECK_FAILURE/)).toBeVisible(); expect((await cardRoot(b))!.latestVersion).toBe(1);
-  failDeck = false; await leave.getByRole("button", { name: "Publish and leave", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  failDeck = false; await page.getByRole("link", { name: "Decks", exact: true }).click(); await leave.click(); await expect(page).toHaveURL(/\/decks$/);
   expect(await db().collection("cardTemplateVersions").countDocuments({ cardTemplateId: { $in: [a, b] } })).toBe(2);
 });
 

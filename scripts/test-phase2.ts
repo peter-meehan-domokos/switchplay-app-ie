@@ -20,6 +20,8 @@ const media = createServer((request, response) => {
 });
 let mediaOrigin = "";
 const output: string[] = [];
+const interactive = process.argv.includes("--dev");
+const mode = interactive ? "dev" : "test";
 async function stop(child: ChildProcess | undefined) {
   if (!child || child.exitCode !== null) return;
   child.kill("SIGTERM");
@@ -41,14 +43,14 @@ try {
   await new Promise<void>((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
   const baseURL = `http://127.0.0.1:${appAddress.port}`;
   const env = { ...process.env, MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
-    PHASE2_BROWSER_TEST: "1", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
+    PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_STREAM_API_TOKEN: "local-fixture" };
   await mkdir("phase2-test-results", { recursive: true });
-  await writeFile("phase2-test-results/tsconfig.json", JSON.stringify({ extends: "../tsconfig.json",
-    include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", "../.next-phase2/dev/types/**/*.ts"] }, null, 2));
+  await writeFile(`phase2-test-results/tsconfig-${mode}.json`, JSON.stringify({ extends: "../tsconfig.json",
+    include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", `../${env.PHASE2_INTERACTIVE === "1" ? ".next-phase2" : ".next-phase2-test"}/dev/types/**/*.ts`] }, null, 2));
   app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(appAddress.port)], { env, stdio: ["ignore", "pipe", "pipe"] });
   app.stdout!.on("data", (value) => output.push(String(value))); app.stderr!.on("data", (value) => output.push(String(value)));
   const deadline = Date.now() + 90_000;
@@ -65,12 +67,12 @@ try {
     const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2)], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
   }
-  await writeFile("phase2-test-results/server.log", output.join(""));
+  await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Phase 2 browser runner failed"); process.exitCode = 1;
 } finally {
   await mkdir("phase2-test-results", { recursive: true });
-  await writeFile("phase2-test-results/server.log", output.join(""));
+  await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));
   await stop(app); await client?.close(); await mongo?.stop();
   await new Promise<void>((resolve) => media.close(() => resolve()));
 }

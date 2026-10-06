@@ -115,6 +115,33 @@ test("first Deck edit creates only the Deck graph", async () => {
   c.editDeck({ ...c.deck.desired, title: "Named path" }); await c.deck.flush();
   assert.deepEqual(h.calls[0].body.cards, []); assert.equal(h.calls.filter((call) => call.method === "PATCH").length, 0); assert.equal(c.publicationState().deck, true);
 });
+test("navigation preparation waits for attached uploads and their latest saves without publishing", async () => {
+  const h = harness(), c = h.coordinator, finish = c.beginCardUpload("a"), gate = deferred<void>();
+  let ready = false;
+  const navigation = c.prepareToNavigate().then(() => { ready = true; });
+  await turn(); assert.equal(ready, false);
+  h.intercept(async (url, method) => { if (url.endsWith("/a") && method === "PATCH") await gate.promise; });
+  c.editCard("a", { ...c.cards.get("a")!.desired, suggestedTargetDate: "2027-01-01" });
+  finish(); await turn(); assert.equal(ready, false);
+  gate.resolve(); await navigation;
+  assert.equal(c.cards.get("a")!.ack!.content.suggestedTargetDate, "2027-01-01");
+  assert.equal(h.calls.some((call) => call.body?.type === "publish"), false);
+});
+test("navigation preparation preserves failed/conflicted local work and ignores detached background uploads", async () => {
+  for (const status of [400, 409]) {
+    const h = harness(), c = h.coordinator;
+    h.intercept(async (url, method) => { if (url.endsWith("/a") && method === "PATCH") throw new CreatorRequestError(status, status === 409 ? "STALE_REVISION" : "INVALID_CONTENT"); });
+    c.editCard("a", { ...c.cards.get("a")!.desired, suggestedTargetDate: "2027-01-01" }); await turn();
+    await assert.rejects(c.prepareToNavigate());
+    assert.equal(c.cards.get("a")!.desired.suggestedTargetDate, "2027-01-01");
+  }
+  const h = harness(), c = h.coordinator, finish = c.beginCardUpload("a");
+  c.detachCard("a", { ...c.deck.desired, cards: c.deck.desired.cards.slice(1) });
+  await c.prepareToNavigate(); finish();
+  let calls = 0;
+  const untouched = new CreatorPersistenceCoordinator(blankPrivateBoard(), null, async () => { calls++; throw new Error("no writes"); });
+  await untouched.prepareToNavigate(); assert.equal(calls, 0);
+});
 test("Add renders a default dependency; immediate edits wait for creation, with stable IDs", async () => {
   const h = harness(), gate = deferred<void>(); h.intercept(async (url) => { if (url.endsWith("/cards")) await gate.promise; });
   const next = { ...h.dto.content, cards: [...h.dto.content.cards, { cardTemplateId: "new" }] };

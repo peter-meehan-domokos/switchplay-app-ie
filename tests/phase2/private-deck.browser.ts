@@ -17,11 +17,24 @@ async function login(page: Page) {
 async function title(page: Page, value: string) {
   await page.getByRole("button", { name: "Edit deck title and introduction" }).click();
   await page.locator(".creator-modal textarea").fill(value); await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/creator\/edit\//);
+  const id = new URL(page.url()).pathname.split("/").at(-1)!;
+  await expect.poll(async () => (await database().collection("deckTemplates").findOne({ deckTemplateId: id }))?.draft?.title).toBe(value);
 }
-async function save(page: Page) {
-  // Keep the obsolete journey expectation explicit until its Prompt 3 rewrite.
-  await expect(page.getByRole("button", { name: "Save Draft", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Save Draft", exact: true }).click(); await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+async function add(page: Page, value: string) {
+  await page.getByRole("button", { name: "Add card", exact: true }).click();
+  const column = page.locator(".creator-column[data-card-template-id]").last();
+  const id = (await column.getAttribute("data-card-template-id"))!;
+  await column.locator(".creator-card-title-button").click(); await page.locator(".creator-modal textarea").fill(value);
+  await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
+  await expect.poll(async () => (await database().collection("cardTemplates").findOne({ cardTemplateId: id }))?.draft?.intro.title).toBe(value);
+  return id;
+}
+async function publishCard(page: Page, index: number) {
+  const response = page.waitForResponse((response) => response.url().includes("/api/card-templates/") && response.request().method() === "PATCH" && response.request().postDataJSON()?.type === "publish");
+  const button = page.getByRole("button", { name: `Publish Card ${index}`, exact: true });
+  await expect(button).toBeEnabled(); await button.click(); expect((await response).ok()).toBeTruthy();
+  await expect(button).toHaveClass(/creator-save-button--published/);
 }
 async function note(page: Page, entity: string, value: string) {
   await page.getByRole("button", { name: `Add note for ${entity}`, exact: true }).click();
@@ -45,46 +58,58 @@ test("private Creator → adopted work → media/state → recoverable publicati
   // Asset delivery is mocked; actual upload authorization and metadata persistence remain real.
   await page.route(/https:\/\/(.*cloudflare.*|.*videodelivery.*|.*youtube.*)\//, (route) => route.abort());
   await login(page); await page.getByRole("link", { name: "Create Deck", exact: true }).click();
+  await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   await title(page, "Phase 2 path");
-  // This legacy journey still assumes starter Cards; fail at that assumption.
-  await expect(page.locator(".creator-pair-step").first()).toBeVisible();
+  const cardIds = [await add(page, "First practice"), await add(page, "Second practice")];
   await page.locator(".creator-pair-step").first().click(); await page.getByLabel("Title (optional)").fill("Start");
   await page.locator(".creator-modal textarea").fill("Take one deliberate step"); await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
-  await save(page);
+  await expect.poll(async () => (await database().collection("cardTemplates").findOne({ cardTemplateId: cardIds[0] }))?.draft?.steps[0].title).toBe("Start");
   const id = page.url().split("/").at(-1)!;
   let user = await database().collection("users").findOne({ _id: actor() });
-  expect(user!.decksData).toHaveLength(1); expect(user!.cardsData).toHaveLength(0); expect(user!.decksData[0].deckTemplateVersion).toBeNull();
-  await page.goto("/decks"); await expect(page.getByRole("link", { name: "Phase 2 path — Draft" })).toBeVisible();
+  expect(user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id).deckTemplateVersion).toBeNull();
+  expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(0);
+  await page.goto("/decks"); await expect(page.getByRole("link", { name: "Phase 2 path — Draft" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open Phase 2 path", exact: true })).toHaveCount(0);
   await expect(page.getByText("Shared with me", { exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Phase 2 path — Draft" }).click();
-  await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
-  await expect(page.getByText(/UNPUBLISHED_CARDS_BLOCK_DECK/)).toBeVisible();
-  for (let index = 1; index <= 4; index++) {
+  await page.getByRole("link", { name: "Create Deck", exact: true }).click();
+  await page.getByRole("button", { name: "My Drafts", exact: true }).click();
+  await page.getByRole("dialog", { name: "My Drafts", exact: true }).getByRole("button", { name: "Phase 2 path", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}`));
+  const blocked = page.getByRole("button", { name: "Publish Deck", exact: true });
+  await expect(blocked).toBeEnabled(); await expect(blocked.getByRole("img", { name: "Publication blocked" })).toBeVisible();
+  await blocked.click(); await expect(page.getByRole("dialog", { name: "Publication blocked" })).toContainText("published at least once");
+  await page.getByRole("dialog", { name: "Publication blocked" }).getByRole("button", { name: "Close", exact: true }).click();
+  for (let index = 1; index <= cardIds.length; index++) {
     await note(page, `Card ${index}`, `Card ${index} first`);
-    const response = page.waitForResponse((response) => response.url().includes("/cards/") && response.request().method() === "PATCH" && response.request().postDataJSON()?.type === "publish");
-    await page.getByRole("button", { name: `Publish Card ${index}`, exact: true }).click(); expect((await response).ok()).toBeTruthy();
-    await expect(page.getByText("Publication saved", { exact: true })).toBeVisible();
+    await publishCard(page, index);
   }
   await note(page, "Deck", "Deck first");
-  await page.getByRole("button", { name: "Publish Deck", exact: true }).click(); await expect(page.getByText("Publication saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
+  await expect.poll(async () => (await database().collection("deckTemplates").findOne({ deckTemplateId: id }))?.latestVersion).toBe(1);
   expect((await database().collection("deckTemplateVersions").findOne({ deckTemplateId: id, version: 1 }))!.updateNote).toBe("Deck first");
   const firstCard = await database().collection("cardTemplates").findOne({ "draft": null, cardTemplateId: (await page.request.get(`/api/deck-templates/${id}`).then((response) => response.json())).cards[0].root.cardTemplateId });
   expect((await database().collection("cardTemplateVersions").findOne({ cardTemplateId: firstCard!.cardTemplateId, version: 1 }))!.updateNote).toBe("Card 1 first");
   // Card-only edits leave the Deck cue inactive; reverting clears the Card cue too.
   await page.locator(".creator-pair-step").first().click();
   await page.getByLabel("Title (optional)").fill("Temporary Card-only edit");
-  await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click(); await save(page);
+  await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
+  await expect.poll(async () => (await database().collection("cardTemplates").findOne({ cardTemplateId: cardIds[0] }))?.draft?.steps[0].title).toBe("Temporary Card-only edit");
   await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveClass(/creator-save-button--published/);
   await expect(page.getByRole("button", { name: "Publish Card 1", exact: true })).not.toHaveClass(/creator-save-button--published/);
   await expect(page.getByRole("button", { name: "Publish Card 2", exact: true })).toHaveClass(/creator-save-button--published/);
   await page.locator(".creator-pair-step").first().click(); await page.getByLabel("Title (optional)").fill("Start");
-  await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click(); await save(page);
+  await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("button", { name: "Publish Card 1", exact: true })).toHaveClass(/creator-save-button--published/);
-  user = await database().collection("users").findOne({ _id: actor() }); expect(user!.cardsData).toHaveLength(0); expect(user!.decksData[0].deckTemplateVersion).toBe(1);
+  user = await database().collection("users").findOne({ _id: actor() });
+  expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(0);
+  expect(user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id).deckTemplateVersion).toBe(1);
   await page.goto("/decks"); await page.getByRole("button", { name: "Open Phase 2 path", exact: true }).last().click();
   await expect(page.locator(".deck-detail h1")).toHaveText("Phase 2 path");
-  user = await database().collection("users").findOne({ _id: actor() }); expect(user!.cardsData).toHaveLength(4);
-  const anchor = user!.decksData[0].cadenceAnchorDate, cardId = user!.decksData[0].activeCardId, stepId = user!.cardsData[0].items[0].stepId;
+  user = await database().collection("users").findOne({ _id: actor() });
+  expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(cardIds.length);
+  const membership = user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id);
+  const anchor = membership.cadenceAnchorDate, cardId = membership.activeCardId;
+  const stepId = user!.cardsData.find((data: { cardTemplateId: string }) => data.cardTemplateId === cardId).items[0].stepId;
   const opened = await (await page.request.get(`/api/decks-data/${id}`)).json(); expect(opened.cards[0].steps[0].title).toBe("Start");
   await page.locator(".deck-card[role=button]").press("Enter");
   const completionSaved = page.waitForResponse((response) => response.request().method() === "PATCH" && response.request().postDataJSON()?.type === "completion");
@@ -130,28 +155,35 @@ test("private Creator → adopted work → media/state → recoverable publicati
   expect(reopened.cards[0].adoptedVersion).toBe(1); expect(reopened.cards[0].reflection).toBe(personal.reflection); expect(reopened.cards[0].targetDate).toBe(personal.targetDate);
   await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
   await title(page, "Phase 2 revised");
-  await page.locator(".creator-pair-step").first().click(); await page.getByLabel("Title (optional)").fill("Updated Start"); await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click(); await save(page);
+  await page.locator(".creator-pair-step").first().click(); await page.getByLabel("Title (optional)").fill("Updated Start"); await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   let failOnce = true;
   await page.route(`**/api/deck-templates/${id}/publish`, (route) => {
-    if (failOnce) { failOnce = false; return route.fulfill({ status: 500, json: { error: "Simulated final Deck failure" } }); }
+    if (failOnce && route.request().method() === "POST") { failOnce = false; return route.fulfill({ status: 500, json: { error: "Simulated final Deck failure" } }); }
     return route.continue();
   });
-  await page.getByRole("link", { name: "Deck", exact: true }).click(); await page.getByRole("button", { name: "Publish and leave", exact: true }).click();
+  await page.getByRole("link", { name: "Deck", exact: true }).click();
+  await page.getByRole("button", { name: "Publish and leave", exact: true }).click();
   await expect(page.getByText(/Simulated final Deck failure/)).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}`));
   expect((await database().collection("cardTemplates").findOne({ cardTemplateId: cardId }))!.latestVersion).toBe(2);
   expect((await database().collection("deckTemplates").findOne({ deckTemplateId: id }))!.latestVersion).toBe(1);
+  await page.getByRole("link", { name: "Deck", exact: true }).click();
   await page.getByRole("button", { name: "Publish and leave", exact: true }).click(); await expect(page.locator(".deck-detail h1")).toHaveText("Phase 2 revised");
   expect((await database().collection("cardTemplates").findOne({ cardTemplateId: cardId }))!.latestVersion).toBe(2);
-  user = await database().collection("users").findOne({ _id: actor() }); expect(user!.cardsData[0].cardTemplateVersion).toBe(2); expect(user!.cardsData[0].reflection).toBe(personal.reflection);
+  user = await database().collection("users").findOne({ _id: actor() });
+  const updatedPersonal = user!.cardsData.find((data: { cardTemplateId: string }) => data.cardTemplateId === cardId);
+  expect(updatedPersonal.cardTemplateVersion).toBe(2); expect(updatedPersonal.reflection).toBe(personal.reflection);
   await page.getByRole("button", { name: "Archive Deck", exact: true }).click(); await expect(page.getByRole("button", { name: "Open Phase 2 revised", exact: true })).toHaveCount(0);
   await page.getByText("Archived decks", { exact: true }).click(); await page.getByRole("button", { name: "Restore Phase 2 revised", exact: true }).click();
   await page.getByRole("button", { name: "Open Phase 2 revised", exact: true }).last().click();
-  user = await database().collection("users").findOne({ _id: actor() }); expect(user!.decksData[0].cadenceAnchorDate).toBe(anchor); expect(user!.cardsData[0].mediaItems).toEqual(personal.mediaItems);
-  expect(user!.sharedDeckData).toEqual([{ parked: "preserve exactly" }]); expect(user!.decksData[0].sharedWithUserIds).toEqual([]);
+  user = await database().collection("users").findOne({ _id: actor() });
+  const restored = user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id);
+  expect(restored.cadenceAnchorDate).toBe(anchor); expect(user!.cardsData.find((data: { cardTemplateId: string }) => data.cardTemplateId === cardId).mediaItems).toEqual(personal.mediaItems);
+  expect(user!.sharedDeckData).toEqual([{ parked: "preserve exactly" }]); expect(restored.sharedWithUserIds).toEqual([]);
   const shared = await page.request.get("/api/decks-data/shared"); expect(shared.status()).toBe(410);
   const disabled = await page.request.post("/api/decks-data/shared/missing/cards/missing/comments", { data: "invalid JSON" }); expect(disabled.status()).toBe(410);
   // Fixture-only rewind proves the actual route resolves retained adoption, not latest.
-  await database().collection("users").updateOne({ _id: actor() }, { $set: { "decksData.0.deckTemplateVersion": 1, "cardsData.0.cardTemplateVersion": 1 } });
+  await database().collection("users").updateOne({ _id: actor() }, { $set: { "decksData.$[deck].deckTemplateVersion": 1, "cardsData.$[card].cardTemplateVersion": 1 } },
+    { arrayFilters: [{ "deck.deckTemplateId": id }, { "card.cardTemplateId": cardId }] });
   await page.reload(); await expect(page.locator(".deck-detail h1")).toHaveText("Phase 2 path");
   const historicalWork = await (await page.request.get(`/api/decks-data/${id}`)).json(); expect(historicalWork.adoptedVersion).toBe(1); expect(historicalWork.cards[0].adoptedVersion).toBe(1);
   expect(historicalWork.cards[0].steps[0].title).toBe("Start");
@@ -182,7 +214,7 @@ for (const width of [375, 390]) {
       await login(page);
       await page.getByRole("link", { name: "Create Deck", exact: true }).click();
       await title(page, `Mobile layout ${width}`);
-      await save(page);
+      await add(page, `Mobile first ${width}`); await add(page, `Mobile second ${width}`);
       await expect(page.getByText(/draft outstanding/)).toHaveCount(0);
       await expect(page.locator('.creator-header input:not([type="file"]), .creator-card-header input:not([type="file"])')).toHaveCount(0);
       const geometry = await page.evaluate(() => {
@@ -220,6 +252,7 @@ for (const width of [375, 390]) {
       expect(width - noteModal!.x - noteModal!.width).toBeCloseTo(16);
       await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
       // A long server error must not expand the page or displace the Deck control.
+      await publishCard(page, 1); await publishCard(page, 2);
       const publish = page.getByRole("button", { name: "Publish Deck", exact: true });
       const before = await publish.boundingBox();
       await page.route("**/api/deck-templates/*/publish", (route) => route.fulfill({ status: 500, json: { error: "A deliberately long publication failure message ".repeat(8) } }));

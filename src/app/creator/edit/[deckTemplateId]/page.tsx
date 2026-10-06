@@ -51,6 +51,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
 
   return (
     <CreatorDragLab
+      key={deckTemplateId}
       canPreviewOutput={canPreviewOutput}
       creatorReturnTarget={creatorReturnTarget}
       initialBoard={creatorBoard(templateDocument)}

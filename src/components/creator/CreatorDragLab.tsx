@@ -15,6 +15,12 @@ import {
 import Link from "next/link";
 import { creatorBoard, privateGraph, layoutCreatorColumns } from "./cardArchitectureAdapter";
 import { CreatorPersistenceCoordinator } from "./creatorPersistenceCoordinator";
+import CreatorDraftsModal from "./CreatorDraftsModal";
+import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
+import CreatorPublishControl from "./CreatorPublishControl";
+import { cardPublicationPresentation, deckPublicationPresentation } from "./creatorPublicationPresentation";
+import { creatorRequest } from "./creatorRequest";
+import type { CreatorDraftSummary } from "@/lib/cards/creatorDrafts";
 import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { restoreCreatorDeckTitle } from "@/lib/cards/creatorDefaults";
@@ -335,7 +341,7 @@ function getDateEditSession(board: BoardState, target: DateEditTarget): DateEdit
     return null;
   }
 
-  return { label: "Target date", target, value: column.targetDate ?? "" };
+  return { label: "Suggested target date", target, value: column.targetDate ?? "" };
 }
 
 function getEditTargetKey(target: EditTarget) {
@@ -977,17 +983,30 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [noteSession, setNoteSession] = useState<{ key: string; label: string; value: string } | null>(null);
   const [persistence] = useState(() => new CreatorPersistenceCoordinator(initialBoard, initialCreator ?? null));
+  const [isDraftsOpen, setIsDraftsOpen] = useState(false);
+  const [drafts, setDrafts] = useState<CreatorDraftSummary[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [draftsError, setDraftsError] = useState("");
+  const [switchingTo, setSwitchingTo] = useState<string | null>(null);
+  const switchingRef = useRef<string | null>(null);
+  const draftsButtonRef = useRef<HTMLButtonElement>(null);
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [dateEditSession, setDateEditSession] = useState<DateEditSession | null>(null);
   const [publishMessage, setPublishMessage] = useState("");
   const [publishStatus, setPublishStatus] = useState<PublishStatus>("idle");
-  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  const [navigationPending, setNavigationPending] = useState(false);
+  const navigationRef = useRef(false);
+  const [leaveConfirmationOpen, setLeaveConfirmationOpen] = useState(false);
+  const returnLinkRef = useRef<HTMLAnchorElement>(null);
+  const [blockedPublication, setBlockedPublication] = useState<string | null>(null);
+  const blockedTriggerRef = useRef<HTMLElement | null>(null);
   const [uploadingMediaPairIds, setUploadingMediaPairIds] = useState<ReadonlySet<PairId>>(() => new Set());
   const [uploadingIntroMediaCardIds, setUploadingIntroMediaCardIds] = useState<ReadonlySet<string>>(() => new Set());
   const boardRef = useRef<BoardState>(initialBoard);
   const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
   const introUploadSessionsRef = useRef<Map<string, UploadSession>>(new Map());
+  const uploadFailuresRef = useRef<Map<string, string | null>>(new Map());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -1021,17 +1040,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     target: deckIntroductionUploadTarget,
     onUploadStarted: handleDeckIntroductionUploadStarted,
     onUploadCompleted: handleDeckIntroductionUploadCompleted,
+    onUploadFailed: (kind) => { uploadFailuresRef.current.set(`deck:${kind}`, null); },
   });
   const renderingColumns = useMemo(() => layoutCreatorColumns(board), [board]);
-  const publication = persistence.publicationState();
-  const hasUnpublishedChanges = publication.any;
-  const hasMediaUploadInFlight =
-    getCardColumns(board.columns).some((column) => persistence.cards.get(column.cardId!)!.pendingOperations > 0) ||
-    deckIntroductionUpload.isImageUploading ||
-    deckIntroductionUpload.isVideoUploading;
-  const shouldShowLeaveConfirm = isLeaveConfirmOpen && hasUnpublishedChanges;
-  const publishButtonLabel =
-    persistence.deck.publishing ? "Publishing…" : publication.deck ? "Publish" : "Published";
+  const deckPresentation = deckPublicationPresentation(persistence.deck,
+    [...persistence.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []));
+  const anyPublishing = publishStatus === "publishing" || persistence.deck.publishing || [...persistence.cards.values()].some((lane) => lane.publishing);
+  const navigationLocked = isDraftsOpen || navigationPending || leaveConfirmationOpen || blockedPublication !== null;
 
   useEffect(() => persistence.subscribe(() => {
     setPersistenceVersion((version) => version + 1);
@@ -1113,23 +1128,50 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     router.push(resolvedCreatorReturnTarget.href);
   }
 
+  async function openDrafts() {
+    setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
+    try { setDrafts(await creatorRequest<CreatorDraftSummary[]>("/api/creator/drafts")); }
+    catch { setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
+    finally { setDraftsLoading(false); }
+  }
+  function closeDrafts() {
+    setIsDraftsOpen(false);
+    requestAnimationFrame(() => draftsButtonRef.current?.focus());
+  }
+  async function switchDraft(id: string) {
+    if (switchingRef.current !== null) return;
+    if (id === persistence.deckTemplateId) { closeDrafts(); return; }
+    switchingRef.current = id; setSwitchingTo(id); setDraftsError("");
+    try {
+      await prepareForNavigation();
+      // A plain edit URL deliberately does not inherit another Deck's return context.
+      router.push(`/creator/edit/${encodeURIComponent(id)}`);
+    } catch {
+      switchingRef.current = null; setSwitchingTo(null);
+      setDraftsError("Current work could not be saved. Close My Drafts and review the save or upload errors before switching.");
+    }
+  }
+
   function handleReturnClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (publishStatus === "publishing" || persistence.deck.publishing) {
-      event.preventDefault();
-      return;
-    }
-
-    if (!hasUnpublishedChanges) {
-      setIsLeaveConfirmOpen(false);
-      return;
-    }
-
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
-    setIsLeaveConfirmOpen(true);
+    if (!anyPublishing && !navigationRef.current && !leaveConfirmationOpen) void leaveCreator(true);
+  }
+  async function prepareForNavigation() {
+    await persistence.prepareToNavigate();
+    if ([...uploadFailuresRef.current.values()].some((id) => id === null || !persistence.cards.get(id)?.detached)) throw new Error("UPLOAD_INCOMPLETE");
   }
 
   function confirmDeckWarning(ids: string[]) {
     return new Promise<boolean>((resolve) => setDeckWarning({ ids, resolve }));
+  }
+  function explainPublicationBlock(reason: string) {
+    blockedTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setBlockedPublication(reason);
+  }
+  function closePublicationBlock() {
+    setBlockedPublication(null);
+    requestAnimationFrame(() => blockedTriggerRef.current?.focus());
   }
   async function publishTemplate(target: "deck" | "all" | string = "deck") {
     setPublishMessage("");
@@ -1147,11 +1189,41 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
   async function publishBeforeLeaving() {
-    if (await publishTemplate("all")) { setIsLeaveConfirmOpen(false); navigateToReturnTarget(); }
+    setLeaveConfirmationOpen(false);
+    if (await publishTemplate("all")) {
+      navigationRef.current = true; setNavigationPending(true);
+      try {
+        await prepareForNavigation();
+        if (persistence.hasWork()) throw new Error("NEW_OUTSTANDING_WORK");
+        navigateToReturnTarget();
+      } catch {
+        navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
+        setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");
+      }
+    }
   }
-  async function leaveWithoutPublishing() {
-    try { await persistence.flushAll(); setIsLeaveConfirmOpen(false); navigateToReturnTarget(); }
-    catch { setPublishStatus("error"); setPublishMessage("Draft changes could not be saved. Review the affected entity."); }
+  function closeLeaveConfirmation() {
+    setLeaveConfirmationOpen(false);
+    requestAnimationFrame(() => returnLinkRef.current?.focus());
+  }
+  function hasUnpublishedChanges() {
+    const roots = [...persistence.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []);
+    return deckPublicationPresentation(persistence.deck, roots).outstanding
+      || [...persistence.cards.values()].some((lane) => !lane.detached && cardPublicationPresentation(lane).outstanding);
+  }
+  async function leaveCreator(reviewUnpublishedChanges: boolean) {
+    setLeaveConfirmationOpen(false);
+    navigationRef.current = true; setNavigationPending(true);
+    try {
+      await prepareForNavigation();
+      if (reviewUnpublishedChanges && hasUnpublishedChanges()) {
+        navigationRef.current = false; setNavigationPending(false); setLeaveConfirmationOpen(true);
+      } else navigateToReturnTarget();
+    }
+    catch {
+      navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
+      setPublishMessage("Current work could not be saved. Review the save or upload errors before leaving.");
+    }
   }
   function handleDragStart(event: DragStartEvent) {
     if (panStateRef.current && scrollShellRef.current) resetPanState(scrollShellRef.current, panStateRef.current.pointerId);
@@ -1408,13 +1480,16 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if (targetLane?.locked && !targetLane.publishing) return;
     if (file.type && !file.type.startsWith("video/")) { setPublishStatus("error"); setPublishMessage("Choose a video file."); return; }
     const session = createPairUploadSession(pairId); session.cardTemplateId = cardTemplateId;
+    uploadFailuresRef.current.delete(pairId);
     const finishOperation = persistence.beginCardUpload(cardTemplateId);
+    let uploaded = false;
     try {
       await persistence.flushCard(cardTemplateId);
       // A transfer may have completed while creation/saving was awaited. Never
       // authorize a Step upload against its former Card.
       if (!persistence.cards.get(cardTemplateId)?.desired.steps.some((step) => step.stepId === stepId)) return;
       const mediaItem = await uploadVideoMedia({ scope: "card-template", deckTemplateId: boardRef.current.deckTemplateId, cardTemplateId }, file, session.controller.signal);
+      uploaded = true;
       if (!isActivePairUpload(pairId, session)) return;
       const lane = persistence.cards.get(cardTemplateId)!;
       persistence.editCard(cardTemplateId, { ...lane.desired, steps: lane.desired.steps.map((step) => step.stepId === stepId ? { ...step, mediaItem } : step) });
@@ -1425,6 +1500,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       }
       await persistence.flushCard(cardTemplateId);
     } catch (error) {
+      if (!uploaded && !persistence.cards.get(cardTemplateId)?.error && !session.controller.signal.aborted && !isAbortError(error)) uploadFailuresRef.current.set(pairId, cardTemplateId);
       if (!session.controller.signal.aborted && !isAbortError(error) && !persistence.cards.get(cardTemplateId)?.detached) { setPublishStatus("error"); setPublishMessage(SUPPORT_ERROR_MESSAGE); }
     } finally { finishOperation(); finishPairUpload(pairId, session); }
   }
@@ -1432,10 +1508,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   async function uploadIntroMedia(cardTemplateId: string, file: File) {
     if (file.type && !file.type.startsWith("video/")) { setPublishStatus("error"); setPublishMessage("Choose a video file."); return; }
     const session = createIntroUploadSession(cardTemplateId);
+    uploadFailuresRef.current.delete(`intro:${cardTemplateId}`);
     const finishOperation = persistence.beginCardUpload(cardTemplateId);
+    let uploaded = false;
     try {
       await persistence.flushCard(cardTemplateId);
       const mediaItem = await uploadVideoMedia({ scope: "card-template", deckTemplateId: boardRef.current.deckTemplateId, cardTemplateId }, file, session.controller.signal);
+      uploaded = true;
       if (!isActiveIntroUpload(cardTemplateId, session)) return;
       const lane = persistence.cards.get(cardTemplateId)!;
       persistence.editCard(cardTemplateId, { ...lane.desired, intro: { ...lane.desired.intro, mediaItem } });
@@ -1444,11 +1523,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       boardRef.current = next; setBoard(next);
       await persistence.flushCard(cardTemplateId);
     } catch (error) {
+      if (!uploaded && !persistence.cards.get(cardTemplateId)?.error && !session.controller.signal.aborted && !isAbortError(error)) uploadFailuresRef.current.set(`intro:${cardTemplateId}`, cardTemplateId);
       if (!session.controller.signal.aborted && !isAbortError(error) && !persistence.cards.get(cardTemplateId)?.detached) { setPublishStatus("error"); setPublishMessage(SUPPORT_ERROR_MESSAGE); }
     } finally { finishOperation(); finishIntroUpload(cardTemplateId, session); }
   }
 
   async function uploadDeckIntroduction(kind: "image" | "video", file: File) {
+    uploadFailuresRef.current.delete(`deck:${kind}`);
     const finish = persistence.beginDeckUpload();
     try { if (kind === "image") await deckIntroductionUpload.uploadImage(file); else await deckIntroductionUpload.uploadVideo(file); }
     finally { finish(); }
@@ -1464,6 +1545,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   function removeDeckIntroductionImage() {
     updateBoardAndSaveDraft((currentBoard) => setBoardDeckIntroductionImage(currentBoard, null));
+    uploadFailuresRef.current.delete("deck:image");
     deckIntroductionUpload.clearImageError();
   }
 
@@ -1564,28 +1646,23 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   return (
     <main className="creator-lab" style={creatorGeometryStyle}>
-      <header className="creator-header">
+      <header className="creator-header" inert={navigationLocked}>
         <div>
           <p className="creator-kicker">{mode === "edit" ? "Edit Template" : "Create New Deck"}</p>
           <p className="creator-edit-hint">Tap text to edit</p>
         </div>
         <div className="creator-header-actions">
+          <button className="creator-drafts-trigger" type="button" ref={draftsButtonRef}
+            disabled={publishStatus === "publishing" || persistence.deck.publishing || [...persistence.cards.values()].some((lane) => lane.publishing)}
+            onClick={() => void openDrafts()}>My Drafts</button>
           {canPreviewOutput ? (
             <button className="creator-preview-output-button" onClick={previewTemplateOutput} type="button">
               Preview
             </button>
           ) : null}
           <div className="creator-publish-controls">
-            <button
-              aria-label="Publish Deck"
-              className={`creator-save-button${publication.deck ? "" : " creator-save-button--published"}`}
-              disabled={persistence.deck.publishing || deckIntroductionUpload.isImageUploading || deckIntroductionUpload.isVideoUploading || !publication.deck}
-              onClick={() => void publishTemplate("deck")}
-              type="button"
-            >
-              {publishButtonLabel}
-            </button>
-            <button className="creator-add-note" type="button" aria-label="Add note for Deck" disabled={publishStatus === "publishing"} onClick={() => setNoteSession({ key: "deck", label: "Deck", value: notes.deck ?? "" })}>Add note</button>
+            <CreatorPublishControl label="Deck" state={deckPresentation} onPublish={() => void publishTemplate("deck")} onBlocked={explainPublicationBlock} />
+            {deckPresentation.visible ? <button className="creator-add-note" type="button" aria-label="Add note for Deck" disabled={publishStatus === "publishing"} onClick={() => setNoteSession({ key: "deck", label: "Deck", value: notes.deck ?? "" })}>Add note</button> : null}
           </div>
           <div className="creator-feedback">
           {publishMessage ? (
@@ -1602,28 +1679,21 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         </p>
       ))}
           </div>
-          <Link className="creator-back-link" href={resolvedCreatorReturnTarget.href} onClick={handleReturnClick}>
+          <Link className="creator-back-link" ref={returnLinkRef} href={resolvedCreatorReturnTarget.href} onClick={handleReturnClick}>
             {resolvedCreatorReturnTarget.label}
           </Link>
-          {shouldShowLeaveConfirm ? (
-            <div className="creator-leave-confirm" role="dialog" aria-label="Leave Creator confirmation">
-              <p className="creator-leave-confirm-title">Leave Creator?</p>
-              <p className="creator-leave-confirm-body">Save drafts and leave, or publish each outstanding Card followed by the Deck. Earlier successful publications are kept if a later one fails.</p>
-              <div className="creator-leave-confirm-actions">
-                <button className="creator-leave-confirm-cancel" disabled={publishStatus === "publishing"} onClick={() => setIsLeaveConfirmOpen(false)} type="button">
-                  Stay
-                </button>
-                <button className="creator-leave-confirm-leave" disabled={publishStatus === "publishing" || hasMediaUploadInFlight} onClick={leaveWithoutPublishing} type="button">
-                  Save drafts and leave
-                </button>
-                <button className="creator-leave-confirm-save" disabled={publishStatus === "publishing"} onClick={() => void publishBeforeLeaving()} type="button">
-                  {publishStatus === "publishing" ? "Publishing…" : "Publish and leave"}
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </header>
+
+      {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
+      {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
+        onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
+      {isDraftsOpen ? <CreatorDraftsModal drafts={drafts} currentDeckTemplateId={persistence.deckTemplateId} loading={draftsLoading} error={draftsError}
+        switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id) => void switchDraft(id)} /> : null}
+      {blockedPublication ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Publication blocked"
+        onKeyDown={(event) => { if (event.key === "Escape") closePublicationBlock(); if (event.key === "Tab") event.preventDefault(); }}>
+        <p>{blockedPublication}</p><button className="creator-modal-secondary" type="button" autoFocus onClick={closePublicationBlock}>Close</button>
+      </div></div> : null}
 
       {deckWarning ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Unpublished Card changes">
         <p>One or more Cards have unpublished changes. Publish this Deck using their current published versions anyway?</p>
@@ -1643,6 +1713,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       >
         <section
           className="creator-scroll-shell"
+          inert={navigationLocked}
           aria-label="Creator drag lab canvas"
           ref={scrollShellRef}
           onPointerDown={handlePanPointerDown}
@@ -1654,7 +1725,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         >
           <div className="creator-canvas">
             <div className="creator-board">
-              {renderingColumns.map((column) => (
+              {renderingColumns.map((column) => {
+                const cardPresentation = column.kind === "card" ? cardPublicationPresentation(persistence.cards.get(column.cardId!)!) : null;
+                return (
                 <section className="creator-column" key={column.cardId ?? column.id} data-card-template-id={column.cardId} aria-label={column.label}>
                   <header className="creator-card-header">
                     {column.kind === "card" ? (
@@ -1669,10 +1742,11 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                           <button className="creator-editable creator-card-title-button" onClick={() => openEdit({ type: "card-title", cardTemplateId: column.cardId! })} type="button">
                             {column.cardTitle}
                           </button>
-                          <div className="creator-publish-controls creator-card-publish-controls">
-                            <button aria-label={`Publish ${column.cardLabel}`} className={`creator-save-button${publication.cards[column.cardId!] ? "" : " creator-save-button--published"}`} type="button" disabled={persistence.cards.get(column.cardId!)?.publishing || uploadingIntroMediaCardIds.has(column.cardId!) || board.rows.some((row) => uploadingMediaPairIds.has(board.cells[getCreatorCellId(column.id, row)]?.pairId ?? "")) || !publication.cards[column.cardId!]} onClick={() => void publishTemplate(column.cardId!)}>{persistence.cards.get(column.cardId!)?.publishing ? "Publishing…" : publication.cards[column.cardId!] ? "Publish" : "Published"}</button>
+                          {cardPresentation?.visible ? <div className="creator-publish-controls creator-card-publish-controls">
+                            <CreatorPublishControl label={column.cardLabel!} state={cardPresentation}
+                              onPublish={() => void publishTemplate(column.cardId!)} onBlocked={explainPublicationBlock} />
                             <button className="creator-add-note" type="button" aria-label={`Add note for ${column.cardLabel}`} disabled={publishStatus === "publishing"} onClick={() => setNoteSession({ key: column.cardId!, label: column.cardLabel!, value: notes[column.cardId!] ?? "" })}>Add note</button>
-                          </div>
+                          </div> : null}
                         </div>
                         <CreatorMediaUploadSlot
                           ariaLabel={`Upload intro video for ${column.cardTitle ?? column.cardLabel ?? "card"}`}
@@ -1720,7 +1794,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                     })}
                   </div>
                 </section>
-              ))}
+                );
+              })}
               <AddCardControl onAddCard={addCard} />
           </div>
             {/* Dedicated pan gutter for mobile thumbs. It shares the scroll shell's pointer-pan handlers and is not a drop target. */}

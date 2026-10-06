@@ -238,6 +238,11 @@ export class CreatorPersistenceCoordinator {
     if (!this.deck.ack && !this.initialQueued) return; // untouched local session
     await Promise.all([this.deck.flush(), ...[...this.attached].map((id) => this.flushCard(id))]);
   }
+  async prepareToNavigate() {
+    // Detached work deliberately continues independently after SPA navigation.
+    await this.waitForUploads();
+    await this.flushAll();
+  }
   retryDeck() { this.deck.retry(); }
   retryCard(id: string) {
     if (this.cards.get(id)?.creationPending) this.deck.retry(); else this.cards.get(id)?.retry();

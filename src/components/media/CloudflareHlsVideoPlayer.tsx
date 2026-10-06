@@ -16,6 +16,7 @@ import { CloseVideoIcon, CollapseVideoIcon, DeckIntroSemiExpandIcon, ExpandVideo
 import { shouldRecordPlaybackPause, type VideoPlaybackIntent } from "@/components/media/videoPlaybackState";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { getCloudflareStreamHlsManifestUrl, getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
+import { isPhase2MockVideo, PHASE2_MOCK_VIDEO_NOTICE } from "@/lib/phase2MediaFixture";
 
 export type { VideoPlaybackIntent } from "@/components/media/videoPlaybackState";
 
@@ -505,7 +506,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
           aria-label={isDeckPreview ? undefined : mediaItem?.description || "Step video"}
           tabIndex={isDeckPreview ? -1 : undefined}
         />
-        {hasFailed && !isDeckPreview ? (
+        {isPhase2MockVideo(mediaItem?.assetId) && !isDeckPreview ? <p className="cloudflare-stream-player-status">{PHASE2_MOCK_VIDEO_NOTICE}</p> : hasFailed && !isDeckPreview ? (
           <p className="cloudflare-stream-player-status">Video unavailable.</p>
         ) : null}
         {isDeckPreview ? (

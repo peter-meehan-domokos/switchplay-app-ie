@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const nextConfig: NextConfig = {
+export default function nextConfig(phase: string): NextConfig { return {
    devIndicators: false,
-   ...(process.env.PHASE2_BROWSER_TEST === "1" ? {
-      distDir: ".next-phase2",
-      typescript: { tsconfigPath: "phase2-test-results/tsconfig.json" },
+   ...(phase === PHASE_DEVELOPMENT_SERVER && process.env.PHASE2_BROWSER_TEST === "1" ? {
+      distDir: process.env.PHASE2_INTERACTIVE === "0" ? ".next-phase2-test" : ".next-phase2",
+      typescript: { tsconfigPath: `phase2-test-results/tsconfig-${process.env.PHASE2_INTERACTIVE === "0" ? "test" : "dev"}.json` },
    } : {}),
-};
-
-export default nextConfig;
+}; }
