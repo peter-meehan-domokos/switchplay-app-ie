@@ -5,6 +5,19 @@ import type { MediaItem } from "../media";
 export type Visibility = "private" | "public";
 export type AdoptedVersion = number; // Validated integer >= 1; personal data adopts immutable published content.
 export type Step = CardTemplateStep; // Embedded content, never a separate business entity.
+export type ForkContext = { kind: "library" } | { kind: "my-decks"; deckTemplateId: string };
+export type CardForkSource = { cardTemplateId: string; version: number };
+export type DeckForkSource = { deckTemplateId: string; version: number };
+export type CardForkCommand = {
+  source: CardForkSource; cardTemplateId: string; stepIds: string[];
+  content: CardContent; context: ForkContext;
+  attachTo?: { deckTemplateId: string; revision: number; nextDeckContent: DeckContent };
+};
+export type DeckForkCommand = {
+  source: DeckForkSource; deckTemplateId: string; content: DeckContent; context: ForkContext;
+  cardFork?: CardForkCommand;
+};
+export type ForkDeckEntry = { enterMyDecks: boolean };
 export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null };
 export type DeckContent = {
   title: string;
@@ -32,6 +45,9 @@ type Root<C, F> = {
   draft: C | null;
   revision: number;
   forkedFrom: F | null;
+  // Origin survives draft reopening and controls personal continuity at first
+  // publication. It never changes canonical version/content equality.
+  forkContext?: ForkContext;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -43,11 +59,15 @@ export type CardTemplateRoot = Root<CardContent, { cardTemplateId: string; versi
 };
 export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; version: number }> & { deckTemplateId: string };
 type Version<C> = { version: number; content: C; updateNote?: string; publishedAt: Date; publishedByUserId: string };
-export type CardTemplateVersion = Version<CardContent> & { cardTemplateId: string };
+export type ForkPublicationReceipt = {
+  revision: number; enterMyDecks?: boolean;
+  review?: DeckPublicationReview; acceptCardDrafts?: boolean;
+};
+export type CardTemplateVersion = Version<CardContent> & { cardTemplateId: string; forkPublicationReceipt?: ForkPublicationReceipt };
 // Immutable receipt for Copy auto-publication recovery. Draft-only Copy keeps
 // its existing exact-append recovery; no workflow flags or receipt collection.
 export type CopyPublicationReceipt = { cardTemplateId: string; revision: number; contentHash: string };
-export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string; copyReceipt?: CopyPublicationReceipt };
+export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string; copyReceipt?: CopyPublicationReceipt; forkPublicationReceipt?: ForkPublicationReceipt };
 export type CardTest = { id: string; date: string; result: boolean; createdAt: Date };
 export type CardData = {
   cardTemplateId: string;
@@ -59,6 +79,7 @@ export type CardData = {
   mediaItems: MediaItem[];
   chats: { id: string; deckTemplateId: string; comments: CardComment[] }[];
   tests: CardTest[];
+  historySourceCardTemplateId?: string; // Actor's immediate source record, never copied events.
   createdAt: Date;
   updatedAt: Date;
 };

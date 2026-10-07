@@ -11,10 +11,18 @@ import { assertDisposableDatabase } from "./localDatabase";
 import { createDefaultCardContent, restoreCreatorCardTitle, restoreCreatorDeckTitle } from "./creatorDefaults";
 import { cardPublicationIssue, deckPublicationIssue, deckDraftContent } from "./publicationRules";
 import { deckContentHash, type CopyCardCommand, type CopyCardResult } from "./cardReuse";
+import { assertForkContext, editedForkContent, inheritForkCardData } from "./forks";
+import type { CardForkCommand, DeckForkCommand, ForkContext, ForkDeckEntry } from "./model";
 
 export const COLLECTIONS = { cards: "cardTemplates", cardVersions: "cardTemplateVersions", decks: "deckTemplates", deckVersions: "deckTemplateVersions", users: "users" } as const;
 function entityId(value: unknown) { requireCondition(nonblank(value), "INVALID_ENTITY_ID"); }
 const userKey = (userId: string) => { entityId(userId); return /^[a-f\d]{24}$/i.test(userId) ? new ObjectId(userId) : userId; };
+function forkIdentityConflict(error: unknown): never {
+  if (error instanceof MongoServerError && error.code === 11000) {
+    throw new CardArchitectureError(error.keyPattern?.stepIds ? "STEP_RESERVATION_CONFLICT" : "FORK_RECOVERY_CONFLICT");
+  }
+  throw error;
+}
 
 // Explicit setup only. Never create indexes on module import or through legacy routes.
 export async function createFoundationIndexes(db: Db) {
@@ -147,12 +155,120 @@ export class CardRepository {
         : { ...ack, outcome: "published", publishedVersion };
     });
   }
+  private async forkView(actor: string, context: ForkContext, session: ClientSession) {
+    assertForkContext(context);
+    const user = await this.assertUser(actor, session);
+    if (context.kind === "library") return { user, deck: null };
+    const data = user.decksData.find((data) => data.deckTemplateId === context.deckTemplateId);
+    requireCondition(data, "FORK_OUTSIDE_PERSONAL_CONTEXT");
+    const root = await this.decks().findOne({ deckTemplateId: data.deckTemplateId }, { session });
+    requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "DECK_FORBIDDEN");
+    const deck = await this.getDeckVersion(data.deckTemplateId, data.deckTemplateVersion, session);
+    requireCondition(deck, "MISSING_DECK_VERSION");
+    return { user, deck };
+  }
+  private async cardForkInSession(actor: string, command: CardForkCommand, session: ClientSession) {
+    entityId(command.cardTemplateId); entityId(command.source?.cardTemplateId); assertAdoption(command.source?.version);
+    const { user, deck } = await this.forkView(actor, command.context, session);
+    const source = await this.cards().findOne({ cardTemplateId: command.source.cardTemplateId }, { session });
+    requireCondition(source && (source.ownerUserId === actor || source.visibility === "public"), "CARD_FORBIDDEN");
+    const version = await this.getCardVersion(source.cardTemplateId, command.source.version, session);
+    requireCondition(version && version.version <= source.latestVersion, "MISSING_CARD_VERSION");
+    if (deck) {
+      const ref = deck.content.cards.find((ref) => ref.cardTemplateId === source.cardTemplateId);
+      const data = user.cardsData.find((data) => data.cardTemplateId === source.cardTemplateId);
+      requireCondition(ref && (data?.cardTemplateVersion ?? ref.cardVersionAtPublish) === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
+    }
+    const content = editedForkContent(version.content, command.source, command.stepIds, command.content);
+    const existing = await this.cards().findOne({ cardTemplateId: command.cardTemplateId }, { session });
+    if (existing) {
+      requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && existing.revision === 0
+        && isDeepStrictEqual(existing.forkedFrom, command.source) && isDeepStrictEqual(existing.forkContext, command.context)
+        && isDeepStrictEqual(existing.draft, content) && isDeepStrictEqual(existing.stepIds, command.stepIds), "CARD_FORK_RECOVERY_CONFLICT");
+      return existing;
+    }
+    const now = new Date();
+    const root: CardTemplateRoot = { cardTemplateId: command.cardTemplateId, ownerUserId: actor, visibility: "private",
+      latestVersion: 0, draft: content, stepIds: [...command.stepIds], revision: 0, forkedFrom: command.source,
+      forkContext: command.context, createdAt: now, updatedAt: now };
+    // The global multikey unique index reserves all new Step identities here.
+    await this.cards().insertOne(root, { session }); return root;
+  }
+  async createCardFork(actor: string, command: CardForkCommand) {
+    if (command.attachTo) {
+      entityId(command.attachTo.deckTemplateId);
+      requireCondition(Number.isInteger(command.attachTo.revision) && command.attachTo.revision >= 0, "INVALID_REVISION");
+    }
+    return this.transaction(async (session) => {
+      const card = await this.cardForkInSession(actor, command, session);
+      let deckRevision: number | null = null;
+      if (command.attachTo) {
+        const attach = command.attachTo; assertDeckContent(attach.nextDeckContent);
+        const deck = await this.decks().findOne({ deckTemplateId: attach.deckTemplateId }, { session });
+        requireCondition(deck?.ownerUserId === actor, "DECK_FORBIDDEN");
+        if (deck.revision === attach.revision + 1 && isDeepStrictEqual(deck.draft, attach.nextDeckContent)) {
+          requireCondition(deck.draft!.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId), "CARD_FORK_RECOVERY_CONFLICT");
+          deckRevision = deck.revision;
+        } else {
+          requireCondition(deck.revision === attach.revision, "STALE_REVISION");
+          const latest = deck.latestVersion ? await this.getDeckVersion(deck.deckTemplateId, deck.latestVersion, session) : null;
+          const current = deck.draft ?? (latest ? deckDraftContent(latest.content) : null);
+          requireCondition(current && current.cards.some((ref) => ref.cardTemplateId === command.source.cardTemplateId), "CARD_OUTSIDE_DECK");
+          const next = { ...current, cards: current.cards.map((ref) => ref.cardTemplateId === command.source.cardTemplateId ? { cardTemplateId: card.cardTemplateId } : ref) };
+          requireCondition(isDeepStrictEqual(next, attach.nextDeckContent), "INVALID_FORK_ATTACHMENT");
+          await this.deckReferences(actor, next, session);
+          await this.recordReferenceChanges(deck.deckTemplateId, [command.source.cardTemplateId, card.cardTemplateId], session);
+          const saved = await this.decks().updateOne({ deckTemplateId: deck.deckTemplateId, revision: attach.revision }, {
+            $set: { draft: next, updatedAt: new Date() }, $inc: { revision: 1 },
+          }, { session }); requireCondition(saved.matchedCount === 1, "STALE_REVISION");
+          deckRevision = attach.revision + 1;
+        }
+      }
+      return { cardTemplateId: card.cardTemplateId, cardRevision: card.revision, deckRevision };
+    }).catch(forkIdentityConflict);
+  }
+  async createDeckFork(actor: string, command: DeckForkCommand) {
+    entityId(command.deckTemplateId); entityId(command.source?.deckTemplateId); assertAdoption(command.source?.version); assertDeckContent(command.content);
+    return this.transaction(async (session) => {
+      const view = await this.forkView(actor, command.context, session);
+      const source = await this.decks().findOne({ deckTemplateId: command.source.deckTemplateId }, { session });
+      requireCondition(source && (source.ownerUserId === actor || source.visibility === "public"), "DECK_FORBIDDEN");
+      const version = await this.getDeckVersion(source.deckTemplateId, command.source.version, session);
+      requireCondition(version && version.version <= source.latestVersion, "MISSING_DECK_VERSION");
+      requireCondition(!view.deck || view.deck.deckTemplateId === source.deckTemplateId && view.deck.version === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
+      let content = command.content, cardRevision: number | null = null;
+      if (command.cardFork) {
+        requireCondition(!command.cardFork.attachTo && isDeepStrictEqual(command.cardFork.context, command.context)
+          && version.content.cards.some((ref) => ref.cardTemplateId === command.cardFork!.source.cardTemplateId)
+          && content.cards.some((ref) => ref.cardTemplateId === command.cardFork!.source.cardTemplateId), "INVALID_COMBINED_FORK");
+        const card = await this.cardForkInSession(actor, command.cardFork, session);
+        cardRevision = card.revision;
+        content = { ...content, cards: content.cards.map((ref) => ref.cardTemplateId === command.cardFork!.source.cardTemplateId ? { cardTemplateId: card.cardTemplateId } : ref) };
+      }
+      assertDeckContent(content);
+      requireCondition(!isDeepStrictEqual(content, deckDraftContent(version.content)), "NO_MEANINGFUL_FORK_EDIT");
+      await this.deckReferences(actor, content, session);
+      const existing = await this.decks().findOne({ deckTemplateId: command.deckTemplateId }, { session });
+      if (existing) {
+        requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && existing.revision === 0
+          && isDeepStrictEqual(existing.forkedFrom, command.source) && isDeepStrictEqual(existing.forkContext, command.context)
+          && isDeepStrictEqual(existing.draft, content), "DECK_FORK_RECOVERY_CONFLICT");
+      } else {
+        const now = new Date();
+        await this.recordReferenceChanges(command.deckTemplateId, content.cards.map((ref) => ref.cardTemplateId), session);
+        await this.decks().insertOne({ deckTemplateId: command.deckTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
+          draft: content, revision: 0, forkedFrom: command.source, forkContext: command.context, createdAt: now, updatedAt: now }, { session });
+      }
+      return { deckTemplateId: command.deckTemplateId, deckRevision: 0, cardRevision };
+    }).catch(forkIdentityConflict);
+  }
   // Stable caller-generated IDs make an interrupted first save safely retryable.
   async createPrivateGraph(actor: string, deckTemplateId: string, content: DeckContent,
     cards: { cardTemplateId: string; content: CardContent }[]) {
     entityId(deckTemplateId); assertDeckContent(content);
     requireCondition(Array.isArray(cards) && cards.length === content.cards.length && cards.every((card) => card && typeof card === "object") && new Set(cards.map((card) => card.cardTemplateId)).size === cards.length, "INVALID_INITIAL_GRAPH");
-    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content); }
+    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content);
+      requireCondition(card.content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED"); }
     requireCondition(content.cards.every((ref) => cards.some((card) => card.cardTemplateId === ref.cardTemplateId)), "INVALID_INITIAL_GRAPH");
     return this.transaction(async (session) => {
       await this.assertUser(actor, session);
@@ -177,6 +293,7 @@ export class CardRepository {
   async createCardDraft(actor: string, content: CardContent, visibility: Visibility = "private", cardTemplateId: string = randomUUID()) {
     entityId(cardTemplateId);
     assertCardContent(content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
+    requireCondition(content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED");
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility, latestVersion: 0,
       draft: structuredClone(content), stepIds: content.steps.map((step) => step.stepId), revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
@@ -256,6 +373,10 @@ export class CardRepository {
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_CARD_VERSION");
       const current = root.draft ?? latest?.content;
+      for (const step of content.steps) {
+        const previous = current?.steps.find((item) => item.stepId === step.stepId) ?? latest?.content.steps.find((item) => item.stepId === step.stepId);
+        requireCondition(isDeepStrictEqual(step.forkedFrom, previous?.forkedFrom), "STEP_LINEAGE_IMMUTABLE");
+      }
       // An explicit clearing edit restores the published/default title. An already
       // stored blank title is not rewritten by an unrelated content edit.
       const saved = !content.intro.title?.trim() && content.intro.title !== current?.intro.title
@@ -295,18 +416,44 @@ export class CardRepository {
     return updateNote?.trim() ? { updateNote: updateNote.trim() } : {};
   }
   async publishCard(actor: string, cardTemplateId: string, expectedRevision: number, updateNote?: string) {
+    entityId(actor); entityId(cardTemplateId);
+    requireCondition(Number.isInteger(expectedRevision) && expectedRevision >= 0, "INVALID_REVISION");
     const note = this.note(updateNote);
     return this.transaction(async (session) => {
-      const root = await this.ownerCard(actor, cardTemplateId, expectedRevision, session);
+      const existing = await this.cards().findOne({ cardTemplateId }, { session });
+      requireCondition(existing?.ownerUserId === actor, "CARD_FORBIDDEN");
+      if (existing.forkedFrom && existing.latestVersion >= 1) {
+        const first = await this.getCardVersion(cardTemplateId, 1, session);
+        if (first?.forkPublicationReceipt?.revision === expectedRevision) {
+          requireCondition(first.publishedByUserId === actor && first.updateNote === note.updateNote, "FORK_PUBLICATION_RECOVERY_CONFLICT");
+          return 1; // Never repeat inheritance, even after target personal state changes.
+        }
+      }
+      const root = existing;
+      requireCondition(root.revision === expectedRevision, "STALE_REVISION");
       requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertCardContent(root.draft);
-      await this.assertUser(actor, session);
+      const user = await this.assertUser(actor, session);
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       const issue = cardPublicationIssue(root.latestVersion, root.draft, latest?.content ?? null);
       requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
       const version = root.latestVersion + 1; const now = new Date();
-      await this.cardVersions().insertOne({ cardTemplateId, version, content: root.draft, ...note, publishedAt: now, publishedByUserId: actor }, { session });
+      await this.cardVersions().insertOne({ cardTemplateId, version, content: root.draft, ...note,
+        ...(version === 1 && root.forkedFrom ? { forkPublicationReceipt: { revision: expectedRevision } } : {}), publishedAt: now, publishedByUserId: actor }, { session });
       const result = await this.cards().updateOne({ cardTemplateId, revision: expectedRevision }, { $set: { latestVersion: version, draft: null, updatedAt: now }, $inc: { revision: 1 } }, { session });
       requireCondition(result.matchedCount === 1, "STALE_REVISION");
+      if (version === 1 && root.forkedFrom) {
+        requireCondition(!user.cardsData.some((data) => data.cardTemplateId === cardTemplateId), "FORK_TARGET_DATA_CONFLICT");
+        const sources = user.cardsData.filter((data) => data.cardTemplateId === root.forkedFrom!.cardTemplateId);
+        requireCondition(sources.length <= 1, "AMBIGUOUS_CARD_DATA");
+        if (sources.length) {
+          const source = await this.getCardVersion(root.forkedFrom.cardTemplateId, root.forkedFrom.version, session);
+          const adopted = await this.getCardVersion(root.forkedFrom.cardTemplateId, sources[0].cardTemplateVersion, session);
+          requireCondition(source && adopted, "MISSING_CARD_VERSION");
+          const data = inheritForkCardData(cardTemplateId, root.draft, root.forkedFrom, source.content, adopted.content,
+            sources[0], root.forkContext ?? { kind: "library" }, now);
+          await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": { $ne: cardTemplateId } }, { $push: { cardsData: data } }, { session });
+        }
+      }
       // Field-level update: no reconciliation, replacement, deletion or follower adoption.
       await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": cardTemplateId }, {
         $set: { "cardsData.$[card].cardTemplateVersion": version, "cardsData.$[card].updatedAt": now },
@@ -344,14 +491,31 @@ export class CardRepository {
     return versions.length === cards.length ? null : "MISSING_CARD_VERSION";
   }
   async publishDeck(actor: string, deckTemplateId: string, expectedRevision: number, updateNote?: string,
-    consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }) {
-    return this.transaction((session) => this.publishDeckInSession(actor, deckTemplateId, expectedRevision, session, updateNote, consent));
+    consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }, forkEntry?: ForkDeckEntry) {
+    return this.transaction((session) => this.publishDeckInSession(actor, deckTemplateId, expectedRevision, session, updateNote, consent, undefined, forkEntry));
   }
   // Same publication rules/adoption writes for explicit Publish and atomic Copy.
   // Never start a nested transaction or catch a partial publication as draft-only.
   private async publishDeckInSession(actor: string, deckTemplateId: string, expectedRevision: number, session: ClientSession,
-    updateNote?: string, consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }, copyReceipt?: CopyPublicationReceipt) {
-    const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
+    updateNote?: string, consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }, copyReceipt?: CopyPublicationReceipt, forkEntry?: ForkDeckEntry) {
+    entityId(actor); entityId(deckTemplateId);
+    requireCondition(Number.isInteger(expectedRevision) && expectedRevision >= 0, "INVALID_REVISION");
+    if (forkEntry !== undefined) requireCondition(forkEntry !== null && typeof forkEntry.enterMyDecks === "boolean" && Object.keys(forkEntry).length === 1, "INVALID_FORK_ENTRY");
+    const existing = await this.decks().findOne({ deckTemplateId }, { session });
+    requireCondition(existing?.ownerUserId === actor, "DECK_FORBIDDEN");
+    if (existing.forkedFrom && existing.latestVersion >= 1) {
+      const first = await this.getDeckVersion(deckTemplateId, 1, session);
+      if (first?.forkPublicationReceipt?.revision === expectedRevision) {
+        requireCondition(first.forkPublicationReceipt.enterMyDecks === forkEntry?.enterMyDecks
+          && first.updateNote === this.note(updateNote).updateNote
+          && isDeepStrictEqual(first.forkPublicationReceipt.review, consent?.review)
+          && first.forkPublicationReceipt.acceptCardDrafts === consent?.acceptCardDrafts, "FORK_PUBLICATION_RECOVERY_CONFLICT");
+        return 1;
+      }
+    }
+    const root = existing;
+    requireCondition(root.revision === expectedRevision, "STALE_REVISION");
+    requireCondition(!root.forkedFrom || root.latestVersion > 0 || forkEntry !== undefined, "FORK_ENTRY_REQUIRED");
     requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertDeckContent(root.draft);
     const cards = await this.deckReferences(actor, root.draft, session);
     if (consent) {
@@ -372,7 +536,10 @@ export class CardRepository {
     const byId = new Map(cards.map((card) => [card.cardTemplateId, card])); const version = root.latestVersion + 1;
     await this.deckVersions().insertOne({ deckTemplateId, version, content: { ...root.draft,
       cards: root.draft.cards.map(({ cardTemplateId }) => ({ cardTemplateId, cardVersionAtPublish: byId.get(cardTemplateId)!.latestVersion })),
-    }, ...this.note(updateNote), ...(copyReceipt ? { copyReceipt } : {}), publishedAt: now, publishedByUserId: actor }, { session });
+    }, ...this.note(updateNote), ...(copyReceipt ? { copyReceipt } : {}),
+    ...(root.forkedFrom && version === 1 ? { forkPublicationReceipt: { revision: expectedRevision, enterMyDecks: forkEntry!.enterMyDecks,
+      ...(consent ? { review: consent.review, acceptCardDrafts: consent.acceptCardDrafts } : {}) } } : {}),
+    publishedAt: now, publishedByUserId: actor }, { session });
     const result = await this.decks().updateOne({ deckTemplateId, revision: expectedRevision }, { $set: { latestVersion: version, draft: null, updatedAt: now }, $inc: { revision: 1 } }, { session });
     requireCondition(result.matchedCount === 1, "STALE_REVISION");
     const user = await this.assertUser(actor, session);
@@ -380,9 +547,29 @@ export class CardRepository {
     // Ordinary private first publication is also personal entry. Fork entry
     // remains explicit; public publication alone never creates membership.
     const firstPrivateEntry = root.latestVersion === 0 && root.visibility === "private" && root.forkedFrom === null;
-    if (membership || firstPrivateEntry) {
+    const forkPersonalEntry = root.forkedFrom !== null && version === 1 && forkEntry?.enterMyDecks === true;
+    if (membership || firstPrivateEntry || forkPersonalEntry) {
       await this.ensureCompositionCardData(actor, user, root.draft.cards, now, session);
-      if (!membership) await this.ensureDeckDataInSession(actor, root, version, now, session);
+      if (!membership) {
+        await this.ensureDeckDataInSession(actor, root, version, now, session);
+        if (forkPersonalEntry && root.forkContext?.kind === "my-decks") {
+          const sourceData = user.decksData.find((data) => data.deckTemplateId === root.forkedFrom!.deckTemplateId);
+          requireCondition(sourceData, "FORK_OUTSIDE_PERSONAL_CONTEXT");
+          const sourceVersion = await this.getDeckVersion(sourceData.deckTemplateId, sourceData.deckTemplateVersion, session);
+          requireCondition(sourceVersion, "MISSING_DECK_VERSION");
+          requireCondition(sourceData.cadenceAnchorDate === null || isIsoDateOnlyString(sourceData.cadenceAnchorDate), "INVALID_CADENCE_ANCHOR");
+          let activeCardId = sourceData.activeCardId;
+          if (!sourceVersion.content.cards.some((ref) => ref.cardTemplateId === activeCardId)) activeCardId = null;
+          if (activeCardId && !root.draft.cards.some((ref) => ref.cardTemplateId === activeCardId)) {
+            const cards = await this.cards().find({ cardTemplateId: { $in: root.draft.cards.map((ref) => ref.cardTemplateId) }, "forkedFrom.cardTemplateId": activeCardId }, { session }).toArray();
+            activeCardId = cards.length === 1 ? cards[0].cardTemplateId : null;
+          }
+          await this.users().updateOne({ _id: userKey(actor) }, { $set: {
+            "decksData.$[deck].cadenceAnchorDate": sourceData.cadenceAnchorDate,
+            "decksData.$[deck].activeCardId": activeCardId,
+          } }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
+        }
+      }
     }
     await this.users().updateOne({ _id: userKey(actor), "decksData.deckTemplateId": deckTemplateId }, {
       $set: { "decksData.$[deck].deckTemplateVersion": version, "decksData.$[deck].updatedAt": now },

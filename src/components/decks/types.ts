@@ -25,6 +25,7 @@ export type CardIntro = {
 
 export type CardTemplateStep = {
   stepId: string;
+  forkedFrom?: { cardTemplateId: string; version: number; stepId: string };
   title?: string;
   description: string | null;
   descriptionContent?: StepDescriptionSpan[];

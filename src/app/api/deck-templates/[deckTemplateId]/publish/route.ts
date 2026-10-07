@@ -1,7 +1,7 @@
 import { cardRequest, fields, jsonDTO } from "@/lib/cards/http";
 import { creatorDTO } from "@/lib/cards/readModels";
 import { requireCondition, isRecord } from "@/lib/cards/domain";
-import type { DeckPublicationReview } from "@/lib/cards/model";
+import type { DeckPublicationReview, ForkDeckEntry } from "@/lib/cards/model";
 import { deckDraftContent } from "@/lib/cards/publicationRules";
 export async function GET(request: Request, context: RouteContext<'/api/deck-templates/[deckTemplateId]/publish'>) {
   return cardRequest(async (repo, actor) => {
@@ -18,11 +18,15 @@ export async function GET(request: Request, context: RouteContext<'/api/deck-tem
 }
 export async function POST(request: Request, context: RouteContext<'/api/deck-templates/[deckTemplateId]/publish'>) {
   return cardRequest(async (repo, actor) => {
-    const body = await request.json(); fields(body, ["revision", "updateNote", "review", "acceptCardDrafts"]);
+    const body = await request.json(); fields(body, ["revision", "updateNote", "review", "acceptCardDrafts", "forkEntry"]);
     requireCondition(isRecord(body.review) && typeof body.acceptCardDrafts === "boolean", "INVALID_PUBLICATION_REVIEW");
     const { deckTemplateId } = await context.params;
-    await repo.publishDeck(actor, deckTemplateId, body.revision as number, body.updateNote as string | undefined,
-      { review: body.review as DeckPublicationReview, acceptCardDrafts: body.acceptCardDrafts as boolean });
+    const fork = await repo.decks().findOne({ deckTemplateId, ownerUserId: actor }, { projection: { forkedFrom: 1 } });
+    const version = await repo.publishDeck(actor, deckTemplateId, body.revision as number, body.updateNote as string | undefined,
+      { review: body.review as DeckPublicationReview, acceptCardDrafts: body.acceptCardDrafts as boolean }, body.forkEntry as ForkDeckEntry | undefined);
+    // Backend fork publication may retain foreign references. The Phase 2
+    // Creator DTO deliberately rejects those until foreign editing is built.
+    if (fork?.forkedFrom || body.forkEntry !== undefined) return { deckTemplateId, publishedVersion: version };
     return creatorDTO(repo, actor, deckTemplateId);
   });
 }

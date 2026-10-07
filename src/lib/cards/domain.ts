@@ -31,7 +31,12 @@ export function assertCardContent(value: unknown): asserts value is CardContent 
   const ids = new Set();
   for (const step of value.steps) {
     requireCondition(isRecord(step) && nonblank(step.stepId), "INVALID_STEP");
-    keys(step, ["stepId", "title", "description", "descriptionContent", "mediaItem"]);
+    keys(step, ["stepId", "title", "description", "descriptionContent", "mediaItem", "forkedFrom"]);
+    if (step.forkedFrom !== undefined) {
+      requireCondition(isRecord(step.forkedFrom) && nonblank(step.forkedFrom.cardTemplateId)
+        && nonblank(step.forkedFrom.stepId) && Number.isInteger(step.forkedFrom.version) && Number(step.forkedFrom.version) >= 1, "INVALID_STEP_LINEAGE");
+      keys(step.forkedFrom, ["cardTemplateId", "version", "stepId"]);
+    }
     requireCondition(!ids.has(step.stepId), "DUPLICATE_STEP_ID"); ids.add(step.stepId);
     if (step.title !== undefined) text(step.title);
     text(step.description, true); media(step.mediaItem);

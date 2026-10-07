@@ -4,6 +4,16 @@ import { assertAdoption, requireCondition, stepLinkedSignals } from "./domain";
 import type { Deck } from "../../components/decks/types";
 import { jsonDTO } from "./http";
 import { layoutCardLabels } from "./layout";
+import { personalHistorySegments } from "./forks";
+
+// Actor-scoped current reads: retain each event's original Card/Deck context.
+// Membership is not required for retained personal history.
+export async function personalCardHistoryDTO(repo: CardRepository, actor: string, cardTemplateId: string) {
+  requireCondition(typeof cardTemplateId === "string" && cardTemplateId.trim() !== "", "INVALID_ENTITY_ID");
+  const user = await repo.getPersonalUser(actor);
+  requireCondition(user && Array.isArray(user.cardsData), "NEW_MODEL_USER_REQUIRED");
+  return jsonDTO({ cardTemplateId, segments: personalHistorySegments(user.cardsData, cardTemplateId) });
+}
 
 export async function creatorDTO(repo: CardRepository, actor: string, id: string) {
   const deck = await resolveCreatorDeck(repo, actor, id);
