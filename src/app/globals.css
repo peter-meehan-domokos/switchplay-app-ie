@@ -4562,6 +4562,10 @@ input {
   overflow-wrap: anywhere;
 }
 .creator-drafts-list button[aria-current="true"] { background: rgba(17, 19, 24, 0.045); }
+.creator-modal--card-title:has(.creator-copy-to[data-open="true"]) {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .creator-publish-lock {
   width: 10px;
   height: 10px;

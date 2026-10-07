@@ -95,6 +95,7 @@ export function reorderSteps(content: CardContent, from: number, to: number): Ca
 }
 // Three fixed slots: cross-Card dragging swaps their embedded Step content/identity.
 export function swapConstructionSteps(source: CardTemplateRoot, destination: CardTemplateRoot, deck: DeckTemplateRoot, sourceIndex: number, destinationIndex: number) {
+  requireCondition(!source.firstReusedAt && !destination.firstReusedAt, "CROSS_CARD_MOVE_AFTER_REUSE");
   requireCondition(source.cardTemplateId !== destination.cardTemplateId, "CROSS_CARD_REQUIRES_TWO_CARDS");
   requireCondition([source, destination, deck].every((root) => root.latestVersion === 0 && root.forkedFrom === null), "CROSS_CARD_MOVE_AFTER_PUBLICATION");
   requireCondition(source.draft !== null && destination.draft !== null, "MISSING_DRAFT");

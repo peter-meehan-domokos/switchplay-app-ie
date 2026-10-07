@@ -16,6 +16,7 @@ import Link from "next/link";
 import { creatorBoard, privateGraph, layoutCreatorColumns } from "./cardArchitectureAdapter";
 import { CreatorPersistenceCoordinator } from "./creatorPersistenceCoordinator";
 import CreatorDraftsModal from "./CreatorDraftsModal";
+import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
 import CreatorPublishControl from "./CreatorPublishControl";
 import { cardPublicationPresentation, deckPublicationPresentation } from "./creatorPublicationPresentation";
@@ -373,6 +374,7 @@ function CreatorEditModal({
   onDeleteCard,
   onRemoveDeckIntroductionImage,
   onSave,
+  copyControl,
   onUploadDeckIntroductionVideo,
   onUploadDeckIntroductionImage,
   session,
@@ -390,6 +392,7 @@ function CreatorEditModal({
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
   onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  copyControl?: React.ReactNode;
   onUploadDeckIntroductionVideo: (file: File) => void;
   onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
@@ -665,6 +668,7 @@ function CreatorEditModal({
             Save
           </button>
         </div>
+        {copyControl}
         {isCardTitle && onDeleteCard ? (
           <div className="creator-modal-delete-section">
             {isDeleteConfirming ? (
@@ -993,6 +997,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }, [activePairId, board.cells]);
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const canDeleteActiveCard = editSession?.target.type === "card-title";
+  const editingCardId = editSession?.target.type === "card-title" ? editSession.target.cardTemplateId : null;
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
   const deckIntroductionUploadTarget = useMemo(() => ({
     scope: "deck-introduction" as const,
@@ -1227,7 +1232,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         }
       }
       boardRef.current = next; setBoard(next);
-    } catch (error) { setPublishStatus("error"); setPublishMessage(error instanceof Error ? error.message : "Step move failed"); }
+    } catch (error) {
+      setPublishStatus("error");
+      setPublishMessage(error instanceof Error && error.message === "CROSS_CARD_MOVE_AFTER_REUSE"
+        ? "Steps cannot move between Cards after either Card has been reused. Reordering within a Card is still available."
+        : error instanceof Error ? error.message : "Step move failed");
+    }
   }
 
   function handleDragCancel() {
@@ -1786,6 +1796,10 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           onClose={() => setEditSession(null)}
           onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
           onSave={saveEdit}
+          copyControl={editingCardId ? <CreatorCopyTo
+            cardTemplateId={editingCardId} deckTemplateId={board.deckTemplateId}
+            ensureCreated={() => persistence.ensureCardCreated(editingCardId)}
+            onReused={() => persistence.noteCardReused(editingCardId)} /> : undefined}
           onRemoveDeckIntroductionImage={removeDeckIntroductionImage}
           onUploadDeckIntroductionVideo={(file) => void uploadDeckIntroduction("video", file)}
           onUploadDeckIntroductionImage={(file) => void uploadDeckIntroduction("image", file)}

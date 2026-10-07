@@ -38,11 +38,16 @@ type Root<C, F> = {
 export type CardTemplateRoot = Root<CardContent, { cardTemplateId: string; version: number }> & {
   cardTemplateId: string;
   stepIds: string[]; // Technical uniqueness reservation, including published history.
+  firstReusedAt?: Date; // Permanent end of exclusive construction; removal never clears it.
+  referenceRevision?: number; // Transaction lock for reference changes, independent of content autosave revisions.
 };
 export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; version: number }> & { deckTemplateId: string };
 type Version<C> = { version: number; content: C; updateNote?: string; publishedAt: Date; publishedByUserId: string };
 export type CardTemplateVersion = Version<CardContent> & { cardTemplateId: string };
-export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string };
+// Immutable receipt for Copy auto-publication recovery. Draft-only Copy keeps
+// its existing exact-append recovery; no workflow flags or receipt collection.
+export type CopyPublicationReceipt = { cardTemplateId: string; revision: number; contentHash: string };
+export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string; copyReceipt?: CopyPublicationReceipt };
 export type CardTest = { id: string; date: string; result: boolean; createdAt: Date };
 export type CardData = {
   cardTemplateId: string;

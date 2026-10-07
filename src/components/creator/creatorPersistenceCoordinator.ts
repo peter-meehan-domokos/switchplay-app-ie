@@ -146,6 +146,8 @@ export class CreatorPersistenceCoordinator {
   private listeners = new Set<() => void>();
   private attached = new Set<string>();
   private initialQueued = false;
+  private reusedCards = new Set<string>();
+  noteCardReused(id: string) { this.reusedCards.add(id); this.changed(); }
   constructor(board: BoardState, initial: CreatorDTO | null, readonly request: CreatorTransport = creatorRequest) {
     const graph = privateGraph(board, initial); this.deckTemplateId = graph.deckTemplateId;
     this.deck = new EntityLane(graph.content, initial, this.changed,
@@ -220,7 +222,7 @@ export class CreatorPersistenceCoordinator {
     // TODO: expose recovery for detached independent Card drafts in a later UI.
     this.editDeck(nextDeck); this.changed();
   }
-  async flushCard(id: string) {
+  async ensureCardCreated(id: string) {
     const lane = this.cards.get(id)!;
     if (lane.creationPending) {
       // Wait only until this creation is acknowledged, not unrelated Deck work.
@@ -232,7 +234,10 @@ export class CreatorPersistenceCoordinator {
         const stop = this.subscribe(check); check();
       });
     }
-    await lane.flush();
+  }
+  async flushCard(id: string) {
+    await this.ensureCardCreated(id);
+    await this.cards.get(id)!.flush();
   }
   async flushAll() {
     if (!this.deck.ack && !this.initialQueued) return; // untouched local session
@@ -332,6 +337,7 @@ export class CreatorPersistenceCoordinator {
     return !this.hasWork();
   }
   async move(sourceId: string, destinationId: string, sourceIndex: number, destinationIndex: number) {
+    if ([sourceId, destinationId].some((id) => this.reusedCards.has(id) || this.cards.get(id)?.ack?.root.firstReusedAt)) throw new CreatorRequestError(400, "CROSS_CARD_MOVE_AFTER_REUSE");
     await Promise.all([this.deck.flush(), this.flushCard(sourceId), this.flushCard(destinationId)]);
     const source = this.cards.get(sourceId)!, destination = this.cards.get(destinationId)!;
     const lanes = [this.deck, source, destination];

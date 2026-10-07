@@ -351,3 +351,17 @@ test("Publish and leave publishes Card-only work without manufacturing a Deck ve
   assert.equal(h.dto.root.latestVersion, 1); assert.equal(h.cards.get("a")!.root.latestVersion, 2);
   assert.equal(h.calls.some((call) => call.url.includes("deck-templates")), false);
 });
+
+test("Copy identity preparation does not flush failed local Card content or unrelated Deck work", async () => {
+  const h = harness(false), c = h.coordinator, lane = c.cards.get("a")!;
+  lane.error = { kind: "rejected", code: "LOCAL_SAVE_FAILED" };
+  lane.set({ ...lane.desired, intro: { ...lane.desired.intro, title: "Keep pending local title" } });
+  c.deck.error = { kind: "rejected", code: "UNRELATED_DECK_FAILURE" };
+  await c.ensureCardCreated("a");
+  assert.equal(h.calls.length, 0); assert.equal(lane.desired.intro.title, "Keep pending local title");
+  c.noteCardReused("a");
+  // A late pre-Copy response cannot erase the monotonic local restriction.
+  lane.accept(copy(h.cards.get("a")!), lane.acknowledgedGeneration);
+  await assert.rejects(c.move("a", "b", 0, 0), /CROSS_CARD_MOVE_AFTER_REUSE/);
+  assert.equal(h.calls.length, 0);
+});
