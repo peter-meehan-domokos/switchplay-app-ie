@@ -91,6 +91,7 @@ export function createMigrationPlan(sources: LegacySources, previous?: Migration
       content: { ...content, cards: content.cards.map((ref) => ({ ...ref, cardVersionAtPublish: 1 })) },
       publishedAt: asDate(deck.publishedAt, now), publishedByUserId: root.ownerUserId });
   }
+  const canonicalCards = new Map(plan.targets.cardTemplateVersions.map((version) => [version.cardTemplateId, version.content]));
   for (const sourceUser of sources.users) {
     requireCondition(!Object.hasOwn(sourceUser, "cardsData"), "EXISTING_SOURCE_CARD_DATA_REFUSED");
     const user = clone(sourceUser); const userId = idText(user._id); const cardsById = new Map<string, CardData>();
@@ -99,7 +100,8 @@ export function createMigrationPlan(sources: LegacySources, previous?: Migration
     for (const [deckIndex, oldDeck] of sourceUser.decksData.entries()) {
       requireCondition(deckRoots.has(oldDeck.deckTemplateId), "MISSING_MEMBERSHIP_TEMPLATE");
       const oldActive = cardsByLegacyIdentity.get(JSON.stringify([oldDeck.deckTemplateId, oldDeck.activeCardId]));
-      const firstCard = plan.targets.deckTemplateVersions.find((version) => version.deckTemplateId === oldDeck.deckTemplateId)!.content.cards[0];
+      const composition = plan.targets.deckTemplateVersions.find((version) => version.deckTemplateId === oldDeck.deckTemplateId)!.content.cards;
+      const firstCard = composition[0];
       const { cards: _discarded, ...deckFields } = clone(oldDeck); void _discarded;
       const data: DeckData = { ...deckFields, deckTemplateId: oldDeck.deckTemplateId, deckTemplateVersion: 1,
         activeCardId: oldActive?.mapping.cardTemplateId ?? firstCard?.cardTemplateId ?? null,
@@ -113,7 +115,7 @@ export function createMigrationPlan(sources: LegacySources, previous?: Migration
         let cardData = cardsById.get(resolved.mapping.cardTemplateId);
         if (!cardData) {
           cardData = initialCardData(resolved.mapping.cardTemplateId, 1, resolved.content, now);
-          cardData.targetDate = null; // Discard personal dates; Phase 2 initialization can apply canonical/cadence precedence.
+          cardData.targetDate = null; // Discard personal dates; working open applies canonical/cadence precedence.
           cardsById.set(cardData.cardTemplateId, cardData);
         }
         for (const item of oldCard.mediaItems ?? []) {
@@ -121,6 +123,12 @@ export function createMigrationPlan(sources: LegacySources, previous?: Migration
           plan.preservation.personalMedia.push({ userId, cardTemplateId: cardData.cardTemplateId, hash: fingerprint(item) });
           plan.counts.personalMedia++;
         }
+      }
+      // Membership pins every Card, even if legacy demo state was never initialized.
+      for (const ref of composition) if (!cardsById.has(ref.cardTemplateId)) {
+        const data = initialCardData(ref.cardTemplateId, 1, canonicalCards.get(ref.cardTemplateId)!, now);
+        data.targetDate = null;
+        cardsById.set(ref.cardTemplateId, data);
       }
     }
     user.decksData = decks; user.cardsData = [...cardsById.values()]; plan.counts.cardData += cardsById.size;
@@ -186,6 +194,7 @@ export function validateMigrationPlan(plan: MigrationPlan) {
       requireCondition(data.reflection === "" && data.chats.length === 0 && data.tests.length === 0 && data.targetDate === null, "DEMO_STATE_NOT_RESET");
       for (const item of data.mediaItems) foundMedia.push({ userId, cardTemplateId: data.cardTemplateId, hash: fingerprint(item) });
     }
+    for (const data of user.decksData) requireCondition(deckVersions.get(data.deckTemplateId)!.content.cards.every((ref) => personalCards.has(ref.cardTemplateId)), "MISSING_MIGRATED_CARD_DATA");
   }
   const sort = (items: unknown[]) => items.map((item) => fingerprint(item)).sort();
   requireCondition(fingerprint(sort(foundMedia)) === fingerprint(sort(plan.preservation.personalMedia)), "PERSONAL_MEDIA_NOT_PRESERVED");

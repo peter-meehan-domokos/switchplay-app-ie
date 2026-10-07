@@ -30,7 +30,7 @@ test("drafts, immutable versions, revisions, publication independence and update
   const repo = await setup();
   const content = cardContent(); const card = await repo.createCardDraft("alice", content);
   await assert.rejects(repo.publishCard("alice", { $ne: null } as unknown as string, 0), { code: "INVALID_ENTITY_ID" });
-  await assert.rejects(repo.ensureCardData("alice", { $ne: null } as unknown as string, null), { code: "INVALID_ENTITY_ID" });
+  await assert.rejects(repo.ensureCardData("alice", { $ne: null } as unknown as string, 1), { code: "INVALID_ENTITY_ID" });
   assert.equal(card.latestVersion, 0); assert.equal(await repo.getCardVersion(card.cardTemplateId, 1), null);
   assert.equal(await repo.saveCardDraft("alice", card.cardTemplateId, 0, content), 1);
   await assert.rejects(repo.saveCardDraft("alice", card.cardTemplateId, 0, content), { code: "STALE_REVISION" });
@@ -51,7 +51,7 @@ test("drafts, immutable versions, revisions, publication independence and update
   assert.deepEqual(await repo.getCardVersion(card.cardTemplateId, 1), first);
   assert.deepEqual(await repo.getDeckVersion(deck.deckTemplateId, 1), firstDeck);
   assert.equal((await repo.decks().findOne({ deckTemplateId: deck.deckTemplateId }))!.latestVersion, 2);
-  assert.equal((await repo.getPersonalUser("alice"))!.cardsData.length, 0);
+  assert.equal((await repo.getPersonalUser("alice"))!.cardsData.length, 1);
   assert.equal((await repo.getCardVersion(card.cardTemplateId, 2))!.updateNote, "Second");
 });
 
@@ -61,6 +61,7 @@ test("publisher adoption preserves personal state and archive; followers never a
   await repo.publishCard("alice", card.cardTemplateId, 0);
   const deck = await repo.createDeckDraft("alice", deckContent([card.cardTemplateId]), "public");
   await repo.publishDeck("alice", deck.deckTemplateId, 0);
+  await repo.ensureDeckData("alice", deck.deckTemplateId, 1);
   await repo.ensureCardData("alice", card.cardTemplateId, 1);
   await repo.ensureCardData("bob", card.cardTemplateId, 1);
   await repo.ensureDeckData("bob", deck.deckTemplateId, 1);
@@ -83,19 +84,17 @@ test("publisher adoption preserves personal state and archive; followers never a
   assert.equal((await repo.getPersonalUser("bob"))!.decksData[0].deckTemplateVersion, 1);
 });
 
-test("membership comes only from DeckData, null adoption opens Creator, restore keeps adoption", async () => {
+test("drafts have no membership; first private publication admits the Deck and restore retains adoption", async () => {
   const repo = await setup(); const card = await repo.createCardDraft("alice", cardContent());
   const deck = await repo.createDeckDraft("alice", deckContent([card.cardTemplateId]));
   assert.equal((await repo.getPersonalUser("alice"))!.cardsData.length, 0);
-  assert.equal((await resolveWorkingDeck(repo, "alice", deck.deckTemplateId))!.mode, "creator");
-  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].deckTemplateVersion, null);
-  await repo.archiveDeckData("alice", deck.deckTemplateId); assert.equal(await resolveWorkingDeck(repo, "alice", deck.deckTemplateId), null);
-  await repo.reactivateDeckData("alice", deck.deckTemplateId);
-  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].deckTemplateVersion, null);
-  await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [] } }); // Artificial missing membership.
+  assert.equal((await repo.getPersonalUser("alice"))!.decksData.length, 0);
   assert.equal(await resolveWorkingDeck(repo, "alice", deck.deckTemplateId), null);
   await repo.publishCard("alice", card.cardTemplateId, 0); await repo.publishDeck("alice", deck.deckTemplateId, 0);
-  assert.equal((await repo.getPersonalUser("alice"))!.decksData.length, 0); // Publishing never recreates membership.
+  assert.equal((await resolveWorkingDeck(repo, "alice", deck.deckTemplateId))!.mode, "working");
+  await repo.archiveDeckData("alice", deck.deckTemplateId); assert.equal(await resolveWorkingDeck(repo, "alice", deck.deckTemplateId), null);
+  await repo.reactivateDeckData("alice", deck.deckTemplateId);
+  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].deckTemplateVersion, 1);
 });
 
 test("concurrent ensure operations remain unique and retain adopted version, dates and sharing", async () => {
@@ -109,7 +108,7 @@ test("concurrent ensure operations remain unique and retain adopted version, dat
   await repo.ensureCardData("bob", card.cardTemplateId, 1, "2028-01-01");
   assert.equal((await repo.getPersonalUser("bob"))!.cardsData[0].targetDate, "2026-10-12");
   await assert.rejects(repo.ensureCardData("bob", card.cardTemplateId, 0), { code: "INVALID_ADOPTED_VERSION" });
-  await assert.rejects(repo.ensureDeckData("bob", deck.deckTemplateId, null), { code: "INVALID_NULL_ADOPTION" });
+  await assert.rejects(repo.ensureDeckData("bob", deck.deckTemplateId, null as never), { code: "INVALID_ADOPTED_VERSION" });
 });
 
 test("same-Card reorder and initial cross-Card swap preserve global Step identity", async () => {
@@ -212,20 +211,23 @@ test("public Deck publication promotes owned private Cards and does not publish 
 
 test("failed Card and Deck publication rolls back inserted versions, roots and publisher adoption", async () => {
   const repo = await setup(); const card = await repo.createCardDraft("alice", cardContent());
-  await repo.ensureCardData("alice", card.cardTemplateId, null);
+  await repo.publishCard("alice", card.cardTemplateId, 0);
+  await repo.ensureCardData("alice", card.cardTemplateId, 1);
+  const latest = (await repo.getCardVersion(card.cardTemplateId, 1))!.content;
+  await repo.saveCardDraft("alice", card.cardTemplateId, 1, { ...latest, intro: { ...latest.intro, title: "Second version" } });
   // Reject adoption update after root/version writes to exercise genuine transaction rollback.
-  await repo.db.command({ collMod: "users", validator: { "cardsData.cardTemplateVersion": { $ne: 1 } }, validationLevel: "strict" });
-  await assert.rejects(repo.publishCard("alice", card.cardTemplateId, 0));
-  assert.equal((await repo.cards().findOne({ cardTemplateId: card.cardTemplateId }))!.latestVersion, 0);
-  assert.equal(await repo.getCardVersion(card.cardTemplateId, 1), null);
-  assert.equal((await repo.getPersonalUser("alice"))!.cardsData[0].cardTemplateVersion, null);
-  await repo.db.command({ collMod: "users", validator: {} }); await repo.publishCard("alice", card.cardTemplateId, 0);
+  await repo.db.command({ collMod: "users", validator: { "cardsData.cardTemplateVersion": { $ne: 2 } }, validationLevel: "strict" });
+  await assert.rejects(repo.publishCard("alice", card.cardTemplateId, 2));
+  assert.equal((await repo.cards().findOne({ cardTemplateId: card.cardTemplateId }))!.latestVersion, 1);
+  assert.equal(await repo.getCardVersion(card.cardTemplateId, 2), null);
+  assert.equal((await repo.getPersonalUser("alice"))!.cardsData[0].cardTemplateVersion, 1);
+  await repo.db.command({ collMod: "users", validator: {} }); await repo.publishCard("alice", card.cardTemplateId, 2);
   const deck = await repo.createDeckDraft("alice", deckContent([card.cardTemplateId]));
   await repo.db.command({ collMod: "users", validator: { "decksData.deckTemplateVersion": { $ne: 1 } }, validationLevel: "strict" });
   await assert.rejects(repo.publishDeck("alice", deck.deckTemplateId, 0));
   assert.equal((await repo.decks().findOne({ deckTemplateId: deck.deckTemplateId }))!.latestVersion, 0);
   assert.equal(await repo.getDeckVersion(deck.deckTemplateId, 1), null);
-  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].deckTemplateVersion, null);
+  assert.equal((await repo.getPersonalUser("alice"))!.decksData.length, 0);
 });
 
 test("simultaneous publication with the same revision commits exactly one version", async () => {

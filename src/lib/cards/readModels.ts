@@ -1,6 +1,6 @@
 import type { CardRepository } from "./repository";
 import { resolveWorkingDeck, resolveCreatorDeck, resolveCreatorCard, capabilities } from "./resolvers";
-import { requireCondition, stepLinkedSignals, initialCardData } from "./domain";
+import { assertAdoption, requireCondition, stepLinkedSignals } from "./domain";
 import type { Deck } from "../../components/decks/types";
 import { jsonDTO } from "./http";
 import { layoutCardLabels } from "./layout";
@@ -55,13 +55,17 @@ function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof reso
 export async function membershipDTO(repo: CardRepository, actor: string) {
   const user = await repo.getPersonalUser(actor);
   requireCondition(user && Array.isArray(user.cardsData) && Array.isArray(user.decksData) && user.decksData.every((data) => !Object.hasOwn(data, "cards")), "NEW_MODEL_USER_REQUIRED");
-  const published = user.decksData.filter((data) => data.deckTemplateVersion !== null);
+  for (const data of user.decksData) assertAdoption(data.deckTemplateVersion);
+  const published = user.decksData;
   const roots = await repo.decks().find({ deckTemplateId: { $in: published.map((data) => data.deckTemplateId) } }).toArray();
   const versions = published.length ? await repo.deckVersions().find({ $or: published.map((data) => ({ deckTemplateId: data.deckTemplateId, version: data.deckTemplateVersion! })) }).toArray() : [];
   const cardIds = [...new Set(versions.flatMap((version) => version.content.cards.map((card) => card.cardTemplateId)))];
   const cardRoots = await repo.cards().find({ cardTemplateId: { $in: cardIds } }).toArray();
-  const requests = cardRoots.map((root) => ({ cardTemplateId: root.cardTemplateId,
-    version: user.cardsData.find((data) => data.cardTemplateId === root.cardTemplateId)?.cardTemplateVersion ?? root.latestVersion }));
+  const requests = cardRoots.map((root) => {
+    const personal = user.cardsData.find((data) => data.cardTemplateId === root.cardTemplateId);
+    requireCondition(personal, "MISSING_CARD_DATA"); assertAdoption(personal.cardTemplateVersion);
+    return { cardTemplateId: root.cardTemplateId, version: personal.cardTemplateVersion };
+  });
   const cardVersions = requests.length ? await repo.cardVersions().find({ $or: requests }).toArray() : [];
   return jsonDTO(published.map((data) => {
     const root = roots.find((root) => root.deckTemplateId === data.deckTemplateId);
@@ -75,13 +79,11 @@ export async function membershipDTO(repo: CardRepository, actor: string) {
         const card = cardRoots.find((root) => root.cardTemplateId === ref.cardTemplateId);
         requireCondition(card && (card.ownerUserId === actor || card.visibility === "public"), "CARD_FORBIDDEN");
         const personal = user.cardsData.find((item) => item.cardTemplateId === ref.cardTemplateId);
-        const selected = personal ? personal.cardTemplateVersion : card.latestVersion;
-        requireCondition(selected !== null, "UNPUBLISHED_CARD_ADOPTION");
+        requireCondition(personal, "MISSING_CARD_DATA"); assertAdoption(personal.cardTemplateVersion);
+        const selected = personal.cardTemplateVersion;
         const cardVersion = cardVersions.find((item) => item.cardTemplateId === ref.cardTemplateId && item.version === selected);
         requireCondition(cardVersion, "MISSING_CARD_VERSION");
-        // Listing is read-only; missing personal data is initialized only by working open.
-        const cardData = personal ?? initialCardData(ref.cardTemplateId, selected, cardVersion.content, new Date());
-        return { root: { ...card, draft: null }, version: cardVersion, data: cardData, permissions: capabilities(actor, actor, root, card, personal) };
+        return { root: { ...card, draft: null }, version: cardVersion, data: personal, permissions: capabilities(actor, actor, root, card, personal) };
       });
       display = projectWorking({ mode: "working", root: { ...root, draft: null }, version, data, cards, permissions: capabilities(actor, actor, root) }, actor);
     }

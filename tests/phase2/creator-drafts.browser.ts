@@ -59,12 +59,34 @@ test("My Drafts is authenticated/read-only; untouched sessions stay absent and p
   const list = await response.json(); expect(list.find((item: { deckTemplateId: string }) => item.deckTemplateId === id).status).toBe("unpublished");
   for (const item of list) expect(Object.keys(item).sort()).toEqual(["deckTemplateId", "status", "title", "updatedAt"]);
   await page.goto("/decks"); await expect(page.getByRole("button", { name: `Open ${before!.draft.title}`, exact: true })).toHaveCount(0);
-  const repo = new CardRepository(db(), client); await repo.archiveDeckData(actor().toHexString(), id); await page.reload();
+  await page.reload();
   await expect(page.getByRole("button", { name: `Restore ${before!.draft.title}`, exact: true })).toHaveCount(0);
   const user = await db().collection("users").findOne({ _id: actor() });
-  expect(user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id).deckTemplateVersion).toBeNull();
+  expect(user!.decksData.some((data: { deckTemplateId: string }) => data.deckTemplateId === id)).toBe(false);
   await page.goto("/creator/new"); await page.getByRole("button", { name: "My Drafts", exact: true }).click();
   await popup(page).getByRole("button", { name: before!.draft.title, exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+});
+
+test("My Decks puts never-opened memberships first by personal creation time, then recently opened", async ({ page }) => {
+  const prefix = `Ordering ${randomUUID()}`, repo = new CardRepository(db(), client);
+  const rows = [
+    { title: `${prefix} old unopened`, createdAt: "2025-01-01", openedAt: null },
+    { title: `${prefix} recently opened`, createdAt: "2025-01-01", openedAt: "2025-12-02" },
+    { title: `${prefix} new unopened`, createdAt: "2025-12-01", openedAt: null },
+    { title: `${prefix} earlier opened`, createdAt: "2025-12-03", openedAt: "2025-12-01" },
+  ];
+  for (const row of rows) {
+    const deck = await repo.createDeckDraft(actor().toHexString(), { ...createDefaultDeckContent([]), title: row.title });
+    await repo.publishDeck(actor().toHexString(), deck.deckTemplateId, 0);
+    await db().collection("users").updateOne({ _id: actor() }, { $set: {
+      "decksData.$[deck].createdAt": new Date(row.createdAt),
+      "decksData.$[deck].openedAt": row.openedAt ? new Date(row.openedAt) : null,
+    } }, { arrayFilters: [{ "deck.deckTemplateId": deck.deckTemplateId }] });
+  }
+  await open(page); await page.goto("/decks");
+  await expect(page.getByRole("button", { name: new RegExp(`^Open ${prefix}`) })).toHaveCount(4);
+  const labels = await page.getByRole("button", { name: new RegExp(`^Open ${prefix}`) }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+  expect(labels).toEqual([rows[2], rows[0], rows[1], rows[3]].map((row) => `Open ${row.title}`));
 });
 
 test("switching waits for the latest save and gives each Deck a fresh board/coordinator", async ({ page }) => {
@@ -129,6 +151,7 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await open(page); const name = `Empty ${randomUUID()}`, id = await title(page, name);
   await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
   await expect.poll(async () => (await root(id))?.latestVersion).toBe(1);
+  await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveText("Published");
   await page.getByRole("link", { name: "Decks", exact: true }).click(); await page.getByRole("button", { name: `Open ${name}`, exact: true }).click();
   await expect(page.locator(".deck-detail h1")).toHaveText(name); await expect(page.locator(".detail-progress")).toHaveText("Completion 0%");
   await expect(page.locator(".detail-confidence, .deck-scene-frame, .deck-card, .focused-card-layer")).toHaveCount(0);
@@ -149,6 +172,7 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await expect(column(page, cardId).getByRole("button", { name: "Publish Card 1", exact: true })).toHaveText("Published");
   await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toBeEnabled(); await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
   await expect.poll(async () => (await root(id))?.latestVersion).toBe(2);
+  await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveText("Published");
   await page.getByRole("link", { name: "Deck", exact: true }).click(); await expect(page.locator(".deck-detail h1")).toHaveText(name);
   await expect(page.locator(".deck-card")).toHaveCount(1);
   expect((await page.request.post("/api/decks-data", { data: { deckTemplateId: id, localDate: "2028-01-01" } })).ok()).toBe(true);

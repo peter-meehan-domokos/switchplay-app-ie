@@ -12,8 +12,8 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) && !(value instanceof Date);
 }
 export function nonblank(value: unknown): value is string { return typeof value === "string" && value.trim() !== ""; }
-export function assertAdoption(value: AdoptedVersion) {
-  requireCondition(value === null || (Number.isInteger(value) && value >= 1), "INVALID_ADOPTED_VERSION");
+export function assertAdoption(value: unknown): asserts value is AdoptedVersion {
+  requireCondition(typeof value === "number" && Number.isInteger(value) && value >= 1, "INVALID_ADOPTED_VERSION");
 }
 function keys(value: Record<string, unknown>, allowed: string[]) {
   requireCondition(Object.keys(value).every((key) => allowed.includes(key)), "UNSUPPORTED_CONTENT_FIELD");

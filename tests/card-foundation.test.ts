@@ -10,8 +10,8 @@ test("generated Steps have unique global identity without a separate entity", ()
   assert.equal(new Set(steps.map((step) => step.stepId)).size, steps.length);
 });
 test("Step-linked readings follow same-Card reorder; unset is excluded and 1 is a real reading", () => {
-  const card = content(); const data = initialCardData("card", null, card, new Date());
-  assert.equal(data.cardTemplateVersion, null);
+  const card = content(); const data = initialCardData("card", 1, card, new Date());
+  assert.equal(data.cardTemplateVersion, 1);
   assert.equal(cardConfidence(card, data), null);
   data.signalReadings[0].reading = 1; assert.equal(cardConfidence(card, data), 1); data.signalReadings[1].reading = 9;
   assert.equal(cardConfidence(card, data), 5);
@@ -29,6 +29,7 @@ test("date initialization precedence is existing, suggested, generated without a
 test("drafts reject old labels, Signal definitions, positional readings and version notes", () => {
   for (const field of ["label", "signals", "signalReadings", "updateNote"]) assert.throws(() => assertCardContent({ ...content(), [field]: "legacy" }), CardArchitectureError);
   assert.throws(() => initialCardData("card", 0, content(), new Date()), { code: "INVALID_ADOPTED_VERSION" });
+  assert.throws(() => initialCardData("card", null as never, content(), new Date()), { code: "INVALID_ADOPTED_VERSION" });
   assert.throws(() => assertDeckContent({ streams: [] }), CardArchitectureError);
 });
 test("publication history or published provenance prohibits cross-Card movement", () => {

@@ -70,6 +70,20 @@ test("stored plan reuses exact mappings and rejects source drift and tampering",
   stored.targets.cardTemplates[0].latestVersion = 2;
   assert.throws(() => validateMigrationPlan(stored), { code: "INVALID_PLAN_HASH" });
 });
+test("migration pins every membership Card even without old demo state, and rejects incomplete coverage", async () => {
+  const sources = await fixture(); sources.users[0].decksData[1].cards = [];
+  const before = structuredClone(sources), plan = createMigrationPlan(sources);
+  assert.equal(plan.counts.cardData, 2);
+  const missingLegacyCard = plan.targets.users[0].cardsData[1] as CardData;
+  assert.equal(missingLegacyCard.cardTemplateVersion, 1);
+  assert.deepEqual(missingLegacyCard.mediaItems, []);
+  assert.ok(missingLegacyCard.items.every((item) => item.completionStatus === "todo"));
+  assert.ok(missingLegacyCard.signalReadings.every((signal) => signal.reading === null));
+  assert.equal(fingerprint(plan.targets.users[0].cardsData[0].mediaItems), fingerprint(sources.users[0].decksData[0].cards[0].mediaItems));
+  assert.equal(validateMigrationPlan(plan).valid, true); assert.deepEqual(sources, before);
+  plan.targets.users[0].cardsData.pop(); plan.planHash = planFingerprint(plan);
+  assert.throws(() => validateMigrationPlan(plan), { code: "MISSING_MIGRATED_CARD_DATA" });
+});
 test("graph validator rejects dangling versions, duplicate Steps, retained learning state and media loss", async () => {
   const plan = createMigrationPlan(await fixture());
   for (const mutate of [

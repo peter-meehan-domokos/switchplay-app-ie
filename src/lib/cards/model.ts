@@ -3,7 +3,7 @@ import type { CompletionStatus, CardIntro, CardTemplateStep, DeckIntroduction, C
 import type { MediaItem } from "../media";
 
 export type Visibility = "private" | "public";
-export type AdoptedVersion = number | null;
+export type AdoptedVersion = number; // Validated integer >= 1; personal data adopts immutable published content.
 export type Step = CardTemplateStep; // Embedded content, never a separate business entity.
 export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null };
 export type DeckContent = {

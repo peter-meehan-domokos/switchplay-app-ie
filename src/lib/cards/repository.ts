@@ -72,7 +72,10 @@ export class CardRepository {
   private async assertUser(userId: string, session?: ClientSession) {
     const user = await this.getPersonalUser(userId, session);
     requireCondition(user && Array.isArray(user.decksData) && Array.isArray(user.cardsData), "NEW_MODEL_USER_REQUIRED");
-    requireCondition(user.decksData.every((deck) => !Object.hasOwn(deck, "cards")), "LEGACY_USER_REFUSED"); return user;
+    requireCondition(user.decksData.every((deck) => !Object.hasOwn(deck, "cards")), "LEGACY_USER_REFUSED");
+    for (const deck of user.decksData) assertAdoption(deck.deckTemplateVersion);
+    for (const card of user.cardsData) assertAdoption(card.cardTemplateVersion);
+    return user;
   }
   private async deckReferences(actor: string, content: DeckContent, session: ClientSession) {
     const roots = await this.cards().find({ cardTemplateId: { $in: content.cards.map((ref) => ref.cardTemplateId) } }, { session }).toArray();
@@ -105,7 +108,6 @@ export class CardRepository {
       const root: DeckTemplateRoot = { deckTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
         draft: content, revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
       await this.decks().insertOne(root, { session });
-      await this.ensureDeckDataInSession(actor, root, null, now, session);
     });
   }
   async createCardDraft(actor: string, content: CardContent, visibility: Visibility = "private", cardTemplateId: string = randomUUID()) {
@@ -176,7 +178,6 @@ export class CardRepository {
     await this.transaction(async (session) => {
       await this.assertUser(actor, session); await this.deckReferences(actor, content, session);
       await this.decks().insertOne(root, { session });
-      await this.ensureDeckDataInSession(actor, root, null, now, session);
     }); return root;
   }
   async saveCardDraft(actor: string, cardTemplateId: string, expectedRevision: number, content: CardContent) {
@@ -226,6 +227,7 @@ export class CardRepository {
     return this.transaction(async (session) => {
       const root = await this.ownerCard(actor, cardTemplateId, expectedRevision, session);
       requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertCardContent(root.draft);
+      await this.assertUser(actor, session);
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       const issue = cardPublicationIssue(root.latestVersion, root.draft, latest?.content ?? null);
       requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
@@ -295,6 +297,15 @@ export class CardRepository {
       }, ...note, publishedAt: now, publishedByUserId: actor }, { session });
       const result = await this.decks().updateOne({ deckTemplateId, revision: expectedRevision }, { $set: { latestVersion: version, draft: null, updatedAt: now }, $inc: { revision: 1 } }, { session });
       requireCondition(result.matchedCount === 1, "STALE_REVISION");
+      const user = await this.assertUser(actor, session);
+      const membership = user.decksData.find((data) => data.deckTemplateId === deckTemplateId);
+      // Ordinary private first publication is also personal entry. Fork entry
+      // remains explicit; public publication alone never creates membership.
+      const firstPrivateEntry = root.latestVersion === 0 && root.visibility === "private" && root.forkedFrom === null;
+      if (membership || firstPrivateEntry) {
+        await this.ensureCompositionCardData(actor, user, root.draft.cards, now, session);
+        if (!membership) await this.ensureDeckDataInSession(actor, root, version, now, session);
+      }
       await this.users().updateOne({ _id: userKey(actor), "decksData.deckTemplateId": deckTemplateId }, {
         $set: { "decksData.$[deck].deckTemplateVersion": version, "decksData.$[deck].updatedAt": now },
       }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] }); return version;
@@ -313,15 +324,46 @@ export class CardRepository {
         archivedAt: null, sharedWithUserIds: [], createdAt: now, updatedAt: now, openedAt: null, cadenceAnchorDate: null } },
     }, { session });
   }
+  private async ensureCompositionCardData(actor: string, user: PersonalUser, refs: DeckContent["cards"], now: Date, session: ClientSession) {
+    if (!refs.length) return;
+    const roots = await this.cards().find({ cardTemplateId: { $in: refs.map((ref) => ref.cardTemplateId) } }, { session }).toArray();
+    requireCondition(roots.length === refs.length, "MISSING_CARD_REFERENCE");
+    const personal = new Map(user.cardsData.map((data) => [data.cardTemplateId, data]));
+    const selected = roots.map((root) => {
+      requireCondition(root.ownerUserId === actor || root.visibility === "public", "CARD_FORBIDDEN");
+      const existing = personal.get(root.cardTemplateId);
+      const version = existing ? existing.cardTemplateVersion : root.latestVersion;
+      assertAdoption(version);
+      return { cardTemplateId: root.cardTemplateId, version };
+    });
+    const versions = await this.cardVersions().find({ $or: selected }, { session }).toArray();
+    const byId = new Map(versions.map((version) => [version.cardTemplateId, version]));
+    for (const ref of refs) {
+      const version = byId.get(ref.cardTemplateId);
+      requireCondition(version, "MISSING_CARD_VERSION");
+      if (!personal.has(ref.cardTemplateId)) await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": { $ne: ref.cardTemplateId } }, {
+        $push: { cardsData: initialCardData(ref.cardTemplateId, version.version, version.content, now) },
+      }, { session });
+    }
+  }
+  // Explicit personal entry: pin the entire adopted composition now, even when
+  // the caller will not open it. Re-entry preserves adoption and reactivates it.
   async ensureDeckData(actor: string, deckTemplateId: string, version: AdoptedVersion) {
     entityId(deckTemplateId);
     assertAdoption(version);
     await this.transaction(async (session) => {
-      await this.assertUser(actor, session); const root = await this.decks().findOne({ deckTemplateId }, { session });
+      const user = await this.assertUser(actor, session); const root = await this.decks().findOne({ deckTemplateId }, { session });
       requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "DECK_FORBIDDEN");
-      if (version === null) requireCondition(root.ownerUserId === actor && root.latestVersion === 0, "INVALID_NULL_ADOPTION");
-      else requireCondition(await this.getDeckVersion(deckTemplateId, version, session), "MISSING_DECK_VERSION");
-      await this.ensureDeckDataInSession(actor, root, version, new Date(), session);
+      requireCondition(await this.getDeckVersion(deckTemplateId, version, session), "MISSING_DECK_VERSION");
+      const existing = user.decksData.find((data) => data.deckTemplateId === deckTemplateId);
+      const adopted = await this.getDeckVersion(deckTemplateId, existing?.deckTemplateVersion ?? version, session);
+      requireCondition(adopted, "MISSING_DECK_VERSION");
+      const now = new Date();
+      await this.ensureCompositionCardData(actor, user, adopted.content.cards, now, session);
+      if (!existing) await this.ensureDeckDataInSession(actor, root, version, now, session);
+      else if (existing.archivedAt !== null) await this.users().updateOne({ _id: userKey(actor) }, {
+        $set: { "decksData.$[deck].archivedAt": null, "decksData.$[deck].updatedAt": now },
+      }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
     });
     return (await this.getPersonalUser(actor))!.decksData.find((data) => data.deckTemplateId === deckTemplateId)!;
   }
@@ -331,11 +373,9 @@ export class CardRepository {
     await this.transaction(async (session) => {
       await this.assertUser(actor, session); const root = await this.cards().findOne({ cardTemplateId }, { session });
       requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "CARD_FORBIDDEN");
-      let content: CardContent;
-      if (version === null) { requireCondition(root.ownerUserId === actor && root.latestVersion === 0 && root.draft !== null, "INVALID_NULL_ADOPTION"); content = root.draft; }
-      else { const adopted = await this.getCardVersion(cardTemplateId, version, session); requireCondition(adopted, "MISSING_CARD_VERSION"); content = adopted.content; }
+      const adopted = await this.getCardVersion(cardTemplateId, version, session); requireCondition(adopted, "MISSING_CARD_VERSION");
       await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": { $ne: cardTemplateId } }, {
-        $push: { cardsData: initialCardData(cardTemplateId, version, content, new Date(), targetDate) },
+        $push: { cardsData: initialCardData(cardTemplateId, version, adopted.content, new Date(), targetDate) },
       }, { session });
     });
     return (await this.getPersonalUser(actor))!.cardsData.find((data) => data.cardTemplateId === cardTemplateId)!;
@@ -356,7 +396,7 @@ export class CardRepository {
     await this.transaction(async (session) => {
       const user = await this.assertUser(actor, session);
       const data = user.decksData.find((item) => item.deckTemplateId === deckTemplateId);
-      requireCondition(data && data.archivedAt === null && data.deckTemplateVersion !== null, "WORKING_DECK_REQUIRED");
+      requireCondition(data && data.archivedAt === null, "WORKING_DECK_REQUIRED");
       const root = await this.decks().findOne({ deckTemplateId }, { session });
       requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "DECK_FORBIDDEN");
       const version = await this.getDeckVersion(deckTemplateId, data.deckTemplateVersion, session);
@@ -367,15 +407,11 @@ export class CardRepository {
         const card = await this.cards().findOne({ cardTemplateId: ref.cardTemplateId }, { session });
         requireCondition(card && (card.ownerUserId === actor || card.visibility === "public"), "CARD_FORBIDDEN");
         const existing = user.cardsData.find((item) => item.cardTemplateId === ref.cardTemplateId);
-        const adoptedVersion = existing ? existing.cardTemplateVersion : card.latestVersion;
-        requireCondition(adoptedVersion !== null && adoptedVersion >= 1, "UNPUBLISHED_CARD_ADOPTION");
-        const adopted = await this.getCardVersion(ref.cardTemplateId, adoptedVersion, session);
+        requireCondition(existing, "MISSING_CARD_DATA");
+        const adopted = await this.getCardVersion(ref.cardTemplateId, existing.cardTemplateVersion, session);
         requireCondition(adopted, "MISSING_CARD_VERSION");
         const generated = addDaysToDateOnly(anchor, (index + 1) * version.content.cadence.intervalDays);
-        if (!existing) await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": { $ne: ref.cardTemplateId } }, {
-          $push: { cardsData: initialCardData(ref.cardTemplateId, adoptedVersion, adopted.content, now, generated) },
-        }, { session });
-        else if (existing.targetDate === null) await this.users().updateOne({ _id: userKey(actor) }, {
+        if (existing.targetDate === null) await this.users().updateOne({ _id: userKey(actor) }, {
           $set: { "cardsData.$[card].targetDate": adopted.content.suggestedTargetDate || generated, "cardsData.$[card].updatedAt": now },
         }, { session, arrayFilters: [{ "card.cardTemplateId": ref.cardTemplateId }] });
       }
@@ -421,7 +457,7 @@ export class CardRepository {
   private async workingCard(actor: string, deckTemplateId: string, cardTemplateId: string, session: ClientSession) {
     const user = await this.assertUser(actor, session);
     const membership = user.decksData.find((data) => data.deckTemplateId === deckTemplateId);
-    requireCondition(membership && membership.archivedAt === null && membership.deckTemplateVersion !== null, "WORKING_DECK_REQUIRED");
+    requireCondition(membership && membership.archivedAt === null, "WORKING_DECK_REQUIRED");
     const deck = await this.decks().findOne({ deckTemplateId }, { session });
     requireCondition(deck && (deck.ownerUserId === actor || deck.visibility === "public"), "DECK_FORBIDDEN");
     const version = await this.getDeckVersion(deckTemplateId, membership.deckTemplateVersion, session);
@@ -429,7 +465,7 @@ export class CardRepository {
     const root = await this.cards().findOne({ cardTemplateId }, { session });
     requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "CARD_FORBIDDEN");
     const data = user.cardsData.find((card) => card.cardTemplateId === cardTemplateId);
-    requireCondition(data && data.cardTemplateVersion !== null, "MISSING_CARD_DATA");
+    requireCondition(data, "MISSING_CARD_DATA");
     const cardVersion = await this.getCardVersion(cardTemplateId, data.cardTemplateVersion, session);
     requireCondition(cardVersion, "MISSING_CARD_VERSION"); return { data, cardVersion };
   }

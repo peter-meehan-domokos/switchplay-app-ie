@@ -66,7 +66,7 @@ test("private Creator → adopted work → media/state → recoverable publicati
   await expect.poll(async () => (await database().collection("cardTemplates").findOne({ cardTemplateId: cardIds[0] }))?.draft?.steps[0].title).toBe("Start");
   const id = page.url().split("/").at(-1)!;
   let user = await database().collection("users").findOne({ _id: actor() });
-  expect(user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id).deckTemplateVersion).toBeNull();
+  expect(user!.decksData.some((data: { deckTemplateId: string }) => data.deckTemplateId === id)).toBe(false);
   expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(0);
   await page.goto("/decks"); await expect(page.getByRole("link", { name: "Phase 2 path — Draft" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Open Phase 2 path", exact: true })).toHaveCount(0);
@@ -101,8 +101,9 @@ test("private Creator → adopted work → media/state → recoverable publicati
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("button", { name: "Publish Card 1", exact: true })).toHaveClass(/creator-save-button--published/);
   user = await database().collection("users").findOne({ _id: actor() });
-  expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(0);
-  expect(user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id).deckTemplateVersion).toBe(1);
+  expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(cardIds.length);
+  const admitted = user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id);
+  expect(admitted.deckTemplateVersion).toBe(1); expect(admitted.openedAt).toBeNull(); expect(admitted.cadenceAnchorDate).toBeNull();
   await page.goto("/decks"); await page.getByRole("button", { name: "Open Phase 2 path", exact: true }).last().click();
   await expect(page.locator(".deck-detail h1")).toHaveText("Phase 2 path");
   user = await database().collection("users").findOne({ _id: actor() });

@@ -36,12 +36,12 @@ function addCommand(id: string, content: CreateAndAttachCardCommand["nextDeckCon
     nextDeckContent: { ...content, cards: [...content.cards, { cardTemplateId }] } };
 }
 
-test("zero-Card initial graph is idempotent, creates only Deck membership, and leaves it unchanged on Add", async () => {
+test("zero-Card initial graph is idempotent and creates no personal data, including on Add", async () => {
   const repo = await setup(), { id, content } = await emptyDeck(repo);
   await repo.createPrivateGraph("alice", id, content, []);
   assert.equal(await repo.cards().countDocuments(), 0); assert.equal(await repo.deckVersions().countDocuments(), 0);
   const personal = (await repo.getPersonalUser("alice"))!;
-  assert.equal(personal.decksData.length, 1); assert.equal(personal.decksData[0].deckTemplateVersion, null);
+  assert.equal(personal.decksData.length, 0);
   assert.deepEqual(personal.cardsData, []);
   await repo.createAndAttachCard("alice", addCommand(id, content));
   assert.deepEqual(await repo.getPersonalUser("alice"), personal);

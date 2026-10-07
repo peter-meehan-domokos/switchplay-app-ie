@@ -30,23 +30,21 @@ async function published() {
   for (const card of cards) await repo.publishCard("alice", card.cardTemplateId, 0);
   await repo.publishDeck("alice", id, 0); return state;
 }
-test("first graph save is atomic and idempotent; membership is explicit and creates no CardData", async () => {
+test("first graph save is atomic and idempotent; canonical drafts create no personal data", async () => {
   const { repo, id, cards, content } = await setup();
   await repo.createPrivateGraph("alice", id, content, cards); await repo.createPrivateGraph("alice", id, content, cards);
   assert.equal(await repo.cards().countDocuments(), 2); assert.equal(await repo.decks().countDocuments(), 1);
   const user = (await repo.getPersonalUser("alice"))!;
-  assert.equal(user.cardsData.length, 0); assert.equal(user.decksData.length, 1); assert.equal(user.decksData[0].deckTemplateVersion, null);
-  assert.deepEqual(await membershipDTO(repo, "alice"), []);
-  await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [] } });
+  assert.equal(user.cardsData.length, 0); assert.equal(user.decksData.length, 0);
   assert.deepEqual(await membershipDTO(repo, "alice"), []);
 });
 
-test("My Drafts is read-only, owner-scoped and includes default persisted work independently of null adoption/archive", async () => {
+test("My Drafts is read-only, owner-scoped and discovers default persisted work without personal data", async () => {
   const { repo, id } = await setup();
   assert.deepEqual(await creatorDrafts(repo, "alice"), []);
   const content = createDefaultDeckContent([]);
   await repo.createPrivateGraph("alice", id, content, []);
-  await repo.archiveDeckData("alice", id);
+  await assert.rejects(repo.archiveDeckData("alice", id), { code: "MISSING_MEMBERSHIP" });
   const before = await repo.getPersonalUser("alice");
   const roots = await repo.decks().find().toArray();
   const list = await creatorDrafts(repo, "alice");
@@ -56,10 +54,7 @@ test("My Drafts is read-only, owner-scoped and includes default persisted work i
   assert.deepEqual(await creatorDrafts(repo, "bob"), []);
   assert.deepEqual(await repo.getPersonalUser("alice"), before);
   assert.deepEqual(await repo.decks().find().toArray(), roots);
-  await repo.reactivateDeckData("alice", id);
-  assert.deepEqual(await membershipDTO(repo, "alice"), []);
-  assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].deckTemplateVersion, null);
-  await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [] } });
+  assert.equal((await repo.getPersonalUser("alice"))!.decksData.length, 0);
   assert.equal((await creatorDrafts(repo, "alice"))[0].deckTemplateId, id);
 });
 
@@ -129,7 +124,7 @@ test("duplicate Step reservations abort an initial graph without partial roots o
 });
 test("concurrent working opens set one anchor and reuse global state; surrounding dates remain positional", async () => {
   const { repo, id, cards } = await published();
-  await repo.ensureCardData("alice", cards[0].cardTemplateId, 1, "2030-01-01");
+  await repo.setTargetDate("alice", id, cards[0].cardTemplateId, "2030-01-01");
   await Promise.all([repo.openWorkingDeck("alice", id, "2026-10-04"), repo.openWorkingDeck("alice", id, "2026-10-04")]);
   await repo.openWorkingDeck("alice", id, "2026-12-25");
   const user = (await repo.getPersonalUser("alice"))!;
@@ -142,7 +137,8 @@ test("concurrent working opens set one anchor and reuse global state; surroundin
 test("failed open rolls back initialization and anchor", async () => {
   const { repo, id, cards } = await published(); await repo.cardVersions().deleteOne({ cardTemplateId: cards[1].cardTemplateId });
   await assert.rejects(repo.openWorkingDeck("alice", id, "2026-10-04"), { code: "MISSING_CARD_VERSION" });
-  const user = (await repo.getPersonalUser("alice"))!; assert.equal(user.cardsData.length, 0); assert.equal(user.decksData[0].cadenceAnchorDate, null);
+  const user = (await repo.getPersonalUser("alice"))!; assert.equal(user.cardsData.length, 2); assert.equal(user.decksData[0].cadenceAnchorDate, null);
+  assert.equal(user.cardsData[0].targetDate, null);
 });
 test("working mutations use adopted Steps; archive/restore and publication leave sharing and personal media intact", async () => {
   const { repo, id, cards } = await published(); await repo.openWorkingDeck("alice", id, "2026-10-04");
@@ -172,7 +168,7 @@ test("existing adoptions are resolved exactly, never replaced by latest or histo
   await repo.openWorkingDeck("alice", id, "2027-01-01"); const dto = await workingDTO(repo, "alice", id);
   assert.equal(dto.adoptedVersion, 1); assert.equal(dto.cards[0].adoptedVersion, 1); assert.equal(dto.title, "Private"); assert.equal(dto.cards[0].intro.title, "Practice");
   await repo.users().updateOne({ _id: "alice" }, { $set: { "cardsData.0.cardTemplateVersion": null } });
-  await assert.rejects(repo.openWorkingDeck("alice", id, "2027-01-01"), { code: "UNPUBLISHED_CARD_ADOPTION" });
+  await assert.rejects(repo.openWorkingDeck("alice", id, "2027-01-01"), { code: "INVALID_ADOPTED_VERSION" });
 });
 test("upload authorization uses adopted membership and canonical ownership, not auth snapshots", async () => {
   const { repo, id, cards } = await published(); await repo.openWorkingDeck("alice", id, "2026-10-04");

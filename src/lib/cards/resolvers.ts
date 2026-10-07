@@ -10,7 +10,7 @@ export function capabilities(actor: string, dataOwnerUserId: string, deck: DeckT
     canEditCard: card?.ownerUserId === actor, canPublishCard: card?.ownerUserId === actor,
     canForkCard: card !== undefined && (card.visibility === "public" || card.ownerUserId === actor),
     canMutateCardData: ownData && data != null,
-    canUpdateCard: ownData && data != null && data.cardTemplateVersion !== null && card !== undefined && data.cardTemplateVersion < card.latestVersion,
+    canUpdateCard: ownData && data != null && card !== undefined && data.cardTemplateVersion < card.latestVersion,
   };
 }
 
@@ -24,9 +24,9 @@ async function resolveCards(repo: CardRepository, refs: PublishedDeckContent["ca
     requireCondition(root.visibility === "public" || root.ownerUserId === actor, "CARD_FORBIDDEN");
     const personal = dataById.get(ref.cardTemplateId) ?? null;
     if (personal) assertAdoption(personal.cardTemplateVersion);
-    const version = selection === "historical" ? ref.cardVersionAtPublish : selection === "adopted" && personal !== null ? personal.cardTemplateVersion : root.latestVersion;
-    // null is an explicit unpublished adoption, not an instruction to use latest.
-    requireCondition(version !== null && version >= 1, "UNPUBLISHED_CARD_ADOPTION");
+    if (selection === "adopted") requireCondition(personal, "MISSING_CARD_DATA");
+    const version = selection === "historical" ? ref.cardVersionAtPublish : selection === "adopted" ? personal!.cardTemplateVersion : root.latestVersion;
+    assertAdoption(version);
     return { root, personal, version };
   });
   const versions = await repo.cardVersions().find({ $or: requests.map(({ root, version }) => ({ cardTemplateId: root.cardTemplateId, version })) }).toArray();
@@ -44,10 +44,6 @@ export async function resolveWorkingDeck(repo: CardRepository, actor: string, de
   assertAdoption(data.deckTemplateVersion);
   const root = await repo.decks().findOne({ deckTemplateId }); requireCondition(root, "MISSING_DECK_REFERENCE");
   requireCondition(root.ownerUserId === actor || root.visibility === "public", "DECK_FORBIDDEN");
-  if (data.deckTemplateVersion === null) {
-    requireCondition(root.ownerUserId === actor, "UNPUBLISHED_DECK_FORBIDDEN");
-    return { mode: "creator" as const, root, data, permissions: capabilities(actor, actor, root) };
-  }
   const version = await repo.getDeckVersion(deckTemplateId, data.deckTemplateVersion); requireCondition(version, "MISSING_DECK_VERSION");
   const cards = await resolveCards(repo, version.content.cards, actor, user?.cardsData ?? [], "adopted");
   return { mode: "working" as const, root: { ...root, draft: null }, version, data, permissions: capabilities(actor, actor, root),
