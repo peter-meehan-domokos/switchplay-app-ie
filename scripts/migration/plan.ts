@@ -80,14 +80,14 @@ export function createMigrationPlan(sources: LegacySources, previous?: Migration
         latestVersion: 1, draft: null, revision: 0, forkedFrom: null, stepIds: content.steps.map((step) => step.stepId),
         createdAt: asDate(deck.createdAt, now), updatedAt: now };
       plan.targets.cardTemplates.push(root);
-      plan.targets.cardTemplateVersions.push({ cardTemplateId: root.cardTemplateId, version: 1, content,
+      plan.targets.cardTemplateVersions.push({ cardTemplateId: root.cardTemplateId, version: 1, content, visibility: deck.visibility,
         publishedAt: asDate(deck.publishedAt, now), publishedByUserId: root.ownerUserId });
     }
     const content = canonicalDeck(deck.template, refs);
     const root: DeckTemplateRoot = { deckTemplateId: deck.deckTemplateId, ownerUserId: deck.ownerUserId, visibility: deck.visibility,
       latestVersion: 1, draft: null, revision: 0, forkedFrom: null, createdAt: asDate(deck.createdAt, now), updatedAt: now };
     deckRoots.set(root.deckTemplateId, root); plan.targets.deckTemplates.push(root);
-    plan.targets.deckTemplateVersions.push({ deckTemplateId: root.deckTemplateId, version: 1,
+    plan.targets.deckTemplateVersions.push({ deckTemplateId: root.deckTemplateId, version: 1, visibility: deck.visibility,
       content: { ...content, cards: content.cards.map((ref) => ({ ...ref, cardVersionAtPublish: 1 })) },
       publishedAt: asDate(deck.publishedAt, now), publishedByUserId: root.ownerUserId });
   }

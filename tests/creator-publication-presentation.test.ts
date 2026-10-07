@@ -122,3 +122,17 @@ test("Next output overrides are development-only, even with inherited test flags
     if (interactive === undefined) delete process.env.PHASE2_INTERACTIVE; else process.env.PHASE2_INTERACTIVE = interactive;
   }
 });
+
+test("visibility-only publication work is active and public Decks explain private Card blocking", () => {
+  const deck = { ...createDefaultDeckContent([]), title: "Programme", cards: [{ cardTemplateId: "card" }] };
+  const deckLane = lane(deck, deck);
+  const stagedDeck = { ...deckLane, ack: { ...deckLane.ack, root: { ...deckLane.ack.root, draft: deck,
+    visibility: "private" as const, draftVisibility: "public" as const } } };
+  const blocked = deckPublicationPresentation(stagedDeck, [{ cardTemplateId: "card", latestVersion: 1, visibility: "private" }]);
+  assert.equal(blocked.outstanding, true); assert.equal(blocked.cleanPublished, false); assert.equal(blocked.eligible, false);
+  assert.match(blocked.blockedReason!, /published publicly/);
+  assert.equal(deckPublicationPresentation(stagedDeck, [{ cardTemplateId: "card", latestVersion: 1, visibility: "public" }]).eligible, true);
+  const card = createDefaultCardContent(["a", "b", "c"]), cardLane = lane(card, card);
+  assert.equal(cardPublicationPresentation({ ...cardLane, ack: { ...cardLane.ack, root: { ...cardLane.ack.root, draft: card,
+    visibility: "private", draftVisibility: "public" } } }).eligible, true);
+});

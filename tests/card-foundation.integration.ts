@@ -196,17 +196,19 @@ test("working adoption, template preview and historical pins select independent 
   if (workingWithDrafts?.mode === "working") { assert.equal(workingWithDrafts.root.draft, null); assert.equal(workingWithDrafts.cards[0].root.draft, null); }
 });
 
-test("public Deck publication promotes owned private Cards and does not publish drafts", async () => {
+test("public Deck publication rejects private Cards without changing their drafts or revisions", async () => {
   const repo = await setup(); const card = await repo.createCardDraft("alice", cardContent()); await repo.publishCard("alice", card.cardTemplateId, 0);
   await repo.saveCardDraft("alice", card.cardTemplateId, 1, cardContent());
-  const deck = await repo.createDeckDraft("alice", deckContent([card.cardTemplateId]), "public"); await repo.publishDeck("alice", deck.deckTemplateId, 0);
+  const deck = await repo.createDeckDraft("alice", deckContent([card.cardTemplateId]), "public");
+  await assert.rejects(repo.publishDeck("alice", deck.deckTemplateId, 0), { code: "PRIVATE_CARDS_BLOCK_PUBLIC_DECK" });
   const root = (await repo.cards().findOne({ cardTemplateId: card.cardTemplateId }))!;
-  assert.equal(root.visibility, "public"); assert.equal(root.latestVersion, 1); assert.notEqual(root.draft, null);
+  assert.equal(root.visibility, "private"); assert.equal(root.revision, 2); assert.equal(root.latestVersion, 1); assert.notEqual(root.draft, null);
+  assert.equal(await repo.getDeckVersion(deck.deckTemplateId, 1), null);
   await assert.rejects(repo.saveCardDraft("bob", card.cardTemplateId, root.revision, cardContent()), { code: "CARD_FORBIDDEN" });
   const foreignPrivate = await repo.createCardDraft("bob", cardContent());
   await assert.rejects(repo.createDeckDraft("alice", deckContent([foreignPrivate.cardTemplateId])), { code: "PRIVATE_FOREIGN_CARD" });
   const foreignUnpublished = await repo.createCardDraft("bob", cardContent(), "public");
-  await assert.rejects(repo.createDeckDraft("alice", deckContent([foreignUnpublished.cardTemplateId])), { code: "UNPUBLISHED_FOREIGN_CARD" });
+  await assert.rejects(repo.createDeckDraft("alice", deckContent([foreignUnpublished.cardTemplateId])), { code: "PRIVATE_FOREIGN_CARD" });
 });
 
 test("failed Card and Deck publication rolls back inserted versions, roots and publisher adoption", async () => {

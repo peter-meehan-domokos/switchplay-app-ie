@@ -35,7 +35,7 @@ import {
   persistCardTargetDate,
   persistSignalReading,
   persistStepCompletionStatus,
-  removeCardMediaItem,
+  removePersonalCardMediaItem,
 } from "@/lib/deckMutations";
 import { addDaysToDateOnly } from "@/lib/dateOnly";
 import { normalizeCompletionStatus } from "@/lib/progress";
@@ -583,13 +583,19 @@ export default function DeckDetail({ deck, isDeckFlipped, deckFlipRotationY, onB
     }
 
     await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
-      const result = await removeCardMediaItem(target.deckTemplateId, target.cardId, mediaItemId);
+      const result = await removePersonalCardMediaItem(target.cardId, mediaItemId);
 
-      if (result.deckTemplateId !== target.deckTemplateId || result.cardId !== target.cardId) {
+      if (result.cardId !== target.cardId) {
         throw new Error("Card media was removed from an unexpected card.");
       }
 
-      applyConfirmedCardMedia(target.cardId, result.mediaItems);
+      const nextCards = cardsRef.current.map((card) => withCardMediaItems({ ...card,
+        personalHistory: card.personalHistory?.map((segment) => segment.cardTemplateId === target.cardId
+          ? { ...segment, mediaItems: result.mediaItems } : segment),
+      }, card.id === target.cardId ? result.mediaItems : card.mediaItems));
+      workingCardStore.removeMedia(deck.dataOwnerUserId!, target.cardId, mediaItemId);
+      cardsRef.current = nextCards;
+      setCards(nextCards);
     });
   };
   const toggleDeckSide = (commitment: GestureCommitment, vector: GestureVector) => {

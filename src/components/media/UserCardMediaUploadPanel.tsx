@@ -22,6 +22,8 @@ type UserCardMediaUploadPanelProps = {
   onAddImage: (file: File) => void;
   onAddVideo: (file: File) => void;
   onRemoveMedia: (item: MediaItem) => void;
+  getMediaKey?: (item: MediaItem) => string;
+  getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
 function VideoTile({ item, target, removalState, onRemove }: {
@@ -88,6 +90,8 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
+  getMediaKey = (item) => item.id,
+  getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -135,10 +139,10 @@ export default function UserCardMediaUploadPanel({
         {uploadState.imageError ? <p className="creator-modal-error" role="alert">{uploadState.imageError}</p> : null}
         <ul className="user-card-media-rail" aria-label="Uploaded images">
           {images.map((item) => {
-            const removalState = removalStatesById[item.id];
+            const removalState = removalStatesById[getMediaKey(item)];
 
             return (
-              <li className="user-card-media-tile" data-media-item-id={item.id} key={item.id}>
+              <li className="user-card-media-tile" data-media-item-id={item.id} key={getMediaKey(item)}>
                 <div className="user-card-media-tile-preview">
                   {/* User images are delivered from the configured R2 custom domain. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -191,10 +195,10 @@ export default function UserCardMediaUploadPanel({
           {videos.map((item) => (
             <VideoTile
               item={item}
-              key={item.id}
+              key={getMediaKey(item)}
               onRemove={() => onRemoveMedia(item)}
-              removalState={removalStatesById[item.id]}
-              target={target}
+              removalState={removalStatesById[getMediaKey(item)]}
+              target={getVideoTarget(item)}
             />
           ))}
         </ul>

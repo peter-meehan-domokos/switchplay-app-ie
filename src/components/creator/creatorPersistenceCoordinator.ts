@@ -1,6 +1,6 @@
 import type { CardContent, DeckContent, DeckPublicationReview } from "@/lib/cards/model";
 import type { CreatorDTO } from "@/lib/cards/readModels";
-import { cardPublicationIssue, deckPublicationIssue, sameContent } from "@/lib/cards/publicationRules";
+import { cardPublicationIssue, deckPublicationIssue, sameContent, publicationVisibility, type PublicationVisibility } from "@/lib/cards/publicationRules";
 import { createDefaultCardContent } from "@/lib/cards/creatorDefaults";
 import { privateGraph } from "./cardArchitectureAdapter";
 import type { BoardState } from "./creatorBoardState";
@@ -8,7 +8,7 @@ import { creatorRequest, CreatorRequestError, type CreatorTransport } from "./cr
 
 type CardAck = CreatorDTO["cards"][number];
 type DeckAck = Pick<CreatorDTO, "root" | "content" | "publishedContent">;
-type Ack<C> = { root: { ownerUserId: string; revision: number; latestVersion: number; draft: C | null }; content: C; publishedContent: C | null };
+type Ack<C> = { root: { ownerUserId: string; revision: number; latestVersion: number; draft: C | null } & Partial<PublicationVisibility>; content: C; publishedContent: C | null };
 export type SaveFailure = { kind: "transient" | "recovery" | "conflict" | "rejected"; code: string };
 export { creatorRequest, CreatorRequestError, type CreatorTransport } from "./creatorRequest";
 const failure = (error: unknown): SaveFailure => {
@@ -40,7 +40,7 @@ export class EntityLane<C, A extends Ack<C>> {
   private unlocked: (() => void)[] = [];
   constructor(content: C, ack: A | null, readonly changed: () => void,
     readonly save: (content: C, revision: number) => Promise<A>, readonly read: () => Promise<A>,
-    readonly readPublished?: (version: number) => Promise<{ version: number; content: C; updateNote?: string; publishedByUserId: string }>) {
+    readonly readPublished?: (version: number) => Promise<{ version: number; content: C; visibility?: import("@/lib/cards/model").Visibility; updateNote?: string; publishedByUserId: string }>) {
     this.desired = clone(content); this.ack = ack ? clone(ack) : null;
   }
   get dirty() { return !this.ack || !sameContent(this.desired, this.ack.content); }
@@ -118,7 +118,8 @@ export class EntityLane<C, A extends Ack<C>> {
     if (remote.root.latestVersion === before.root.latestVersion + 1 && remote.root.revision === before.root.revision + 1 && sameContent(remote.publishedContent, before.content)) {
       if (!this.readPublished) throw conflict();
       const receipt = await this.readPublished(before.root.latestVersion + 1);
-      if (receipt.version !== before.root.latestVersion + 1 || receipt.publishedByUserId !== before.root.ownerUserId || !sameContent(receipt.content, before.content) || receipt.updateNote !== pending.note) throw conflict();
+      if (receipt.version !== before.root.latestVersion + 1 || receipt.publishedByUserId !== before.root.ownerUserId || !sameContent(receipt.content, before.content) || receipt.updateNote !== pending.note
+        || before.root.visibility && (receipt.visibility ?? remote.root.visibility) !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
       this.accept(remote, pending.generation);
     }
     else if (remote.root.revision !== before.root.revision || !sameContent(remote.content, before.content)) throw conflict();
@@ -257,9 +258,9 @@ export class CreatorPersistenceCoordinator {
     const roots = [...this.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []);
     const cards = Object.fromEntries([...this.attached].map((id) => {
       const lane = this.cards.get(id)!, saved = lane.ack;
-      return [id, !!saved && !lane.error && !lane.publishing && cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent) === null];
+      return [id, !!saved && !lane.error && !lane.publishing && cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, saved.root) === null];
     }));
-    return { deck: !!deck && !this.deck.error && !this.deck.publishing && deckPublicationIssue(deck.root.latestVersion, deck.root.draft, deck.publishedContent, roots) === null,
+    return { deck: !!deck && !this.deck.error && !this.deck.publishing && deckPublicationIssue(deck.root.latestVersion, deck.root.draft, deck.publishedContent, roots, deck.root) === null,
       cards, any: this.hasWork() };
   }
   hasWork() {
@@ -271,7 +272,7 @@ export class CreatorPersistenceCoordinator {
   async publishCard(id: string, note?: string) {
     await this.flushCard(id); const lane = this.cards.get(id)!; await lane.acquire(); lane.publishing = true; this.changed();
     try {
-      const ack = lane.ack!, issue = cardPublicationIssue(ack.root.latestVersion, ack.root.draft, ack.publishedContent);
+      const ack = lane.ack!, issue = cardPublicationIssue(ack.root.latestVersion, ack.root.draft, ack.publishedContent, ack.root);
       if (issue === "NO_UNPUBLISHED_CHANGES") return;
       if (issue) throw new CreatorRequestError(400, issue);
       const generation = lane.acknowledgedGeneration;
@@ -284,7 +285,8 @@ export class CreatorPersistenceCoordinator {
     lane.uncertainPublication = { before, generation: lane.acknowledgedGeneration, note: note?.trim() || undefined };
     try {
       const result = await publish();
-      if (result.root.latestVersion !== before.root.latestVersion + 1 || result.root.revision !== before.root.revision + 1 || !sameContent(result.publishedContent, before.content)) throw conflict();
+      if (result.root.latestVersion !== before.root.latestVersion + 1 || result.root.revision !== before.root.revision + 1 || !sameContent(result.publishedContent, before.content)
+        || before.root.visibility && result.root.visibility !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
       lane.uncertainPublication = null; return result;
     } catch (error) {
       const kind = failure(error).kind;

@@ -1,4 +1,4 @@
-import type { CardContent, DeckContent, PublishedDeckContent } from "./model";
+import type { CardContent, DeckContent, PublishedDeckContent, Visibility } from "./model";
 import { DEFAULT_CREATOR_CARD_TITLE, DEFAULT_CREATOR_DECK_TITLE } from "./creatorDefaults";
 
 // Canonical content contains plain objects/arrays. Key order is not a content change;
@@ -19,31 +19,38 @@ export function deckDraftContent(published: PublishedDeckContent): DeckContent {
   return { ...published, cards: published.cards.map(({ cardTemplateId }) => ({ cardTemplateId })) };
 }
 
-export function cardPublicationIssue(latestVersion: number, draft: CardContent | null, published: CardContent | null): string | null {
+export type PublicationVisibility = { visibility: Visibility; draftVisibility?: Visibility };
+export function publicationVisibility(root: PublicationVisibility): Visibility { return root.draftVisibility ?? root.visibility; }
+export function hasVisibilityChange(root?: PublicationVisibility): boolean {
+  return !!root && publicationVisibility(root) !== root.visibility;
+}
+
+export function cardPublicationIssue(latestVersion: number, draft: CardContent | null, published: CardContent | null, root?: PublicationVisibility): string | null {
   if (draft === null) return "NO_UNPUBLISHED_CHANGES";
   if (latestVersion === 0) {
     const title = draft.intro.title?.trim();
     return !title || title === DEFAULT_CREATOR_CARD_TITLE ? "CARD_FIRST_PUBLICATION_TITLE_REQUIRED" : null;
   }
   if (published === null) return "MISSING_CARD_VERSION";
-  return sameContent(draft, published) ? "NO_UNPUBLISHED_CHANGES" : null;
+  return sameContent(draft, published) && !hasVisibilityChange(root) ? "NO_UNPUBLISHED_CHANGES" : null;
 }
 
 export function deckPublicationIssue(latestVersion: number, draft: DeckContent | null, published: DeckContent | null,
-  cards: readonly { cardTemplateId: string; latestVersion: number }[]): string | null {
+  cards: readonly { cardTemplateId: string; latestVersion: number; visibility?: Visibility }[], root?: PublicationVisibility): string | null {
   if (draft === null) return "NO_UNPUBLISHED_CHANGES";
   if (latestVersion === 0) {
     const title = draft.title.trim();
     if (!title || title === DEFAULT_CREATOR_DECK_TITLE) return "DECK_FIRST_PUBLICATION_TITLE_REQUIRED";
   } else {
     if (published === null) return "MISSING_DECK_VERSION";
-    if (sameContent(draft, published)) return "NO_UNPUBLISHED_CHANGES";
+    if (sameContent(draft, published) && !hasVisibilityChange(root)) return "NO_UNPUBLISHED_CHANGES";
   }
   const byId = new Map(cards.map((card) => [card.cardTemplateId, card]));
   for (const ref of draft.cards) {
     const card = byId.get(ref.cardTemplateId);
     if (!card) return "MISSING_CARD_REFERENCE";
     if (card.latestVersion < 1) return "UNPUBLISHED_CARDS_BLOCK_DECK";
+    if (root && publicationVisibility(root) === "public" && card.visibility !== "public") return "PRIVATE_CARDS_BLOCK_PUBLIC_DECK";
   }
   return null;
 }

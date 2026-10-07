@@ -256,7 +256,7 @@ test("legacy unusable published titles fall back to creation defaults only on a 
   assert.equal((await repo.getDeckVersion(id, 1))!.content.title, " ");
 });
 
-test("later equal Deck saves clear drafts, while the existing visibility-only public publication contract is preserved", async () => {
+test("equal Deck saves clear drafts; visibility-only intent stays private until valid publication", async () => {
   const repo = await setup();
   const content = createDefaultCardContent(stepIds()); content.intro.title = "Practice";
   const card = await repo.createCardDraft("alice", content); await repo.publishCard("alice", card.cardTemplateId, 0);
@@ -265,10 +265,15 @@ test("later equal Deck saves clear drafts, while the existing visibility-only pu
   await repo.saveDeckDraft("alice", deck.deckTemplateId, 1, deck.draft!);
   await assert.rejects(repo.publishDeck("alice", deck.deckTemplateId, 2), { code: "NO_UNPUBLISHED_CHANGES" });
   await repo.saveDeckDraft("alice", deck.deckTemplateId, 2, deck.draft!, "public");
+  assert.equal((await repo.decks().findOne({ deckTemplateId: deck.deckTemplateId }))!.visibility, "private");
+  await assert.rejects(repo.prepareDeckPublication("alice", deck.deckTemplateId, 3), { code: "PRIVATE_CARDS_BLOCK_PUBLIC_DECK" });
+  await repo.saveCardDraft("alice", card.cardTemplateId, 1, content, "public");
+  assert.equal((await repo.cards().findOne({ cardTemplateId: card.cardTemplateId }))!.visibility, "private");
+  await repo.publishCard("alice", card.cardTemplateId, 2);
   const review = await repo.prepareDeckPublication("alice", deck.deckTemplateId, 3);
   await repo.publishDeck("alice", deck.deckTemplateId, 3, undefined, { review, acceptCardDrafts: false });
   assert.equal((await repo.cards().findOne({ cardTemplateId: card.cardTemplateId }))!.visibility, "public");
-  assert.equal(await repo.cardVersions().countDocuments(), 1);
+  assert.equal(await repo.cardVersions().countDocuments(), 2);
 });
 
 test("Deck preparation reviews exact ordered references and publishes older Card versions without publishing their drafts", async () => {

@@ -116,14 +116,14 @@ test("first My Decks Card publication inherits current state and exposes history
   await assert.rejects(repo.publishCard("alice", cmd.cardTemplateId, 0, "Different retry"), { code: "FORK_PUBLICATION_RECOVERY_CONFLICT" });
 });
 
-test("Library-origin fork inherits Step state/date from global source data without reflection/history or Deck membership", async () => {
+test("Library-origin fork inherits the same current state/history from global source data without Deck membership", async () => {
   const { repo, card, deck } = await setup(true);
   await repo.archiveDeckData("alice", deck.deckTemplateId);
   const cmd = await command(repo, card.cardTemplateId); await repo.createCardFork("alice", cmd); await repo.publishCard("alice", cmd.cardTemplateId, 0);
   const user = (await repo.getPersonalUser("alice"))!, target = user.cardsData[2];
   assert.equal(target.items[0].completionStatus, "skipped"); assert.equal(target.signalReadings[0].reading, 1); assert.equal(target.targetDate, "2030-01-01");
-  assert.equal(target.reflection, ""); assert.equal(target.historySourceCardTemplateId, undefined);
-  assert.equal((await personalCardHistoryDTO(repo, "alice", cmd.cardTemplateId)).segments.length, 1);
+  assert.equal(target.reflection, "My current reflection"); assert.equal(target.historySourceCardTemplateId, card.cardTemplateId);
+  assert.equal((await personalCardHistoryDTO(repo, "alice", cmd.cardTemplateId)).segments.length, 2);
   assert.equal(user.decksData.length, 1); assert.ok(user.decksData[0].archivedAt);
 });
 

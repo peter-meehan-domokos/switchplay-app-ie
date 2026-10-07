@@ -25,6 +25,7 @@ import {
   type MediaItem,
 } from "@/lib/media";
 import { selectAllTrustedUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { visiblePersonalMedia, personalMediaKey, type PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 import { createUserCardMediaMutationKey } from "@/lib/userCardMediaMutationQueue";
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 import {
@@ -315,11 +316,12 @@ export default function FocusedCardView({
     onUploadCompleted: commitCompletedMediaUpload,
   });
   const mediaUploadState = mediaUploadController.getState(mediaUploadTarget);
-  const { images: cardImages, videos: cardVideos } = selectAllTrustedUserCardMediaItems(card.mediaItems);
+  // Uploads target current CardData; deletions target the original personal item.
+  const { images: cardImages, videos: cardVideos } = selectAllTrustedUserCardMediaItems(visiblePersonalMedia(card));
   const removalStatesById = Object.fromEntries(
     [...cardImages, ...cardVideos].map((item) => [
-      item.id,
-      mediaRemovalStatesByKey[`${createUserCardMediaMutationKey(mediaUploadTarget)}:${encodeURIComponent(item.id)}`],
+      personalMediaKey(item),
+      mediaRemovalStatesByKey[`${createUserCardMediaMutationKey({ ...mediaUploadTarget, cardId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? card.id })}:${encodeURIComponent(item.id)}`],
     ]),
   );
   const isFirstCard = cardIndex === 0;
@@ -448,7 +450,7 @@ export default function FocusedCardView({
       return;
     }
 
-    const target = { ...mediaUploadTarget };
+    const target = { ...mediaUploadTarget, cardId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? card.id };
     const key = `${createUserCardMediaMutationKey(target)}:${encodeURIComponent(item.id)}`;
 
     if (mediaRemovalInFlightKeysRef.current.has(key)) {
@@ -990,6 +992,8 @@ export default function FocusedCardView({
                 onAddImage={(file) => void mediaUploadController.uploadImage(mediaUploadTarget, file)}
                 onAddVideo={(file) => void mediaUploadController.uploadVideo(mediaUploadTarget, file)}
                 onRemoveMedia={(item) => void removeCardMedia(item)}
+                getMediaKey={personalMediaKey}
+                getVideoTarget={(item) => ({ ...mediaUploadTarget, cardId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? card.id })}
               />
             </div>
           </motion.div>

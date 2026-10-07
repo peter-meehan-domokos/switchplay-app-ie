@@ -1,10 +1,10 @@
 import type { CardContent, DeckContent } from "@/lib/cards/model";
 import { createDefaultCardContent, createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_CREATOR_DECK_TITLE } from "@/lib/cards/creatorDefaults";
-import { cardPublicationIssue, deckPublicationIssue, sameContent } from "@/lib/cards/publicationRules";
+import { cardPublicationIssue, deckPublicationIssue, sameContent, hasVisibilityChange, type PublicationVisibility } from "@/lib/cards/publicationRules";
 
 type Lane<C> = {
   desired: C;
-  ack: { root: { latestVersion: number; draft: C | null }; content: C; publishedContent: C | null } | null;
+  ack: { root: { latestVersion: number; draft: C | null } & Partial<PublicationVisibility>; content: C; publishedContent: C | null } | null;
   dirty: boolean;
   running: unknown;
   error: { kind: string } | null;
@@ -27,7 +27,8 @@ export type PublicationPresentation = {
 
 function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null): PublicationPresentation {
   const baseline = lane.ack?.publishedContent ?? defaults;
-  const outstanding = !sameContent(lane.desired, baseline) || !!lane.ack && !sameContent(lane.ack.content, baseline);
+  const outstanding = !sameContent(lane.desired, baseline) || !!lane.ack && (!sameContent(lane.ack.content, baseline)
+    || hasVisibilityChange(lane.ack.root.visibility ? lane.ack.root as PublicationVisibility : undefined));
   const busy = !!lane.running || lane.creationPending || lane.pendingOperations > 0 || lane.tasks.length > 0;
   const uncertain = lane.uncertainSaves.length > 0 || !!lane.uncertainPublication;
   const reason = lane.error ? lane.error.kind === "conflict" || lane.error.kind === "recovery"
@@ -36,6 +37,7 @@ function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null): Publ
     : issue === "CARD_FIRST_PUBLICATION_TITLE_REQUIRED" ? `Give this Card a nonblank title different from ${DEFAULT_CREATOR_CARD_TITLE} before its first publication.`
     : issue === "DECK_FIRST_PUBLICATION_TITLE_REQUIRED" ? `Give this Deck a nonblank title different from ${DEFAULT_CREATOR_DECK_TITLE} before its first publication.`
     : issue === "UNPUBLISHED_CARDS_BLOCK_DECK" ? "Every Card referenced by this Deck must be published at least once before the Deck can be published. Newer Card drafts do not need to be published."
+    : issue === "PRIVATE_CARDS_BLOCK_PUBLIC_DECK" ? "Every Card in a public Deck must already be published publicly. Publish private Cards publicly before publishing this Deck."
     : issue && issue !== "NO_UNPUBLISHED_CHANGES" ? "The saved publication references could not be resolved. Reload only after saving your local work."
     : null;
   return {
@@ -51,10 +53,10 @@ function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null): Publ
 export function cardPublicationPresentation(lane: Lane<CardContent>): PublicationPresentation {
   const saved = lane.ack;
   return presentation(lane, createDefaultCardContent(lane.desired.steps.map((step) => step.stepId)),
-    saved ? cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent) : null);
+    saved ? cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, saved.root.visibility ? saved.root as PublicationVisibility : undefined) : null);
 }
-export function deckPublicationPresentation(lane: Lane<DeckContent>, cards: readonly { cardTemplateId: string; latestVersion: number }[]): PublicationPresentation {
+export function deckPublicationPresentation(lane: Lane<DeckContent>, cards: readonly { cardTemplateId: string; latestVersion: number; visibility?: import("@/lib/cards/model").Visibility }[]): PublicationPresentation {
   const saved = lane.ack;
   return presentation(lane, createDefaultDeckContent(lane.desired.themes.map((theme) => theme.id)),
-    saved ? deckPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, cards) : null);
+    saved ? deckPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, cards, saved.root.visibility ? saved.root as PublicationVisibility : undefined) : null);
 }

@@ -138,7 +138,8 @@ test("working reads reject incomplete personal graphs without inventing adoption
   const before = await repo.getPersonalUser("alice");
   await assert.rejects(repo.openWorkingDeck("alice", deck.deckTemplateId, "2026-10-07"), { code: "MISSING_CARD_DATA" });
   await assert.rejects(resolveWorkingDeck(repo, "alice", deck.deckTemplateId), { code: "MISSING_CARD_DATA" });
-  await assert.rejects(membershipDTO(repo, "alice"), { code: "MISSING_CARD_DATA" });
+  const unavailable = (await membershipDTO(repo, "alice"))[0];
+  assert.equal(unavailable.availability, "unavailable"); assert.equal(unavailable.unavailableReason, "MISSING_CARD_DATA");
   assert.deepEqual(await repo.getPersonalUser("alice"), before);
   await repo.ensureDeckData("alice", deck.deckTemplateId, 1); // Explicit entry repairs missing coverage, not working open.
   assert.equal((await repo.getPersonalUser("alice"))!.cardsData[0].cardTemplateId, card.cardTemplateId);
@@ -188,6 +189,7 @@ test("null personal pointers are rejected rather than repaired by publication or
   await assert.rejects(repo.ensureCardData("alice", card.cardTemplateId, null as never), { code: "INVALID_ADOPTED_VERSION" });
   await repo.ensureDeckData("bob", deck.deckTemplateId, 1);
   await repo.users().updateOne({ _id: "bob" }, { $set: { "decksData.0.deckTemplateVersion": null } });
-  await assert.rejects(membershipDTO(repo, "bob"), { code: "INVALID_ADOPTED_VERSION" });
+  const unavailable = (await membershipDTO(repo, "bob"))[0];
+  assert.equal(unavailable.availability, "unavailable"); assert.equal(unavailable.unavailableReason, "INVALID_ADOPTED_VERSION");
   await assert.rejects(resolveWorkingDeck(repo, "bob", deck.deckTemplateId), { code: "INVALID_ADOPTED_VERSION" });
 });

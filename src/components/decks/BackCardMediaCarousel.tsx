@@ -1,9 +1,10 @@
 import { isCloudflareStreamVideoMediaItem, isVideoMediaItem } from "@/lib/media";
 import type { MediaItem } from "@/lib/media";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
+import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 
 type BackCardMediaCarouselProps = {
-  items: MediaItem[];
+  items: PersonalMediaDisplayItem[];
 };
 
 type LayoutMode = "count-1" | "count-2" | "count-3" | "count-4" | "count-5";
@@ -49,7 +50,7 @@ export default function BackCardMediaCarousel({ items }: BackCardMediaCarouselPr
       aria-label="Card media"
     >
       {renderedItems.map((item) => (
-        <MediaItem key={item.id} item={item} />
+        <MediaItem key={`${item.sourceCardTemplateId ?? "current"}:${item.id}`} item={item} />
       ))}
     </section>
   );

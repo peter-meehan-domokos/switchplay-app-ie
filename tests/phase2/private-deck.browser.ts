@@ -212,13 +212,14 @@ test("disabled sharing needs no login; another actor cannot mutate or upload pri
     categories: [], themes: [], cadence: { intervalDays: 7 }, labelPrefix: "Card", cards: [{ cardTemplateId }] },
     [{ cardTemplateId, content: { intro: { title: "Private authorization Card", description: null, mediaItem: null }, suggestedTargetDate: "", steps: [createStep(), createStep(), createStep()] } }]);
   await repo.publishCard(actor().toHexString(), cardTemplateId, 0); await repo.publishDeck(actor().toHexString(), id, 0);
+  const before = await database().collection("users").findOne({ username: "other" });
   await page.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } });
   expect((await page.request.get(`/api/deck-templates/${id}`)).status()).toBe(403);
   expect((await page.request.get(`/api/card-templates/${cardTemplateId}`)).status()).toBe(403);
   expect((await page.request.patch(`/api/card-templates/${cardTemplateId}`, { data: { type: "publish", revision: 1 } })).status()).toBe(403);
   expect((await page.request.post("/api/decks-data", { data: { deckTemplateId: id, localDate: "2026-10-04" } })).ok()).toBeFalsy();
   expect((await page.request.post("/api/media/images/direct-upload", { data: { scope: "user-card", deckTemplateId: id, cardTemplateId, contentType: "image/png" } })).ok()).toBeFalsy();
-  const other = await database().collection("users").findOne({ username: "other" }); expect(other!.cardsData).toEqual([]); expect(other!.decksData).toEqual([]);
+  const other = await database().collection("users").findOne({ username: "other" }); expect(other!.cardsData).toEqual(before!.cardsData); expect(other!.decksData).toEqual(before!.decksData);
 });
 
 for (const width of [375, 390]) {

@@ -6,6 +6,7 @@ import { blankPrivateBoard, creatorBoard } from "../src/components/creator/cardA
 import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
 import { sameContent } from "../src/lib/cards/publicationRules";
 import type { CreatorDTO } from "../src/lib/cards/readModels";
+import type { CardTemplateRoot } from "../src/lib/cards/model";
 const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
 const copy = <T>(value: T): T => structuredClone(value);
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
@@ -209,6 +210,30 @@ test("lost successful publication response does not create duplicate version", a
   const next = new CreatorPersistenceCoordinator(creatorBoard(h.dto), copy(h.dto), transport);
   await next.publishCard("a"); await next.publishCard("a");
   assert.equal(h.cards.get("a")!.root.latestVersion, 1); assert.equal(h.calls.filter((call) => call.method === "PATCH" && call.body.type === "publish").length, 1);
+});
+
+for (const mismatchedReceipt of [false, true]) test(`visibility-only publication recovery validates immutable visibility (${mismatchedReceipt ? "conflict" : "exact commit"})`, async () => {
+  const h = harness(), dto = h.dto;
+  const card = h.cards.get("a")!;
+  const root = card.root as CardTemplateRoot;
+  root.draft = copy(card.content); root.draftVisibility = "public";
+  let lost = false;
+  const transport: CreatorTransport = async <T>(url: string, method?: string, body?: unknown): Promise<T> => {
+    const result = await h.request<T>(url, method, body);
+    if (url.includes("?version=")) return { ...result, visibility: mismatchedReceipt ? "private" : "public" } as T;
+    if (method === "PATCH" && (body as { type?: string }).type === "publish") {
+      root.visibility = "public"; delete root.draftVisibility;
+      lost = true; throw new Error("Lost publication response");
+    }
+    return result;
+  };
+  const coordinator = new CreatorPersistenceCoordinator(creatorBoard(dto), copy(dto), transport);
+  assert.equal(coordinator.publicationState().cards.a, true);
+  if (mismatchedReceipt) await assert.rejects(coordinator.publishCard("a"), { code: "RECOVERY_REVISION_CONFLICT" });
+  else { await coordinator.publishCard("a"); await coordinator.publishCard("a"); }
+  assert.equal(lost, true);
+  assert.equal(card.root.latestVersion, 2);
+  assert.equal(h.calls.filter((call) => call.body?.type === "publish").length, 1);
 });
 test("Publish and leave keeps earlier successes and retries only outstanding work", async () => {
   const h = harness(false), c = h.coordinator; let failDeck = true;

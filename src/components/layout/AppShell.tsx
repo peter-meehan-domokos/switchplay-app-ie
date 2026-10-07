@@ -26,6 +26,7 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
   async function open(id: string) {
     const membership = active.find((item) => item.deckTemplateId === id);
     if (!membership || pending) return;
+    if (membership.availability === "unavailable") { setError("This Deck is currently unavailable. Your membership and personal state are retained."); return; }
     setPending(id); setError("");
     try {
       await flushPersonalMutations();
@@ -61,6 +62,9 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
     </> : <>
       <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1><Link href="/creator/new">Create Deck</Link></header>
       <DeckGrid decks={decks} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null} onSelectDeck={(id) => void open(id)} transition={transition} />
+      {active.filter((item) => item.availability === "unavailable").map((item) => <p key={item.deckTemplateId}>
+        Unavailable Deck — your membership is retained. <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "archive")}>Archive unavailable Deck</button>
+      </p>)}
       {records.some((item) => item.archivedAt !== null) && <details><summary>Archived decks</summary>{records.filter((item) => item.archivedAt !== null).map((item) => <p key={item.deckTemplateId}>{item.title} <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "restore")}>Restore {item.title}</button></p>)}</details>}
     </>}
   </main>;

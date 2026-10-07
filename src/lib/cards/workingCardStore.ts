@@ -19,6 +19,10 @@ export class WorkingCardStore {
     });
   }
   personal(userId: string, cardId: string) { return this.records.get(this.key(userId, cardId)); }
+  removeMedia(userId: string, cardId: string, mediaItemId: string) {
+    const record = this.personal(userId, cardId);
+    if (record) record.mediaItems = record.mediaItems.filter((item) => item.id !== mediaItemId);
+  }
   project(userId: string, card: CardLayout): CardLayout {
     const data = this.personal(userId, card.id);
     if (!data || data.adoptedVersion !== card.adoptedVersion) return card;

@@ -21,6 +21,8 @@ test("migration preserves stored creation titles instead of applying new Creator
   assert.deepEqual(plan.targets.cardTemplateVersions.map((version) => version.content.intro.title), ["My New Card", "My Next Card"]);
   assert.ok(plan.targets.deckTemplates.every((root) => root.latestVersion === 1 && root.draft === null));
   assert.ok(plan.targets.cardTemplates.every((root) => root.latestVersion === 1 && root.draft === null));
+  assert.ok(plan.targets.cardTemplateVersions.every((version) => version.visibility === plan.targets.cardTemplates.find((root) => root.cardTemplateId === version.cardTemplateId)!.visibility));
+  assert.ok(plan.targets.deckTemplateVersions.every((version) => version.visibility === plan.targets.deckTemplates.find((root) => root.deckTemplateId === version.deckTemplateId)!.visibility));
   assert.equal(validateMigrationPlan(plan).valid, true); assert.deepEqual(sources, before);
 });
 test("migration extracts independent Cards/versions, regenerates global Step IDs and defaults themes/labels", async () => {

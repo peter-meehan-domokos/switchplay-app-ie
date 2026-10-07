@@ -14,6 +14,7 @@ export type CardComment = {
 
 export type CardChat = {
   id: string;
+  deckTemplateId?: string;
   comments: CardComment[];
 };
 
@@ -153,6 +154,16 @@ export type WeeklyCardSignal = {
 };
 
 export type WeeklyCard = {
+  // Viewer-owned history. Events retain their original Card/Deck context;
+  // adoption is explicitly not an event-time version attribution.
+  personalHistory?: {
+    cardTemplateId: string;
+    currentAdoptedCardTemplateVersion: number | null; // Unknown for corrupt historical metadata, never event-time attribution.
+    eventVersionAttribution: "not-recorded";
+    tests: { id: string; date: string; result: boolean; createdAt: string }[];
+    chats: CardChat[];
+    mediaItems: MediaItem[];
+  }[];
   cardTemplateId?: string;
   adoptedVersion?: number;
   templateOwnerUserId?: string;

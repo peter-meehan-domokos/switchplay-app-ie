@@ -4,6 +4,7 @@ import type { MediaItem } from "@/lib/media";
 import { getProgressPercentage } from "@/lib/progress";
 import { clampSignalReading, roundSignalReadingForDisplay, signalReadingToNormalized } from "@/lib/signals";
 import { selectAllVisibleUserCardMediaItems } from "@/lib/userCardMedia";
+import { visiblePersonalMedia, contextualPersonalChats } from "@/lib/cards/personalHistoryProjection";
 
 export type SignalOrder = "increasing" | "decreasing";
 export type SignalVariant = PulseFieldSignalVariant;
@@ -25,6 +26,9 @@ export type CardLayoutExternalComment = {
   id: string;
   text: string;
   author: string;
+  sourceCardTemplateId?: string;
+  sourceDeckTemplateId?: string;
+  sourceChatId?: string;
 };
 
 export type CardLayoutSignal = {
@@ -78,27 +82,30 @@ function getExternalCommentAuthor(comment: RawCardComment, users: LayoutUser[]) 
 }
 
 function normalizeExternalComment(card: WeeklyCard, options: CardLayoutOptions): CardLayoutExternalComment | null {
-  const retainedExternalComment = card.chats
-    .flatMap((chat) => chat.comments)
-    .filter((comment) => comment.isRetained === true)
+  const retained = contextualPersonalChats(card)
+    .flatMap(({ cardTemplateId, chat }) => chat.comments.map((comment) => ({ comment, cardTemplateId, chat })))
+    .filter(({ comment }) => comment.isRetained === true)
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        new Date(b.comment.createdAt).getTime() - new Date(a.comment.createdAt).getTime(),
     )[0];
 
-  if (!retainedExternalComment) {
+  if (!retained) {
     return null;
   }
 
   return {
-    id: retainedExternalComment.id,
-    text: retainedExternalComment.text,
-    author: getExternalCommentAuthor(retainedExternalComment, options.users),
+    id: retained.comment.id,
+    text: retained.comment.text,
+    author: getExternalCommentAuthor(retained.comment, options.users),
+    sourceCardTemplateId: retained.cardTemplateId,
+    sourceDeckTemplateId: retained.chat.deckTemplateId,
+    sourceChatId: retained.chat.id,
   };
 }
 
 export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): CardLayout {
-  const backMediaItems = selectAllVisibleUserCardMediaItems(card.mediaItems);
+  const backMediaItems = selectAllVisibleUserCardMediaItems(visiblePersonalMedia(card));
   const externalComment = normalizeExternalComment(card, options);
   const hasReflection = Boolean(card.reflection);
   const progressPercentage = getProgressPercentage(
@@ -124,7 +131,7 @@ export function buildCardLayout(card: WeeklyCard, options: CardLayoutOptions): C
 }
 
 export function withCardMediaItems(card: CardLayout, mediaItems: MediaItem[]): CardLayout {
-  const backMediaItems = selectAllVisibleUserCardMediaItems(mediaItems);
+  const backMediaItems = selectAllVisibleUserCardMediaItems(visiblePersonalMedia({ ...card, mediaItems }));
   const hasBackMedia = backMediaItems.length > 0;
   const ecologicalOccupancy =
     Number(hasBackMedia) +

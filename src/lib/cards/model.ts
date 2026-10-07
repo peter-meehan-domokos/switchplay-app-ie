@@ -41,12 +41,14 @@ export type CreateAndAttachCardCommand = {
 type Root<C, F> = {
   ownerUserId: string;
   visibility: Visibility;
+  // Effective access belongs to published content; this is next-publication intent.
+  draftVisibility?: Visibility;
   latestVersion: number;
   draft: C | null;
   revision: number;
   forkedFrom: F | null;
-  // Origin survives draft reopening and controls personal continuity at first
-  // publication. It never changes canonical version/content equality.
+  // Origin survives draft reopening and controls Deck-level continuity at first
+  // publication. Card personal inheritance is viewer-owned and origin-independent.
   forkContext?: ForkContext;
   createdAt: Date;
   updatedAt: Date;
@@ -58,7 +60,7 @@ export type CardTemplateRoot = Root<CardContent, { cardTemplateId: string; versi
   referenceRevision?: number; // Transaction lock for reference changes, independent of content autosave revisions.
 };
 export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; version: number }> & { deckTemplateId: string };
-type Version<C> = { version: number; content: C; updateNote?: string; publishedAt: Date; publishedByUserId: string };
+type Version<C> = { version: number; content: C; visibility?: Visibility; updateNote?: string; publishedAt: Date; publishedByUserId: string };
 export type ForkPublicationReceipt = {
   revision: number; enterMyDecks?: boolean;
   review?: DeckPublicationReview; acceptCardDrafts?: boolean;

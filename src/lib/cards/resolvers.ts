@@ -2,6 +2,20 @@ import type { CardRepository } from "./repository";
 import { assertAdoption, nonblank, requireCondition } from "./domain";
 import type { Capabilities, CardData, CardTemplateRoot, DeckData, DeckTemplateRoot, PublishedDeckContent } from "./model";
 import { deckDraftContent } from "./publicationRules";
+import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
+
+// Published reads must not disclose next-publication intent or private authoring
+// context. Canonical content and personal continuity are separate projections.
+function publishedRoot<T extends CardTemplateRoot | DeckTemplateRoot>(root: T) {
+  const { draftVisibility, forkContext, ...published } = root;
+  void draftVisibility; void forkContext;
+  return { ...published, draft: null };
+}
+function publishedVersion<T extends { forkPublicationReceipt?: unknown; copyReceipt?: unknown }>(version: T) {
+  const { forkPublicationReceipt, copyReceipt, ...published } = version;
+  void forkPublicationReceipt; void copyReceipt;
+  return published;
+}
 
 export function capabilities(actor: string, dataOwnerUserId: string, deck: DeckTemplateRoot, card?: CardTemplateRoot, data?: CardData | null): Capabilities {
   const ownData = actor === dataOwnerUserId;
@@ -33,7 +47,8 @@ async function resolveCards(repo: CardRepository, refs: PublishedDeckContent["ca
   const byVersion = new Map(versions.map((version) => [`${version.cardTemplateId}@${version.version}`, version]));
   return requests.map(({ root, personal, version }) => {
     const adopted = byVersion.get(`${root.cardTemplateId}@${version}`); requireCondition(adopted, "MISSING_CARD_VERSION");
-    return { root: { ...root, draft: null }, version: adopted, data: personal };
+    assertCardVersionAccess(actor, root, adopted);
+    return { root: publishedRoot(root), version: publishedVersion(adopted), data: personal };
   });
 }
 
@@ -45,8 +60,9 @@ export async function resolveWorkingDeck(repo: CardRepository, actor: string, de
   const root = await repo.decks().findOne({ deckTemplateId }); requireCondition(root, "MISSING_DECK_REFERENCE");
   requireCondition(root.ownerUserId === actor || root.visibility === "public", "DECK_FORBIDDEN");
   const version = await repo.getDeckVersion(deckTemplateId, data.deckTemplateVersion); requireCondition(version, "MISSING_DECK_VERSION");
+  assertDeckVersionAccess(actor, root, version);
   const cards = await resolveCards(repo, version.content.cards, actor, user?.cardsData ?? [], "adopted");
-  return { mode: "working" as const, root: { ...root, draft: null }, version, data, permissions: capabilities(actor, actor, root),
+  return { mode: "working" as const, root: publishedRoot(root), version: publishedVersion(version), data, personalRecords: user!.cardsData, permissions: capabilities(actor, actor, root),
     cards: cards.map((card) => ({ ...card, permissions: capabilities(actor, actor, root, card.root, card.data) })) };
 }
 
@@ -57,14 +73,16 @@ export async function resolveDeckPreview(repo: CardRepository, deckTemplateId: s
   requireCondition(root.visibility === "public" || root.ownerUserId === actor, "DECK_FORBIDDEN");
   requireCondition(root.latestVersion >= 1, "UNPUBLISHED_DECK");
   const version = await repo.getDeckVersion(deckTemplateId, root.latestVersion); requireCondition(version, "MISSING_DECK_VERSION");
-  return { root: { ...root, draft: null }, version, cards: await resolveCards(repo, version.content.cards, actor, [], "latest") };
+  assertDeckVersionAccess(actor, root, version);
+  return { root: publishedRoot(root), version: publishedVersion(version), cards: await resolveCards(repo, version.content.cards, actor, [], "latest") };
 }
 export async function resolveHistoricalDeck(repo: CardRepository, deckTemplateId: string, deckVersion: number, actor: string | null = null) {
   requireCondition(nonblank(deckTemplateId), "INVALID_ENTITY_ID");
   const root = await repo.decks().findOne({ deckTemplateId }); requireCondition(root, "MISSING_DECK_REFERENCE");
   requireCondition(root.visibility === "public" || root.ownerUserId === actor, "DECK_FORBIDDEN");
   const version = await repo.getDeckVersion(deckTemplateId, deckVersion); requireCondition(version, "MISSING_DECK_VERSION");
-  return { root: { ...root, draft: null }, version, cards: await resolveCards(repo, version.content.cards, actor, [], "historical") };
+  assertDeckVersionAccess(actor, root, version);
+  return { root: publishedRoot(root), version: publishedVersion(version), cards: await resolveCards(repo, version.content.cards, actor, [], "historical") };
 }
 export async function resolveCreatorDeck(repo: CardRepository, actor: string, deckTemplateId: string) {
   requireCondition(nonblank(actor) && nonblank(deckTemplateId), "INVALID_ENTITY_ID");
@@ -82,12 +100,14 @@ export async function resolveCreatorDeck(repo: CardRepository, actor: string, de
   const byVersion = new Map(versions.map((version) => [version.cardTemplateId, version]));
   return { root, content, publishedContent, cards: content.cards.map((ref) => {
     const card = byId.get(ref.cardTemplateId)!;
+    const version = byVersion.get(card.cardTemplateId);
+    if (version) assertCardVersionAccess(actor, card, version);
     const publishedContent = byVersion.get(card.cardTemplateId)?.content ?? null;
     requireCondition(card.latestVersion === 0 || publishedContent, "MISSING_CARD_VERSION");
     const cardContent = card.ownerUserId === actor ? card.draft ?? publishedContent : publishedContent;
     requireCondition(cardContent, "MISSING_CARD_VERSION");
     // Never return another owner's draft.
-    return { root: card.ownerUserId === actor ? card : { ...card, draft: null }, content: cardContent, publishedContent };
+    return { root: card.ownerUserId === actor ? card : publishedRoot(card), content: cardContent, publishedContent };
   }) };
 }
 

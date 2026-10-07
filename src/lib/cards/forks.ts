@@ -2,6 +2,7 @@ import { assertAdoption, assertCardContent, initialCardData, isRecord, nonblank,
 import { isIsoDateOnlyString } from "../dateOnly";
 import { sameContent } from "./publicationRules";
 import type { CardContent, CardData, CardForkSource, ForkContext } from "./model";
+import { readablePersonalHistory } from "./personalHistory";
 
 export function assertForkContext(value: unknown): asserts value is ForkContext {
   requireCondition(isRecord(value) && (value.kind === "library" && Object.keys(value).length === 1
@@ -34,7 +35,7 @@ export function editedForkContent(source: CardContent, ref: CardForkSource, step
 
 // Current-state inheritance uses identity only. History remains stored once.
 export function inheritForkCardData(id: string, target: CardContent, ref: CardForkSource,
-  sourceContent: CardContent, adoptedSourceContent: CardContent, source: CardData, context: ForkContext, now: Date): CardData {
+  sourceContent: CardContent, adoptedSourceContent: CardContent, source: CardData, now: Date): CardData {
   assertCardContent(target); assertCardContent(sourceContent); assertCardContent(adoptedSourceContent); assertAdoption(source.cardTemplateVersion);
   requireCondition(source.cardTemplateId === ref.cardTemplateId, "INVALID_FORK_SOURCE_DATA");
   requireCondition(Array.isArray(source.items) && Array.isArray(source.signalReadings), "INVALID_FORK_SOURCE_DATA");
@@ -65,31 +66,32 @@ export function inheritForkCardData(id: string, target: CardContent, ref: CardFo
     return { ...item, reading };
   });
   data.targetDate = source.targetDate;
-  if (context.kind === "my-decks") {
-    requireCondition(typeof source.reflection === "string", "INVALID_REFLECTION");
-    data.reflection = source.reflection;
-    data.historySourceCardTemplateId = source.cardTemplateId;
-  }
+  requireCondition(typeof source.reflection === "string", "INVALID_REFLECTION");
+  data.reflection = source.reflection;
+  data.historySourceCardTemplateId = source.cardTemplateId;
   return data;
 }
 
 export function personalHistorySegments(records: CardData[], cardTemplateId: string) {
-  const byId = new Map(records.map((data) => [data.cardTemplateId, data]));
-  requireCondition(byId.size === records.length, "AMBIGUOUS_CARD_DATA");
+  const byId = new Map<string, CardData[]>();
+  for (const data of records) {
+    if (!isRecord(data) || !nonblank(data.cardTemplateId)) continue;
+    byId.set(data.cardTemplateId, [...(byId.get(data.cardTemplateId) ?? []), data]);
+  }
   requireCondition(byId.has(cardTemplateId), "MISSING_CARD_DATA");
   const segments = [], seen = new Set<string>();
   let id: string | undefined = cardTemplateId;
   while (id) {
-    requireCondition(!seen.has(id), "HISTORY_CONTINUITY_CONFLICT"); seen.add(id);
-    const data = byId.get(id);
-    if (!data) break; // Source deletion is reflected naturally on the next read.
-    assertAdoption(data.cardTemplateVersion);
-    requireCondition(data.historySourceCardTemplateId === undefined || nonblank(data.historySourceCardTemplateId), "HISTORY_CONTINUITY_CONFLICT");
+    if (seen.has(id)) break; // Corrupt cycles keep each already-readable segment once.
+    seen.add(id);
+    const candidates = byId.get(id);
+    if (!candidates || candidates.length !== 1) break; // Deleted/ambiguous source: retain earlier segments.
+    const data = candidates[0];
     // Adoption describes the current record, not the historical event's version.
-    segments.push({ cardTemplateId: id, currentAdoptedCardTemplateVersion: data.cardTemplateVersion,
+    segments.push({ cardTemplateId: id, currentAdoptedCardTemplateVersion: Number.isInteger(data.cardTemplateVersion) && data.cardTemplateVersion >= 1 ? data.cardTemplateVersion : null,
       eventVersionAttribution: "not-recorded" as const,
-      tests: data.tests, chats: data.chats, mediaItems: data.mediaItems });
-    id = data.historySourceCardTemplateId;
+      ...readablePersonalHistory(data) });
+    id = nonblank(data.historySourceCardTemplateId) ? data.historySourceCardTemplateId : undefined;
   }
   return segments;
 }
