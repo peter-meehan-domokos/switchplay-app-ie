@@ -3,6 +3,7 @@ import CardHeader from "@/components/cards/CardHeader";
 import IntroMediaBlock from "@/components/cards/IntroMediaBlock";
 import StepList from "@/components/cards/StepList";
 
+//ActiveCardFront component displays the front view of an active card, including the header, intro media block, and step list.
 type ActiveCardFrontProps = {
   card: PresentedCard;
   dateLabel: string;
