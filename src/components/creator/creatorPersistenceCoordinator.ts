@@ -1,4 +1,4 @@
-import type { CardContent, DeckContent, DeckPublicationReview } from "@/lib/cards/model";
+import type { CardContent, DeckContent, DeckPublicationReview, Visibility } from "@/lib/cards/model";
 import type { CreatorDTO } from "@/lib/cards/readModels";
 import { cardPublicationIssue, deckPublicationIssue, sameContent, publicationVisibility, type PublicationVisibility } from "@/lib/cards/publicationRules";
 import { createDefaultCardContent } from "@/lib/cards/creatorDefaults";
@@ -18,11 +18,19 @@ const failure = (error: unknown): SaveFailure => {
 const conflict = () => new CreatorRequestError(409, "RECOVERY_REVISION_CONFLICT");
 const retryDelays = [1000, 3000, 8000];
 const clone = <T>(value: T): T => structuredClone(value);
+const intent = (root: Partial<PublicationVisibility>) => root.draftVisibility ?? root.visibility ?? "private";
+export type PublicPublicationReview = {
+  cards: { cardTemplateId: string; revision: number; generation: number }[];
+  deck: { deckTemplateId: string; revision: number; generation: number } | null;
+};
+export type ConfirmPublicPublication = (review: PublicPublicationReview) => Promise<boolean>;
+const cancelPublicPublication: ConfirmPublicPublication = async () => false;
 
 // Operational client state only. A response acknowledges its captured generation;
 // desired content is never replaced by a response or a remote refresh.
 export class EntityLane<C, A extends Ack<C>> {
   desired: C;
+  desiredVisibility: Visibility;
   ack: A | null;
   generation = 0;
   acknowledgedGeneration = 0;
@@ -34,16 +42,23 @@ export class EntityLane<C, A extends Ack<C>> {
   publishing = false;
   pendingOperations = 0;
   creationPending = false;
-  uncertainSaves: { content: C; generation: number; before: A }[] = [];
+  uncertainSaves: { content: C; visibility: Visibility; generation: number; before: A }[] = [];
   uncertainPublication: { before: A; generation: number; note?: string } | null = null;
   tasks: (() => Promise<void>)[] = [];
   private unlocked: (() => void)[] = [];
   constructor(content: C, ack: A | null, readonly changed: () => void,
-    readonly save: (content: C, revision: number) => Promise<A>, readonly read: () => Promise<A>,
+    readonly save: (content: C, revision: number, visibility: Visibility) => Promise<A>, readonly read: () => Promise<A>,
     readonly readPublished?: (version: number) => Promise<{ version: number; content: C; visibility?: import("@/lib/cards/model").Visibility; updateNote?: string; publishedByUserId: string }>) {
     this.desired = clone(content); this.ack = ack ? clone(ack) : null;
+    this.desiredVisibility = ack ? intent(ack.root) : "private";
   }
-  get dirty() { return !this.ack || !sameContent(this.desired, this.ack.content); }
+  get dirty() { return !this.ack || !sameContent(this.desired, this.ack.content) || this.desiredVisibility !== intent(this.ack.root); }
+  setVisibility(visibility: Visibility) {
+    if (visibility !== "private" && visibility !== "public") throw new CreatorRequestError(400, "INVALID_VISIBILITY");
+    if (this.ack?.root.visibility === "public" && visibility !== "public") throw new CreatorRequestError(400, "PUBLIC_VISIBILITY_PERMANENT");
+    if (visibility === this.desiredVisibility) return;
+    this.desiredVisibility = visibility; this.generation++; this.changed(); this.kick();
+  }
   set(content: C) {
     if (sameContent(this.desired, content)) return;
     this.desired = clone(content); this.generation++; this.changed(); this.kick();
@@ -77,19 +92,20 @@ export class EntityLane<C, A extends Ack<C>> {
       if (!this.ack) throw conflict();
       await this.bounded(async () => {
         if (this.uncertainSaves.length && await this.reconcileSave()) return;
-        const content = clone(this.desired), generation = this.generation, revision = this.ack!.root.revision;
+        const content = clone(this.desired), visibility = this.desiredVisibility, generation = this.generation, revision = this.ack!.root.revision;
         let next: A;
-        try { next = await this.save(content, revision); }
+        try { next = await this.save(content, revision, visibility); }
         catch (error) {
           const uncertain = failure(error).kind === "transient";
           // A late commit can surface as STALE_REVISION on a guarded retry.
           // Keep all bounded attempt snapshots until the outcome is acknowledged.
           if (!uncertain && !(error instanceof CreatorRequestError && error.code === "STALE_REVISION" && this.uncertainSaves.length)) throw error;
-          if (uncertain && !this.uncertainSaves.some((attempt) => attempt.before.root.revision === revision && sameContent(attempt.content, content))) this.uncertainSaves.push({ content, generation, before: clone(this.ack!) });
+          if (uncertain && !this.uncertainSaves.some((attempt) => attempt.before.root.revision === revision && sameContent(attempt.content, content) && attempt.visibility === visibility)) this.uncertainSaves.push({ content, visibility, generation, before: clone(this.ack!) });
           if (await this.reconcileSave()) return;
           throw error;
         }
-        if (next.root.revision !== revision + 1 || !sameContent(next.content, content)) throw conflict();
+        if (next.root.revision !== revision + 1 || next.root.latestVersion !== this.ack!.root.latestVersion
+          || next.root.visibility !== this.ack!.root.visibility || !sameContent(next.content, content) || intent(next.root) !== visibility) throw conflict();
         this.uncertainSaves = []; this.accept(next, generation);
       });
     }
@@ -97,9 +113,11 @@ export class EntityLane<C, A extends Ack<C>> {
   }
   private async reconcileSave() {
     const remote = await this.read();
-    const committed = this.uncertainSaves.find((attempt) => remote.root.revision === attempt.before.root.revision + 1 && sameContent(remote.content, attempt.content));
+    const committed = this.uncertainSaves.find((attempt) => remote.root.revision === attempt.before.root.revision + 1
+      && remote.root.latestVersion === attempt.before.root.latestVersion && remote.root.visibility === attempt.before.root.visibility
+      && sameContent(remote.content, attempt.content) && intent(remote.root) === attempt.visibility);
     if (committed) { this.accept(remote, committed.generation); this.uncertainSaves = []; return true; }
-    if (remote.root.revision !== this.ack!.root.revision || !sameContent(remote.content, this.ack!.content)) throw conflict();
+    if (remote.root.revision !== this.ack!.root.revision || !sameContent(remote.content, this.ack!.content) || intent(remote.root) !== intent(this.ack!.root)) throw conflict();
     // This read establishes current state, not proof that an older timed-out
     // transaction cannot still commit. Guard the next write with the same revision.
     return false;
@@ -122,7 +140,7 @@ export class EntityLane<C, A extends Ack<C>> {
         || before.root.visibility && (receipt.visibility ?? remote.root.visibility) !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
       this.accept(remote, pending.generation);
     }
-    else if (remote.root.revision !== before.root.revision || !sameContent(remote.content, before.content)) throw conflict();
+    else if (remote.root.revision !== before.root.revision || !sameContent(remote.content, before.content) || intent(remote.root) !== intent(before.root)) throw conflict();
     this.uncertainPublication = null; this.changed();
   }
   retry() {
@@ -152,7 +170,7 @@ export class CreatorPersistenceCoordinator {
   constructor(board: BoardState, initial: CreatorDTO | null, readonly request: CreatorTransport = creatorRequest) {
     const graph = privateGraph(board, initial); this.deckTemplateId = graph.deckTemplateId;
     this.deck = new EntityLane(graph.content, initial, this.changed,
-      (content, revision) => this.request(this.deckURL + "/saved", "PATCH", { content, revision }), () => this.request(this.deckURL), (version) => this.request(this.deckURL + `/publish?version=${version}`));
+      (content, revision, visibility) => this.request(this.deckURL + "/saved", "PATCH", { content, revision, visibility }), () => this.request(this.deckURL), (version) => this.request(this.deckURL + `/publish?version=${version}`));
     for (const card of graph.cards) this.makeCard(card.cardTemplateId, card.content, initial?.cards.find((item) => item.root.cardTemplateId === card.cardTemplateId) ?? null);
     this.attached = new Set(graph.cards.map((card) => card.cardTemplateId));
   }
@@ -165,7 +183,7 @@ export class CreatorPersistenceCoordinator {
   }
   private makeCard(id: string, content: CardContent, ack: CardAck | null) {
     const lane = new EntityLane(content, ack, this.changed,
-      (content, revision) => this.request(this.cardURL(id), "PATCH", { type: "save", content, revision }), () => this.request(this.cardURL(id)), (version) => this.request(this.cardURL(id) + `?version=${version}`));
+      (content, revision, visibility) => this.request(this.cardURL(id), "PATCH", { type: "save", content, revision, visibility }), () => this.request(this.cardURL(id)), (version) => this.request(this.cardURL(id) + `?version=${version}`));
     this.cards.set(id, lane); return lane;
   }
   private ensureInitial(content: DeckContent, cards: { cardTemplateId: string; content: CardContent }[] = []) {
@@ -185,6 +203,13 @@ export class CreatorPersistenceCoordinator {
     });
   }
   editDeck(content: DeckContent) { this.ensureInitial(content); this.deck.set(content); this.deck.kick(); }
+  setDeckVisibility(visibility: Visibility) {
+    if (visibility === this.deck.desiredVisibility) return;
+    this.ensureInitial(this.deck.desired); this.deck.setVisibility(visibility); this.deck.kick();
+  }
+  setCardVisibility(id: string, visibility: Visibility) {
+    const lane = this.cards.get(id); if (!lane) throw new Error("Unknown Card identity"); lane.setVisibility(visibility);
+  }
   beginCardUpload(id: string) { return this.beginUpload(this.cards.get(id)!); }
   beginDeckUpload() { return this.beginUpload(this.deck); }
   private beginUpload(lane: { pendingOperations: number }) {
@@ -269,15 +294,33 @@ export class CreatorPersistenceCoordinator {
       const lane = this.cards.get(id)!; return lane.dirty || lane.running !== null || lane.uncertainSaves.length > 0 || !!lane.uncertainPublication || lane.pendingOperations > 0 || !!lane.ack?.root.draft;
     });
   }
-  async publishCard(id: string, note?: string) {
+  private publicReview(cardIds: string[], includeDeck: boolean): PublicPublicationReview {
+    const firstPublic = <C, A extends Ack<C>>(lane: EntityLane<C, A>) => !!lane.ack?.root.draft && lane.ack.root.visibility !== "public" && intent(lane.ack.root) === "public";
+    return { cards: cardIds.flatMap((id) => {
+      const lane = this.cards.get(id)!;
+      return firstPublic(lane) ? [{ cardTemplateId: id, revision: lane.ack!.root.revision, generation: lane.generation }] : [];
+    }), deck: includeDeck && firstPublic(this.deck)
+      ? { deckTemplateId: this.deckTemplateId, revision: this.deck.ack!.root.revision, generation: this.deck.generation } : null };
+  }
+  private async approvePublic(review: PublicPublicationReview, confirm: ConfirmPublicPublication) {
+    if (!review.cards.length && !review.deck) return true;
+    if (!await confirm(clone(review))) return false;
+    if (!sameContent(review, this.publicReview(review.cards.map((card) => card.cardTemplateId), review.deck !== null))) {
+      throw new CreatorRequestError(409, "PUBLIC_PUBLICATION_REVIEW_CHANGED");
+    }
+    return true;
+  }
+  async publishCard(id: string, note?: string, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
     await this.flushCard(id); const lane = this.cards.get(id)!; await lane.acquire(); lane.publishing = true; this.changed();
     try {
       const ack = lane.ack!, issue = cardPublicationIssue(ack.root.latestVersion, ack.root.draft, ack.publishedContent, ack.root);
-      if (issue === "NO_UNPUBLISHED_CHANGES") return;
+      if (issue === "NO_UNPUBLISHED_CHANGES") return true;
       if (issue) throw new CreatorRequestError(400, issue);
+      if (!await this.approvePublic(this.publicReview([id], false), confirmPublic)) return false;
       const generation = lane.acknowledgedGeneration;
       const result = await this.publishSafely(lane, () => this.request<CardAck>(this.cardURL(id), "PATCH", { type: "publish", revision: ack.root.revision, updateNote: note }), note);
       lane.accept(result, generation);
+      return true;
     } finally { lane.release(); }
   }
   private async publishSafely<C, A extends Ack<C>>(lane: EntityLane<C, A>, publish: () => Promise<A>, note?: string): Promise<A> {
@@ -314,7 +357,7 @@ export class CreatorPersistenceCoordinator {
       const lane = this.cards.get(card.cardTemplateId); return [card.cardTemplateId, lane?.generation, lane?.ack?.root.revision, lane?.error, lane?.pendingOperations];
     }) });
   }
-  async publishDeck(note: string | undefined, confirm: (ids: string[]) => Promise<boolean>) {
+  async publishDeck(note: string | undefined, confirm: (ids: string[]) => Promise<boolean>, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
     await this.deck.acquire(); this.deck.publishing = true; this.changed();
     try {
       const ack = this.deck.ack!;
@@ -322,6 +365,7 @@ export class CreatorPersistenceCoordinator {
       const review = await this.request<DeckPublicationReview>(this.deckURL + `/publish?revision=${ack.root.revision}`);
       const warning = this.warningCards(review), fingerprint = this.reviewFingerprint(review);
       if (warning.length && !await confirm(warning)) return false;
+      if (!await this.approvePublic(this.publicReview([], true), confirmPublic)) return false;
       if (fingerprint !== this.reviewFingerprint(review)) throw new CreatorRequestError(409, "DECK_PUBLICATION_REVIEW_CONFLICT");
       const result = await this.publishSafely(this.deck, () => this.request<CreatorDTO>(this.deckURL + "/publish", "POST", {
         revision: ack.root.revision, review, acceptCardDrafts: warning.length > 0, updateNote: note }), note);
@@ -331,10 +375,20 @@ export class CreatorPersistenceCoordinator {
       throw error;
     } finally { this.deck.release(); }
   }
-  async publishAndLeave(notes: Record<string, string>, confirm: (ids: string[]) => Promise<boolean>) {
+  async publishAndLeave(notes: Record<string, string>, confirm: (ids: string[]) => Promise<boolean>, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
     await this.waitForUploads(); await this.flushAll();
-    for (const id of this.attached) if (this.cards.get(id)!.ack!.root.draft) await this.publishCard(id, notes[id]);
-    if (this.deck.ack?.root.draft && !await this.publishDeck(notes.deck, confirm)) return false;
+    const approved = this.publicReview([...this.attached], true);
+    if (!await this.approvePublic(approved, confirmPublic)) return false;
+    // One confirmation covers the exact saved generations. A later change must
+    // stop rather than quietly becoming part of that approval. Successful public
+    // publications disappear from the next attempt's first-public review.
+    const confirmed: ConfirmPublicPublication = async (review) => {
+      if (review.cards.some((card) => !approved.cards.some((item) => sameContent(item, card)))
+        || review.deck && !sameContent(review.deck, approved.deck)) throw new CreatorRequestError(409, "PUBLIC_PUBLICATION_REVIEW_CHANGED");
+      return true;
+    };
+    for (const id of this.attached) if (this.cards.get(id)!.ack!.root.draft && !await this.publishCard(id, notes[id], confirmed)) return false;
+    if (this.deck.ack?.root.draft && !await this.publishDeck(notes.deck, confirm, confirmed)) return false;
     await this.flushAll();
     return !this.hasWork();
   }

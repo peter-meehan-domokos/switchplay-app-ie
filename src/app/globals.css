@@ -437,6 +437,30 @@ input {
   gap: 2px;
 }
 
+.creator-visibility-control {
+  border: 1px solid #c5c9cc;
+  border-radius: 3px;
+  background: #fffefa;
+  color: #555d67;
+  font-size: 11px;
+  line-height: 16px;
+  max-width: 76px;
+  padding: 1px 2px;
+}
+
+.creator-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.creator-card-identity .creator-visibility-control {
+  max-width: 60px;
+  font-size: 9px;
+  padding: 0;
+}
+
 .creator-add-note {
   border: 0;
   background: transparent;

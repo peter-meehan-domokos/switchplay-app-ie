@@ -4,6 +4,7 @@ import { cardPublicationIssue, deckPublicationIssue, sameContent, hasVisibilityC
 
 type Lane<C> = {
   desired: C;
+  desiredVisibility?: import("@/lib/cards/model").Visibility;
   ack: { root: { latestVersion: number; draft: C | null } & Partial<PublicationVisibility>; content: C; publishedContent: C | null } | null;
   dirty: boolean;
   running: unknown;
@@ -28,7 +29,8 @@ export type PublicationPresentation = {
 function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null): PublicationPresentation {
   const baseline = lane.ack?.publishedContent ?? defaults;
   const outstanding = !sameContent(lane.desired, baseline) || !!lane.ack && (!sameContent(lane.ack.content, baseline)
-    || hasVisibilityChange(lane.ack.root.visibility ? lane.ack.root as PublicationVisibility : undefined));
+    || hasVisibilityChange(lane.ack.root.visibility ? lane.ack.root as PublicationVisibility : undefined))
+    || lane.desiredVisibility !== undefined && lane.desiredVisibility !== (lane.ack?.root.visibility ?? "private");
   const busy = !!lane.running || lane.creationPending || lane.pendingOperations > 0 || lane.tasks.length > 0;
   const uncertain = lane.uncertainSaves.length > 0 || !!lane.uncertainPublication;
   const reason = lane.error ? lane.error.kind === "conflict" || lane.error.kind === "recovery"

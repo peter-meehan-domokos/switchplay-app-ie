@@ -14,11 +14,13 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { creatorBoard, privateGraph, layoutCreatorColumns } from "./cardArchitectureAdapter";
-import { CreatorPersistenceCoordinator } from "./creatorPersistenceCoordinator";
+import { CreatorPersistenceCoordinator, type PublicPublicationReview } from "./creatorPersistenceCoordinator";
 import CreatorDraftsModal from "./CreatorDraftsModal";
 import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
 import CreatorPublishControl from "./CreatorPublishControl";
+import CreatorVisibilityControl from "./CreatorVisibilityControl";
+import CreatorPublicConfirmation from "./CreatorPublicConfirmation";
 import { cardPublicationPresentation, deckPublicationPresentation } from "./creatorPublicationPresentation";
 import { creatorRequest } from "./creatorRequest";
 import type { CreatorDraftSummary } from "@/lib/cards/creatorDrafts";
@@ -946,6 +948,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [canonical, setCanonical] = useState<CreatorDTO | null>(initialCreator ?? null);
   const [, setPersistenceVersion] = useState(0);
   const [deckWarning, setDeckWarning] = useState<{ ids: string[]; resolve: (accepted: boolean) => void } | null>(null);
+  const [publicConfirmation, setPublicConfirmation] = useState<{ review: PublicPublicationReview; resolve: (accepted: boolean) => void } | null>(null);
+  const publicTriggerRef = useRef<HTMLElement | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [noteSession, setNoteSession] = useState<{ key: string; label: string; value: string } | null>(null);
   const [persistence] = useState(() => new CreatorPersistenceCoordinator(initialBoard, initialCreator ?? null));
@@ -1013,7 +1017,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const deckPresentation = deckPublicationPresentation(persistence.deck,
     [...persistence.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []));
   const anyPublishing = publishStatus === "publishing" || persistence.deck.publishing || [...persistence.cards.values()].some((lane) => lane.publishing);
-  const navigationLocked = isDraftsOpen || navigationPending || leaveConfirmationOpen || blockedPublication !== null;
+  const navigationLocked = isDraftsOpen || navigationPending || leaveConfirmationOpen || blockedPublication !== null || publicConfirmation !== null;
 
   useEffect(() => persistence.subscribe(() => {
     setPersistenceVersion((version) => version + 1);
@@ -1132,6 +1136,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   function confirmDeckWarning(ids: string[]) {
     return new Promise<boolean>((resolve) => setDeckWarning({ ids, resolve }));
   }
+  function confirmPublicPublication(review: PublicPublicationReview) {
+    publicTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return new Promise<boolean>((resolve) => setPublicConfirmation({ review, resolve }));
+  }
+  function closePublicConfirmation(accepted: boolean) {
+    publicConfirmation?.resolve(accepted); setPublicConfirmation(null);
+    requestAnimationFrame(() => publicTriggerRef.current?.focus());
+  }
   function explainPublicationBlock(reason: string) {
     blockedTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setBlockedPublication(reason);
@@ -1144,14 +1156,16 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     setPublishMessage("");
     if (target === "all") setPublishStatus("publishing");
     try {
-      const success = target === "all" ? await persistence.publishAndLeave(notes, confirmDeckWarning)
-        : target === "deck" ? await persistence.publishDeck(notes.deck, confirmDeckWarning)
-        : (await persistence.publishCard(target, notes[target]), true);
+      const success = target === "all" ? await persistence.publishAndLeave(notes, confirmDeckWarning, confirmPublicPublication)
+        : target === "deck" ? await persistence.publishDeck(notes.deck, confirmDeckWarning, confirmPublicPublication)
+        : await persistence.publishCard(target, notes[target], confirmPublicPublication);
       setPublishStatus("idle"); return success;
     } catch (error) {
       setPublishStatus("error");
       const uncertain = target === "deck" ? persistence.deck.uncertainPublication : target === "all" ? persistence.deck.uncertainPublication || [...persistence.cards.values()].some((lane) => lane.uncertainPublication) : persistence.cards.get(target)?.uncertainPublication;
-      setPublishMessage(uncertain ? "Publication outcome is not yet confirmed. It will be reconciled before another save or publication." : `${error instanceof Error ? error.message : "Publication failed"}. Earlier successful publications are retained.`);
+      setPublishMessage(uncertain ? "Publication outcome is not yet confirmed. It will be reconciled before another save or publication."
+        : error instanceof Error && error.message === "PUBLIC_PUBLICATION_REVIEW_CHANGED" ? "The changes awaiting public publication changed. Review them and confirm again. Earlier successful publications are retained."
+        : `${error instanceof Error ? error.message : "Publication failed"}. Earlier successful publications are retained.`);
       return false;
     }
   }
@@ -1633,6 +1647,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
             </button>
           ) : null}
           <div className="creator-publish-controls">
+            <CreatorVisibilityControl label="Deck" value={persistence.deck.desiredVisibility}
+              publishedPublic={persistence.deck.ack?.root.visibility === "public"} disabled={anyPublishing}
+              onChange={(visibility) => persistence.setDeckVisibility(visibility)} />
             <CreatorPublishControl label="Deck" state={deckPresentation} onPublish={() => void publishTemplate("deck")} onBlocked={explainPublicationBlock} />
             {deckPresentation.visible ? <button className="creator-add-note" type="button" aria-label="Add note for Deck" disabled={publishStatus === "publishing"} onClick={() => setNoteSession({ key: "deck", label: "Deck", value: notes.deck ?? "" })}>Add note</button> : null}
           </div>
@@ -1660,6 +1677,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
       {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
+      {publicConfirmation ? <CreatorPublicConfirmation review={publicConfirmation.review}
+        onCancel={() => closePublicConfirmation(false)} onConfirm={() => closePublicConfirmation(true)} /> : null}
       {isDraftsOpen ? <CreatorDraftsModal drafts={drafts} currentDeckTemplateId={persistence.deckTemplateId} loading={draftsLoading} error={draftsError}
         switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id) => void switchDraft(id)} /> : null}
       {blockedPublication ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Publication blocked"
@@ -1705,7 +1724,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                     {column.kind === "card" ? (
                       <>
                         <div className="creator-card-meta-row">
-                          <span className="creator-card-label-button">{column.cardLabel}</span>
+                          <div className="creator-card-identity">
+                            <span className="creator-card-label-button">{column.cardLabel}</span>
+                            <CreatorVisibilityControl label={column.cardLabel!} value={persistence.cards.get(column.cardId!)!.desiredVisibility}
+                              publishedPublic={persistence.cards.get(column.cardId!)!.ack?.root.visibility === "public"} disabled={anyPublishing}
+                              onChange={(visibility) => persistence.setCardVisibility(column.cardId!, visibility)} />
+                          </div>
                           <button className="creator-editable creator-card-date-button" onClick={() => openDateEdit({ type: "target-date", cardTemplateId: column.cardId! })} type="button">
                             {formatCreatorDateDisplay(column.targetDate ?? "")}
                           </button>

@@ -229,8 +229,8 @@ for (const mismatchedReceipt of [false, true]) test(`visibility-only publication
   };
   const coordinator = new CreatorPersistenceCoordinator(creatorBoard(dto), copy(dto), transport);
   assert.equal(coordinator.publicationState().cards.a, true);
-  if (mismatchedReceipt) await assert.rejects(coordinator.publishCard("a"), { code: "RECOVERY_REVISION_CONFLICT" });
-  else { await coordinator.publishCard("a"); await coordinator.publishCard("a"); }
+  if (mismatchedReceipt) await assert.rejects(coordinator.publishCard("a", undefined, async () => true), { code: "RECOVERY_REVISION_CONFLICT" });
+  else { await coordinator.publishCard("a", undefined, async () => true); await coordinator.publishCard("a"); }
   assert.equal(lost, true);
   assert.equal(card.root.latestVersion, 2);
   assert.equal(h.calls.filter((call) => call.body?.type === "publish").length, 1);
