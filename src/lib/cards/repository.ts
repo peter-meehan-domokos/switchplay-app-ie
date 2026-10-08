@@ -41,6 +41,7 @@ export async function createFoundationIndexes(db: Db) {
   await db.collection(COLLECTIONS.cardVersions).createIndex({ cardTemplateId: 1, version: 1 }, { unique: true });
   await db.collection(COLLECTIONS.decks).createIndex({ deckTemplateId: 1 }, { unique: true });
   await db.collection(COLLECTIONS.decks).createIndex({ ownerUserId: 1, deckTemplateId: 1 });
+  await db.collection(COLLECTIONS.decks).createIndex({ visibility: 1, latestVersion: 1, deckTemplateId: 1 });
   await db.collection(COLLECTIONS.decks).createIndex({ "draft.cards.cardTemplateId": 1, deckTemplateId: 1 });
   await db.collection(COLLECTIONS.deckVersions).createIndex({ deckTemplateId: 1, version: 1 }, { unique: true });
   await db.collection(COLLECTIONS.deckVersions).createIndex({ "content.cards.cardTemplateId": 1, deckTemplateId: 1 });
