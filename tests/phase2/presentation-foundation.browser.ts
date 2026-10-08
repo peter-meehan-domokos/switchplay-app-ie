@@ -61,7 +61,9 @@ test("working upload survives focused Card navigation and saves against its orig
     await page.getByLabel("Choose image", { exact: true }).setInputFiles({ name: "pending-evidence.png", mimeType: "image/png",
       buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64") });
     await expect.poll(() => requestStarted).toBe(true);
-    await page.getByRole("dialog", { name: "Card media", exact: true }).getByRole("button", { name: "Close", exact: true }).click();
+    const mediaDialog = page.getByRole("dialog", { name: "Card media", exact: true });
+    await mediaDialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(mediaDialog).toHaveCount(0);
     const backHeaderSelector = ".focused-card-surface--back .card-title-anchor";
     const backHeader = (await geometry(page, [backHeaderSelector]))[backHeaderSelector];
     await page.mouse.move(backHeader[0] + backHeader[2] / 2, backHeader[1] + backHeader[3] / 2);
@@ -86,15 +88,50 @@ async function renderCanonical(page: Page, deck: CanonicalDeckPresentation, coll
 
 async function geometry(page: Page, selectors: string[]) {
   await page.evaluate(() => document.fonts.ready);
-  const measure = () => page.evaluate((selectors) => Object.fromEntries(selectors.map((selector) => {
-    const element = document.querySelector(selector);
-    if (!element) throw new Error(`Missing geometry anchor: ${selector}`);
-    const { x, y, width, height } = element.getBoundingClientRect();
-    return [selector, [x, y, width, height].map((value) => Math.round(value * 10) / 10)];
-  })), selectors);
-  let previous = "";
-  await expect.poll(async () => { const next = JSON.stringify(await measure()); const stable = next === previous; previous = next; return stable; }).toBe(true);
-  return measure();
+  // Timer polls can sample the same unfinished Motion layout transform twice
+  // between rendered frames, especially in a headed browser. Sample actual frames
+  // and ancestor transforms as well as rectangles; a card's bounds alone cannot
+  // tell us whether its flip or the containing shared-layout transition has ended.
+  return page.evaluate((selectors) => new Promise<Record<string, number[]>>((resolve, reject) => {
+    let previous = "", stableSince = 0, stableFrames = 0, frame = 0;
+    let diagnostics: unknown;
+    const timeout = window.setTimeout(() => {
+      cancelAnimationFrame(frame);
+      reject(new Error(`Presentation did not settle: ${JSON.stringify(diagnostics)}`));
+    }, 15_000);
+    const sample = (timestamp: number) => {
+      const ancestors = new Set<Element>();
+      const rectangles: Record<string, number[]> = {};
+      for (const selector of selectors) {
+        const element = document.querySelector(selector);
+        if (!element) {
+          clearTimeout(timeout);
+          reject(new Error(`Missing geometry anchor: ${selector}`));
+          return;
+        }
+        for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) ancestors.add(ancestor);
+        const { x, y, width, height } = element.getBoundingClientRect();
+        rectangles[selector] = [x, y, width, height].map((value) => Math.round(value * 10) / 10);
+      }
+      const transforms = Array.from(ancestors, (element) => {
+        const style = getComputedStyle(element);
+        return [style.transform, style.opacity];
+      });
+      const animating = Array.from(ancestors).some((element) => element.getAnimations().some((animation) =>
+        (animation.playState === "running" || animation.pending) && animation.effect?.getTiming().iterations !== Infinity));
+      const signature = JSON.stringify({ rectangles, transforms });
+      if (!animating && signature === previous) stableFrames++;
+      else { stableFrames = 0; stableSince = timestamp; }
+      previous = signature;
+      diagnostics = { rectangles, transforms, animating, stableFrames,
+        viewport: [innerWidth, innerHeight], deviceScale: devicePixelRatio, visibility: document.visibilityState };
+      if (stableFrames >= 8 && timestamp - stableSince >= 200) {
+        clearTimeout(timeout);
+        resolve(rectangles);
+      } else frame = requestAnimationFrame(sample);
+    };
+    frame = requestAnimationFrame(sample);
+  }), selectors);
 }
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
