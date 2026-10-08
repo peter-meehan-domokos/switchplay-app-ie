@@ -59,7 +59,10 @@ export type CardTemplateRoot = Root<CardContent, { cardTemplateId: string; versi
   firstReusedAt?: Date; // Permanent end of exclusive construction; removal never clears it.
   referenceRevision?: number; // Transaction lock for reference changes, independent of content autosave revisions.
 };
-export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; version: number }> & { deckTemplateId: string };
+export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; version: number }> & {
+  deckTemplateId: string;
+  publicationGuard?: number; // Transaction serialization only; never an authoring revision.
+};
 type Version<C> = { version: number; content: C; visibility?: Visibility; updateNote?: string; publishedAt: Date; publishedByUserId: string };
 export type ForkPublicationReceipt = {
   revision: number; enterMyDecks?: boolean;
@@ -86,6 +89,7 @@ export type CardData = {
   updatedAt: Date;
 };
 export type DeckData = {
+  membershipRevision?: number; // Archive/Restore precondition; absent legacy values mean zero.
   deckTemplateId: string;
   deckTemplateVersion: AdoptedVersion;
   activeCardId: string | null;

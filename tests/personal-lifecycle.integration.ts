@@ -80,7 +80,8 @@ test("archived re-entry preserves adoption, timestamps, cadence and shared perso
   const after = (await repo.getPersonalUser("alice"))!;
   assert.equal(after.decksData.length, 1); assert.equal(after.cardsData.length, 1);
   assert.deepEqual(after.cardsData, before.cardsData);
-  assert.deepEqual(after.decksData[0], { ...before.decksData[0], archivedAt: null, updatedAt: after.decksData[0].updatedAt });
+  assert.deepEqual(after.decksData[0], { ...before.decksData[0], archivedAt: null,
+    membershipRevision: (before.decksData[0].membershipRevision ?? 0) + 1, updatedAt: after.decksData[0].updatedAt });
   await repo.archiveDeckData("alice", deck.deckTemplateId); await repo.reactivateDeckData("alice", deck.deckTemplateId);
   assert.deepEqual((await repo.getPersonalUser("alice"))!.decksData[0].createdAt, before.decksData[0].createdAt);
 });

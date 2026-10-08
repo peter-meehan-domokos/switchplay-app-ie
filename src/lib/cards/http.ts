@@ -1,6 +1,7 @@
 import { getCurrentUser } from "../auth";
 import { CardRepository } from "./repository";
 import { CardArchitectureError, requireCondition, isRecord } from "./domain";
+import { LibraryPreviewConflict } from "./libraryEntry";
 
 export async function cardRequest(run: (repo: CardRepository, actor: string) => Promise<unknown>) {
   try {
@@ -9,6 +10,8 @@ export async function cardRequest(run: (repo: CardRepository, actor: string) => 
     const result = await run(await CardRepository.application(), user.id);
     return Response.json(result ?? { ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof LibraryPreviewConflict) return Response.json({ error: error.code, code: error.code,
+      refreshRequired: true, latestManifest: error.latestManifest }, { status: 409 });
     if (error instanceof CardArchitectureError) return Response.json({ error: error.code, code: error.code }, {
       status: error.code.includes("FORBIDDEN") || error.code.includes("CONTEXT") ? 403 : error.code.includes("REVISION") || error.code.includes("CONFLICT") ? 409 : 400,
     });

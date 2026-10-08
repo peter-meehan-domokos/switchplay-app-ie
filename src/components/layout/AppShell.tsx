@@ -44,7 +44,8 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
   async function membershipAction(id: string, type: "archive" | "restore") {
     if (pending) return;
     setPending(id); setError("");
-    try { await flushPersonalMutations(); await creatorRequest(`/api/decks-data/${encodeURIComponent(id)}`, "PATCH", { type });
+    try { await flushPersonalMutations(); await creatorRequest(`/api/decks-data/${encodeURIComponent(id)}`, "PATCH", { type,
+      ...(type === "restore" ? { membershipRevision: records.find((item) => item.deckTemplateId === id)?.membershipRevision } : {}) });
       setRecords(await creatorRequest<MembershipDTO[]>("/api/decks-data"));
       setSelected(null); window.history.replaceState(null, "", "/decks"); }
     catch (error) { setError(error instanceof Error ? error.message : "Membership update failed"); }

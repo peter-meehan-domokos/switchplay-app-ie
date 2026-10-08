@@ -15,6 +15,8 @@ import { assertForkContext, editedForkContent, inheritForkCardData } from "./for
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
 import { readablePersonalHistory } from "./personalHistory";
 import type { CardForkCommand, DeckForkCommand, ForkContext, ForkDeckEntry } from "./model";
+import { assertPreviewManifest, LibraryPreviewConflict, type PersonalEntryResult } from "./libraryEntry";
+import type { LibraryPreviewManifest } from "./libraryProjection";
 
 export const COLLECTIONS = { cards: "cardTemplates", cardVersions: "cardTemplateVersions", decks: "deckTemplates", deckVersions: "deckTemplateVersions", users: "users" } as const;
 function entityId(value: unknown) { requireCondition(nonblank(value), "INVALID_ENTITY_ID"); }
@@ -108,7 +110,7 @@ export class CardRepository {
     if (!ids.length) return;
     // Both first attachment and reuse write the Card root. Concurrent attachments
     // cannot both conclude that they are exclusive from separate snapshots.
-    await this.cards().updateMany({ cardTemplateId: { $in: ids } }, { $inc: { referenceRevision: 1 } }, { session });
+    await this.guardCardRoots(ids, session, false);
     const drafts = await this.decks().find({ deckTemplateId: { $ne: deckTemplateId }, "draft.cards.cardTemplateId": { $in: ids } },
       { session, projection: { "draft.cards": 1 } }).toArray();
     const history = await this.deckVersions().find({ deckTemplateId: { $ne: deckTemplateId }, "content.cards.cardTemplateId": { $in: ids } },
@@ -116,6 +118,16 @@ export class CardRepository {
     const reused = new Set([...drafts.flatMap((root) => root.draft!.cards), ...history.flatMap((version) => version.content.cards)].map((ref) => ref.cardTemplateId));
     await this.cards().updateMany({ cardTemplateId: { $in: ids.filter((id) => reused.has(id)) }, firstReusedAt: { $exists: false } },
       { $set: { firstReusedAt: new Date() } }, { session });
+  }
+  // All paths which write existing canonical roots acquire Cards in stable ID
+  // order before the Deck. Guards conflict with publication without changing
+  // content, visibility, updatedAt, or the Creator's authoring revision.
+  private async guardCardRoots(ids: string[], session: ClientSession, requireExisting = true) {
+    for (const cardTemplateId of [...new Set(ids)].sort()) {
+      const result = await this.cards().updateOne({ cardTemplateId }, { $inc: { referenceRevision: 1 } }, { session });
+      // Removal must still repair a broken reference whose root is missing.
+      requireCondition(!requireExisting || result.matchedCount === 1, "MISSING_CARD_REFERENCE");
+    }
   }
   async copyOwnedCard(actor: string, cardTemplateId: string, command: CopyCardCommand): Promise<CopyCardResult> {
     entityId(actor); entityId(cardTemplateId); entityId(command.deckTemplateId);
@@ -152,6 +164,9 @@ export class CardRepository {
       // dirty, and publication below uses only their immutable published versions.
       const shouldPublish = deck.latestVersion >= 1 && deck.draft === null && !hasVisibilityChange(deck) && source.latestVersion >= 1
         && await this.deckPublicationPrerequisite({ ...deck, draft: next }, cards, session) === null;
+      // Auto-publication must not lock only the appended Card and then acquire
+      // the other Cards after the Deck write in a different order from Add.
+      await this.guardCardRoots(next.cards.map((ref) => ref.cardTemplateId), session);
       await this.recordReferenceChanges(deck.deckTemplateId, [cardTemplateId], session);
       const now = new Date();
       await this.cards().updateOne({ cardTemplateId, firstReusedAt: { $exists: false } }, { $set: { firstReusedAt: now } }, { session });
@@ -538,6 +553,7 @@ export class CardRepository {
     }
     const issue = await this.deckPublicationPrerequisite(root, cards, session);
     requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
+    await this.guardCardRoots(cards.map((card) => card.cardTemplateId), session);
     const now = new Date();
     const byId = new Map(cards.map((card) => [card.cardTemplateId, card])); const version = root.latestVersion + 1;
     await this.deckVersions().insertOne({ deckTemplateId, version, content: { ...root.draft,
@@ -600,7 +616,7 @@ export class CardRepository {
     }, { session });
   }
   private async ensureCompositionCardData(actor: string, user: PersonalUser, refs: DeckContent["cards"], now: Date, session: ClientSession) {
-    if (!refs.length) return;
+    if (!refs.length) return [];
     const roots = await this.cards().find({ cardTemplateId: { $in: refs.map((ref) => ref.cardTemplateId) } }, { session }).toArray();
     requireCondition(roots.length === refs.length, "MISSING_CARD_REFERENCE");
     const personal = new Map(user.cardsData.map((data) => [data.cardTemplateId, data]));
@@ -621,9 +637,85 @@ export class CardRepository {
         $push: { cardsData: initialCardData(ref.cardTemplateId, version.version, version.content, now) },
       }, { session });
     }
+    return refs.map((ref) => selected.find((item) => item.cardTemplateId === ref.cardTemplateId)!);
+  }
+  private async retainedComposition(actor: string, data: DeckData, session: ClientSession) {
+    const root = await this.decks().findOne({ deckTemplateId: data.deckTemplateId }, { session });
+    requireCondition(root, "MISSING_DECK_VERSION");
+    const version = await this.getDeckVersion(data.deckTemplateId, data.deckTemplateVersion, session);
+    requireCondition(version, "MISSING_DECK_VERSION");
+    assertDeckVersionAccess(actor, root, version);
+    assertDeckContent(deckDraftContent(version.content));
+    return version.content.cards;
+  }
+  private async entryResult(actor: string, user: PersonalUser, data: DeckData, outcome: PersonalEntryResult["outcome"], session: ClientSession): Promise<PersonalEntryResult> {
+    const refs = await this.retainedComposition(actor, data, session);
+    const adoptedCards = await this.ensureCompositionCardData(actor, user, refs, new Date(), session);
+    return { viewerUserId: actor, deckTemplateId: data.deckTemplateId, outcome, membershipRevision: data.membershipRevision ?? 0,
+      adoptedDeckVersion: data.deckTemplateVersion, adoptedCards };
+  }
+  async addLibraryDeck(actor: string, manifest: LibraryPreviewManifest): Promise<PersonalEntryResult> {
+    assertPreviewManifest(manifest);
+    return this.transaction(async (session) => {
+      const user = await this.assertUser(actor, session);
+      const root = await this.decks().findOne({ deckTemplateId: manifest.deckTemplateId }, { session });
+      requireCondition(root?.visibility === "public" && root.latestVersion >= 1, "LIBRARY_DECK_FORBIDDEN");
+      const published = await this.getDeckVersion(root.deckTemplateId, root.latestVersion, session);
+      requireCondition(published?.visibility === "public", "LIBRARY_DECK_FORBIDDEN");
+      const existing = user.decksData.find((data) => data.deckTemplateId === manifest.deckTemplateId);
+      // An Add retry never restores, updates, or reinitializes a membership.
+      // Older adopted versions are deliberately not stale-preview failures.
+      if (existing) return this.entryResult(actor, user, existing, existing.archivedAt === null ? "already-active" : "archived", session);
+      assertDeckContent(deckDraftContent(published.content));
+      const roots = await this.deckReferences(actor, published.content, session);
+      requireCondition(roots.every((card) => card.visibility === "public" && card.latestVersion >= 1), "LIBRARY_CARD_FORBIDDEN");
+      const byId = new Map(roots.map((card) => [card.cardTemplateId, card]));
+      const current: LibraryPreviewManifest = { deckTemplateId: root.deckTemplateId, deckVersion: published.version,
+        cards: published.content.cards.map((ref) => ({ cardTemplateId: ref.cardTemplateId, version: byId.get(ref.cardTemplateId)!.latestVersion })) };
+      // Even owners must prove that every displayed immutable version is public.
+      const currentVersions = current.cards.length ? await this.cardVersions().find({ $or: current.cards }, { session }).toArray() : [];
+      const versionsById = new Map(currentVersions.map((version) => [version.cardTemplateId, version]));
+      for (const ref of current.cards) {
+        const version = versionsById.get(ref.cardTemplateId);
+        requireCondition(version?.visibility === "public", "LIBRARY_CARD_FORBIDDEN"); assertCardContent(version.content);
+      }
+      if (!isDeepStrictEqual(current, manifest)) throw new LibraryPreviewConflict(current);
+      await this.guardCardRoots(current.cards.map((ref) => ref.cardTemplateId), session);
+      const guarded = await this.decks().updateOne({ deckTemplateId: root.deckTemplateId, latestVersion: manifest.deckVersion, visibility: "public" },
+        { $inc: { publicationGuard: 1 } }, { session });
+      requireCondition(guarded.matchedCount === 1, "LIBRARY_PREVIEW_CONFLICT");
+      const now = new Date();
+      const adoptedCards = await this.ensureCompositionCardData(actor, user, published.content.cards, now, session);
+      await this.ensureDeckDataInSession(actor, root, published.version, now, session);
+      return { viewerUserId: actor, deckTemplateId: root.deckTemplateId, outcome: "added", membershipRevision: 0, adoptedDeckVersion: published.version, adoptedCards };
+    });
+  }
+  async restoreLibraryDeck(actor: string, deckTemplateId: string, expectedMembershipRevision: number): Promise<PersonalEntryResult> {
+    entityId(deckTemplateId);
+    requireCondition(Number.isSafeInteger(expectedMembershipRevision) && expectedMembershipRevision >= 0, "INVALID_RESTORE_COMMAND");
+    return this.transaction(async (session) => {
+      const user = await this.assertUser(actor, session), data = user.decksData.find((data) => data.deckTemplateId === deckTemplateId);
+      requireCondition(data, "MISSING_MEMBERSHIP");
+      const revision = data.membershipRevision ?? 0;
+      // Same transition can be acknowledged again, but a later Archive advances
+      // the revision, so a delayed Restore cannot reverse it.
+      if (data.archivedAt === null) {
+        requireCondition(revision === expectedMembershipRevision + 1, "MEMBERSHIP_REVISION_CONFLICT");
+        return this.entryResult(actor, user, data, "already-active", session);
+      }
+      requireCondition(revision === expectedMembershipRevision, "MEMBERSHIP_REVISION_CONFLICT");
+      const result = await this.entryResult(actor, user, data, "restored", session);
+      await this.users().updateOne({ _id: userKey(actor) }, {
+        $set: { "decksData.$[deck].archivedAt": null, "decksData.$[deck].updatedAt": new Date() },
+        $inc: { "decksData.$[deck].membershipRevision": 1 },
+      }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
+      return { ...result, membershipRevision: revision + 1 };
+    });
   }
   // Explicit personal entry: pin the entire adopted composition now, even when
   // the caller will not open it. Re-entry preserves adoption and reactivates it.
+  // Internal setup convenience, not a retryable Library command: HTTP callers
+  // must use addLibraryDeck / restoreLibraryDeck with their distinct contracts.
   async ensureDeckData(actor: string, deckTemplateId: string, version: AdoptedVersion) {
     entityId(deckTemplateId);
     assertAdoption(version);
@@ -642,6 +734,7 @@ export class CardRepository {
       if (!existing) await this.ensureDeckDataInSession(actor, root, version, now, session);
       else if (existing.archivedAt !== null) await this.users().updateOne({ _id: userKey(actor) }, {
         $set: { "decksData.$[deck].archivedAt": null, "decksData.$[deck].updatedAt": now },
+        $inc: { "decksData.$[deck].membershipRevision": 1 },
       }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
     });
     return (await this.getPersonalUser(actor))!.decksData.find((data) => data.deckTemplateId === deckTemplateId)!;
@@ -664,14 +757,24 @@ export class CardRepository {
     entityId(deckTemplateId);
     const result = await this.users().updateOne({ _id: userKey(actor), "decksData.deckTemplateId": deckTemplateId }, {
       $set: { "decksData.$[deck].archivedAt": archivedAt, "decksData.$[deck].updatedAt": new Date() },
+      $inc: { "decksData.$[deck].membershipRevision": 1 },
     }, { arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] }); requireCondition(result.matchedCount === 1, "MISSING_MEMBERSHIP");
   }
   archiveDeckData(actor: string, deckTemplateId: string) { return this.setArchive(actor, deckTemplateId, new Date()); }
-  reactivateDeckData(actor: string, deckTemplateId: string) { return this.setArchive(actor, deckTemplateId, null); }
+  async reactivateDeckData(actor: string, deckTemplateId: string) {
+    // Internal convenience for existing explicit domain callers. HTTP Restore
+    // always supplies the revision observed by the viewer.
+    const user = await this.getPersonalUser(actor), data = user?.decksData.find((data) => data.deckTemplateId === deckTemplateId);
+    requireCondition(data, "MISSING_MEMBERSHIP");
+    if (data.archivedAt === null) return;
+    await this.restoreLibraryDeck(actor, deckTemplateId, data.membershipRevision ?? 0);
+  }
   async activeMemberships(actor: string): Promise<DeckData[]> {
     const user = await this.getPersonalUser(actor); return user?.decksData.filter((deck) => deck.archivedAt === null) ?? [];
   }
-  async openWorkingDeck(actor: string, deckTemplateId: string, localDate: string) {
+  async openWorkingDeck(actor: string, deckTemplateId: string, localDate: string, targetCardTemplateId?: string) {
+    entityId(deckTemplateId);
+    if (targetCardTemplateId !== undefined) entityId(targetCardTemplateId);
     requireCondition(isIsoDateOnlyString(localDate) && localDate === localDate.trim(), "INVALID_CADENCE_ANCHOR");
     await this.transaction(async (session) => {
       const user = await this.assertUser(actor, session);
@@ -682,6 +785,7 @@ export class CardRepository {
       const version = await this.getDeckVersion(deckTemplateId, data.deckTemplateVersion, session);
       requireCondition(version, "MISSING_DECK_VERSION");
       assertDeckVersionAccess(actor, root, version);
+      requireCondition(targetCardTemplateId === undefined || version.content.cards.some((ref) => ref.cardTemplateId === targetCardTemplateId), "TARGET_CARD_CONTEXT_UNAVAILABLE");
       const anchor = data.cadenceAnchorDate ?? localDate;
       const now = new Date();
       for (const [index, ref] of version.content.cards.entries()) {
@@ -697,8 +801,8 @@ export class CardRepository {
           $set: { "cardsData.$[card].targetDate": adopted.content.suggestedTargetDate || generated, "cardsData.$[card].updatedAt": now },
         }, { session, arrayFilters: [{ "card.cardTemplateId": ref.cardTemplateId }] });
       }
-      const activeCardId = version.content.cards.some((ref) => ref.cardTemplateId === data.activeCardId)
-        ? data.activeCardId : version.content.cards[0]?.cardTemplateId ?? null;
+      const activeCardId = targetCardTemplateId ?? (version.content.cards.some((ref) => ref.cardTemplateId === data.activeCardId)
+        ? data.activeCardId : version.content.cards[0]?.cardTemplateId ?? null);
       await this.users().updateOne({ _id: userKey(actor) }, { $set: {
         "decksData.$[deck].openedAt": now, "decksData.$[deck].updatedAt": now,
         "decksData.$[deck].cadenceAnchorDate": anchor, "decksData.$[deck].activeCardId": activeCardId,

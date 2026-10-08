@@ -154,6 +154,7 @@ export async function libraryViewerStatus(repo: CardRepository, actor: string, r
     // Status never loads learning values or histories, even internally.
     const user = await repo.users().findOne({ _id: /^[a-f\d]{24}$/i.test(actor) ? new ObjectId(actor) : actor }, { session, projection: {
       "decksData.deckTemplateId": 1, "decksData.deckTemplateVersion": 1, "decksData.archivedAt": 1,
+      "decksData.membershipRevision": 1,
       "cardsData.cardTemplateId": 1, "cardsData.cardTemplateVersion": 1,
     } });
     requireCondition(user && Array.isArray(user.decksData) && Array.isArray(user.cardsData), "NEW_MODEL_USER_REQUIRED");
@@ -201,6 +202,7 @@ export async function libraryViewerStatus(repo: CardRepository, actor: string, r
       decks: publicDecks.map((root) => {
         const data = user.decksData.find((data) => data.deckTemplateId === root.deckTemplateId);
         return { deckTemplateId: root.deckTemplateId, state: !data ? "not-added" as const : data.archivedAt === null ? "active" as const : "archived" as const,
+          membershipRevision: data ? data.membershipRevision ?? 0 : null,
           adoptedVersion: data?.deckTemplateVersion ?? null, latestVersion: root.latestVersion,
           updateAvailable: !!data && root.latestVersion > data.deckTemplateVersion,
           retainedDeckVersionAvailable: !!data && available.has(root.deckTemplateId) };

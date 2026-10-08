@@ -91,6 +91,7 @@ export async function membershipDTO(repo: CardRepository, actor: string) {
   const cardVersions = requests.length ? await repo.cardVersions().find({ $or: requests }).toArray() : [];
   return jsonDTO(published.map((data) => {
     const base = { deckTemplateId: data.deckTemplateId, archivedAt: data.archivedAt, openedAt: data.openedAt,
+      membershipRevision: data.membershipRevision ?? 0,
       adoptedVersion: data.deckTemplateVersion, context: "working" as const, dataOwnerUserId: actor };
     try {
       requireCondition(!Object.hasOwn(data, "cards"), "LEGACY_USER_REFUSED");

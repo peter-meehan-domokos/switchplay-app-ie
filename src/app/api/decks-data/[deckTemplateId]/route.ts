@@ -13,11 +13,11 @@ export async function PATCH(request: Request, context: RouteContext<'/api/decks-
   return cardRequest(async (repo, actor) => {
     const { deckTemplateId } = await context.params;
     const body = await request.json();
-    fields(body, ["type", "cardTemplateId", "stepId", "completionStatus", "reading", "targetDate", "reflection", "mediaItem", "mediaItemId", "activeCardId"]);
+    fields(body, ["type", "cardTemplateId", "stepId", "completionStatus", "reading", "targetDate", "reflection", "mediaItem", "mediaItemId", "activeCardId", "membershipRevision"]);
     const cardId = body.cardTemplateId as string;
     switch (body.type) {
       case "archive": await repo.archiveDeckData(actor, deckTemplateId); break;
-      case "restore": await repo.reactivateDeckData(actor, deckTemplateId); break;
+      case "restore": return repo.restoreLibraryDeck(actor, deckTemplateId, body.membershipRevision as number);
       case "active": await repo.setActiveCard(actor, deckTemplateId, body.activeCardId as string); break;
       case "completion": await repo.setCompletion(actor, deckTemplateId, cardId, body.stepId as string, body.completionStatus as CompletionStatus); break;
       case "signal": await repo.setSignalReading(actor, deckTemplateId, cardId, body.stepId as string, body.reading as number | null); break;
