@@ -1,0 +1,128 @@
+{
+  "collection": {
+    ".deck-grid": [
+      16,
+      130.7,
+      358,
+      255.4
+    ],
+    ".deck-tile": [
+      16,
+      130.7,
+      172,
+      255.4
+    ],
+    ".tile-card-stack": [
+      43.2,
+      151.7,
+      117.5,
+      170.3
+    ],
+    ".deck-tile-title": [
+      29,
+      330,
+      146,
+      16.4
+    ],
+    ".deck-tile-meta": [
+      29,
+      354.4,
+      146,
+      18.7
+    ]
+  },
+  "detail": {
+    ".deck-detail": [
+      16,
+      40,
+      358,
+      832
+    ],
+    ".detail-heading": [
+      31,
+      55,
+      328,
+      154.8
+    ],
+    ".deck-scene-frame": [
+      31,
+      209.8,
+      328,
+      633.7
+    ],
+    ".deck-card.is-active": [
+      69,
+      307.8,
+      252,
+      365.4
+    ],
+    ".deck-card.is-active .card-title-anchor": [
+      90,
+      327.8,
+      159.7,
+      17.1
+    ],
+    ".deck-card.is-active .deck-card-date-shell": [
+      259.7,
+      327.8,
+      40.3,
+      11.5
+    ],
+    ".deck-card.is-active .active-card-identity": [
+      90,
+      362.8,
+      210,
+      18.1
+    ],
+    ".deck-card.is-active .active-step-list": [
+      90,
+      393.9,
+      210,
+      155.5
+    ]
+  },
+  "focused": {
+    ".focused-card-stage": [
+      69,
+      239.3,
+      252,
+      365.4
+    ],
+    ".focused-card-object": [
+      9,
+      152.3,
+      372,
+      539.4
+    ],
+    ".focused-card-surface--front .card-title-anchor": [
+      40,
+      174.4,
+      235.7,
+      25.3
+    ],
+    ".focused-card-surface--front .deck-card-date-shell": [
+      290.4,
+      174.4,
+      59.6,
+      17
+    ],
+    ".focused-card-surface--front .active-card-identity": [
+      40,
+      226.1,
+      310,
+      26.7
+    ],
+    ".focused-card-surface--front .active-step-list": [
+      40,
+      272,
+      310,
+      231.5
+    ],
+    ".focused-card-surface--front .active-step-item": [
+      40,
+      289.7,
+      310,
+      55
+    ]
+  }
+}

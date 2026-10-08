@@ -1,8 +1,8 @@
-import type { CardLayout } from "@/components/cards/cardLayout";
+import type { PresentedCard } from "@/components/decks/presentation";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 
 type CardHeaderProps = {
-  card: CardLayout;
+  card: PresentedCard;
   dateLabel: string;
   variant?: "active" | "focused";
   onAdjustTargetDate?: (direction: -1 | 1) => void;

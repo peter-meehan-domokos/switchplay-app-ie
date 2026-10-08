@@ -1,8 +1,8 @@
 import type { SyntheticEvent } from "react";
-import type { CardLayout } from "@/components/cards/cardLayout";
+import { hasPersonalCard, type PresentedCard } from "./presentation";
 
 type CardSemanticAnchorsProps = {
-  card: CardLayout;
+  card: PresentedCard;
   dateLabel: string;
   showText?: boolean;
   showProgress?: boolean;
@@ -18,9 +18,10 @@ export default function CardSemanticAnchors({
   variant = "front",
   onAdjustTargetDate,
 }: CardSemanticAnchorsProps) {
-  const progressPercentage = showProgress ? card.progressPercentage : null;
+  const personal = hasPersonalCard(card);
+  const progressPercentage = showProgress && personal ? card.progressPercentage : null;
   const surfaceVariant = variant === "back" ? "back" : "front";
-  const isTargetDateInteractive = variant === "focused" && typeof onAdjustTargetDate === "function";
+  const isTargetDateInteractive = personal && variant === "focused" && typeof onAdjustTargetDate === "function";
 
   const stopInteractionPropagation = (event: SyntheticEvent) => {
     event.stopPropagation();
@@ -34,15 +35,15 @@ export default function CardSemanticAnchors({
     <header className={`card-semantic-anchors card-semantic-anchors--${surfaceVariant}`}>
       <div className="card-title-anchor">
         {showText ? <h2>{card.label}</h2> : null}
-        {showProgress ? (
+        {showProgress && personal ? (
           <div className="completion-strip" aria-label="Progress preview">
             <span className="completion-strip-fill" style={{ width: `${progressPercentage}%` }} />
           </div>
-        ) : null}
+        ) : showProgress ? <div className="completion-strip personal-layout-slot" aria-hidden="true" /> : null}
       </div>
       {showText ? (
-        <div className="deck-card-date-shell">
-          <p className="deck-card-date">{dateLabel}</p>
+        <div className={`deck-card-date-shell${personal ? "" : " personal-date-slot"}`} aria-hidden={personal ? undefined : true}>
+          <p className="deck-card-date">{personal ? dateLabel : ""}</p>
           {isTargetDateInteractive ? (
             <>
               <button

@@ -1,8 +1,7 @@
 import { motion, type MotionStyle } from "motion/react";
 import type { CSSProperties } from "react";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
-import type { CardLayout } from "@/components/cards/cardLayout";
-import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
+import { cardPresentationIdentity, hasPersonalCard, type PresentedCard, type CardBackPresentation } from "./presentation";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
 import {
@@ -13,7 +12,8 @@ import {
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
-  card: CardLayout;
+  renderBackFace?: CardBackPresentation;
+  card: PresentedCard;
   deckTemplateId: string;
   isDeckFlipped: boolean;
   deckFlipRotationY: number;
@@ -38,8 +38,8 @@ const deckFlipTransition = {
 } as const;
 
 export default function DeckCard({
+  renderBackFace,
   card,
-  deckTemplateId,
   isDeckFlipped,
   deckFlipRotationY,
   stackZone,
@@ -52,7 +52,8 @@ export default function DeckCard({
   transition,
 }: DeckCardProps) {
   const cardStateClass = showHeader || showProgress ? `is-${stackZone}` : `is-${stackZone} is-compressed`;
-  const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
+  const personal = hasPersonalCard(card);
+  const dateLabel = personal ? dateFormatter.format(dateOnlyToUtcDate(card.targetDate)) : "";
   const backFaceVariant = stackZone === "past" ? "preview" : "deck";
   const renderSurfaceStyle = stackZone === "past"
     ? {
@@ -83,7 +84,7 @@ export default function DeckCard({
       className={`deck-card-slot deck-card ${cardStateClass}`}
       data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
-      layoutId={`week-card-${card.id}`}
+      layoutId={`week-card-${cardPresentationIdentity(card)}`}
       role={onActivate ? "button" : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onClick={onActivate ? handleActivate : undefined}
@@ -108,9 +109,9 @@ export default function DeckCard({
               ) : null}
             </div>
           </div>
-          <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
-            {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} deckTemplateId={deckTemplateId} variant={backFaceVariant} /> : null}
-          </div>
+          {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
+            {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: backFaceVariant }) : null}
+          </div> : null}
         </div>
       </motion.div>
     </motion.article>

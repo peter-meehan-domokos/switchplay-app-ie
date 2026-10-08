@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import type { MotionStyle } from "motion/react";
-import type { CardLayout } from "@/components/cards/cardLayout";
+import { cardPresentationIdentity, type PresentedCard, type CardBackPresentation } from "./presentation";
 import DeckCard from "@/components/decks/DeckCard";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
 import {
@@ -47,7 +47,8 @@ import {
 } from "@/constants/cardStack";
 
 type CardStackProps = {
-  cards: CardLayout[];
+  renderBackFace?: CardBackPresentation;
+  cards: PresentedCard[];
   deckTemplateId: string;
   activeCardIndex: number;
   isDeckFlipped: boolean;
@@ -291,6 +292,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
 }
 
 export default function CardStack({
+  renderBackFace,
   cards,
   deckTemplateId,
   activeCardIndex,
@@ -327,7 +329,8 @@ export default function CardStack({
 
           return (
             <DeckCard
-              key={card.id}
+              renderBackFace={renderBackFace}
+              key={cardPresentationIdentity(card)}
               card={card}
               deckTemplateId={deckTemplateId}
               isDeckFlipped={isDeckFlipped}

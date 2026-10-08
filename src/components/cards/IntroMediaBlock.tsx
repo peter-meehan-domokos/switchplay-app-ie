@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
-import type { WeeklyCard } from "@/components/decks/types";
+import type { PresentedCard } from "@/components/decks/presentation";
 import {
   getMediaTitle,
   isCloudflareStreamVideoMediaItem,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/media";
 
 type IntroMediaBlockProps = {
-  card: WeeklyCard;
+  card: PresentedCard;
   onIntroNavigateNext?: () => void;
   onIntroNavigatePrevious?: () => void;
   onOpenIntroView?: () => void;

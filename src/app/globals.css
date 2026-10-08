@@ -4587,3 +4587,16 @@ input {
   margin-left: 8px;
   text-decoration: underline;
 }
+
+/* Canonical presentation reserves personal layout slots without values or controls. */
+.personal-layout-slot {
+  visibility: hidden;
+  pointer-events: none;
+}
+.personal-date-slot {
+  width: 3rem;
+  min-height: 0.72rem;
+}
+.detail-progress.personal-layout-slot {
+  min-height: 1lh;
+}

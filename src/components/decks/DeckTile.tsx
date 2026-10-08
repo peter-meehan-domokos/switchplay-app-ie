@@ -1,12 +1,12 @@
 import { motion } from "motion/react";
 import type { RefCallback } from "react";
-import type { DeckLayout } from "@/components/decks/deckLayout";
+import { deckPresentationIdentity, hasPersonalDeck, type PresentedDeck } from "./presentation";
 import { getPlayableDeckIntroductionVideo, type DeckIntroPlaybackStatus } from "@/components/decks/deckIntroPreview";
 import { getDeckIntroductionPosterImage } from "@/components/decks/deckIntroductionPoster";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 
 type DeckTileProps = {
-  deck: DeckLayout;
+  deck: PresentedDeck;
   isDisabled?: boolean;
   isIntroActive?: boolean;
   introPlaybackStatus?: DeckIntroPlaybackStatus;
@@ -28,7 +28,8 @@ export default function DeckTile({
   onSelect,
   transition,
 }: DeckTileProps) {
-  const roundedProgressPercentage = Math.round(deck.progressPercentage);
+  const personal = hasPersonalDeck(deck);
+  const roundedProgressPercentage = personal ? Math.round(deck.progressPercentage) : null;
   const progressMetaLabel = roundedProgressPercentage === 100 ? "Completed" : `${roundedProgressPercentage}%`;
   const introPosterImage = getDeckIntroductionPosterImage(deck);
   const introVideo = getPlayableDeckIntroductionVideo(deck);
@@ -44,7 +45,7 @@ export default function DeckTile({
       className={`deck-tile${isPreparing ? " deck-tile--preparing" : ""}`}
       aria-busy={isPreparing}
       layout
-      layoutId={`deck-${deck.id}`}
+      layoutId={`deck-${deckPresentationIdentity(deck)}`}
       transition={transition}
     >
       {deck.category ? <span className="category-chip">{deck.category}</span> : null}
@@ -103,8 +104,8 @@ export default function DeckTile({
           "Preparing deck..."
         ) : (
           <>
-            {deck.cards.length} cards &middot; {progressMetaLabel}
-            {deck.confidenceScore !== null && (
+            {deck.cards.length} cards{personal ? <> &middot; {progressMetaLabel}</> : null}
+            {personal && deck.confidenceScore !== null && (
               <span className="deck-tile-meta-confidence">{deck.confidenceScore}</span>
             )}
           </>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import DeckTile from "@/components/decks/DeckTile";
-import type { DeckLayout } from "@/components/decks/deckLayout";
+import type { PresentedDeck } from "./presentation";
 import {
   getContainedIntroVideoSize,
   getPlayableDeckIntroductionVideo,
@@ -21,7 +21,7 @@ type IntroHostRect = {
 };
 
 type DeckGridProps = {
-  decks: DeckLayout[];
+  decks: PresentedDeck[];
   instantiatingDeckTemplateId: string | null;
   isInteractionLocked: boolean;
   onSelectDeck: (deckId: string) => void;
@@ -95,7 +95,7 @@ export default function DeckGrid({
     setHostRect(null);
   }, [applyPreviewAction]);
 
-  const handleFrontCardAction = useCallback((deck: DeckLayout) => {
+  const handleFrontCardAction = useCallback((deck: PresentedDeck) => {
     if (isInteractionLocked) {
       return;
     }

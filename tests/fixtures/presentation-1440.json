@@ -1,0 +1,128 @@
+{
+  "collection": {
+    ".deck-grid": [
+      24,
+      140.9,
+      1392,
+      270.2
+    ],
+    ".deck-tile": [
+      24,
+      140.9,
+      454.7,
+      270.2
+    ],
+    ".tile-card-stack": [
+      188.1,
+      161.9,
+      126.5,
+      183.3
+    ],
+    ".deck-tile-title": [
+      37,
+      353.3,
+      428.7,
+      18.1
+    ],
+    ".deck-tile-meta": [
+      37,
+      379.4,
+      428.7,
+      18.7
+    ]
+  },
+  "detail": {
+    ".deck-detail": [
+      360,
+      40,
+      720,
+      888
+    ],
+    ".detail-heading": [
+      375,
+      55,
+      690,
+      202.3
+    ],
+    ".deck-scene-frame": [
+      375,
+      257.3,
+      690,
+      640
+    ],
+    ".deck-card.is-active": [
+      594,
+      355.3,
+      252,
+      365.4
+    ],
+    ".deck-card.is-active .card-title-anchor": [
+      615,
+      375.3,
+      159.7,
+      17.1
+    ],
+    ".deck-card.is-active .deck-card-date-shell": [
+      784.7,
+      375.3,
+      40.3,
+      11.5
+    ],
+    ".deck-card.is-active .active-card-identity": [
+      615,
+      410.3,
+      210,
+      18.1
+    ],
+    ".deck-card.is-active .active-step-list": [
+      615,
+      441.4,
+      210,
+      155.5
+    ]
+  },
+  "focused": {
+    ".focused-card-stage": [
+      594,
+      267.3,
+      252,
+      365.4
+    ],
+    ".focused-card-object": [
+      523,
+      164.3,
+      394,
+      571.3
+    ],
+    ".focused-card-surface--front .card-title-anchor": [
+      555.8,
+      187.8,
+      249.6,
+      26.8
+    ],
+    ".focused-card-surface--front .deck-card-date-shell": [
+      821.1,
+      187.8,
+      63.1,
+      18
+    ],
+    ".focused-card-surface--front .active-card-identity": [
+      555.8,
+      242.5,
+      328.3,
+      28.2
+    ],
+    ".focused-card-surface--front .active-step-list": [
+      555.8,
+      291.1,
+      328.3,
+      245.2
+    ],
+    ".focused-card-surface--front .active-step-item": [
+      555.8,
+      309.9,
+      328.3,
+      58.3
+    ]
+  }
+}

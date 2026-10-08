@@ -1,10 +1,10 @@
-import type { CardLayout } from "@/components/cards/cardLayout";
+import { hasPersonalCard, type PresentedCard } from "@/components/decks/presentation";
 import CardHeader from "@/components/cards/CardHeader";
 import IntroMediaBlock from "@/components/cards/IntroMediaBlock";
 import StepList from "@/components/cards/StepList";
 
 type ActiveCardFrontProps = {
-  card: CardLayout;
+  card: PresentedCard;
   dateLabel: string;
   variant?: "active" | "focused";
   onCycleStepStatus?: (stepId: string) => void;
@@ -37,8 +37,9 @@ export default function ActiveCardFront({
       />
       <StepList
         steps={card.steps}
+        showPersonalProgress={hasPersonalCard(card)}
         linksEnabled={variant === "focused"}
-        onCycleStepStatus={variant === "focused" ? onCycleStepStatus : undefined}
+        onCycleStepStatus={variant === "focused" && hasPersonalCard(card) ? onCycleStepStatus : undefined}
         onOpenStepView={variant === "focused" ? onOpenStepView : undefined}
         onStepNavigateNext={variant === "focused" ? onStepNavigateNext : undefined}
         onStepNavigatePrevious={variant === "focused" ? onStepNavigatePrevious : undefined}
