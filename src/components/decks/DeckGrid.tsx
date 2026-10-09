@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, Fragment } from "react";
 import DeckTile from "@/components/decks/DeckTile";
+import { publishedVideoGuard } from "@/components/media/publishedVideo";
+import { hasPersonalDeck } from "./presentation";
 import type { PresentedDeck } from "./presentation";
 import {
   getContainedIntroVideoSize,
@@ -22,6 +24,7 @@ type IntroHostRect = {
 
 type DeckGridProps = {
   decks: PresentedDeck[];
+  orderedEntries?: (PresentedDeck | { id: string; unavailable: ReactNode })[];
   instantiatingDeckTemplateId: string | null;
   isInteractionLocked: boolean;
   onSelectDeck: (deckId: string) => void;
@@ -30,6 +33,7 @@ type DeckGridProps = {
 
 export default function DeckGrid({
   decks,
+  orderedEntries,
   instantiatingDeckTemplateId,
   isInteractionLocked,
   onSelectDeck,
@@ -134,7 +138,7 @@ export default function DeckGrid({
     updateHostRect(deck.id);
 
     console.log("[DIAG DECKGRID] calling loadMedia", { assetId: video.assetId, src: video.src, shouldPlay: true });
-    playerRef.current?.loadMedia(video, { shouldPlay: true });
+    playerRef.current?.loadMedia(video, { shouldPlay: true, ...(!hasPersonalDeck(deck) ? { beforeLoad: publishedVideoGuard("deck", deck.deckTemplateId, deck.version) } : {}) });
   }, [applyPreviewAction, clearPreview, isInteractionLocked, onSelectDeck, updateHostRect]);
 
   const handleOpenDeck = useCallback((deckId: string) => {
@@ -237,7 +241,7 @@ export default function DeckGrid({
 
   return (
     <div className="deck-grid" ref={gridRef}>
-      {decks.map((deck) => (
+      {(orderedEntries ?? decks).map((deck) => "unavailable" in deck ? <Fragment key={deck.id}>{deck.unavailable}</Fragment> : (
         <DeckTile
           key={deck.id}
           deck={deck}

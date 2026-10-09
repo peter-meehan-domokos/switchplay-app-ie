@@ -102,7 +102,7 @@ type UploadSession = {
 };
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
-const STEP_TEXT_WARNING_LENGTH = 70;
+const STEP_TEXT_WARNING_LENGTH = 65;
 const SUPPORT_ERROR_MESSAGE = "support";
 
 function createStepLinkId() {
@@ -1023,7 +1023,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     setPersistenceVersion((version) => version + 1);
     if (!persistence.deck.uncertainPublication && ![...persistence.cards.values()].some((lane) => lane.uncertainPublication)) setPublishMessage((current) => current.startsWith("Publication outcome is not yet confirmed.") ? "" : current);
     const dto = persistence.dto;
-    if (dto) { setCanonical(dto); window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}`); }
+    // Autosave may install the edit URL, but must retain the explicit entry origin for reloads.
+    if (dto) { setCanonical(dto); window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${window.location.search}`); }
   }), [persistence]);
 
   useEffect(() => {

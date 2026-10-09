@@ -9,5 +9,5 @@ export async function POST(request: Request, context: RouteContext<'/api/library
     assertPreviewManifest(body.manifest);
     requireCondition(body.manifest.deckTemplateId === (await context.params).deckTemplateId, "INVALID_PREVIEW_MANIFEST");
     return repo.addLibraryDeck(actor, body.manifest);
-  });
+  }, request);
 }

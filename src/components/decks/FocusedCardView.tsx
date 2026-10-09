@@ -1,7 +1,9 @@
-import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type ReactElement } from "react";
+import { cloneElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
+import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
+import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
 import { hasPersonalCard, cardPresentationIdentity, type PresentedCard } from "./presentation";
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackIntent } from "@/components/media/CloudflareHlsVideoPlayer";
 import StepView, { type StepViewItem } from "@/components/decks/StepView";
@@ -216,6 +218,8 @@ export default function FocusedCardView({
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
+  const canonicalVersion = hasPersonalCard(card) ? null : card.version;
+  const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("card", card.cardTemplateId!, canonicalVersion), [card.cardTemplateId, canonicalVersion]);
   const isDeckFlipped = Boolean(backFace) && requestedDeckFlip;
   const contentIdentity = cardPresentationIdentity(card);
   const [flipState, setFlipState] = useState<FocusedFlipState>({
@@ -681,6 +685,7 @@ export default function FocusedCardView({
                   onStepNavigatePrevious={restoreFocusedCardFromPast}
                 />
               </div>
+              <CardCreatorAttribution card={card} />
             </div>
             {backFace ? <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
               <CardBackSlot content={backFace} onNext={settleFocusedCardToPast} onPrevious={restoreFocusedCardFromPast} />
@@ -760,6 +765,7 @@ export default function FocusedCardView({
                   <CloudflareHlsVideoPlayer
                     ref={videoPlayerRef}
                     displayMode={isVideoExpanded ? "expanded" : "embedded"}
+                    beforeLoad={videoGuard}
                     mediaItem={activeCloudflareVideoMediaItem}
                     onMediaDisplayStateChange={({ assetId, state }) => {
                       if (assetId !== activeVideoAssetIdRef.current) {

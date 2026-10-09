@@ -23,14 +23,14 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
   const openedParam = useRef<string | null>(null);
   const active = records.filter((item) => item.archivedAt === null);
   const decks = buildMyDecksLayout(active.flatMap((item) => item.display ? [buildDeckLayout(item.display, { currentUserId, users: [{ id: currentUserId, name: userName }] })] : []));
-  async function open(id: string) {
+  async function open(id: string, cardTemplateId?: string) {
     const membership = active.find((item) => item.deckTemplateId === id);
     if (!membership || pending) return;
     if (membership.availability === "unavailable") { setError("This Deck is currently unavailable. Your membership and personal state are retained."); return; }
     setPending(id); setError("");
     try {
       await flushPersonalMutations();
-      const deck = await creatorRequest<Deck>("/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly() });
+      const deck = await creatorRequest<Deck>("/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}) });
       workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
       openedParam.current = id; setSelected(deck); setRotation(0);
       window.history.replaceState(null, "", `/decks?openDeck=${encodeURIComponent(id)}`);
@@ -38,8 +38,9 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
     finally { setPending(null); }
   }
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("openDeck");
-    if (id && openedParam.current !== id) { openedParam.current = id; void open(id); }
+    const query = new URLSearchParams(window.location.search);
+    const id = query.get("openDeck");
+    if (id && openedParam.current !== id) { openedParam.current = id; void open(id, query.get("openCard") ?? undefined); }
   });
   async function membershipAction(id: string, type: "archive" | "restore") {
     if (pending) return;

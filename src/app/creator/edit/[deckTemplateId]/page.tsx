@@ -45,7 +45,9 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
 
   const canPreviewOutput = user.isAdmin === true || user.username === "dev";
   const creatorReturnTarget =
-    returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
+    returnTo === "library"
+      ? { label: "Decks" as const, href: "/library" }
+      : returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
       ? { label: "Deck" as const, href: `/decks?openDeck=${encodeURIComponent(returnDeckId)}` }
       : { label: "Decks" as const, href: "/decks" };
 

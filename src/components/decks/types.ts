@@ -154,6 +154,7 @@ export type WeeklyCardSignal = {
 };
 
 export type WeeklyCard = {
+  creator?: { username: string; immediateSourceUsername: string | null };
   // Viewer-owned history. Events retain their original Card/Deck context;
   // adoption is explicitly not an event-time version attribution.
   personalHistory?: {

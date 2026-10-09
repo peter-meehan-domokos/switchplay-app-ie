@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import CardStack, { type CardTransitionPhase } from "./CardStack";
 import { getPlayableDeckIntroductionVideo } from "./deckIntroPreview";
 import FocusedCardView, { type FocusedCardViewProps, type FocusedTraversalDirection } from "./FocusedCardView";
-import { deckPresentationIdentity, hasPersonalDeck, type PresentedDeck, type CardBackPresentation } from "./presentation";
+import { deckPresentationIdentity, hasPersonalDeck, type PresentedDeck, type PresentedCard, type CardBackPresentation } from "./presentation";
 import { DECK_GESTURE_THRESHOLDS } from "./gestures/gestureThresholds";
 import { useDeckGestures } from "./gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "./gestures/gestureTypes";
@@ -23,6 +24,7 @@ export type DeckSceneProps = {
   transition: object;
   error?: string;
   deckActions?: ReactNode;
+  cardActions?: (card: PresentedCard) => ReactNode;
   onActiveCardChange?: (previous: number, next: number, rollback: (index: number) => void) => void;
   renderFocusedCard?: (props: FocusedCardViewProps) => ReactNode;
 };
@@ -131,7 +133,9 @@ function useDeckSceneLayout(
 
 // Replacing a Deck/immutable selection uses deckPresentationIdentity as the
 // caller's React key. Optimistic personal changes preserve that key and player lifetime.
-export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+  const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
+  const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
   const [activeCardIndex, setActiveCardIndex] = useState(() => {
     const initialCardIndex = hasPersonalDeck(deck) ? deck.cards.findIndex((card) => card.id === deck.activeCardId) : -1;
@@ -423,6 +427,8 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
         </div>
       </div> : null}
 
+      {!isFocusModeOpen && activeCard && cardActions ? <div className="deck-card-actions">{cardActions(activeCard)}</div> : null}
+
       <AnimatePresence>
         {isFocusModeOpen && activeCard ? (
           renderFocusedCard ? renderFocusedCard({
@@ -455,6 +461,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
               }
             >
               <CloudflareHlsVideoPlayer
+                beforeLoad={videoGuard}
                 ref={introPlayerRef}
                 displayMode={isDeckIntroExpanded ? "expanded" : "embedded"}
                 mediaItem={null}

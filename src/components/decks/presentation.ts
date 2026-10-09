@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 // cannot satisfy a working Card/Deck interface by inventing personal state.
 export type CanonicalCardPresentation = {
   surface: "canonical";
+  creator?: { username: string; immediateSourceUsername: string | null };
   id: string;
   cardTemplateId: string;
   version: number;

@@ -1,5 +1,6 @@
 import { motion, type MotionStyle } from "motion/react";
 import type { CSSProperties } from "react";
+import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import { cardPresentationIdentity, hasPersonalCard, type PresentedCard, type CardBackPresentation } from "./presentation";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
@@ -108,6 +109,7 @@ export default function DeckCard({
                 <CardSemanticAnchors card={card} dateLabel={dateLabel} showText={showHeader} />
               ) : null}
             </div>
+            <CardCreatorAttribution card={card} />
           </div>
           {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
             {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: backFaceVariant }) : null}

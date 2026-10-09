@@ -1,3 +1,4 @@
+import { cardCreatorAttributions } from "./creatorAttribution";
 import type { CardRepository } from "./repository";
 import { resolveWorkingDeck, resolveCreatorDeck, resolveCreatorCard, capabilities } from "./resolvers";
 import { assertAdoption, requireCondition, stepLinkedSignals, CardArchitectureError, assertCardContent, assertDeckContent } from "./domain";
@@ -35,7 +36,10 @@ export async function creatorCardDTO(repo: CardRepository, actor: string, id: st
 export async function workingDTO(repo: CardRepository, actor: string, id: string): Promise<Deck> {
   const deck = await resolveWorkingDeck(repo, actor, id);
   requireCondition(deck?.mode === "working", "WORKING_DECK_REQUIRED");
-  return projectWorking(deck, actor);
+  const display = projectWorking(deck, actor);
+  const creators = await cardCreatorAttributions(repo, deck.cards.map((card) => card.root));
+  display.cards.forEach((card) => { card.creator = creators.get(card.cardTemplateId!); });
+  return display;
 }
 function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof resolveWorkingDeck>>>, { mode: "working" }>, actor: string): Deck {
   requireCondition(Array.isArray(deck.version.content?.cards), "INVALID_CARD_REFERENCES");
@@ -89,6 +93,7 @@ export async function membershipDTO(repo: CardRepository, actor: string) {
       ? [{ cardTemplateId: root.cardTemplateId, version: personal.cardTemplateVersion }] : [];
   });
   const cardVersions = requests.length ? await repo.cardVersions().find({ $or: requests }).toArray() : [];
+  const creators = await cardCreatorAttributions(repo, cardRoots);
   return jsonDTO(published.map((data) => {
     const base = { deckTemplateId: data.deckTemplateId, archivedAt: data.archivedAt, openedAt: data.openedAt,
       membershipRevision: data.membershipRevision ?? 0,
@@ -115,6 +120,7 @@ export async function membershipDTO(repo: CardRepository, actor: string) {
         return { root: { ...card, draft: null }, version: cardVersion, data: personal, permissions: capabilities(actor, actor, root, card, personal) };
       });
       const display = projectWorking({ mode: "working", root: { ...root, draft: null }, version, data, cards, personalRecords: user.cardsData, permissions: capabilities(actor, actor, root) }, actor);
+      display.cards.forEach((card) => { card.creator = creators.get(card.cardTemplateId!); });
       return { ...base, availability: "available" as const, unavailableReason: null, display, title: content.title, cardCount: content.cards.length,
         latestVersion: root.latestVersion, updateAvailable: root.latestVersion > data.deckTemplateVersion,
         cardUpdatesAvailable: cardsWithUpdates(content.cards, user.cardsData, cardRoots),

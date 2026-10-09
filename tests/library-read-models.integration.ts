@@ -33,6 +33,34 @@ function available(entry: LibraryEntry) {
   return entry;
 }
 
+test("Library owner Edit eligibility is independent of membership and preserves canonical/personal records", async () => {
+  const repo = await setup(), x = await card(repo), d = await deck(repo, [x]), empty = await deck(repo);
+  const before = await repo.users().find({}).toArray();
+  const request = { deckTemplateIds: [d, empty], cardTemplateIds: [] };
+  const owner = await libraryViewerStatus(repo, "bob", request);
+  assert.ok(owner.decks.every((data) => data.state === "not-added" && data.canEditInCreator));
+  assert.ok((await libraryViewerStatus(repo, "alice", request)).decks.every((data) => !data.canEditInCreator));
+  assert.ok(!Object.hasOwn(await libraryDetail(repo, "bob", d), "canEditInCreator"));
+  assert.deepEqual(await repo.users().find({}).toArray(), before);
+  assert.equal(await repo.deckVersions().countDocuments({ deckTemplateId: d }), 1);
+});
+
+test("Library owner Edit uses the Creator draft composition and excludes foreign or missing Cards", async () => {
+  const repo = await setup(), own = await card(repo), foreign = await card(repo, "alice");
+  const mixed = await deck(repo, [own, foreign]), d = await deck(repo, [own]);
+  const eligible = async (id: string) => (await libraryViewerStatus(repo, "bob", { deckTemplateIds: [id], cardTemplateIds: [] })).decks[0].canEditInCreator;
+  assert.equal(await eligible(mixed), false);
+  assert.equal(await eligible(d), true);
+  const content = deckDraftContent((await repo.getDeckVersion(d, 1))!.content);
+  await repo.saveDeckDraft("bob", d, 1, { ...content, cards: [{ cardTemplateId: own }, { cardTemplateId: foreign }] });
+  assert.equal(await eligible(d), false); // Published preview alone is insufficient.
+  assert.equal(available(await libraryDetail(repo, "bob", d)).deck.cards.length, 1);
+  await repo.saveDeckDraft("bob", d, 2, content);
+  assert.equal(await eligible(d), true);
+  await repo.cards().deleteOne({ cardTemplateId: own });
+  assert.equal(await eligible(d), false);
+});
+
 test("Library is public-only even for owners, excludes unpublished public intent and makes no personal records", async () => {
   const repo = await setup(), x = await card(repo), d = await deck(repo, [x]);
   const privateDeck = await deck(repo, [], "bob", "private", "Private title");
@@ -215,4 +243,39 @@ test("collection work is batched, personal values are not queried, and Library p
   for (const event of commands.filter((event) => event.command.find === "users")) {
     assert.ok(event.command.projection); assert.equal(JSON.stringify(event.command.projection).includes("reflection"), false);
   }
+});
+
+test("Library video status authorizes exact public immutable media, including owner privacy boundaries", async () => {
+  const { authorizeLibraryVideo } = await import("../src/lib/cards/libraryMedia");
+  const repo = await setup();
+  const video = { id: "instruction", description: "Instruction", mediaType: "video" as const, provider: "cloudflare-stream" as const,
+    assetId: "video-uid", src: "https://videodelivery.net/video-uid/manifest/video.m3u8" };
+  const root = await repo.createCardDraft("bob", { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]), intro: { title: "Video practice", description: "", mediaItem: video } }, "private");
+  await repo.publishCard("bob", root.cardTemplateId, 0);
+  const content = (await repo.getCardVersion(root.cardTemplateId, 1))!.content;
+  await repo.saveCardDraft("bob", root.cardTemplateId, 1, content, "public"); await repo.publishCard("bob", root.cardTemplateId, 2);
+  for (const actor of ["alice", "bob"]) {
+    await assert.rejects(authorizeLibraryVideo(repo, actor, { kind: "card", templateId: root.cardTemplateId, version: 1, assetId: video.assetId }), { code: "LIBRARY_MEDIA_FORBIDDEN" });
+    await authorizeLibraryVideo(repo, actor, { kind: "card", templateId: root.cardTemplateId, version: 2, assetId: video.assetId });
+    await assert.rejects(authorizeLibraryVideo(repo, actor, { kind: "card", templateId: root.cardTemplateId, version: 2, assetId: "arbitrary-uid" }), { code: "MEDIA_OUTSIDE_CONTEXT" });
+  }
+  const d = await repo.createDeckDraft("bob", { ...createDefaultDeckContent([]), title: "Video Deck", introduction: { image: null, video } }, "public");
+  await repo.publishDeck("bob", d.deckTemplateId, 0);
+  await authorizeLibraryVideo(repo, "alice", { kind: "deck", templateId: d.deckTemplateId, version: 1, assetId: video.assetId });
+  await assert.rejects(authorizeLibraryVideo(repo, "alice", { kind: "deck", templateId: d.deckTemplateId, version: 1, assetId: "arbitrary-uid" }), { code: "MEDIA_OUTSIDE_CONTEXT" });
+});
+
+test("working Card attribution resolves current and immediate source usernames without identifiers", async () => {
+  const { workingDTO } = await import("../src/lib/cards/readModels");
+  const repo = await setup(), source = await card(repo);
+  const target = randomUUID(), sourceVersion = (await repo.getCardVersion(source, 1))!;
+  const ref = { cardTemplateId: source, version: 1 }, stepIds = sourceVersion.content.steps.map(() => randomUUID());
+  const fork = forkCardContent(sourceVersion.content, ref, stepIds);
+  await repo.createCardFork("alice", { source: ref, cardTemplateId: target, stepIds, context: { kind: "library" }, content: { ...fork, intro: { ...fork.intro, title: "Edited practice" } } });
+  await repo.publishCard("alice", target, 0);
+  const programme = await deck(repo, [target], "alice", "private");
+  const projected = await workingDTO(repo, "alice", programme);
+  assert.deepEqual(projected.cards[0].creator, { username: "alice", immediateSourceUsername: "bob" });
+  const { membershipDTO } = await import("../src/lib/cards/readModels");
+  assert.deepEqual((await membershipDTO(repo, "alice"))[0].display?.cards[0].creator, projected.cards[0].creator);
 });

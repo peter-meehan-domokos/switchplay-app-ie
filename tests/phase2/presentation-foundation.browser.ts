@@ -1,3 +1,4 @@
+import { geometry } from "./helpers/presentationGeometry";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { readFile, writeFile } from "node:fs/promises";
@@ -86,53 +87,81 @@ async function renderCanonical(page: Page, deck: CanonicalDeckPresentation, coll
   }, { deck, collection });
 }
 
-async function geometry(page: Page, selectors: string[]) {
-  await page.evaluate(() => document.fonts.ready);
-  // Timer polls can sample the same unfinished Motion layout transform twice
-  // between rendered frames, especially in a headed browser. Sample actual frames
-  // and ancestor transforms as well as rectangles; a card's bounds alone cannot
-  // tell us whether its flip or the containing shared-layout transition has ended.
-  return page.evaluate((selectors) => new Promise<Record<string, number[]>>((resolve, reject) => {
-    let previous = "", stableSince = 0, stableFrames = 0, frame = 0;
-    let diagnostics: unknown;
-    const timeout = window.setTimeout(() => {
-      cancelAnimationFrame(frame);
-      reject(new Error(`Presentation did not settle: ${JSON.stringify(diagnostics)}`));
-    }, 15_000);
-    const sample = (timestamp: number) => {
-      const ancestors = new Set<Element>();
-      const rectangles: Record<string, number[]> = {};
-      for (const selector of selectors) {
-        const element = document.querySelector(selector);
-        if (!element) {
-          clearTimeout(timeout);
-          reject(new Error(`Missing geometry anchor: ${selector}`));
-          return;
-        }
-        for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) ancestors.add(ancestor);
-        const { x, y, width, height } = element.getBoundingClientRect();
-        rectangles[selector] = [x, y, width, height].map((value) => Math.round(value * 10) / 10);
+for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+  for (const username of ["Ada", "a_creator_with_an_exceptionally_long_username"]) {
+    test(`Card attribution remains face-anchored and proportional across active/focused/past views ${viewport.width} ${username}`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+      await page.goto("/library");
+      const styles = await page.evaluate(() => Array.from(document.head.querySelectorAll('link[rel="stylesheet"], style')).map((node) => node.outerHTML).join(""));
+      const bodyClass = await page.locator("body").getAttribute("class");
+      await page.route("**/__attribution-fixture", (route) => route.fulfill({ contentType: "text/html",
+        body: `<html><head>${styles}</head><body class="${bodyClass ?? ""}"><div id="fixture"></div></body></html>` }));
+      await page.goto("/__attribution-fixture");
+      await page.addScriptTag({ content: canonicalBundle });
+      const source = canonicalPresentationFixture(viewport.width);
+      const immediateSourceUsername = username === "Ada" ? null : "Earlier creator";
+      await renderCanonical(page, { ...source, cards: source.cards.map((card) => ({ ...card, creator: { username, immediateSourceUsername } })) });
+      const inspect = async (selector: string, view: string) => {
+        const attribution = `${selector} .card-creator-attribution`;
+        await geometry(page, [selector, attribution]);
+        const values = await page.locator(attribution).evaluate((element) => {
+          const face = element.parentElement as HTMLElement, label = element as HTMLElement;
+          const name = label.querySelector<HTMLElement>(".card-creator-name")!;
+          return {
+            faceAnchored: label.offsetParent === face,
+            bottomProportion: (face.clientHeight - label.offsetTop - label.offsetHeight) / face.clientHeight,
+            fontProportion: parseFloat(getComputedStyle(label).fontSize) / face.clientWidth,
+            centered: Math.abs(label.offsetLeft - face.clientWidth / 2) <= 1,
+            fits: label.offsetWidth <= face.clientWidth - 39 && name.clientWidth <= label.clientWidth,
+            name: name.textContent, title: name.title,
+            overflow: getComputedStyle(name).textOverflow,
+            scale: getComputedStyle(face.parentElement!).transform,
+          };
+        });
+        expect(values.faceAnchored).toBe(true);
+        expect(values.centered).toBe(true);
+        expect(values.bottomProportion).toBeGreaterThanOrEqual(.03);
+        expect(values.bottomProportion).toBeLessThanOrEqual(.05);
+        expect(values.fontProportion).toBeGreaterThan(.025);
+        expect(values.fontProportion).toBeLessThan(.045);
+        expect(values.fits).toBe(true);
+        expect(values.name).toBe(username); expect(values.title).toBe(username);
+        expect(values.overflow).toBe("ellipsis");
+        await testInfo.attach(`${view}-attribution`, { body: JSON.stringify(values, null, 2), contentType: "application/json" });
+        await page.screenshot({ path: testInfo.outputPath(`${view}.png`), fullPage: true });
+        // The existing past-Card position can extend below the viewport. Capture
+        // its complete face as well, without changing the Card or viewport size.
+        if (view === "past") await page.locator(selector).screenshot({ path: testInfo.outputPath("past-card.png") });
+        return values;
+      };
+      await expect(page.locator(".deck-card.is-active")).toBeVisible();
+      const active = await inspect(".deck-card.is-active .deck-card-surface--front", "active");
+      await page.locator(".deck-card.is-active").press("Enter");
+      const focused = await inspect(".focused-card-surface--front", "focused");
+      expect(Math.abs(active.fontProportion - focused.fontProportion)).toBeLessThan(.001);
+      expect(Math.abs(active.bottomProportion - focused.bottomProportion)).toBeLessThan(.003);
+      if (immediateSourceUsername) {
+        await page.locator(".focused-card-surface--front .card-creator-name").click();
+        await expect(page.locator(".focused-card-surface--front .card-source-attribution")).toHaveText("Source: Earlier creator");
+        await page.locator(".focused-card-surface--front .card-creator-name").press("Escape");
       }
-      const transforms = Array.from(ancestors, (element) => {
-        const style = getComputedStyle(element);
-        return [style.transform, style.opacity];
-      });
-      const animating = Array.from(ancestors).some((element) => element.getAnimations().some((animation) =>
-        (animation.playState === "running" || animation.pending) && animation.effect?.getTiming().iterations !== Infinity));
-      const signature = JSON.stringify({ rectangles, transforms });
-      if (!animating && signature === previous) stableFrames++;
-      else { stableFrames = 0; stableSince = timestamp; }
-      previous = signature;
-      diagnostics = { rectangles, transforms, animating, stableFrames,
-        viewport: [innerWidth, innerHeight], deviceScale: devicePixelRatio, visibility: document.visibilityState };
-      if (stableFrames >= 8 && timestamp - stableSince >= 200) {
-        clearTimeout(timeout);
-        resolve(rectangles);
-      } else frame = requestAnimationFrame(sample);
-    };
-    frame = requestAnimationFrame(sample);
-  }), selectors);
+      const headerSelector = ".focused-card-surface--front .card-title-anchor";
+      const rect = (await geometry(page, [headerSelector]))[headerSelector];
+      await page.mouse.move(rect[0] + rect[2] / 2, rect[1] + rect[3] / 2);
+      await page.mouse.down(); await page.mouse.move(rect[0] + rect[2] / 2, rect[1] + rect[3] / 2 + 170, { steps: 12 }); await page.mouse.up();
+      // The outgoing and incoming faces coexist while the navigation animation runs.
+      await expect(page.locator(".focused-card-surface--front .active-card-identity")).toHaveCount(1);
+      await expect(page.locator(".focused-card-surface--front .active-card-identity")).toContainText("Practice 2");
+      await page.getByRole("button", { name: "Close focused card", exact: true }).click({ position: { x: 8, y: 8 } });
+      const past = await inspect(".deck-card.is-past .deck-card-surface--front", "past");
+      expect(Math.abs(active.fontProportion - past.fontProportion)).toBeLessThan(.001);
+      expect(Math.abs(active.bottomProportion - past.bottomProportion)).toBeLessThan(.003);
+      expect(past.scale).toMatch(/^matrix\(0\.58/); // Existing whole-Card scale applies to attribution too.
+    });
+  }
 }
+
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
   test(`working presentation geometry ${viewport.width}`, async ({ page }, testInfo) => {
@@ -245,6 +274,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       await expect(page.locator(".deck-detail h1")).toHaveText(content.title);
       await expect(page.locator(".deck-card, .focused-card-layer")).toHaveCount(0);
 
+      expect(canonicalRequests).toEqual([]);
+      // These presentation-only fixtures have no public database counterparts.
+      // Playback now performs a public-version-authorized read; mock that read
+      // here, while the real Library/API suites test its authorization boundary.
+      await page.route("**/api/library/media/stream-status?**", (route) => {
+        expect(route.request().method()).toBe("GET");
+        return route.fulfill({ json: { status: "ready" } });
+      });
       // Exercise the shared media hosts with deterministic unavailable delivery,
       // rather than relying on a real external Stream account in this fixture.
       await page.route("https://videodelivery.net/**", (route) => route.fulfill({ status: 404, body: "Fixture media unavailable" }));
@@ -269,7 +306,12 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       await expect(page.getByRole("region", { name: "STEP 2 detail" })).toBeVisible();
       await expect(stepPlayer).toHaveAttribute("data-diag-video-id", stepPlayerId!);
       await expect(page.locator(".focused-card-surface--back")).toHaveCount(0);
-      expect(canonicalRequests).toEqual([]);
+      expect(canonicalRequests.length).toBeGreaterThan(0);
+      expect(canonicalRequests.every((url) => new URL(url).pathname === "/api/library/media/stream-status")).toBe(true);
+      // Poster/overlay rerenders must not restart authorization or polling.
+      for (const asset of ["fixture-video-0", "fixture-video-1", "fixture-video-2"]) {
+        expect(canonicalRequests.filter((url) => new URL(url).searchParams.get("assetId") === asset)).toHaveLength(1);
+      }
     } finally { await client.close(); }
   });
 }

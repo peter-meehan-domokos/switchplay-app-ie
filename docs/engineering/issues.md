@@ -34,6 +34,8 @@ When swiping up from a card on the table, that card should move first, and then 
 
 ## LATER
 - consider a categories record
+- Phase 4 Checkpoint 5 manual review: Card creator attribution appears in Library but not My Decks. Investigate later with multiple users; no investigation performed for the Library Edit/Fork amendment.
+- Phase 4 Checkpoint 5 manual review: verify real Cloudflare playback later using real uploaded assets. Synthetic Stream IDs in the disposable Phase 2 environment cannot establish live playback correctness.
 
 
 

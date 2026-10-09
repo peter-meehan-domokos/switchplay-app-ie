@@ -1,10 +1,12 @@
 import { ObjectId, type ClientSession, type Document } from "mongodb";
 import type { CardRepository } from "./repository";
 import { COLLECTIONS } from "./repository";
+import { creatorUsernames as usernames } from "./creatorAttribution";
 import { CardArchitectureError, assertAdoption, assertDeckContent, isRecord, nonblank, requireCondition } from "./domain";
 import type { CardTemplateRoot, CardTemplateVersion, DeckTemplateRoot, DeckTemplateVersion } from "./model";
 import { deckDraftContent } from "./publicationRules";
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
+import { creatorDTO } from "./readModels";
 import { canonicalIntroductionDTO, libraryCardPresentation, libraryDeckPresentation, previewManifest, publicationTimestamp, type LibraryEntry } from "./libraryProjection";
 
 type DeckSelection = Pick<DeckTemplateRoot, "deckTemplateId" | "ownerUserId" | "visibility" | "latestVersion"> & {
@@ -44,13 +46,6 @@ function validateDeckVersion(version: DeckTemplateVersion) {
   assertDeckContent(deckDraftContent(version.content));
 }
 
-// Account resolution reads username only, in one batch, and never publishes IDs.
-async function usernames(repo: CardRepository, ids: string[], session: ClientSession) {
-  const keys = [...new Set(ids.filter(nonblank))].map((id) => /^[a-f\d]{24}$/i.test(id) ? new ObjectId(id) : id);
-  const users = keys.length ? await repo.db.collection<{ _id: ObjectId | string; username?: string }>(COLLECTIONS.users)
-    .find({ _id: { $in: keys } }, { session, projection: { username: 1 } }).toArray() : [];
-  return new Map(users.map((user) => [String(user._id), nonblank(user.username) ? user.username : UNAVAILABLE_LIBRARY_CREATOR]));
-}
 
 function unavailable(selection: DeckSelection): LibraryEntry {
   return { availability: "unavailable", deckTemplateId: selection.deckTemplateId, title: "Unavailable Deck",
@@ -198,6 +193,16 @@ export async function libraryViewerStatus(repo: CardRepository, actor: string, r
         ? [{ cardTemplateId: card.cardTemplateId, version: data.cardTemplateVersion }] : [];
     });
     const adopted = adoptedRequests.length ? await repo.cardVersions().find({ $or: adoptedRequests }, { session, projection: { cardTemplateId: 1, version: 1, visibility: 1 } }).toArray() : [];
+    // Only requested owned Decks need this check (normally the detail Deck).
+    // Reuse the actual Creator boundary, including saved draft references and
+    // its current foreign-Card restriction. No membership or personal writes.
+    const editableDecks = new Set<string>();
+    for (const root of publicDecks.filter((deck) => deck.ownerUserId === actor)) {
+      try {
+        await creatorDTO(repo, actor, root.deckTemplateId);
+        editableDecks.add(root.deckTemplateId);
+      } catch (error) { if (!(error instanceof CardArchitectureError)) throw error; }
+    }
     return { viewerUserId: actor,
       decks: publicDecks.map((root) => {
         const data = user.decksData.find((data) => data.deckTemplateId === root.deckTemplateId);
@@ -205,6 +210,7 @@ export async function libraryViewerStatus(repo: CardRepository, actor: string, r
           membershipRevision: data ? data.membershipRevision ?? 0 : null,
           adoptedVersion: data?.deckTemplateVersion ?? null, latestVersion: root.latestVersion,
           updateAvailable: !!data && root.latestVersion > data.deckTemplateVersion,
+          canEditInCreator: editableDecks.has(root.deckTemplateId),
           retainedDeckVersionAvailable: !!data && available.has(root.deckTemplateId) };
       }),
       cards: publicCards.map((root) => {

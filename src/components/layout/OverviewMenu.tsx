@@ -1,7 +1,5 @@
 "use client";
 
-import { workingCardStore } from "@/lib/cards/workingCardStore";
-import { flushPersonalMutations } from "@/lib/deckMutations";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -13,6 +11,9 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
   const [isPending, startTransition] = useTransition();
 
   async function handleLogout() {
+    // Library may share this menu without initializing working infrastructure.
+    // Logout alone drains any previous working session and clears its store.
+    const [{ flushPersonalMutations }, { workingCardStore }] = await Promise.all([import("@/lib/deckMutations"), import("@/lib/cards/workingCardStore")]);
     await flushPersonalMutations();
     const response = await fetch("/api/auth/logout", {
       method: "POST",
@@ -43,6 +44,8 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
       </button>
       {isOpen ? (
         <div className="deck-menu-popover" role="menu">
+          <Link className="deck-menu-item" href="/library" role="menuitem" onClick={() => setIsOpen(false)}>Library</Link>
+          <Link className="deck-menu-item" href="/decks" prefetch={false} role="menuitem" onClick={() => setIsOpen(false)}>My Decks</Link>
           <Link className="deck-menu-item" href="/creator/new" role="menuitem" onClick={() => setIsOpen(false)}>
             Create
           </Link>

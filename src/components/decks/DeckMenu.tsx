@@ -6,11 +6,12 @@ import { useState } from "react";
 type DeckMenuProps = {
   deckId: string;
   deckTemplateId: string;
+  editHref?: string;
 };
 
-export default function DeckMenu({ deckId, deckTemplateId }: DeckMenuProps) {
+export default function DeckMenu({ deckId, deckTemplateId, editHref }: DeckMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const editHref = `/creator/edit/${encodeURIComponent(deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(deckId)}&returnDeckTemplateId=${encodeURIComponent(deckTemplateId)}`;
+  const href = editHref ?? `/creator/edit/${encodeURIComponent(deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(deckId)}&returnDeckTemplateId=${encodeURIComponent(deckTemplateId)}`;
 
   return (
     <div className="deck-menu">
@@ -26,7 +27,7 @@ export default function DeckMenu({ deckId, deckTemplateId }: DeckMenuProps) {
       </button>
       {isOpen ? (
         <div className="deck-menu-popover" role="menu">
-          <Link className="deck-menu-item" href={editHref} role="menuitem">
+          <Link className="deck-menu-item" href={href} prefetch={editHref ? false : undefined} role="menuitem">
             Edit
           </Link>
         </div>
