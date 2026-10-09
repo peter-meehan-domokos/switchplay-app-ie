@@ -231,7 +231,12 @@ test("Add stays in Library, pins personal records unopened, then Open runs norma
   const user = (await repo.getPersonalUser(viewer))!, data = user.decksData.find((item) => item.deckTemplateId === id)!;
   expect(data.openedAt).toBeNull(); expect(data.cadenceAnchorDate).toBeNull();
   expect(user.cardsData.filter((item) => ids.includes(item.cardTemplateId)).every((item) => item.targetDate === null)).toBeTruthy();
+  // The route changes before AppShell finishes its separate first-open request.
+  // Assert initialization only after that exact working operation commits.
+  const workingOpen = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/decks-data"
+    && response.request().method() === "POST" && response.request().postDataJSON()?.deckTemplateId === id);
   await page.getByRole("button", { name: "Open in My Decks", exact: true }).click();
+  expect((await workingOpen).ok()).toBeTruthy();
   await expect(page.locator(".deck-detail h1")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/decks\\?openDeck=${id}`));
   const opened = (await repo.getPersonalUser(viewer))!.decksData.find((item) => item.deckTemplateId === id)!;
   expect(opened.openedAt).not.toBeNull(); expect(opened.cadenceAnchorDate).not.toBeNull();
