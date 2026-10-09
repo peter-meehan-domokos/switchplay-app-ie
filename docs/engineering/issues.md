@@ -33,6 +33,8 @@ When swiping up from a card on the table, that card should move first, and then 
 
 
 ## LATER
+- Phase 5 resilience deliberately excludes preserving unsent keystrokes after browser crash, automatic cross-reload file-upload resumption, guaranteed recovery of lost provider-allocation responses, and elaborate orphan-provider-asset cleanup. Submitted fork operations will use a small actor/session-scoped recovery journal; exceptional upload failures may require manual retry. Never silently attach unauthorized assets, delete uncertain/shared assets, or discard pending personal work. Revisit if real-user failures justify the additional complexity. See `phase-5-plan.md`.
+- Phase 5: Creator may retain an older selected immutable foreign Card version while Deck publication records the Card's latest published version. The agreed publication review must identify this difference and require confirmation; a further relevant publication invalidates the review. Authoring selections, `cardVersionAtPublish` and personal adoption remain separate. Revisit whether this distinction causes user confusion after the workflow has been exercised; it is not a Phase 5 blocker and does not authorize silently refreshing draft selections or changing adoption semantics.
 - consider a categories record
 - Phase 4 Checkpoint 5 manual review: Card creator attribution appears in Library but not My Decks. Investigate later with multiple users; no investigation performed for the Library Edit/Fork amendment.
 - Phase 4 Checkpoint 5 manual review: verify real Cloudflare playback later using real uploaded assets. Synthetic Stream IDs in the disposable Phase 2 environment cannot establish live playback correctness.

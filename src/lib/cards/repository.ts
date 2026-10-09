@@ -17,6 +17,7 @@ import { readablePersonalHistory } from "./personalHistory";
 import type { CardForkCommand, DeckForkCommand, ForkContext, ForkDeckEntry } from "./model";
 import { assertPreviewManifest, LibraryPreviewConflict, type PersonalEntryResult } from "./libraryEntry";
 import type { LibraryPreviewManifest } from "./libraryProjection";
+import { assertUpdateCommand, reconcileCardUpdate, UpdateReviewConflict, type UpdateCommand, type UpdateReviewResult, type UpdateAdoptionResult } from "./updateAdoption";
 
 export const COLLECTIONS = { cards: "cardTemplates", cardVersions: "cardTemplateVersions", decks: "deckTemplates", deckVersions: "deckTemplateVersions", users: "users" } as const;
 function entityId(value: unknown) { requireCondition(nonblank(value), "INVALID_ENTITY_ID"); }
@@ -76,6 +77,117 @@ export class CardRepository {
     const versions = await this.cardVersions().find({ cardTemplateId, version: { $gt: afterVersion, $lte: root.latestVersion },
       ...(root.ownerUserId === actor ? {} : { visibility: "public" }), updateNote: { $exists: true } }).sort({ version: 1 }).toArray();
     return versions.filter((version) => version.updateNote?.trim()).map(({ version, updateNote }) => ({ version, updateNote: updateNote! }));
+  }
+  async reviewUpdate(actor: string, kind: UpdateCommand["kind"], entityId: string): Promise<UpdateReviewResult> {
+    return this.transaction(async (session) => this.updateReviewInSession(actor, kind, entityId, await this.assertUser(actor, session), session));
+  }
+  private async updateReviewInSession(actor: string, kind: UpdateCommand["kind"], id: string, user: PersonalUser, session: ClientSession): Promise<UpdateReviewResult> {
+    entityId(actor); entityId(id); requireCondition(kind === "card" || kind === "deck", "INVALID_UPDATE_COMMAND");
+    const data = kind === "card" ? user.cardsData.find((data) => data.cardTemplateId === id) : user.decksData.find((data) => data.deckTemplateId === id);
+    requireCondition(data, "PERSONAL_UPDATE_FORBIDDEN");
+    requireCondition(kind === "card" ? user.cardsData.filter((data) => data.cardTemplateId === id).length === 1
+      : user.decksData.filter((data) => data.deckTemplateId === id).length === 1, "AMBIGUOUS_PERSONAL_UPDATE_CONFLICT");
+    const adoptedVersion = "cardTemplateVersion" in data ? data.cardTemplateVersion : data.deckTemplateVersion;
+    const root = kind === "card" ? await this.cards().findOne({ cardTemplateId: id }, { session }) : await this.decks().findOne({ deckTemplateId: id }, { session });
+    requireCondition(root, "UPDATE_CONTENT_UNAVAILABLE");
+    const missingCards: UpdateCommand["missingCards"] = [];
+    let title: string;
+    if (kind === "card") {
+      const card = root as CardTemplateRoot;
+      const adopted = await this.getCardVersion(id, adoptedVersion, session), latest = await this.getCardVersion(id, root.latestVersion, session);
+      requireCondition(adopted && latest, "MISSING_CARD_VERSION");
+      assertCardVersionAccess(actor, card, adopted); assertCardVersionAccess(actor, card, latest); assertCardContent(latest.content);
+      title = latest.content.intro.title ?? "Card";
+    } else {
+      const deck = root as DeckTemplateRoot;
+      requireCondition((data as DeckData).archivedAt === null, "WORKING_DECK_REQUIRED");
+      const adopted = await this.getDeckVersion(id, adoptedVersion, session), latest = await this.getDeckVersion(id, root.latestVersion, session);
+      requireCondition(adopted && latest, "MISSING_DECK_VERSION");
+      assertDeckVersionAccess(actor, deck, adopted); assertDeckVersionAccess(actor, deck, latest);
+      assertDeckContent(deckDraftContent(latest.content)); title = latest.content.title;
+      const refs = latest.content.cards;
+      const roots = await this.deckReferences(actor, latest.content, session);
+      const byId = new Map(roots.map((card) => [card.cardTemplateId, card]));
+      const personal = new Map(user.cardsData.map((card) => [card.cardTemplateId, card]));
+      const selected = refs.map(({ cardTemplateId }) => ({ cardTemplateId, version: personal.get(cardTemplateId)?.cardTemplateVersion ?? byId.get(cardTemplateId)!.latestVersion }));
+      const versions = selected.length ? await this.cardVersions().find({ $or: selected }, { session }).toArray() : [];
+      for (const ref of selected) {
+        requireCondition(user.cardsData.filter((data) => data.cardTemplateId === ref.cardTemplateId).length <= 1, "AMBIGUOUS_PERSONAL_UPDATE_CONFLICT");
+        const version = versions.find((version) => version.cardTemplateId === ref.cardTemplateId);
+        requireCondition(version, "MISSING_CARD_VERSION"); assertCardVersionAccess(actor, byId.get(ref.cardTemplateId)!, version); assertCardContent(version.content);
+        if (!personal.has(ref.cardTemplateId)) missingCards.push(ref);
+      }
+    }
+    requireCondition(root.latestVersion >= adoptedVersion, "UPDATE_ADOPTION_CONFLICT");
+    if (root.latestVersion === adoptedVersion) return { viewerUserId: actor, review: null };
+    const filter = { version: { $gt: adoptedVersion, $lte: root.latestVersion }, ...(root.ownerUserId === actor ? {} : { visibility: "public" as const }) };
+    const versions = kind === "card" ? await this.cardVersions().find({ cardTemplateId: id, ...filter }, { session }).sort({ version: 1 }).toArray()
+      : await this.deckVersions().find({ deckTemplateId: id, ...filter }, { session }).sort({ version: 1 }).toArray();
+    const notes = versions.flatMap(({ version, updateNote }) => typeof updateNote === "string" && updateNote.trim() ? [{ version, updateNote: updateNote.trim() }] : []);
+    return { viewerUserId: actor, review: { command: { viewerUserId: actor, kind, entityId: id, adoptedVersion, targetVersion: root.latestVersion, missingCards }, title, notes } };
+  }
+  async adoptUpdate(actor: string, command: UpdateCommand): Promise<UpdateAdoptionResult> {
+    assertUpdateCommand(command); requireCondition(command.viewerUserId === actor, "UPDATE_SESSION_CONFLICT");
+    return this.transaction(async (session) => {
+      const user = await this.assertUser(actor, session), id = command.entityId;
+      const data = command.kind === "card" ? user.cardsData.find((data) => data.cardTemplateId === id) : user.decksData.find((data) => data.deckTemplateId === id);
+      requireCondition(data, "PERSONAL_UPDATE_FORBIDDEN");
+      requireCondition(command.kind === "card" ? user.cardsData.filter((data) => data.cardTemplateId === id).length === 1
+        : user.decksData.filter((data) => data.deckTemplateId === id).length === 1, "AMBIGUOUS_PERSONAL_UPDATE_CONFLICT");
+      const current = "cardTemplateVersion" in data ? data.cardTemplateVersion : data.deckTemplateVersion;
+      // These are explicit current-state acknowledgements, not receipts claiming
+      // that a particular request caused adoption. They never replay any writes.
+      if (current >= command.targetVersion) return this.updateOutcome(actor, command, user, current === command.targetVersion ? "already-adopted" : "superseded", session);
+      requireCondition(current === command.adoptedVersion, "UPDATE_ADOPTION_CONFLICT");
+      const latest = await this.updateReviewInSession(actor, command.kind, id, user, session);
+      const reviewed = latest.review?.command;
+      const fresh = reviewed && reviewed.targetVersion === command.targetVersion && reviewed.missingCards.every((ref) =>
+        command.missingCards.some((before) => before.cardTemplateId === ref.cardTemplateId && before.version === ref.version));
+      if (!fresh) throw new UpdateReviewConflict(latest);
+      const now = new Date();
+      if (command.kind === "card") {
+        const target = (await this.getCardVersion(id, command.targetVersion, session))!;
+        const state = reconcileCardUpdate(data as import("./model").CardData, target.content);
+        await this.guardCardRoots([id], session);
+        await this.users().updateOne({ _id: userKey(actor) }, { $set: {
+          "cardsData.$[card].cardTemplateVersion": command.targetVersion, "cardsData.$[card].updatedAt": now,
+          "cardsData.$[card].items": state.items, "cardsData.$[card].signalReadings": state.signalReadings,
+        } }, { session, arrayFilters: [{ "card.cardTemplateId": id }] });
+      } else {
+        const target = (await this.getDeckVersion(id, command.targetVersion, session))!;
+        // Lock only missing Card adoptions, then the Deck. A publication of a
+        // previously adopted Card is irrelevant to this Deck transition.
+        await this.guardCardRoots(reviewed.missingCards.map((ref) => ref.cardTemplateId), session);
+        const guarded = await this.decks().updateOne({ deckTemplateId: id, latestVersion: command.targetVersion }, { $inc: { publicationGuard: 1 } }, { session });
+        requireCondition(guarded.matchedCount === 1, "UPDATE_REVIEW_CONFLICT");
+        await this.ensureCompositionCardData(actor, user, target.content.cards, now, session);
+        const activeCardId = target.content.cards.some((ref) => ref.cardTemplateId === (data as DeckData).activeCardId)
+          ? (data as DeckData).activeCardId : target.content.cards[0]?.cardTemplateId ?? null;
+        await this.users().updateOne({ _id: userKey(actor) }, { $set: {
+          "decksData.$[deck].deckTemplateVersion": command.targetVersion, "decksData.$[deck].activeCardId": activeCardId, "decksData.$[deck].updatedAt": now,
+        } }, { session, arrayFilters: [{ "deck.deckTemplateId": id }] });
+      }
+      return this.updateOutcome(actor, command, await this.assertUser(actor, session), "updated", session);
+    });
+  }
+  private async updateOutcome(actor: string, command: UpdateCommand, user: PersonalUser, outcome: UpdateAdoptionResult["outcome"], session: ClientSession): Promise<UpdateAdoptionResult> {
+    const base = { viewerUserId: actor, kind: command.kind, entityId: command.entityId, outcome };
+    if (command.kind === "card") {
+      const root = await this.cards().findOne({ cardTemplateId: command.entityId }, { session });
+      const data = user.cardsData.find((data) => data.cardTemplateId === command.entityId)!;
+      const version = await this.getCardVersion(command.entityId, data.cardTemplateVersion, session);
+      requireCondition(root && version, "MISSING_CARD_VERSION"); assertCardVersionAccess(actor, root, version);
+      return { ...base, adoptedVersion: data.cardTemplateVersion, latestVersion: root.latestVersion };
+    }
+    const data = user.decksData.find((data) => data.deckTemplateId === command.entityId)!;
+    const refs = await this.retainedComposition(actor, data, session);
+    const root = (await this.decks().findOne({ deckTemplateId: command.entityId }, { session }))!;
+    const adoptedCards = refs.map(({ cardTemplateId }) => {
+      const card = user.cardsData.find((card) => card.cardTemplateId === cardTemplateId);
+      requireCondition(card, "MISSING_CARD_DATA"); return { cardTemplateId, version: card.cardTemplateVersion };
+    });
+    return { ...base, adoptedVersion: data.deckTemplateVersion, latestVersion: root.latestVersion,
+      membershipState: data.archivedAt === null ? "active" : "archived", adoptedCards };
   }
   getPersonalUser(userId: string, session?: ClientSession) {
     return this.users().findOne({ _id: userKey(userId) }, { projection: { decksData: 1, cardsData: 1 }, session });

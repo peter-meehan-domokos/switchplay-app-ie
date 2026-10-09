@@ -69,6 +69,11 @@ Gesture constants should not be mixed into layout constants such as `src/constan
 
 ## Phase 1 Implementation State
 
+This subsection describes the original mock prototype, not the current canonical
+Card/Deck implementation. Current persisted boundaries are documented in
+`README.md`, `src/lib/cards/model.ts` and
+[the approved Phase5 contract](phase-5-plan.md).
+
 The app currently uses local component state for deck selection.
 
 The first implementation should remain API-free and auth-free, using mock data from `src/mocks/switchplayMockData.ts`.

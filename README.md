@@ -152,34 +152,46 @@ hold `content`, publication metadata and an optional `updateNote`. Cadence is
 and `labelPrefix`. The pure `layout.ts` seam derives prefix plus position.
 
 Personal state remains inside `users`: `decksData` contains only membership,
-nullable adopted Deck version, global active Card ID, archive/timestamps and
+positive adopted Deck version, global active Card ID, archive/timestamps and
 untouched sharing metadata; `cardsData` contains one retained record per global
-Card ID. Null adoption means unpublished, never personal version zero. CardData
+Card ID. Personal adoption is never null or zero. CardData
 contains completion/signals keyed by Step ID, personal date, reflection, media,
 Deck-context chats and Boolean pass/fail tests. The future scheduler is not built;
 the date selection primitive supports existing → suggested → generated precedence.
 
 `repository.ts` requires an injected database/client (or its explicit application
 factory). Mutations derive owner/data access from persisted records and use
-field-level updates. First Deck draft creation also creates lightweight DeckData,
-but no CardData. Ownership alone never supplies My Decks membership. Archive and
+field-level updates. Canonical creation, drafting and fork autosaves create no
+DeckData or CardData. Ownership alone never supplies My Decks membership. Archive and
 restore change only the archive flag/timestamp; restore preserves adoption.
 Concurrent ensure operations insert at most one personal record.
 
 Publication creates the next version, clears only that entity's draft and advances
 existing publisher adoption in the same transaction, including archived DeckData.
-Other users are unaffected. Publication does not create missing personal data,
-reconcile/delete learning state, publish another entity's draft, or publish Decks
-with never-published Cards. Empty/unchanged published-content saves leave a null
-draft. Update-note retrieval returns intervening non-empty notes chronologically.
-Public Deck publication promotes owned private Cards; foreign Cards must already
-be public. Card visibility has no public-to-private mutation operation.
+Other users are unaffected. Public canonical publication alone does not create
+membership. First private Deck publication may enter My Decks and initialize
+missing CardData; first Card-fork publication may inherit the actor's eligible
+source current state and link source-stored personal history. Publication never
+deletes learning state or publishes another entity's draft. Public Decks require
+actually published public Cards; private Cards are never implicitly promoted.
+Effective visibility changes only on successful publication and public content
+cannot demote. Private-era immutable versions remain private. Visibility-only
+changes count as outstanding work. Empty Decks are valid.
+
+Phase5's approved five-checkpoint contract is in
+[`docs/engineering/phase-5-plan.md`](docs/engineering/phase-5-plan.md).
+Update review/adoption APIs pin the reviewed eligible publication, preserve current
+personal state and return chronological notes. Card adoption is global per user;
+Deck adoption preserves already-adopted Cards and initializes only missing ones.
+Stale reviews require refresh. Retry outcomes acknowledge current adoption without
+replaying writes or undoing archive. Update controls are Checkpoint2 work.
 
 Steps remain embedded. UUID Step IDs are reserved globally by a technical
 `CardTemplateRoot.stepIds` array plus a unique partial multikey index. This is an
 index reservation, not Step ownership or another entity. Published historical
 IDs remain reserved. Initial cross-Card slot swaps atomically transfer both IDs
-and are prohibited if either Card or the Deck has published/forked history.
+and are prohibited if either Card or the Deck has published/forked history, or
+either Card has ever been reused (`firstReusedAt` remains set after removal).
 Same-Card reorder retains identity. UI geometry remains a Phase 2 concern.
 
 Resolution boundaries are `resolveWorkingDeck` (membership/adopted versions),
@@ -303,17 +315,20 @@ real Cloudflare delivery, CORS or encoding. Next output is isolated in
 `.next-phase2`; logs and the test-only tsconfig are ignored under `phase2-test-results`.
 
 Creator stores separate Card/Deck drafts with revision checks. First persistence
-creates only lightweight DeckData membership. Individual Card and Deck publications
+creates canonical state only. Individual Card and Deck publications
 use the foundation transactions and separate optional update notes. Publish and
 leave saves first, publishes outstanding Cards, then the Deck. Partial successes
 remain published; failures stay in Creator and retries read fresh revisions and
-publish only outstanding entities. There are no visibility controls or fork/reuse
-actions. Theme metadata remains editable, but theme-row dragging is removed.
+publish only outstanding entities. Visibility controls stage publication intent;
+first public publication requires irreversible-publication confirmation. Copy to
+reuses Card identity with permanent construction restrictions. Foreign editing
+and identity handoff remain Phase5 work. Theme-row dragging remains removed.
 
-My Decks reads active DeckData only: null adoption opens Creator; published
-adoption opens working mode. Archive/restore changes membership without deleting
+My Drafts resolves owned unfinished canonical work independently of membership.
+My Decks reads positive adopted DeckData. Archive/restore changes membership without deleting
 personal data. Working opens select the exact adopted Deck/Card versions, initialize
-only absent CardData, and establish the personal cadence anchor once. Dates use
+the personal cadence anchor once. Add establishes missing CardData before first
+open, without cadence initialization. Dates use
 existing personal → intrinsic suggested → fixed positional cadence precedence.
 Completion and signals are Step-linked; personal mutations use global Card IDs
 with field-level updates. Fresh opens supersede cached optimistic snapshots.
