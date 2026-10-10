@@ -9,14 +9,21 @@ type PersonalFields = Pick<CardLayout, "targetDate" | "reflection" | "mediaItems
 };
 // Deck labels, themes, chats and navigation are deliberately absent from this cache.
 export class WorkingCardStore {
+  private epochs = new Map<string, number>();
+  epoch(userId: string) { return this.epochs.get(userId) ?? 0; }
+  invalidate(userId: string) { this.epochs.set(userId, this.epoch(userId) + 1); }
   private records = new Map<string, PersonalFields>();
   private key(userId: string, cardId: string) { return JSON.stringify([userId, cardId]); }
   accept(userId: string, cards: CardLayout[]) {
-    for (const card of cards) this.records.set(this.key(userId, card.id), {
+    for (const card of cards) {
+      const previous = this.personal(userId, card.id);
+      if ((previous?.adoptedVersion ?? 0) > (card.adoptedVersion ?? 0)) continue;
+      this.records.set(this.key(userId, card.id), {
       adoptedVersion: card.adoptedVersion, targetDate: card.targetDate, reflection: card.reflection, mediaItems: card.mediaItems,
       completion: new Map(card.steps.map((step) => [step.stepId, normalizeCompletionStatus(step.completionStatus)])),
       readings: new Map(card.signals.map((signal) => [signal.id, signal.rawReading])),
     });
+    }
   }
   personal(userId: string, cardId: string) { return this.records.get(this.key(userId, cardId)); }
   removeMedia(userId: string, cardId: string, mediaItemId: string) {

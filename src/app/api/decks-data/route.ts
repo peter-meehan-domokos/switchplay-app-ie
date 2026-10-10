@@ -1,8 +1,8 @@
-import { cardRequest, fields } from "@/lib/cards/http";
+import { personalUpdateRequest, fields } from "@/lib/cards/http";
 import { membershipDTO, workingDTO } from "@/lib/cards/readModels";
-export function GET() { return cardRequest((repo, actor) => membershipDTO(repo, actor)); }
+export function GET(request: Request) { return personalUpdateRequest(request, (repo, actor) => membershipDTO(repo, actor)); }
 export async function POST(request: Request) {
-  return cardRequest(async (repo, actor) => {
+  return personalUpdateRequest(request, async (repo, actor) => {
     const body = await request.json(); fields(body, ["deckTemplateId", "localDate", "cardTemplateId"]);
     await repo.openWorkingDeck(actor, body.deckTemplateId as string, body.localDate as string, body.cardTemplateId as string | undefined);
     return workingDTO(repo, actor, body.deckTemplateId as string);

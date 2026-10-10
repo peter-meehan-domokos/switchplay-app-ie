@@ -24,6 +24,8 @@ export type DeckSceneProps = {
   transition: object;
   error?: string;
   deckActions?: ReactNode;
+  updateAction?: ReactNode;
+  cardFrontAction?: (card: PresentedCard) => ReactNode;
   cardActions?: (card: PresentedCard) => ReactNode;
   onActiveCardChange?: (previous: number, next: number, rollback: (index: number) => void) => void;
   renderFocusedCard?: (props: FocusedCardViewProps) => ReactNode;
@@ -131,9 +133,9 @@ function useDeckSceneLayout(
   return deckSceneLayout;
 }
 
-// Replacing a Deck/immutable selection uses deckPresentationIdentity as the
-// caller's React key. Optimistic personal changes preserve that key and player lifetime.
-export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+// Working adoption reconciles composition in place; personal changes preserve
+// navigation and player lifetime. Canonical callers still select immutable content.
+export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, updateAction, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -159,6 +161,19 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
   const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
   const finalCardIndex = optimisticDeck.cards.length - 1;
   const activeCard = optimisticDeck.cards[activeCardIndex];
+
+  const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id)]);
+  const [selectedComposition, setSelectedComposition] = useState(compositionKey);
+  if (selectedComposition !== compositionKey) {
+    setSelectedComposition(compositionKey);
+    const index = hasPersonalDeck(deck) ? cards.findIndex((card) => card.id === deck.activeCardId) : -1;
+    setActiveCardIndex(index >= 0 ? index : cards.length ? 0 : -1);
+    if (!cards.length) setIsFocusModeOpen(false);
+    setTransitionPhase(null);
+  }
+  useEffect(() => {
+    if (roleTransitionTimeoutRef.current) clearTimeout(roleTransitionTimeoutRef.current);
+  }, [compositionKey]);
 
   useEffect(() => {
     return () => {
@@ -387,6 +402,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
           {hasPersonalDeck(optimisticDeck) && optimisticDeck.confidenceScore !== null && (
             <p className="detail-confidence">Confidence {optimisticDeck.confidenceScore}</p>
           )}
+          {updateAction}
           {deckIntroVideo && !isFocusModeOpen ? (
             <button
               ref={introActionRef}
@@ -411,6 +427,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
           <CardStack
             renderBackFace={renderCardBackFace}
+            renderFrontAction={cardFrontAction}
             cards={optimisticDeck.cards}
             deckTemplateId={deck.deckTemplateId}
             activeCardIndex={activeCardIndex}

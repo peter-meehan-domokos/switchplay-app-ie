@@ -47,6 +47,7 @@ import {
 } from "@/constants/cardStack";
 
 type CardStackProps = {
+  renderFrontAction?: (card: PresentedCard) => import("react").ReactNode;
   renderBackFace?: CardBackPresentation;
   cards: PresentedCard[];
   deckTemplateId: string;
@@ -292,6 +293,7 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
 }
 
 export default function CardStack({
+  renderFrontAction,
   renderBackFace,
   cards,
   deckTemplateId,
@@ -330,6 +332,7 @@ export default function CardStack({
           return (
             <DeckCard
               renderBackFace={renderBackFace}
+              frontAction={isActiveInteractionCard && !isDeckFlipped ? renderFrontAction?.(card) : undefined}
               key={cardPresentationIdentity(card)}
               card={card}
               deckTemplateId={deckTemplateId}

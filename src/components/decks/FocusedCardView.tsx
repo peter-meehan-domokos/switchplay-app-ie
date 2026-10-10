@@ -42,6 +42,7 @@ export type FocusedCardViewProps = {
   onAdjustTargetDate?: (direction: -1 | 1) => void;
   backFace?: ReactElement<{ onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void }>;
   overlays?: ReactNode;
+  frontAction?: ReactNode;
   interactionLocked?: boolean;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
@@ -213,6 +214,7 @@ export default function FocusedCardView({
   onAdjustTargetDate,
   backFace,
   overlays,
+  frontAction,
   interactionLocked = false,
   onRequestAddComment,
   traversalDirection,
@@ -686,6 +688,7 @@ export default function FocusedCardView({
                 />
               </div>
               <CardCreatorAttribution card={card} />
+              {!isFlipped ? frontAction : null}
             </div>
             {backFace ? <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
               <CardBackSlot content={backFace} onNext={settleFocusedCardToPast} onPrevious={restoreFocusedCardFromPast} />

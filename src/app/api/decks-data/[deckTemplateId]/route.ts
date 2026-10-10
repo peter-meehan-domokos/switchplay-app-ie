@@ -1,4 +1,4 @@
-import { cardRequest, fields } from "@/lib/cards/http";
+import { personalUpdateRequest, fields } from "@/lib/cards/http";
 import { workingDTO } from "@/lib/cards/readModels";
 import { requireCondition } from "@/lib/cards/domain";
 import { validateNewPersonalImage } from "@/lib/cards/media";
@@ -6,11 +6,11 @@ import { createR2UserDataPublicObjectUrl } from "@/lib/cloudflareR2";
 import { validateUserCardMediaItem } from "@/lib/userCardMedia";
 import { isCloudflareR2ImageMediaItem, type MediaItem } from "@/lib/media";
 import type { CompletionStatus } from "@/components/decks/types";
-export async function GET(_request: Request, context: RouteContext<'/api/decks-data/[deckTemplateId]'>) {
-  return cardRequest(async (repo, actor) => workingDTO(repo, actor, (await context.params).deckTemplateId));
+export async function GET(request: Request, context: RouteContext<'/api/decks-data/[deckTemplateId]'>) {
+  return personalUpdateRequest(request, async (repo, actor) => workingDTO(repo, actor, (await context.params).deckTemplateId));
 }
 export async function PATCH(request: Request, context: RouteContext<'/api/decks-data/[deckTemplateId]'>) {
-  return cardRequest(async (repo, actor) => {
+  return personalUpdateRequest(request, async (repo, actor) => {
     const { deckTemplateId } = await context.params;
     const body = await request.json();
     fields(body, ["type", "cardTemplateId", "stepId", "completionStatus", "reading", "targetDate", "reflection", "mediaItem", "mediaItemId", "activeCardId", "membershipRevision"]);

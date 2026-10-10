@@ -26,11 +26,14 @@ export async function cardRequest(run: (repo: CardRepository, actor: string) => 
 // The command itself binds writes to the actor who reviewed it. Reads also
 // accept the initiating actor so a delayed request cannot return another account's state.
 export async function personalUpdateRequest(request: Request, run: (repo: CardRepository, actor: string) => Promise<unknown>) {
+  let authenticatedActor: string | undefined;
   const response = await cardRequest((repo, actor) => {
     const expectedActor = request.headers.get("X-Personal-Viewer");
     requireCondition(expectedActor === null || expectedActor === actor, "UPDATE_SESSION_CONFLICT");
+    authenticatedActor = actor;
     return run(repo, actor);
   });
+  if (authenticatedActor) response.headers.set("X-Personal-Viewer", authenticatedActor);
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("Vary", "Cookie");
   return response;

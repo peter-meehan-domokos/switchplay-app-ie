@@ -120,6 +120,29 @@ review, pending save/upload failure and cancellation, global reused Cards,
 account changes, active Card removal/empty Deck and dates. Existing mobile/desktop
 geometry, gestures, flip, history/media and Library regressions stay intact.
 
+Implemented CP2 working contract:
+
+- Working DeckDetail supplies absolute Card-front actions and a compact Deck
+  header action to the shared presentation. Library supplies neither. A native
+  modal holds the exact reviewed command; Refresh requires another explicit Update.
+- Submitted personal work is tracked per actor and affected Card/Deck. The barrier
+  includes signal coalescing, the full upload/attachment lifetime, source-history
+  media deletion and open reflection editing. Cancel stops waiting only. Failed
+  exact writes can retry; failed provider transfers require retry in the media
+  editor. Uploaded assets with failed attachment reuse the original attachment.
+- Successful adoption refreshes working data in place. Deck adoption uses normal
+  working open to initialize only missing dates; Card adoption uses a read. Stable
+  Deck component keys retain controllers and editors. Composition reconciliation
+  selects the server's retained/fallback active Card without treating personal
+  field changes as navigation.
+- Actor headers guard existing working reads/writes. Update/refresh clients verify
+  the live session before installing responses. Scoped work revisions, refresh
+  generations and actor-specific adoption epochs reject obsolete projections;
+  cached Card adoption cannot decrease. Other Decks receive current global Card
+  adoption on collection refresh, navigation and window focus.
+- An uncertain adoption retries the same command. Once success is known, refresh
+  failure retries reads only. No new persisted receipts, schema or migrations.
+
 ## Checkpoint 3 — Foreign Creator session and identity handoff
 
 Depends on CP1/2; retain entity-scoped persistence lanes.

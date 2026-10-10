@@ -13,6 +13,7 @@ import {
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
+  frontAction?: import("react").ReactNode;
   renderBackFace?: CardBackPresentation;
   card: PresentedCard;
   deckTemplateId: string;
@@ -39,6 +40,7 @@ const deckFlipTransition = {
 } as const;
 
 export default function DeckCard({
+  frontAction,
   renderBackFace,
   card,
   isDeckFlipped,
@@ -110,6 +112,7 @@ export default function DeckCard({
               ) : null}
             </div>
             <CardCreatorAttribution card={card} />
+            {frontAction}
           </div>
           {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
             {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: backFaceVariant }) : null}

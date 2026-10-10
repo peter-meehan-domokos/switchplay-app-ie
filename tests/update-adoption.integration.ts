@@ -244,3 +244,19 @@ test("missing exact immutable versions and ambiguous personal identities never p
   const before = await other.repo.getPersonalUser("alice"); await other.repo.deckVersions().deleteOne({ deckTemplateId: other.id, version: 1 });
   await assert.rejects(other.repo.adoptUpdate("alice", d), { code: "MISSING_DECK_VERSION" }); assert.deepEqual(await other.repo.getPersonalUser("alice"), before);
 });
+
+test("working refresh after Deck Update initializes only missing dates using the retained cadence anchor", async () => {
+  const { repo, ids, id } = await fixture();
+  await repo.openWorkingDeck("alice", id, "2026-10-09");
+  const before = (await repo.getPersonalUser("alice"))!, oldDeck = before.decksData.find((data) => data.deckTemplateId === id)!;
+  const extra = await card(repo);
+  await deckPublication(repo, id, "Added practice", (content) => ({ ...content, cards: [...content.cards, { cardTemplateId: extra }] }));
+  const selected = await review(repo, "deck", id); await repo.adoptUpdate("alice", selected.command);
+  const adopted = (await repo.getPersonalUser("alice"))!;
+  assert.equal(adopted.cardsData.find((data) => data.cardTemplateId === extra)!.targetDate, null);
+  await repo.openWorkingDeck("alice", id, "2026-10-20");
+  const opened = (await repo.getPersonalUser("alice"))!;
+  assert.equal(opened.decksData.find((data) => data.deckTemplateId === id)!.cadenceAnchorDate, oldDeck.cadenceAnchorDate);
+  for (const cardId of ids) assert.equal(opened.cardsData.find((data) => data.cardTemplateId === cardId)!.targetDate, before.cardsData.find((data) => data.cardTemplateId === cardId)!.targetDate);
+  assert.ok(opened.cardsData.find((data) => data.cardTemplateId === extra)!.targetDate);
+});

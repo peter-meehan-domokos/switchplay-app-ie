@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { CardLayout } from "@/components/cards/cardLayout";
 import FocusedCardView, { type FocusedCardViewProps } from "./FocusedCardView";
@@ -10,6 +10,7 @@ import { useKeyedUserCardMediaUploadController, type CompletedUserCardMediaUploa
 import { selectAllTrustedUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
 import { visiblePersonalMedia, personalMediaKey, type PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 import { createUserCardMediaMutationKey } from "@/lib/userCardMediaMutationQueue";
+import { personalWork } from "@/lib/cards/personalWork";
 type ReflectionEditorState = { cardId: string };
 const REFLECTION_DISPLAY_RECOMMENDED_CHARS = 55;
 type WorkingFocusedCardViewProps = Omit<FocusedCardViewProps, "card" | "backFace" | "overlays" | "interactionLocked"> & {
@@ -43,8 +44,22 @@ export default function WorkingFocusedCardView({ card, deckTemplateId, canMutate
     },
     [onCommitCardMedia],
   );
+  const uploadFinishes = useRef(new Map<string, (error?: Error, retry?: () => Promise<unknown>) => void>());
+  const editorFinish = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!reflectionEditorState || !card.dataOwnerUserId) return;
+    editorFinish.current = personalWork.begin({ userId: card.dataOwnerUserId, cardIds: [reflectionEditorState.cardId] }, `editor:${deckTemplateId}:${reflectionEditorState.cardId}`);
+    return () => { editorFinish.current?.(); editorFinish.current = null; };
+  }, [reflectionEditorState, card.dataOwnerUserId, deckTemplateId]);
   const mediaUploadController = useKeyedUserCardMediaUploadController({
     onUploadCompleted: commitCompletedMediaUpload,
+    onUploadStarted: (target, kind) => {
+      if (target.userId) uploadFinishes.current.set(`${target.cardId}:${kind}`, personalWork.begin({ userId: target.userId, cardIds: [target.cardId] }, `upload:${target.cardId}:${kind}`));
+    },
+    onUploadSettled: (target, kind, error, retry) => {
+      const key = `${target.cardId}:${kind}`;
+      uploadFinishes.current.get(key)?.(error, retry); uploadFinishes.current.delete(key);
+    },
   });
   const mediaUploadState = mediaUploadController.getState(mediaUploadTarget);
   // Uploads target current CardData; deletions target the original personal item.

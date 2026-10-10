@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DeckLayout } from "./deckLayout";
 import { buildOptimisticDeckLayout } from "./deckLayout";
+import { personalWork } from "@/lib/cards/personalWork";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { withCardMediaItems, withUpdatedSignalReading, withUpdatedReflection } from "@/components/cards/cardLayout";
 import { OptimisticSignalManager } from "@/lib/OptimisticSignalManager";
@@ -43,6 +44,14 @@ export function useWorkingDeck(deck: DeckLayout) {
     cardsRef.current = cards;
     if (deck.dataOwnerUserId) workingCardStore.accept(deck.dataOwnerUserId, cards);
   }, [cards, deck.dataOwnerUserId]);
+  const [sourceCards, setSourceCards] = useState(deck.cards);
+  if (sourceCards !== deck.cards) {
+    setSourceCards(deck.cards);
+    setCards(deck.cards.map((card) => {
+      const current = cards.find((item) => item.id === card.id);
+      return current && deck.dataOwnerUserId && personalWork.hasWork({ userId: deck.dataOwnerUserId, cardIds: [card.id] }) && current.adoptedVersion === card.adoptedVersion ? current : card;
+    }));
+  }
   const optimisticDeck = useMemo(() => buildOptimisticDeckLayout(deck, cards), [deck, cards]);
   function updatePersonalCard(cardId: string, change: (card: typeof cards[number]) => typeof cards[number]) {
     const next = cardsRef.current.map((card) => card.id === cardId ? change(card) : card);
@@ -98,7 +107,7 @@ export function useWorkingDeck(deck: DeckLayout) {
     }
 
     void saveField(`${activeCard.id}:completion:${stepId}`, currentStep.completionStatus, nextCompletionStatus,
-      () => persistStepCompletionStatus(deck.deckTemplateId, activeCard.id, stepId, nextCompletionStatus),
+      () => persistStepCompletionStatus(deck.deckTemplateId, activeCard.id, stepId, nextCompletionStatus, deck.dataOwnerUserId),
       (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, steps: card.steps.map((step) => step.stepId === stepId ? { ...step, completionStatus: value } : step) })));
 
   };
@@ -134,7 +143,7 @@ export function useWorkingDeck(deck: DeckLayout) {
     setCards(nextCards);
 
     void saveField(`${activeCard.id}:date`, activeCard.targetDate, nextTargetDate,
-      () => persistCardTargetDate(deck.deckTemplateId, activeCard.id, nextTargetDate),
+      () => persistCardTargetDate(deck.deckTemplateId, activeCard.id, nextTargetDate, deck.dataOwnerUserId),
       (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, targetDate: value })));
 
   };
@@ -142,7 +151,7 @@ export function useWorkingDeck(deck: DeckLayout) {
   if (optimisticSignalManagerRef.current === null) {
     optimisticSignalManagerRef.current = new OptimisticSignalManager(
       async (cardId: string, signalId: string, reading: number) => {
-        await persistSignalReading(deck.deckTemplateId, cardId, signalId, reading);
+        await persistSignalReading(deck.deckTemplateId, cardId, signalId, reading, deck.dataOwnerUserId);
       },
       (cardId: string, signalId: string, restored) => {
         setCards((currentCards) => {
@@ -157,6 +166,14 @@ export function useWorkingDeck(deck: DeckLayout) {
       }
     );
   }
+
+  useEffect(() => {
+    for (const key of confirmedFields.current.keys()) {
+      const pending = deck.cards.some((card) => key.startsWith(`${card.id}:`) && deck.dataOwnerUserId && personalWork.hasWork({ userId: deck.dataOwnerUserId, cardIds: [card.id] }));
+      if (!pending && !(key.startsWith("deck:") && deck.dataOwnerUserId && personalWork.hasWork({ userId: deck.dataOwnerUserId, deckId: deck.deckTemplateId, cardIds: [] }))) confirmedFields.current.delete(key);
+    }
+    optimisticSignalManagerRef.current?.resetConfirmed();
+  }, [deck.cards, deck.dataOwnerUserId, deck.deckTemplateId]);
 
   const commitFocusedSignalReading = (cardId: string, signalId: string, reading: number) => {
     if (!canMutate) {
@@ -182,7 +199,7 @@ export function useWorkingDeck(deck: DeckLayout) {
       return;
     }
 
-    manager.setOptimisticReading(cardId, signalId, nextReading);
+    void personalWork.run({ userId: deck.dataOwnerUserId!, cardIds: [cardId] }, `signal-chain:${cardId}:${signalId}`, () => manager.setOptimisticReading(cardId, signalId, nextReading)).catch(() => {});
   };
   const commitFocusedReflection = async (cardId: string, reflection: string) => {
     if (!canMutate || !deck.hasUserDeckData) {
@@ -199,7 +216,7 @@ export function useWorkingDeck(deck: DeckLayout) {
     setCards(nextCards);
 
     try {
-      await persistCardReflection(deck.deckTemplateId, cardId, normalizedReflection);
+      await persistCardReflection(deck.deckTemplateId, cardId, normalizedReflection, deck.dataOwnerUserId);
     } catch (error) {
       updatePersonalCard(cardId, (card) => withUpdatedReflection(card, previousCards.find((item) => item.id === cardId)?.reflection ?? ""));
       throw error;
@@ -228,7 +245,7 @@ export function useWorkingDeck(deck: DeckLayout) {
     }
 
     await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
-      const result = await appendCardMediaItem(target.deckTemplateId, target.cardId, mediaItem);
+      const result = await appendCardMediaItem(target.deckTemplateId, target.cardId, mediaItem, deck.dataOwnerUserId);
 
       if (result.deckTemplateId !== target.deckTemplateId || result.cardId !== target.cardId) {
         throw new Error("Card media was saved to an unexpected card.");
@@ -246,8 +263,9 @@ export function useWorkingDeck(deck: DeckLayout) {
       throw new Error("Unable to remove media from this deck.");
     }
 
-    await cardMediaMutationQueueRef.current!.enqueue(target, async () => {
-      const result = await removePersonalCardMediaItem(target.cardId, mediaItemId);
+    const affected = cardsRef.current.filter((card) => card.id === target.cardId || card.personalHistory?.some((segment) => segment.cardTemplateId === target.cardId)).map((card) => card.id);
+    await personalWork.run({ userId: deck.dataOwnerUserId!, cardIds: [target.cardId, ...affected] }, `remove-media:${target.cardId}:${mediaItemId}`, () => cardMediaMutationQueueRef.current!.enqueue(target, async () => {
+      const result = await removePersonalCardMediaItem(target.cardId, mediaItemId, deck.dataOwnerUserId);
 
       if (result.cardId !== target.cardId) {
         throw new Error("Card media was removed from an unexpected card.");
@@ -260,15 +278,15 @@ export function useWorkingDeck(deck: DeckLayout) {
       workingCardStore.removeMedia(deck.dataOwnerUserId!, target.cardId, mediaItemId);
       cardsRef.current = nextCards;
       setCards(nextCards);
-    });
+    }));
   };
   const commitActiveCard = (previous: number, next: number, rollback: (index: number) => void) => {
     const nextId = cardsRef.current[next]?.id;
     if (!deck.hasUserDeckData || !canMutate || !nextId) return;
     void saveField(`deck:${deck.deckTemplateId}:active`, previous, next,
-      () => persistActiveCardId(deck.deckTemplateId, nextId), rollback);
+      () => persistActiveCardId(deck.deckTemplateId, nextId, deck.dataOwnerUserId), rollback);
   };
-  return { deck: optimisticDeck, canMutate, mutationError, commitActiveCard,
+  return { deck: optimisticDeck, canMutate, mutationError, clearMutationError: () => setMutationError(""), commitActiveCard,
     cycleFocusedStepStatus, adjustFocusedCardTargetDate, commitFocusedSignalReading,
     commitFocusedReflection, commitFocusedCardMedia, removeFocusedCardMedia };
 }
