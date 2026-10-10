@@ -9,7 +9,7 @@ export async function GET(request: Request, context: RouteContext<'/api/card-tem
 }
 export async function POST(request: Request, context: RouteContext<'/api/card-templates/[cardTemplateId]/copy-to'>) {
   return creatorRequestBoundary(request, async (repo, actor) => {
-    const body = await request.json(); fields(body, ["deckTemplateId", "revision", "contentHash"]);
+    const body = await request.json(); fields(body, ["deckTemplateId", "revision", "contentHash", "sourceVersion"]);
     const { cardTemplateId } = await context.params;
     return jsonDTO(await repo.copyOwnedCard(actor, cardTemplateId, body as CopyCardCommand));
   });

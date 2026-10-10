@@ -952,7 +952,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [canonical, setCanonical] = useState<CreatorBoardDTO | null>(initialCreator ?? null);
   const [, setPersistenceVersion] = useState(0);
-  const [deckWarning, setDeckWarning] = useState<{ ids: string[]; resolve: (accepted: boolean) => void } | null>(null);
+  const [deckWarning, setDeckWarning] = useState<{ ids: string[]; newer: import("@/lib/cards/model").DeckPublicationReview["cards"]; resolve: (accepted: boolean) => void } | null>(null);
   const [publicConfirmation, setPublicConfirmation] = useState<{ review: PublicPublicationReview; resolve: (accepted: boolean) => void } | null>(null);
   const publicTriggerRef = useRef<HTMLElement | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -1026,8 +1026,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     onUploadFailed: (kind) => { uploadFailuresRef.current.set(`deck:${kind}`, null); },
   });
   const renderingColumns = useMemo(() => layoutCreatorColumns(board), [board]);
-  const deckPresentation = deckPublicationPresentation(persistence.deck,
-    [...persistence.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []));
+  const deckPresentation = deckPublicationPresentation(persistence.deck, persistence.publicationReferences());
   const anyPublishing = publishStatus === "publishing" || persistence.deck.publishing || [...persistence.cards.values()].some((lane) => lane.publishing);
   const navigationLocked = isDraftsOpen || navigationPending || leaveConfirmationOpen || blockedPublication !== null || publicConfirmation !== null || copyConfirmation !== null || !entryConfirmed || persistence.recovering;
 
@@ -1180,8 +1179,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if ([...uploadFailuresRef.current.values()].some((id) => id === null || !persistence.cards.get(id)?.detached)) throw new Error("UPLOAD_INCOMPLETE");
   }
 
-  function confirmDeckWarning(ids: string[]) {
-    return new Promise<boolean>((resolve) => setDeckWarning({ ids, resolve }));
+  function confirmDeckWarning(ids: string[], newer: import("@/lib/cards/model").DeckPublicationReview["cards"] = []) {
+    return new Promise<boolean>((resolve) => setDeckWarning({ ids, newer, resolve }));
   }
   function confirmPublicPublication(review: PublicPublicationReview) {
     publicTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1212,6 +1211,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       const uncertain = target === "deck" ? persistence.deck.uncertainPublication : target === "all" ? persistence.deck.uncertainPublication || [...persistence.cards.values()].some((lane) => lane.uncertainPublication) : persistence.cards.get(target)?.uncertainPublication;
       setPublishMessage(uncertain ? "Publication outcome is not yet confirmed. It will be reconciled before another save or publication."
         : error instanceof Error && error.message === "PUBLIC_PUBLICATION_REVIEW_CHANGED" ? "The changes awaiting public publication changed. Review them and confirm again. Earlier successful publications are retained."
+        : error instanceof Error && error.message === "DECK_PUBLICATION_REVIEW_CONFLICT" ? "The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained."
         : `${error instanceof Error ? error.message : "Publication failed"}. Earlier successful publications are retained.`);
       return false;
     }
@@ -1223,7 +1223,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       try {
         await prepareForNavigation();
         if (persistence.hasWork()) throw new Error("NEW_OUTSTANDING_WORK");
-        navigateToReturnTarget();
+        router.push(persistence.publishedPersonalDeckHref() ?? resolvedCreatorReturnTarget.href);
       } catch {
         navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
         setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");
@@ -1742,8 +1742,10 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         <p>{blockedPublication}</p><button className="creator-modal-secondary" type="button" autoFocus onClick={closePublicationBlock}>Close</button>
       </div></div> : null}
 
-      {deckWarning ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Unpublished Card changes">
-        <p>One or more Cards have unpublished changes. Publish this Deck using their current published versions anyway?</p>
+      {deckWarning ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label={deckWarning.newer.length ? "Newer Card publications" : "Unpublished Card changes"}>
+        {deckWarning.ids.length > 0 && <p>One or more Cards have unpublished changes. Publish this Deck using their current published versions anyway?</p>}
+        {deckWarning.newer.length > 0 && <><p>These shared Cards have newer publications than the versions selected for editing. This Deck will record their latest published versions. Your selected authoring versions and existing personal progress are preserved.</p>
+          <ul>{deckWarning.newer.map((card) => <li key={card.cardTemplateId}>{board.columns.find((column) => column.cardId === card.cardTemplateId)?.cardTitle ?? "Shared Card"}: selected version {card.selectedVersion}, published version {card.latestVersion}</li>)}</ul></>}
         <div className="creator-modal-actions">
           <button type="button" onClick={() => { deckWarning.resolve(false); setDeckWarning(null); }}>Cancel</button>
           <button type="button" onClick={() => { deckWarning.resolve(true); setDeckWarning(null); }}>Publish anyway</button>
@@ -1773,7 +1775,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           <div className="creator-canvas">
             <div className="creator-board">
               {renderingColumns.map((column) => {
-                const cardPresentation = column.kind === "card" ? cardPublicationPresentation(persistence.cards.get(column.cardId!)!) : null;
+                const cardPresentation = column.kind === "card" && persistence.binding(column.cardId!) !== "foreign" ? cardPublicationPresentation(persistence.cards.get(column.cardId!)!) : null;
                 return (
                 <section className="creator-column" key={column.cardId ?? column.id} data-card-template-id={column.cardId} aria-label={column.label}>
                   <header className="creator-card-header">
@@ -1876,9 +1878,11 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           onClose={() => setEditSession(null)}
           onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
           onSave={saveEdit}
-          copyControl={editingCardId && persistence.binding(editingCardId) === "owned" ? <CreatorCopyTo
+          copyControl={editingCardId && ["owned", "foreign"].includes(persistence.binding(editingCardId)) ? <CreatorCopyTo
+            foreign={persistence.binding(editingCardId) === "foreign"}
+            sourceVersion={persistence.foreignCardVersion(editingCardId)}
             cardTemplateId={persistence.cardIdentity(editingCardId)} deckTemplateId={persistence.deckTemplateId} request={persistence.request}
-            ensureCreated={() => persistence.ensureCardCreated(editingCardId)}
+            ensureCreated={() => persistence.binding(editingCardId) === "foreign" ? Promise.resolve() : persistence.ensureCardCreated(editingCardId)}
             onReused={() => persistence.noteCardReused(editingCardId)} /> : undefined}
           onRemoveDeckIntroductionImage={removeDeckIntroductionImage}
           onUploadDeckIntroductionVideo={(file) => void uploadDeckIntroduction("video", file)}

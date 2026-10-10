@@ -4,8 +4,8 @@ import { useState } from "react";
 import type { CopyCardCommand, CopyCardResult, CopyDestination } from "@/lib/cards/cardReuse";
 import { creatorRequest, CreatorRequestError, type CreatorTransport } from "./creatorRequest";
 
-export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCreated, onReused, request = creatorRequest }: {
-  cardTemplateId: string; deckTemplateId: string; ensureCreated: () => Promise<void>; onReused: () => void; request?: CreatorTransport;
+export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCreated, onReused, foreign = false, sourceVersion, request = creatorRequest }: {
+  cardTemplateId: string; deckTemplateId: string; ensureCreated: () => Promise<void>; onReused: () => void; foreign?: boolean; sourceVersion?: number; request?: CreatorTransport;
 }) {
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false);
   const [destinations, setDestinations] = useState<CopyDestination[]>([]);
@@ -45,7 +45,7 @@ export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCr
       {open ? "Close destinations" : "Copy to…"}
     </button>
     {open ? <>
-      <p className="creator-modal-delete-note">Reuse this Card in another owned Deck. Edits apply wherever this Card is used.</p>
+      <p className="creator-modal-delete-note">{foreign ? "Reuse this shared Card in another owned Deck without changing the original." : "Reuse this Card in another owned Deck. Edits apply wherever this Card is used."}</p>
       {busy ? <p role="status">Working…</p> : null}
       {error ? <p className="creator-modal-error" role="alert">{error}</p> : null}
       {message ? <p role="status">{message}</p> : null}
@@ -53,7 +53,8 @@ export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCr
       <ul className="creator-drafts-list">
         {destinations.map((item) => <li key={item.deckTemplateId}><button type="button"
           disabled={busy || item.alreadyContains} title={item.alreadyContains ? "Already contains this Card" : undefined}
-          onClick={() => void copy({ deckTemplateId: item.deckTemplateId, revision: item.revision, contentHash: item.contentHash })}>
+          onClick={() => void copy({ deckTemplateId: item.deckTemplateId, revision: item.revision, contentHash: item.contentHash,
+            ...(sourceVersion !== undefined ? { sourceVersion } : {}) })}>
           {item.title || "Untitled Deck"}{item.alreadyContains ? " — already contains this Card" : ""}
         </button></li>)}
       </ul>

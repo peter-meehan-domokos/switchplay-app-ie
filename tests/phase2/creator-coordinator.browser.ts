@@ -216,8 +216,11 @@ test("pending local Card edits warn; remote changes invalidate consent and retai
   const warning = page.getByRole("dialog", { name: "Unpublished Card changes" }); await expect(warning).toBeVisible();
   const remote = await (await page.request.get(`/api/card-templates/${a}`)).json();
   expect((await page.request.patch(`/api/card-templates/${a}`, { data: { type: "save", revision: remote.root.revision, content: { ...remote.content, intro: { ...remote.content.intro, title: "Another tab" } } } })).ok()).toBeTruthy();
+  const rejection = page.waitForResponse((response) => response.url().endsWith("/publish") && response.request().method() === "POST");
   await warning.getByRole("button", { name: "Publish anyway", exact: true }).click();
-  await expect(page.getByText(/DECK_PUBLICATION_REVIEW_CONFLICT/)).toBeVisible();
+  const rejected = await rejection;
+  expect(rejected.status()).toBe(409); expect((await rejected.json()).code).toBe("DECK_PUBLICATION_REVIEW_CONFLICT");
+  await expect(page.getByText("The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained.", { exact: true })).toBeVisible();
   const id = page.url().split("/").at(-1)!; expect(await db().collection("deckTemplateVersions").countDocuments({ deckTemplateId: id })).toBe(0);
   pause.resolve(); await expect(page.locator(".creator-entity-save-error")).toContainText("Save conflict");
   await expect(card(page, a).locator(".creator-pair-step").first()).toHaveText("Pending browser-only change");

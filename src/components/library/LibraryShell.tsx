@@ -148,7 +148,8 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
       <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} transition={transition}
         onBack={() => router.push("/library")} cardActions={cardAction}
         deckActions={membership?.canEditInCreator ? <DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
-          editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?returnTo=library`} /> : undefined}
+          editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?${new URLSearchParams({ returnTo: "library", returnDeckId: active.deckTemplateId,
+            version: String(active.manifest.deckVersion), cards: JSON.stringify(active.manifest.cards) })}`} /> : undefined}
         renderFocusedCard={(props) => <FocusedCardView {...props} overlays={cardAction(props.card)} />} />
     </> : entry ? <section className="library-unavailable"><Link href="/library">Back to Library</Link><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
       <DeckGrid orderedEntries={(collection?.entries ?? []).map((item) => item.availability === "available" ? item.deck : {

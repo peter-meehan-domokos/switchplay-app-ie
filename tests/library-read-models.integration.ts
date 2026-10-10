@@ -39,21 +39,21 @@ test("Library owner Edit eligibility is independent of membership and preserves 
   const request = { deckTemplateIds: [d, empty], cardTemplateIds: [] };
   const owner = await libraryViewerStatus(repo, "bob", request);
   assert.ok(owner.decks.every((data) => data.state === "not-added" && data.canEditInCreator));
-  assert.ok((await libraryViewerStatus(repo, "alice", request)).decks.every((data) => !data.canEditInCreator));
+  assert.ok((await libraryViewerStatus(repo, "alice", request)).decks.every((data) => data.canEditInCreator));
   assert.ok(!Object.hasOwn(await libraryDetail(repo, "bob", d), "canEditInCreator"));
   assert.deepEqual(await repo.users().find({}).toArray(), before);
   assert.equal(await repo.deckVersions().countDocuments({ deckTemplateId: d }), 1);
 });
 
-test("Library owner Edit uses the Creator draft composition and excludes foreign or missing Cards", async () => {
+test("Library Edit supports mixed ownership but excludes missing draft references", async () => {
   const repo = await setup(), own = await card(repo), foreign = await card(repo, "alice");
   const mixed = await deck(repo, [own, foreign]), d = await deck(repo, [own]);
   const eligible = async (id: string) => (await libraryViewerStatus(repo, "bob", { deckTemplateIds: [id], cardTemplateIds: [] })).decks[0].canEditInCreator;
-  assert.equal(await eligible(mixed), false);
+  assert.equal(await eligible(mixed), true);
   assert.equal(await eligible(d), true);
   const content = deckDraftContent((await repo.getDeckVersion(d, 1))!.content);
   await repo.saveDeckDraft("bob", d, 1, { ...content, cards: [{ cardTemplateId: own }, { cardTemplateId: foreign }] });
-  assert.equal(await eligible(d), false); // Published preview alone is insufficient.
+  assert.equal(await eligible(d), true); // Exact foreign authoring is now supported.
   assert.equal(available(await libraryDetail(repo, "bob", d)).deck.cards.length, 1);
   await repo.saveDeckDraft("bob", d, 2, content);
   assert.equal(await eligible(d), true);

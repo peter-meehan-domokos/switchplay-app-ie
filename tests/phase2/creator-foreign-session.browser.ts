@@ -149,3 +149,143 @@ test("foreign Deck introduction uses public-version status, and a media-first ed
   expect(root.forkedFrom!.version).toBe(2);expect(root.latestVersion).toBe(0);
   expect(root.draft!.cards).toEqual([{cardTemplateId:h.card.cardTemplateId}]);
 });
+
+async function editDeckTitle(page:Page,value:string){
+  await page.getByRole("button",{name:"Edit deck title and introduction",exact:true}).click();
+  await page.locator(".creator-modal textarea").fill(value);
+  await page.locator(".creator-modal").getByRole("button",{name:"Save",exact:true}).click();
+}
+async function enterLibraryEdit(page:Page,id:string){
+  await page.goto(`/library/${id}`);
+  await page.getByRole("button",{name:"Deck menu",exact:true}).click();
+  await page.getByRole("menuitem",{name:"Edit",exact:true}).click();
+}
+test("Library foreign Edit confirms without a write; private publication/reload uses owned identity and returns original detail",async({page})=>{
+  const h=await setup(page), before=await h.repo.getPersonalUser(h.actor);
+  await enterLibraryEdit(page,h.deck.deckTemplateId);
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${h.deck.deckTemplateId}`));
+  expect(new URL(page.url()).searchParams.get("version")).toBe("1");
+  expect(JSON.parse(new URL(page.url()).searchParams.get("cards")!)).toEqual([{cardTemplateId:h.card.cardTemplateId,version:1}]);
+  await page.getByRole("dialog",{name:"Edit your own Deck"}).getByRole("button",{name:"Cancel",exact:true}).click();
+  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  expect(await h.repo.getPersonalUser(h.actor)).toEqual(before);
+  await enterLibraryEdit(page,h.deck.deckTemplateId); await page.getByRole("button",{name:"Continue editing",exact:true}).click();
+  await editDeckTitle(page,"My private adapted programme");
+  await expect.poll(()=>h.repo.decks().countDocuments({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId})).toBe(1);
+  const fork=(await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!;
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${fork.deckTemplateId}`));
+  await page.reload(); await expect(page.getByRole("dialog",{name:"Edit your own Deck"})).toHaveCount(0);
+  await expect(page.locator(".creator-card-title-button")).toHaveText("Foreign practice");
+  await page.locator(".creator-back-link").click();
+  await page.getByRole("dialog",{name:"Leave Creator confirmation"}).getByRole("button",{name:"Publish and leave",exact:true}).click();
+  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  const user=(await h.repo.getPersonalUser(h.actor))!;
+  const data=user.decksData.find((item)=>item.deckTemplateId===fork.deckTemplateId)!;
+  expect(data).toBeTruthy(); expect(data.openedAt).toBe(null); expect(data.cadenceAnchorDate).toBe(null);
+  expect(user.cardsData.filter((item)=>item.cardTemplateId===h.card.cardTemplateId)).toHaveLength(1);
+  expect((await h.repo.getDeckVersion(fork.deckTemplateId,1))!.content.cards[0].cardTemplateId).toBe(h.card.cardTemplateId);
+  expect(await h.repo.cards().countDocuments({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId})).toBe(0);
+});
+
+test("public Library copy first-public confirmation publishes Cards before Deck and remains outside My Decks",async({page})=>{
+  const h=await setup(page), before=await h.repo.getPersonalUser(h.actor);
+  await enterLibraryEdit(page,h.deck.deckTemplateId); await page.getByRole("button",{name:"Continue editing",exact:true}).click();
+  await title(page,h.card.cardTemplateId,"My public adapted practice");
+  await page.getByRole("button",{name:"Continue editing",exact:true}).click();
+  await expect.poll(()=>h.repo.cards().countDocuments({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId})).toBe(1);
+  const column=page.locator(`[data-card-template-id="${h.card.cardTemplateId}"]`);
+  await column.getByRole("combobox",{name:"Card 1 publication visibility"}).selectOption("public");
+  await page.getByRole("combobox",{name:"Deck publication visibility"}).selectOption("public");
+  await page.locator(".creator-back-link").click();
+  await page.getByRole("button",{name:"Publish and leave",exact:true}).click();
+  const confirmation=page.getByRole("dialog",{name:"Confirm public publication"});
+  await expect(confirmation).toContainText("1 Card"); await expect(confirmation).toContainText("1 Deck");
+  await confirmation.getByRole("button",{name:"Cancel",exact:true}).click();
+  expect((await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId}))!.latestVersion).toBe(0);
+  expect((await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!.latestVersion).toBe(0);
+  await page.locator(".creator-back-link").click(); await page.getByRole("button",{name:"Publish and leave",exact:true}).click();
+  await confirmation.getByRole("button",{name:"Publish publicly",exact:true}).click();
+  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  const fork=(await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!;
+  const card=(await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId}))!;
+  expect(fork.latestVersion).toBe(1); expect(card.latestVersion).toBe(1);
+  expect((await h.repo.getDeckVersion(fork.deckTemplateId,1))!.content.cards[0]).toEqual({cardTemplateId:card.cardTemplateId,cardVersionAtPublish:1});
+  expect(await h.repo.getPersonalUser(h.actor)).toEqual(before);
+});
+
+test("newer foreign publication review cancels safely, invalidates on another publication and retries fresh review",async({page})=>{
+  const h=await setup(page,true); await page.goto(h.href); await editDeckTitle(page,"Programme with selected v1");
+  await expect.poll(async()=> (await h.repo.decks().findOne({deckTemplateId:h.deck.deckTemplateId}))!.revision).toBe(2);
+  const publishSource=async(revision:number,title:string)=>{
+    await h.repo.saveCardDraft(h.bob,h.card.cardTemplateId,revision,{...h.card.draft!,intro:{...h.card.draft!.intro,title}}); await h.repo.publishCard(h.bob,h.card.cardTemplateId,revision+1);
+  };
+  await publishSource(1,"New v2 practice");
+  await page.getByRole("button",{name:"Publish Deck",exact:true}).click();
+  const review=page.getByRole("dialog",{name:"Newer Card publications"});
+  await expect(review).toContainText("Foreign practice: selected version 1, published version 2");
+  await review.getByRole("button",{name:"Cancel",exact:true}).click();
+  expect((await h.repo.decks().findOne({deckTemplateId:h.deck.deckTemplateId}))!.latestVersion).toBe(1);
+  await page.getByRole("button",{name:"Publish Deck",exact:true}).click(); await expect(review).toBeVisible();
+  await publishSource(3,"New v3 practice"); await review.getByRole("button",{name:"Publish anyway",exact:true}).click();
+  await expect(page.getByText("The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained.",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Publish Deck",exact:true}).click();
+  await expect(review).toContainText("published version 3"); await review.getByRole("button",{name:"Publish anyway",exact:true}).click();
+  await expect.poll(async()=> (await h.repo.decks().findOne({deckTemplateId:h.deck.deckTemplateId}))!.latestVersion).toBe(2);
+  expect((await h.repo.getDeckVersion(h.deck.deckTemplateId,2))!.content.cards[0].cardVersionAtPublish).toBe(3);
+  await page.reload(); await expect(page.locator(".creator-card-title-button")).toHaveText("Foreign practice");
+});
+
+test("Copy a foreign public Card uses a reference without copying source identity or personal state",async({page})=>{
+  const h=await setup(page,true), before=await h.repo.getPersonalUser(h.actor);
+  const dest=await h.repo.createDeckDraft(h.actor,{...createDefaultDeckContent([]),title:"Foreign Copy destination"});
+  await page.goto(h.href); await expect(page.locator(".creator-card-title-button")).toHaveText("Foreign practice");
+  await h.repo.saveCardDraft(h.bob,h.card.cardTemplateId,1,{...h.card.draft!,intro:{...h.card.draft!.intro,title:"Upstream after selection"}});await h.repo.publishCard(h.bob,h.card.cardTemplateId,2);
+  await page.locator(".creator-card-title-button").click();
+  await page.getByRole("button",{name:"Copy to…",exact:true}).click();
+  await expect(page.getByText("Reuse this shared Card in another owned Deck without changing the original.",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Foreign Copy destination",exact:true}).click();
+  await expect(page.getByText("Copied to the destination draft. Publish that Deck to make it live.",{exact:true})).toBeVisible();
+  expect((await h.repo.decks().findOne({deckTemplateId:dest.deckTemplateId}))!.draft!.cards).toEqual([{cardTemplateId:h.card.cardTemplateId}]);
+  expect(await h.repo.cards().countDocuments({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId})).toBe(0);
+  expect(await h.repo.getPersonalUser(h.actor)).toEqual(before);
+  expect((await h.repo.decks().findOne({deckTemplateId:dest.deckTemplateId}))!.foreignCardSelections).toEqual([{cardTemplateId:h.card.cardTemplateId,version:1}]);
+  await page.goto(`/creator/edit/${dest.deckTemplateId}`);await expect(page.locator(".creator-card-title-button")).toHaveText("Foreign practice");
+});
+
+test("self-use Publish and leave opens the new personal programme and retains the original",async({page})=>{
+  const h=await setup(page); await h.repo.ensureDeckData(h.actor,h.deck.deckTemplateId,1);
+  await page.goto(`/creator/edit/${h.deck.deckTemplateId}?returnTo=deck&returnDeckId=${h.deck.deckTemplateId}`);
+  await page.getByRole("button",{name:"Continue editing",exact:true}).click(); await editDeckTitle(page,"Continuing programme");
+  await expect.poll(()=>h.repo.decks().countDocuments({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId})).toBe(1);
+  const fork=(await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!;
+  await page.locator(".creator-back-link").click(); await page.getByRole("button",{name:"Publish and leave",exact:true}).click();
+  await expect(page).toHaveURL(new RegExp(`/decks\\?openDeck=${fork.deckTemplateId}`));
+  await expect(page.getByRole("heading",{name:"Continuing programme",exact:true})).toHaveText("Continuing programme");
+  const user=(await h.repo.getPersonalUser(h.actor))!;
+  expect(user.decksData.find((item)=>item.deckTemplateId===h.deck.deckTemplateId)!.archivedAt).toBe(null);
+  expect(user.decksData.find((item)=>item.deckTemplateId===fork.deckTemplateId)).toBeTruthy();
+});
+
+test("Library Card copy publication carries the actor's current state once while preserving source identity and history",async({page})=>{
+  const h=await setup(page);await h.repo.ensureDeckData(h.actor,h.deck.deckTemplateId,1);
+  await h.repo.users().updateOne({_id:new ObjectId(h.actor)},{$set:{
+    "cardsData.$[card].items":h.card.draft!.steps.map((step,index)=>({stepId:step.stepId,completionStatus:index===0?"skipped":"todo"})),
+    "cardsData.$[card].signalReadings":h.card.draft!.steps.map((step,index)=>({stepId:step.stepId,reading:index===0?2:null})),
+    "cardsData.$[card].reflection":"Existing personal reflection", "cardsData.$[card].targetDate":"2030-01-01",
+  }},{arrayFilters:[{"card.cardTemplateId":h.card.cardTemplateId}]});
+  const source=(await h.repo.getPersonalUser(h.actor))!.cardsData.find((item)=>item.cardTemplateId===h.card.cardTemplateId)!;
+  await enterLibraryEdit(page,h.deck.deckTemplateId);await page.getByRole("button",{name:"Continue editing",exact:true}).click();
+  await title(page,h.card.cardTemplateId,"My continuing practice");await page.getByRole("button",{name:"Continue editing",exact:true}).click();
+  await expect.poll(()=>h.repo.cards().countDocuments({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId})).toBe(1);
+  const fork=(await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId}))!;
+  await page.getByRole("button",{name:"Publish Card 1",exact:true}).click();
+  await expect.poll(async()=> (await h.repo.cards().findOne({cardTemplateId:fork.cardTemplateId}))!.latestVersion).toBe(1);
+  const user=(await h.repo.getPersonalUser(h.actor))!,data=user.cardsData.find((item)=>item.cardTemplateId===fork.cardTemplateId)!;
+  expect(data.cardTemplateVersion).toBe(1);expect(data.items[0]).toEqual({stepId:fork.stepIds[0],completionStatus:"skipped"});
+  expect(data.signalReadings[0]).toEqual({stepId:fork.stepIds[0],reading:2});expect(data.reflection).toBe(source.reflection);expect(data.targetDate).toBe(source.targetDate);
+  expect(data.historySourceCardTemplateId).toBe(h.card.cardTemplateId);expect([data.chats,data.tests,data.mediaItems]).toEqual([[],[],[]]);
+  expect(user.cardsData.find((item)=>item.cardTemplateId===h.card.cardTemplateId)).toEqual(source);
+  await page.reload();await expect(page.getByRole("dialog",{name:"Edit your own Deck"})).toHaveCount(0);
+  expect(await h.repo.cards().countDocuments({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId})).toBe(1);
+  expect((await h.repo.getPersonalUser(h.actor))!.cardsData.find((item)=>item.cardTemplateId===fork.cardTemplateId)).toEqual(data);
+});

@@ -9,7 +9,10 @@ import { creatorCardDTO } from "../src/lib/cards/readModels";
 import { CreatorPersistenceCoordinator, CreatorRequestError, type CreatorTransport } from "../src/components/creator/creatorPersistenceCoordinator";
 import { creatorBoard, sessionBoardDTO } from "../src/components/creator/cardArchitectureAdapter";
 import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
-import type { CardForkCommand, DeckForkCommand } from "../src/lib/cards/model";
+import type { CardForkCommand, DeckForkCommand, DeckPublicationReview, ForkDeckEntry } from "../src/lib/cards/model";
+import { deckDraftContent } from "../src/lib/cards/publicationRules";
+import { jsonDTO } from "../src/lib/cards/http";
+import { copyDestinations, deckContentHash } from "../src/lib/cards/cardReuse";
 import { forkCardContent } from "../src/lib/cards/forks";
 import { authorizeProspectiveUpload, signProspectiveAttachment } from "../src/lib/cards/prospectiveUpload";
 let server: MongoMemoryReplSet, client: MongoClient, sequence = 0;
@@ -50,9 +53,26 @@ async function setup(ownDeck = false, ownCard = false) {
             : await repo.createCardFork("alice", { ...cmd, source: { cardTemplateId: sourceId, version: cmd.sourceVersion } } as CardForkCommand);
         } catch (error) { throw new CreatorRequestError(409, (error as Error & {code:string}).code); }
       }
+      if (id === "publish") {
+        const deckId = query.pathname.split("/").at(-2)!;
+        if (method === "GET") {
+          if (query.searchParams.has("version")) {
+            const version = (await repo.getDeckVersion(deckId, Number(query.searchParams.get("version"))))!;
+            return jsonDTO({ ...version, content: deckDraftContent(version.content) });
+          }
+          return repo.prepareDeckPublication("alice", deckId, Number(query.searchParams.get("revision")));
+        }
+        const cmd = body as { revision: number; updateNote?: string; review: DeckPublicationReview; acceptCardDrafts: boolean; acceptNewerForeignCards?: boolean; forkEntry?: ForkDeckEntry };
+        try { await repo.publishDeck("alice", deckId, cmd.revision, cmd.updateNote, cmd, cmd.forkEntry); }
+        catch (error) { throw new CreatorRequestError(409, (error as Error & {code:string}).code); }
+        const result = await creatorSessionDTO(repo, "alice", deckId);
+        assert.equal(result.deck.kind, "owned"); return result.deck.kind === "owned" ? result.deck.owned : null;
+      }
+      if (query.searchParams.has("version")) return jsonDTO(await repo.getCardVersion(id, Number(query.searchParams.get("version"))));
       if (method === "PATCH") {
-        const cmd = body as { content: typeof a.draft; revision: number; visibility: "private" | "public" };
-        await repo.saveCardDraft("alice", id, cmd.revision, cmd.content!, cmd.visibility);
+        const cmd = body as { type: string; content: typeof a.draft; revision: number; visibility: "private" | "public"; updateNote?: string };
+        if (cmd.type === "publish") await repo.publishCard("alice", id, cmd.revision, cmd.updateNote);
+        else await repo.saveCardDraft("alice", id, cmd.revision, cmd.content!, cmd.visibility);
       }
       return creatorCardDTO(repo, "alice", id);
     };
@@ -250,4 +270,181 @@ test("owned Deck URL installation interrupted before journal clearing recognizes
   recovered.configureRecovery(h.storage,`?returnTo=library&returnDeckId=${h.deck.deckTemplateId}`);
   assert.equal(recovered.recoverSubmitted(),false);assert.equal(h.storage.length,0);
   assert.equal(recovered.deckTemplateId,root.deckTemplateId);
+});
+
+// Checkpoint 4: publication/reopening uses the same mixed session contracts as the API.
+test("private Library Deck copy publishes once into My Decks and retains unchanged Card identities", async () => {
+  const h = await setup(), c = h.make();
+  c.editDeck({ ...c.deck.desired, title: "My programme" }); await c.flushAll();
+  const id = c.deckTemplateId;
+  assert.equal((await h.repo.getPersonalUser("alice"))!.decksData.length, 0);
+  assert.equal(await c.publishAndLeave({}, async () => true), true);
+  const data = (await h.repo.getPersonalUser("alice"))!;
+  assert.equal(data.decksData[0].deckTemplateId, id);
+  assert.equal(data.decksData[0].openedAt, null); assert.equal(data.decksData[0].cadenceAnchorDate, null);
+  assert.deepEqual(data.cardsData.map((card) => card.cardTemplateId).sort(), [h.a.cardTemplateId, h.b.cardTemplateId].sort());
+  assert.deepEqual((await h.repo.getDeckVersion(id, 1))!.content.cards.map((ref) => ref.cardTemplateId), [h.a.cardTemplateId, h.b.cardTemplateId]);
+  const reopened = await creatorSessionDTO(h.repo, "alice", id);
+  assert.equal(reopened.deck.kind, "owned"); assert.ok(reopened.cards.every((card) => card.kind === "foreign"));
+  const next = new CreatorPersistenceCoordinator(creatorBoard(sessionBoardDTO(reopened)), null, h.make().request, reopened);
+  assert.equal(next.hasWork(), false); assert.equal(await next.publishAndLeave({}, async () => true), true);
+  assert.equal(await h.repo.deckVersions().countDocuments({ deckTemplateId: id }), 1);
+  assert.equal((await h.repo.decks().findOne({ deckTemplateId: h.deck.deckTemplateId }))!.latestVersion, 1);
+});
+
+test("public Library Deck copy remains canonical-only; foreign drafts are not exposed or published", async () => {
+  const h = await setup(), c = h.make();
+  await h.repo.saveCardDraft("bob", h.a.cardTemplateId, 1, { ...h.a.draft!, intro: { ...h.a.draft!.intro, title: "Private working draft" } });
+  c.setDeckVisibility("public"); await c.flushAll();
+  const review = await h.repo.prepareDeckPublication("alice", c.deckTemplateId, 0);
+  assert.equal(review.cards[0].hasDraft, false); assert.equal(Object.hasOwn(review.cards[0], "revision"), false);
+  assert.equal(await c.publishAndLeave({}, async () => { throw new Error("Foreign drafts must not prompt"); }, async () => true), true);
+  assert.equal((await h.repo.getPersonalUser("alice"))!.decksData.length, 0);
+  assert.equal((await h.repo.getPersonalUser("alice"))!.cardsData.length, 0);
+  assert.equal((await h.repo.cards().findOne({ cardTemplateId: h.a.cardTemplateId }))!.latestVersion, 1);
+  assert.equal((await h.repo.cards().findOne({ cardTemplateId: h.a.cardTemplateId }))!.draft!.intro.title, "Private working draft");
+});
+
+test("combined publication normalizes canonical identities and recovers lost Card and Deck responses without v2", async () => {
+  const h = await setup(), c = h.make();
+  title(c, h.a.cardTemplateId, "My practice"); await c.flushAll();
+  let cardLost = false, deckLost = false;
+  h.intercept(async (url, body, run) => {
+    const result = await run();
+    if (url.includes("card-templates") && (body as {type?:string})?.type === "publish" && !cardLost) { cardLost = true; throw new Error("Lost Card response"); }
+    if (url.includes("/publish?session=1") && !deckLost) { deckLost = true; throw new Error("Lost Deck response"); }
+    return result;
+  });
+  assert.equal(await c.publishAndLeave({}, async () => true), true);
+  assert.ok(cardLost && deckLost);
+  assert.equal(c.cards.get(h.a.cardTemplateId)!.ack!.root.latestVersion, 1);
+  assert.equal(c.deck.ack!.root.latestVersion, 1);
+  assert.equal(c.deck.ack!.content.cards[0].cardTemplateId, h.a.cardTemplateId); // Stable visual identity.
+  const actualCard = c.cardIdentity(h.a.cardTemplateId);
+  assert.notEqual(actualCard, h.a.cardTemplateId);
+  assert.equal((await h.repo.getDeckVersion(c.deckTemplateId, 1))!.content.cards[0].cardTemplateId, actualCard);
+  assert.equal(await c.publishAndLeave({}, async () => true), true);
+  assert.equal(await h.repo.cardVersions().countDocuments({cardTemplateId: actualCard}), 1);
+  assert.equal(await h.repo.deckVersions().countDocuments({deckTemplateId: c.deckTemplateId}), 1);
+});
+
+test("newer foreign Card publication requires review confirmation and never changes frozen authoring selections", async () => {
+  const h = await setup(), c = h.make();
+  c.editDeck({ ...c.deck.desired, title: "Selected v1 programme" }); await c.flushAll();
+  await h.repo.saveCardDraft("bob", h.a.cardTemplateId, 1, { ...h.a.draft!, intro: { ...h.a.draft!.intro, title: "Latest v2" } });
+  await h.repo.publishCard("bob", h.a.cardTemplateId, 2);
+  const review = await h.repo.prepareDeckPublication("alice", c.deckTemplateId, 0);
+  await assert.rejects(h.repo.publishDeck("alice", c.deckTemplateId, 0, undefined, { review, acceptCardDrafts: false }, {enterMyDecks:true}), {code:"NEWER_FOREIGN_CARD_CONFIRMATION_REQUIRED"});
+  assert.equal(await c.publishDeck(undefined, async (_ids, newer) => { assert.equal(newer![0].selectedVersion, 1); assert.equal(newer![0].latestVersion, 2); return false; }), false);
+  assert.equal(await c.publishDeck(undefined, async () => true), true);
+  assert.equal((await h.repo.getDeckVersion(c.deckTemplateId, 1))!.content.cards[0].cardVersionAtPublish, 2);
+  const reopened = await creatorSessionDTO(h.repo, "alice", c.deckTemplateId);
+  assert.equal(reopened.cards[0].kind === "foreign" && reopened.cards[0].source.version, 1);
+  assert.equal(reopened.cards[0].kind === "foreign" && reopened.cards[0].content.intro.title, "Practice");
+});
+
+test("another foreign publication during review invalidates consent and writes no partial Deck publication", async () => {
+  const h = await setup(), c = h.make(); c.editDeck({ ...c.deck.desired, title:"Review race" }); await c.flushAll();
+  await h.repo.saveCardDraft("bob", h.a.cardTemplateId, 1, { ...h.a.draft!, intro:{ ...h.a.draft!.intro, title:"v2" } }); await h.repo.publishCard("bob", h.a.cardTemplateId, 2);
+  await assert.rejects(c.publishDeck(undefined, async () => {
+    await h.repo.saveCardDraft("bob", h.a.cardTemplateId, 3, { ...h.a.draft!, intro:{ ...h.a.draft!.intro, title:"v3" } }); await h.repo.publishCard("bob", h.a.cardTemplateId, 4); return true;
+  }), {code:"DECK_PUBLICATION_REVIEW_CONFLICT"});
+  assert.equal(await h.repo.deckVersions().countDocuments({deckTemplateId:c.deckTemplateId}), 0);
+  assert.equal((await h.repo.getPersonalUser("alice"))!.decksData.length, 0);
+  assert.equal(await c.publishDeck(undefined, async () => true), true);
+});
+
+test("self-use Deck copy keeps source membership, carries continuity and returns the new personal Deck", async () => {
+  const h = await setup(); await h.repo.ensureDeckData("alice", h.deck.deckTemplateId, 1);
+  await h.repo.users().updateOne({_id:"alice"}, {$set:{"decksData.0.cadenceAnchorDate":"2030-01-01", "decksData.0.activeCardId":h.a.cardTemplateId}});
+  const before = (await h.repo.getPersonalUser("alice"))!.decksData[0];
+  const session = await creatorSessionDTO(h.repo,"alice",h.deck.deckTemplateId,{kind:"my-decks",deckTemplateId:h.deck.deckTemplateId});
+  const c = new CreatorPersistenceCoordinator(creatorBoard(sessionBoardDTO(session)),null,h.make().request,session);
+  c.configureRecovery(new MemoryStorage(),`?returnTo=deck&returnDeckId=${h.deck.deckTemplateId}`);
+  title(c,h.a.cardTemplateId,"Continuing practice"); await c.flushAll();
+  assert.equal(await c.publishAndLeave({},async()=>true),true);
+  const user = (await h.repo.getPersonalUser("alice"))!;
+  assert.deepEqual(user.decksData.find((data)=>data.deckTemplateId===h.deck.deckTemplateId),before);
+  const added = user.decksData.find((data)=>data.deckTemplateId===c.deckTemplateId)!;
+  assert.equal(added.activeCardId,c.cardIdentity(h.a.cardTemplateId)); assert.equal(added.cadenceAnchorDate,"2030-01-01"); assert.equal(added.openedAt,null); assert.equal(added.archivedAt,null);
+  assert.equal(c.publishedPersonalDeckHref(),`/decks?openDeck=${c.deckTemplateId}`);
+});
+
+test("eligible foreign Copy reuses identity, protects privacy and retains exact retry/auto-publication behaviour",async()=>{
+  const h=await setup(); const dest=await h.repo.createDeckDraft("alice",{...createDefaultDeckContent([]),title:"Reusable destination"},"public"); await h.repo.publishDeck("alice",dest.deckTemplateId,0);
+  const selected=(await copyDestinations(h.repo,"alice",h.a.cardTemplateId,h.deck.deckTemplateId)).find((deck)=>deck.deckTemplateId===dest.deckTemplateId)!;
+  const cmd={deckTemplateId:dest.deckTemplateId,revision:selected.revision,contentHash:selected.contentHash,sourceVersion:1};
+  const before=await h.repo.getPersonalUser("alice");
+  const result=await h.repo.copyOwnedCard("alice",h.a.cardTemplateId,cmd); assert.equal(result.outcome,"published");
+  assert.deepEqual(await h.repo.copyOwnedCard("alice",h.a.cardTemplateId,cmd),result);
+  assert.equal((await h.repo.getDeckVersion(dest.deckTemplateId,2))!.content.cards[0].cardTemplateId,h.a.cardTemplateId);
+  assert.deepEqual(await h.repo.getPersonalUser("alice"),before);
+  assert.equal((await h.repo.cards().findOne({cardTemplateId:h.a.cardTemplateId}))!.ownerUserId,"bob");
+  await h.repo.saveCardDraft("bob",h.a.cardTemplateId,1,{...h.a.draft!,intro:{...h.a.draft!.intro,title:"Published after Copy"}});await h.repo.publishCard("bob",h.a.cardTemplateId,2);
+  const reopened=await creatorSessionDTO(h.repo,"alice",dest.deckTemplateId);
+  assert.equal(reopened.cards[0].kind==="foreign"&&reopened.cards[0].source.version,1);
+  assert.deepEqual(await h.repo.copyOwnedCard("alice",h.a.cardTemplateId,cmd),result); // Retry cannot refresh the selection.
+  await h.repo.saveDeckDraft("alice",dest.deckTemplateId,3,{...dest.draft!,cards:[]});
+  assert.deepEqual((await h.repo.decks().findOne({deckTemplateId:dest.deckTemplateId}))!.foreignCardSelections,[]);
+  await h.repo.publishDeck("alice",dest.deckTemplateId,4);
+  assert.equal((await h.repo.getDeckVersion(dest.deckTemplateId,3))!.content.cards.length,0);
+  assert.ok((await h.repo.cards().findOne({cardTemplateId:h.a.cardTemplateId}))!.firstReusedAt);
+  assert.deepEqual(await h.repo.getPersonalUser("alice"),before);
+  await assert.rejects(h.repo.copyOwnedCard("alice",h.a.cardTemplateId,cmd),{code:"STALE_REVISION"});
+  const privateCard=await h.repo.createCardDraft("bob",{...createDefaultCardContent([randomUUID(),randomUUID(),randomUUID()]),intro:{title:"Private source",description:null,mediaItem:null}});await h.repo.publishCard("bob",privateCard.cardTemplateId,0);
+  await assert.rejects(copyDestinations(h.repo,"alice",privateCard.cardTemplateId,h.deck.deckTemplateId),{code:"CARD_FORBIDDEN"});
+  await assert.rejects(h.repo.copyOwnedCard("alice",privateCard.cardTemplateId,{...cmd,revision:3,contentHash:deckContentHash({ ...dest.draft!,cards:[{cardTemplateId:h.a.cardTemplateId}] })}),{code:"CARD_FORBIDDEN"});
+});
+
+test("publishing an owned Card inside a foreign Deck retains both canonical identities and never copies the Deck",async()=>{
+  const h=await setup(false,true),c=h.make(); title(c,h.a.cardTemplateId,"Owned refinement");await c.flushAll();
+  assert.equal(await c.publishAndLeave({},async()=>true),true);
+  assert.equal(c.deckTemplateId,h.deck.deckTemplateId); assert.equal(c.deck.ack,null);
+  assert.equal((await h.repo.cards().findOne({cardTemplateId:h.a.cardTemplateId}))!.latestVersion,2);
+  assert.equal((await h.repo.decks().findOne({deckTemplateId:h.deck.deckTemplateId}))!.latestVersion,1);
+  assert.equal(await h.repo.decks().countDocuments({ownerUserId:"alice"}),0);
+});
+
+test("foreign private draft edits do not invalidate reviewed published references or reveal their revision",async()=>{
+  const h=await setup(),c=h.make(); c.editDeck({...c.deck.desired,title:"Stable public selection"});await c.flushAll();
+  const review=await h.repo.prepareDeckPublication("alice",c.deckTemplateId,0);
+  await h.repo.saveCardDraft("bob",h.a.cardTemplateId,1,{...h.a.draft!,intro:{...h.a.draft!.intro,title:"Unpublished private work"}});
+  assert.deepEqual(await h.repo.prepareDeckPublication("alice",c.deckTemplateId,0),review);
+  await h.repo.publishDeck("alice",c.deckTemplateId,0,undefined,{review,acceptCardDrafts:false},{enterMyDecks:true});
+  assert.equal((await h.repo.getDeckVersion(c.deckTemplateId,1))!.content.cards[0].cardVersionAtPublish,1);
+});
+
+test("Copy into a clean Deck with an unreviewed newer foreign selection stays draft-only and retries exactly",async()=>{
+  const h=await setup(true), content={...h.deck.draft!,title:"Published selected programme"};
+  await h.repo.saveDeckDraft("alice",h.deck.deckTemplateId,1,content,"public",[h.a,h.b].map((card)=>({cardTemplateId:card.cardTemplateId,version:1})));
+  await h.repo.publishDeck("alice",h.deck.deckTemplateId,2);
+  await h.repo.saveCardDraft("bob",h.a.cardTemplateId,1,{...h.a.draft!,intro:{...h.a.draft!.intro,title:"Newer shared publication"}});await h.repo.publishCard("bob",h.a.cardTemplateId,2);
+  const fresh=await h.repo.createCardDraft("alice",{...createDefaultCardContent([randomUUID(),randomUUID(),randomUUID()]),intro:{title:"Another published practice",description:null,mediaItem:null}},"public");await h.repo.publishCard("alice",fresh.cardTemplateId,0);
+  const dest=(await copyDestinations(h.repo,"alice",fresh.cardTemplateId,randomUUID())).find((deck)=>deck.deckTemplateId===h.deck.deckTemplateId)!;
+  const cmd={deckTemplateId:dest.deckTemplateId,revision:dest.revision,contentHash:dest.contentHash};
+  const result=await h.repo.copyOwnedCard("alice",fresh.cardTemplateId,cmd);
+  assert.equal(result.outcome,"draft");assert.equal((await h.repo.decks().findOne({deckTemplateId:dest.deckTemplateId}))!.latestVersion,2);
+  assert.deepEqual(await h.repo.copyOwnedCard("alice",fresh.cardTemplateId,cmd),result);
+  const review=await h.repo.prepareDeckPublication("alice",dest.deckTemplateId,result.revision);
+  assert.equal(review.cards[0].selectedVersion,1);assert.equal(review.cards[0].latestVersion,2);
+  await assert.rejects(h.repo.publishDeck("alice",dest.deckTemplateId,result.revision,undefined,{review,acceptCardDrafts:false}),{code:"NEWER_FOREIGN_CARD_CONFIRMATION_REQUIRED"});
+});
+
+test("Copy of a selected older foreign publication waits for explicit review and cannot access private-era versions",async()=>{
+  const h=await setup();await h.repo.saveCardDraft("bob",h.a.cardTemplateId,1,{...h.a.draft!,intro:{...h.a.draft!.intro,title:"New canonical publication"}});await h.repo.publishCard("bob",h.a.cardTemplateId,2);
+  const dest=await h.repo.createDeckDraft("alice",{...createDefaultDeckContent([]),title:"Public destination"},"public");await h.repo.publishDeck("alice",dest.deckTemplateId,0);
+  const selected=(await copyDestinations(h.repo,"alice",h.a.cardTemplateId,h.deck.deckTemplateId)).find((root)=>root.deckTemplateId===dest.deckTemplateId)!;
+  const cmd={deckTemplateId:dest.deckTemplateId,revision:selected.revision,contentHash:selected.contentHash,sourceVersion:1};
+  const result=await h.repo.copyOwnedCard("alice",h.a.cardTemplateId,cmd);assert.equal(result.outcome,"draft");
+  assert.equal((await h.repo.decks().findOne({deckTemplateId:dest.deckTemplateId}))!.latestVersion,1);
+  assert.deepEqual(await h.repo.copyOwnedCard("alice",h.a.cardTemplateId,cmd),result);
+  await assert.rejects(h.repo.copyOwnedCard("alice",h.a.cardTemplateId,{...cmd,sourceVersion:2}),{code:"COPY_CARD_RECOVERY_CONFLICT"});
+  const review=await h.repo.prepareDeckPublication("alice",dest.deckTemplateId,result.revision);
+  assert.equal(review.cards[0].selectedVersion,1);assert.equal(review.cards[0].latestVersion,2);
+  await h.repo.publishDeck("alice",dest.deckTemplateId,result.revision,undefined,{review,acceptCardDrafts:false,acceptNewerForeignCards:true});
+  assert.equal((await h.repo.getDeckVersion(dest.deckTemplateId,2))!.content.cards[0].cardVersionAtPublish,2);
+  const privateCard=await h.repo.createCardDraft("bob",{...createDefaultCardContent([randomUUID(),randomUUID(),randomUUID()]),intro:{title:"Private era",description:null,mediaItem:null}});await h.repo.publishCard("bob",privateCard.cardTemplateId,0);
+  await h.repo.saveCardDraft("bob",privateCard.cardTemplateId,1,privateCard.draft!,"public");await h.repo.publishCard("bob",privateCard.cardTemplateId,2);
+  await assert.rejects(h.repo.copyOwnedCard("alice",privateCard.cardTemplateId,{...cmd,sourceVersion:1}),{code:"CARD_VERSION_FORBIDDEN"});
+  assert.equal((await h.repo.cards().findOne({cardTemplateId:privateCard.cardTemplateId}))!.firstReusedAt,undefined);
 });

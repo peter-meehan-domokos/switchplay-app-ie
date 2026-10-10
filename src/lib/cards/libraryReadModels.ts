@@ -6,7 +6,7 @@ import { CardArchitectureError, assertAdoption, assertDeckContent, isRecord, non
 import type { CardTemplateRoot, CardTemplateVersion, DeckTemplateRoot, DeckTemplateVersion } from "./model";
 import { deckDraftContent } from "./publicationRules";
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
-import { creatorDTO } from "./readModels";
+import { creatorSessionDTO } from "./creatorSession";
 import { canonicalIntroductionDTO, libraryCardPresentation, libraryDeckPresentation, previewManifest, publicationTimestamp, type LibraryEntry } from "./libraryProjection";
 
 type DeckSelection = Pick<DeckTemplateRoot, "deckTemplateId" | "ownerUserId" | "visibility" | "latestVersion"> & {
@@ -193,13 +193,12 @@ export async function libraryViewerStatus(repo: CardRepository, actor: string, r
         ? [{ cardTemplateId: card.cardTemplateId, version: data.cardTemplateVersion }] : [];
     });
     const adopted = adoptedRequests.length ? await repo.cardVersions().find({ $or: adoptedRequests }, { session, projection: { cardTemplateId: 1, version: 1, visibility: 1 } }).toArray() : [];
-    // Only requested owned Decks need this check (normally the detail Deck).
-    // Reuse the actual Creator boundary, including saved draft references and
-    // its current foreign-Card restriction. No membership or personal writes.
+    // Check only requested Decks (normally the current detail Deck).
+    // Reuse the mixed-ownership Creator boundary. No membership or personal writes.
     const editableDecks = new Set<string>();
-    for (const root of publicDecks.filter((deck) => deck.ownerUserId === actor)) {
+    for (const root of publicDecks) {
       try {
-        await creatorDTO(repo, actor, root.deckTemplateId);
+        await creatorSessionDTO(repo, actor, root.deckTemplateId);
         editableDecks.add(root.deckTemplateId);
       } catch (error) { if (!(error instanceof CardArchitectureError)) throw error; }
     }

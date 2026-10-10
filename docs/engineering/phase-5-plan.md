@@ -266,6 +266,38 @@ Acceptance/verification: mixed ownership combinations, exact selected versions
 across reopening, reused Cards, public/private first publication and confirmations,
 history privacy, partial success/retry, navigation and upload/controller lifetime.
 
+### Checkpoint 4 implementation
+
+- Library Edit enters the existing mixed-ownership session with the displayed
+  immutable Deck/Card selections and original detail return destination. Foreign
+  confirmation precedes meaningful changes; existing CP3 binding/recovery remains.
+- Publication uses mixed Deck acknowledgements and normalizes canonical target
+  identities into stable mounted presentation identities, including immutable
+  lost-response proof. No server session, new collection or recovery journal.
+- Review exposes owned revisions/draft warnings only. Foreign selections expose
+  selected/latest published versions, never foreign draft state or revision. A
+  newer foreign publication requires explicit consent; publication rechecks the
+  exact review transactionally. Rejected changed reviews allow a fresh review;
+  genuine revision/uncertain conflicts still block unsafe writes.
+- First Deck-copy publication supplies explicit entry: My Decks continuity, or
+  private publication, enters My Decks; public Library publication does not.
+  Source membership remains unchanged. Publish and leave opens the new personal
+  Deck only for My Decks-origin copies; Library sessions return to the original
+  detail. Save/leave and direct-entry destinations remain unchanged.
+- Eligible foreign public Cards can use reference-only Copy without creating a
+  Card copy, adoption record or source authoring revision. Existing destination,
+  exact Copy recovery, archived-state and reuse restrictions remain authoritative.
+  Copy carries the selected immutable foreign version into private authoring
+  metadata; an older selection prevents unreviewed auto-publication. Its existing
+  operation receipt binds that selection for exact retries. Reference removal
+  drops only its authoring selection, never the Card or its personal history.
+- Exact foreign selections survive saved drafts and publications/reopening;
+  canonical publication records latest published reference versions after review.
+  Library canonical DTOs never expose those private authoring selections.
+- Real Cloudflare R2/Stream uploads, ownership-handoff attachment, processing,
+  playback and failure/retry remain explicit later acceptance work in `issues.md`;
+  isolated mocked media tests are distinct and `dev:phase2` remains permanent.
+
 ## Checkpoint 5 — Full verification and acceptance
 
 Audit all rules above against actual implementation. Run full unit, integration,

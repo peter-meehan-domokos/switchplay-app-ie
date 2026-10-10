@@ -247,7 +247,16 @@ export class CardRepository {
     requireCondition(Number.isInteger(command.revision) && command.revision >= 0 && typeof command.contentHash === "string" && /^[a-f0-9]{64}$/.test(command.contentHash), "INVALID_COPY_COMMAND");
     return this.transaction(async (session) => {
       const source = await this.cards().findOne({ cardTemplateId }, { session });
-      requireCondition(source?.ownerUserId === actor, "CARD_FORBIDDEN");
+      requireCondition(source, "CARD_FORBIDDEN");
+      requireCondition(command.sourceVersion === undefined || source.ownerUserId !== actor
+        && Number.isInteger(command.sourceVersion) && command.sourceVersion >= 1 && command.sourceVersion <= source.latestVersion, "INVALID_COPY_COMMAND");
+      const selectedVersion = command.sourceVersion ?? source.latestVersion;
+      if (source.ownerUserId !== actor) {
+        requireCondition(source.visibility === "public" && source.latestVersion >= 1, "CARD_FORBIDDEN");
+        const published = await this.getCardVersion(cardTemplateId, selectedVersion, session);
+        requireCondition(published, "CARD_FORBIDDEN");
+        assertCardVersionAccess(actor, source, published);
+      }
       const deck = await this.decks().findOne({ deckTemplateId: command.deckTemplateId }, { session });
       requireCondition(deck?.ownerUserId === actor, "DECK_FORBIDDEN");
       const latest = deck.latestVersion >= 1 ? await this.getDeckVersion(deck.deckTemplateId, deck.latestVersion, session) : null;
@@ -258,12 +267,14 @@ export class CardRepository {
         const before = { ...current, cards: current.cards.slice(0, -1) };
         // Recover only this exact committed outcome. In particular, a later
         // ordinary publication of a draft-only Copy is not auto-publication.
-        const receipt = { cardTemplateId, revision: command.revision, contentHash: command.contentHash };
+        const receipt = { cardTemplateId, revision: command.revision, contentHash: command.contentHash,
+          ...(command.sourceVersion !== undefined ? { sourceVersion: command.sourceVersion } : {}) };
         const published = deck.draft === null && deck.revision === command.revision + 2
           && isDeepStrictEqual(latest?.copyReceipt, receipt);
         const draft = deck.draft !== null && deck.revision === command.revision + 1;
         requireCondition((published || draft) && current.cards.at(-1)?.cardTemplateId === cardTemplateId
-          && deckContentHash(before) === command.contentHash && source.firstReusedAt, "COPY_CARD_RECOVERY_CONFLICT");
+          && deckContentHash(before) === command.contentHash && source.firstReusedAt
+          && (command.sourceVersion === undefined || deck.foreignCardSelections?.some((ref) => ref.cardTemplateId === cardTemplateId && ref.version === command.sourceVersion)), "COPY_CARD_RECOVERY_CONFLICT");
         const ack = { deckTemplateId: deck.deckTemplateId, revision: deck.revision, firstReusedAt: source.firstReusedAt };
         return published ? { ...ack, outcome: "published", publishedVersion: deck.latestVersion }
           : { ...ack, outcome: "draft", publishedVersion: null };
@@ -272,11 +283,15 @@ export class CardRepository {
       requireCondition(deckContentHash(current) === command.contentHash, "COPY_CARD_RECOVERY_CONFLICT");
       const next = { ...current, cards: [...current.cards, { cardTemplateId }] };
       assertDeckContent(next);
+      const selections = source.ownerUserId !== actor ? [...(deck.foreignCardSelections ?? []).filter((ref) => ref.cardTemplateId !== cardTemplateId
+        && current.cards.some((card) => card.cardTemplateId === ref.cardTemplateId)), { cardTemplateId, version: selectedVersion }] : deck.foreignCardSelections;
+      const nextRoot = { ...deck, draft: next, foreignCardSelections: selections };
       const cards = await this.deckReferences(actor, next, session);
       // Capture cleanliness BEFORE the append. Card drafts do not make the Deck
       // dirty, and publication below uses only their immutable published versions.
       const shouldPublish = deck.latestVersion >= 1 && deck.draft === null && !hasVisibilityChange(deck) && source.latestVersion >= 1
-        && await this.deckPublicationPrerequisite({ ...deck, draft: next }, cards, session) === null;
+        && !this.publicationReview(nextRoot, cards).cards.some((card) => card.selectedVersion !== undefined && card.latestVersion > card.selectedVersion)
+        && await this.deckPublicationPrerequisite(nextRoot, cards, session) === null;
       // Auto-publication must not lock only the appended Card and then acquire
       // the other Cards after the Deck write in a different order from Add.
       await this.guardCardRoots(next.cards.map((ref) => ref.cardTemplateId), session);
@@ -284,10 +299,16 @@ export class CardRepository {
       const now = new Date();
       await this.cards().updateOne({ cardTemplateId, firstReusedAt: { $exists: false } }, { $set: { firstReusedAt: now } }, { session });
       const saved = await this.decks().updateOne({ deckTemplateId: deck.deckTemplateId, revision: command.revision },
-        { $set: { draft: next, updatedAt: now }, $inc: { revision: 1 } }, { session });
+        { $set: { draft: next, updatedAt: now,
+          // Reference-only Copy creates authoring work too. Preserve the exact
+          // public selection authorized by this transaction across reopening;
+          // this is neither a personal adoption nor a published composition pin.
+          ...(selections !== undefined ? { foreignCardSelections: selections } : {}),
+        }, $inc: { revision: 1 } }, { session });
       requireCondition(saved.matchedCount === 1, "STALE_REVISION");
       const publishedVersion = shouldPublish ? await this.publishDeckInSession(actor, deck.deckTemplateId, command.revision + 1, session,
-        undefined, undefined, { cardTemplateId, revision: command.revision, contentHash: command.contentHash }) : null;
+        undefined, undefined, { cardTemplateId, revision: command.revision, contentHash: command.contentHash,
+          ...(command.sourceVersion !== undefined ? { sourceVersion: command.sourceVersion } : {}) }) : null;
       const marked = await this.cards().findOne({ cardTemplateId }, { session, projection: { firstReusedAt: 1 } });
       const ack = { deckTemplateId: deck.deckTemplateId, revision: command.revision + (publishedVersion === null ? 1 : 2), firstReusedAt: marked!.firstReusedAt! };
       return publishedVersion === null ? { ...ack, outcome: "draft", publishedVersion: null }
@@ -571,7 +592,8 @@ export class CardRepository {
       const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
       const nextVisibility = draftVisibility(root, visibility);
       await this.deckReferences(actor, content, session);
-      await this.validateForeignSelections(actor, content, foreignCardSelections, session);
+      const selections = foreignCardSelections ?? root.foreignCardSelections?.filter((ref) => content.cards.some((card) => card.cardTemplateId === ref.cardTemplateId));
+      await this.validateForeignSelections(actor, content, selections, session);
       const latest = root.latestVersion >= 1 ? await this.getDeckVersion(deckTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_DECK_VERSION");
       const publishedContent = latest ? deckDraftContent(latest.content) : null;
@@ -584,7 +606,7 @@ export class CardRepository {
       const visibilityChanged = nextVisibility !== root.visibility;
       const draft = !visibilityChanged && latest && isDeepStrictEqual(saved, publishedContent) ? null : saved;
       const result = await this.decks().updateOne({ deckTemplateId, revision: expectedRevision }, {
-        $set: { draft, ...(foreignCardSelections ? { foreignCardSelections } : {}), ...(visibilityChanged ? { draftVisibility: nextVisibility } : {}), updatedAt: new Date() },
+        $set: { draft, ...(selections !== undefined ? { foreignCardSelections: selections } : {}), ...(visibilityChanged ? { draftVisibility: nextVisibility } : {}), updatedAt: new Date() },
         ...(!visibilityChanged ? { $unset: { draftVisibility: "" } } : {}), $inc: { revision: 1 },
       }, { session }); requireCondition(result.matchedCount === 1, "STALE_REVISION"); return expectedRevision + 1;
     });
@@ -598,7 +620,7 @@ export class CardRepository {
       const root = await this.cards().findOne({ cardTemplateId: ref.cardTemplateId }, { session });
       requireCondition(root && root.ownerUserId !== actor, "INVALID_FOREIGN_SELECTIONS");
       const version = await this.getCardVersion(ref.cardTemplateId, ref.version, session);
-      requireCondition(version, "MISSING_CARD_VERSION"); assertCardVersionAccess(actor, root, version);
+      requireCondition(version && ref.version <= root.latestVersion, "MISSING_CARD_VERSION"); assertCardVersionAccess(actor, root, version);
     }
   }
   private note(updateNote?: string) {
@@ -654,7 +676,10 @@ export class CardRepository {
   private publicationReview(root: DeckTemplateRoot, cards: CardTemplateRoot[]): DeckPublicationReview {
     return { deckTemplateId: root.deckTemplateId, revision: root.revision, cards: root.draft!.cards.map(({ cardTemplateId }) => {
       const card = cards.find((card) => card.cardTemplateId === cardTemplateId)!;
-      return { cardTemplateId, revision: card.revision, latestVersion: card.latestVersion, hasDraft: card.draft !== null };
+      const selectedVersion = root.foreignCardSelections?.find((ref) => ref.cardTemplateId === cardTemplateId)?.version;
+      return card.ownerUserId === root.ownerUserId
+        ? { cardTemplateId, revision: card.revision, latestVersion: card.latestVersion, hasDraft: card.draft !== null }
+        : { cardTemplateId, latestVersion: card.latestVersion, hasDraft: false, ...(selectedVersion ? { selectedVersion } : {}) };
     }) };
   }
   async prepareDeckPublication(actor: string, deckTemplateId: string, expectedRevision: number) {
@@ -662,9 +687,7 @@ export class CardRepository {
       const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
       requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES");
       const cards = await this.deckReferences(actor, root.draft, session);
-      const latest = root.latestVersion ? await this.getDeckVersion(deckTemplateId, root.latestVersion, session) : null;
-      draftVisibility(root);
-      const issue = deckPublicationIssue(root.latestVersion, root.draft, latest ? deckDraftContent(latest.content) : null, cards, root);
+      const issue = await this.deckPublicationPrerequisite(root, cards, session);
       requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
       return this.publicationReview(root, cards);
     });
@@ -674,16 +697,23 @@ export class CardRepository {
     const issue = deckPublicationIssue(root.latestVersion, root.draft, latest ? deckDraftContent(latest.content) : null, cards, root);
     if (issue) return issue;
     const versions = cards.length ? await this.cardVersions().find({ $or: cards.map((card) => ({ cardTemplateId: card.cardTemplateId, version: card.latestVersion })) }, { session }).toArray() : [];
-    return versions.length === cards.length ? null : "MISSING_CARD_VERSION";
+    if (versions.length !== cards.length) return "MISSING_CARD_VERSION";
+    for (const card of cards) {
+      const version = versions.find((item) => item.cardTemplateId === card.cardTemplateId)!;
+      if (card.ownerUserId !== root.ownerUserId) assertCardVersionAccess(root.ownerUserId, card, version);
+      if (draftVisibility(root) === "public" && version.visibility !== "public") return "PRIVATE_CARDS_BLOCK_PUBLIC_DECK";
+    }
+    await this.validateForeignSelections(root.ownerUserId, root.draft!, root.foreignCardSelections, session);
+    return null;
   }
   async publishDeck(actor: string, deckTemplateId: string, expectedRevision: number, updateNote?: string,
-    consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }, forkEntry?: ForkDeckEntry) {
+    consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean; acceptNewerForeignCards?: boolean }, forkEntry?: ForkDeckEntry) {
     return this.transaction((session) => this.publishDeckInSession(actor, deckTemplateId, expectedRevision, session, updateNote, consent, undefined, forkEntry));
   }
   // Same publication rules/adoption writes for explicit Publish and atomic Copy.
   // Never start a nested transaction or catch a partial publication as draft-only.
   private async publishDeckInSession(actor: string, deckTemplateId: string, expectedRevision: number, session: ClientSession,
-    updateNote?: string, consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean }, copyReceipt?: CopyPublicationReceipt, forkEntry?: ForkDeckEntry) {
+    updateNote?: string, consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean; acceptNewerForeignCards?: boolean }, copyReceipt?: CopyPublicationReceipt, forkEntry?: ForkDeckEntry) {
     entityId(actor); entityId(deckTemplateId);
     requireCondition(Number.isInteger(expectedRevision) && expectedRevision >= 0, "INVALID_REVISION");
     if (forkEntry !== undefined) requireCondition(forkEntry !== null && typeof forkEntry.enterMyDecks === "boolean" && Object.keys(forkEntry).length === 1, "INVALID_FORK_ENTRY");
@@ -695,7 +725,8 @@ export class CardRepository {
         requireCondition(first.forkPublicationReceipt.enterMyDecks === forkEntry?.enterMyDecks
           && first.updateNote === this.note(updateNote).updateNote
           && isDeepStrictEqual(first.forkPublicationReceipt.review, consent?.review)
-          && first.forkPublicationReceipt.acceptCardDrafts === consent?.acceptCardDrafts, "FORK_PUBLICATION_RECOVERY_CONFLICT");
+          && first.forkPublicationReceipt.acceptCardDrafts === consent?.acceptCardDrafts
+          && first.forkPublicationReceipt.acceptNewerForeignCards === consent?.acceptNewerForeignCards, "FORK_PUBLICATION_RECOVERY_CONFLICT");
         return 1;
       }
     }
@@ -707,8 +738,10 @@ export class CardRepository {
     const cards = await this.deckReferences(actor, root.draft, session);
     if (consent) {
       requireCondition(isDeepStrictEqual(consent.review, this.publicationReview(root, cards)), "DECK_PUBLICATION_REVIEW_CONFLICT");
-      requireCondition(!cards.some((card) => card.draft !== null) || consent.acceptCardDrafts === true, "CARD_DRAFT_CONFIRMATION_REQUIRED");
+      requireCondition(!cards.some((card) => card.ownerUserId === actor && card.draft !== null) || consent.acceptCardDrafts === true, "CARD_DRAFT_CONFIRMATION_REQUIRED");
     }
+    requireCondition(!this.publicationReview(root, cards).cards.some((card) => card.selectedVersion !== undefined && card.latestVersion > card.selectedVersion)
+      || consent?.acceptNewerForeignCards === true, "NEWER_FOREIGN_CARD_CONFIRMATION_REQUIRED");
     const issue = await this.deckPublicationPrerequisite(root, cards, session);
     requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
     await this.guardCardRoots(cards.map((card) => card.cardTemplateId), session);
@@ -718,7 +751,8 @@ export class CardRepository {
       cards: root.draft.cards.map(({ cardTemplateId }) => ({ cardTemplateId, cardVersionAtPublish: byId.get(cardTemplateId)!.latestVersion })),
     }, visibility, ...this.note(updateNote), ...(copyReceipt ? { copyReceipt } : {}),
     ...(root.forkedFrom && version === 1 ? { forkPublicationReceipt: { revision: expectedRevision, enterMyDecks: forkEntry!.enterMyDecks,
-      ...(consent ? { review: consent.review, acceptCardDrafts: consent.acceptCardDrafts } : {}) } } : {}),
+      ...(consent ? { review: consent.review, acceptCardDrafts: consent.acceptCardDrafts,
+        ...(consent.acceptNewerForeignCards !== undefined ? { acceptNewerForeignCards: consent.acceptNewerForeignCards } : {}) } : {}) } } : {}),
     publishedAt: now, publishedByUserId: actor }, { session });
     const result = await this.decks().updateOne({ deckTemplateId, revision: expectedRevision }, { $set: { latestVersion: version, visibility, draft: null, updatedAt: now }, $unset: { draftVisibility: "" }, $inc: { revision: 1 } }, { session });
     requireCondition(result.matchedCount === 1, "STALE_REVISION");

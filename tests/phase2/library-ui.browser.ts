@@ -49,8 +49,8 @@ test("Library owner Edit opens the same Creator identity without membership and 
   await login(page, "phase2"); await detail(page, id);
   await page.getByRole("button", { name: "Deck menu", exact: true }).click();
   const edit = page.getByRole("menuitem", { name: "Edit", exact: true });
-  await expect(edit).toHaveAttribute("href", `/creator/edit/${id}?returnTo=library`); await edit.click();
-  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library$`));
+  await expect(edit).toHaveAttribute("href", new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`)); await edit.click();
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`));
   await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toContainText(title);
   await expect(page.locator(`.creator-column[data-card-template-id="${ids[0]}"]`)).toBeVisible();
   expect(await repo.getPersonalUser(owner)).toEqual(before);
@@ -151,7 +151,7 @@ test("Library-origin Creator stays on failed saves; direct Creator entry retains
   await expect(page.getByRole("button", { name: "Retry Save Deck", exact: true })).toBeVisible();
   await page.locator(".creator-back-link").click();
   await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.", { exact: true })).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library$`));
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`));
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
   await page.unroute(`**/api/deck-templates/${id}/saved`);
   await page.getByRole("button", { name: "Retry Save Deck", exact: true }).click();
@@ -166,23 +166,23 @@ test("Library-origin Creator stays on failed saves; direct Creator entry retains
   await expect(page).toHaveURL(/\/decks$/);
 });
 
-test("Library does not offer Edit to a non-owner or an owner whose current Creator composition contains foreign Cards", async ({ page }) => {
+test("Library offers Edit for foreign Decks and mixed-ownership owned drafts", async ({ page }) => {
   const { repo, owner, viewer, id, ids } = await fixture(1);
   await login(page); await detail(page, id);
-  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(1);
   const foreign = await repo.createCardDraft(viewer, { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]),
     intro: { title: "Another creator's practice", description: null, mediaItem: null } }, "public");
   await repo.publishCard(viewer, foreign.cardTemplateId, 0);
   const mixed = await repo.createDeckDraft(owner, { ...createDefaultDeckContent([]), title: "Owned Deck with a shared Card",
     cards: [{ cardTemplateId: foreign.cardTemplateId }] }, "public"); await repo.publishDeck(owner, mixed.deckTemplateId, 0);
   await login(page, "phase2"); await detail(page, mixed.deckTemplateId);
-  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(0);
-  // A foreign reference in an unpublished draft must also suppress Edit, even
+  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(1);
+  // A foreign reference in an unpublished draft also permits mixed Creator editing, even
   // though the Library correctly continues showing the all-owned publication.
   await repo.saveDeckDraft(owner, id, 1, { ...deckDraftContent((await repo.getDeckVersion(id, 1))!.content),
     cards: [...ids.map((cardTemplateId) => ({ cardTemplateId })), { cardTemplateId: foreign.cardTemplateId }] });
   await detail(page, id);
-  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(1);
   expect((await page.request.get(`/api/deck-templates/${id}`)).ok()).toBe(false);
 });
 
@@ -192,7 +192,7 @@ test("Library owner Edit opens an empty public Deck without creating membership 
   await login(page, "phase2"); await detail(page, id);
   await page.getByRole("button", { name: "Deck menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library$`));
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`));
   await expect(page.getByRole("button", { name: "Add card", exact: true })).toBeVisible();
   await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   expect(await repo.getPersonalUser(owner)).toEqual(before);

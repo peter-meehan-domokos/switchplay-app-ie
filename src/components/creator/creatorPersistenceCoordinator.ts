@@ -175,7 +175,12 @@ export class CreatorPersistenceCoordinator {
   constructor(board: BoardState, initial: CreatorDTO | null, readonly request: CreatorTransport = creatorRequest, readonly session?: CreatorSessionDTO) {
     const graph = privateGraph(board, initial ?? (session ? sessionBoardDTO(session) : null)); this.deckTemplateId = graph.deckTemplateId;
     this.deck = new EntityLane(graph.content, initial, this.changed,
-      (content, revision, visibility) => this.saveDeck(content, revision, visibility), () => this.readDeck(), (version) => this.request(this.deckURL + `/publish?version=${version}`));
+      (content, revision, visibility) => this.saveDeck(content, revision, visibility), () => this.readDeck(), async (version) => {
+        const result = await this.request<import("@/lib/cards/model").DeckTemplateVersion>(this.deckURL + `/publish?version=${version}`);
+        if (version === 1 && this.deck.ack?.root.forkedFrom
+          && result.forkPublicationReceipt?.enterMyDecks !== this.forkEntry()?.enterMyDecks) throw conflict();
+        return { ...result, content: this.normalizeDeck({ ...this.deck.ack!, content: result.content }).content };
+      });
     for (const card of graph.cards) this.makeCard(card.cardTemplateId, card.content, initial?.cards.find((item) => item.root.cardTemplateId === card.cardTemplateId) ?? null);
     this.attached = new Set(graph.cards.map((card) => card.cardTemplateId));
     if (session) {
@@ -210,6 +215,23 @@ export class CreatorPersistenceCoordinator {
     return (id ? this.creatingCards.has(id) : this.deckCreationQueued) ? "creating" : "foreign";
   }
   cardIdentity(id: string) { return this.cards.get(id)?.ack ? this.targets.get(id)?.id ?? id : id; }
+  foreignCardVersion(id: string) { return !this.cards.get(id)?.ack ? this.foreignCards.get(id)?.source.version : undefined; }
+  private visualCardIdentity(id: string) { return [...this.attached].find((visual) => this.cardIdentity(visual) === id) ?? id; }
+  publicationReferences() {
+    return [...this.attached].flatMap<{ cardTemplateId: string; latestVersion: number; visibility?: Visibility }>((id) => {
+      const root = this.cards.get(id)?.ack?.root, foreign = this.foreignCards.get(id);
+      return root ? [root] : foreign ? [{ cardTemplateId: id, latestVersion: foreign.source.version, visibility: "public" as const }] : [];
+    });
+  }
+  private forkEntry() {
+    const root = this.deck.ack?.root;
+    return root?.forkedFrom && root.latestVersion === 0 ? { enterMyDecks: root.forkContext?.kind === "my-decks" || intent(root) === "private" } : undefined;
+  }
+  publishedPersonalDeckHref() {
+    const root = this.deck.ack?.root;
+    return this.session?.context.kind === "my-decks" && root?.forkedFrom && root.latestVersion >= 1
+      ? `/decks?openDeck=${encodeURIComponent(this.deckTemplateId)}` : null;
+  }
   get deckReadinessTarget(): import("@/lib/mediaUploadClient").MediaUploadTarget {
     return { scope: "deck-introduction", deckTemplateId: this.deckTemplateId,
       ...(this.deckSource && !this.deck.ack ? { publishedVersion: this.deckSource.source.version } : {}) };
@@ -448,7 +470,10 @@ export class CreatorPersistenceCoordinator {
   }
   private makeCard(id: string, content: CardContent, ack: CardAck | null) {
     const lane = new EntityLane(content, ack, this.changed,
-      async (content, revision, visibility) => this.normalizeCard(id, await this.request(this.cardURL(id), "PATCH", { type: "save", content: this.cardContent(id, content), revision, visibility })), async () => this.normalizeCard(id, await this.request(this.cardURL(id))), (version) => this.request(this.cardURL(id) + `?version=${version}`));
+      async (content, revision, visibility) => this.normalizeCard(id, await this.request(this.cardURL(id), "PATCH", { type: "save", content: this.cardContent(id, content), revision, visibility })), async () => this.normalizeCard(id, await this.request(this.cardURL(id))), async (version) => {
+        const result = await this.request<import("@/lib/cards/model").CardTemplateVersion>(this.cardURL(id) + `?version=${version}`);
+        return { ...result, content: this.normalizeCard(id, { ...this.cards.get(id)!.ack!, content: result.content }).content };
+      });
     this.cards.set(id, lane); return lane;
   }
   private ensureInitial(content: DeckContent, cards: { cardTemplateId: string; content: CardContent }[] = []) {
@@ -554,7 +579,7 @@ export class CreatorPersistenceCoordinator {
   }
   publicationState() {
     const deck = this.deck.ack;
-    const roots = [...this.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []);
+    const roots = this.publicationReferences();
     const cards = Object.fromEntries([...this.attached].map((id) => {
       const lane = this.cards.get(id)!, saved = lane.ack;
       return [id, !!saved && !lane.error && !lane.publishing && cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, saved.root) === null];
@@ -610,7 +635,9 @@ export class CreatorPersistenceCoordinator {
       const kind = failure(error).kind;
       if (kind !== "transient") {
         lane.uncertainPublication = null;
-        if (kind === "conflict" || kind === "recovery") { lane.error = failure(error); this.changed(); }
+        // A rejected publication review changed no authoring state. Allow a
+        // fresh review rather than turning it into an unrecoverable save lane.
+        if ((kind === "conflict" || kind === "recovery") && !(error instanceof CreatorRequestError && error.code === "DECK_PUBLICATION_REVIEW_CONFLICT")) { lane.error = failure(error); this.changed(); }
         throw error;
       }
       // If reconciliation itself is unavailable, retain this exact publication
@@ -623,34 +650,38 @@ export class CreatorPersistenceCoordinator {
 
   warningCards(review: DeckPublicationReview) {
     return review.cards.filter((card) => {
-      const lane = this.cards.get(card.cardTemplateId);
+      const lane = this.cards.get(this.visualCardIdentity(card.cardTemplateId));
+      if (lane && !lane.ack) return false; // Foreign canonical selections have no personal authoring lane.
       return card.hasDraft || !!lane && (lane.dirty || !!lane.error || lane.creationPending || lane.pendingOperations > 0);
     }).map((card) => card.cardTemplateId);
   }
   private reviewFingerprint(review: DeckPublicationReview) {
     return JSON.stringify({ review, generation: this.deck.generation, cards: review.cards.map((card) => {
-      const lane = this.cards.get(card.cardTemplateId); return [card.cardTemplateId, lane?.generation, lane?.ack?.root.revision, lane?.error, lane?.pendingOperations];
+      const lane = this.cards.get(this.visualCardIdentity(card.cardTemplateId)); return [card.cardTemplateId, lane?.generation, lane?.ack?.root.revision, lane?.error, lane?.pendingOperations];
     }) });
   }
-  async publishDeck(note: string | undefined, confirm: (ids: string[]) => Promise<boolean>, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
+  async publishDeck(note: string | undefined, confirm: (ids: string[], newer?: DeckPublicationReview["cards"]) => Promise<boolean>, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
     await this.deck.acquire(); this.deck.publishing = true; this.changed();
     try {
       const ack = this.deck.ack!;
       if (!ack.root.draft) return true;
       const review = await this.request<DeckPublicationReview>(this.deckURL + `/publish?revision=${ack.root.revision}`);
       const warning = this.warningCards(review), fingerprint = this.reviewFingerprint(review);
-      if (warning.length && !await confirm(warning)) return false;
+      const newer = review.cards.filter((card) => card.selectedVersion !== undefined && card.latestVersion > card.selectedVersion);
+      if ((warning.length || newer.length) && !await confirm(warning, newer)) return false;
       if (!await this.approvePublic(this.publicReview([], true), confirmPublic)) return false;
       if (fingerprint !== this.reviewFingerprint(review)) throw new CreatorRequestError(409, "DECK_PUBLICATION_REVIEW_CONFLICT");
-      const result = await this.publishSafely(this.deck, () => this.request<CreatorDTO>(this.deckURL + "/publish", "POST", {
-        revision: ack.root.revision, review, acceptCardDrafts: warning.length > 0, updateNote: note }), note);
+      const mixed = !!ack.root.forkedFrom || this.foreignCards.size > 0;
+      const result = await this.publishSafely(this.deck, async () => this.normalizeDeck(await this.request<DeckAck>(this.deckURL + "/publish" + (mixed ? "?session=1" : ""), "POST", {
+        revision: ack.root.revision, review, acceptCardDrafts: warning.length > 0, updateNote: note,
+        ...(newer.length ? { acceptNewerForeignCards: true } : {}), ...(this.forkEntry() ? { forkEntry: this.forkEntry() } : {}) })), note);
       this.deck.accept(result, this.deck.acknowledgedGeneration); return true;
     } catch (error) {
       if (error instanceof CreatorRequestError && error.code === "STALE_REVISION") { this.deck.error = failure(error); this.changed(); }
       throw error;
     } finally { this.deck.release(); }
   }
-  async publishAndLeave(notes: Record<string, string>, confirm: (ids: string[]) => Promise<boolean>, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
+  async publishAndLeave(notes: Record<string, string>, confirm: (ids: string[], newer?: DeckPublicationReview["cards"]) => Promise<boolean>, confirmPublic: ConfirmPublicPublication = cancelPublicPublication) {
     await this.waitForUploads(); await this.flushAll();
     const approved = this.publicReview([...this.attached], true);
     if (!await this.approvePublic(approved, confirmPublic)) return false;

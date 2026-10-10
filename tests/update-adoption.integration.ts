@@ -157,6 +157,10 @@ test("actor isolation, private-era metadata and missing retained versions fail c
   await assert.rejects(repo.adoptUpdate("carol", command), { code: "UPDATE_SESSION_CONFLICT" }); await assert.rejects(repo.reviewUpdate("carol", "card", ids[0]), { code: "PERSONAL_UPDATE_FORBIDDEN" });
   const before = await repo.getPersonalUser("alice"); await repo.cardVersions().updateOne({ cardTemplateId: ids[0], version: 2 }, { $unset: { visibility: "" } });
   await assert.rejects(repo.reviewUpdate("alice", "card", ids[0]), { code: "CARD_VERSION_FORBIDDEN" }); await assert.rejects(repo.adoptUpdate("alice", command), { code: "CARD_VERSION_FORBIDDEN" });
+  await assert.rejects(deckPublication(repo, id), { code: "PRIVATE_CARDS_BLOCK_PUBLIC_DECK" });
+  // Restore this deliberately corrupted fixture before independently testing
+  // private-era Deck metadata: public publication now checks immutable Cards.
+  await repo.cardVersions().updateOne({ cardTemplateId: ids[0], version: 2 }, { $set: { visibility: "public" } });
   await deckPublication(repo, id); await repo.deckVersions().updateOne({ deckTemplateId: id, version: 2 }, { $set: { visibility: "private" } });
   await assert.rejects(repo.reviewUpdate("alice", "deck", id), { code: "DECK_VERSION_FORBIDDEN" }); assert.deepEqual(await repo.getPersonalUser("alice"), before);
 });

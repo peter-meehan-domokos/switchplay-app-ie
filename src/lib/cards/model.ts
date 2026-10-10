@@ -67,12 +67,12 @@ export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; versi
 type Version<C> = { version: number; content: C; visibility?: Visibility; updateNote?: string; publishedAt: Date; publishedByUserId: string };
 export type ForkPublicationReceipt = {
   revision: number; enterMyDecks?: boolean;
-  review?: DeckPublicationReview; acceptCardDrafts?: boolean;
+  review?: DeckPublicationReview; acceptCardDrafts?: boolean; acceptNewerForeignCards?: boolean;
 };
 export type CardTemplateVersion = Version<CardContent> & { cardTemplateId: string; forkPublicationReceipt?: ForkPublicationReceipt };
 // Immutable receipt for Copy auto-publication recovery. Draft-only Copy keeps
 // its existing exact-append recovery; no workflow flags or receipt collection.
-export type CopyPublicationReceipt = { cardTemplateId: string; revision: number; contentHash: string };
+export type CopyPublicationReceipt = { cardTemplateId: string; revision: number; contentHash: string; sourceVersion?: number };
 export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string; copyReceipt?: CopyPublicationReceipt; forkPublicationReceipt?: ForkPublicationReceipt };
 export type CardTest = { id: string; date: string; result: boolean; createdAt: Date };
 export type CardData = {
@@ -113,5 +113,5 @@ export type Capabilities = {
 export type DeckPublicationReview = {
   deckTemplateId: string;
   revision: number;
-  cards: { cardTemplateId: string; revision: number; latestVersion: number; hasDraft: boolean }[];
+  cards: { cardTemplateId: string; revision?: number; latestVersion: number; hasDraft: boolean; selectedVersion?: number }[];
 };

@@ -3,9 +3,10 @@ import type { CardRepository } from "./repository";
 import { requireCondition } from "./domain";
 import type { DeckContent } from "./model";
 import { deckDraftContent } from "./publicationRules";
+import { assertCardVersionAccess } from "./versionAccess";
 
 export type CopyDestination = { deckTemplateId: string; title: string; revision: number; contentHash: string; alreadyContains: boolean };
-export type CopyCardCommand = { deckTemplateId: string; revision: number; contentHash: string };
+export type CopyCardCommand = { deckTemplateId: string; revision: number; contentHash: string; sourceVersion?: number };
 export type CopyCardResult = {
   deckTemplateId: string; revision: number; firstReusedAt: Date;
 } & ({ outcome: "draft"; publishedVersion: null } | { outcome: "published"; publishedVersion: number });
@@ -17,8 +18,14 @@ export function deckContentHash(content: DeckContent) {
 }
 export async function copyDestinations(repo: CardRepository, actor: string, cardTemplateId: string, currentDeckTemplateId: string): Promise<CopyDestination[]> {
   requireCondition(typeof cardTemplateId === "string" && typeof currentDeckTemplateId === "string", "INVALID_ENTITY_ID");
-  const source = await repo.cards().findOne({ cardTemplateId }, { projection: { ownerUserId: 1 } });
-  requireCondition(source?.ownerUserId === actor, "CARD_FORBIDDEN");
+  const source = await repo.cards().findOne({ cardTemplateId });
+  requireCondition(source, "CARD_FORBIDDEN");
+  if (source.ownerUserId !== actor) {
+    requireCondition(source.visibility === "public" && source.latestVersion >= 1, "CARD_FORBIDDEN");
+    const published = await repo.getCardVersion(cardTemplateId, source.latestVersion);
+    requireCondition(published, "CARD_FORBIDDEN");
+    assertCardVersionAccess(actor, source, published);
+  }
   const roots = await repo.decks().find({ ownerUserId: actor, deckTemplateId: { $ne: currentDeckTemplateId } }).toArray();
   const clean = roots.filter((root) => root.draft === null);
   const versions = clean.length ? await repo.deckVersions().find({ $or: clean.map((root) => ({ deckTemplateId: root.deckTemplateId, version: root.latestVersion })) }).toArray() : [];
