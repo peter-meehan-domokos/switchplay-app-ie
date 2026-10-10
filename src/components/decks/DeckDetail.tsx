@@ -14,8 +14,11 @@ type DeckDetailProps = Pick<DeckSceneProps, "isDeckFlipped" | "deckFlipRotationY
 export default function DeckDetail({ deck, onAdopted, ...props }: DeckDetailProps) {
   const working = useWorkingDeck(deck);
   const updates = useWorkingUpdates(deck, async (command) => { await onAdopted(command); working.clearMutationError(); });
+  // Working membership is already authorized by the resolver. Creator entry
+  // may create an owned copy; it does not grant writes to the foreign original.
+  const canEnterCreator = deck.permissions?.canEditDeck || (deck.hasUserDeckData && deck.context === "working");
   return <><DeckScene {...props} deck={working.deck} updateAction={updates.deckButton} cardFrontAction={(card) => updates.cardButton(card.id)} error={working.mutationError || updates.discoveryError}
-    deckActions={deck.permissions?.canEditDeck ? <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} /> : undefined}
+    deckActions={canEnterCreator ? <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} /> : undefined}
     onActiveCardChange={working.commitActiveCard}
     renderCardBackFace={(card, options) => hasPersonalCard(card) ? <BackCardFaceContent card={card} deckTemplateId={deck.deckTemplateId} {...options} /> : null}
     renderFocusedCard={(focused) => hasPersonalCard(focused.card) ? <WorkingFocusedCardView {...focused} card={focused.card}
