@@ -15,6 +15,7 @@ export default async function NewCreatorPage() {
   return (
     <CreatorDragLab
       canPreviewOutput={canPreviewOutput}
+      currentUserId={user.id}
       initialBoard={blankPrivateBoard()}
       mode="new"
     />

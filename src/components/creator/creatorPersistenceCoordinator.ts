@@ -3,6 +3,11 @@ import type { CreatorDTO } from "@/lib/cards/readModels";
 import { cardPublicationIssue, deckPublicationIssue, sameContent, publicationVisibility, type PublicationVisibility } from "@/lib/cards/publicationRules";
 import { createDefaultCardContent } from "@/lib/cards/creatorDefaults";
 import { privateGraph } from "./cardArchitectureAdapter";
+import type { CreatorSessionDTO } from "@/lib/cards/creatorSession";
+import type { CardForkCommand, DeckForkCommand, CardForkSource } from "@/lib/cards/model";
+import { CreatorRecoveryJournal, type SubmittedCreatorOperation } from "./creatorRecovery";
+import { forkCardContent } from "@/lib/cards/forks";
+import { sessionBoardDTO, type CreatorBoardDTO } from "./cardArchitectureAdapter";
 import type { BoardState } from "./creatorBoardState";
 import { creatorRequest, CreatorRequestError, type CreatorTransport } from "./creatorRequest";
 
@@ -161,21 +166,281 @@ export class EntityLane<C, A extends Ack<C>> {
 export class CreatorPersistenceCoordinator {
   readonly deck: EntityLane<DeckContent, DeckAck>;
   readonly cards = new Map<string, EntityLane<CardContent, CardAck>>();
-  readonly deckTemplateId: string;
+  deckTemplateId: string;
   private listeners = new Set<() => void>();
   private attached = new Set<string>();
   private initialQueued = false;
   private reusedCards = new Set<string>();
   noteCardReused(id: string) { this.reusedCards.add(id); this.changed(); }
-  constructor(board: BoardState, initial: CreatorDTO | null, readonly request: CreatorTransport = creatorRequest) {
-    const graph = privateGraph(board, initial); this.deckTemplateId = graph.deckTemplateId;
+  constructor(board: BoardState, initial: CreatorDTO | null, readonly request: CreatorTransport = creatorRequest, readonly session?: CreatorSessionDTO) {
+    const graph = privateGraph(board, initial ?? (session ? sessionBoardDTO(session) : null)); this.deckTemplateId = graph.deckTemplateId;
     this.deck = new EntityLane(graph.content, initial, this.changed,
-      (content, revision, visibility) => this.request(this.deckURL + "/saved", "PATCH", { content, revision, visibility }), () => this.request(this.deckURL), (version) => this.request(this.deckURL + `/publish?version=${version}`));
+      (content, revision, visibility) => this.saveDeck(content, revision, visibility), () => this.readDeck(), (version) => this.request(this.deckURL + `/publish?version=${version}`));
     for (const card of graph.cards) this.makeCard(card.cardTemplateId, card.content, initial?.cards.find((item) => item.root.cardTemplateId === card.cardTemplateId) ?? null);
     this.attached = new Set(graph.cards.map((card) => card.cardTemplateId));
+    if (session) {
+      if (session.deck.kind === "foreign") { this.deckSource = session.deck; this.deck.creationPending = true; }
+      else { this.deck.accept(session.deck.owned, 0); this.deck.desiredVisibility = intent(session.deck.owned.root); }
+      for (const card of session.cards) {
+        const id = card.kind === "owned" ? card.owned.root.cardTemplateId : card.source.cardTemplateId;
+        const lane = this.cards.get(id)!;
+        if (card.kind === "owned") { lane.accept(card.owned, 0); lane.desiredVisibility = intent(card.owned.root); }
+        else { this.foreignCards.set(id, card); lane.creationPending = true; }
+      }
+    }
+  }
+  private deckSource: Extract<CreatorSessionDTO["deck"], { kind: "foreign" }> | null = null;
+  private foreignCards = new Map<string, Extract<CreatorSessionDTO["cards"][number], { kind: "foreign" }>>();
+  private creatingCards = new Set<string>();
+  private targets = new Map<string, { id: string; steps: Map<string, string> }>();
+  private deckCreationQueued = false;
+  private journal: CreatorRecoveryJournal | null = null;
+  private submitted: SubmittedCreatorOperation | null = null;
+  private creationAcknowledged = false;
+  recovering = false;
+  private sessionId = globalThis.crypto.randomUUID();
+  private origin = "";
+  private reservedDeckId: string | null = null;
+  private mediaProofs = new Map<string, string[]>();
+  binding(id?: string): "foreign" | "creating" | "owned" | "uncertain" {
+    const lane = id ? this.cards.get(id)! : this.deck;
+    if (!(id ? this.foreignCards.has(id) : this.deckSource)) return lane.creationPending ? "creating" : "owned";
+    if (lane.error && (id ? this.creatingCards.has(id) : this.deckCreationQueued)) return "uncertain";
+    if (lane.ack) return "owned";
+    return (id ? this.creatingCards.has(id) : this.deckCreationQueued) ? "creating" : "foreign";
+  }
+  cardIdentity(id: string) { return this.cards.get(id)?.ack ? this.targets.get(id)?.id ?? id : id; }
+  get deckReadinessTarget(): import("@/lib/mediaUploadClient").MediaUploadTarget {
+    return { scope: "deck-introduction", deckTemplateId: this.deckTemplateId,
+      ...(this.deckSource && !this.deck.ack ? { publishedVersion: this.deckSource.source.version } : {}) };
+  }
+  private selections(): CardForkSource[] {
+    return [...this.foreignCards].filter(([id]) => this.attached.has(id) && !this.cards.get(id)!.ack).map(([, card]) => card.source);
+  }
+  get presentation(): CreatorBoardDTO {
+    return { root: { deckTemplateId: this.deckTemplateId }, content: this.deck.desired,
+      cards: [...this.attached].map((id) => ({ root: { cardTemplateId: id }, content: this.cards.get(id)!.desired,
+        publishedContent: this.cards.get(id)!.ack?.publishedContent ?? this.foreignCards.get(id)?.content ?? null })) };
+  }
+  private deckContent(content: DeckContent) { return { ...clone(content), cards: content.cards.map((ref) => ({ cardTemplateId: this.cardIdentity(ref.cardTemplateId) })) }; }
+  private cardContent(id: string, content: CardContent) {
+    const mapping = this.targets.get(id)?.steps;
+    return { ...clone(content), steps: content.steps.map((step) => ({ ...clone(step), stepId: mapping?.get(step.stepId) ?? step.stepId })) };
+  }
+  private normalizeCard(id: string, ack: CardAck): CardAck {
+    const reverse = new Map([...(this.targets.get(id)?.steps ?? [])].map(([a, b]) => [b, a]));
+    const normalize = (content: CardContent) => ({ ...content, steps: content.steps.map((step) => ({ ...step, stepId: reverse.get(step.stepId) ?? step.stepId })) });
+    return { ...ack, root: { ...ack.root, cardTemplateId: id, draft: ack.root.draft ? normalize(ack.root.draft) : null },
+      content: normalize(ack.content), publishedContent: ack.publishedContent ? normalize(ack.publishedContent) : null };
+  }
+  private normalizeDeck(ack: DeckAck): DeckAck {
+    const reverse = new Map([...this.targets].filter(([id]) => this.cards.get(id)?.ack).map(([id, target]) => [target.id, id]));
+    const normalize = (content: DeckContent) => ({ ...content, cards: content.cards.map((ref) => ({ cardTemplateId: reverse.get(ref.cardTemplateId) ?? ref.cardTemplateId })) });
+    return { ...ack, content: normalize(ack.content), publishedContent: ack.publishedContent ? normalize(ack.publishedContent) : null,
+      root: { ...ack.root, draft: ack.root.draft ? normalize(ack.root.draft) : null } };
+  }
+  private async readDeck(): Promise<DeckAck> {
+    if (!this.session || !this.deckSource && !this.foreignCards.size) return this.request(this.deckURL);
+    const session = await this.request<CreatorSessionDTO>(`/api/creator/session?deckTemplateId=${encodeURIComponent(this.deckTemplateId)}`);
+    if (session.actor !== this.session.actor || session.deck.kind !== "owned") throw conflict();
+    if (this.recovering) for (const card of session.cards) {
+      if (card.kind !== "foreign" || this.creatingCards.has(card.source.cardTemplateId)) continue;
+      this.foreignCards.set(card.source.cardTemplateId, card);
+      const lane = this.cards.get(card.source.cardTemplateId);
+      if (lane && !lane.ack) lane.desired = clone(card.content);
+    }
+    return this.normalizeDeck(session.deck.owned);
+  }
+  private async saveDeck(content: DeckContent, revision: number, visibility: Visibility): Promise<DeckAck> {
+    if (!this.session || !this.deckSource && !this.foreignCards.size) return this.request(this.deckURL + "/saved", "PATCH", { content, revision, visibility });
+    const result = await this.request<CreatorSessionDTO>("/api/creator/session", "PATCH", {
+      deckTemplateId: this.deckTemplateId, content: this.deckContent(content), revision, visibility, foreignCardSelections: this.selections() });
+    if (result.actor !== this.session.actor || result.deck.kind !== "owned") throw conflict();
+    return this.normalizeDeck(result.deck.owned);
+  }
+  configureRecovery(storage: import("./creatorRecovery").CreatorRecoveryStorage, origin: string) {
+    if (!this.session) return;
+    this.origin = origin;
+    this.journal = new CreatorRecoveryJournal(storage, this.session.actor,
+      this.session.deck.kind === "foreign" ? this.session.deck.source.deckTemplateId : this.deckTemplateId);
+    this.journal.isolate();
+    // A reload can land on the owned URL between installing it and clearing the
+    // submitted Deck command. Find only the command naming this exact target.
+    if (this.session.deck.kind === "owned" && !this.journal.read()) {
+      const sourceId = this.session.deck.owned.root.forkedFrom?.deckTemplateId;
+      if (sourceId) {
+        const previous = new CreatorRecoveryJournal(storage, this.session.actor, sourceId);
+        const operation = previous.read();
+        if (operation?.kind === "deck" && (operation.command as DeckForkCommand).deckTemplateId === this.deckTemplateId) this.journal = previous;
+      }
+    }
+  }
+  routeInstalled() {
+    if (this.submitted && this.deck.ack && this.creationAcknowledged) {
+      this.journal?.clear(); this.submitted = null;
+    }
+  }
+  recordMediaProof(id: string, proof: string | undefined) {
+    if (proof) this.mediaProofs.set(id, [...(this.mediaProofs.get(id) ?? []), proof]);
+  }
+  async prepareUploadTarget(id: string | undefined, slot: string) {
+    // A creation already submitted owns its frozen target. Wait for that binding
+    // rather than allocating a second prospective identity during handoff.
+    if (id && this.binding(id) !== "foreign") await this.flushCard(id);
+    else if (!id && this.deckSource && this.binding() !== "foreign") await this.deck.flush();
+    return this.uploadTarget(id, slot);
+  }
+  uploadTarget(id: string | undefined, slot: string): import("@/lib/mediaUploadClient").MediaUploadTarget {
+    if (id) {
+      const card = this.foreignCards.get(id), target = card && !this.cards.get(id)!.ack ? this.target(id) : null;
+      return { scope: "card-template", deckTemplateId: this.deckTemplateId, cardTemplateId: target?.id ?? this.cardIdentity(id),
+        creatorActor: this.session?.actor, ...(card && target ? { prospective: { kind: "card", source: card.source, targetId: target.id, slot, context: this.session!.context } } : {}) };
+    }
+    if (this.deckSource && !this.deck.ack) this.reservedDeckId ??= crypto.randomUUID();
+    return { scope: "deck-introduction", deckTemplateId: this.reservedDeckId ?? this.deckTemplateId, creatorActor: this.session?.actor,
+      ...(this.deckSource && !this.deck.ack ? { prospective: { kind: "deck", source: this.deckSource.source, targetId: this.reservedDeckId!, slot: slot as "image" | "video", context: this.session!.context } } : {}) };
+  }
+  private target(id: string) {
+    let target = this.targets.get(id);
+    if (!target) {
+      // Lineage allocation follows the immutable source order, even when the
+      // first meaningful edit is a reorder of the visible Steps.
+      const source = this.foreignCards.get(id)?.content ?? this.cards.get(id)!.desired;
+      target = { id: crypto.randomUUID(), steps: new Map(source.steps.map((step) => [step.stepId, crypto.randomUUID()])) };
+      this.targets.set(id, target);
+    }
+    return target;
+  }
+  private forkCommand(id: string, content: CardContent, visibility?: Visibility): CardForkCommand {
+    const source = this.foreignCards.get(id)!, target = this.target(id);
+    const baseline = forkCardContent(source.content, source.source, [...target.steps.values()]);
+    return { source: source.source, context: this.session!.context, cardTemplateId: target.id, stepIds: [...target.steps.values()], mediaProofs: this.mediaProofs.get(id),
+      ...(visibility ? { visibility } : {}), content: { ...clone(content), steps: content.steps.map((step) => ({ ...clone(step),
+        stepId: target.steps.get(step.stepId)!, forkedFrom: baseline.steps.find((item) => item.stepId === target.steps.get(step.stepId))!.forkedFrom })) } };
+  }
+  private queueForeignDeck(content: DeckContent, visibility?: Visibility, cardFork?: CardForkCommand, newCards?: DeckForkCommand["newCards"]) {
+    if (this.deckCreationQueued || this.deck.ack) return;
+    this.deckCreationQueued = true;
+    const command: DeckForkCommand = { source: this.deckSource!.source, deckTemplateId: this.reservedDeckId ?? crypto.randomUUID(),
+      context: this.session!.context, content: clone(content), ...(visibility ? { visibility } : {}),
+      mediaProofs: this.mediaProofs.get("deck"), foreignCardSelections: this.selections().filter((ref) => ref.cardTemplateId !== cardFork?.source.cardTemplateId), ...(cardFork ? { cardFork } : {}), ...(newCards ? { newCards } : {}) };
+    this.enqueueFork("deck", command);
+  }
+  private queueForeignCard(id: string, content: CardContent, visibility?: Visibility) {
+    if (this.creatingCards.has(id)) return;
+    this.creatingCards.add(id);
+    const command = this.forkCommand(id, content, visibility);
+    if (!this.deck.ack && !this.deckCreationQueued) this.queueForeignDeck(this.deck.desired, undefined, command);
+    else this.enqueueFork("card", command);
+  }
+  private enqueueFork(kind: "card" | "deck", first: CardForkCommand | DeckForkCommand, recovering?: SubmittedCreatorOperation) {
+    const generation = this.deck.generation;
+    const cardId = kind === "card" ? (first as CardForkCommand).source.cardTemplateId : (first as DeckForkCommand).cardFork?.source.cardTemplateId;
+    const cardGeneration = cardId ? this.cards.get(cardId)!.generation : 0;
+    let frozen: SubmittedCreatorOperation | null = recovering ?? null;
+    this.deck.tasks.push(async () => {
+      if (!this.journal) throw new CreatorRequestError(409, "CREATOR_RECOVERY_UNAVAILABLE");
+      if (!frozen) {
+        const command = clone(first);
+        if (kind === "card") {
+          const card = command as CardForkCommand;
+          if (!this.deck.ack) throw conflict();
+          card.attachTo = { deckTemplateId: this.deckTemplateId, revision: this.deck.ack.root.revision,
+            nextDeckContent: { ...this.deckContent(this.deck.ack.content), cards: this.deckContent(this.deck.ack.content).cards.map((ref) =>
+              ref.cardTemplateId === card.source.cardTemplateId ? { cardTemplateId: card.cardTemplateId } : ref) } };
+        }
+        frozen = { schema: 1, actor: this.session!.actor, sessionId: this.sessionId,
+          sourceDeckId: this.session!.deck.kind === "foreign" ? this.session!.deck.source.deckTemplateId : this.session!.deck.owned.root.deckTemplateId,
+          origin: this.origin, submittedAt: Date.now(), kind, command };
+      }
+      this.journal.write(frozen); this.submitted = frozen; this.creationAcknowledged = false;
+      const command = frozen.command;
+      const sourceId = kind === "deck" ? (command as DeckForkCommand).source.deckTemplateId : (command as CardForkCommand).source.cardTemplateId;
+      const { source, ...body } = command;
+      await this.request(`/api/${kind === "deck" ? "deck" : "card"}-templates/${encodeURIComponent(sourceId)}/fork`, "POST", { ...body, sourceVersion: source.version });
+      if (kind === "deck") {
+        this.deckTemplateId = (command as DeckForkCommand).deckTemplateId;
+        for (const card of (command as DeckForkCommand).newCards ?? []) {
+          const lane = this.cards.get(card.cardTemplateId)!;
+          const ack = await this.request<CardAck>(`/api/card-templates/${encodeURIComponent(card.cardTemplateId)}`);
+          if (ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameContent(ack.content, card.content)) throw conflict();
+          lane.accept(ack, 0); lane.creationPending = false; lane.kick();
+        }
+      }
+      if (cardId) {
+        const target = kind === "card" ? command as CardForkCommand : (command as DeckForkCommand).cardFork!;
+        const lane = this.cards.get(cardId)!;
+        const ack = this.normalizeCard(cardId, await this.request<CardAck>(`/api/card-templates/${encodeURIComponent(target.cardTemplateId)}`));
+        if (ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameContent(this.cardContent(cardId, ack.content), target.content)
+          || intent(ack.root) !== (target.visibility ?? "private")) throw conflict();
+        // Lineage changes persistence identity, never the board/pair keys or newer user edits.
+        lane.desired = { ...lane.desired, steps: lane.desired.steps.map((step) => ({ ...step,
+          forkedFrom: ack.content.steps.find((item) => item.stepId === step.stepId)?.forkedFrom })) };
+        lane.accept(ack, cardGeneration); lane.creationPending = false; this.creatingCards.delete(cardId);
+        if (lane.detached) this.request.allowDetachedCard?.(target.cardTemplateId);
+      }
+      const ack = await this.readDeck();
+      const expected = kind === "deck" ? 0 : (command as CardForkCommand).attachTo!.revision + 1;
+      if (ack.root.revision !== expected || kind === "deck" && ack.root.latestVersion !== 0) throw conflict();
+      this.deckCreationQueued = false; this.recovering = false; this.creationAcknowledged = true; this.deck.accept(ack, generation);
+      this.routeInstalled();
+      if (cardId) this.cards.get(cardId)!.kick();
+    });
+    this.deck.creationPending = false; this.deck.kick(); this.changed();
+  }
+  recoverSubmitted() {
+    if (this.submitted || this.deckCreationQueued || this.creatingCards.size) return false;
+    const operation = this.journal?.read(); if (!operation) return false;
+    if (operation.actor !== this.session?.actor) throw conflict();
+    const command = operation.command;
+    const card = operation.kind === "card" ? command as CardForkCommand : (command as DeckForkCommand).cardFork;
+    // On an owned-route reload, the server session may already contain the exact
+    // committed replacement. Prove it before clearing; never replay over edits.
+    if (this.deck.ack && (operation.kind === "deck" || card && !this.foreignCards.has(card.source.cardTemplateId))) {
+      this.recovering = true;
+      const deckCommand = operation.kind === "deck" ? command as DeckForkCommand : null;
+      const expectedContent = deckCommand ? { ...deckCommand.content, cards: deckCommand.content.cards.map((ref) =>
+        ref.cardTemplateId === card?.source.cardTemplateId ? { cardTemplateId: card.cardTemplateId } : ref) } : card!.attachTo?.nextDeckContent;
+      const expectedRevision = deckCommand ? 0 : card!.attachTo!.revision + 1;
+      if (!expectedContent || this.deckTemplateId !== (deckCommand?.deckTemplateId ?? card!.attachTo?.deckTemplateId)
+        || this.deck.ack.root.revision !== expectedRevision || !sameContent(this.deck.ack.content, expectedContent)
+        || deckCommand && (this.deck.ack.root.latestVersion !== 0 || !sameContent(this.deck.ack.root.forkedFrom, deckCommand.source)
+          || !sameContent(this.deck.ack.root.forkContext, deckCommand.context)
+          || !sameContent(this.deck.ack.root.foreignCardSelections, deckCommand.foreignCardSelections)
+          || intent(this.deck.ack.root) !== (deckCommand.visibility ?? "private"))) throw conflict();
+      for (const expected of [...(card ? [card] : []), ...(deckCommand?.newCards ?? [])]) {
+        const ack = this.cards.get(expected.cardTemplateId)?.ack;
+        if (!ack || ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameContent(ack.content, expected.content)) throw conflict();
+      }
+      if (card) {
+        const root = this.cards.get(card.cardTemplateId)!.ack!.root;
+        if (!sameContent(root.forkedFrom, card.source) || !("forkContext" in root) || !sameContent(root.forkContext, card.context)
+          || !sameContent(root.stepIds, card.stepIds) || intent(root) !== (card.visibility ?? "private")) throw conflict();
+      }
+      this.submitted = operation; this.creationAcknowledged = true;
+      this.routeInstalled(); this.recovering = false;
+      return false;
+    }
+    if (card) {
+      const id = card.source.cardTemplateId, lane = this.cards.get(id);
+      if (!lane || !this.foreignCards.has(id)) throw conflict();
+      this.targets.set(id, { id: card.cardTemplateId, steps: new Map(card.content.steps.map((step) => [step.forkedFrom!.stepId, step.stepId])) });
+      const reverse = new Map([...this.targets.get(id)!.steps].map(([a,b]) => [b,a]));
+      lane.desired = { ...clone(card.content), steps: card.content.steps.map((step) => ({ ...step, stepId: reverse.get(step.stepId)! })) };
+      this.creatingCards.add(id);
+    }
+    if (operation.kind === "deck") {
+      this.deck.desired = clone((command as DeckForkCommand).content); this.deckCreationQueued = true;
+      for (const card of (command as DeckForkCommand).newCards ?? []) {
+        const lane = this.makeCard(card.cardTemplateId, card.content, null); lane.creationPending = true; this.attached.add(card.cardTemplateId);
+      }
+    }
+    this.origin = operation.origin; this.recovering = true;
+    this.enqueueFork(operation.kind, command, operation);
+    return true;
   }
   private get deckURL() { return `/api/deck-templates/${encodeURIComponent(this.deckTemplateId)}`; }
-  private cardURL(id: string) { return `/api/card-templates/${encodeURIComponent(id)}`; }
+  private cardURL(id: string) { return `/api/card-templates/${encodeURIComponent(this.cardIdentity(id))}`; }
   private changed = () => { for (const listener of this.listeners) listener(); };
   subscribe(listener: () => void) { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; }
   get dto(): CreatorDTO | null {
@@ -183,7 +448,7 @@ export class CreatorPersistenceCoordinator {
   }
   private makeCard(id: string, content: CardContent, ack: CardAck | null) {
     const lane = new EntityLane(content, ack, this.changed,
-      (content, revision, visibility) => this.request(this.cardURL(id), "PATCH", { type: "save", content, revision, visibility }), () => this.request(this.cardURL(id)), (version) => this.request(this.cardURL(id) + `?version=${version}`));
+      async (content, revision, visibility) => this.normalizeCard(id, await this.request(this.cardURL(id), "PATCH", { type: "save", content: this.cardContent(id, content), revision, visibility })), async () => this.normalizeCard(id, await this.request(this.cardURL(id))), (version) => this.request(this.cardURL(id) + `?version=${version}`));
     this.cards.set(id, lane); return lane;
   }
   private ensureInitial(content: DeckContent, cards: { cardTemplateId: string; content: CardContent }[] = []) {
@@ -202,13 +467,16 @@ export class CreatorPersistenceCoordinator {
       }
     });
   }
-  editDeck(content: DeckContent) { this.ensureInitial(content); this.deck.set(content); this.deck.kick(); }
+  editDeck(content: DeckContent) { if (this.deckSource && !this.deck.ack) { this.deck.set(content); this.queueForeignDeck(content); }
+    else { this.ensureInitial(content); this.deck.set(content); this.deck.kick(); } }
   setDeckVisibility(visibility: Visibility) {
     if (visibility === this.deck.desiredVisibility) return;
-    this.ensureInitial(this.deck.desired); this.deck.setVisibility(visibility); this.deck.kick();
+    if (this.deckSource && !this.deck.ack) { this.deck.setVisibility(visibility); this.queueForeignDeck(this.deck.desired, visibility); }
+    else { this.ensureInitial(this.deck.desired); this.deck.setVisibility(visibility); this.deck.kick(); }
   }
   setCardVisibility(id: string, visibility: Visibility) {
     const lane = this.cards.get(id); if (!lane) throw new Error("Unknown Card identity"); lane.setVisibility(visibility);
+    if (this.foreignCards.has(id) && !lane.ack) this.queueForeignCard(id, lane.desired, visibility);
   }
   beginCardUpload(id: string) { return this.beginUpload(this.cards.get(id)!); }
   beginDeckUpload() { return this.beginUpload(this.deck); }
@@ -225,26 +493,28 @@ export class CreatorPersistenceCoordinator {
   }
   editCard(id: string, content: CardContent) {
     const lane = this.cards.get(id); if (!lane) throw new Error("Unknown Card identity"); lane.set(content);
+    if (this.foreignCards.has(id) && !lane.ack) this.queueForeignCard(id, content);
   }
   addCard(id: string, stepIds: string[], nextDeck: DeckContent) {
     const defaults = createDefaultCardContent(stepIds), lane = this.makeCard(id, defaults, null);
     lane.creationPending = true; this.attached.add(id);
-    if (!this.deck.ack && !this.initialQueued) this.ensureInitial(nextDeck, [{ cardTemplateId: id, content: defaults }]);
+    if (this.deckSource && !this.deck.ack && !this.deckCreationQueued) this.queueForeignDeck(nextDeck, undefined, undefined, [{ cardTemplateId: id, content: defaults }]);
+    else if (!this.deck.ack && !this.initialQueued && !this.deckSource) this.ensureInitial(nextDeck, [{ cardTemplateId: id, content: defaults }]);
     else {
       let command: { revision: number; cardTemplateId: string; stepIds: string[]; content: DeckContent } | null = null;
       this.deck.tasks.push(async () => {
         if (!command) command = { revision: this.deck.ack!.root.revision, cardTemplateId: id, stepIds,
-          content: { ...clone(nextDeck), cards: nextDeck.cards.filter((ref) => ref.cardTemplateId === id || this.cards.get(ref.cardTemplateId)?.ack) } };
+          content: this.deckContent({ ...clone(nextDeck), cards: nextDeck.cards.filter((ref) => ref.cardTemplateId === id || this.cards.get(ref.cardTemplateId)?.ack || this.foreignCards.has(ref.cardTemplateId)) }) };
         const result = await this.request<{ deck: DeckAck; card: CardAck }>(this.deckURL + "/cards", "POST", command);
         if (result.deck.root.revision !== command.revision + 1 || !sameContent(result.deck.content, command.content)) throw conflict();
-        this.deck.accept(result.deck, this.deck.acknowledgedGeneration);
+        this.deck.accept(this.normalizeDeck(result.deck), this.deck.acknowledgedGeneration);
         lane.accept(result.card, 0); lane.creationPending = false; lane.kick();
       });
     }
     this.deck.set(nextDeck); this.deck.kick(); this.changed();
   }
   detachCard(id: string, nextDeck: DeckContent) {
-    this.attached.delete(id); const lane = this.cards.get(id); if (lane) lane.detached = true;
+    this.attached.delete(id); const lane = this.cards.get(id); if (lane) { lane.detached = true; this.request.allowDetachedCard?.(this.cardIdentity(id)); }
     // TODO: expose recovery for detached independent Card drafts in a later UI.
     this.editDeck(nextDeck); this.changed();
   }
@@ -262,12 +532,16 @@ export class CreatorPersistenceCoordinator {
     }
   }
   async flushCard(id: string) {
+    if (this.foreignCards.has(id) && !this.cards.get(id)!.ack && !this.creatingCards.has(id)) return;
     await this.ensureCardCreated(id);
     await this.cards.get(id)!.flush();
   }
   async flushAll() {
-    if (!this.deck.ack && !this.initialQueued) return; // untouched local session
-    await Promise.all([this.deck.flush(), ...[...this.attached].map((id) => this.flushCard(id))]);
+    if (this.deckSource && !this.deck.ack && !this.deck.tasks.length && !this.deck.running) {
+      await Promise.all([...this.attached].filter((id) => this.cards.get(id)!.ack).map((id) => this.flushCard(id))); return;
+    }
+    if (!this.deck.ack && !this.initialQueued && !this.deckSource) return; // untouched local session
+    await Promise.all([this.deck.flush(), ...[...this.attached].filter((id) => !this.foreignCards.has(id) || !!this.cards.get(id)!.ack || this.creatingCards.has(id)).map((id) => this.flushCard(id))]);
   }
   async prepareToNavigate() {
     // Detached work deliberately continues independently after SPA navigation.
@@ -289,9 +563,10 @@ export class CreatorPersistenceCoordinator {
       cards, any: this.hasWork() };
   }
   hasWork() {
-    if (!this.deck.ack && !this.initialQueued) return false;
+    if (!this.deck.ack && !this.initialQueued && !this.deck.tasks.length && !this.deck.running)
+      return [...this.cards.values()].some((lane) => !!lane.ack && (lane.dirty || !!lane.running || !!lane.ack.root.draft || lane.pendingOperations > 0));
     return this.deck.dirty || this.deck.running !== null || this.deck.uncertainSaves.length > 0 || !!this.deck.uncertainPublication || this.deck.pendingOperations > 0 || this.deck.tasks.length > 0 || !!this.deck.ack?.root.draft || [...this.attached].some((id) => {
-      const lane = this.cards.get(id)!; return lane.dirty || lane.running !== null || lane.uncertainSaves.length > 0 || !!lane.uncertainPublication || lane.pendingOperations > 0 || !!lane.ack?.root.draft;
+      const lane = this.cards.get(id)!; return (!this.foreignCards.has(id) || !!lane.ack || this.creatingCards.has(id)) && (lane.dirty || lane.running !== null || lane.uncertainSaves.length > 0 || !!lane.uncertainPublication || lane.pendingOperations > 0 || !!lane.ack?.root.draft);
     });
   }
   private publicReview(cardIds: string[], includeDeck: boolean): PublicPublicationReview {
@@ -318,7 +593,7 @@ export class CreatorPersistenceCoordinator {
       if (issue) throw new CreatorRequestError(400, issue);
       if (!await this.approvePublic(this.publicReview([id], false), confirmPublic)) return false;
       const generation = lane.acknowledgedGeneration;
-      const result = await this.publishSafely(lane, () => this.request<CardAck>(this.cardURL(id), "PATCH", { type: "publish", revision: ack.root.revision, updateNote: note }), note);
+      const result = await this.publishSafely(lane, () => this.request<CardAck>(this.cardURL(id), "PATCH", { type: "publish", revision: ack.root.revision, updateNote: note }).then((result) => this.normalizeCard(id, result)), note);
       lane.accept(result, generation);
       return true;
     } finally { lane.release(); }
@@ -387,12 +662,13 @@ export class CreatorPersistenceCoordinator {
         || review.deck && !sameContent(review.deck, approved.deck)) throw new CreatorRequestError(409, "PUBLIC_PUBLICATION_REVIEW_CHANGED");
       return true;
     };
-    for (const id of this.attached) if (this.cards.get(id)!.ack!.root.draft && !await this.publishCard(id, notes[id], confirmed)) return false;
+    for (const id of this.attached) if (this.cards.get(id)!.ack?.root.draft && !await this.publishCard(id, notes[id], confirmed)) return false;
     if (this.deck.ack?.root.draft && !await this.publishDeck(notes.deck, confirm, confirmed)) return false;
     await this.flushAll();
     return !this.hasWork();
   }
   async move(sourceId: string, destinationId: string, sourceIndex: number, destinationIndex: number) {
+    if (this.deckSource || [sourceId, destinationId].some((id) => this.foreignCards.has(id))) throw new CreatorRequestError(400, "CROSS_CARD_MOVE_AFTER_PUBLICATION");
     if ([sourceId, destinationId].some((id) => this.reusedCards.has(id) || this.cards.get(id)?.ack?.root.firstReusedAt)) throw new CreatorRequestError(400, "CROSS_CARD_MOVE_AFTER_REUSE");
     await Promise.all([this.deck.flush(), this.flushCard(sourceId), this.flushCard(destinationId)]);
     const source = this.cards.get(sourceId)!, destination = this.cards.get(destinationId)!;

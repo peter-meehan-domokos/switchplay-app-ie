@@ -68,9 +68,9 @@ test("Library owner Edit opens the same Creator identity without membership and 
   expect(await repo.cardVersions().countDocuments({ cardTemplateId: ids[0] })).toBe(1);
   expect(await repo.getPersonalUser(owner)).toEqual(before);
   expect(await repo.getPersonalUser(viewer)).toEqual(otherBefore);
-  await expect(page.locator(".creator-back-link")).toHaveAttribute("href", "/library");
+  await expect(page.locator(".creator-back-link")).toHaveAttribute("href", `/library/${id}`);
   await page.locator(".creator-back-link").click();
-  await expect(page).toHaveURL(/\/library$/);
+  await expect(page).toHaveURL(`/library/${id}`);
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
 });
 
@@ -85,9 +85,9 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} Creator r
     await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
     await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toBeVisible();
   };
-  const returnHref = origin === "library" ? "/library" : `/decks?openDeck=${id}`;
+  const returnHref = origin === "library" ? `/library/${id}` : `/decks?openDeck=${id}`;
   const expectReturned = async () => {
-    await expect(page).toHaveURL(origin === "library" ? /\/library$/ : new RegExp(`/decks\\?openDeck=${id}$`));
+    await expect(page).toHaveURL(origin === "library" ? new RegExp(`/library/${id}$`) : new RegExp(`/decks\\?openDeck=${id}$`));
   };
   const editTitle = async (value: string) => {
     await page.getByRole("button", { name: "Edit deck title and introduction" }).click();
@@ -158,7 +158,7 @@ test("Library-origin Creator stays on failed saves; direct Creator entry retains
   await expect(page.getByRole("button", { name: "Retry Save Deck", exact: true })).toHaveCount(0);
   await page.locator(".creator-back-link").click();
   await page.getByRole("dialog", { name: "Leave Creator confirmation" }).getByRole("button", { name: "Leave without publishing", exact: true }).click();
-  await expect(page).toHaveURL(/\/library$/);
+  await expect(page).toHaveURL(`/library/${id}`);
   await page.goto(`/creator/edit/${id}`);
   await expect(page.locator(".creator-back-link")).toHaveAttribute("href", "/decks");
   await page.locator(".creator-back-link").click();
@@ -349,7 +349,7 @@ test("published instructional video status is authorized and lazy; browsing idle
   await page.getByRole("button", { name: `Play introduction video for ${content.title}` }).click();
   await expect(page.getByRole("status")).toContainText("Preparing video");
   expect(statusRequests[0]).toContain("kind=deck"); expect(statusRequests[0]).toContain(`templateId=${id}`); expect(statusRequests[0]).toContain("version=2");
-  await page.goto(`/library/${id}`); await focus(page);
+  await detail(page, id); await focus(page);
   await page.locator(".focused-card-surface--front .active-card-identity").press("Enter");
   await expect.poll(() => statusRequests.some((url) => url.includes("kind=card") && url.includes(ids[0]) && url.includes("version=2"))).toBeTruthy();
   const url = `/api/library/media/stream-status?kind=card&templateId=${ids[0]}&version=2&assetId=arbitrary-uid`;

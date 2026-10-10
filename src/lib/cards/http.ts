@@ -42,3 +42,16 @@ export function fields(body: unknown, allowed: string[]): asserts body is Record
   requireCondition(isRecord(body) && Object.keys(body).every((field) => allowed.includes(field)), "INVALID_REQUEST_FIELDS");
 }
 export function jsonDTO<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
+
+// Creator commands use the initiating actor, not whichever cookie happens to be
+// present when a queued request eventually leaves the browser.
+export async function creatorRequestBoundary(request: Request, run: (repo: CardRepository, actor: string) => Promise<unknown>) {
+  const response = await cardRequest((repo, actor) => {
+    const expected = request.headers.get("X-Creator-Actor");
+    requireCondition(expected === null || expected === actor, "CREATOR_SESSION_CONFLICT");
+    return run(repo, actor);
+  });
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Vary", "Cookie");
+  return response;
+}

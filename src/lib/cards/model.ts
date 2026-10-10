@@ -10,12 +10,12 @@ export type CardForkSource = { cardTemplateId: string; version: number };
 export type DeckForkSource = { deckTemplateId: string; version: number };
 export type CardForkCommand = {
   source: CardForkSource; cardTemplateId: string; stepIds: string[];
-  content: CardContent; context: ForkContext;
+  content: CardContent; context: ForkContext; visibility?: Visibility; mediaProofs?: string[];
   attachTo?: { deckTemplateId: string; revision: number; nextDeckContent: DeckContent };
 };
 export type DeckForkCommand = {
   source: DeckForkSource; deckTemplateId: string; content: DeckContent; context: ForkContext;
-  cardFork?: CardForkCommand;
+  newCards?: { cardTemplateId: string; content: CardContent }[]; cardFork?: CardForkCommand; visibility?: Visibility; foreignCardSelections?: CardForkSource[]; mediaProofs?: string[];
 };
 export type ForkDeckEntry = { enterMyDecks: boolean };
 export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null };
@@ -61,6 +61,7 @@ export type CardTemplateRoot = Root<CardContent, { cardTemplateId: string; versi
 };
 export type DeckTemplateRoot = Root<DeckContent, { deckTemplateId: string; version: number }> & {
   deckTemplateId: string;
+  foreignCardSelections?: CardForkSource[]; // Private authoring selections; never personal adoption or published content.
   publicationGuard?: number; // Transaction serialization only; never an authoring revision.
 };
 type Version<C> = { version: number; content: C; visibility?: Visibility; updateNote?: string; publishedAt: Date; publishedByUserId: string };

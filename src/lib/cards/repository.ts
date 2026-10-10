@@ -13,6 +13,7 @@ import { cardPublicationIssue, deckPublicationIssue, deckDraftContent, publicati
 import { deckContentHash, type CopyCardCommand, type CopyCardResult } from "./cardReuse";
 import { assertForkContext, editedForkContent, inheritForkCardData } from "./forks";
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
+import { validateForkAttachments } from "./prospectiveUpload";
 import { readablePersonalHistory } from "./personalHistory";
 import type { CardForkCommand, DeckForkCommand, ForkContext, ForkDeckEntry } from "./model";
 import { assertPreviewManifest, LibraryPreviewConflict, type PersonalEntryResult } from "./libraryEntry";
@@ -317,19 +318,34 @@ export class CardRepository {
     if (deck) {
       const ref = deck.content.cards.find((ref) => ref.cardTemplateId === source.cardTemplateId);
       const data = user.cardsData.find((data) => data.cardTemplateId === source.cardTemplateId);
-      requireCondition(ref && (data?.cardTemplateVersion ?? ref.cardVersionAtPublish) === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
+      // Once editing an owned canonical draft, its exact foreign selections may
+      // differ from the original personal composition/adoption. This is still an
+      // owned reference replacement, not a change to personal adoption. Preserve
+      // strict adopted-source checks for standalone/combined foreign-Deck forks.
+      let ownedAttachment = false;
+      if (command.attachTo) {
+        const destination = await this.decks().findOne({ deckTemplateId: command.attachTo.deckTemplateId }, { session });
+        const latest = destination?.latestVersion ? await this.getDeckVersion(destination.deckTemplateId, destination.latestVersion, session) : null;
+        const current = destination?.draft ?? (latest ? deckDraftContent(latest.content) : null);
+        ownedAttachment = destination?.ownerUserId === actor && !!current?.cards.some((item) =>
+          item.cardTemplateId === source.cardTemplateId || item.cardTemplateId === command.cardTemplateId);
+      }
+      requireCondition(ownedAttachment || ref && (data?.cardTemplateVersion ?? ref.cardVersionAtPublish) === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
     }
-    const content = editedForkContent(version.content, command.source, command.stepIds, command.content);
+    const content = editedForkContent(version.content, command.source, command.stepIds, command.content, command.visibility !== undefined);
+    requireCondition(command.visibility === undefined || command.visibility === "private" || command.visibility === "public", "INVALID_VISIBILITY");
     const existing = await this.cards().findOne({ cardTemplateId: command.cardTemplateId }, { session });
+    // Recovery checks the exact committed draft first; expired upload proofs must not undo a proven outcome.
+    if (!existing) await validateForkAttachments(actor, { kind: "card", source: command.source, targetId: command.cardTemplateId, context: command.context }, version.content, content, command.mediaProofs);
     if (existing) {
       requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && existing.revision === 0
         && isDeepStrictEqual(existing.forkedFrom, command.source) && isDeepStrictEqual(existing.forkContext, command.context)
-        && isDeepStrictEqual(existing.draft, content) && isDeepStrictEqual(existing.stepIds, command.stepIds), "CARD_FORK_RECOVERY_CONFLICT");
+        && isDeepStrictEqual(existing.draft, content) && (existing.draftVisibility ?? "private") === (command.visibility ?? "private") && isDeepStrictEqual(existing.stepIds, command.stepIds), "CARD_FORK_RECOVERY_CONFLICT");
       return existing;
     }
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId: command.cardTemplateId, ownerUserId: actor, visibility: "private",
-      latestVersion: 0, draft: content, stepIds: [...command.stepIds], revision: 0, forkedFrom: command.source,
+      ...(command.visibility === "public" ? { draftVisibility: "public" as const } : {}), latestVersion: 0, draft: content, stepIds: [...command.stepIds], revision: 0, forkedFrom: command.source,
       forkContext: command.context, createdAt: now, updatedAt: now };
     // The global multikey unique index reserves all new Step identities here.
     await this.cards().insertOne(root, { session }); return root;
@@ -359,7 +375,7 @@ export class CardRepository {
           await this.deckReferences(actor, next, session);
           await this.recordReferenceChanges(deck.deckTemplateId, [command.source.cardTemplateId, card.cardTemplateId], session);
           const saved = await this.decks().updateOne({ deckTemplateId: deck.deckTemplateId, revision: attach.revision }, {
-            $set: { draft: next, updatedAt: new Date() }, $inc: { revision: 1 },
+            $set: { draft: next, ...(deck.foreignCardSelections ? { foreignCardSelections: deck.foreignCardSelections.filter((ref) => ref.cardTemplateId !== command.source.cardTemplateId) } : {}), updatedAt: new Date() }, $inc: { revision: 1 },
           }, { session }); requireCondition(saved.matchedCount === 1, "STALE_REVISION");
           deckRevision = attach.revision + 1;
         }
@@ -386,19 +402,36 @@ export class CardRepository {
         cardRevision = card.revision;
         content = { ...content, cards: content.cards.map((ref) => ref.cardTemplateId === command.cardFork!.source.cardTemplateId ? { cardTemplateId: card.cardTemplateId } : ref) };
       }
+      requireCondition(command.newCards === undefined || Array.isArray(command.newCards), "INVALID_NEW_FORK_CARDS");
+      for (const card of command.newCards ?? []) {
+        entityId(card.cardTemplateId); assertCardContent(card.content);
+        requireCondition(content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
+          && !version.content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
+          && isDeepStrictEqual(card.content, createDefaultCardContent(card.content.steps.map((step) => step.stepId))), "INVALID_NEW_FORK_CARD");
+        const existingCard = await this.cards().findOne({ cardTemplateId: card.cardTemplateId }, { session });
+        if (existingCard) requireCondition(existingCard.ownerUserId === actor && existingCard.latestVersion === 0 && existingCard.revision === 0
+          && existingCard.forkedFrom === null && isDeepStrictEqual(existingCard.draft, card.content), "DECK_FORK_RECOVERY_CONFLICT");
+        else await this.cards().insertOne({ cardTemplateId: card.cardTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
+          revision: 0, draft: card.content, stepIds: card.content.steps.map((step) => step.stepId), forkedFrom: null, createdAt: new Date(), updatedAt: new Date() }, { session });
+      }
       assertDeckContent(content);
-      requireCondition(!isDeepStrictEqual(content, deckDraftContent(version.content)), "NO_MEANINGFUL_FORK_EDIT");
+      requireCondition(command.visibility !== undefined || !isDeepStrictEqual(content, deckDraftContent(version.content)), "NO_MEANINGFUL_FORK_EDIT");
       await this.deckReferences(actor, content, session);
+      requireCondition(command.visibility === undefined || command.visibility === "private" || command.visibility === "public", "INVALID_VISIBILITY");
+      await this.validateForeignSelections(actor, content, command.foreignCardSelections, session);
       const existing = await this.decks().findOne({ deckTemplateId: command.deckTemplateId }, { session });
       if (existing) {
         requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && existing.revision === 0
           && isDeepStrictEqual(existing.forkedFrom, command.source) && isDeepStrictEqual(existing.forkContext, command.context)
-          && isDeepStrictEqual(existing.draft, content), "DECK_FORK_RECOVERY_CONFLICT");
+          && isDeepStrictEqual(existing.draft, content) && (existing.draftVisibility ?? "private") === (command.visibility ?? "private")
+          && isDeepStrictEqual(existing.foreignCardSelections, command.foreignCardSelections), "DECK_FORK_RECOVERY_CONFLICT");
       } else {
+        await validateForkAttachments(actor, { kind: "deck", source: command.source, targetId: command.deckTemplateId, context: command.context }, deckDraftContent(version.content), content, command.mediaProofs);
         const now = new Date();
         await this.recordReferenceChanges(command.deckTemplateId, content.cards.map((ref) => ref.cardTemplateId), session);
         await this.decks().insertOne({ deckTemplateId: command.deckTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
-          draft: content, revision: 0, forkedFrom: command.source, forkContext: command.context, createdAt: now, updatedAt: now }, { session });
+          draft: content, ...(command.visibility === "public" ? { draftVisibility: "public" as const } : {}),
+          ...(command.foreignCardSelections ? { foreignCardSelections: command.foreignCardSelections } : {}), revision: 0, forkedFrom: command.source, forkContext: command.context, createdAt: now, updatedAt: now }, { session });
       }
       return { deckTemplateId: command.deckTemplateId, deckRevision: 0, cardRevision };
     }).catch(forkIdentityConflict);
@@ -532,12 +565,13 @@ export class CardRepository {
       }, { session }); requireCondition(result.matchedCount === 1, "STALE_REVISION"); return expectedRevision + 1;
     });
   }
-  async saveDeckDraft(actor: string, deckTemplateId: string, expectedRevision: number, content: DeckContent, visibility?: Visibility) {
+  async saveDeckDraft(actor: string, deckTemplateId: string, expectedRevision: number, content: DeckContent, visibility?: Visibility, foreignCardSelections?: import("./model").CardForkSource[]) {
     assertDeckContent(content);
     return this.transaction(async (session) => {
       const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
       const nextVisibility = draftVisibility(root, visibility);
       await this.deckReferences(actor, content, session);
+      await this.validateForeignSelections(actor, content, foreignCardSelections, session);
       const latest = root.latestVersion >= 1 ? await this.getDeckVersion(deckTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_DECK_VERSION");
       const publishedContent = latest ? deckDraftContent(latest.content) : null;
@@ -550,10 +584,22 @@ export class CardRepository {
       const visibilityChanged = nextVisibility !== root.visibility;
       const draft = !visibilityChanged && latest && isDeepStrictEqual(saved, publishedContent) ? null : saved;
       const result = await this.decks().updateOne({ deckTemplateId, revision: expectedRevision }, {
-        $set: { draft, ...(visibilityChanged ? { draftVisibility: nextVisibility } : {}), updatedAt: new Date() },
+        $set: { draft, ...(foreignCardSelections ? { foreignCardSelections } : {}), ...(visibilityChanged ? { draftVisibility: nextVisibility } : {}), updatedAt: new Date() },
         ...(!visibilityChanged ? { $unset: { draftVisibility: "" } } : {}), $inc: { revision: 1 },
       }, { session }); requireCondition(result.matchedCount === 1, "STALE_REVISION"); return expectedRevision + 1;
     });
+  }
+  private async validateForeignSelections(actor: string, content: DeckContent, selections: import("./model").CardForkSource[] | undefined, session: ClientSession) {
+    if (selections === undefined) return; // Existing owner-only callers remain compatible.
+    requireCondition(Array.isArray(selections) && selections.every((ref) => ref && typeof ref === "object") && new Set(selections.map((ref) => ref.cardTemplateId)).size === selections.length, "INVALID_FOREIGN_SELECTIONS");
+    for (const ref of selections) {
+      requireCondition(ref && typeof ref === "object" && Object.keys(ref).length === 2 && content.cards.some((card) => card.cardTemplateId === ref.cardTemplateId), "INVALID_FOREIGN_SELECTIONS");
+      assertAdoption(ref.version);
+      const root = await this.cards().findOne({ cardTemplateId: ref.cardTemplateId }, { session });
+      requireCondition(root && root.ownerUserId !== actor, "INVALID_FOREIGN_SELECTIONS");
+      const version = await this.getCardVersion(ref.cardTemplateId, ref.version, session);
+      requireCondition(version, "MISSING_CARD_VERSION"); assertCardVersionAccess(actor, root, version);
+    }
   }
   private note(updateNote?: string) {
     requireCondition(updateNote === undefined || (typeof updateNote === "string" && updateNote.length <= 2000), "INVALID_UPDATE_NOTE");

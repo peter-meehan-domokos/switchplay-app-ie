@@ -182,6 +182,55 @@ cancel/reversal, media-first edit, actor changes, reload after submitted creatio
 lost response/advanced target, authorization and provider attachment tampering.
 No dropped edits, duplicate UI entities or misattached uploads; no Phase5 standalone UI.
 
+Implemented CP3 session/handoff contract:
+
+- `GET /api/creator/session` is actor-bound (`X-Creator-Actor`) and private/no-store.
+  Its discriminated owned/foreign entities expose owner drafts only to their owner;
+  foreign entities contain exact public immutable content/source/owner identity,
+  without authoring revisions, drafts, recovery metadata or personal state.
+  My Decks entry selects adopted versions; Library authoring selects exact requested
+  public versions. `PATCH` saves an owned Deck with its frozen foreign selections.
+- The existing coordinator retains the original board/Card/pair keys. Small identity
+  maps translate canonical Card/Step IDs at request/acknowledgment boundaries;
+  newer desired generations are never replaced by an old response. First creation
+  uses existing Card/Deck/combined fork transactions, with explicit visibility intent
+  and private root visibility. Concurrent Card creations serialize on the Deck lane.
+- Foreign Deck entry and the first foreign Card operation require nontechnical copy
+  confirmation. Cancel creates nothing. A private default is not a meaningful edit;
+  an explicit visibility change is. Owned Cards within foreign Decks stay owned.
+- `foreignCardSelections` is optional private Deck-root authoring metadata, validated
+  against exact authorized immutable versions. It is excluded from published reads,
+  is not Deck/Card adoption and is not part of Deck content equality/versioning.
+  Card replacement drops only its old selection. A first Add Card can atomically
+  create default owned Cards alongside the Deck copy; unchanged references remain.
+- Before submitting a first command, an actor/source-Deck/tab-scoped sessionStorage
+  journal records that frozen command, target/Step IDs, expected attachment revision,
+  original return query and submission time. No unsent editor buffer, files, provider
+  upload URLs or login credentials. Bounded attachment proofs may accompany the
+  submitted command; they are purpose-specific, expiring capabilities, not session
+  tokens. Recovery uses the exact operation; advanced targets conflict without a
+  new ID. Fresh owned-route sessions also recognize exact committed replacements,
+  including the gap between owned URL installation and journal cleanup. Recovery
+  blocks new editing until resolved. Journal storage failure stops
+  creation; a proven acknowledgment plus owned route installation clears it.
+- Prospective upload authorization checks an exact public source and binds actor,
+  target, source, slot, provider asset and delivery reference. A domain-separated
+  signing key derives from the existing session secret. Proofs expire after 30 minutes
+  and never enter canonical roots/versions. Successful attachment creates the copy;
+  opening/file allocation alone does not. An already-submitted creation must finish
+  binding before another upload chooses its target. No staging/receipt collection.
+- All Creator operations are actor-bound, including delayed replies. Session teardown
+  stops stale transitions, while specifically registered detached owned-Card saves
+  may finish with authentication rechecked. Canonical Card uploads use Card ownership,
+  independently of Deck ownership/placement; personal upload permissions are unchanged.
+  Existing owned Copy uses the bound canonical IDs and actor transport after handoff.
+  Foreign Deck introduction readiness uses the exact public-version media read;
+  after handoff it uses the owned Deck context without remounting the preview.
+- Library-origin return resolves the original specific Library Deck; My Decks/direct
+  entry retains its existing destination. Existing Save/leave/public confirmation
+  safeguards remain. The Library foreign Edit menu, mixed-ownership publication,
+  self-use Publish-and-leave destinations and publication/reopening review remain CP4.
+
 ## Checkpoint 4 — Foreign editing, publication and reopening
 
 Depends on verified CP3 handoff.

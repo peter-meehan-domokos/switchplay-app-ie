@@ -1,6 +1,5 @@
 import { createBlankCreatorBoard, createCreatorBoardFromTemplate, getCardColumns, getCreatorCellId, type BoardState } from "./creatorBoardState";
 import type { CardContent, DeckContent } from "@/lib/cards/model";
-import type { CreatorDTO } from "@/lib/cards/readModels";
 import { layoutCardLabels } from "@/lib/cards/layout";
 import { createDefaultDeckContent, DEFAULT_CARD_LABEL_PREFIX, restoreCreatorCardTitle } from "@/lib/cards/creatorDefaults";
 
@@ -13,7 +12,9 @@ export function layoutCreatorColumns(board: BoardState) {
   const cards = layoutCardLabels(DEFAULT_CARD_LABEL_PREFIX, getCardColumns(board.columns)).map((column, index) => ({ ...column, cardLabel: column.label, position: index + 1 }));
   return board.columns.map((column) => column.kind === "card" ? cards.find((card) => card.id === column.id)! : { ...column, position: 0 });
 }
-export function creatorBoard(dto: CreatorDTO): BoardState {
+export type CreatorBoardDTO = { root: { deckTemplateId: string }; content: DeckContent; publishedContent?: DeckContent | null;
+  cards: { root: { cardTemplateId: string }; content: CardContent; publishedContent: CardContent | null }[] };
+export function creatorBoard(dto: CreatorBoardDTO): BoardState {
   const board = createCreatorBoardFromTemplate({ deckTemplateId: dto.root.deckTemplateId, title: dto.content.title,
     category: dto.content.categories[0] ?? null, introduction: dto.content.introduction, streams: dto.content.themes,
     cards: layoutCardLabels(dto.content.labelPrefix, dto.cards).map((card) => ({ cardId: card.root.cardTemplateId, label: card.label, ...card.content })) });
@@ -32,7 +33,7 @@ export function creatorBoard(dto: CreatorDTO): BoardState {
   }
   return { ...board, pairs };
 }
-export function privateGraph(board: BoardState, baseline?: CreatorDTO | null) {
+export function privateGraph(board: BoardState, baseline?: CreatorBoardDTO | null) {
   const columns = getCardColumns(board.columns);
   const content: DeckContent = { ...(baseline?.content ?? createDefaultDeckContent(board.rows.map((row) => board.streamIdsByRow[row]))),
     title: board.deckTitle, introduction: board.deckIntroduction,
@@ -61,4 +62,10 @@ export function privateGraph(board: BoardState, baseline?: CreatorDTO | null) {
     return { cardTemplateId: column.cardId!, content: card };
   });
   return { deckTemplateId: board.deckTemplateId, content, cards };
+}
+
+export function sessionBoardDTO(session: import("@/lib/cards/creatorSession").CreatorSessionDTO): CreatorBoardDTO {
+  return { root: { deckTemplateId: session.deck.kind === "owned" ? session.deck.owned.root.deckTemplateId : session.deck.source.deckTemplateId },
+    content: session.deck.kind === "owned" ? session.deck.owned.content : session.deck.content,
+    cards: session.cards.map((card) => card.kind === "owned" ? card.owned : { root: { cardTemplateId: card.source.cardTemplateId }, content: card.content, publishedContent: card.content }) };
 }

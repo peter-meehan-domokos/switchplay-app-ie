@@ -1,6 +1,6 @@
 import type { CardRepository } from "./repository";
 import { requireCondition, nonblank } from "./domain";
-import { authorizeWorkingCard, resolveCreatorDeck } from "./resolvers";
+import { authorizeWorkingCard, resolveCreatorDeck, resolveCreatorCard } from "./resolvers";
 import { fields } from "./http";
 
 export async function authorizeUpload(repo: CardRepository, actor: string, body: unknown, extraFields: string[]) {
@@ -12,12 +12,16 @@ export async function authorizeUpload(repo: CardRepository, actor: string, body:
     const { card } = await authorizeWorkingCard(repo, actor, id, body.cardTemplateId);
     return { scope: "user-card" as const, deckTemplateId: id, cardTemplateId: body.cardTemplateId, media: card.data!.mediaItems };
   }
+  if (body.scope === "card-template") {
+    requireCondition(nonblank(body.cardTemplateId), "INVALID_ENTITY_ID");
+    // Canonical Card ownership, independent of Deck ownership/placement. This
+    // also preserves authorized in-flight work after a reference is detached.
+    const card = await resolveCreatorCard(repo, actor, body.cardTemplateId);
+    return { scope: "card-template" as const, deckTemplateId: id, cardTemplateId: body.cardTemplateId,
+      media: [card.content.intro.mediaItem, card.content.mediaItem, ...card.content.steps.map((step) => step.mediaItem)].filter(Boolean) };
+  }
   const deck = await resolveCreatorDeck(repo, actor, id);
   if (body.scope === "deck-introduction") return { scope: "deck-introduction" as const, deckTemplateId: id,
     cardTemplateId: null, media: [deck.content.introduction?.video].filter(Boolean) };
-  requireCondition(body.scope === "card-template" && nonblank(body.cardTemplateId), "INVALID_UPLOAD_SCOPE");
-  const card = deck.cards.find((card) => card.root.cardTemplateId === body.cardTemplateId);
-  requireCondition(card?.root.ownerUserId === actor, "CARD_FORBIDDEN");
-  return { scope: "card-template" as const, deckTemplateId: id, cardTemplateId: card.root.cardTemplateId,
-    media: [card.content.intro.mediaItem, card.content.mediaItem, ...card.content.steps.map((step) => step.mediaItem)].filter(Boolean) };
+  requireCondition(false, "INVALID_UPLOAD_SCOPE");
 }

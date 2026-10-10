@@ -20,7 +20,7 @@ export function forkCardContent(source: CardContent, ref: CardForkSource, stepId
     forkedFrom: { ...ref, stepId: step.stepId } })) };
 }
 
-export function editedForkContent(source: CardContent, ref: CardForkSource, stepIds: string[], edit: CardContent) {
+export function editedForkContent(source: CardContent, ref: CardForkSource, stepIds: string[], edit: CardContent, visibilityEdit = false) {
   const baseline = forkCardContent(source, ref, stepIds);
   assertCardContent(edit);
   requireCondition(edit.steps.every((step) => stepIds.includes(step.stepId)), "INVALID_FORK_STEP_IDS");
@@ -29,7 +29,7 @@ export function editedForkContent(source: CardContent, ref: CardForkSource, step
     requireCondition(step.forkedFrom === undefined || sameContent(step.forkedFrom, lineage), "INVALID_STEP_LINEAGE");
     return { ...structuredClone(step), forkedFrom: lineage };
   }) };
-  requireCondition(!sameContent(content, baseline), "NO_MEANINGFUL_FORK_EDIT");
+  requireCondition(visibilityEdit || !sameContent(content, baseline), "NO_MEANINGFUL_FORK_EDIT");
   return content;
 }
 

@@ -7,8 +7,8 @@ import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAcces
 // Published reads must not disclose next-publication intent or private authoring
 // context. Canonical content and personal continuity are separate projections.
 function publishedRoot<T extends CardTemplateRoot | DeckTemplateRoot>(root: T) {
-  const { draftVisibility, forkContext, ...published } = root;
-  void draftVisibility; void forkContext;
+  const { draftVisibility, forkContext, foreignCardSelections, ...published } = (root as T & { foreignCardSelections?: unknown });
+  void draftVisibility; void forkContext; void foreignCardSelections;
   return { ...published, draft: null };
 }
 function publishedVersion<T extends { forkPublicationReceipt?: unknown; copyReceipt?: unknown }>(version: T) {

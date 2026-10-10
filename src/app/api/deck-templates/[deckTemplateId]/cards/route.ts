@@ -1,8 +1,8 @@
-import { cardRequest, fields, jsonDTO } from "@/lib/cards/http";
+import { creatorRequestBoundary, fields, jsonDTO } from "@/lib/cards/http";
 import type { DeckContent } from "@/lib/cards/model";
 
 export async function POST(request: Request, context: RouteContext<'/api/deck-templates/[deckTemplateId]/cards'>) {
-  return cardRequest(async (repo, actor) => {
+  return creatorRequestBoundary(request, async (repo, actor) => {
     const body = await request.json();
     fields(body, ["revision", "cardTemplateId", "stepIds", "content"]);
     const { deckTemplateId } = await context.params;

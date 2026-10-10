@@ -13,8 +13,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { creatorBoard, privateGraph, layoutCreatorColumns } from "./cardArchitectureAdapter";
+import { creatorBoard, privateGraph, layoutCreatorColumns, type CreatorBoardDTO } from "./cardArchitectureAdapter";
 import { CreatorPersistenceCoordinator, type PublicPublicationReview } from "./creatorPersistenceCoordinator";
+import CreatorCopyConfirmation from "./CreatorCopyConfirmation";
+import { actorCreatorTransport, CreatorActorLifetime } from "./creatorRequest";
+import type { CreatorSessionDTO } from "@/lib/cards/creatorSession";
 import CreatorDraftsModal from "./CreatorDraftsModal";
 import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
@@ -55,7 +58,7 @@ import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { StepDescriptionSpan } from "@/components/decks/types";
 import type { ImageMediaItem, VideoMediaItem } from "@/lib/media";
-import { isAbortError, uploadVideoMedia } from "@/lib/mediaUploadClient";
+import { isAbortError, uploadVideoMedia, prospectiveAttachmentProof, type MediaUploadTarget } from "@/lib/mediaUploadClient";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -364,7 +367,7 @@ function getEditTargetKey(target: EditTarget) {
 
 function CreatorEditModal({
   canDeleteCard = false,
-  deckTemplateId,
+  videoReadinessTarget,
   deckIntroductionImage,
   deckIntroductionImageMessage,
   deckIntroductionVideo,
@@ -382,7 +385,7 @@ function CreatorEditModal({
   session,
 }: {
   canDeleteCard?: boolean;
-  deckTemplateId: string;
+  videoReadinessTarget: MediaUploadTarget;
   deckIntroductionImage: ImageMediaItem | null;
   deckIntroductionImageMessage?: string | null;
   deckIntroductionVideo: VideoMediaItem | null;
@@ -594,7 +597,7 @@ function CreatorEditModal({
             onUploadVideo={onUploadDeckIntroductionVideo}
             video={deckIntroductionVideo}
             videoError={deckIntroductionVideoMessage}
-            videoReadinessTarget={{ scope: "deck-introduction", deckTemplateId }}
+            videoReadinessTarget={videoReadinessTarget}
             videoUploadStage={deckIntroductionVideoUploadStage}
           />
         ) : null}
@@ -939,20 +942,27 @@ type CreatorDragLabProps = {
   initialBoard: BoardState;
   initialPublishedBoard?: BoardState;
   initialCreator?: CreatorDTO;
+  initialSession?: CreatorSessionDTO;
+  currentUserId?: string;
   mode: "edit" | "new";
 };
 
-export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
-  const [canonical, setCanonical] = useState<CreatorDTO | null>(initialCreator ?? null);
+  const [canonical, setCanonical] = useState<CreatorBoardDTO | null>(initialCreator ?? null);
   const [, setPersistenceVersion] = useState(0);
   const [deckWarning, setDeckWarning] = useState<{ ids: string[]; resolve: (accepted: boolean) => void } | null>(null);
   const [publicConfirmation, setPublicConfirmation] = useState<{ review: PublicPublicationReview; resolve: (accepted: boolean) => void } | null>(null);
   const publicTriggerRef = useRef<HTMLElement | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [noteSession, setNoteSession] = useState<{ key: string; label: string; value: string } | null>(null);
-  const [persistence] = useState(() => new CreatorPersistenceCoordinator(initialBoard, initialCreator ?? null));
+  const [actorLifetime] = useState(() => new CreatorActorLifetime());
+  const [persistence] = useState(() => new CreatorPersistenceCoordinator(initialBoard, initialCreator ?? null,
+    currentUserId ? actorCreatorTransport(currentUserId, (url, method, body) => actorLifetime.isActive(url, method, body), (id) => actorLifetime.allowDetachedCard(id)) : creatorRequest, initialSession));
+  const [copyConfirmation, setCopyConfirmation] = useState<{ entity: "Card" | "Deck"; resolve: (accepted: boolean) => void } | null>(null);
+  const confirmedCards = useRef(new Set<string>());
+  const [entryConfirmed, setEntryConfirmed] = useState(initialSession?.deck.kind !== "foreign");
   const [isDraftsOpen, setIsDraftsOpen] = useState(false);
   const [drafts, setDrafts] = useState<CreatorDraftSummary[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
@@ -1005,10 +1015,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
   const deckIntroductionUploadTarget = useMemo(() => ({
     scope: "deck-introduction" as const,
-    deckTemplateId: board.deckTemplateId,
-  }), [board.deckTemplateId]);
+    deckTemplateId: persistence.deckTemplateId,
+    creatorActor: currentUserId,
+  }), [persistence.deckTemplateId, currentUserId]);
   const deckIntroductionUpload = useMediaUploadController({
     target: deckIntroductionUploadTarget,
+    prepareTarget: (kind) => persistence.prepareUploadTarget(undefined, kind),
     onUploadStarted: handleDeckIntroductionUploadStarted,
     onUploadCompleted: handleDeckIntroductionUploadCompleted,
     onUploadFailed: (kind) => { uploadFailuresRef.current.set(`deck:${kind}`, null); },
@@ -1017,15 +1029,33 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const deckPresentation = deckPublicationPresentation(persistence.deck,
     [...persistence.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []));
   const anyPublishing = publishStatus === "publishing" || persistence.deck.publishing || [...persistence.cards.values()].some((lane) => lane.publishing);
-  const navigationLocked = isDraftsOpen || navigationPending || leaveConfirmationOpen || blockedPublication !== null || publicConfirmation !== null;
+  const navigationLocked = isDraftsOpen || navigationPending || leaveConfirmationOpen || blockedPublication !== null || publicConfirmation !== null || copyConfirmation !== null || !entryConfirmed || persistence.recovering;
 
-  useEffect(() => persistence.subscribe(() => {
+  useEffect(() => {
+    actorLifetime.setActive(true);
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        persistence.configureRecovery(window.sessionStorage, window.location.search);
+        if (persistence.recoverSubmitted()) { setEntryConfirmed(true); const recovered = creatorBoard(persistence.presentation); boardRef.current = recovered; setBoard(recovered); }
+      } catch { setPublishStatus("error"); setPublishMessage("Submitted work could not be recovered safely. Reload or review the existing copy before editing."); }
+    });
+    return () => { active = false; actorLifetime.setActive(false); };
+  }, [persistence, actorLifetime]);
+
+  useEffect(() => {
+    let recovering = false;
+    return persistence.subscribe(() => {
     setPersistenceVersion((version) => version + 1);
+    if (recovering && !persistence.recovering) { const recovered = creatorBoard(persistence.presentation); boardRef.current = recovered; setBoard(recovered); }
+    recovering = persistence.recovering;
     if (!persistence.deck.uncertainPublication && ![...persistence.cards.values()].some((lane) => lane.uncertainPublication)) setPublishMessage((current) => current.startsWith("Publication outcome is not yet confirmed.") ? "" : current);
     const dto = persistence.dto;
     // Autosave may install the edit URL, but must retain the explicit entry origin for reloads.
-    if (dto) { setCanonical(dto); window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${window.location.search}`); }
-  }), [persistence]);
+    if (dto) { setCanonical(persistence.presentation); window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${window.location.search}`); persistence.routeInstalled(); }
+    });
+  }, [persistence]);
 
   useEffect(() => {
     boardRef.current = board;
@@ -1084,9 +1114,15 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     // Preview output remains a development-only control.
   }
 
-  function updateBoardAndSaveDraft(createNextBoard: (currentBoard: BoardState) => BoardState) {
-    const previous = boardRef.current, next = createNextBoard(previous);
-    const before = privateGraph(previous, persistence.dto), after = privateGraph(next, persistence.dto);
+  async function updateBoardAndSaveDraft(createNextBoard: (currentBoard: BoardState) => BoardState) {
+    let previous = boardRef.current, next = createNextBoard(previous);
+    const oldGraph = privateGraph(previous, persistence.presentation), nextGraph = privateGraph(next, persistence.presentation);
+    for (const card of nextGraph.cards) {
+      const old = oldGraph.cards.find((item) => item.cardTemplateId === card.cardTemplateId);
+      if (old && !sameContent(old.content, card.content) && !await confirmForeignCard(card.cardTemplateId)) return;
+    }
+    previous = boardRef.current; next = createNextBoard(previous);
+    const before = privateGraph(previous, persistence.presentation), after = privateGraph(next, persistence.presentation);
     boardRef.current = next; setBoard(next);
     // Projection is pure; only entities changed by this completed edit are queued.
     if (!sameContent(before.content, after.content)) persistence.editDeck(after.content);
@@ -1096,6 +1132,16 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
 
+  async function confirmForeignCard(id: string) {
+    if (persistence.binding(id) !== "foreign" || confirmedCards.current.has(id)) return true;
+    const accepted = await new Promise<boolean>((resolve) => setCopyConfirmation({ entity: "Card", resolve }));
+    if (accepted) confirmedCards.current.add(id);
+    return accepted;
+  }
+  async function changeCardVisibility(id: string, visibility: import("@/lib/cards/model").Visibility) {
+    if (visibility === persistence.cards.get(id)!.desiredVisibility || !await confirmForeignCard(id)) return;
+    persistence.setCardVisibility(id, visibility);
+  }
   function navigateToReturnTarget() {
     router.push(resolvedCreatorReturnTarget.href);
   }
@@ -1190,8 +1236,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
   function hasUnpublishedChanges() {
     const roots = [...persistence.cards.values()].flatMap((lane) => lane.ack ? [lane.ack.root] : []);
-    return deckPublicationPresentation(persistence.deck, roots).outstanding
-      || [...persistence.cards.values()].some((lane) => !lane.detached && cardPublicationPresentation(lane).outstanding);
+    return !!persistence.deck.ack && deckPublicationPresentation(persistence.deck, roots).outstanding
+      || [...persistence.cards.values()].some((lane) => !lane.detached && !!lane.ack && cardPublicationPresentation(lane).outstanding);
   }
   async function leaveCreator(reviewUnpublishedChanges: boolean) {
     setLeaveConfirmationOpen(false);
@@ -1263,7 +1309,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     const next = appendCreatorCard(boardRef.current);
     next.columns = next.columns.map((column, index) => index === next.columns.length - 1 ? { ...column, targetDate: "" } : column);
     boardRef.current = next; setBoard(next);
-    const graph = privateGraph(next, persistence.dto), card = graph.cards.at(-1)!;
+    const graph = privateGraph(next, persistence.presentation), card = graph.cards.at(-1)!;
     persistence.addCard(card.cardTemplateId, card.content.steps.map((step) => step.stepId), graph.content);
   }
 
@@ -1274,7 +1320,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if (!column) return;
     const next = deleteCreatorCard(boardRef.current, column.id);
     boardRef.current = next; setBoard(next);
-    persistence.detachCard(id, privateGraph(next, persistence.dto).content);
+    persistence.detachCard(id, privateGraph(next, persistence.presentation).content);
     setEditSession(null);
   }
 
@@ -1462,7 +1508,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     const sourceCell = findPairCell(boardRef.current.cells, pairId);
     const cardTemplateId = boardRef.current.columns.find((column) => column.id === sourceCell?.split(":")[0])?.cardId;
     const stepId = boardRef.current.pairs[pairId]?.stepId;
-    if (!cardTemplateId || !stepId) return;
+    if (!cardTemplateId || !stepId || !await confirmForeignCard(cardTemplateId)) return;
     const targetLane = persistence.cards.get(cardTemplateId);
     if (targetLane?.locked && !targetLane.publishing) return;
     if (file.type && !file.type.startsWith("video/")) { setPublishStatus("error"); setPublishMessage("Choose a video file."); return; }
@@ -1475,7 +1521,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       // A transfer may have completed while creation/saving was awaited. Never
       // authorize a Step upload against its former Card.
       if (!persistence.cards.get(cardTemplateId)?.desired.steps.some((step) => step.stepId === stepId)) return;
-      const mediaItem = await uploadVideoMedia({ scope: "card-template", deckTemplateId: boardRef.current.deckTemplateId, cardTemplateId }, file, session.controller.signal);
+      const mediaItem = await uploadVideoMedia(await persistence.prepareUploadTarget(cardTemplateId, stepId), file, session.controller.signal);
+      persistence.recordMediaProof(cardTemplateId, prospectiveAttachmentProof(mediaItem));
       uploaded = true;
       if (!isActivePairUpload(pairId, session)) return;
       const lane = persistence.cards.get(cardTemplateId)!;
@@ -1493,6 +1540,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   async function uploadIntroMedia(cardTemplateId: string, file: File) {
+    if (!await confirmForeignCard(cardTemplateId)) return;
     if (file.type && !file.type.startsWith("video/")) { setPublishStatus("error"); setPublishMessage("Choose a video file."); return; }
     const session = createIntroUploadSession(cardTemplateId);
     uploadFailuresRef.current.delete(`intro:${cardTemplateId}`);
@@ -1500,7 +1548,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     let uploaded = false;
     try {
       await persistence.flushCard(cardTemplateId);
-      const mediaItem = await uploadVideoMedia({ scope: "card-template", deckTemplateId: boardRef.current.deckTemplateId, cardTemplateId }, file, session.controller.signal);
+      const mediaItem = await uploadVideoMedia(await persistence.prepareUploadTarget(cardTemplateId, "intro"), file, session.controller.signal);
+      persistence.recordMediaProof(cardTemplateId, prospectiveAttachmentProof(mediaItem));
       uploaded = true;
       if (!isActiveIntroUpload(cardTemplateId, session)) return;
       const lane = persistence.cards.get(cardTemplateId)!;
@@ -1522,11 +1571,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     finally { finish(); }
   }
   async function handleDeckIntroductionUploadStarted() {
-    const content = privateGraph(boardRef.current, persistence.dto).content;
+    if (persistence.binding() === "foreign") return;
+    const content = privateGraph(boardRef.current, persistence.presentation).content;
     persistence.editDeck(content); await persistence.deck.flush();
   }
   async function handleDeckIntroductionUploadCompleted(result: CompletedMediaUpload) {
-    updateBoardAndSaveDraft((current) => result.kind === "image" ? setBoardDeckIntroductionImage(current, result.mediaItem) : setBoardDeckIntroductionVideo(current, result.mediaItem));
+    persistence.recordMediaProof("deck", prospectiveAttachmentProof(result.mediaItem));
+    await updateBoardAndSaveDraft((current) => result.kind === "image" ? setBoardDeckIntroductionImage(current, result.mediaItem) : setBoardDeckIntroductionVideo(current, result.mediaItem));
     await persistence.deck.flush();
   }
 
@@ -1675,6 +1726,10 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         </div>
       </header>
 
+      {!entryConfirmed ? <CreatorCopyConfirmation entity="Deck" onCancel={navigateToReturnTarget} onConfirm={() => setEntryConfirmed(true)} /> : null}
+      {copyConfirmation ? <CreatorCopyConfirmation entity={copyConfirmation.entity} onCancel={() => { copyConfirmation.resolve(false); setCopyConfirmation(null); }}
+        onConfirm={() => { copyConfirmation.resolve(true); setCopyConfirmation(null); }} /> : null}
+      {persistence.recovering ? <p role="status">Recovering your submitted edit…</p> : null}
       {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
       {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
@@ -1729,7 +1784,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                             <span className="creator-card-label-button">{column.cardLabel}</span>
                             <CreatorVisibilityControl label={column.cardLabel!} value={persistence.cards.get(column.cardId!)!.desiredVisibility}
                               publishedPublic={persistence.cards.get(column.cardId!)!.ack?.root.visibility === "public"} disabled={anyPublishing}
-                              onChange={(visibility) => persistence.setCardVisibility(column.cardId!, visibility)} />
+                              onChange={(visibility) => void changeCardVisibility(column.cardId!, visibility)} />
                           </div>
                           <button className="creator-editable creator-card-date-button" onClick={() => openDateEdit({ type: "target-date", cardTemplateId: column.cardId! })} type="button">
                             {formatCreatorDateDisplay(column.targetDate ?? "")}
@@ -1808,7 +1863,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {editSession ? (
         <CreatorEditModal
           canDeleteCard={canDeleteActiveCard}
-          deckTemplateId={board.deckTemplateId}
+          videoReadinessTarget={persistence.deckReadinessTarget}
           deckIntroductionImage={board.deckIntroduction?.image ?? null}
           deckIntroductionImageMessage={deckIntroductionUpload.imageError}
           deckIntroductionVideo={board.deckIntroduction?.video ?? null}
@@ -1821,8 +1876,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           onClose={() => setEditSession(null)}
           onDeleteCard={editSession.target.type === "card-title" ? deleteActiveCard : undefined}
           onSave={saveEdit}
-          copyControl={editingCardId ? <CreatorCopyTo
-            cardTemplateId={editingCardId} deckTemplateId={board.deckTemplateId}
+          copyControl={editingCardId && persistence.binding(editingCardId) === "owned" ? <CreatorCopyTo
+            cardTemplateId={persistence.cardIdentity(editingCardId)} deckTemplateId={persistence.deckTemplateId} request={persistence.request}
             ensureCreated={() => persistence.ensureCardCreated(editingCardId)}
             onReused={() => persistence.noteCardReused(editingCardId)} /> : undefined}
           onRemoveDeckIntroductionImage={removeDeckIntroductionImage}

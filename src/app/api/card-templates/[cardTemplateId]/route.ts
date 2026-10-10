@@ -1,10 +1,10 @@
-import { cardRequest, fields, jsonDTO } from "@/lib/cards/http";
+import { creatorRequestBoundary, fields, jsonDTO } from "@/lib/cards/http";
 import { creatorCardDTO } from "@/lib/cards/readModels";
 import { requireCondition } from "@/lib/cards/domain";
 import type { CardContent, Visibility } from "@/lib/cards/model";
 
 export async function GET(request: Request, context: RouteContext<'/api/card-templates/[cardTemplateId]'>) {
-  return cardRequest(async (repo, actor) => {
+  return creatorRequestBoundary(request, async (repo, actor) => {
     const { cardTemplateId } = await context.params;
     const card = await creatorCardDTO(repo, actor, cardTemplateId);
     const selected = new URL(request.url).searchParams.get("version");
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: RouteContext<'/api/card-tem
 }
 
 export async function PATCH(request: Request, context: RouteContext<'/api/card-templates/[cardTemplateId]'>) {
-  return cardRequest(async (repo, actor) => {
+  return creatorRequestBoundary(request, async (repo, actor) => {
     const body = await request.json();
     fields(body, ["type", "revision", "content", "updateNote", "visibility"]);
     const { cardTemplateId } = await context.params;

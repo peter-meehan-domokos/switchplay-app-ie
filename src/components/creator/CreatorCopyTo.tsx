@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import type { CopyCardCommand, CopyCardResult, CopyDestination } from "@/lib/cards/cardReuse";
-import { creatorRequest, CreatorRequestError } from "./creatorRequest";
+import { creatorRequest, CreatorRequestError, type CreatorTransport } from "./creatorRequest";
 
-export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCreated, onReused }: {
-  cardTemplateId: string; deckTemplateId: string; ensureCreated: () => Promise<void>; onReused: () => void;
+export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCreated, onReused, request = creatorRequest }: {
+  cardTemplateId: string; deckTemplateId: string; ensureCreated: () => Promise<void>; onReused: () => void; request?: CreatorTransport;
 }) {
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false);
   const [destinations, setDestinations] = useState<CopyDestination[]>([]);
@@ -17,7 +17,7 @@ export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCr
     try {
       // Identity persistence only; pending Card content need not be flushed to reuse it.
       await ensureCreated();
-      setDestinations(await creatorRequest(`${url}?currentDeckTemplateId=${encodeURIComponent(deckTemplateId)}`));
+      setDestinations(await request(`${url}?currentDeckTemplateId=${encodeURIComponent(deckTemplateId)}`));
     } catch { setError("Could not load destinations. Resolve any Card creation error, then refresh."); }
     finally { setBusy(false); }
   }
@@ -26,7 +26,7 @@ export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCr
     try {
       let result: CopyCardResult;
       for (let attempt = 0; ; attempt++) {
-        try { result = await creatorRequest<CopyCardResult>(url, "POST", command); break; }
+        try { result = await request<CopyCardResult>(url, "POST", command); break; }
         catch (cause) {
           const transient = !(cause instanceof CreatorRequestError) || cause.status >= 500;
           if (!transient) { setError("The destination changed or is unavailable. Refresh destinations before trying again."); return; }

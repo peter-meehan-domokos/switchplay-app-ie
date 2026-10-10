@@ -108,6 +108,7 @@ type UseMediaUploadControllerOptions = {
   // initial file validation and failures in onUploadCompleted (e.g. persistence).
   onUploadFailed?: (kind: MediaUploadKind) => void;
   target: MediaUploadTarget;
+  prepareTarget?: (kind: MediaUploadKind) => MediaUploadTarget | Promise<MediaUploadTarget>;
 };
 
 export function useMediaUploadController({
@@ -115,6 +116,7 @@ export function useMediaUploadController({
   onUploadStarted,
   onUploadFailed,
   target,
+  prepareTarget,
 }: UseMediaUploadControllerOptions) {
   const [state, dispatch] = useReducer(mediaUploadControllerReducer, initialMediaUploadControllerState);
   const imageSessionRef = useRef<MediaUploadSession | null>(null);
@@ -162,7 +164,7 @@ export function useMediaUploadController({
     try {
       await onUploadStarted?.("image");
       started = true;
-      const mediaItem = await uploadImageMedia(target, file, session.controller.signal);
+      const mediaItem = await uploadImageMedia(await prepareTarget?.("image") ?? target, file, session.controller.signal);
       uploaded = true;
 
       if (!isActiveMediaUploadSession(imageSessionRef.current, session)) {
@@ -186,7 +188,7 @@ export function useMediaUploadController({
     } finally {
       finishImageSession(session);
     }
-  }, [finishImageSession, onUploadCompleted, onUploadStarted, onUploadFailed, target]);
+  }, [finishImageSession, onUploadCompleted, onUploadStarted, onUploadFailed, target, prepareTarget]);
 
   const uploadVideo = useCallback(async (file: File) => {
     const validationError = validateVideoUploadFile(file);
@@ -203,7 +205,7 @@ export function useMediaUploadController({
     try {
       await onUploadStarted?.("video");
       started = true;
-      const mediaItem = await uploadVideoMedia(target, file, session.controller.signal);
+      const mediaItem = await uploadVideoMedia(await prepareTarget?.("video") ?? target, file, session.controller.signal);
       uploaded = true;
 
       if (!isActiveMediaUploadSession(videoSessionRef.current, session)) {
@@ -227,7 +229,7 @@ export function useMediaUploadController({
     } finally {
       finishVideoSession(session);
     }
-  }, [finishVideoSession, onUploadCompleted, onUploadStarted, onUploadFailed, target]);
+  }, [finishVideoSession, onUploadCompleted, onUploadStarted, onUploadFailed, target, prepareTarget]);
 
   const clearImageError = useCallback(() => dispatch({ type: "clear-error", kind: "image" }), []);
   const clearVideoError = useCallback(() => dispatch({ type: "clear-error", kind: "video" }), []);
