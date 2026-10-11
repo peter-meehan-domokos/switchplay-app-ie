@@ -192,7 +192,9 @@ test("My Decks renders an unavailable retained membership alongside valid workin
     await page.goto("/decks");
     await expect(page.getByRole("heading", { name: "My decks", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: `Open ${valid.draft!.title}`, exact: true })).toBeVisible();
-    await expect(page.getByText("Unavailable Deck — your membership is retained.")).toBeVisible();
+    // Earlier acceptance journeys can legitimately leave other unavailable
+    // memberships. The API assertion below identifies this exact fixture.
+    await expect(page.getByText("Unavailable Deck — your membership is retained.").first()).toBeVisible();
     const response = await page.request.get("/api/decks-data"); expect(response.status()).toBe(200);
     const memberships = await response.json();
     expect(memberships.find((entry: { deckTemplateId: string }) => entry.deckTemplateId === missingId).availability).toBe("unavailable");

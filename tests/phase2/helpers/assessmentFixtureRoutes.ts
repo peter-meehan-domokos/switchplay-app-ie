@@ -13,6 +13,9 @@ export async function itemFixtureRoutes(page: Page, repo: CardRepository, actor:
     export { GET as history } from "@/app/api/items-data/[itemId]/history/route";
     export { GET as list, POST as add } from "@/app/api/items-data/[itemId]/tests/route";
     export { PATCH as edit, DELETE as remove } from "@/app/api/items-data/[itemId]/tests/[testId]/route";
+    export { GET as metadata } from "@/app/api/frameworks/route";
+    export { GET as summaries } from "@/app/api/frameworks/summary/route";
+    export { GET as summary } from "@/app/api/frameworks/[frameworkId]/summary/route";
     export { CardRepository } from "@/lib/cards/repository";
   `, resolveDir: process.cwd(), loader: "ts" }, bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
   plugins: [{ name: "assessment-ui-fixtures", setup(builder) {
@@ -25,9 +28,16 @@ export async function itemFixtureRoutes(page: Page, repo: CardRepository, actor:
   } }] });
   const fixture = { exports: {} };
   new Function("require", "module", "exports", bundle.outputFiles[0].text)(createRequire(resolve(process.cwd(), "package.json")), fixture, fixture.exports);
-  type Handler = (request: Request, context: { params: Promise<{ itemId: string; testId?: string }> }) => Promise<Response>;
+  type Handler = (request: Request, context: { params: Promise<Record<string, string | undefined>> }) => Promise<Response>;
   const handlers = fixture.exports as Record<string, Handler> & { CardRepository: { application: () => Promise<CardRepository> } };
   handlers.CardRepository.application = async () => repo;
+  await page.route("**/api/frameworks{,/**}", async (route) => {
+    const request = route.request(), parts = new URL(request.url()).pathname.split("/");
+    const key = parts[3] === "summary" ? "summaries" : parts[3] ? "summary" : "metadata";
+    const response = await handlers[key](new Request(request.url(), { headers: request.headers() }),
+      { params: Promise.resolve({ frameworkId: parts[3] ? decodeURIComponent(parts[3]) : undefined }) });
+    await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
+  });
   await page.route("**/api/items-data/**", async (route) => {
     const request = route.request(), parts = new URL(request.url()).pathname.split("/");
     const itemId = decodeURIComponent(parts[3]), testId = parts[5] ? decodeURIComponent(parts[5]) : undefined;

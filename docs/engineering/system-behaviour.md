@@ -1,7 +1,7 @@
 # System behaviour
 
 This cumulative reference describes user-visible rules and important edge cases.
-Entries below describe Phase 6 foundations implemented so far; the Progress interface
+Entries below describe the behaviour delivered in Phase 6; the Progress interface
 is not yet available. Future checkpoints should update the relevant sections as
 behaviour is delivered. Earlier phases are not backfilled here.
 

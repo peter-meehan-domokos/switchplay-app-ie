@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { randomUUID } from "node:crypto";
+import { hashSync } from "bcryptjs";
 import { build } from "esbuild";
 import { CardRepository } from "../../src/lib/cards/repository";
 import { cardFixture, deckFixture } from "../fixtures/frameworks";
@@ -8,6 +9,11 @@ import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 import type { AssessmentContext } from "../../src/components/assessments/useAssessmentHistory";
 import { geometry } from "./helpers/presentationGeometry";
 import { itemFixtureRoutes } from "./helpers/assessmentFixtureRoutes";
+import { createDefaultDeckContent } from "../../src/lib/cards/creatorDefaults";
+import { forkCardContent } from "../../src/lib/cards/forks";
+import { initialCardData } from "../../src/lib/cards/domain";
+import type { Framework } from "../../src/lib/frameworks/configuration";
+import type { AssessmentHistory } from "../../src/lib/assessments/history";
 let bundle: string;
 test.beforeAll(async () => { bundle = (await build({ entryPoints: ["tests/fixtures/assessmentHarness.tsx"], bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", tsconfig: "tsconfig.json", define: { "process.env.NODE_ENV": '"development"' } })).outputFiles[0].text; });
 async function harness(page: Page, contexts: AssessmentContext[]) {
@@ -17,9 +23,16 @@ async function harness(page: Page, contexts: AssessmentContext[]) {
   await page.goto("/__assessment-fixture"); await page.addScriptTag({ content: bundle });
   await page.evaluate((contexts) => (window as unknown as { mountAssessmentFixture: (contexts: AssessmentContext[]) => void }).mountAssessmentFixture(contexts), contexts);
 }
-async function fixture(page: Page) {
+async function fixture(page: Page, isolatedActor = false) {
   assertDisposableDatabase(); const client = await new MongoClient(process.env.MONGODB_URI!).connect();
-  const repo = new CardRepository(client.db(process.env.MONGODB_DB!), client), actor = process.env.PHASE2_USER_ID!;
+  const repo = new CardRepository(client.db(process.env.MONGODB_DB!), client);
+  const actor = isolatedActor ? new ObjectId().toHexString() : process.env.PHASE2_USER_ID!;
+  const identifier = isolatedActor ? `acceptance-${randomUUID()}` : "phase2";
+  if (isolatedActor) {
+    const user = { _id: new ObjectId(actor), username: identifier, email: `${identifier}@example.invalid`,
+      passwordHash: hashSync("local-test-only", 4), decksData: [], cardsData: [], createdAt: new Date(), updatedAt: new Date() };
+    await repo.users().insertOne(user);
+  }
   const source = cardFixture(randomUUID()), b = cardFixture(randomUUID(), source.root.cardTemplateId), c = cardFixture(randomUUID(), b.root.cardTemplateId);
   const deck = deckFixture(randomUUID(), [source.root.cardTemplateId, b.root.cardTemplateId, c.root.cardTemplateId]);
   const title = `Assessment journey ${deck.root.deckTemplateId}`;
@@ -31,7 +44,7 @@ async function fixture(page: Page) {
   await repo.users().updateOne({ _id: new ObjectId(actor) }, { $set: { "cardsData.$[source].tests": tests,
     "cardsData.$[b].historySourceCardTemplateId": source.root.cardTemplateId, "cardsData.$[c].historySourceCardTemplateId": b.root.cardTemplateId } },
     { arrayFilters: [{ "source.cardTemplateId": source.root.cardTemplateId }, { "b.cardTemplateId": b.root.cardTemplateId }, { "c.cardTemplateId": c.root.cardTemplateId }] });
-  await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+  expect((await page.request.post("/api/auth/login", { data: { identifier, password: "local-test-only" } })).status()).toBe(200);
   const context = (id: string): AssessmentContext => ({ viewerUserId: actor, source: { kind: "card", cardTemplateId: id }, deckTemplateId: deck.root.deckTemplateId, canCreate: true });
   return { client, repo, actor, source, b, c, deck, tests, title, context };
 }
@@ -43,6 +56,144 @@ async function swipeHeader(page: Page, selector: string, direction: -1 | 1) {
   await page.mouse.move(rect[0] + rect[2] / 2, rect[1] + rect[3] / 2); await page.mouse.down();
   await page.mouse.move(rect[0] + rect[2] / 2 + direction * 220, rect[1] + rect[3] / 2, { steps: 12 }); await page.mouse.up();
 }
+
+test("connected assessments, actual fork publication, archived Framework summaries and Card updates preserve original sources", async ({ page }) => {
+  // Other browser journeys deliberately retain broken memberships. This learner
+  // starts independently so those faults cannot contaminate connected metrics.
+  const f = await fixture(page, true);
+  try {
+    const sourceId = f.source.root.cardTemplateId, unmappedId = f.b.root.cardTemplateId;
+    const bob = (await f.repo.users().findOne({ username: "other" }))!._id.toString();
+    // Prepare published foreign content, an unrelated Card and retained orphan data.
+    await f.repo.cards().updateOne({ cardTemplateId: sourceId }, { $set: { ownerUserId: bob, visibility: "public" } });
+    await f.repo.cardVersions().updateOne({ cardTemplateId: sourceId, version: 1 }, { $set: { visibility: "public" } });
+    await f.repo.cards().updateOne({ cardTemplateId: unmappedId }, { $set: { forkedFrom: null } });
+    await f.repo.deckVersions().updateOne({ deckTemplateId: f.deck.root.deckTemplateId, version: 1 }, { $set: { "content.cards": f.deck.version.content.cards.slice(0, 2) } });
+    await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $set: { "cardsData.$[source].tests": [] }, $unset: { "cardsData.$[other].historySourceCardTemplateId": "" } },
+      { arrayFilters: [{ "source.cardTemplateId": sourceId }, { "other.cardTemplateId": unmappedId }] });
+    const privateResult = { id: randomUUID(), date: "2026-10-30", result: false, createdAt: new Date() };
+    const bobData = initialCardData(sourceId, 1, f.source.version.content, new Date()); bobData.tests = [privateResult];
+    await f.repo.users().updateOne({ _id: new ObjectId(bob) }, { $push: { cardsData: bobData } });
+    for (const [index, status] of ["done", "skipped", "todo"].entries()) {
+      await f.repo.setCompletion(f.actor, f.deck.root.deckTemplateId, sourceId, f.source.version.content.steps[index].stepId, status as "done" | "skipped" | "todo");
+      await f.repo.setCompletion(f.actor, f.deck.root.deckTemplateId, unmappedId, f.b.version.content.steps[index].stepId, "done");
+    }
+    for (const [index, reading] of [2.2, 7.8].entries()) await f.repo.setSignalReading(f.actor, f.deck.root.deckTemplateId, sourceId, f.source.version.content.steps[index].stepId, reading);
+    const open = async (title: string) => { await page.goto("/decks"); await page.getByRole("button", { name: `Open ${title}`, exact: true }).last().click(); await expect(page.locator(".deck-card.is-active")).toBeVisible(); };
+    await page.setViewportSize({ width: 390, height: 844 }); await open(f.title);
+    await expect(page.locator(".detail-progress")).toHaveText("Completion 80%"); // Includes the unrelated Card.
+    await page.locator(".deck-card.is-active").press("Enter");
+    await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    const back = page.locator(".focused-card-surface--back .card-semantic-anchors");
+    await back.getByRole("button", { name: "Add first test" }).click();
+    await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-10", "Pass");
+    await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await expect(dialog(page).locator("tbody tr")).toHaveCount(1);
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    const sourceEvent = (await f.repo.getPersonalUser(f.actor))!.cardsData.find((card) => card.cardTemplateId === sourceId)!.tests[0];
+
+    const fork = async (id: string, content: typeof f.source.version.content, deckId: string, title: string) => {
+      const targetId = randomUUID(), stepIds = [randomUUID(), randomUUID(), randomUUID()];
+      const edited = forkCardContent(content, { cardTemplateId: id, version: 1 }, stepIds); edited.intro.title = title;
+      const created = await page.request.post(`/api/card-templates/${id}/fork`, { data: { sourceVersion: 1, cardTemplateId: targetId, stepIds, content: edited, context: { kind: "my-decks", deckTemplateId: deckId } } });
+      expect(created.status(), await created.text()).toBe(200);
+      expect((await page.request.patch(`/api/card-templates/${targetId}`, { data: { type: "publish", revision: 0 } })).status()).toBe(200);
+      return { id: targetId, content: edited };
+    };
+    const first = await fork(sourceId, f.source.version.content, f.deck.root.deckTemplateId, "Connected Card fork");
+    const forkDeck = await f.repo.createDeckDraft(f.actor, { ...createDefaultDeckContent([]), title: `Connected forks ${randomUUID()}`, cards: [{ cardTemplateId: first.id }] });
+    await f.repo.publishDeck(f.actor, forkDeck.deckTemplateId, 0);
+    for (const step of first.content.steps) await f.repo.setCompletion(f.actor, forkDeck.deckTemplateId, first.id, step.stepId, "done");
+    await f.repo.setSignalReading(f.actor, forkDeck.deckTemplateId, first.id, first.content.steps[0].stepId, 8);
+    await f.repo.setSignalReading(f.actor, forkDeck.deckTemplateId, first.id, first.content.steps[1].stepId, null);
+    const nested = await fork(first.id, first.content, forkDeck.deckTemplateId, "Connected nested fork");
+    await f.repo.saveDeckDraft(f.actor, forkDeck.deckTemplateId, 1, { ...forkDeck.draft!, cards: [first.id, nested.id].map((cardTemplateId) => ({ cardTemplateId })) });
+    await f.repo.publishDeck(f.actor, forkDeck.deckTemplateId, 2);
+    const repeated = await f.repo.createDeckDraft(f.actor, { ...createDefaultDeckContent([]), title: `Repeated fork ${randomUUID()}`, cards: [{ cardTemplateId: nested.id }] });
+    await f.repo.publishDeck(f.actor, repeated.deckTemplateId, 0);
+    await f.repo.archiveDeckData(f.actor, repeated.deckTemplateId); await f.repo.archiveDeckData(f.actor, f.deck.root.deckTemplateId);
+    const stored = (await f.repo.getPersonalUser(f.actor))!;
+    expect(stored.cardsData.find((card) => card.cardTemplateId === first.id)!.tests).toEqual([]);
+    expect(stored.cardsData.find((card) => card.cardTemplateId === nested.id)!.tests).toEqual([]);
+    expect(stored.cardsData.find((card) => card.cardTemplateId === nested.id)!.historySourceCardTemplateId).toBe(first.id);
+
+    const itemId = `connected-${randomUUID()}`, directOnlyId = `direct-only-${randomUUID()}`, alternativeItemId = `alternative-${randomUUID()}`;
+    const frameworks: Framework[] = [{ id: "connected", title: "Connected", areas: [{ id: "practice", title: "Practice", items: [
+      { id: itemId, title: "Mapped practice", cardTemplateIds: [sourceId] }, { id: directOnlyId, title: "Direct only", cardTemplateIds: [] }] }, { id: "empty", title: "Empty Area", items: [] }] },
+    { id: "alternative", title: "Alternative", areas: [{ id: "different", title: "Different", items: [{ id: alternativeItemId, title: "Different mapping", cardTemplateIds: [sourceId] }] }] }];
+    await itemFixtureRoutes(page, f.repo, f.actor, frameworks);
+    const read = async <T,>(url: string): Promise<T> => page.evaluate(async ({ url, actor }) => {
+      const response = await fetch(url, { headers: { "X-Personal-Viewer": actor }, cache: "no-store" });
+      if (!response.ok) throw new Error(`${response.status}: ${await response.text()}`); return response.json();
+    }, { url, actor: f.actor });
+    type Summary = Awaited<ReturnType<typeof import("../../src/lib/frameworks/readModels").readFrameworkSummaries>>;
+    const summary = () => read<Summary>("/api/frameworks/summary");
+    const beforeReads = await f.repo.getPersonalUser(f.actor), metrics = await summary();
+    expect(metrics.frameworks.map((framework) => framework.id)).toEqual(["connected", "alternative"]);
+    const mapped = metrics.frameworks[0].areas[0].items[0];
+    expect(mapped.progress).toMatchObject({ state: "complete", eligibleCardCount: 3, completion: 88, confidence: 7 }); // Rounded 7/8 underlying Steps.
+    expect(metrics.frameworks[0].areas[0].progress).toEqual(mapped.progress);
+    expect(metrics.frameworks[1].areas[0].items[0].progress).toEqual(mapped.progress);
+    expect(mapped.assessments).toMatchObject({ count: 1, readableCount: 1 });
+    expect(mapped.assessments.latestThree[0].id).toBe(sourceEvent.id);
+    expect(await f.repo.getPersonalUser(f.actor)).toEqual(beforeReads);
+
+    // Publication and explicit adoption reorder stable Steps without losing state.
+    const publishedContent = { ...f.source.version.content, intro: { ...f.source.version.content.intro, title: "Adopted source title" }, steps: [f.source.version.content.steps[2], f.source.version.content.steps[0], f.source.version.content.steps[1]] };
+    await f.repo.saveCardDraft(bob, sourceId, 1, publishedContent); await f.repo.publishCard(bob, sourceId, 2, "Reordered stable Steps");
+    const historyUrl = `/api/items-data/${itemId}/history`;
+    let combined = (await read<{ history: AssessmentHistory }>(historyUrl)).history;
+    expect(combined.results[0].sourceTitle).toBe("Shared practice");
+    const review = await (await page.request.get(`/api/cards-data/${sourceId}/update`)).json();
+    expect((await page.request.post(`/api/cards-data/${sourceId}/update`, { data: { command: review.review.command } })).status()).toBe(200);
+    expect((await summary()).frameworks[0].areas[0].items[0].progress).toEqual(mapped.progress);
+    combined = (await read<{ history: AssessmentHistory }>(historyUrl)).history; expect(combined.results[0].sourceTitle).toBe("Adopted source title");
+
+    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter");
+    await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await back.getByRole("button", { name: "Open assessment history" }).click();
+    await expect(dialog(page).getByText("Source Card", { exact: true })).toHaveCount(1);
+    await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-15", "Pass");
+    await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await expect(dialog(page).locator("tbody tr")).toHaveCount(2);
+    await dialog(page).getByRole("button", { name: "Edit test 2026-10-10 from Adopted source title", exact: true }).click(); await changeForm(page, "2026-10-16", "Fail");
+    await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await expect(back.locator(".assessment-indicator .assessment-pass, .assessment-indicator .assessment-fail")).toHaveText(["✓", "●"]);
+
+    await harness(page, [itemId, directOnlyId].map((id) => ({ viewerUserId: f.actor, source: { kind: "item" as const, itemId: id }, canCreate: true })));
+    for (const index of [1, 2]) {
+      const region = page.getByRole("region", { name: `Assessment view ${index}` });
+      await region.locator(".assessment-indicator").click(); await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-12", "Fail");
+      await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    }
+    combined = (await read<{ history: AssessmentHistory }>(historyUrl)).history;
+    expect(combined.results.map((result) => result.date)).toEqual(["2026-10-16", "2026-10-15", "2026-10-12"]);
+    expect(combined.results.filter((result) => result.id === sourceEvent.id)).toHaveLength(1);
+    expect(combined.results.some((result) => result.id === privateResult.id)).toBe(false);
+    expect(combined.latestThree.map((result) => result.result)).toEqual([false, true, false]);
+    const withDirect = (await summary()).frameworks[0].areas[0].items;
+    expect(withDirect[1].progress).toMatchObject({ state: "empty", completion: null, confidence: null }); expect(withDirect[1].assessments.count).toBe(1);
+    expect(withDirect[0].progress).toEqual(mapped.progress);
+    const after = (await f.repo.getPersonalUser(f.actor))!;
+    expect(after.cardsData.find((card) => card.cardTemplateId === sourceId)!.tests).toMatchObject([{ id: sourceEvent.id, date: "2026-10-16", result: false, createdAt: sourceEvent.createdAt }]);
+    expect(after.cardsData.find((card) => card.cardTemplateId === first.id)!.tests).toHaveLength(1); expect(after.cardsData.find((card) => card.cardTemplateId === nested.id)!.tests).toEqual([]);
+    expect(after.itemTests).toHaveLength(2);
+    const denied = await page.request.post(`/api/cards-data/${sourceId}/tests`, { data: { viewerUserId: f.actor, source: { kind: "card", cardTemplateId: sourceId }, action: "add", id: randomUUID(), expectedRevision: 2, date: "2026-10-17", result: true, deckTemplateId: f.deck.root.deckTemplateId } });
+    expect(denied.status()).toBe(400); expect((await denied.json()).code).toBe("WORKING_DECK_REQUIRED");
+    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await back.getByRole("button", { name: "Open assessment history" }).click();
+    await dialog(page).getByRole("button", { name: "Delete test 2026-10-16 from Adopted source title", exact: true }).click(); await dialog(page).getByRole("button", { name: "Confirm delete", exact: true }).click();
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).click(); await page.reload();
+    const retained = (await read<{ history: AssessmentHistory }>(historyUrl)).history;
+    expect(retained.results).toHaveLength(2); expect(retained.results.some((result) => result.id === sourceEvent.id)).toBe(false);
+    expect((await f.repo.getPersonalUser(bob))!.cardsData.find((card) => card.cardTemplateId === sourceId)!.tests).toEqual([privateResult]);
+    const beforeFaultRead = await f.repo.getPersonalUser(f.actor);
+    await f.repo.cardVersions().deleteOne({ cardTemplateId: nested.id, version: 1 });
+    const unavailable = (await summary()).frameworks[0].areas[0];
+    expect(unavailable.items[0].progress).toMatchObject({ state: "incomplete", completion: null, confidence: null });
+    expect(unavailable.items[0].assessments.count).toBe(2); expect(unavailable.items[1].progress.state).toBe("empty");
+    expect(await f.repo.getPersonalUser(f.actor)).toEqual(beforeFaultRead);
+  } finally { await f.client.close(); }
+});
 
 for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${width}px preserve media layout, focus and gestures`, async ({ page }, testInfo) => {
   const f = await fixture(page);
