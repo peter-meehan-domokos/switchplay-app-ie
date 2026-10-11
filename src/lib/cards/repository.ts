@@ -191,7 +191,7 @@ export class CardRepository {
       membershipState: data.archivedAt === null ? "active" : "archived", adoptedCards };
   }
   getPersonalUser(userId: string, session?: ClientSession) {
-    return this.users().findOne({ _id: userKey(userId) }, { projection: { decksData: 1, cardsData: 1 }, session });
+    return this.users().findOne({ _id: userKey(userId) }, { projection: { decksData: 1, cardsData: 1, itemTests: 1, itemTestsRevision: 1 }, session });
   }
   private async ownerCard(actor: string, cardTemplateId: string, expectedRevision: number, session: ClientSession) {
     entityId(actor); entityId(cardTemplateId);
@@ -1055,6 +1055,10 @@ export class CardRepository {
       }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });
       return readablePersonalHistory({ ...records[0], mediaItems: records[0].mediaItems.filter((item) => item?.id !== mediaItemId) }).mediaItems;
     });
+  }
+  // Assessment creation shares the ordinary working-personal-write boundary.
+  async assessmentWorkingCard(actor: string, deckTemplateId: string, cardTemplateId: string, session: ClientSession) {
+    return this.workingCard(actor, deckTemplateId, cardTemplateId, session);
   }
   private async workingCard(actor: string, deckTemplateId: string, cardTemplateId: string, session: ClientSession) {
     const user = await this.assertUser(actor, session);

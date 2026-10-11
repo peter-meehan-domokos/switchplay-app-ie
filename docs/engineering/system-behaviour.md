@@ -78,3 +78,43 @@ Individual absent Step status/readings use the established todo/unset defaults.
 Missing required records, malformed arrays, ambiguous identities and inaccessible
 adopted versions are not empty learning. Database read failures propagate as errors
 instead of silently producing empty or successful partial results.
+
+## Assessments and their original sources [Phase 6]
+
+Assessment persistence and authenticated APIs are available; the assessment indicators,
+modal and Progress interface are not yet implemented. Assessments record a pass/fail
+result and a calendar date. Their identity and original creation timestamp remain fixed
+when the result or date is edited.
+
+A new Card assessment belongs to that learner's own CardData for the selected Card.
+Creating one requires an existing active working Deck context and adopted CardData;
+the operation never imports a Deck, creates CardData or adopts a newer version.
+Existing personal results can be read, edited and deleted after archiving, removal from
+a Deck or loss of access to canonical content.
+
+Forking does not copy tests. Source tests stay on the original CardData and continue
+to be exposed through the existing personal-history links. New tests on a fork belong
+to the fork. Editing or deleting an inherited result targets its original Card identity
+and result ID. For example, editing a source result through a fork changes the one
+source-stored result; subsequent history reads through other forks see that change.
+Canonical fork ancestry never grants access to another learner's personal results.
+
+A direct Item assessment belongs to the learner and globally unique Item ID, separately
+from CardData. It needs a configured Item but no Card or Deck membership. Removing an
+Item or changing its mappings does not delete or move existing results; retained Item
+results remain readable, editable and deletable. Because the real Framework catalogue
+is currently empty, new direct Item results require future approved configuration;
+automated fixtures exercise creation without adding permanent curricula.
+
+Each Card assessment list has its own revision. The learner's direct Item assessment
+list has one revision across all Items. Missing existing counters mean zero. Conflicting
+edits require refresh and retain the caller's intended command rather than overwriting
+newer results. An identical retry can acknowledge the current matching result without
+duplicating it or changing its timestamp. A delayed Add retry cannot resurrect a deleted
+result. Lost responses are reconciled by reading persisted state before replay.
+
+Writes preserve unrelated completion, readings, reflections, dates, media, chats,
+adoption and membership. Results are private to the authenticated learner. Invalid or
+ambiguous stored assessment lists and database failures produce explicit errors rather
+than fabricated empty history. Lists sort by assessment date newest first, then creation
+timestamp, with result identity providing a stable tie-breaker for equal values.

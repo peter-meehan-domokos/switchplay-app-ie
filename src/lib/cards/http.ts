@@ -3,6 +3,7 @@ import { CardRepository } from "./repository";
 import { CardArchitectureError, requireCondition, isRecord } from "./domain";
 import { LibraryPreviewConflict } from "./libraryEntry";
 import { UpdateReviewConflict } from "./updateAdoption";
+import { AssessmentConflict } from "../assessments/contracts";
 
 export async function cardRequest(run: (repo: CardRepository, actor: string) => Promise<unknown>) {
   try {
@@ -11,6 +12,8 @@ export async function cardRequest(run: (repo: CardRepository, actor: string) => 
     const result = await run(await CardRepository.application(), user.id);
     return Response.json(result ?? { ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof AssessmentConflict) return Response.json({ error: error.code, code: error.code,
+      refreshRequired: true, latestList: error.latestList }, { status: 409 });
     if (error instanceof UpdateReviewConflict) return Response.json({ error: error.code, code: error.code,
       refreshRequired: true, latestReview: error.latestReview }, { status: 409 });
     if (error instanceof LibraryPreviewConflict) return Response.json({ error: error.code, code: error.code,

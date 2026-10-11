@@ -7,7 +7,7 @@ const pending = new Set<Promise<unknown>>();
 export async function flushPersonalMutations() {
   while (pending.size) await Promise.all([...pending]);
 }
-function enqueuePersonalMutation<Result>(key: string, operation: () => Promise<Result>) {
+export function enqueuePersonalMutation<Result>(key: string, operation: () => Promise<Result>) {
   const result = (queues.get(key) ?? Promise.resolve()).catch(() => {}).then(operation);
   queues.set(key, result); pending.add(result);
   void result.then(() => { pending.delete(result); if (queues.get(key) === result) queues.delete(key); }, () => { pending.delete(result); if (queues.get(key) === result) queues.delete(key); });

@@ -85,6 +85,7 @@ export type CardData = {
   mediaItems: MediaItem[];
   chats: { id: string; deckTemplateId: string; comments: CardComment[] }[];
   tests: CardTest[];
+  testsRevision?: number; // Assessment-list revision; absent existing values mean zero.
   historySourceCardTemplateId?: string; // Actor's immediate source record, never copied events.
   createdAt: Date;
   updatedAt: Date;
@@ -101,7 +102,9 @@ export type DeckData = {
   openedAt: Date | null;
   cadenceAnchorDate: string | null; // Filled once, on the first successful working open.
 };
-export type PersonalUser = { _id: ObjectId | string; decksData: DeckData[]; cardsData: CardData[] };
+export type ItemTest = CardTest & { itemId: string };
+export type PersonalUser = { _id: ObjectId | string; decksData: DeckData[]; cardsData: CardData[];
+  itemTests?: ItemTest[]; itemTestsRevision?: number };
 export type Capabilities = {
   templateOwnerUserId: string; dataOwnerUserId: string;
   canEditDeck: boolean; canPublishDeck: boolean; canArchiveDeck: boolean;
