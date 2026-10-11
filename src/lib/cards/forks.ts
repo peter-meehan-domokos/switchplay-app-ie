@@ -72,7 +72,8 @@ export function inheritForkCardData(id: string, target: CardContent, ref: CardFo
   return data;
 }
 
-export function personalHistorySegments(records: CardData[], cardTemplateId: string) {
+export type PersonalHistoryIssue = { code: string; cardTemplateId: string };
+export function personalHistorySegments(records: CardData[], cardTemplateId: string, issues?: PersonalHistoryIssue[]) {
   const byId = new Map<string, CardData[]>();
   for (const data of records) {
     if (!isRecord(data) || !nonblank(data.cardTemplateId)) continue;
@@ -82,15 +83,21 @@ export function personalHistorySegments(records: CardData[], cardTemplateId: str
   const segments = [], seen = new Set<string>();
   let id: string | undefined = cardTemplateId;
   while (id) {
-    if (seen.has(id)) break; // Corrupt cycles keep each already-readable segment once.
+    if (seen.has(id)) { issues?.push({ code: "PERSONAL_HISTORY_CYCLE", cardTemplateId: id }); break; }
     seen.add(id);
     const candidates = byId.get(id);
-    if (!candidates || candidates.length !== 1) break; // Deleted/ambiguous source: retain earlier segments.
+    if (!candidates || candidates.length !== 1) {
+      issues?.push({ code: candidates ? "AMBIGUOUS_PERSONAL_HISTORY_SOURCE" : "MISSING_PERSONAL_HISTORY_SOURCE", cardTemplateId: id });
+      break; // Deleted/ambiguous source: retain earlier segments.
+    }
     const data = candidates[0];
     // Adoption describes the current record, not the historical event's version.
     segments.push({ cardTemplateId: id, currentAdoptedCardTemplateVersion: Number.isInteger(data.cardTemplateVersion) && data.cardTemplateVersion >= 1 ? data.cardTemplateVersion : null,
       eventVersionAttribution: "not-recorded" as const,
       ...readablePersonalHistory(data) });
+    if (data.historySourceCardTemplateId !== undefined && !nonblank(data.historySourceCardTemplateId)) {
+      issues?.push({ code: "MALFORMED_PERSONAL_HISTORY_SOURCE", cardTemplateId: id }); break;
+    }
     id = nonblank(data.historySourceCardTemplateId) ? data.historySourceCardTemplateId : undefined;
   }
   return segments;

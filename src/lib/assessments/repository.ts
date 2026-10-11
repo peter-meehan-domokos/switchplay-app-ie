@@ -8,7 +8,7 @@ import { AssessmentConflict, assessmentRevision, assertAssessmentCommand, assert
   newestAssessmentsFirst, reconcileAssessment, type AssessmentCommand, type AssessmentList, type AssessmentSource,
   type AssessmentMutationResult } from "./contracts";
 
-function storedTests(value: unknown, item = false): asserts value is (CardTest | ItemTest)[] {
+export function assertStoredAssessmentTests(value: unknown, item = false): asserts value is (CardTest | ItemTest)[] {
   requireCondition(Array.isArray(value), "INVALID_STORED_ASSESSMENTS");
   const seen = new Set<string>();
   for (const test of value) {
@@ -32,7 +32,7 @@ async function assessmentStorage(repo: CardRepository, actor: string, source: As
     requireCondition(candidates.length === 1, "ASSESSMENT_FORBIDDEN"); card = candidates[0];
   }
   const tests = card ? card.tests : user.itemTests === undefined ? [] : user.itemTests;
-  storedTests(tests, !card);
+  assertStoredAssessmentTests(tests, !card);
   const revision = assessmentRevision(card ? card.testsRevision : user.itemTestsRevision);
   const visible = source.kind === "card" ? tests : tests.filter((test) => (test as ItemTest).itemId === source.itemId);
   const list: AssessmentList = { viewerUserId: actor, source, revision, tests: newestAssessmentsFirst(visible.map((test) => ({

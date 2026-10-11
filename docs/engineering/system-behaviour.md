@@ -48,6 +48,12 @@ Item completion combines the underlying Steps of its distinct eligible Cards. Ar
 completion combines distinct eligible Cards mapped to its child Items. Neither is an
 average of displayed Card or Item percentages.
 
+Authenticated Framework summaries now provide these metrics and compact Item assessment
+indicator data, in configuration order. Full assessment histories are read separately.
+The reads use one consistent database snapshot, do not import content or initialise
+personal records, and never advance adoption or restore archived Decks. The empty real
+catalogue returns an empty list; the full Progress screen remains future work.
+
 Completed Steps count in numerator and denominator. Todo and in-progress Steps count
 only in the denominator. Skipped Steps count in neither. If all eligible Steps are
 skipped, completion is 100%; existing Card and Deck calculations follow this rule too.
@@ -118,3 +124,43 @@ adoption and membership. Results are private to the authenticated learner. Inval
 ambiguous stored assessment lists and database failures produce explicit errors rather
 than fabricated empty history. Lists sort by assessment date newest first, then creation
 timestamp, with result identity providing a stable tie-breaker for equal values.
+
+## Combined assessment histories [Phase 6]
+
+An Item combines its direct tests with tests on eligible mapped Cards and readable
+source tests exposed through those Cards' personal-history links. Both active and
+archived Decks qualify. Unmapped Cards and orphan CardData do not independently
+establish eligibility, even when the learner owns them. Retained source results can
+still be exposed through an eligible fork. An Item with no qualifying Cards can still
+show direct Item results. Retired Items with retained direct results remain readable.
+
+Each event appears once per combined history, identified by its original storage
+source and result ID. For example, one source test visible through three forks appears
+once; two different Cards' tests with identical result IDs remain separate events.
+Originals and forks still contribute independently to completion and confidence.
+Canonical ancestry determines mappings; only the learner's own personal-history
+relationships determine which source-stored assessments can be read.
+
+Full histories sort by assessment date newest first, then immutable creation time,
+then stable originating source and result identity. The latest three distinct results
+are projected in the reverse order for an oldest-left, newest-right indicator.
+Rows retain the source identity and list revision needed to edit/delete the original
+result. Source dependencies are included for future view-refresh integration.
+
+Card histories distinguish the viewed Card's own results from inherited Source Card
+results. Item histories identify direct Item tests and distinguish eligible contributing
+Cards' own results from other inherited sources. Originating titles use the learner's
+adopted, authorised Card version, not a draft, latest publication or guessed event-time
+title. If the title is unavailable, the result remains with a neutral “Card title
+unavailable” fallback. Identical titles never merge result identities.
+
+Missing or corrupt required history sources produce an incomplete history with readable
+rows retained and an unknown total. The latest-three projection is suppressed because
+an unavailable source could contain newer results. A missing title alone does not make
+personal results unreadable. Missing adopted content can suppress an Item/Area's metrics
+while its retained assessments remain readable. Database failures are errors, not empty
+histories. An unaffected Item or Framework can retain trustworthy results.
+
+These are reader/API foundations. Immediate refresh of every mounted source-dependent
+view and the modal's input-preserving conflict recovery remain Checkpoint 4 work;
+assessment indicators and the modal are not yet implemented.
