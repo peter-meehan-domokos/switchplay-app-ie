@@ -13,6 +13,7 @@ import {
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
+  assessment?: import("react").ReactNode;
   frontAction?: import("react").ReactNode;
   renderBackFace?: CardBackPresentation;
   card: PresentedCard;
@@ -40,6 +41,7 @@ const deckFlipTransition = {
 } as const;
 
 export default function DeckCard({
+  assessment,
   frontAction,
   renderBackFace,
   card,
@@ -103,18 +105,18 @@ export default function DeckCard({
         transition={deckFlipTransition}
       >
         <div className="deck-card-render-surface" style={renderSurfaceStyle}>
-          <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped}>
+          <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped} inert={isDeckFlipped}>
             <div className="deck-card-content">
               {stackZone === "active" || stackZone === "past" ? (
-                <ActiveCardFront card={card} dateLabel={dateLabel} />
+                <ActiveCardFront assessment={assessment} card={card} dateLabel={dateLabel} />
               ) : showHeader || showProgress ? (
-                <CardSemanticAnchors card={card} dateLabel={dateLabel} showText={showHeader} />
+                <CardSemanticAnchors assessment={assessment} card={card} dateLabel={dateLabel} showText={showHeader} />
               ) : null}
             </div>
             <CardCreatorAttribution card={card} />
             {frontAction}
           </div>
-          {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped}>
+          {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped} inert={!isDeckFlipped}>
             {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: backFaceVariant }) : null}
           </div> : null}
         </div>

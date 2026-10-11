@@ -16,12 +16,22 @@ async function assessmentResponse(response: Response, actor: string, source: Ass
   const payload = await response.json();
   requireCondition(response.headers.get("X-Personal-Viewer") === actor, "ASSESSMENT_SESSION_CONFLICT");
   if (!response.ok) {
-    if (payload.code === "ASSESSMENT_REVISION_CONFLICT" && payload.latestList) throw new AssessmentConflict(payload.latestList);
+    if (payload.code === "ASSESSMENT_REVISION_CONFLICT" && payload.latestList) {
+      requireCondition(payload.latestList.viewerUserId === actor && sameAssessmentSource(payload.latestList.source, source), "ASSESSMENT_SESSION_CONFLICT");
+      throw new AssessmentConflict(payload.latestList);
+    }
     throw new AssessmentHttpError(response.status, payload.error ?? "Unable to save assessment.");
   }
   requireCondition(payload.viewerUserId === actor && payload.source && sameAssessmentSource(payload.source, source), "ASSESSMENT_SESSION_CONFLICT");
   requireCondition(Number.isSafeInteger(payload.revision) && payload.revision >= 0 && Array.isArray(payload.tests), "INVALID_ASSESSMENT_RESPONSE");
   return payload;
+}
+function mutationKey(source: AssessmentSource) { return source.kind === "card" ? `card:${source.cardTemplateId}:tests` : "item-tests"; }
+export function discardFailedAssessment(command: AssessmentCommand, operation: Promise<unknown>) {
+  personalWork.discardFailed(command.viewerUserId, mutationKey(command.source), operation);
+}
+export function retryFailedAssessment(command: AssessmentCommand, operation: Promise<unknown>) {
+  return personalWork.retryFailed(command.viewerUserId, mutationKey(command.source), operation) as Promise<AssessmentMutationResult>;
 }
 export async function readPersonalAssessments(actor: string, source: AssessmentSource) {
   return assessmentResponse(await fetch(listUrl(source), { headers: { "X-Personal-Viewer": actor }, cache: "no-store" }), actor, source);
@@ -33,7 +43,7 @@ export function persistAssessment(command: AssessmentCommand, contextCardIds: re
   assertAssessmentCommand(command);
   command = structuredClone(command); // Queue/retry intent must survive caller edits.
   const actor = command.viewerUserId, source = command.source;
-  const key = source.kind === "card" ? `card:${source.cardTemplateId}:tests` : "item-tests";
+  const key = mutationKey(source);
   const cardIds = [...new Set([...contextCardIds, ...(source.kind === "card" ? [source.cardTemplateId] : [])])];
   let uncertain = false;
   const accept = (result: AssessmentMutationResult) => { workingCardStore.invalidate(actor); return result; };

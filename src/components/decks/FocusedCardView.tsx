@@ -42,6 +42,7 @@ export type FocusedCardViewProps = {
   onAdjustTargetDate?: (direction: -1 | 1) => void;
   backFace?: ReactElement<{ onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void }>;
   overlays?: ReactNode;
+  assessment?: ReactNode;
   frontAction?: ReactNode;
   interactionLocked?: boolean;
   onRequestAddComment?: () => void;
@@ -215,6 +216,7 @@ export default function FocusedCardView({
   backFace,
   overlays,
   frontAction,
+  assessment,
   interactionLocked = false,
   onRequestAddComment,
   traversalDirection,
@@ -676,6 +678,7 @@ export default function FocusedCardView({
             <div className="physical-card focused-card-surface focused-card-surface--front" aria-hidden={isFlipped} inert={isFlipped}>
               <div className="focused-card-content">
                 <ActiveCardFront
+                  assessment={assessment}
                   card={card}
                   dateLabel={dateLabel}
                   variant="focused"

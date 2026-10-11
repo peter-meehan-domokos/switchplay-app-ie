@@ -25,6 +25,7 @@ export type DeckSceneProps = {
   error?: string;
   deckActions?: ReactNode;
   updateAction?: ReactNode;
+  cardAssessment?: (card: PresentedCard) => ReactNode;
   cardFrontAction?: (card: PresentedCard) => ReactNode;
   cardActions?: (card: PresentedCard) => ReactNode;
   onActiveCardChange?: (previous: number, next: number, rollback: (index: number) => void) => void;
@@ -135,7 +136,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, updateAction, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -427,6 +428,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
           <CardStack
             renderBackFace={renderCardBackFace}
+            renderAssessment={cardAssessment}
             renderFrontAction={cardFrontAction}
             cards={optimisticDeck.cards}
             deckTemplateId={deck.deckTemplateId}

@@ -1,7 +1,9 @@
+import { getConfidenceScore } from "@/lib/signals";
 import type { SyntheticEvent } from "react";
 import { hasPersonalCard, type PresentedCard } from "./presentation";
 
 type CardSemanticAnchorsProps = {
+  assessment?: import("react").ReactNode;
   card: PresentedCard;
   dateLabel: string;
   showText?: boolean;
@@ -11,6 +13,7 @@ type CardSemanticAnchorsProps = {
 };
 
 export default function CardSemanticAnchors({
+  assessment,
   card,
   dateLabel,
   showText = true,
@@ -19,6 +22,7 @@ export default function CardSemanticAnchors({
   onAdjustTargetDate,
 }: CardSemanticAnchorsProps) {
   const personal = hasPersonalCard(card);
+  const confidence = personal ? getConfidenceScore(card.signals.map((signal) => signal.rawReading)) : null;
   const progressPercentage = showProgress && personal ? card.progressPercentage : null;
   const surfaceVariant = variant === "back" ? "back" : "front";
   const isTargetDateInteractive = personal && variant === "focused" && typeof onAdjustTargetDate === "function";
@@ -32,15 +36,16 @@ export default function CardSemanticAnchors({
   };
 
   return (
-    <header className={`card-semantic-anchors card-semantic-anchors--${surfaceVariant}`}>
+    <header className={`card-semantic-anchors card-semantic-anchors--${surfaceVariant}${assessment ? " card-semantic-anchors--assessment" : ""}`}>
       <div className="card-title-anchor">
-        {showText ? <h2>{card.label}</h2> : null}
+        {showText ? <><h2>{card.label}</h2>{assessment ? <div className="card-assessment-anchor">{assessment}</div> : null}</> : null}
         {showProgress && progressPercentage !== null ? (
           <div className="completion-strip" aria-label="Progress preview">
             <span className="completion-strip-fill" style={{ width: `${progressPercentage}%` }} />
           </div>
         ) : showProgress ? <div className="completion-strip personal-layout-slot" aria-hidden="true" /> : null}
       </div>
+      {showText && personal ? <span className="card-confidence" aria-label={confidence === null ? "Confidence not set" : `Confidence ${confidence} out of 10`}>{confidence}</span> : null}
       {showText ? (
         <div className={`deck-card-date-shell${personal ? "" : " personal-date-slot"}`} aria-hidden={personal ? undefined : true}>
           <p className="deck-card-date">{personal ? dateLabel : ""}</p>

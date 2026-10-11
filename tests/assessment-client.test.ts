@@ -102,3 +102,27 @@ test("queued commands retain their original source and result identity if the ca
     assert.equal((await pending).tests[0].id, "test");
   });
 });
+
+test("assessment invalidation notifies every mounted subscriber for the actor only, including reconciled saves", async () => {
+  const { command, list, response } = setup("subscriptions");
+  let b = 0, c = 0, stranger = 0;
+  const offB = workingCardStore.subscribe(command.viewerUserId, () => b++);
+  const offC = workingCardStore.subscribe(command.viewerUserId, () => c++);
+  const offOther = workingCardStore.subscribe("other-subscriber", () => stranger++);
+  try {
+    await withFetch(async (_url, options) => {
+      if (options?.method === "POST") { list.revision = 1; list.tests = [{ id: "test", date: "2026-10-11", result: true, createdAt: "2026-10-11T10:00:00Z" }]; throw new TypeError("Lost response"); }
+      return response(list);
+    }, async () => { await persistAssessment(command); });
+    assert.deepEqual([b, c, stranger], [1, 1, 0]);
+    offB(); workingCardStore.invalidate(command.viewerUserId);
+    assert.deepEqual([b, c, stranger], [1, 2, 0]);
+  } finally { offB(); offC(); offOther(); }
+});
+
+test("forged conflict lists cannot rebind the assessment actor or storage source", async () => {
+  const { command, list, response } = setup("conflict-privacy");
+  await withFetch(async (_url, options) => options?.method ? response({ code: "ASSESSMENT_REVISION_CONFLICT", latestList: { ...list, viewerUserId: "other" } }, 409) : response(list), async () => {
+    await assert.rejects(persistAssessment(command), /SESSION_CONFLICT/);
+  });
+});

@@ -472,6 +472,7 @@ export function FocusedSignalRow({
 }
 
 type BackCardFaceContentProps = {
+  assessment?: import("react").ReactNode;
   card: CardLayout;
   deckTemplateId?: string;
   dateLabel: string;
@@ -485,6 +486,7 @@ type BackCardFaceContentProps = {
 };
 
 export default function BackCardFaceContent({
+  assessment,
   card,
   deckTemplateId,
   dateLabel,
@@ -524,7 +526,7 @@ export default function BackCardFaceContent({
 
   return (
     <div className={layoutClassName}>
-      <CardSemanticAnchors card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
+      <CardSemanticAnchors assessment={assessment} card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
       <div className="focused-card-back-shell">
         {isFocusedVariant && canMutate && onEditMedia ? (
           <button

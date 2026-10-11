@@ -15,13 +15,15 @@ type ReflectionEditorState = { cardId: string };
 const REFLECTION_DISPLAY_RECOMMENDED_CHARS = 55;
 type WorkingFocusedCardViewProps = Omit<FocusedCardViewProps, "card" | "backFace" | "overlays" | "interactionLocked"> & {
   card: CardLayout;
+  assessmentOpen?: boolean;
+  backAssessment?: import("react").ReactNode;
   canMutate: boolean;
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
   onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
   onCommitCardMedia?: (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => Promise<void>;
   onRemoveCardMedia?: (target: UserCardMediaUploadTarget, mediaItemId: string) => Promise<void>;
 };
-export default function WorkingFocusedCardView({ card, deckTemplateId, canMutate, onCommitSignalReading,
+export default function WorkingFocusedCardView({ card, deckTemplateId, canMutate, assessmentOpen = false, backAssessment, onCommitSignalReading,
   onCommitReflection, onCommitCardMedia, onRemoveCardMedia, ...navigation }: WorkingFocusedCardViewProps) {
   const [reflectionEditorState, setReflectionEditorState] = useState<ReflectionEditorState | null>(null);
   const [reflectionDraftValue, setReflectionDraftValue] = useState("");
@@ -172,8 +174,9 @@ export default function WorkingFocusedCardView({ card, deckTemplateId, canMutate
   }
   const dateLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(dateOnlyToUtcDate(card.targetDate));
   return <FocusedCardView {...navigation} card={card} deckTemplateId={deckTemplateId}
-    interactionLocked={Boolean(reflectionEditorState) || Boolean(mediaEditorCardId)}
+    interactionLocked={assessmentOpen || Boolean(reflectionEditorState) || Boolean(mediaEditorCardId)}
     backFace={<BackCardFaceContent
+      assessment={backAssessment}
       card={card} deckTemplateId={deckTemplateId} dateLabel={dateLabel} variant="focused" canMutate={canMutate}
       onCommitSignalReading={onCommitSignalReading}
       onEditMedia={onCommitCardMedia && onRemoveCardMedia ? openMediaEditor : undefined}

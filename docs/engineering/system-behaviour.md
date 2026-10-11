@@ -87,8 +87,9 @@ instead of silently producing empty or successful partial results.
 
 ## Assessments and their original sources [Phase 6]
 
-Assessment persistence and authenticated APIs are available; the assessment indicators,
-modal and Progress interface are not yet implemented. Assessments record a pass/fail
+Assessment persistence, authenticated APIs and the Card assessment interface are available.
+The reusable Item assessment interface is exercised through automated fixtures; the Progress
+interface remains later work. Assessments record a pass/fail
 result and a calendar date. Their identity and original creation timestamp remain fixed
 when the result or date is edited.
 
@@ -102,7 +103,8 @@ Forking does not copy tests. Source tests stay on the original CardData and cont
 to be exposed through the existing personal-history links. New tests on a fork belong
 to the fork. Editing or deleting an inherited result targets its original Card identity
 and result ID. For example, editing a source result through a fork changes the one
-source-stored result; subsequent history reads through other forks see that change.
+source-stored result; all currently mounted assessment histories and indicators for that
+learner refresh after the save, including other forks exposing the same result.
 Canonical fork ancestry never grants access to another learner's personal results.
 
 A direct Item assessment belongs to the learner and globally unique Item ID, separately
@@ -145,7 +147,7 @@ Full histories sort by assessment date newest first, then immutable creation tim
 then stable originating source and result identity. The latest three distinct results
 are projected in the reverse order for an oldest-left, newest-right indicator.
 Rows retain the source identity and list revision needed to edit/delete the original
-result. Source dependencies are included for future view-refresh integration.
+result. Source dependencies describe the storage lists contributing to the history.
 
 Card histories distinguish the viewed Card's own results from inherited Source Card
 results. Item histories identify direct Item tests and distinguish eligible contributing
@@ -161,6 +163,54 @@ personal results unreadable. Missing adopted content can suppress an Item/Area's
 while its retained assessments remain readable. Database failures are errors, not empty
 histories. An unaffected Item or Framework can retain trustworthy results.
 
-These are reader/API foundations. Immediate refresh of every mounted source-dependent
-view and the modal's input-preserving conflict recovery remain Checkpoint 4 work;
-assessment indicators and the modal are not yet implemented.
+## Assessment interface and refresh [Phase 6]
+
+Working Card headers show up to three compact assessment symbols next to the Card
+label: a blue tick for Pass and a red dot for Fail, with the newest result on the right.
+There are no placeholder results. With no tests, a subdued plus button opens the history;
+on the Card back this is a small outlined + Test control beside the Card label. It opens
+the normal history dialog without creating a result or starting the Add form. Loading,
+failed reads and incomplete histories use a neutral status entry instead of an uncertain
+latest-three sequence.
+Canonical Library previews never load personal assessments or offer assessment writes.
+
+The history dialog shows a newest-first Date / Result / Card / Actions table. Inherited
+rows have a muted originating title and an explicit Source Card label, even when source
+and fork titles are identical. Direct Item assessments show Item test. Unavailable titles
+use the neutral fallback while retaining readable results. Narrow screens wrap titles
+and stack row actions; the dialog scrolls and supports keyboard focus and Escape.
+
+Adding from a Card stores the result on that Card; adding in Item mode stores it directly
+against the Item. Editing and deleting target the original storage source. Delete requires
+confirmation. Retained archived results remain manageable, while new Card tests still
+require an active working context. The reusable Item dialog supports results without any
+Cards or memberships; it does not introduce a Progress row or navigation interface.
+
+Successful saves, including reconciliation after a lost response, notify every mounted
+assessment view for that learner to reread its history. For example, editing a test from
+source A through fork B also updates a mounted fork C's history and latest-three indicator.
+This is in-session refresh; real-time synchronization with other tabs is not provided.
+
+On a revision conflict, the dialog retains the entered date and result, shows the current
+saved state and requires explicit reviewed resubmission. This also applies when another
+Item's change advances the shared Item-list revision. A test deleted elsewhere cannot be
+recreated through Edit. A reviewed new addition after a conflicting Add uses a new identity
+rather than resurrecting an uncertain prior result ID. Network retries retain the exact
+original command and check persisted state before replaying it.
+
+Closing an unsaved form asks whether to discard the entered changes. An in-flight save
+cannot be dismissed. An uncertain failed save must be checked before it can be safely
+abandoned; cleanup never cancels unrelated uploads or a newer save. Partial histories keep
+readable rows with an unavailable-history notice. A failed refresh keeps previously readable
+rows marked as potentially out of date, suppresses indicators and offers Refresh history.
+
+## Card header confidence [Phase 6]
+
+Personal Card confidence is centered independently of the label, assessments and date.
+On working Card backs it uses the same subdued colour as the date, with a small medium-weight
+numeral, so it remains part of the quiet metadata row above the media and signals.
+It averages explicitly set raw readings for the Card's current Steps, including skipped
+Steps, and rounds once to a whole number from 1 to 10. With no set readings, the center
+contains no numeral and is labelled Confidence not set for accessibility. Signal changes
+update the score using the same shared helper as other confidence calculations. Completion,
+date controls, media areas and Card gesture geometry retain their existing roles.

@@ -1,5 +1,5 @@
 export type PersonalWorkScope = { userId: string; deckId?: string; cardIds: readonly string[] };
-type Entry = { scope: PersonalWorkScope; promise?: Promise<unknown>; retry?: () => Promise<unknown>; error?: Error; token: symbol };
+type Entry = { scope: PersonalWorkScope; promise?: Promise<unknown>; operation?: Promise<unknown>; retry?: () => Promise<unknown>; error?: Error; token: symbol };
 const overlaps = (a: PersonalWorkScope, b: PersonalWorkScope) => a.userId === b.userId &&
   ((a.deckId !== undefined && a.deckId === b.deckId) || a.cardIds.some((id) => b.cardIds.includes(id)));
 
@@ -18,7 +18,7 @@ export class PersonalWork {
     this.changes.set(identity, { scope, revision: (this.changes.get(identity)?.revision ?? 0) + 1 });
     const entry: Entry = { scope, token: Symbol(), retry: () => this.run(scope, key, operation) };
     const promise = Promise.resolve().then(operation);
-    entry.promise = promise; this.entries.set(identity, entry);
+    entry.promise = promise; entry.operation = promise; this.entries.set(identity, entry);
     void promise.then(() => { if (this.entries.get(identity) === entry) this.entries.delete(identity); }, (error) => {
       if (this.entries.get(identity) === entry) { entry.promise = undefined; entry.error = error instanceof Error ? error : new Error("Personal work could not be saved."); }
     });
@@ -72,6 +72,17 @@ export class PersonalWork {
     return () => this.locks.delete(scope);
   }
   hasWork(scope: PersonalWorkScope) { return [...this.entries.values()].some((entry) => overlaps(scope, entry.scope)); }
+  // Only the caller holding this exact settled operation can abandon its failure.
+  // Never release an in-flight operation or a newer save occupying the same key.
+  discardFailed(userId: string, key: string, operation: Promise<unknown>) {
+    const identity = JSON.stringify([userId, key]), entry = this.entries.get(identity);
+    if (entry?.operation === operation && !entry.promise && entry.error) this.entries.delete(identity);
+  }
+  retryFailed(userId: string, key: string, operation: Promise<unknown>) {
+    const entry = this.entries.get(JSON.stringify([userId, key]));
+    if (entry?.operation !== operation || entry.promise || !entry.error || !entry.retry) throw new Error("This save has changed. Refresh before retrying.");
+    return entry.retry();
+  }
   isLocked(scope: PersonalWorkScope) { return [...this.locks].some((lock) => overlaps(scope, lock)); }
 }
 export const personalWork = new PersonalWork();

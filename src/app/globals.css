@@ -2784,6 +2784,7 @@ input {
 }
 
 .card-semantic-anchors--back {
+  --card-back-metadata: rgba(255, 250, 240, 0.42);
   position: absolute;
   top: 25px;
   right: 29px;
@@ -2804,7 +2805,7 @@ input {
 }
 
 .card-semantic-anchors--back .deck-card-date {
-  color: rgba(255, 250, 240, 0.42);
+  color: var(--card-back-metadata);
   font-size: 0.64rem;
   font-weight: 680;
   letter-spacing: 0.01em;
@@ -4679,3 +4680,86 @@ input {
 .working-update-dialog-actions { display: flex; justify-content: flex-end; gap: 16px; margin-top: 20px; }
 .working-update-dialog-actions button { border: 0; background: transparent; color: inherit; padding: 8px; cursor: pointer; }
 .working-update-dialog-actions button:disabled { opacity: .5; cursor: default; }
+
+/* Personal assessment controls use the existing semantic header anchors. */
+.card-semantic-anchors--front { position: relative; }
+.card-semantic-anchors--assessment .card-title-anchor {
+  grid-template-columns: max-content max-content;
+  column-gap: 6px;
+}
+.card-semantic-anchors--assessment .card-title-anchor h2 { grid-column: 1; grid-row: 1; max-width: 54px; }
+.card-semantic-anchors--assessment .completion-strip { grid-column: 1; grid-row: 2; }
+.card-assessment-anchor { position: relative; grid-column: 2; grid-row: 1; align-self: start; width: 34px; height: 0; }
+.card-confidence { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: .8rem; font-weight: 700; line-height: 1; color: #efe0bf; pointer-events: none; }
+.assessment-indicator { position: absolute; top: -16px; left: -4px; display: inline-flex; gap: 3px; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; font-size: .7rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.assessment-indicator:focus-visible { outline: 2px solid #70b5dc; outline-offset: -4px; border-radius: 6px; }
+.assessment-pass { color: #1675b4; font-weight: 800; }
+.assessment-fail { color: #c94249; font-size: .65em; }
+.assessment-empty { color: #b8af9e; }
+.card-semantic-anchors--back.card-semantic-anchors--assessment .card-confidence {
+  color: var(--card-back-metadata);
+  font-size: .64rem;
+  font-weight: 600;
+}
+.card-semantic-anchors--back .assessment-indicator {
+  /* Back content has its own 0.641 scale; enlarge only the invisible hit area. */
+  width: 70px;
+  height: 70px;
+  top: -29px;
+  left: -17px;
+  pointer-events: auto;
+}
+.card-semantic-anchors--back.card-semantic-anchors--assessment { z-index: 3; }
+.deck-card.is-active .card-semantic-anchors--back .assessment-indicator {
+  /* Preserve a 44px touch target when the Deck scene also scales down to 320px. */
+  width: 94px;
+  height: 94px;
+  top: -41px;
+  left: -29px;
+}
+.card-semantic-anchors--back .assessment-empty-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  color: var(--card-back-metadata);
+  font-size: .62rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.assessment-dialog.library-dialog { width: min(560px, calc(100vw - 24px)); padding: 18px; color: #302d28; }
+.assessment-dialog.library-dialog button { margin: 0; min-height: 44px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+.assessment-dialog.library-dialog button:disabled { opacity: .5; cursor: default; }
+.assessment-dialog button:focus-visible, .assessment-dialog input:focus-visible, .assessment-dialog select:focus-visible { outline: 2px solid #1675b4; outline-offset: 2px; }
+.assessment-toolbar, .assessment-form-actions { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 12px; }
+.assessment-dialog p { font-size: 13px; margin: 10px 0; }
+.assessment-notice { color: #625b50; font-size: 13px; border-left: 2px solid #c9bfae; padding: 8px; margin: 10px 0; }
+.assessment-notice button + button { margin-left: 6px !important; }
+.assessment-table-scroll { overflow-x: auto; }
+.assessment-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.assessment-table th { font-weight: 600; color: #746b60; text-align: left; }
+.assessment-table th, .assessment-table td { padding: 8px 3px; border-bottom: 1px solid #e6dfd5; vertical-align: top; overflow-wrap: anywhere; }
+.assessment-table th:nth-child(1) { width: 72px; }
+.assessment-table th:nth-child(2) { width: 44px; }
+.assessment-table th:nth-child(4) { width: 96px; }
+.assessment-table .assessment-pass, .assessment-table .assessment-fail { font-size: 16px; }
+.assessment-source { color: #746b60; }
+.assessment-source small { display: block; font-size: 10px; margin-top: 3px; }
+.assessment-row-actions { display: flex; gap: 3px; flex-wrap: wrap; }
+.assessment-dialog .assessment-row-actions button { padding: 4px; font-size: 12px; white-space: nowrap; }
+.assessment-form { margin-top: 16px; padding-top: 12px; border-top: 1px solid #d6d0c8; }
+.assessment-form h3 { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.assessment-fields { display: flex; gap: 12px; }
+.assessment-fields label { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 5px; font-size: 13px; }
+.assessment-fields input, .assessment-fields select { min-width: 0; width: 100%; height: 44px; padding: 6px; border: 1px solid #c9bfae; border-radius: 6px; background: white; }
+.assessment-dialog .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 400px) {
+  .assessment-dialog.library-dialog { padding: 12px; }
+  .assessment-table { font-size: 12px; }
+  .assessment-table th:nth-child(1) { width: 62px; }
+  .assessment-table th:nth-child(2) { width: 38px; }
+  .assessment-table th:nth-child(4) { width: 56px; }
+  .assessment-row-actions { flex-direction: column; }
+}

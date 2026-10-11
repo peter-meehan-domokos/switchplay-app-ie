@@ -5,6 +5,7 @@ import StepList from "@/components/cards/StepList";
 
 //ActiveCardFront component displays the front view of an active card, including the header, intro media block, and step list.
 type ActiveCardFrontProps = {
+  assessment?: import("react").ReactNode;
   card: PresentedCard;
   dateLabel: string;
   variant?: "active" | "focused";
@@ -17,6 +18,7 @@ type ActiveCardFrontProps = {
 };
 
 export default function ActiveCardFront({
+  assessment,
   card,
   dateLabel,
   variant = "active",
@@ -29,7 +31,7 @@ export default function ActiveCardFront({
 }: ActiveCardFrontProps) {
   return (
     <div className={`active-card-front active-card-front--${variant}`}>
-      <CardHeader card={card} dateLabel={dateLabel} variant={variant} onAdjustTargetDate={onAdjustTargetDate} />
+      <CardHeader assessment={assessment} card={card} dateLabel={dateLabel} variant={variant} onAdjustTargetDate={onAdjustTargetDate} />
       <IntroMediaBlock
         card={card}
         onOpenIntroView={variant === "focused" ? onOpenIntroView : undefined}

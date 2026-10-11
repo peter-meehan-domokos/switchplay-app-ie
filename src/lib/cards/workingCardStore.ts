@@ -10,8 +10,17 @@ type PersonalFields = Pick<CardLayout, "targetDate" | "reflection" | "mediaItems
 // Deck labels, themes, chats and navigation are deliberately absent from this cache.
 export class WorkingCardStore {
   private epochs = new Map<string, number>();
+  private listeners = new Map<string, Set<() => void>>();
   epoch(userId: string) { return this.epochs.get(userId) ?? 0; }
-  invalidate(userId: string) { this.epochs.set(userId, this.epoch(userId) + 1); }
+  subscribe(userId: string, listener: () => void) {
+    const listeners = this.listeners.get(userId) ?? new Set<() => void>();
+    listeners.add(listener); this.listeners.set(userId, listeners);
+    return () => { listeners.delete(listener); if (!listeners.size) this.listeners.delete(userId); };
+  }
+  invalidate(userId: string) {
+    this.epochs.set(userId, this.epoch(userId) + 1);
+    for (const listener of [...(this.listeners.get(userId) ?? [])]) listener();
+  }
   private records = new Map<string, PersonalFields>();
   private key(userId: string, cardId: string) { return JSON.stringify([userId, cardId]); }
   accept(userId: string, cards: CardLayout[]) {

@@ -307,7 +307,9 @@ export function useDeckGestures({
           last: start,
           axis: null,
         };
-        event.currentTarget.setPointerCapture?.(event.pointerId);
+        // Header controls capture their own pointer so a tap can activate them.
+        // Their drag events still bubble through this existing gesture session.
+        if (!(event.target instanceof Element && event.target.closest("[data-card-header-control]"))) event.currentTarget.setPointerCapture?.(event.pointerId);
         setVector(emptyVector);
         setDirection(null);
         setIntent("none");
