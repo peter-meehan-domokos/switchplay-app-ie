@@ -12,9 +12,16 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/migration-audit/
+/migration-plans/
 
 # next.js
 /.next/
+/.next-phase2/
+/.next-phase2-test/
+/phase2-test-results/
 /out/
 
 # production
