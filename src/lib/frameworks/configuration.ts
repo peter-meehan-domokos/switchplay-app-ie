@@ -71,8 +71,64 @@ export function assertFrameworkConfiguration(value: unknown): asserts value is r
   if (issues.length) throw new FrameworkConfigurationError(issues);
 }
 
-// Deliberately empty until real curricula are agreed. Array order is authoritative.
-const catalogue: readonly Framework[] = Object.freeze([]);
+// Deliberately empty for manual testing - do not remove. Array order is authoritative.
+// const catalogue: readonly Framework[] = Object.freeze([]);
+//Maths framework
+const catalogue: readonly Framework[] = Object.freeze([
+  {
+    id: "leaving-cert-hl",
+    title: "Leaving Cert Higher Level Maths",
+    areas: [
+      {
+        id: "algebra",
+        title: "Algebra",
+        items: [
+          {
+            id: "quadratic-equations",
+            title: "Quadratic Equations",
+            cardTemplateIds: [],
+          },
+          {
+            id: "factor-theorem",
+            title: "Factor Theorem",
+            cardTemplateIds: [],
+          },
+          {
+            id: "solving-cubics",
+            title: "Solving Cubic Equations",
+            cardTemplateIds: [],
+          },
+        ],
+      },
+      {
+        id: "calculus",
+        title: "Calculus",
+        items: [
+          {
+            id: "differentiation",
+            title: "Differentiation",
+            cardTemplateIds: [],
+          },
+          {
+            id: "stationary-points",
+            title: "Stationary Points",
+            cardTemplateIds: [],
+          },
+          {
+            id: "integration",
+            title: "Integration",
+            cardTemplateIds: [], //leave blank for now
+          },
+        ],
+      },
+      {
+        id: "trigonometry",
+        title: "Trigonometry",
+        items: [], // no items for now
+      },
+    ],
+  },
+]);
 export function getFrameworks(): readonly Framework[] { assertFrameworkConfiguration(catalogue); return catalogue; }
 export function getFramework(id: string): Framework | undefined { return getFrameworks().find((framework) => framework.id === id); }
 export function getFrameworkItem(id: string): FrameworkItem | undefined {
