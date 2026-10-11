@@ -7,11 +7,14 @@ import DeckTile from "../src/components/decks/DeckTile";
 import DeckScene from "../src/components/decks/DeckScene";
 import FocusedCardView from "../src/components/decks/FocusedCardView";
 import { buildCardLayout } from "../src/components/cards/cardLayout";
+import { buildDeckLayout, buildOptimisticDeckLayout } from "../src/components/decks/deckLayout";
 import { cardPresentationIdentity, hasPersonalCard, hasPersonalDeck, deckPresentationIdentity } from "../src/components/decks/presentation";
 import { canonicalPresentationFixture } from "./fixtures/canonicalPresentation";
 
 const deck = canonicalPresentationFixture(390), card = deck.cards[0];
 const noop = () => undefined;
+const personalDeckFields = { deckTemplateId: "working", hasUserDeckData: true, createdAt: null, updatedAt: null,
+  canMutate: true, isOwnedByCurrentUser: true, ownerUserId: "alice", ownerUsername: "Alice", showOwnerTag: false, introduction: null };
 const working = buildCardLayout({
   id: card.id, cardTemplateId: card.id, label: card.label, intro: card.intro,
   targetDate: "2026-10-08", reflection: "Private reflection", chats: [], mediaItems: [], signals: [],
@@ -60,4 +63,33 @@ test("canonical focused view structurally omits personal back face and editors",
   }));
   assert.match(html, /focused-card-surface--front/);
   assert.doesNotMatch(html, /focused-card-surface--back|Card media|Edit reflection|Private reflection|Update step progress/);
+});
+
+test("working empty and unavailable progress reserves layout without fabricated percentages or completion", () => {
+  const empty = buildDeckLayout({
+    ...personalDeckFields, id: "empty-working", deckTemplateId: "empty-working", title: "Empty working Deck", category: null,
+    introduction: null, streams: [], cards: [], activeCardId: "", dataOwnerUserId: "alice", hasUserDeckData: true,
+  }, { currentUserId: "alice", users: [] });
+  assert.equal(empty.progressPercentage, null);
+  assert.equal(buildOptimisticDeckLayout(empty, []).progressPercentage, null);
+  const tile = renderToStaticMarkup(React.createElement(DeckTile, { deck: empty, onFrontCardAction: noop, onSelect: noop, onIntroAnchorChange: noop, transition: {} }));
+  assert.match(tile, /0 cards/); assert.doesNotMatch(tile, /0%|null%|NaN|Completed/);
+  const scene = renderToStaticMarkup(React.createElement(DeckScene, { deck: empty, onBack: noop, transition: {} }));
+  assert.doesNotMatch(scene, /Completion 0|Completed|null%|NaN/); assert.match(scene, /detail-progress personal-layout-slot/);
+  const front = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: { ...working, progressPercentage: null }, dateLabel: "8 Oct" }));
+  assert.doesNotMatch(front, /completion-strip-fill|null%|NaN/); assert.match(front, /completion-strip personal-layout-slot/);
+});
+
+test("working all-skipped Card/Deck is 100%, while genuine zero remains visible", () => {
+  assert.equal(working.progressPercentage, 100);
+  const deck = buildDeckLayout({ ...personalDeckFields, id: "working", title: "Practice", category: null, streams: [], cards: [working],
+    activeCardId: working.id, dataOwnerUserId: "alice", hasUserDeckData: true }, { currentUserId: "alice", users: [] });
+  const tile = (value: typeof deck) => renderToStaticMarkup(React.createElement(DeckTile, { deck: value,
+    onFrontCardAction: noop, onSelect: noop, onIntroAnchorChange: noop, transition: {} }));
+  assert.equal(deck.progressPercentage, 100); assert.match(tile(deck), /Completed/);
+  const front = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: working, dateLabel: "8 Oct" }));
+  assert.match(front, /width:100%/);
+  const zero = buildOptimisticDeckLayout(deck, [buildCardLayout({ ...working,
+    steps: working.steps.map((step) => ({ ...step, completionStatus: "todo" })) }, { currentUserId: "alice", users: [] })]);
+  assert.equal(zero.progressPercentage, 0); assert.match(tile(zero), /0%/); assert.doesNotMatch(tile(zero), /Completed/);
 });

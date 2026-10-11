@@ -35,7 +35,7 @@ export default function CardSemanticAnchors({
     <header className={`card-semantic-anchors card-semantic-anchors--${surfaceVariant}`}>
       <div className="card-title-anchor">
         {showText ? <h2>{card.label}</h2> : null}
-        {showProgress && personal ? (
+        {showProgress && progressPercentage !== null ? (
           <div className="completion-strip" aria-label="Progress preview">
             <span className="completion-strip-fill" style={{ width: `${progressPercentage}%` }} />
           </div>

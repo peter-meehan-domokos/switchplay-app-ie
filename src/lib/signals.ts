@@ -35,8 +35,11 @@ export function normalizedToSignalReading(normalizedValue: number) {
 export function getDeckConfidenceScore(
   cards: Array<{ signals: Array<{ rawReading: number | null | unknown }> }>
 ): number | null {
-  const allReadings = cards.flatMap((card) => card.signals.map((s) => s.rawReading));
+  return getConfidenceScore(cards.flatMap((card) => card.signals.map((s) => s.rawReading)));
+}
 
+// Aggregate raw readings once; rounded Card/Item scores are not inputs.
+export function getConfidenceScore(allReadings: readonly unknown[]): number | null {
   const result = mean(allReadings, (r) => {
     if (r === null) {
       return null;

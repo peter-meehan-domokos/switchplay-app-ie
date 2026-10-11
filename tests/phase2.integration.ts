@@ -100,7 +100,7 @@ test("empty working Deck opens/reopens with null active identity and retains its
   await repo.openWorkingDeck("alice", id, "2026-10-04");
   await repo.openWorkingDeck("alice", id, "2026-12-25");
   const dto = await workingDTO(repo, "alice", id), layout = buildDeckLayout(dto, { currentUserId: "alice", users: [] });
-  assert.deepEqual(dto.cards, []); assert.equal(layout.progressPercentage, 0); assert.equal(layout.confidenceScore, null);
+  assert.deepEqual(dto.cards, []); assert.equal(layout.progressPercentage, null); assert.equal(layout.confidenceScore, null);
   assert.equal((await repo.getPersonalUser("alice"))!.decksData[0].activeCardId, null);
   assert.equal((await repo.getPersonalUser("alice"))!.cardsData.length, 0);
   await assert.rejects(repo.setActiveCard("alice", id, "missing"));

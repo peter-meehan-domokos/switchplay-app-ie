@@ -29,7 +29,7 @@ export default function DeckTile({
   transition,
 }: DeckTileProps) {
   const personal = hasPersonalDeck(deck);
-  const roundedProgressPercentage = personal ? Math.round(deck.progressPercentage) : null;
+  const roundedProgressPercentage = personal && deck.progressPercentage !== null ? Math.round(deck.progressPercentage) : null;
   const progressMetaLabel = roundedProgressPercentage === 100 ? "Completed" : `${roundedProgressPercentage}%`;
   const introPosterImage = getDeckIntroductionPosterImage(deck);
   const introVideo = getPlayableDeckIntroductionVideo(deck);
@@ -104,7 +104,7 @@ export default function DeckTile({
           "Preparing deck..."
         ) : (
           <>
-            {deck.cards.length} cards{personal ? <> &middot; {progressMetaLabel}</> : null}
+            {deck.cards.length} cards{roundedProgressPercentage !== null ? <> &middot; {progressMetaLabel}</> : null}
             {personal && deck.confidenceScore !== null && (
               <span className="deck-tile-meta-confidence">{deck.confidenceScore}</span>
             )}

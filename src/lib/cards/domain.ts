@@ -1,4 +1,5 @@
 import { isIsoDateOnlyString } from "../dateOnly";
+import { getConfidenceScore } from "../signals";
 import { isImageMediaItem, isVideoMediaItem } from "../media";
 import type { AdoptedVersion, CardContent, CardData, CardTemplateRoot, DeckContent, DeckTemplateRoot, Step } from "./model";
 
@@ -91,8 +92,7 @@ export function stepLinkedSignals(content: CardContent, data: CardData) {
   return content.steps.map((step) => ({ stepId: step.stepId, title: step.title ?? "", reading: readings.get(step.stepId) ?? null }));
 }
 export function cardConfidence(content: CardContent, data: CardData): number | null {
-  const readings = stepLinkedSignals(content, data).map((signal) => signal.reading).filter((value): value is number => value !== null && Number.isFinite(value) && value >= 1 && value <= 10);
-  return readings.length ? Math.round(readings.reduce((sum, value) => sum + value, 0) / readings.length) : null;
+  return getConfidenceScore(stepLinkedSignals(content, data).map((signal) => signal.reading));
 }
 export function reorderSteps(content: CardContent, from: number, to: number): CardContent {
   assertCardContent(content); requireCondition([from, to].every((i) => Number.isInteger(i) && i >= 0 && i < content.steps.length), "INVALID_STEP_POSITION");

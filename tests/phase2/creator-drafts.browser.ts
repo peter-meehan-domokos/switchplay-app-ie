@@ -153,7 +153,7 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await expect.poll(async () => (await root(id))?.latestVersion).toBe(1);
   await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveText("Published");
   await page.getByRole("link", { name: "Decks", exact: true }).click(); await page.getByRole("button", { name: `Open ${name}`, exact: true }).click();
-  await expect(page.locator(".deck-detail h1")).toHaveText(name); await expect(page.locator(".detail-progress")).toHaveText("Completion 0%");
+  await expect(page.locator(".deck-detail h1")).toHaveText(name); await expect(page.locator(".detail-progress")).toBeEmpty();
   await expect(page.locator(".detail-confidence, .deck-scene-frame, .deck-card, .focused-card-layer")).toHaveCount(0);
   const user = await db().collection("users").findOne({ _id: actor() });
   const personal = user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id), anchor = personal.cadenceAnchorDate;

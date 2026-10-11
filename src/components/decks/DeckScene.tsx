@@ -398,7 +398,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
 
       <motion.div className="detail-heading" layout>
         <div className="detail-progress-row">
-          {hasPersonalDeck(optimisticDeck) ? <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p> : <p className="detail-progress personal-layout-slot" aria-hidden="true" />}
+          {hasPersonalDeck(optimisticDeck) && optimisticDeck.progressPercentage !== null ? <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p> : <p className="detail-progress personal-layout-slot" aria-hidden="true" />}
           {hasPersonalDeck(optimisticDeck) && optimisticDeck.confidenceScore !== null && (
             <p className="detail-confidence">Confidence {optimisticDeck.confidenceScore}</p>
           )}

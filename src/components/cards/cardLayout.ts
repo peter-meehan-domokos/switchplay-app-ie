@@ -47,7 +47,7 @@ export type CardLayout = Omit<WeeklyCard, "signals"> & {
   externalComment: CardLayoutExternalComment | null;
   ecologicalOccupancy: number;
   ecologicalOccupancyRatio: number;
-  progressPercentage: number;
+  progressPercentage: number | null;
   reflectionVerticalOffset: number;
   signals: CardLayoutSignal[];
 };
