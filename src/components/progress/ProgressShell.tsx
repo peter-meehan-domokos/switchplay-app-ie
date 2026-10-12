@@ -1,10 +1,12 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import OverviewMenu from "@/components/layout/OverviewMenu";
 import { readProgressMetadata, type ProgressMetadata } from "@/lib/frameworks/progressClient";
 import FrameworkProgressTable from "./FrameworkProgressTable";
 import { useProgressSummary } from "./useProgressSummary";
 import styles from "./progress.module.css";
+import AreaDeckDialog from "./AreaDeckDialog";
+import { readProgressPosition, rememberProgressPosition } from "@/lib/frameworks/progressNavigation";
 
 export default function ProgressShell({ currentUserId, userName }: { currentUserId: string; userName: string }) {
   return <ProgressSession key={currentUserId} actor={currentUserId} userName={userName} />;
@@ -12,7 +14,20 @@ export default function ProgressShell({ currentUserId, userName }: { currentUser
 function ProgressSession({ actor, userName }: { actor: string; userName: string }) {
   const [metadata, setMetadata] = useState<ProgressMetadata>(), [metadataError, setMetadataError] = useState("");
   const [metadataRequest, setMetadataRequest] = useState(0), [selected, setSelected] = useState("");
+  const [area, setArea] = useState<{ id: string; title: string } | null>(null);
+  const restoredPosition = useRef(false);
   const summary = useProgressSummary(actor, selected);
+  useEffect(() => {
+    if (!summary.data || summary.loading || restoredPosition.current) return;
+    restoredPosition.current = true;
+    if (!new URLSearchParams(window.location.search).has("area")) return;
+    let position: number | null = null;
+    try { position = readProgressPosition(sessionStorage, actor, selected); } catch { /* Session storage is optional. */ }
+    if (position !== null) {
+      const frame = requestAnimationFrame(() => window.scrollTo({ top: position, behavior: "instant" }));
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [actor, selected, summary.data, summary.loading]);
   useEffect(() => {
     const controller = new AbortController();
     void readProgressMetadata(actor, controller.signal).then((data) => {
@@ -25,7 +40,7 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
     return () => controller.abort();
   }, [actor, metadataRequest]);
   const select = useCallback((id: string) => {
-    setSelected(id);
+    setSelected(id); setArea(null);
     const url = new URL(window.location.href); url.searchParams.set("framework", id);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
@@ -49,8 +64,12 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
       {summary.error ? <p className="progress-notice" role="alert">{summary.error} <button type="button" onClick={summary.refresh}>Refresh progress</button></p> : null}
       {summary.loading ? <p className="progress-refresh" role="status">{summary.data ? "Refreshing progress…" : "Loading progress…"}</p> : null}
       {summary.data ? <section aria-label={summary.data.title} aria-busy={summary.loading}>
-        <FrameworkProgressTable key={JSON.stringify([actor, selected])} actor={actor} framework={summary.data} unavailable={!!summary.error} />
+        <FrameworkProgressTable key={JSON.stringify([actor, selected])} actor={actor} framework={summary.data} unavailable={!!summary.error}
+          onArea={(id, title) => setArea({ id, title })} />
       </section> : null}
     </> : null}
+    {area ? <AreaDeckDialog key={JSON.stringify([actor, selected, area.id])} actor={actor} frameworkId={selected}
+      areaId={area.id} title={area.title} onClose={() => setArea(null)}
+      onLeaving={() => { try { rememberProgressPosition(sessionStorage, actor, selected, window.scrollY); } catch { /* Navigation must work without storage. */ } }} /> : null}
   </main>;
 }

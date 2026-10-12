@@ -2,6 +2,7 @@
 import { workingRequest } from "@/components/decks/updateClient";
 import { personalWork } from "@/lib/cards/personalWork";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import OverviewMenu from "./OverviewMenu";
 import DeckGrid from "@/components/decks/DeckGrid";
@@ -13,8 +14,11 @@ import type { MembershipDTO } from "@/lib/cards/readModels";
 import { getTodayDateOnly } from "@/lib/dateOnly";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { flushPersonalMutations } from "@/lib/deckMutations";
+import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 export default function AppShell({ memberships, currentUserId, userName }: { memberships: MembershipDTO[]; currentUserId: string; userName: string }) {
+  const router = useRouter(), search = useSearchParams();
+  const progressReturn = readProgressReturn(search);
   const [records, setRecords] = useState(memberships);
   const [selected, setSelected] = useState<Deck | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -29,30 +33,46 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
     return () => { live.current = false; };
   }, [currentUserId]);
   const [recordActor, setRecordActor] = useState(currentUserId);
-  if (recordActor !== currentUserId) { setRecordActor(currentUserId); setRecords(memberships); setSelected(null); }
+  if (recordActor !== currentUserId) { setRecordActor(currentUserId); setRecords(memberships); setSelected(null); setPending(null); setError(""); }
   const openedParam = useRef<string | null>(null);
   const active = records.filter((item) => item.archivedAt === null);
   const decks = buildMyDecksLayout(active.flatMap((item) => item.display ? [buildDeckLayout(item.display, { currentUserId, users: [{ id: currentUserId, name: userName }] })] : []));
-  async function open(id: string, cardTemplateId?: string) {
-    const membership = active.find((item) => item.deckTemplateId === id);
-    if (!membership || pending) return;
-    if (membership.availability === "unavailable") { setError("This Deck is currently unavailable. Your membership and personal state are retained."); return; }
+  const opening = useRef<string | null>(null);
+  async function open(id: string, cardTemplateId?: string, fromUrl = false) {
+    if (opening.current === currentUserId) return;
+    opening.current = currentUserId;
+    if (fromUrl) setSelected(null);
     ++refreshGeneration.current;
     setPending(id); setError("");
+    const stillRequested = () => {
+      const query = new URLSearchParams(window.location.search);
+      return !fromUrl || query.get("openDeck") === id && (query.get("openCard") ?? undefined) === cardTemplateId;
+    };
     try {
       await flushPersonalMutations();
+      // URL entry can follow an archive restoration or stale server navigation.
+      // Revalidate membership instead of trusting a cached page projection.
+      const current = fromUrl ? await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data") : records;
+      if (actorRef.current !== currentUserId || !live.current || !stillRequested()) return;
+      if (fromUrl) setRecords(current);
+      const membership = current.find((item) => item.deckTemplateId === id && item.archivedAt === null);
+      if (!membership || membership.availability === "unavailable") throw new Error("This Deck cannot currently be opened. Your membership and personal state are retained.");
       const deck = await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}) });
-      if (actorRef.current !== currentUserId || !live.current) return;
+      if (actorRef.current !== currentUserId || !live.current || !stillRequested()) return;
       workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
-      openedParam.current = id; setSelected(deck); setRotation(0);
-      window.history.replaceState(null, "", `/decks?openDeck=${encodeURIComponent(id)}`);
-    } catch (error) { setError(error instanceof Error ? error.message : "Unable to open Deck"); }
-    finally { setPending(null); }
+      openedParam.current = JSON.stringify([currentUserId, id, null]); setSelected(deck); setRotation(0);
+      window.history.replaceState(null, "", withProgressReturn(`/decks?openDeck=${encodeURIComponent(id)}`, progressReturn ? { ...progressReturn, restored: false } : null));
+    } catch (error) { if (actorRef.current === currentUserId && live.current && stillRequested()) setError(
+      (progressReturn?.restored ? "The Deck was restored, but opening failed. Retry opening or return to Progress. " : "") +
+      (error instanceof Error ? error.message : "Unable to open Deck")); }
+    finally { if (opening.current === currentUserId) opening.current = null; if (actorRef.current === currentUserId && live.current) setPending(null); }
   }
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const id = query.get("openDeck");
-    if (id && openedParam.current !== id) { openedParam.current = id; void open(id, query.get("openCard") ?? undefined); }
+    const id = search.get("openDeck"), card = search.get("openCard");
+    const key = JSON.stringify([currentUserId, id, card]);
+    if (id && openedParam.current !== key && opening.current !== currentUserId) {
+      openedParam.current = key; void open(id, card ?? undefined, true);
+    }
   });
   async function membershipAction(id: string, type: "archive" | "restore") {
     if (pending) return;
@@ -61,7 +81,9 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
     try { await flushPersonalMutations(); await workingRequest(currentUserId, `/api/decks-data/${encodeURIComponent(id)}`, "PATCH", { type,
       ...(type === "restore" ? { membershipRevision: records.find((item) => item.deckTemplateId === id)?.membershipRevision } : {}) });
       setRecords(await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data"));
-      setSelected(null); window.history.replaceState(null, "", "/decks"); }
+      setSelected(null);
+      if (progressReturn && type === "archive") router.push(progressReturnHref(progressReturn), { scroll: false });
+      else window.history.replaceState(null, "", "/decks"); }
     catch (error) { setError(error instanceof Error ? error.message : "Membership update failed"); }
     finally { setPending(null); }
   }
@@ -106,14 +128,26 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
   });
   async function close() {
     ++refreshGeneration.current;
-    try { await flushPersonalMutations(); setRecords(await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data")); setSelected(null); window.history.replaceState(null, "", "/decks"); }
+    try {
+      await flushPersonalMutations();
+      if (progressReturn && selected) await personalWork.wait({ userId: currentUserId, deckId: selected.deckTemplateId, cardIds: selected.cards.map((card) => card.id) });
+      if (progressReturn) { router.push(progressReturnHref(progressReturn), { scroll: false }); return; }
+      setRecords(await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data")); setSelected(null); window.history.replaceState(null, "", "/decks");
+    }
     catch (error) { setError(error instanceof Error ? error.message : "Some changes could not be saved"); }
   }
   return <main className={`app-shell${selected ? " app-shell--deck" : ""}`}>
     {error && <p role="alert">{error}</p>}
+    {!selected && progressReturn ? <div>
+      {search.get("openDeck") ? <button type="button" disabled={pending !== null} onClick={() => void open(search.get("openDeck")!, search.get("openCard") ?? undefined, true)}>Retry opening Deck</button> : null}
+      <button type="button" disabled={pending !== null} onClick={() => void close()}>Back to Progress</button>
+    </div> : null}
     {selected ? <>
       <button type="button" disabled={pending !== null} onClick={() => void membershipAction(selected.deckTemplateId, "archive")}>Archive Deck</button>
-      <DeckDetail key={`${currentUserId}:${selected.deckTemplateId}`} onAdopted={refreshWorking} deck={selectedLayout!} isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation} onBack={() => void close()} onToggleDeckFlip={(delta = 180) => setRotation((value) => value + delta)} transition={transition} />
+      <DeckDetail key={`${currentUserId}:${selected.deckTemplateId}`} onAdopted={refreshWorking} deck={selectedLayout!}
+        backLabel={progressReturn ? "Back to Progress" : undefined}
+        creatorEditHref={progressReturn ? `/creator/edit/${encodeURIComponent(selected.deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(selected.deckTemplateId)}&progressFramework=${encodeURIComponent(progressReturn.frameworkId)}${progressReturn.areaId ? `&progressArea=${encodeURIComponent(progressReturn.areaId)}` : ""}` : undefined}
+        isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation} onBack={() => void close()} onToggleDeckFlip={(delta = 180) => setRotation((value) => value + delta)} transition={transition} />
     </> : <>
       <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1><Link href="/creator/new">Create Deck</Link></header>
       <DeckGrid decks={decks} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null} onSelectDeck={(id) => void open(id)} transition={transition} />

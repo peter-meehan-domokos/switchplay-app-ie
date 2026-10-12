@@ -20,7 +20,7 @@ export default function ItemTestsCell({ actor, itemId, title, assessments, unava
   return <td className="progress-tests-cell">
     <button ref={trigger} type="button" className="progress-tests-trigger" aria-label={label} aria-haspopup="dialog" aria-describedby={descriptionId}
       onClick={() => setOpen(true)}>
-      <AssessmentSymbols results={results} status={status} showTestLabel />
+      <AssessmentSymbols results={results} showTestLabel />
     </button>
     <span id={descriptionId} className="progress-sr-only">{status ? "Some assessment history is unavailable." : results.length
       ? results.map((result) => `${result.date}: ${result.result ? "Pass" : "Fail"}`).join(", ") : "No tests recorded yet."}</span>

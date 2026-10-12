@@ -164,6 +164,14 @@ personal results unreadable. Missing adopted content can suppress an Item/Area's
 while its retained assessments remain readable. Database failures are errors, not empty
 histories. An unaffected Item or Framework can retain trustworthy results.
 
+[Phase 7] Item assessment histories scope canonical mapping diagnostics to the
+Items they can affect. A missing Card mapped to Quadratic Equations does not make
+an unmapped Factor Theorem Item's direct tests unavailable. An unmapped Item can
+have an empty or populated direct history independently of canonical Cards.
+Unresolved eligible ancestry still makes mapped Item histories incomplete where
+the missing chain could conceal contributors. Framework validation diagnostics
+remain available through progress results; completion/confidence rules are unchanged.
+
 ## Assessment interface and refresh [Phase 6]
 
 Working Card headers show up to three compact assessment symbols next to the Card
@@ -224,9 +232,9 @@ independently without hiding its completion or confidence. Expansion choices are
 per learner and Framework for the browser session, including after reload or switching
 Frameworks. Empty Areas remain visible and have no expandable children.
 
-Area expansion uses its own chevron control. Area and Item titles reserve a separate
-content-navigation action; that action is unavailable in the current checkpoint. Browsing
-the table never opens, restores, imports or updates learning content.
+Area expansion uses its own chevron control. Clicking an Area title opens a separate
+Deck-selection dialog without changing expansion. Item content navigation is reserved
+for a later checkpoint. Browsing the table never restores, imports or updates learning content.
 
 Item rows are indented beneath their Area. Blank completion/confidence values mean no
 eligible personal content or unset readings; no extra distinction is made between an
@@ -253,3 +261,35 @@ cross-tab synchronization is not provided.
 With no configured Frameworks, Progress displays a deliberate empty message. A Framework
 with no Areas also has an explicit empty state. The table and assessment dialog support
 keyboard operation, usable touch targets and narrow-screen layouts.
+
+## Area Deck selection and returning to Progress [Phase 7]
+
+An Area lists adopted Decks containing at least one Card mapped to one of its Items,
+including Cards mapped through canonical fork ancestry. My Decks starts expanded;
+Archived and Library start collapsed. Library discovery is not implemented in this
+checkpoint; its section clearly indicates that integration is forthcoming.
+
+Decks use the same front visuals as the existing Deck tiles, with personal completion
+and confidence where available. These are static selection representations: no video
+player or working Card controller is mounted. Simply viewing them changes no learning
+state. Decks are ordered by descending distinct matching-Card count, then title and
+stable Deck identity. Repeated references count once; an original and its fork count
+separately. Unmapped Cards still contribute to the Deck's ordinary personal metadata.
+The adopted Deck composition and independently adopted Card versions remain authoritative.
+
+Missing required data is distinguished from an empty section. Readable matches remain
+visible, unavailable Decks cannot be opened, and an uncertain total is shown as unavailable.
+A failed database read offers retry rather than presenting an empty list.
+
+Selecting an active Deck opens it directly, preserving its valid Deck-specific active
+Card. Selecting an archived Deck first reveals Restore and open; only that explicit
+action restores it. Membership and access are rechecked before entry. If restoration
+succeeds but opening fails, the Deck remains restored and the learner can retry opening
+or return to Progress. No automatic reversal discards a successful restoration.
+
+Progress-origin working views offer Back to Progress. Return waits for outstanding
+personal work and restores the selected Framework, session-scoped Area expansion and
+scroll position where the browser permits it. Progress rereads saved completion,
+confidence and assessments. Creator retains its established My Decks origin, with the
+Progress return context carried through rather than replacing Creator origin semantics.
+Ordinary My Decks and Library navigation keep their existing return destinations.

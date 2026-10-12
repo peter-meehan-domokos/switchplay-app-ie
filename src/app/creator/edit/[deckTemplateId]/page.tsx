@@ -5,6 +5,7 @@ import { creatorBoard, sessionBoardDTO } from "@/components/creator/cardArchitec
 import { CardRepository } from "@/lib/cards/repository";
 import { creatorSessionDTO } from "@/lib/cards/creatorSession";
 import { getCurrentUser } from "@/lib/auth";
+import { readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 
 
 type CreatorEditPageProps = {
@@ -16,6 +17,8 @@ type CreatorEditPageProps = {
     returnDeckId?: string | string[];
     version?: string;
     cards?: string;
+    progressFramework?: string;
+    progressArea?: string;
   }>;
 };
 
@@ -53,7 +56,8 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
     returnTo === "library"
       ? { label: "Decks" as const, href: returnDeckId ? `/library/${encodeURIComponent(returnDeckId)}` : `/library/${encodeURIComponent(deckTemplateId)}` }
       : returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
-      ? { label: "Deck" as const, href: `/decks?openDeck=${encodeURIComponent(returnDeckId)}` }
+      ? { label: "Deck" as const, href: withProgressReturn(`/decks?openDeck=${encodeURIComponent(returnDeckId)}`,
+        readProgressReturn({ get: (key) => readFirstSearchParam(resolvedSearchParams[key as keyof typeof resolvedSearchParams]) ?? null })) }
       : { label: "Decks" as const, href: "/decks" };
 
   return (

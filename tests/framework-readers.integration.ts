@@ -241,6 +241,62 @@ test("missing adopted contributors suppress affected metrics only; unmapped miss
   assert.equal(missing.history.results.length, 4); assert.deepEqual(missing.history.latestThree, []);
 });
 
+test("missing explicit mappings do not contaminate unrelated direct or mapped Item histories; Framework diagnostics remain available", async () => {
+  const { repo } = await setup();
+  const frameworks: Framework[] = [{ id: "maths", title: "Maths", areas: [{ id: "algebra", title: "Algebra", items: [
+    { id: "quadratic-equations", title: "Quadratic Equations", cardTemplateIds: ["missing-quadratic-card"] },
+    { id: "factor-theorem", title: "Factor Theorem", cardTemplateIds: [] },
+    { id: "unrelated-speed", title: "Unrelated mapped Item", cardTemplateIds: ["speed"] },
+  ] }] }];
+  const routes = await acceptanceRoutes(repo, frameworks);
+  const read = async (itemId: string): Promise<AssessmentHistory> => {
+    const response = await routes.itemHistory(readRequest(`/api/items-data/${itemId}/history`), routeContext({ itemId }));
+    assert.equal(response.status, 200); return (await response.json()).history;
+  };
+  const before = await repo.getPersonalUser("alice");
+  const affected = await read("quadratic-equations");
+  assert.equal(affected.state, "incomplete");
+  assert.ok(affected.issues.some((issue) => issue.code === "MISSING_CANONICAL_ANCESTOR"));
+  assert.deepEqual(affected.latestThree, []);
+  const empty = await read("factor-theorem");
+  assert.equal(empty.state, "empty"); assert.equal(empty.count, 0);
+  assert.deepEqual(empty.results, []); assert.deepEqual(empty.issues, []);
+  assert.equal((await read("unrelated-speed")).state, "empty");
+  assert.deepEqual(await repo.getPersonalUser("alice"), before);
+  await repo.users().updateOne({ _id: "alice" }, { $push: { itemTests: { ...event("factor-direct"), itemId: "factor-theorem" } } });
+  const populated = await read("factor-theorem");
+  assert.equal(populated.state, "complete"); assert.equal(populated.count, 1);
+  assert.equal(populated.results[0].id, "factor-direct"); assert.deepEqual(populated.issues, []);
+  assert.equal(populated.latestThree.length, 1);
+  const summary = await readFrameworkSummary(repo, "alice", "maths", frameworks);
+  const area = summary.framework.areas[0];
+  assert.ok(area.progress.issues.some((issue) => issue.code === "MISSING_CANONICAL_ANCESTOR"));
+  assert.equal(area.items[0].assessments.state, "incomplete");
+  assert.equal(area.items[1].assessments.state, "complete");
+  assert.equal(area.items[2].assessments.state, "empty");
+});
+
+test("conflicting mapped Items retain incomplete histories without contaminating a separate mapped Item", async () => {
+  const { repo } = await setup();
+  const frameworks: Framework[] = [{ id: "conflict", title: "Conflict", areas: [{ id: "area", title: "Area", items: [
+    { id: "source-item", title: "Source", cardTemplateIds: ["original"] },
+    { id: "fork-item", title: "Fork", cardTemplateIds: ["fork"] },
+    { id: "safe-item", title: "Safe", cardTemplateIds: ["speed"] },
+  ] }] }];
+  for (const itemId of ["source-item", "fork-item"]) {
+    const { history } = await readItemAssessmentHistory(repo, "alice", itemId, frameworks);
+    assert.equal(history.state, "incomplete");
+    assert.ok(history.issues.some((issue) => issue.code === "MAPPING_CONFLICT"));
+    assert.deepEqual(history.latestThree, []);
+  }
+  const safe = await readItemAssessmentHistory(repo, "alice", "safe-item", frameworks);
+  assert.equal(safe.history.state, "empty"); assert.deepEqual(safe.history.issues, []);
+  await repo.cards().updateOne({ cardTemplateId: "unrelated" }, { $set: { forkedFrom: { cardTemplateId: "missing-parent", version: 1 } } });
+  const uncertain = await readItemAssessmentHistory(repo, "alice", "safe-item", frameworks);
+  assert.equal(uncertain.history.state, "incomplete");
+  assert.ok(uncertain.history.issues.some((issue) => issue.code === "MISSING_CANONICAL_ANCESTOR"));
+});
+
 test("mapping conflicts are Framework-local; genuinely unmapped Cards and ownership/Library/orphan state are excluded", async () => {
   const { repo, frameworks } = await setup();
   frameworks[0].areas[0].items[1].cardTemplateIds.push("fork");

@@ -4717,17 +4717,21 @@ input {
   top: -41px;
   left: -29px;
 }
-.card-semantic-anchors--back .assessment-empty-control {
+.card-semantic-anchors .assessment-empty-control {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 3px 4px;
   border: 1px solid currentColor;
   border-radius: 4px;
-  color: var(--card-back-metadata);
+  color: var(--card-back-metadata, rgba(255, 250, 240, 0.42));
   font-size: .62rem;
   font-weight: 600;
   white-space: nowrap;
+}
+.card-semantic-anchors--front .assessment-empty-control {
+  transform: scale(0.641);
+  transform-origin: center;
 }
 .assessment-dialog.library-dialog { width: min(560px, calc(100vw - 24px)); padding: 18px; color: #302d28; }
 .assessment-dialog.library-dialog button { margin: 0; min-height: 44px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
@@ -4742,7 +4746,8 @@ input {
 .assessment-table th { font-weight: 600; color: #746b60; text-align: left; }
 .assessment-table th, .assessment-table td { padding: 8px 3px; border-bottom: 1px solid #e6dfd5; vertical-align: top; overflow-wrap: anywhere; }
 .assessment-table th:nth-child(1) { width: 72px; }
-.assessment-table th:nth-child(2) { width: 44px; }
+.assessment-table th:nth-child(2) { width: 58px; }
+.assessment-table th:nth-child(2), .assessment-table td:nth-child(2) { white-space: nowrap; overflow-wrap: normal; }
 .assessment-table th:nth-child(4) { width: 96px; }
 .assessment-table .assessment-pass, .assessment-table .assessment-fail { font-size: 16px; }
 .assessment-source { color: #746b60; }
@@ -4759,7 +4764,7 @@ input {
   .assessment-dialog.library-dialog { padding: 12px; }
   .assessment-table { font-size: 12px; }
   .assessment-table th:nth-child(1) { width: 62px; }
-  .assessment-table th:nth-child(2) { width: 38px; }
+  .assessment-table th:nth-child(2) { width: 52px; }
   .assessment-table th:nth-child(4) { width: 56px; }
   .assessment-row-actions { flex-direction: column; }
 }

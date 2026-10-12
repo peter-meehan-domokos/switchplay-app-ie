@@ -58,15 +58,25 @@ async function eligibility(repo: CardRepository, actor: string, user: PersonalUs
 
 type HistorySelection = { cardIds: string[]; issues: HistoryIssue[] };
 function selectItemHistory(framework: Framework, itemId: string, graph: CanonicalAncestry, eligible: PersonalEligibility): HistorySelection {
-  const configurationIssues = validateFrameworkAncestry(framework, graph);
-  const issues: HistoryIssue[] = configurationIssues.map((issue) => ({ code: issue.code, frameworkId: framework.id, itemId }));
   const item = framework.areas.flatMap((area) => area.items).find((item) => item.id === itemId)!;
-  if (!item.cardTemplateIds.length) return { cardIds: [], issues };
+  // Unmapped Items have only direct tests: canonical content cannot contribute.
+  if (!item.cardTemplateIds.length) return { cardIds: [], issues: [] };
+  // Explicit mapping validation identifies the Items implicated by that chain.
+  // Framework-wide diagnostics remain on the unchanged progress calculations.
+  const configurationIssues = validateFrameworkAncestry(framework, graph)
+    .filter((issue) => !issue.itemIds?.length || issue.itemIds.includes(itemId));
+  const issues: HistoryIssue[] = configurationIssues.map((issue) => ({ code: issue.code, frameworkId: framework.id, itemId }));
   issues.push(...eligible.issues.map((issue) => ({ code: issue.code, frameworkId: framework.id, itemId })));
   const cardIds: string[] = [];
   for (const id of eligible.cardTemplateIds) {
     const mapping = resolveEffectiveMapping(framework, id, graph);
-    if (mapping.state === "incomplete") issues.push(...mapping.issues.map((issue) => ({ code: issue.code, frameworkId: framework.id, itemId, cardTemplateId: id })));
+    if (mapping.state === "incomplete") {
+      // A fully traversed conflicting chain implicates only its mapped Items.
+      // A broken chain may hide another mapping, so keep all mapped Items uncertain.
+      const relevant = mapping.issues.filter((issue) => issue.code !== "MAPPING_CONFLICT"
+        || !issue.itemIds?.length || issue.itemIds.includes(itemId));
+      issues.push(...relevant.map((issue) => ({ code: issue.code, frameworkId: framework.id, itemId, cardTemplateId: id })));
+    }
     else if (mapping.state === "mapped" && mapping.itemId === itemId) cardIds.push(id);
   }
   return { cardIds, issues };

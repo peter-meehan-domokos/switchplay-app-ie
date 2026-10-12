@@ -214,11 +214,29 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
       await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $set: { "cardsData.$[card].mediaItems": mediaItems } }, { arrayFilters: [{ "card.cardTemplateId": cardId }] });
       await page.goto("/decks"); await page.getByRole("button", { name: `Open ${f.title}`, exact: true }).last().click();
       const active = page.locator(".deck-card.is-active"); await expect(active).toBeVisible();
-      // Front treatment is unchanged, and the hidden back cannot receive focus.
+      // Both rendered Card surfaces retain the visible, bordered first-test entry.
       await expect(active.locator(".deck-card-surface--back")).toHaveAttribute("inert", "");
-      await expect(active.locator(".deck-card-surface--front .assessment-empty")).toHaveText("+");
-      await expect(active.locator(".deck-card-surface--front .assessment-empty-control")).toHaveCount(0);
-      await active.press("Enter");
+      await expect(active.locator(".deck-card-surface--front .assessment-empty-control")).toHaveText("+ Test");
+      await swipeHeader(page, ".deck-card.is-active .deck-card-surface--front .assessment-indicator", 1);
+      const activeBack = page.locator(".deck-card.is-active .deck-card-surface--back .card-semantic-anchors");
+      const activeEmptyControl = activeBack.locator(".assessment-empty-control");
+      await expect(activeBack.getByRole("button", { name: "Add first test" })).toBeVisible();
+      await expect(activeEmptyControl).toHaveText("+ Test");
+      const activeEmptyAppearance = await activeEmptyControl.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return { borderWidth: style.borderWidth, borderStyle: style.borderStyle, borderRadius: style.borderRadius,
+          padding: style.padding, gap: style.gap, color: style.color, fontSize: style.fontSize, fontWeight: style.fontWeight };
+      });
+      expect(activeEmptyAppearance).toMatchObject({ borderWidth: "1px", borderStyle: "solid", borderRadius: "4px",
+        padding: "3px 4px", gap: "3px", fontWeight: "600" });
+      const activeIndicatorPosition = await activeBack.locator(".assessment-indicator").evaluate((node) => {
+        const style = getComputedStyle(node); return { top: style.top, left: style.left, width: style.width, height: style.height };
+      });
+      expect(activeIndicatorPosition).toEqual({ top: "-41px", left: "-29px", width: "94px", height: "94px" });
+      await swipeHeader(page, ".deck-card.is-active .deck-card-surface--back .assessment-indicator", -1);
+      await expect(active).toHaveAttribute("data-deck-flipped", "false");
+      const activeBox = (await active.boundingBox())!;
+      await active.click({ position: { x: activeBox.width / 2, y: activeBox.height / 2 } });
       const front = ".focused-card-surface--front .card-semantic-anchors";
       await expect(page.locator(front)).toBeVisible(); await swipeHeader(page, `${front} .assessment-indicator`, 1);
       const header = page.locator(backSelector);

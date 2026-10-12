@@ -81,9 +81,9 @@ test("configured order, independent session expansion, blank/zero/all-skipped/in
     await expect(row(page, "other-item").locator("td").nth(0)).toHaveText("");
     await expect(row(page, "other-item").locator("td").nth(1)).toHaveText("");
     await expect(row(page, "partial").getByLabel("Completion unavailable")).toBeVisible();
-    await expect(row(page, "partial").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("!");
+    await expect(row(page, "partial").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("+ Test");
     expect(histories).toBe(0); expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
-    await expect(page.locator('tr[data-area-id="skills"] .progress-content-title')).toBeDisabled();
+    await expect(page.locator('tr[data-area-id="skills"] .progress-content-title')).toBeEnabled();
     await page.getByRole("button", { name: "Collapse Algebra", exact: true }).press("Enter"); await expect(row(page, "control")).toBeHidden();
     await expect(row(page, "other-item")).toBeVisible(); await expect(page.locator('tr[data-area-id="skills"]').getByLabel("Completion unavailable")).toBeVisible();
     await page.getByLabel("Framework", { exact: true }).selectOption("alternative"); await expect(row(page, "alternative-item")).toBeVisible();
@@ -134,6 +134,42 @@ test("the entire Tests cell provides direct CRUD, mounted indicator refresh, sou
   } finally { await f.client.close(); }
 });
 
+test("Item modal distinguishes empty history from incomplete history with and without readable results", async ({ page }) => {
+  const f = await fixture(page);
+  try {
+    await page.goto("/progress");
+    await row(page, "direct").locator(".progress-tests-trigger").click();
+    await expect(modal(page).getByText("No tests recorded yet.", { exact: true })).toBeVisible();
+    await expect(modal(page).getByText(/Some assessment history is unavailable/)).toHaveCount(0);
+    await modal(page).getByRole("button", { name: "Close", exact: true }).click();
+
+    const populated = await page.evaluate(async (actor) => (await (await fetch("/api/items-data/partial/history", {
+      headers: { "X-Personal-Viewer": actor }, cache: "no-store" })).json()).history, f.actor);
+    expect(populated.state).toBe("incomplete"); expect(populated.results).toHaveLength(1);
+    expect(populated.issues).toContainEqual({ code: "MISSING_PERSONAL_HISTORY_SOURCE", cardTemplateId: f.missing.data.historySourceCardTemplateId });
+    expect(populated.latestThree).toEqual([]);
+    await row(page, "partial").locator(".progress-tests-trigger").click();
+    await expect(modal(page).getByText(/Readable results are shown below/)).toBeVisible();
+    await expect(modal(page).locator("tbody tr")).toHaveCount(1);
+    await modal(page).getByRole("button", { name: "Close", exact: true }).click();
+
+    await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $set: { "cardsData.$[card].tests": [] } },
+      { arrayFilters: [{ "card.cardTemplateId": f.missing.root.cardTemplateId }] });
+    const unpopulated = await page.evaluate(async (actor) => (await (await fetch("/api/items-data/partial/history", {
+      headers: { "X-Personal-Viewer": actor }, cache: "no-store" })).json()).history, f.actor);
+    expect(unpopulated.state).toBe("incomplete"); expect(unpopulated.results).toEqual([]);
+    expect(unpopulated.latestThree).toEqual([]);
+    await row(page, "partial").locator(".progress-tests-trigger").click();
+    await expect(modal(page).getByText(/No readable results are currently available; the history could not be confirmed as empty/)).toBeVisible();
+    await expect(modal(page).getByText(/Readable results are shown below/)).toHaveCount(0);
+    await expect(modal(page).getByText("No tests recorded yet.", { exact: true })).toHaveCount(0);
+    await expect(modal(page).locator("tbody tr")).toHaveCount(0);
+  } finally {
+    await page.unrouteAll({ behavior: "wait" });
+    await f.client.close();
+  }
+});
+
 test("direct Item tests work on the real sample with no CardData or Deck membership", async ({ page }) => {
   assertDisposableDatabase(); const client = await new MongoClient(process.env.MONGODB_URI!).connect();
   try {
@@ -164,7 +200,7 @@ test("an obsolete summary cannot replace a new Framework and refresh failures ne
     await page.route("**/api/frameworks/alternative/summary", (route) => route.fulfill({ status: 500, headers: { "X-Personal-Viewer": f.actor }, json: { error: "database unavailable" } }));
     await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await expect(page.locator("main").getByRole("alert")).toContainText("Progress could not be loaded");
     await expect(row(page, "alternative-item").getByLabel("Completion unavailable")).toBeVisible();
-    await expect(row(page, "alternative-item").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("!");
+    await expect(row(page, "alternative-item").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("+ Test");
     await page.unroute("**/api/frameworks/alternative/summary"); await page.getByRole("button", { name: "Refresh progress" }).click();
     await expect(row(page, "alternative-item").locator("td").nth(0)).toHaveText("33%");
   } finally { await f.client.close(); }
@@ -202,6 +238,16 @@ for (const width of [320, 390, 1440]) test(`Progress visual layout, Tests touch 
     await modal(page).getByRole("button", { name: "Close", exact: true }).focus(); await page.keyboard.press("Tab"); await expect(modal(page).getByRole("button", { name: "Add test", exact: true })).toBeFocused();
     await page.screenshot({ path: `/tmp/switchplay-progress-modal-${width}.png`, fullPage: true });
     await page.keyboard.press("Escape"); await expect(modal(page)).toHaveCount(0); await expect(trigger).toBeFocused();
+    await row(page, "control").getByRole("button", { name: /open assessment history/ }).click();
+    const resultHeading = modal(page).getByRole("columnheader", { name: "Result", exact: true });
+    const resultColumn = await resultHeading.evaluate((heading) => {
+      const box = heading.getBoundingClientRect(), style = getComputedStyle(heading);
+      return { width: box.width, whiteSpace: style.whiteSpace, fits: heading.scrollWidth <= heading.clientWidth };
+    });
+    expect(resultColumn.width).toBeGreaterThanOrEqual(width <= 400 ? 52 : 58);
+    expect(resultColumn.whiteSpace).toBe("nowrap"); expect(resultColumn.fits).toBe(true);
+    await page.screenshot({ path: `/tmp/switchplay-progress-result-column-${width}.png`, fullPage: true });
+    await modal(page).getByRole("button", { name: "Close", exact: true }).click();
     const noWrites = (await f.repo.getPersonalUser(f.actor))!; expect(noWrites.itemTests).toEqual([]);
   } finally { await f.client.close(); }
 });

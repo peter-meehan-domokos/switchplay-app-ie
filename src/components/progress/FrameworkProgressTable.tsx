@@ -5,12 +5,12 @@ import { readAreaExpansion, writeAreaExpansion, type ProgressSummary } from "@/l
 import ItemTestsCell from "./ItemTestsCell";
 
 function Metric({ value, progress, unavailable, label }: { value: number | null; progress: CalculationResult; unavailable: boolean; label: "Completion" | "Confidence" }) {
-  if (unavailable || progress.state === "incomplete") return <td className="progress-metric"><span className="progress-unavailable" aria-label={`${label} unavailable`} title="Some required information is unavailable.">!</span></td>;
+  if (unavailable || progress.state === "incomplete") return <td className="progress-metric"><span className="progress-unavailable" aria-label={`${label} unavailable`} title="Some required information is unavailable." /></td>;
   return <td className="progress-metric" aria-label={value === null ? `${label} not set` : undefined}>
     {value !== null ? label === "Completion" ? `${value}%` : value : null}
   </td>;
 }
-export default function FrameworkProgressTable({ actor, framework, unavailable = false }: { actor: string; framework: ProgressSummary; unavailable?: boolean }) {
+export default function FrameworkProgressTable({ actor, framework, unavailable = false, onArea }: { actor: string; framework: ProgressSummary; unavailable?: boolean; onArea?: (id: string, title: string) => void }) {
   const prefix = useId();
   const [expansion, setExpansion] = useState(() => {
     try { return readAreaExpansion(sessionStorage, actor, framework.id); } catch { return {}; }
@@ -32,7 +32,8 @@ export default function FrameworkProgressTable({ actor, framework, unavailable =
                 aria-expanded={expanded} aria-controls={itemsId} disabled={!area.items.length} onClick={() => toggle(area.id)}>
                 <span aria-hidden="true">{expanded ? "⌄" : "›"}</span>
               </button>
-              <button type="button" className="progress-content-title" disabled title="Content navigation is not available yet.">{area.title}</button>
+              <button type="button" className="progress-content-title" disabled={!onArea}
+                onClick={() => onArea?.(area.id, area.title)}>{area.title}</button>
             </div></th>
             <Metric label="Completion" value={area.progress.completion} progress={area.progress} unavailable={unavailable} />
             <Metric label="Confidence" value={area.progress.confidence} progress={area.progress} unavailable={unavailable} /><td />
@@ -47,6 +48,6 @@ export default function FrameworkProgressTable({ actor, framework, unavailable =
       })}
     </table>
     {!framework.areas.length ? <p className="progress-notice">No Areas are configured for this Framework yet.</p> : null}
-    <p className="progress-help">Content navigation is not available yet. Item tests can be viewed and recorded here.</p>
+    <p className="progress-help">Select an Area to find your Decks. Item content navigation is not available yet.</p>
   </>;
 }

@@ -31,6 +31,7 @@ import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { restoreCreatorDeckTitle } from "@/lib/cards/creatorDefaults";
 import { useRouter } from "next/navigation";
+import { readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
@@ -1223,7 +1224,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       try {
         await prepareForNavigation();
         if (persistence.hasWork()) throw new Error("NEW_OUTSTANDING_WORK");
-        router.push(persistence.publishedPersonalDeckHref() ?? resolvedCreatorReturnTarget.href);
+        const personalDestination = persistence.publishedPersonalDeckHref();
+        router.push(personalDestination ? withProgressReturn(personalDestination,
+          readProgressReturn(new URL(resolvedCreatorReturnTarget.href, window.location.origin).searchParams)) : resolvedCreatorReturnTarget.href);
       } catch {
         navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
         setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");

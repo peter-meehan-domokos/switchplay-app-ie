@@ -20,6 +20,7 @@ export type DeckSceneProps = {
   isDeckFlipped?: boolean;
   deckFlipRotationY?: number;
   onBack: () => void;
+  backLabel?: string;
   onToggleDeckFlip?: (rotationDelta?: number) => void;
   transition: object;
   error?: string;
@@ -136,7 +137,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -162,6 +163,19 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
   const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
   const finalCardIndex = optimisticDeck.cards.length - 1;
   const activeCard = optimisticDeck.cards[activeCardIndex];
+  // Temporary development diagnostics: canonical identities only, never personal state.
+  const templateIdLogContext = hasPersonalDeck(deck) ? "My Decks" : "Library";
+  const activeCardTemplateId = activeCard?.cardTemplateId;
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Template IDs] ${templateIdLogContext} — Deck opened: deckTemplateId=${deck.deckTemplateId}`);
+    }
+  }, [deck.deckTemplateId, templateIdLogContext]);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development" && activeCardTemplateId) {
+      console.log(`[Template IDs] ${templateIdLogContext} — Card selected: cardTemplateId=${activeCardTemplateId}; deckTemplateId=${deck.deckTemplateId}`);
+    }
+  }, [activeCardTemplateId, deck.deckTemplateId, templateIdLogContext]);
 
   const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id)]);
   const [selectedComposition, setSelectedComposition] = useState(compositionKey);
@@ -263,6 +277,9 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
 
   const openFocusMode = (cardIndex: number) => {
     if (!cards[cardIndex]) return;
+    if (process.env.NODE_ENV === "development" && cards[cardIndex].cardTemplateId) {
+      console.log(`[Template IDs] ${templateIdLogContext} — Card focused: cardTemplateId=${cards[cardIndex].cardTemplateId}; deckTemplateId=${deck.deckTemplateId}`);
+    }
     if (isDeckIntroExpanded) {
       console.log("[DIAG DECKDETAIL] focus mode opened while intro expanded, calling pausePlayback");
       introPlayerRef.current?.pausePlayback("deckdetail: focus mode opened, closing intro overlay");
@@ -392,7 +409,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
         whileTap={{ scale: 0.96 }}
       >
         <span aria-hidden="true">←</span>
-        <span>Back</span>
+        <span>{backLabel}</span>
       </motion.button>
       {error && <p role="alert">{error}</p>}
       {deckActions}

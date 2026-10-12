@@ -16,6 +16,7 @@ export async function itemFixtureRoutes(page: Page, repo: CardRepository, actor:
     export { GET as metadata } from "@/app/api/frameworks/route";
     export { GET as summaries } from "@/app/api/frameworks/summary/route";
     export { GET as summary } from "@/app/api/frameworks/[frameworkId]/summary/route";
+    export { GET as destinations } from "@/app/api/frameworks/[frameworkId]/destinations/route";
     export { CardRepository } from "@/lib/cards/repository";
   `, resolveDir: process.cwd(), loader: "ts" }, bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
   plugins: [{ name: "assessment-ui-fixtures", setup(builder) {
@@ -28,7 +29,7 @@ export async function itemFixtureRoutes(page: Page, repo: CardRepository, actor:
   handlers.CardRepository.application = async () => repo;
   await page.route("**/api/frameworks{,/**}", async (route) => {
     const request = route.request(), parts = new URL(request.url()).pathname.split("/");
-    const key = parts[3] === "summary" ? "summaries" : parts[3] ? "summary" : "metadata";
+    const key = parts[4] === "destinations" ? "destinations" : parts[3] === "summary" ? "summaries" : parts[3] ? "summary" : "metadata";
     const response = await handlers[key](new Request(request.url(), { headers: request.headers() }),
       { params: Promise.resolve({ frameworkId: parts[3] ? decodeURIComponent(parts[3]) : undefined }) });
     await route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: await response.text() });
