@@ -8,10 +8,13 @@ type ActivityFrameProps = Readonly<{
   expression: ReactNode;
   prompt: ReactNode;
   adjustments?: ReactNode;
+  promptSizing?: ReactNode;
+  expressionSizing?: ReactNode;
+  adjustmentSizing?: ReactNode;
   onExit?: () => void;
 }>;
 
-export default function ActivityFrame({ title, eyebrow, graph, expression, adjustments, prompt, onExit }: ActivityFrameProps) {
+export default function ActivityFrame({ title, eyebrow, graph, expression, adjustments, prompt, promptSizing, expressionSizing, adjustmentSizing, onExit }: ActivityFrameProps) {
   return (
     <section className={styles.spvFrame} aria-label={title}>
       <header className={styles.spvHeadingRow}>
@@ -23,8 +26,11 @@ export default function ActivityFrame({ title, eyebrow, graph, expression, adjus
       </header>
       <div className={styles.spvGraphRegion}>{graph}</div>
       <div className={styles.spvExpressionRegion}>{expression}</div>
-      {adjustments ? <div className={styles.spvAdjustmentRegion}>{adjustments}</div> : null}
+      {expressionSizing ? <div className={`${styles.spvExpressionRegion} ${styles.spvSizer}`} aria-hidden="true" inert>{expressionSizing}</div> : null}
+      <div className={styles.spvAdjustmentRegion}>{adjustments}</div>
+      {adjustmentSizing ? <div className={`${styles.spvAdjustmentRegion} ${styles.spvSizer}`} aria-hidden="true" inert>{adjustmentSizing}</div> : null}
       <div className={styles.spvPromptRegion}>{prompt}</div>
+      {promptSizing ? <div className={`${styles.spvPromptRegion} ${styles.spvSizer}`} aria-hidden="true" inert>{promptSizing}</div> : null}
     </section>
   );
 }

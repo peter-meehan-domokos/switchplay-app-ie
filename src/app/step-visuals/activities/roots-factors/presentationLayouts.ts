@@ -1,6 +1,7 @@
 import { immutable } from "../../core/immutable";
 import { evaluateFactor, formatFactor, formatNumber, type LinearFactor } from "../../core/math/realFactors";
 import type { RootsFactorsDisplayPolicy } from "./rootsFactorsLayout";
+import type { Bounds } from "../../core/graph/types";
 
 export type PresentationAction = Readonly<{ id: string; label: string; enabled: boolean; appearance: "primary" | "secondary" }>;
 export type ComparisonRow = Readonly<{ label: string; factor: string; substitution: string }>;
@@ -39,7 +40,23 @@ export const activityPromptLayout = (input: PromptInput): ActivityPromptScene =>
 
 export type RootAdjustmentScene = Readonly<{ positionText: string; actions: readonly PresentationAction[] }>;
 export type RootsFactorsPresentation = Readonly<{ policy: RootsFactorsDisplayPolicy; prompt: ActivityPromptScene; adjustments: RootAdjustmentScene | null }>;
-export const rootAdjustmentLayout = (root: number): RootAdjustmentScene => immutable({
+export const rootAdjustmentLayout = (root: number, enabled = false, bounds: Bounds = [-5, 5]): RootAdjustmentScene => immutable({
   positionText: `x = ${formatNumber(root)}`,
-  actions: [action("root-left", "Move root left", "secondary"), action("root-right", "Move root right", "secondary")],
+  actions: [{ ...action("root-left", "Move root left", "secondary"), enabled: enabled && root > bounds[0] }, { ...action("root-right", "Move root right", "secondary"), enabled: enabled && root < bounds[1] }],
 });
+
+/** Shared normal-content sizing samples, not a lesson state machine or lab fixture dependency. */
+export const normalPromptScenes: readonly ActivityPromptScene[] = immutable([
+  activityPromptLayout({ kind: "orientation" }), activityPromptLayout({ kind: "prediction" }),
+  activityPromptLayout({ kind: "incorrect-reveal", root: -3, predicted: { id: "prediction", root: 3 }, actual: { id: "actual", root: -3 } }),
+  activityPromptLayout({ kind: "retrieval", target: { id: "target", root: -4 }, incorrectFeedback: true }),
+  activityPromptLayout({ kind: "assistance", target: { id: "target", root: -4 } }),
+]);
+
+// Preserve digit widths in inaccessible sizing content without retaining answer-bearing factors.
+const sizingText = (text: string) => text.replace(/\d/g, "0");
+export const promptSizingScenes: readonly ActivityPromptScene[] = immutable(normalPromptScenes.map((scene) => ({
+  ...scene, instruction: sizingText(scene.instruction), target: scene.target ? sizingText(scene.target) : null,
+  comparison: scene.comparison.map((row) => ({ ...row, factor: sizingText(row.factor), substitution: sizingText(row.substitution) })),
+  working: scene.working.map(sizingText), actions: scene.actions.map((item) => ({ ...item, label: sizingText(item.label) })),
+})));

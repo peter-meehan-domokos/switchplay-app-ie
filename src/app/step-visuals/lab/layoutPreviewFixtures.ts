@@ -2,6 +2,7 @@ import { immutable } from "../core/immutable";
 import { createCard1Math, initialMath } from "../activities/roots-factors/model";
 import { activityPromptLayout, rootAdjustmentLayout, type RootsFactorsPresentation } from "../activities/roots-factors/presentationLayouts";
 import type { Card1Math } from "../activities/roots-factors/model";
+import type { RootInputPolicy } from "../core/interaction/rootInteraction";
 
 export type LayoutPreviewMode = "orientation" | "prediction" | "incorrect-reveal" | "retrieval" | "assistance";
 export const layoutPreviewOptions = immutable([
@@ -10,6 +11,10 @@ export const layoutPreviewOptions = immutable([
   { id: "assistance", label: "E · Help", description: "Expanded retrieval explanation" },
 ] as const);
 type LayoutFixture = Readonly<{ math: Card1Math; presentation: RootsFactorsPresentation }>;
+export const previewInputPolicies: Readonly<Record<LayoutPreviewMode, RootInputPolicy>> = immutable({
+  orientation: { enabled: true, bounds: [0, 5] }, prediction: { enabled: false, bounds: [0, 5] },
+  "incorrect-reveal": { enabled: false, bounds: [-5, 5] }, retrieval: { enabled: true, bounds: [-5, 5] }, assistance: { enabled: false, bounds: [-5, 5] },
+});
 const demonstratedMath = createCard1Math(-3);
 const target = { id: "target", root: -4 };
 /** Temporary lab fixtures only: selecting a fixture is not a learning transition. */

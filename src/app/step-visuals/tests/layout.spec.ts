@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { rootsFactorsLayout } from "../activities/roots-factors/rootsFactorsLayout";
+import { rootsFactorsLayout, rootsFactorsPlaneLayout } from "../activities/roots-factors/rootsFactorsLayout";
 import { card1Vertex, createCard1Math, evaluateCard1, initialMath } from "../activities/roots-factors/model";
 import { coordinatePlaneLayout, projectPoint, unprojectPoint } from "../core/graph/coordinatePlaneLayout";
 import { functionPlotLayout } from "../core/graph/functionPlotLayout";
@@ -103,4 +103,35 @@ test("factor-expression layout is independent of the activity and preserves stab
     prefix: "f(x) =", factors: [{ id: "a", text: "(x)", role: "fixed-root" }, { id: "b", text: "(x + 4)", role: "moving-root" }],
     accessibleDescription: "f of x equals (x) times (x + 4)",
   });
+});
+
+test("continuous graph scenes retain real landmarks but prepare rounded presentation", () => {
+  for (const size of sizes) {
+    const plane = rootsFactorsPlaneLayout(size);
+    for (const [root, label] of [[3.1, 3], [3.25, 3], [3.49, 3], [3.51, 4], [3.6, 4], [3.9, 4], [-3.49, -3], [-3.51, -4], [0.01, 0], [4.999, 5]]) {
+      const scene = rootsFactorsLayout({ movingRoot: root }, size, undefined, { enabled: true, bounds: [-5, 5] }, plane);
+      expect(scene.graph.plane).toBe(plane);
+      expect(scene.graphicalRoot).toBe(root);
+      expect(scene.displayRoot).toBe(label);
+      expect(scene.expressionIsRounded).toBe(true);
+      expect(scene.graph.roots.markers[1].center).toEqual(projectPoint(plane.projection, { x: root, y: 0 }));
+      expect(scene.graph.roots.markers[1].positionLabel.text).toBe(`x = ${label < 0 ? `−${Math.abs(label)}` : label}`);
+      expect(scene.graph.roots.markers[1].interaction?.value).toBe(label);
+      const vertex = card1Vertex({ movingRoot: root });
+      expect(scene.graph.curve.samples.find((sample) => sample.math.x === root)?.math.y).toBe(0);
+      expect(scene.graph.curve.samples.find((sample) => sample.math.x === vertex.x)?.math.y).toBeCloseTo(vertex.y, 12);
+      for (const sample of scene.graph.curve.samples) expect(sample.math.y).toBeCloseTo((sample.math.x - 1) * (sample.math.x - root), 12);
+      expect(scene.expression).toEqual(rootsFactorsLayout(createCard1Math(label), size).expression);
+      expect(scene.graph.curve.path).not.toBe(rootsFactorsLayout(createCard1Math(label), size).graph.curve.path);
+      expect(scene.graph.curve.clip).toEqual(plane.projection.plot);
+      expect(Object.isFrozen(scene.graph.curve.samples[0].position)).toBe(true);
+    }
+  }
+});
+
+test("prepared coordinate frames reject stale dimensions or domains", () => {
+  const plane = rootsFactorsPlaneLayout(sizes[0]);
+  expect(() => rootsFactorsLayout(initialMath, sizes[1], undefined, undefined, plane)).toThrow(RangeError);
+  const otherDomain = coordinatePlaneLayout(sizes[0], [-10, 10], [-10, 10]);
+  expect(() => rootsFactorsLayout(initialMath, sizes[0], undefined, undefined, otherDomain)).toThrow(RangeError);
 });

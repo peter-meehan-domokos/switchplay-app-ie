@@ -6,6 +6,7 @@ export type Segment = Readonly<{ start: Point; end: Point }>;
 export type PositionedLabel = Readonly<{ position: Point; text: string; anchor: "start" | "middle" | "end" }>;
 export type ProjectionSpec = Readonly<{ xDomain: Bounds; yDomain: Bounds; xRange: Bounds; yRange: Bounds; plot: Rect }>;
 export type CoordinatePlaneScene = Readonly<{
+  size: Size;
   projection: ProjectionSpec;
   axes: readonly Segment[];
   grid: readonly Segment[];
@@ -25,6 +26,7 @@ export type RootMarkerScene = Readonly<{
   haloRadius: number | null;
   movementCue: readonly Segment[];
   hitRegion: Rect | null;
+  interaction: Readonly<{ enabled: boolean; value: number; bounds: Bounds; accessibleName: string; valueText: string }> | null;
 }>;
 export type MarkerPresentation = "orientation" | "available" | "locked";
 export type RootMarkerGroupScene = Readonly<{ markers: readonly RootMarkerScene[]; coincident: boolean }>;

@@ -13,3 +13,9 @@ export const factorExpressionLayout = (factors: readonly LinearFactor[], maskedI
   }));
   return immutable({ prefix: "f(x) =", factors: groups, accessibleDescription: `f of x equals ${groups.map((group) => group.text === "( ? )" ? "a hidden factor" : group.text).join(" times ")}` });
 };
+
+/** Neutral, inaccessible calibration content; no current answer-bearing factor is retained. */
+export const factorExpressionSizingLayout = (): FactorExpressionScene => immutable({
+  prefix: "f(x) =", accessibleDescription: "",
+  factors: [{ id: "sizing-fixed", role: "fixed-root", text: "(x − 0)" }, { id: "sizing-moving", role: "moving-root", text: "(x + 0)" }],
+});

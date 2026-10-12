@@ -1,6 +1,6 @@
 "use client";
 
-import RootsFactorsView from "./RootsFactorsView";
+import RootsFactorsController from "./RootsFactorsController";
 import { initialMath } from "./model";
 import { staticDisplayPolicy } from "./rootsFactorsLayout";
 import { activityPromptLayout, rootAdjustmentLayout, type RootsFactorsPresentation } from "./presentationLayouts";
@@ -14,7 +14,7 @@ const initialPresentation: RootsFactorsPresentation = immutable({
   adjustments: rootAdjustmentLayout(initialMath.movingRoot),
 });
 
-/** Static checkpoint entry. Later checkpoints supply real activity state and semantic dispatch. */
+/** Root manipulation only. Later checkpoints supply the pedagogical reducer and learning actions. */
 export default function RootsFactorsActivity({ onExit }: RootsFactorsActivityProps) {
-  return <RootsFactorsView math={initialMath} presentation={initialPresentation} onExit={onExit} />;
+  return <RootsFactorsController initialMath={initialMath} presentation={initialPresentation} contextKey="orientation" inputPolicy={{ enabled: true, bounds: [0, 5] }} onExit={onExit} />;
 }

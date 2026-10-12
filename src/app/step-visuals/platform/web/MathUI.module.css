@@ -8,7 +8,8 @@
 .spvFixedRoot circle { fill: #fffdf8; stroke: #7c887f; stroke-width: 1.5; }
 .spvMovingRoot circle { fill: #28634f; stroke: #fffdf8; stroke-width: 1.5; }
 .spvFixedRoot text, .spvMovingRoot text { font-size: 12px; font-weight: 700; }
-.spvFixedRoot text { fill: #5b6861; }
+.spvFixedRoot text { fill: #3e5e4e; font-weight: 600; }
+.spvFixedRoot .spvPositionBadge { fill: #fffdf8; fill-opacity: 0.96; stroke: #ccd6cb; stroke-width: 0.75; }
 .spvMovingRoot text { fill: #28634f; }
 .spvHalo { fill: rgb(40 99 79 / 12%); stroke: rgb(40 99 79 / 30%); stroke-width: 1; }
 .spvMovementCue { fill: none; stroke: #527d68; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
@@ -16,3 +17,7 @@
 .spvExpression { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0.25em; margin: 0; color: #24332f; font-size: 1.1rem; line-height: 1.4; }
 .spvFixedFactor { color: #5b6861; }
 .spvMovingFactor { color: #28634f; font-weight: 700; }
+.spvRootSlider { position: absolute; z-index: 1; border: 0; border-radius: 50%; background: transparent; touch-action: none; cursor: grab; user-select: none; }
+.spvRootSlider[data-editing="true"] { cursor: grabbing; }
+.spvRootSlider:focus-visible { outline: 2px dashed #28634f; outline-offset: 2px; }
+.spvRootSlider[aria-disabled="true"] { pointer-events: none; cursor: default; }

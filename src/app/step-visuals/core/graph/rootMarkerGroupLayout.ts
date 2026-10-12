@@ -2,14 +2,17 @@ import { immutable } from "../immutable";
 import { formatNumber, type LinearFactor } from "../math/realFactors";
 import { projectPoint } from "./coordinatePlaneLayout";
 import type { MarkerPresentation, ProjectionSpec, RootMarkerGroupScene, Segment } from "./types";
+import type { RootInputPolicy } from "../interaction/rootInteraction";
 
-export const rootMarkerGroupLayout = (projection: ProjectionSpec, factors: readonly LinearFactor[], presentation: MarkerPresentation = "orientation"): RootMarkerGroupScene => {
+export const rootMarkerGroupLayout = (projection: ProjectionSpec, factors: readonly LinearFactor[], presentation: MarkerPresentation = "orientation", inputPolicy?: RootInputPolicy, displayRoots?: Readonly<Record<string, number>>): RootMarkerGroupScene => {
   const coincident = factors.length > 1 && factors.every((factor) => factor.root === factors[0].root);
   const fixedCenter = factors.length ? projectPoint(projection, { x: factors[0].root, y: 0 }) : null;
   return immutable({
     coincident,
     markers: factors.map((factor, index) => {
       const center = projectPoint(projection, { x: factor.root, y: 0 });
+      // Label/ARIA presentation can be rounded without changing mathematical geometry.
+      const displayRoot = displayRoots?.[factor.id] ?? factor.root;
       const moving = index !== 0;
       const closeToFixed = moving && fixedCenter !== null && Math.abs(center.x - fixedCenter.x) < 60;
       const fixedCloseToMoving = !moving && factors.slice(1).some((other) => Math.abs(projectPoint(projection, { x: other.root, y: 0 }).x - center.x) < 60);
@@ -35,10 +38,13 @@ export const rootMarkerGroupLayout = (projection: ProjectionSpec, factors: reado
         haloRadius: moving && presentation !== "locked" ? 17 : null,
         movementCue,
         hitRegion: moving ? { x: center.x - 24, y: center.y - 24, width: 48, height: 48 } : null,
-        labelBackground: moving ? { x: labelX - 26, y: labelY - 16, width: 52, height: 22 } : null,
+        interaction: moving && inputPolicy ? { enabled: inputPolicy.enabled, value: displayRoot, bounds: [...inputPolicy.bounds], accessibleName: "Movable root", valueText: `x = ${formatNumber(displayRoot)}` } : null,
+        labelBackground: moving
+          ? { x: labelX - 26, y: labelY - 16, width: 52, height: 22 }
+          : { x: center.x - 22, y: labelY - 15, width: 44, height: 20 },
         positionLabel: {
           position: { x: moving ? labelX : center.x, y: labelY },
-          text: `x = ${formatNumber(factor.root)}`, anchor: "middle" as const,
+          text: `x = ${formatNumber(displayRoot)}`, anchor: "middle" as const,
         },
       };
     }),

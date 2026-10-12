@@ -2,9 +2,9 @@ import type { ActivityPromptScene } from "../../activities/roots-factors/present
 import styles from "./LearningUI.module.css";
 
 /** Presentation only. Later controllers may supply semantic dispatch, never mathematical arithmetic. */
-export default function ActivityPrompt({ scene, onAction }: { scene: ActivityPromptScene; onAction?: (id: string) => void }) {
+export default memo(function ActivityPrompt({ scene, onAction, sizing = false }: { scene: ActivityPromptScene; onAction?: (id: string) => void; sizing?: boolean }) {
   return (
-    <div className={styles.spvPrompt} data-spv-prompt>
+    <div className={styles.spvPrompt} data-spv-prompt={sizing ? undefined : true}>
       <h2 className={styles.spvPromptTitle}>{scene.title}</h2>
       {scene.target ? <p className={styles.spvTarget}>{scene.target}</p> : null}
       {scene.comparison.length ? <dl className={styles.spvComparison}>{scene.comparison.map((row) => (
@@ -19,4 +19,5 @@ export default function ActivityPrompt({ scene, onAction }: { scene: ActivityPro
       <div className={styles.spvActions}>{scene.actions.map((action) => <button key={action.id} className={action.appearance === "primary" ? styles.spvPrimaryAction : styles.spvSecondaryAction} type="button" disabled={!action.enabled || !onAction} onClick={() => onAction?.(action.id)}>{action.label}</button>)}</div>
     </div>
   );
-}
+});
+import { memo } from "react";

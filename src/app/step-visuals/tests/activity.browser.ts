@@ -14,9 +14,9 @@ test("initial static graph and expression are server-rendered with accessible de
   await expect(graph).toHaveAccessibleDescription(/Fixed root at x = 1; movable root at x = 3\. Vertex at \(2, −1\)/);
   await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times (x − 3)");
   await expect(graph.locator("[data-spv-root]")).toHaveCount(2);
-  await expect(page.getByRole("slider")).toHaveCount(0);
+  await expect(page.getByRole("slider", { name: "Movable root" })).toHaveAttribute("aria-valuenow", "3");
   await expect(page.getByRole("button", { name: "Ready to predict" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Move root left" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Move root left" })).toBeEnabled();
   expect(errors).toEqual([]);
 });
 
@@ -62,15 +62,50 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 360, height: 640 }
   });
 }
 
-test("resize recomputes scene coordinates without altering mathematics; marker input is not active yet", async ({ page }) => {
+test("resize recomputes scene coordinates without altering the settled mathematics", async ({ page }) => {
   await page.goto("/step-visuals");
   const graph = page.getByRole("img", { name: "Quadratic graph", exact: true });
   const moving = graph.locator('[data-spv-root="moving-root"] circle');
-  await moving.click();
-  await page.keyboard.press("ArrowLeft");
+  await page.getByRole("slider", { name: "Movable root" }).click();
   await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times (x − 3)");
   const before = await moving.getAttribute("cx");
   await page.setViewportSize({ width: 320, height: 568 });
   await expect.poll(() => moving.getAttribute("cx")).not.toBe(before);
   await expect(graph).toHaveAccessibleDescription(/movable root at x = 3/);
+});
+
+test("fixed root label has a quiet outlined surface and paints above the curve", async ({ page }) => {
+  await page.goto("/step-visuals");
+  const slider = page.getByRole("slider", { name: "Movable root" });
+  await expect(slider).toHaveAttribute("aria-disabled", "false");
+  await page.getByRole("combobox", { name: "Layout preview" }).selectOption("retrieval");
+  const graph = page.getByRole("img", { name: "Quadratic graph", exact: true });
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    await expect(slider).toHaveAttribute("aria-disabled", "false");
+    await slider.focus();
+    await page.keyboard.press("Home");
+    for (let root = -5; root <= 5; root++) {
+      if (root !== -5) await page.keyboard.press("ArrowRight");
+      await expect(slider).toHaveAttribute("aria-valuenow", String(root));
+      const label = await graph.evaluate((element) => {
+        const group = element.querySelector('[data-spv-root="fixed-root"]')!;
+        const text = group.querySelector("text")!;
+        const backing = group.querySelector("rect")!;
+        const curve = element.querySelector("[data-spv-curve]")!;
+        const textBox = text.getBBox();
+        const plateBox = backing.getBBox();
+        const svg = element as SVGSVGElement;
+        const plateStyle = getComputedStyle(backing);
+        return { fill: getComputedStyle(text).fill, weight: getComputedStyle(text).fontWeight,
+          plateFill: plateStyle.fill, plateOpacity: plateStyle.fillOpacity, plateStroke: plateStyle.stroke, plateStrokeWidth: plateStyle.strokeWidth,
+          textAfterCurve: Boolean(curve.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING),
+          plateAfterCurve: Boolean(curve.compareDocumentPosition(backing) & Node.DOCUMENT_POSITION_FOLLOWING),
+          textAfterPlate: Boolean(backing.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING),
+          textProtected: textBox.x >= plateBox.x && textBox.y >= plateBox.y && textBox.x + textBox.width <= plateBox.x + plateBox.width && textBox.y + textBox.height <= plateBox.y + plateBox.height,
+          contained: textBox.x >= 0 && textBox.y >= 0 && textBox.x + textBox.width <= svg.viewBox.baseVal.width && textBox.y + textBox.height <= svg.viewBox.baseVal.height };
+      });
+      expect(label).toEqual({ fill: "rgb(62, 94, 78)", weight: "600", plateFill: "rgb(255, 253, 248)", plateOpacity: "0.96", plateStroke: "rgb(204, 214, 203)", plateStrokeWidth: "0.75px", textAfterCurve: true, plateAfterCurve: true, textAfterPlate: true, textProtected: true, contained: true });
+    }
+  }
 });

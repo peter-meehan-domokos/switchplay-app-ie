@@ -1,9 +1,9 @@
 "use client";
 
 import { useId, useState } from "react";
-import RootsFactorsView from "../activities/roots-factors/RootsFactorsView";
+import RootsFactorsController from "../activities/roots-factors/RootsFactorsController";
 import { useSurfaceActive } from "../platform/web/SurfaceLifecycle";
-import { layoutPreviewFixtures, type LayoutPreviewMode } from "./layoutPreviewFixtures";
+import { layoutPreviewFixtures, previewInputPolicies, type LayoutPreviewMode } from "./layoutPreviewFixtures";
 import styles from "./Lab.module.css";
 
 /** Temporary lab-owned preview/session probe. Never exported from the activity public API. */
@@ -14,8 +14,8 @@ export default function RootsFactorsLayoutPreview({ mode, onExit }: { mode: Layo
   const fixture = layoutPreviewFixtures[mode];
   return (
     <>
-      <RootsFactorsView math={fixture.math} presentation={fixture.presentation} onExit={onExit} />
-      <p className={styles.spvPreviewDisclaimer}>Static layout preview · learning controls are inactive.</p>
+      <RootsFactorsController initialMath={fixture.math} presentation={fixture.presentation} contextKey={mode} inputPolicy={previewInputPolicies[mode]} onExit={onExit} />
+      <p className={styles.spvPreviewDisclaimer}>Root manipulation preview · learning actions remain inactive.</p>
       <details className={styles.spvSessionProbe}>
         <summary>Lab session test</summary>
         <label htmlFor={noteId}>Session note</label>

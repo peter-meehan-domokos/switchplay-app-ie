@@ -3,24 +3,30 @@
   --spv-muted: #5b6861;
   display: grid;
   align-content: start;
+  min-height: var(--spv-surface-height, 100dvh);
+  grid-template-areas: "heading" "graph" "expression" "adjustments" "prompt";
+  grid-template-rows: auto minmax(210px, 1fr) auto auto auto;
   gap: 6px;
   min-width: 0;
   color: var(--spv-ink);
   font-family: Arial, Helvetica, sans-serif;
   line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
-.spvHeadingRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.spvHeadingRow { grid-area: heading; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .spvEyebrow { margin: 0 0 4px; color: var(--spv-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .spvTitle { margin: 0; color: var(--spv-ink); font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
 .spvTitle:focus-visible { outline: 2px solid #28634f; outline-offset: 5px; border-radius: 4px; }
 .spvExit { flex-shrink: 0; min-height: 44px; min-width: 44px; padding: 6px; border: 0; border-radius: 8px; background: transparent; color: var(--spv-muted); font: inherit; font-size: 0.85rem; cursor: pointer; }
 .spvExit:focus-visible { outline: 3px solid #28634f; outline-offset: 3px; }
 .spvGraphRegion, .spvExpressionRegion, .spvPromptRegion { min-width: 0; }
-.spvGraphRegion { display: flex; width: 100%; aspect-ratio: 1.5; min-height: 210px; max-height: 280px; }
-.spvExpressionRegion { padding: 4px 8px; }
-.spvAdjustmentRegion { min-width: 0; }
-.spvPromptRegion { padding: 10px 12px; border: 1px solid #d9ded6; border-radius: 12px; background: #fffdf8; }
+.spvGraphRegion { grid-area: graph; display: flex; width: 100%; min-height: 210px; max-height: 480px; align-self: start; height: 100%; }
+.spvExpressionRegion { grid-area: expression; padding: 4px 8px; align-self: start; }
+.spvAdjustmentRegion { grid-area: adjustments; min-width: 0; min-height: 44px; align-self: start; }
+.spvPromptRegion { grid-area: prompt; padding: 10px 12px; border: 1px solid #d9ded6; border-radius: 12px; background: #fffdf8; align-self: start; }
+.spvSizer { display: grid; visibility: hidden; pointer-events: none; }
+.spvSizer > * { grid-area: 1 / 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .spvFrame { scroll-behavior: auto; }

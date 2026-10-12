@@ -64,6 +64,28 @@ test("movement cues are orientation-only and halo is absent in locked presentati
   }
 });
 
+test("compact fixed label surface preserves the proximity rule and remains within the graph", () => {
+  for (const size of [{ width: 296, height: 210 }, { width: 366, height: 406 }, { width: 704, height: 480 }]) {
+    for (const root of [-5, 0, 1, 1.1, 3, 5]) {
+      const { graph } = rootsFactorsLayout({ movingRoot: root }, size);
+      const [fixed, moving] = graph.roots.markers;
+      const close = Math.abs(moving.center.x - fixed.center.x) < 60;
+      expect(fixed.positionLabel.position.y).toBe(fixed.center.y + (close ? 38 : -18));
+      expect(fixed.labelBackground).toEqual({ x: fixed.center.x - 22, y: fixed.positionLabel.position.y - 15, width: 44, height: 20 });
+      const plate = fixed.labelBackground!;
+      expect(plate.x).toBeGreaterThanOrEqual(0);
+      expect(plate.y).toBeGreaterThanOrEqual(0);
+      expect(plate.x + plate.width).toBeLessThan(size.width);
+      expect(plate.y + plate.height).toBeLessThan(size.height);
+      expect(plate.width).toBeLessThan(moving.labelBackground!.width);
+      expect(fixed.positionLabel.position.y).toBeGreaterThan(0);
+      expect(fixed.positionLabel.position.y).toBeLessThan(size.height);
+      expect(fixed.hitRegion).toBeNull();
+      expect(fixed.haloRadius).toBeNull();
+    }
+  }
+});
+
 test("shorter fixed-domain graphs retain measurable initial and extreme minima", () => {
   for (const size of [{ width: 296, height: 210 }, { width: 336, height: 224 }, { width: 366, height: 244 }]) {
     for (const r of [3, -5]) {

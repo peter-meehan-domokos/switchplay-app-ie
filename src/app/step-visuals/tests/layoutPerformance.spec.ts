@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { initialMath } from "../activities/roots-factors/model";
-import { rootsFactorsLayout } from "../activities/roots-factors/rootsFactorsLayout";
+import { rootsFactorsLayout, rootsFactorsPlaneLayout } from "../activities/roots-factors/rootsFactorsLayout";
 import { immutable } from "../core/immutable";
 
 test("diagnostic layout and deep-freeze timings (not a phone performance guarantee)", () => {
@@ -19,10 +19,16 @@ test("diagnostic layout and deep-freeze timings (not a phone performance guarant
     rootsFactorsLayout(initialMath, size);
     return performance.now() - start;
   });
+  const plane = rootsFactorsPlaneLayout(size);
+  const continuousTimes = copies.map((_, index) => {
+    const start = performance.now();
+    rootsFactorsLayout({ movingRoot: index / 40 }, size, undefined, undefined, plane);
+    return performance.now() - start;
+  });
   const statistics = (times: number[]) => {
     const ordered = [...times].sort((a, b) => a - b);
     return { medianMs: Number(ordered[100].toFixed(3)), p95Ms: Number(ordered[190].toFixed(3)) };
   };
   expect(copies.every((copy) => Object.isFrozen(copy.graph.curve.samples[0]))).toBe(true);
-  console.log(JSON.stringify({ environment: "Node diagnostic; 200 samples", fullLayout: statistics(layoutTimes), oneDeepFreezePass: statistics(freezeTimes) }));
+  console.log(JSON.stringify({ environment: "Node diagnostic; 200 samples", fullLayout: statistics(layoutTimes), continuousLayoutWithPreparedPlane: statistics(continuousTimes), oneDeepFreezePass: statistics(freezeTimes) }));
 });

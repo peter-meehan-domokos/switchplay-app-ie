@@ -6,7 +6,7 @@
 .spvBurgerLines span { height: 2px; border-radius: 2px; background: currentColor; }
 .spvHeaderCopy { flex: 1; min-width: 0; }
 .spvLabName { margin: 0; font-size: 0.9rem; font-weight: 700; }
-.spvHost { display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 52px); margin-inline: auto; padding: 6px 12px max(12px, env(safe-area-inset-bottom)); }
+.spvHost { --spv-surface-height: calc(100dvh - 52px - env(safe-area-inset-top) - 6px - max(12px, env(safe-area-inset-bottom))); display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 52px); margin-inline: auto; padding: 6px 12px max(12px, env(safe-area-inset-bottom)); }
 .spvPreviewSelector { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
 .spvPreviewSelector span { flex-shrink: 0; color: #68746d; font-size: 0.65rem; line-height: 1.2; }
 .spvPreviewSelector select { min-width: 0; width: 100%; max-width: 245px; min-height: 44px; padding: 6px; border: 1px solid #d0d9ce; border-radius: 8px; background: #fffdf8; color: #435349; font-family: inherit; font-size: 1rem; }

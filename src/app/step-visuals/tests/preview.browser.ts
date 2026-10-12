@@ -7,9 +7,11 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 360, height: 640 }
   test(`all preview compositions fit without clipping or graph shifts at ${viewport.width}×${viewport.height}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await page.goto("/step-visuals");
+    await expect(page.getByRole("slider", { name: "Movable root" })).toHaveAttribute("aria-disabled", "false");
     const initial = await graphBox(page);
-    expect(initial!.width / initial!.height).toBeGreaterThanOrEqual(1.3);
-    expect(initial!.width / initial!.height).toBeLessThanOrEqual(1.51);
+    expect(initial!.height).toBeGreaterThanOrEqual(210);
+    expect(initial!.height).toBeLessThanOrEqual(480);
+    if (viewport.height === 844) expect(initial!.height).toBeGreaterThan(300);
     for (const mode of modes) {
       await page.getByRole("combobox", { name: "Layout preview" }).selectOption(mode);
       await expect(page.locator("[data-spv-prompt]")).toBeVisible();
@@ -46,8 +48,12 @@ test("enlarged text leaves all five previews readable and reachable", async ({ p
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/step-visuals");
   await page.addStyleTag({ content: "html { font-size: 200%; }" });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const baseline = await graphBox(page);
   for (const mode of modes) {
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.getByRole("combobox", { name: "Layout preview" }).selectOption(mode);
+    expect(await graphBox(page)).toEqual(baseline);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const prompt = page.locator("[data-spv-prompt]");
     await prompt.locator("button").last().scrollIntoViewIfNeeded();
@@ -92,9 +98,7 @@ test("reveal substitutions, masking and inactive affordances render without lear
   await expect(page.getByText("(x + 3)", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Check", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Show explanation" })).toBeDisabled();
-  await expect(page.getByRole("slider")).toHaveCount(0);
-  await graph.locator('[data-spv-root="moving-root"] circle').click();
-  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("slider", { name: "Movable root" })).toHaveAttribute("aria-valuenow", "-3");
   await expect(selector).toHaveValue("retrieval");
   await expect(graph).toHaveAccessibleDescription(/movable root at x = −3/);
 });

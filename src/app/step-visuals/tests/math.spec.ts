@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { card1Factors, card1Vertex, createCard1Math, evaluateCard1, initialMath } from "../activities/roots-factors/model";
+import { card1Factors, card1Vertex, createCard1Math, createCard1GraphMath, evaluateCard1, initialMath } from "../activities/roots-factors/model";
 import { evaluateFactor, formatFactor, formatNumber } from "../core/math/realFactors";
 
 for (let r = -5; r <= 5; r++) {
@@ -49,4 +49,17 @@ test("rejects invalid roots, nonfinite mathematics and overflow", () => {
     expect(() => formatFactor({ id: "a", root: value })).toThrow(RangeError);
   }
   expect(() => evaluateCard1(initialMath, Number.MAX_VALUE)).toThrow(RangeError);
+});
+
+test("continuous real roots preserve exact zeros, vertex, symmetry and finite bounds", () => {
+  for (const r of [-4.999, -3.5, -0.1, 0.001, 1.25, 3.1, 3.25, 3.6, 3.9, 4.999]) {
+    const math = createCard1GraphMath(r);
+    expect(evaluateCard1(math, r)).toBe(0);
+    expect(evaluateCard1(math, 1)).toBe(0);
+    const vertex = card1Vertex(math);
+    expect(vertex.x).toBe((1 + r) / 2);
+    expect(evaluateCard1(math, vertex.x)).toBeCloseTo(vertex.y, 12);
+    expect(evaluateCard1(math, vertex.x + 0.7)).toBeCloseTo(evaluateCard1(math, vertex.x - 0.7), 12);
+  }
+  for (const r of [NaN, Infinity, -Infinity, -5.01, 5.01]) expect(() => createCard1GraphMath(r)).toThrow(RangeError);
 });

@@ -9,6 +9,7 @@ const fallbackSize: Size = { width: 320, height: 280 };
 export const useGraphMeasurement = () => {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(fallbackSize);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -16,9 +17,10 @@ export const useGraphMeasurement = () => {
       const { width, height } = entry.contentRect;
       if (width < 160 || height < 160 || !Number.isFinite(width + height)) return;
       setSize((previous) => previous.width === width && previous.height === height ? previous : { width, height });
+      setReady(true);
     });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  return { ref, size };
+  return { ref, size, ready };
 };

@@ -37,6 +37,7 @@ export const coordinatePlaneLayout = (size: Size, xDomain: Bounds, yDomain: Boun
   const xTicks = x.ticks(12);
   const yTicks = y.ticks(Math.max(2, Math.floor(plot.height / 52)));
   return immutable({
+    size: { ...size },
     projection,
     axes: [
       { start: { x: plot.x, y: y(0) }, end: { x: plot.x + plot.width, y: y(0) } },
