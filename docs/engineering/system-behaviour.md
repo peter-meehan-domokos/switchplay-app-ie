@@ -1,9 +1,9 @@
 # System behaviour
 
 This cumulative reference describes user-visible rules and important edge cases.
-Entries below describe the behaviour delivered in Phase 6; the Progress interface
-is not yet available. Future checkpoints should update the relevant sections as
-behaviour is delivered. Earlier phases are not backfilled here.
+Entries below describe the behaviour delivered in Phases 6–7. Future checkpoints
+should update the relevant sections as behaviour is delivered. Earlier phases are
+not backfilled here.
 
 ## Framework organisation and mappings [Phase 6]
 
@@ -13,8 +13,10 @@ mappings. Item identities are globally unique, including across Frameworks.
 
 One Card can have at most one effective Item mapping within a Framework. Another
 Framework can map that same Card differently. Empty Frameworks, Areas, Items and
-mappings are valid. The real catalogue is deliberately empty until curricula are
-agreed; it does not contain invented permanent content.
+mappings are valid. [Phase 7] The application retains a sample Leaving Cert Higher
+Level Maths Framework for development and manual acceptance, including Algebra,
+Calculus and an empty Trigonometry Area. Its existing identities remain stable;
+Card mappings can be entered manually. It is not a completed production curriculum.
 
 A Card fork inherits its source Card's mapping, including through successive forks.
 This follows explicit canonical Card ancestry, never a Card's position or neighbours
@@ -51,8 +53,8 @@ average of displayed Card or Item percentages.
 Authenticated Framework summaries now provide these metrics and compact Item assessment
 indicator data, in configuration order. Full assessment histories are read separately.
 The reads use one consistent database snapshot, do not import content or initialise
-personal records, and never advance adoption or restore archived Decks. The empty real
-catalogue returns an empty list; the full Progress screen remains future work.
+personal records, and never advance adoption or restore archived Decks. An empty
+catalogue returns an empty list; empty-catalogue coverage uses explicit test fixtures.
 
 Completed Steps count in numerator and denominator. Todo and in-progress Steps count
 only in the denominator. Skipped Steps count in neither. If all eligible Steps are
@@ -88,8 +90,7 @@ instead of silently producing empty or successful partial results.
 ## Assessments and their original sources [Phase 6]
 
 Assessment persistence, authenticated APIs and the Card assessment interface are available.
-The reusable Item assessment interface is exercised through automated fixtures; the Progress
-interface remains later work. Assessments record a pass/fail
+The reusable Item assessment interface is available from Progress [Phase 7]. Assessments record a pass/fail
 result and a calendar date. Their identity and original creation timestamp remain fixed
 when the result or date is edited.
 
@@ -110,9 +111,9 @@ Canonical fork ancestry never grants access to another learner's personal result
 A direct Item assessment belongs to the learner and globally unique Item ID, separately
 from CardData. It needs a configured Item but no Card or Deck membership. Removing an
 Item or changing its mappings does not delete or move existing results; retained Item
-results remain readable, editable and deletable. Because the real Framework catalogue
-is currently empty, new direct Item results require future approved configuration;
-automated fixtures exercise creation without adding permanent curricula.
+results remain readable, editable and deletable. [Phase 7] Configured sample Items
+can receive direct results even before any Card mappings are entered. Assessment
+creation does not add Cards, Deck memberships or curriculum content.
 
 Each Card assessment list has its own revision. The learner's direct Item assessment
 list has one revision across all Items. Missing existing counters mean zero. Conflicting
@@ -184,7 +185,7 @@ Adding from a Card stores the result on that Card; adding in Item mode stores it
 against the Item. Editing and deleting target the original storage source. Delete requires
 confirmation. Retained archived results remain manageable, while new Card tests still
 require an active working context. The reusable Item dialog supports results without any
-Cards or memberships; it does not introduce a Progress row or navigation interface.
+Cards or memberships. [Phase 7] Item rows expose this same dialog through their Tests cell.
 
 Successful saves, including reconciliation after a lost response, notify every mounted
 assessment view for that learner to reread its history. For example, editing a test from
@@ -214,3 +215,41 @@ Steps, and rounds once to a whole number from 1 to 10. With no set readings, the
 contains no numeral and is labelled Confidence not set for accessibility. Signal changes
 update the score using the same shared helper as other confidence calculations. Completion,
 date controls, media areas and Card gesture geometry retain their existing roles.
+
+## Progress table and Item assessments [Phase 7]
+
+Progress displays one Framework at a time. Framework choices, Areas and Items follow
+configuration order. Areas containing Items start expanded; each Area can be collapsed
+independently without hiding its completion or confidence. Expansion choices are retained
+per learner and Framework for the browser session, including after reload or switching
+Frameworks. Empty Areas remain visible and have no expandable children.
+
+Area expansion uses its own chevron control. Area and Item titles reserve a separate
+content-navigation action; that action is unavailable in the current checkpoint. Browsing
+the table never opens, restores, imports or updates learning content.
+
+Item rows are indented beneath their Area. Blank completion/confidence values mean no
+eligible personal content or unset readings; no extra distinction is made between an
+unmapped Item and a mapped Item without eligible work. Zero and 100% remain numeric.
+Unavailable calculations have an explicit unavailable indication rather than a fabricated
+score. A fully resolved calculation can still show unfinished learning.
+
+The whole Tests cell is an assessment entry point. It displays the combined history's
+latest three blue Pass ticks/red Fail dots, newest on the right. With no results, it shows
+a subdued + Test control. Incomplete histories use an unavailable indication instead of
+pretending that no tests exist. Area rows do not display assessments.
+
+Opening a Tests cell loads the existing Item assessment dialog on demand. Adding records
+a direct Item test; editing/deleting an inherited Card result still changes its original
+personal-data source. Configured Items need no mapped or eligible Cards for direct tests.
+
+Assessment saves refresh mounted Progress indicators. Background refresh preserves an
+open assessment form and its entered values, including revision-conflict recovery. Reads
+are actor-bound, ignore superseded requests and keep personal results isolated. Progress
+refreshes on focus/return and offers explicit retry after a failed read; previously loaded
+rows retain their structure but stale scores/indicators are marked unavailable. Continuous
+cross-tab synchronization is not provided.
+
+With no configured Frameworks, Progress displays a deliberate empty message. A Framework
+with no Areas also has an explicit empty state. The table and assessment dialog support
+keyboard operation, usable touch targets and narrow-screen layouts.

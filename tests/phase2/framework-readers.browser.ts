@@ -5,7 +5,7 @@ import { CardRepository } from "../../src/lib/cards/repository";
 import { cardFixture, deckFixture } from "../fixtures/frameworks";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 
-test("Framework APIs expose the deliberate empty catalogue privately and enforce authentication and actor binding", async ({ page, playwright, baseURL }) => {
+test("Framework APIs expose the sample catalogue privately and enforce authentication and actor binding", async ({ page, playwright, baseURL }) => {
   const stranger = await playwright.request.newContext({ baseURL });
   try {
     for (const path of ["/api/frameworks", "/api/frameworks/summary", "/api/frameworks/forged/summary", "/api/items-data/forged/history", "/api/cards-data/forged/assessment-history"])
@@ -15,7 +15,9 @@ test("Framework APIs expose the deliberate empty catalogue privately and enforce
       const response = await page.request.get(path, { headers: { "X-Personal-Viewer": process.env.PHASE2_USER_ID! } });
       expect(response.status()).toBe(200); expect(response.headers()["cache-control"]).toBe("private, no-store");
       expect(response.headers()["vary"]).toContain("Cookie"); expect(response.headers()["x-personal-viewer"]).toBe(process.env.PHASE2_USER_ID!);
-      expect((await response.json()).frameworks).toEqual([]);
+      const frameworks = (await response.json()).frameworks;
+      expect(frameworks.map((framework: { id: string }) => framework.id)).toEqual(["leaving-cert-hl"]);
+      expect(frameworks[0].areas.map((area: { id: string }) => area.id)).toEqual(["algebra", "calculus", "trigonometry"]);
       expect((await page.request.get(path, { headers: { "X-Personal-Viewer": "another-user" } })).status()).toBe(409);
     }
     expect((await page.request.get("/api/frameworks/forged/summary")).status()).toBe(403);

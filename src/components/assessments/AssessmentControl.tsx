@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState, type PointerEvent, type SyntheticEvent } from "react";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import AssessmentModal from "./AssessmentModal";
+import AssessmentSymbols from "./AssessmentSymbols";
 import { useAssessmentHistory, type AssessmentContext } from "./useAssessmentHistory";
 
 export default function AssessmentControl({ context, onOpenChange, variant = "front" }: { context: AssessmentContext; onOpenChange?: (open: boolean) => void; variant?: "front" | "back" }) {
@@ -26,13 +27,8 @@ export default function AssessmentControl({ context, onOpenChange, variant = "fr
       onPointerMove={trackPointer} onPointerUp={(event) => { trackPointer(event); pointerStart.current = null; }}
       onPointerCancel={() => { dragged.current = true; pointerStart.current = null; }} onKeyDown={stop}
       onClick={(event) => { stop(event); if (event.detail === 0 || !dragged.current) changeOpen(true); }}>
-      {results.length ? results.map((result) => <span key={JSON.stringify([result.source, result.id])} className={result.result ? "assessment-pass" : "assessment-fail"}
-        aria-label={`${result.date}: ${result.result ? "Pass" : "Fail"}`}>{result.result ? "✓" : "●"}</span>)
-        : history.loading || history.error || history.data?.history.state === "incomplete"
-          ? <span className="assessment-empty" aria-hidden="true">{history.loading ? "…" : "!"}</span>
-          : variant === "back"
-            ? <span className="assessment-empty-control" aria-hidden="true"><span>+</span> Test</span>
-            : <span className="assessment-empty" aria-hidden="true">+</span>}
+      <AssessmentSymbols results={results} showTestLabel={variant === "back"}
+        status={history.loading ? "loading" : history.error ? "unavailable" : history.data?.history.state === "incomplete" ? "incomplete" : undefined} />
     </button>
     <span id={descriptionId} hidden>{results.map((result) => `${result.date}: ${result.result ? "Pass" : "Fail"}`).join(", ")}</span>
     {open ? <AssessmentModal context={context} history={history} onClose={() => changeOpen(false)} /> : null}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertFrameworkConfiguration, getFrameworks, getFramework, getFrameworkItem, validateFrameworkConfiguration } from "../src/lib/frameworks/configuration";
+import { assertFrameworkConfiguration, createFrameworkAccess, getFrameworks, getFramework, getFrameworkItem, validateFrameworkConfiguration } from "../src/lib/frameworks/configuration";
 import { resolveEffectiveMapping, validateFrameworkAncestry } from "../src/lib/frameworks/mapping";
 import { collectPersonalEligibility } from "../src/lib/frameworks/eligibility";
 import { calculateCardProgress, calculateMappedProgress, resolveAdoptedCardCalculation } from "../src/lib/frameworks/calculations";
@@ -14,8 +14,15 @@ const graph = () => new Map(cards().map((card) => [card.root.cardTemplateId, car
 function calculation(card: ReturnType<typeof cardFixture>) { return resolveAdoptedCardCalculation("alice", card.root.cardTemplateId, [card.root], [card.version], [card.data]); }
 const eligible = (ids: string[]) => ({ cardTemplateIds: ids, unknownComposition: false, issues: [] });
 
-test("real catalogue is deliberately empty; ordered empty Frameworks, Areas, Items and mappings are valid", () => {
-  assert.deepEqual(getFrameworks(), []); assert.equal(getFramework("missing"), undefined); assert.equal(getFrameworkItem("missing"), undefined);
+test("sample catalogue retains its identities/order; injected empty Frameworks, Areas, Items and mappings are valid", () => {
+  assertFrameworkConfiguration(getFrameworks());
+  assert.deepEqual(getFrameworks().map((framework) => framework.id), ["leaving-cert-hl"]);
+  assert.deepEqual(getFrameworks()[0].areas.map((area) => area.id), ["algebra", "calculus", "trigonometry"]);
+  assert.deepEqual(getFrameworks()[0].areas.flatMap((area) => area.items.map((item) => item.id)),
+    ["quadratic-equations", "factor-theorem", "solving-cubics", "differentiation", "stationary-points", "integration"]);
+  assert.deepEqual(getFrameworks()[0].areas[2].items, []);
+  assert.deepEqual(createFrameworkAccess([]).getFrameworks(), []);
+  assert.equal(getFramework("missing"), undefined); assert.equal(getFrameworkItem("missing"), undefined);
   const fixtures = frameworkFixtures(); assertFrameworkConfiguration(fixtures);
   assert.deepEqual(fixtures[0].areas[0].items.map((item) => item.id), ["practice-control", "practice-speed", "practice-empty"]);
   assert.deepEqual(validateFrameworkConfiguration([]), []);

@@ -1,10 +1,10 @@
 import { build } from "esbuild";
-import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import type { CardRepository } from "../../../src/lib/cards/repository";
 import type { Framework } from "../../../src/lib/frameworks/configuration";
 import type { Page } from "@playwright/test";
+import { frameworkCataloguePlugin } from "../../helpers/frameworkCataloguePlugin";
 
 // Test-only catalogue/auth substitution exercises the real handlers and Mongo.
 // It adds no application route, config flag or permanent curriculum content.
@@ -20,12 +20,7 @@ export async function itemFixtureRoutes(page: Page, repo: CardRepository, actor:
   `, resolveDir: process.cwd(), loader: "ts" }, bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
   plugins: [{ name: "assessment-ui-fixtures", setup(builder) {
     builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: `export async function getCurrentUser() { return { id: ${JSON.stringify(actor)} }; }`, loader: "ts" }));
-    builder.onLoad({ filter: /src\/lib\/frameworks\/configuration\.ts$/ }, async ({ path }) => {
-      const contents = await readFile(path, "utf8"), empty = "const catalogue: readonly Framework[] = Object.freeze([]);";
-      if (!contents.includes(empty)) throw new Error("Expected empty real Framework catalogue");
-      return { contents: contents.replace(empty, `const catalogue: readonly Framework[] = ${JSON.stringify(frameworks)};`), loader: "ts" };
-    });
-  } }] });
+  } }, frameworkCataloguePlugin(frameworks)] });
   const fixture = { exports: {} };
   new Function("require", "module", "exports", bundle.outputFiles[0].text)(createRequire(resolve(process.cwd(), "package.json")), fixture, fixture.exports);
   type Handler = (request: Request, context: { params: Promise<Record<string, string | undefined>> }) => Promise<Response>;

@@ -62,7 +62,9 @@ explicitly empty MongoDB connection settings. No production database was accesse
   `/api/frameworks/[frameworkId]/summary` use the ordered configuration and snapshot
   readers in `src/lib/frameworks/readModels.ts`. Item/Area progress has explicit
   complete, empty and incomplete states. Summary assessment data is compact;
-  retrieve full history separately. The real catalogue is deliberately empty.
+  retrieve full history separately. The catalogue was deliberately empty at Phase 6
+  acceptance. A sample Maths Framework was committed afterward and is retained for
+  Phase 7 development/manual acceptance; the verification results above are historical.
 - **Mapping and eligibility:** reuse `configuration.ts`, `mapping.ts`,
   `eligibility.ts` and `calculations.ts` in `src/lib/frameworks`. Canonical ancestry
   controls mappings; adopted active/archived memberships control personal metrics.

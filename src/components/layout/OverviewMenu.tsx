@@ -46,6 +46,7 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
         <div className="deck-menu-popover" role="menu">
           <Link className="deck-menu-item" href="/library" role="menuitem" onClick={() => setIsOpen(false)}>Library</Link>
           <Link className="deck-menu-item" href="/decks" prefetch={false} role="menuitem" onClick={() => setIsOpen(false)}>My Decks</Link>
+          <Link className="deck-menu-item" href="/progress" prefetch={false} role="menuitem" onClick={() => setIsOpen(false)}>Progress</Link>
           <Link className="deck-menu-item" href="/creator/new" role="menuitem" onClick={() => setIsOpen(false)}>
             Create
           </Link>

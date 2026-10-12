@@ -57,7 +57,7 @@ test("authenticated Card assessment APIs preserve original sources, archived his
   } finally { await stranger.dispose(); await client.close(); }
 });
 
-test("direct Item API retains removed Item results without memberships; empty real catalogue rejects new results", async ({ page }) => {
+test("direct Item API retains removed Item results without memberships; unconfigured Items reject new results", async ({ page }) => {
   assertDisposableDatabase(); const client = await new MongoClient(process.env.MONGODB_URI!).connect();
   try {
     const repo = new CardRepository(client.db(process.env.MONGODB_DB!), client), actor = process.env.PHASE2_USER_ID!;

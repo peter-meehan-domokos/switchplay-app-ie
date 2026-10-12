@@ -9,7 +9,7 @@ const event = (id: string, date = "2026-10-11", result = true, createdAt = "2026
 const user = (cardsData: CardData[]): PersonalUser => ({ _id: "alice", decksData: [], cardsData });
 
 test("metadata keeps configuration order, permits empty structures and does not expose content mappings", () => {
-  assert.deepEqual(frameworkMetadata(), []);
+  assert.deepEqual(frameworkMetadata([]), []);
   const metadata = frameworkMetadata(frameworkFixtures());
   assert.deepEqual(metadata.map((framework) => framework.id), ["practice", "alternative", "empty-framework"]);
   assert.deepEqual(metadata[0].areas[0].items[0], { id: "practice-control", title: "Control" });

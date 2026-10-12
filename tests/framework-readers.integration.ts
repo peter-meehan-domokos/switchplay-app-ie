@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import { MongoClient } from "mongodb";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { build } from "esbuild";
-import { readFile } from "node:fs/promises";
+import { frameworkCataloguePlugin } from "./helpers/frameworkCataloguePlugin";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { CardRepository, createFoundationIndexes } from "../src/lib/cards/repository";
@@ -45,7 +45,7 @@ async function setup() {
 
 type AcceptanceRoute = (request: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>;
 // Exercise the actual route handlers/HTTP boundary and Mongo repositories. Only
-// authentication and the deliberately empty catalogue are replaced in memory;
+// authentication and the application catalogue are replaced in memory;
 // no application files, configuration, or real database connections are changed.
 async function acceptanceRoutes(repo: CardRepository, frameworks: readonly Framework[]) {
   const bundle = await build({ stdin: { contents: `
@@ -57,12 +57,7 @@ async function acceptanceRoutes(repo: CardRepository, frameworks: readonly Frame
   `, resolveDir: process.cwd(), loader: "ts" }, bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
   plugins: [{ name: "checkpoint3-acceptance-fixtures", setup(builder) {
     builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: 'export async function getCurrentUser() { return { id: "alice" }; }', loader: "ts" }));
-    builder.onLoad({ filter: /src\/lib\/frameworks\/configuration\.ts$/ }, async ({ path }) => {
-      const contents = await readFile(path, "utf8"), emptyCatalogue = "const catalogue: readonly Framework[] = Object.freeze([]);";
-      assert.ok(contents.includes(emptyCatalogue), "Catalogue fixture substitution must match the real empty configuration");
-      return { contents: contents.replace(emptyCatalogue, `const catalogue: readonly Framework[] = ${JSON.stringify(frameworks)};`), loader: "ts" };
-    });
-  } }] });
+  } }, frameworkCataloguePlugin(frameworks)] });
   const fixtureModule = { exports: {} };
   new Function("require", "module", "exports", bundle.outputFiles[0].text)(createRequire(resolve(process.cwd(), "package.json")), fixtureModule, fixtureModule.exports);
   const routes = fixtureModule.exports as { summary: AcceptanceRoute; itemHistory: AcceptanceRoute; editCardTest: AcceptanceRoute;
@@ -203,7 +198,7 @@ test("direct tests work without memberships, empty catalogues are deliberate and
   assert.equal(configured.configured, true); assert.equal(configured.history.results[0].relationship, "direct-item");
   const retained = await readItemAssessmentHistory(repo, "alice", "practice-control", []);
   assert.equal(retained.configured, false); assert.equal(retained.history.count, 1);
-  assert.deepEqual((await readFrameworkSummaries(repo, "alice")).frameworks, []);
+  assert.deepEqual((await readFrameworkSummaries(repo, "alice", [])).frameworks, []);
   assert.deepEqual(await repo.getPersonalUser("alice"), before);
   await assert.rejects(readItemAssessmentHistory(repo, "alice", "unknown", []), /ITEM_CONTEXT_FORBIDDEN/);
   await assert.rejects(readFrameworkSummary(repo, "alice", "unknown", frameworks), /FRAMEWORK_CONTEXT_FORBIDDEN/);
