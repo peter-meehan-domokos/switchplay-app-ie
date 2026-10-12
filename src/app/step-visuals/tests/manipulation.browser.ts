@@ -40,6 +40,7 @@ const beginDrag = async (page: Page, offset = 0) => {
 test.beforeEach(async ({ page }) => {
   await page.goto("/step-visuals");
   await expect(slider(page)).toHaveAttribute("aria-disabled", "false");
+  await page.getByRole("combobox", { name: "Layout preview" }).selectOption("orientation");
 });
 
 test("dragging synchronises preview geometry, factors and position before committing", async ({ page }) => {
@@ -55,7 +56,7 @@ test("dragging synchronises preview geometry, factors and position before commit
   await expect(graph(page)).toHaveAccessibleDescription(/Vertex at \(2.5, −2.25\)/);
   await expect(host(page)).toHaveAttribute("data-spv-settled-root", "4");
   await expect(host(page)).toHaveAttribute("data-spv-editing", "false");
-  await expect(page.getByRole("button", { name: "Ready to predict" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
 });
 
 test("off-centre grabs do not jump; snapping respects half steps and endpoints", async ({ page }) => {
@@ -69,7 +70,9 @@ test("off-centre grabs do not jump; snapping respects half steps and endpoints",
   await page.mouse.move(start.x - 500, start.y);
   await value(page, 0);
   await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Move root left" })).toBeDisabled();
+  await slider(page).focus();
+  await page.keyboard.press("ArrowLeft");
+  await value(page, 0);
 });
 
 test("final release coordinates, not the last preview, determine the commit", async ({ page }) => {
@@ -128,7 +131,7 @@ test("fractional dragging moves marker and accurate curve together while notatio
     expect(Number.isInteger(actualRoot)).toBe(false);
     await expect(host(page)).toHaveAttribute("data-spv-settled-root", "3");
     await expect(graph(page).locator('[data-spv-root="moving-root"] text')).toHaveText(`x = ${label}`);
-    await expect(page.locator("[data-spv-adjustments]")).toContainText(`x = ${label}`);
+    await expect(page.locator("[data-spv-adjustments]")).toHaveCount(0);
     await expect(page.getByRole("math")).toHaveAccessibleName(`f of x equals (x − 1) times (x − ${label})`);
     const geometry = await graph(page).evaluate((element) => {
       const svg = element as SVGSVGElement;
@@ -240,11 +243,12 @@ test("unexpected capture loss cancels instead of submitting a placement", async 
   await value(page, 3);
 });
 
-test("keyboard and buttons share bounds and retain focus through coincident roots", async ({ page }) => {
+test("keyboard respects bounds and retains focus through coincident roots", async ({ page }) => {
   await slider(page).focus();
   await page.keyboard.press("Home");
   await value(page, 0);
-  await expect(page.getByRole("button", { name: "Move root left" })).toBeDisabled();
+  await page.keyboard.press("ArrowLeft");
+  await value(page, 0);
   await page.keyboard.press("ArrowRight");
   await value(page, 1);
   await expect(slider(page)).toBeFocused();
@@ -255,8 +259,9 @@ test("keyboard and buttons share bounds and retain focus through coincident root
   await expect(graph(page)).toHaveAccessibleDescription(/Vertex at \(1, 0\)/);
   await page.keyboard.press("End");
   await value(page, 5);
-  await expect(page.getByRole("button", { name: "Move root right" })).toBeDisabled();
-  await page.getByRole("button", { name: "Move root left" }).click();
+  await page.keyboard.press("ArrowRight");
+  await value(page, 5);
+  await page.keyboard.press("ArrowLeft");
   await value(page, 4);
 });
 
@@ -324,7 +329,8 @@ test("document visibility interruption restores settled maths", async ({ page })
 });
 
 test("committed root survives menu dismissal/current selection and resets on leaving the experience", async ({ page }) => {
-  await page.getByRole("button", { name: "Move root right" }).click();
+  await slider(page).focus();
+  await page.keyboard.press("ArrowRight");
   await value(page, 4);
   await page.getByRole("button", { name: "Open visualisations menu" }).click();
   await page.keyboard.press("Escape");

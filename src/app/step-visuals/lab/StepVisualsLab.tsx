@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import RootsFactorsLayoutPreview from "./RootsFactorsLayoutPreview";
-import { layoutPreviewOptions, type LayoutPreviewMode } from "./layoutPreviewFixtures";
+import RootsFactorsLabSession, { type LabActivityMode } from "./RootsFactorsLabSession";
+import { layoutPreviewOptions } from "./layoutPreviewFixtures";
 import { SurfaceLifecycle } from "../platform/web/SurfaceLifecycle";
 import { findExperience, initialExperienceId, labCards, type ExperienceId } from "./experienceRegistry";
 import LabNavigationDialog from "./LabNavigationDialog";
@@ -12,7 +12,7 @@ import styles from "./Lab.module.css";
 export default function StepVisualsLab() {
   const [selected, setSelected] = useState<ExperienceId | null>(initialExperienceId);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [previewMode, setPreviewMode] = useState<LayoutPreviewMode>("orientation");
+  const [previewMode, setPreviewMode] = useState<LabActivityMode>("guided");
   const [expandedCards, setExpandedCards] = useState<readonly string[]>([labCards[0].id]);
   const burgerRef = useRef<HTMLButtonElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -23,7 +23,7 @@ export default function StepVisualsLab() {
 
   const selectExperience = (id: ExperienceId) => {
     focusExperience.current = id !== selected;
-    if (id !== selected) setPreviewMode("orientation");
+    if (id !== selected) setPreviewMode("guided");
     setSelected(id);
     setMenuOpen(false);
   };
@@ -48,8 +48,8 @@ export default function StepVisualsLab() {
           <div className={styles.spvHeaderCopy}>
             {selected === "card-1-interactive" ? (
               <label className={styles.spvPreviewSelector} htmlFor={previewId}>
-                <span>Lab</span>
-                <select id={previewId} aria-label="Layout preview" disabled={menuOpen} value={previewMode} onChange={(event) => setPreviewMode(event.target.value as LayoutPreviewMode)}>
+                <select id={previewId} aria-label="Layout preview" disabled={menuOpen} value={previewMode} onChange={(event) => setPreviewMode(event.target.value as LabActivityMode)}>
+                  <option value="guided">Guided activity</option>
                   {layoutPreviewOptions.map((option) => <option key={option.id} value={option.id} aria-label={option.description}>{option.label}</option>)}
                 </select>
               </label>
@@ -59,7 +59,7 @@ export default function StepVisualsLab() {
       </header>
       <main className={styles.spvHost} ref={hostRef}>
         <SurfaceLifecycle active={!menuOpen}>
-          {selected === "card-1-interactive" ? <RootsFactorsLayoutPreview key={selected} mode={previewMode} onExit={exitExperience} /> : null}
+          {selected === "card-1-interactive" ? <RootsFactorsLabSession key={selected} mode={previewMode} onExit={exitExperience} /> : null}
           {selected === "card-1-sparklines" ? <SparklinePreview key={selected} /> : null}
           {selected === null ? (
             <section className={styles.spvEmpty}>

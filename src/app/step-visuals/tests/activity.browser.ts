@@ -15,8 +15,8 @@ test("initial static graph and expression are server-rendered with accessible de
   await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times (x − 3)");
   await expect(graph.locator("[data-spv-root]")).toHaveCount(2);
   await expect(page.getByRole("slider", { name: "Movable root" })).toHaveAttribute("aria-valuenow", "3");
-  await expect(page.getByRole("button", { name: "Ready to predict" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Move root left" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Next" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Move root (left|right)/ })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -96,6 +96,7 @@ test("fixed root label has a quiet outlined surface and paints above the curve",
         const textBox = text.getBBox();
         const plateBox = backing.getBBox();
         const svg = element as SVGSVGElement;
+        const tickLabels = [...element.children[4].querySelectorAll("text")].map((node) => node.getBBox());
         const plateStyle = getComputedStyle(backing);
         return { fill: getComputedStyle(text).fill, weight: getComputedStyle(text).fontWeight,
           plateFill: plateStyle.fill, plateOpacity: plateStyle.fillOpacity, plateStroke: plateStyle.stroke, plateStrokeWidth: plateStyle.strokeWidth,
@@ -103,9 +104,10 @@ test("fixed root label has a quiet outlined surface and paints above the curve",
           plateAfterCurve: Boolean(curve.compareDocumentPosition(backing) & Node.DOCUMENT_POSITION_FOLLOWING),
           textAfterPlate: Boolean(backing.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING),
           textProtected: textBox.x >= plateBox.x && textBox.y >= plateBox.y && textBox.x + textBox.width <= plateBox.x + plateBox.width && textBox.y + textBox.height <= plateBox.y + plateBox.height,
+          ticksClear: tickLabels.every((box) => box.x + box.width <= plateBox.x || box.x >= plateBox.x + plateBox.width || box.y + box.height <= plateBox.y || box.y >= plateBox.y + plateBox.height),
           contained: textBox.x >= 0 && textBox.y >= 0 && textBox.x + textBox.width <= svg.viewBox.baseVal.width && textBox.y + textBox.height <= svg.viewBox.baseVal.height };
       });
-      expect(label).toEqual({ fill: "rgb(62, 94, 78)", weight: "600", plateFill: "rgb(255, 253, 248)", plateOpacity: "0.96", plateStroke: "rgb(204, 214, 203)", plateStrokeWidth: "0.75px", textAfterCurve: true, plateAfterCurve: true, textAfterPlate: true, textProtected: true, contained: true });
+      expect(label).toEqual({ fill: "rgb(62, 94, 78)", weight: "600", plateFill: "rgb(255, 253, 248)", plateOpacity: "0.96", plateStroke: "rgb(204, 214, 203)", plateStrokeWidth: "0.75px", textAfterCurve: true, plateAfterCurve: true, textAfterPlate: true, textProtected: true, ticksClear: true, contained: true });
     }
   }
 });

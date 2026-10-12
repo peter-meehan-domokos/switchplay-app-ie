@@ -36,8 +36,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 360, height: 640 }
         expect(bounds!.width).toBeGreaterThanOrEqual(44);
       }
       // Scrolling is permissible, but every prompt/action remains reachable and unclipped.
-      await region.locator("[data-spv-prompt] button").last().scrollIntoViewIfNeeded();
-      await expect(region.locator("[data-spv-prompt] button").last()).toBeInViewport();
+      await region.locator("[data-spv-prompt] button, [data-spv-navigation] button").last().scrollIntoViewIfNeeded();
+      await expect(region.locator("[data-spv-prompt] button, [data-spv-navigation] button").last()).toBeInViewport();
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: testInfo.outputPath(`${mode}.png`), fullPage: true });
     }
@@ -56,8 +56,9 @@ test("enlarged text leaves all five previews readable and reachable", async ({ p
     expect(await graphBox(page)).toEqual(baseline);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const prompt = page.locator("[data-spv-prompt]");
-    await prompt.locator("button").last().scrollIntoViewIfNeeded();
-    await expect(prompt.locator("button").last()).toBeInViewport();
+    const lastAction = page.locator("[data-spv-prompt] button, [data-spv-navigation] button").last();
+    await lastAction.scrollIntoViewIfNeeded();
+    await expect(lastAction).toBeInViewport();
     expect(await prompt.evaluate((element) => [...element.querySelectorAll<HTMLElement>("p, button, dt, dd")].every((node) => node.scrollWidth <= node.clientWidth + 1))).toBe(true);
   }
 });
@@ -77,7 +78,7 @@ test("preview selection survives menu opening and resets only after leaving the 
   await page.getByRole("button", { name: "Sparkline preview", exact: true }).click();
   await page.getByRole("button", { name: "Open visualisations menu" }).click();
   await page.getByRole("button", { name: "Interactive visualisation", exact: true }).click();
-  await expect(selector).toHaveValue("orientation");
+  await expect(selector).toHaveValue("guided");
 });
 
 test("reveal substitutions, masking and inactive affordances render without learning behaviour", async ({ page }) => {

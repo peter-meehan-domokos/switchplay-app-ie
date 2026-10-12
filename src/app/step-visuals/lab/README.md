@@ -1,8 +1,26 @@
-# Card 1 stage-preview and manipulation lab
+# Card 1 guided activity and stage-preview lab
 
-This is a Checkpoint 3 visual/input assessment surface, not a learning controller.
-It is deliberately available in the standalone lab in development and deployed
-previews, but is not exported with the independently reusable activity.
+The default selector option mounts the independently reusable guided activity.
+The lab and its direct stage previews remain available in development and deployed
+previews, but are not exported with the activity.
+
+The genuine sequence is Explore → Predict → Test → Explain → Try (retrieval
+entry). One changed committed placement enables the compact footer Next action; the student then
+chooses when to proceed. The selected orientation root is preserved through the
+next two stages. Only a settled placement at −3 reveals the explanation. The moving
+factor is masked in prediction and positioning. Continue retains −3, displays
+`(x + 4)` and enables adjustment, without Check, assistance or completion in C4.
+
+`RootsFactorsActivity` owns one composed reducer: portable `learningReducer`
+delegates root transactions to the existing `manipulationReducer` before evaluating
+lesson transitions. There is no effect-driven assessment or duplicate gesture system.
+
+When inspecting a preview, the guided state owner stays mounted but renders no
+view. Hiding or opening navigation cancels editing, advances the input revision,
+and preserves the settled root and lesson. Returning restores that session; preview
+interaction never dispatches to it. Restart guided activity is an explicit lab
+mounting action. Leaving the actual experience (including Exit or Sparkline preview)
+still ends the session according to the original navigation contract.
 
 The lab-header selector selects authored fixtures:
 
@@ -12,9 +30,8 @@ The lab-header selector selects authored fixtures:
 - D — Retrieve: masked factor, target `(x + 4)`, retry feedback at root −3.
 - E — Help: expanded retrieval explanation, preserving root −3.
 
-Root dragging, keyboard adjustment and buttons work in A and D. B, C and E are
-locked. Learning actions remain disabled: no prediction, Check assessment,
-completion or pedagogical reducer exists yet. Choosing another fixture loads
+Root dragging and keyboard adjustment work in A and D. B, C and E are
+locked. Preview learning actions remain disabled. Choosing another fixture loads
 its reference root and cancels any old input transaction; it does not represent
 a learner's transition or a learner-controlled stage skip.
 
@@ -23,33 +40,36 @@ transaction. `math.movingRoot` remains the previous settled integer until releas
 The graph's curve, root landmarks, vertex, marker, halo and hit region all use the
 same continuous candidate. Cancellation discards it; release computes the final
 pointer coordinate and commits its nearest permitted integer immediately.
-Keyboard and adjustment buttons continue to make whole-integer placements.
+Keyboard Arrow keys, Home and End continue to make whole-integer placements.
+Visible adjustment buttons and the separate root-position strip have been removed;
+the pure adjustment preparation and reducer placement actions remain available.
+A touch-only learner who cannot drag needs an alternative input method. A labelled
+position input opened on request is recommended, pending product approval.
 
 `RootsFactorsScene.graphicalRoot` describes the actual geometry;
 `displayRoot` is its nearest integer (half steps round away from zero). The
-expression, root badge, readout and slider announcements use `displayRoot`.
+expression, root badge and slider announcements use `displayRoot`.
 `expressionIsRounded` explicitly identifies the temporary presentation mismatch,
 without adding new visible approximation notation. No independent display or
 graphical state is stored. Graph accessibility text explains the rounding when
 the graphical value is fractional, rather than describing the factor as exact.
 
-`RootsFactorsLayoutPreview` mounts the same `RootsFactorsController`, `RootsFactorsView`, `ActivityFrame`,
-graph, expression, adjustment and prompt renderers used by the activity entry.
-The selector, fixtures, disclaimer and collapsed session-note probe are lab-only.
+`RootsFactorsLayoutPreview` retains its manipulation-only controller and mounts
+the same `RootsFactorsView`, `ActivityFrame`, graph, expression, prompt and footer
+navigation renderers as the guided activity. The selector, fixtures, restart control,
+disclaimer and collapsed session-note probe are lab-only.
 The selector and all five options must remain until the user explicitly authorises
 removal. Any future teacher/student stage navigation is a separate product decision.
 The session probe exists solely to test preservation and reset boundaries.
 
-When Checkpoints 3–5 provide real activity state and policy:
+Checkpoint 5 extends the retrieval-entry lesson and explicit actions; it must not
+teach renderers to assess answers or turn the lab selector into learner progression.
+Root/lesson session assertions now supplement the original session-note probe.
 
-1. Retain the shared view, renderers, pure layout functions and plain contracts.
-2. Replace the activity entry's static initial presentation with reducer-driven
-   data and semantic dispatch; replace hardcoded inactive action flags with
-   explicit policy inputs. Do not teach the renderers to assess answers.
-3. Keep the lab selector and its separate fixture/input boundary. Do not map it
-   to learner progression or remove it without explicit approval.
-4. Supplement the session-probe assertions with real activity-state assertions.
-   Menu preservation and actual experience-change resets must stay unchanged.
+Stage changes focus the new instruction heading, whose description contains the
+instruction. Eligibility is announced through a polite status region. Pointer
+movement does not refocus or continuously announce state. Returning from a preview
+leaves focus on the selector so keyboard preview navigation remains predictable.
 
 Deep freezing remains active in production for newly prepared scenes. The view
 memoizes preparation by mathematics, measured dimensions and display policy;
@@ -64,7 +84,9 @@ fractional-layout timings are measured before considering additional optimisatio
 `layoutPerformance.spec.ts` reports local diagnostic timings, not device targets.
 
 The viewport-filling frame uses overlapping inaccessible, inert sizing slots for
-the longest normal prompt, expression and adjustment strip. Calibration digits
-are neutralised and tabular, so sizing does not expose a masked live factor.
+the longest normal prompt, expression and footer navigation. All non-whitespace
+prompt calibration characters, including signs and correctness labels, are replaced
+with neutral tabular glyphs. Expression/navigation calibration is neutral too;
+hidden sizing DOM does not retain solution text.
 The graph absorbs remaining height (210px minimum, 480px maximum); stage content
 cannot alter its geometry. Extra lab diagnostics sit below the activity surface.

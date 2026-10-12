@@ -15,9 +15,8 @@ export const rootMarkerGroupLayout = (projection: ProjectionSpec, factors: reado
       const displayRoot = displayRoots?.[factor.id] ?? factor.root;
       const moving = index !== 0;
       const closeToFixed = moving && fixedCenter !== null && Math.abs(center.x - fixedCenter.x) < 60;
-      const fixedCloseToMoving = !moving && factors.slice(1).some((other) => Math.abs(projectPoint(projection, { x: other.root, y: 0 }).x - center.x) < 60);
       const labelX = Math.max(projection.plot.x + 26, Math.min(projection.plot.x + projection.plot.width - 26, center.x));
-      const labelY = moving ? Math.max(projection.plot.y + 20, center.y - 46) : center.y + (coincident || fixedCloseToMoving ? 38 : -18);
+      const labelY = moving ? Math.max(projection.plot.y + 20, center.y - 46) : center.y + 38;
       const movementCue: Segment[] = [];
       if (moving && presentation === "orientation") {
         for (const direction of [-1, 1]) {

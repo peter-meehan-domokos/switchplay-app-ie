@@ -3,11 +3,24 @@ import { rootsFactorsLayout } from "../activities/roots-factors/rootsFactorsLayo
 import { card1Vertex, createCard1Math } from "../activities/roots-factors/model";
 import { projectPoint } from "../core/graph/coordinatePlaneLayout";
 import { layoutPreviewFixtures } from "../lab/layoutPreviewFixtures";
+import { guidedPresentation, rootAdjustmentLayout } from "../activities/roots-factors/presentationLayouts";
+
+test("Next is a secondary navigation action governed only by existing eligibility and editing policy", () => {
+  for (const eligible of [false, true]) for (const editing of [false, true]) for (const active of [false, true]) {
+    const prompt = guidedPresentation({ stage: "orientation" }, eligible, editing, active).prompt;
+    expect(prompt.title).toBe("Explore");
+    expect(prompt.actions).toEqual([]);
+    expect(prompt.navigation).toEqual({ id: "ready", label: "Next", appearance: "secondary", enabled: eligible && !editing && active });
+  }
+  // Retained portable adjustment preparation is available to future alternate interfaces.
+  expect(rootAdjustmentLayout(0, true, [0, 5]).actions.map((action) => action.enabled)).toEqual([false, true]);
+  expect(rootAdjustmentLayout(5, true, [0, 5]).actions.map((action) => action.enabled)).toEqual([true, false]);
+});
 
 test("static preview content retains the agreed maths and contains no enabled actions", () => {
   for (const fixture of Object.values(layoutPreviewFixtures)) {
     expect(fixture.presentation.prompt.actions.every((action) => !action.enabled)).toBe(true);
-    expect(fixture.presentation.adjustments?.actions.every((action) => !action.enabled) ?? true).toBe(true);
+    expect(fixture.presentation.prompt.navigation?.enabled ?? false).toBe(false);
     expect(Object.isFrozen(fixture.presentation.prompt.actions)).toBe(true);
   }
   const reveal = layoutPreviewFixtures["incorrect-reveal"];
@@ -64,13 +77,12 @@ test("movement cues are orientation-only and halo is absent in locked presentati
   }
 });
 
-test("compact fixed label surface preserves the proximity rule and remains within the graph", () => {
+test("compact fixed label surface remains below the axis without proximity jumps", () => {
   for (const size of [{ width: 296, height: 210 }, { width: 366, height: 406 }, { width: 704, height: 480 }]) {
     for (const root of [-5, 0, 1, 1.1, 3, 5]) {
       const { graph } = rootsFactorsLayout({ movingRoot: root }, size);
       const [fixed, moving] = graph.roots.markers;
-      const close = Math.abs(moving.center.x - fixed.center.x) < 60;
-      expect(fixed.positionLabel.position.y).toBe(fixed.center.y + (close ? 38 : -18));
+      expect(fixed.positionLabel.position.y).toBe(fixed.center.y + 38);
       expect(fixed.labelBackground).toEqual({ x: fixed.center.x - 22, y: fixed.positionLabel.position.y - 15, width: 44, height: 20 });
       const plate = fixed.labelBackground!;
       expect(plate.x).toBeGreaterThanOrEqual(0);

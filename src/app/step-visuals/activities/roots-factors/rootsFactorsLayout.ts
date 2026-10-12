@@ -26,7 +26,7 @@ export const rootsFactorsLayout = (math: Card1GraphMath, size: Size, policy: Roo
       size, plane, xDomain: card1Domains.x, yDomain: card1Domains.y,
       evaluate: card1Evaluator(math), displayRoots: { "moving-root": displayRoot },
       landmarks: [...factors.map((factor) => factor.root), vertex.x], factors, markerPresentation: policy.markerPresentation, inputPolicy,
-      accessibleDescription: `${expression.accessibleDescription}. Upward-opening quadratic. Fixed root at x = 1; movable root ${expressionIsRounded ? "label" : "at"} x = ${formatNumber(displayRoot)}. ${expressionIsRounded ? "The curve follows the continuous drag position; root labels and factor notation are rounded." : `Vertex at (${formatNumber(vertex.x)}, ${formatNumber(vertex.y)}).`} Horizontal domain −6 to 6; vertical domain −10 to 10. ${inputPolicy?.enabled ? "Drag the movable root or use its keyboard and adjustment controls." : "Root adjustment is locked."}`,
+      accessibleDescription: `${expression.accessibleDescription}. Upward-opening quadratic. Fixed root at x = 1; movable root ${expressionIsRounded ? "label" : "at"} x = ${formatNumber(displayRoot)}. ${expressionIsRounded ? "The curve follows the continuous drag position; root labels and factor notation are rounded." : `Vertex at (${formatNumber(vertex.x)}, ${formatNumber(vertex.y)}).`} Horizontal domain −6 to 6; vertical domain −10 to 10. ${inputPolicy?.enabled ? "Drag the movable root or use its arrow keys, Home and End." : "Root adjustment is locked."}`,
     }),
   });
 };

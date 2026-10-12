@@ -8,10 +8,12 @@
 .spvLabName { margin: 0; font-size: 0.9rem; font-weight: 700; }
 .spvHost { --spv-surface-height: calc(100dvh - 52px - env(safe-area-inset-top) - 6px - max(12px, env(safe-area-inset-bottom))); display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 52px); margin-inline: auto; padding: 6px 12px max(12px, env(safe-area-inset-bottom)); }
 .spvPreviewSelector { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
-.spvPreviewSelector span { flex-shrink: 0; color: #68746d; font-size: 0.65rem; line-height: 1.2; }
-.spvPreviewSelector select { min-width: 0; width: 100%; max-width: 245px; min-height: 44px; padding: 6px; border: 1px solid #d0d9ce; border-radius: 8px; background: #fffdf8; color: #435349; font-family: inherit; font-size: 1rem; }
+.spvPreviewSelector select { min-width: 0; width: 100%; max-width: 245px; min-height: 44px; padding: 6px; border: 1px solid #d0d9ce; border-radius: 8px; background: #fffdf8; color: #435349; font-family: inherit; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; }
 .spvPreviewSelector select:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
 .spvPreviewDisclaimer { margin: 8px 0 0; color: #68746d; font-size: 0.65rem; line-height: 1.4; }
+.spvGuidedTools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.spvRestart { min-height: 44px; padding: 8px 10px; border: 1px solid #c9d1c9; border-radius: 8px; background: #fffdf8; color: #435349; font: inherit; font-size: 0.8rem; }
+.spvRestart:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
 .spvSessionProbe { margin-top: 8px; color: #5b6861; font-size: 0.75rem; }
 .spvSessionProbe summary { display: list-item; min-height: 44px; padding: 10px 0; cursor: pointer; }
 .spvSessionProbe label { display: block; margin: 4px 0; }

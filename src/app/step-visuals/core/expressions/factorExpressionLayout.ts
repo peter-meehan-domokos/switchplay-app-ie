@@ -16,6 +16,6 @@ export const factorExpressionLayout = (factors: readonly LinearFactor[], maskedI
 
 /** Neutral, inaccessible calibration content; no current answer-bearing factor is retained. */
 export const factorExpressionSizingLayout = (): FactorExpressionScene => immutable({
-  prefix: "f(x) =", accessibleDescription: "",
-  factors: [{ id: "sizing-fixed", role: "fixed-root", text: "(x − 0)" }, { id: "sizing-moving", role: "moving-root", text: "(x + 0)" }],
+  prefix: "000000", accessibleDescription: "",
+  factors: [{ id: "sizing-fixed", role: "fixed-root", text: "0000000" }, { id: "sizing-moving", role: "moving-root", text: "0000000" }],
 });
