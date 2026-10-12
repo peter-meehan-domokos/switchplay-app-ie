@@ -129,6 +129,30 @@ export async function libraryCollection(repo: CardRepository, actor: string, opt
   });
 }
 
+// Discovery consumes the complete public set in the caller's snapshot. Ordinary
+// Library pagination must not discard relevant Decks before Framework ranking.
+export async function publishedLibraryEntries(repo: CardRepository, actor: string, session: ClientSession): Promise<LibraryEntry[]> {
+  authenticated(actor);
+  const entries: LibraryEntry[] = [];
+  let after: string | undefined;
+  while (true) {
+    const roots = await repo.decks().find({ visibility: "public", latestVersion: { $gte: 1 },
+      ...(after === undefined ? {} : { deckTemplateId: { $gt: after } }) }, { session, projection: deckProjection })
+      .sort({ deckTemplateId: 1 }).limit(50).toArray();
+    if (!roots.length) break;
+    const versions = await repo.deckVersions().find({ $or: roots.map((root) => ({ deckTemplateId: root.deckTemplateId, version: root.latestVersion })) },
+      { session, projection: versionProjection }).toArray();
+    const byId = new Map(versions.map((version) => [version.deckTemplateId, version]));
+    entries.push(...await projectSelections(repo, roots.map((root) => {
+      const version = byId.get(root.deckTemplateId);
+      return { ...root, version, publicationOrder: version?.visibility === "public" && publicationTimestamp(version.publishedAt) ? version.publishedAt : null };
+    }), session));
+    after = roots[roots.length - 1].deckTemplateId;
+    if (roots.length < 50) break;
+  }
+  return entries;
+}
+
 export async function libraryDetail(repo: CardRepository, actor: string, deckTemplateId: string): Promise<LibraryEntry> {
   authenticated(actor); entityIds([deckTemplateId]);
   return repo.transaction(async (session) => {

@@ -80,12 +80,13 @@ test("configured order, independent session expansion, blank/zero/all-skipped/in
     await expect(row(page, "direct").locator("td").nth(0)).toHaveText("");
     await expect(row(page, "other-item").locator("td").nth(0)).toHaveText("");
     await expect(row(page, "other-item").locator("td").nth(1)).toHaveText("");
-    await expect(row(page, "partial").getByLabel("Completion unavailable")).toBeVisible();
+    await expect(row(page, "partial").getByLabel("Completion unavailable")).toBeAttached();
+    await expect(row(page, "partial").locator("td").first()).toHaveText("");
     await expect(row(page, "partial").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("+ Test");
     expect(histories).toBe(0); expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
     await expect(page.locator('tr[data-area-id="skills"] .progress-content-title')).toBeEnabled();
     await page.getByRole("button", { name: "Collapse Algebra", exact: true }).press("Enter"); await expect(row(page, "control")).toBeHidden();
-    await expect(row(page, "other-item")).toBeVisible(); await expect(page.locator('tr[data-area-id="skills"]').getByLabel("Completion unavailable")).toBeVisible();
+    await expect(row(page, "other-item")).toBeVisible(); await expect(page.locator('tr[data-area-id="skills"]').getByLabel("Completion unavailable")).toBeAttached();
     await page.getByLabel("Framework", { exact: true }).selectOption("alternative"); await expect(row(page, "alternative-item")).toBeVisible();
     await page.getByLabel("Framework", { exact: true }).selectOption("practice"); await expect(page.getByRole("button", { name: "Expand Algebra", exact: true })).toBeVisible();
     await page.reload(); await expect(page.getByRole("button", { name: "Expand Algebra", exact: true })).toBeVisible();
@@ -199,7 +200,8 @@ test("an obsolete summary cannot replace a new Framework and refresh failures ne
     await expect(page.getByRole("region", { name: "Alternative Framework", exact: true })).toBeVisible(); await expect(row(page, "control")).toHaveCount(0);
     await page.route("**/api/frameworks/alternative/summary", (route) => route.fulfill({ status: 500, headers: { "X-Personal-Viewer": f.actor }, json: { error: "database unavailable" } }));
     await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await expect(page.locator("main").getByRole("alert")).toContainText("Progress could not be loaded");
-    await expect(row(page, "alternative-item").getByLabel("Completion unavailable")).toBeVisible();
+    await expect(row(page, "alternative-item").getByLabel("Completion unavailable")).toBeAttached();
+    await expect(row(page, "alternative-item").locator("td").first()).toHaveText("");
     await expect(row(page, "alternative-item").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("+ Test");
     await page.unroute("**/api/frameworks/alternative/summary"); await page.getByRole("button", { name: "Refresh progress" }).click();
     await expect(row(page, "alternative-item").locator("td").nth(0)).toHaveText("33%");

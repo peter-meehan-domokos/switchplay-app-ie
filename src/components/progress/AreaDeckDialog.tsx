@@ -4,13 +4,16 @@ import { useRouter } from "next/navigation";
 import LibraryDialog from "@/components/library/LibraryDialog";
 import DeckFrontContents from "@/components/decks/DeckFrontContents";
 import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
-import { workingDeckHref } from "@/components/library/libraryClient";
+import { libraryFetch, LibraryRequestError, workingDeckHref } from "@/components/library/libraryClient";
 import { flushPersonalMutations } from "@/lib/deckMutations";
-import type { AreaDeckDestination, AreaDestinations, DestinationSection } from "@/lib/frameworks/destinations";
+import type { AreaDeckDestination, AreaDestinations, DestinationSection, LibraryDeckDestination } from "@/lib/frameworks/destinations";
+import type { LibraryEntry } from "@/lib/cards/libraryProjection";
 import { withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import styles from "./areaDialog.module.css";
 
 function errorMessage(cause: unknown) {
+  if (cause instanceof LibraryRequestError && cause.code === "LIBRARY_DECK_FORBIDDEN") return "This public Deck is no longer accessible. Refresh Decks before continuing.";
+  if (cause instanceof LibraryRequestError) return cause.message;
   if (cause instanceof WorkingRequestError) return cause.code === "UPDATE_SESSION_CONFLICT" || cause.code === "Unauthorized"
     ? "Your sign-in changed. Reload Progress before continuing."
     : cause.code.includes("REVISION") ? "Your Deck membership changed. Refresh the list before continuing."
@@ -25,6 +28,7 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
   const [data, setData] = useState<AreaDestinations>(), [error, setError] = useState("");
   const [loading, setLoading] = useState(true), [pending, setPending] = useState<string | null>(null);
   const [selected, setSelected] = useState<AreaDeckDestination | null>(null);
+  const libraryController = useRef<AbortController | null>(null);
   const [expanded, setExpanded] = useState({ active: true, archived: false, library: false });
   const load = async (signal?: AbortSignal) => {
     const result = await workingRequest<AreaDestinations>(actor,
@@ -38,7 +42,7 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
     void load(controller.signal).then((result) => { if (!controller.signal.aborted) { setData(result); setError(""); } },
       (cause: unknown) => { if (!controller.signal.aborted) setError(errorMessage(cause)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => { live.current = false; controller.abort(); };
+    return () => { live.current = false; controller.abort(); libraryController.current?.abort(); };
     // Each dialog is keyed by actor, Framework and Area.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actor, frameworkId, areaId]);
@@ -47,6 +51,22 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
     try { const result = await load(); if (live.current) { setData(result); setSelected(null); } }
     catch (cause) { if (live.current) setError(errorMessage(cause)); }
     finally { if (live.current) setLoading(false); }
+  };
+  const selectLibrary = async (entry: LibraryDeckDestination) => {
+    if (running.current) return;
+    running.current = true; setPending(entry.deckTemplateId); setError(""); setSelected(null);
+    const controller = new AbortController(); libraryController.current = controller;
+    try {
+      const auth = await libraryFetch<{ user: { id: string } | null }>("/api/auth/me", controller.signal);
+      if (auth.user?.id !== actor) throw new Error("Your sign-in changed. Reload Progress before continuing.");
+      const detail = await libraryFetch<LibraryEntry>(`/api/library/decks/${encodeURIComponent(entry.deckTemplateId)}`, controller.signal);
+      if (detail.availability !== "available" || detail.deckTemplateId !== entry.deckTemplateId) throw new Error("This public Deck is unavailable. Refresh Decks before continuing.");
+      if (JSON.stringify(detail.manifest) !== JSON.stringify(entry.manifest)) throw new Error("This publication changed. Refresh Decks and review it before continuing.");
+      if (!live.current || controller.signal.aborted) return;
+      onLeaving();
+      router.push(withProgressReturn(`/library/${encodeURIComponent(entry.deckTemplateId)}`, { frameworkId, areaId }));
+    } catch (cause) { if (live.current && !controller.signal.aborted) setError(errorMessage(cause)); }
+    finally { running.current = false; if (live.current) setPending(null); }
   };
   const open = async (entry: AreaDeckDestination, restore: boolean) => {
     if (running.current) return;
@@ -81,7 +101,7 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
           <DeckFrontContents front={entry.front} />
           <button type="button" className={styles.select} disabled={pending !== null || loading || !!error || entry.availability !== "available"}
             aria-label={`${kind === "active" ? "Open" : "Select archived"} ${entry.front.title}`}
-            onClick={() => kind === "active" ? void open(entry, false) : setSelected(entry)} />
+            onClick={() => { if (kind === "active") void open(entry, false); else setSelected(entry); }} />
         </article>
         <span className={styles.matching}>{entry.matchingCardCount} matching {entry.matchingCardCount === 1 ? "Card" : "Cards"}</span>
         {entry.availability === "unavailable" ? <p className={styles.notice}>This Deck is currently unavailable.</p> : null}
@@ -97,13 +117,24 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
     <button type="button" className={styles.close} disabled={pending !== null} onClick={onClose}>Close</button>
     {loading ? <p role="status">Loading Decks…</p> : null}
     {error ? <p role="alert">{error} <button type="button" disabled={pending !== null} onClick={() => void refresh()}>Refresh Decks</button></p> : null}
-    {!loading && !error && data && [data.myDecks, data.archived].some((section) => section.state === "incomplete") ?
+    {!loading && !error && data && [data.myDecks, data.archived, data.library].some((section) => section.state === "incomplete") ?
       <button type="button" disabled={pending !== null} onClick={() => void refresh()}>Refresh Decks</button> : null}
     {renderSection("active", "My Decks", data?.myDecks)}
     {renderSection("archived", "Archived", data?.archived)}
     <section className={styles.section}><h3><button type="button" className={styles.toggle} aria-expanded={expanded.library} aria-controls="area-decks-library"
       onClick={() => setExpanded((state) => ({ ...state, library: !state.library }))}>
-      Library<span className={styles.count}>—</span><span aria-hidden="true">{expanded.library ? "⌄" : "›"}</span>
-    </button></h3><div id="area-decks-library" hidden={!expanded.library}><p className={styles.notice}>Library content will be available here in the next checkpoint.</p></div></section>
+      Library<span className={styles.count}>{data?.library.count ?? "—"}</span><span aria-hidden="true">{expanded.library ? "⌄" : "›"}</span>
+    </button></h3><div id="area-decks-library" hidden={!expanded.library}>
+      {data?.library.state === "incomplete" ? <p className={styles.notice} role="status">Some public Decks could not be checked. Available matches are shown; the total is unavailable.</p> : null}
+      {data?.library.state === "empty" ? <p className={styles.notice}>No matching Library Decks.</p> : null}
+      <div className={styles.grid}>{data?.library.entries.map((entry) => <div key={entry.deckTemplateId} data-destination={entry.deckTemplateId} data-context="library">
+        <article className={`deck-tile ${styles.tile}`}>
+          <DeckFrontContents front={entry.front} />
+          <button type="button" className={styles.select} disabled={pending !== null || loading || !!error}
+            aria-label={`Select Library ${entry.front.title}`} onClick={() => void selectLibrary(entry)} />
+        </article>
+        <span className={styles.matching}>{entry.matchingCardCount} matching {entry.matchingCardCount === 1 ? "Card" : "Cards"}</span>
+      </div>)}</div>
+    </div></section>
   </LibraryDialog>;
 }

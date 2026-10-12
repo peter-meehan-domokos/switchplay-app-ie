@@ -8,7 +8,7 @@ export function readProgressReturn(query: { get(key: string): string | null }): 
 export function withProgressReturn(href: string, context: ProgressReturn | null) {
   if (!context) return href;
   const url = new URL(href, "http://switchplay.local");
-  if (url.origin !== "http://switchplay.local" || url.pathname !== "/decks") return href;
+  if (url.origin !== "http://switchplay.local" || (url.pathname !== "/decks" && !/^\/library\/[^/]+$/.test(url.pathname))) return href;
   url.searchParams.set("progressFramework", context.frameworkId);
   if (context.areaId) url.searchParams.set("progressArea", context.areaId);
   if (context.restored) url.searchParams.set("progressRestored", "1");

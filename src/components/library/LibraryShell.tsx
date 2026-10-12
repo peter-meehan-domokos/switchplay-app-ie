@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DeckGrid from "@/components/decks/DeckGrid";
 import DeckScene from "@/components/decks/DeckScene";
 import DeckMenu from "@/components/decks/DeckMenu";
@@ -14,12 +14,15 @@ import type { PresentedCard } from "@/components/decks/presentation";
 import { deckPresentationIdentity } from "@/components/decks/presentation";
 import { deckEntryAction, libraryFetch, LibraryRequestError, workingDeckHref } from "./libraryClient";
 import LibraryDialog from "./LibraryDialog";
+import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
+import { flushPersonalMutations } from "@/lib/deckMutations";
 
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName }: {
   initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string;
 }) {
   const router = useRouter();
+  const progressReturn = readProgressReturn(useSearchParams());
   const [collection, setCollection] = useState(initialCollection);
   const [entry, setEntry] = useState(initialEntry);
   const [status, setStatus] = useState<LibraryViewerStatusDTO | null>(null);
@@ -101,7 +104,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   const membership = status?.decks.find((data) => data.deckTemplateId === active?.deckTemplateId);
   async function primaryAction() {
     if (!active || !membership) return;
-    if (membership.state === "active") { await perform("open", async (signal) => { await current(signal); if (!signal.aborted) router.push(workingDeckHref(active.deckTemplateId)); }); return; }
+    if (membership.state === "active") { await perform("open", async (signal) => { await current(signal); if (!signal.aborted) router.push(withProgressReturn(workingDeckHref(active.deckTemplateId), progressReturn)); }); return; }
     await perform(membership.state === "archived" ? "restore" : "add", async (signal) => {
       const result = await libraryFetch<PersonalEntryResult>(`/api/library/decks/${encodeURIComponent(active.deckTemplateId)}/${membership.state === "archived" ? "restore" : "add"}`, signal,
         membership.state === "archived" ? { membershipRevision: membership.membershipRevision } : { manifest: active.manifest }, currentUserId);
@@ -118,8 +121,8 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
       const choices = next?.cards.find((card) => card.cardTemplateId === cardId)?.activeDecks ?? [];
       if (destination) {
         if (!choices.some((deck) => deck.deckTemplateId === destination)) { setChooser(null); throw new Error("That Deck is no longer available for this Card."); }
-        router.push(workingDeckHref(destination, cardId));
-      } else if (choices.length === 1) router.push(workingDeckHref(choices[0].deckTemplateId, cardId));
+        router.push(withProgressReturn(workingDeckHref(destination, cardId), progressReturn));
+      } else if (choices.length === 1) router.push(withProgressReturn(workingDeckHref(choices[0].deckTemplateId, cardId), progressReturn));
       else if (choices.length > 1) setChooser({ cardId, destinations: choices });
       else throw new Error("This Card is no longer in an active Deck in My Decks.");
     });
@@ -146,12 +149,19 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
         {pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state)}
       </button>
       <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} transition={transition}
-        onBack={() => router.push("/library")} cardActions={cardAction}
+        backLabel={progressReturn ? "Back to Progress" : "Back"}
+        onBack={() => {
+          if (!progressReturn) { router.push("/library"); return; }
+          void perform("back", async (signal) => {
+            await flushPersonalMutations();
+            if (!signal.aborted) router.push(progressReturnHref(progressReturn), { scroll: false });
+          });
+        }} cardActions={cardAction}
         deckActions={membership?.canEditInCreator ? <DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
           editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?${new URLSearchParams({ returnTo: "library", returnDeckId: active.deckTemplateId,
             version: String(active.manifest.deckVersion), cards: JSON.stringify(active.manifest.cards) })}`} /> : undefined}
         renderFocusedCard={(props) => <FocusedCardView {...props} overlays={cardAction(props.card)} />} />
-    </> : entry ? <section className="library-unavailable"><Link href="/library">Back to Library</Link><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
+    </> : entry ? <section className="library-unavailable"><Link href={progressReturn ? progressReturnHref(progressReturn) : "/library"}>{progressReturn ? "Back to Progress" : "Back to Library"}</Link><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
       <DeckGrid orderedEntries={(collection?.entries ?? []).map((item) => item.availability === "available" ? item.deck : {
         id: item.deckTemplateId, unavailable: <div className="deck-tile library-unavailable-tile"><Link href={`/library/${encodeURIComponent(item.deckTemplateId)}`}>Unavailable Deck</Link><p>Public content needs attention.</p></div>,
       })} decks={(collection?.entries ?? []).flatMap((item) => item.availability === "available" ? [item.deck] : [])}

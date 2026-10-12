@@ -264,10 +264,9 @@ keyboard operation, usable touch targets and narrow-screen layouts.
 
 ## Area Deck selection and returning to Progress [Phase 7]
 
-An Area lists adopted Decks containing at least one Card mapped to one of its Items,
-including Cards mapped through canonical fork ancestry. My Decks starts expanded;
-Archived and Library start collapsed. Library discovery is not implemented in this
-checkpoint; its section clearly indicates that integration is forthcoming.
+An Area lists adopted and published Library Decks containing at least one Card mapped
+to one of its Items, including Cards mapped through canonical fork ancestry. My Decks
+starts expanded; Archived and Library start collapsed. Each section has its own count.
 
 Decks use the same front visuals as the existing Deck tiles, with personal completion
 and confidence where available. These are static selection representations: no video
@@ -275,11 +274,34 @@ player or working Card controller is mounted. Simply viewing them changes no lea
 state. Decks are ordered by descending distinct matching-Card count, then title and
 stable Deck identity. Repeated references count once; an original and its fork count
 separately. Unmapped Cards still contribute to the Deck's ordinary personal metadata.
-The adopted Deck composition and independently adopted Card versions remain authoritative.
+The adopted Deck composition and independently adopted Card versions remain authoritative
+in My Decks and Archived. Library uses the current public Deck composition and current
+public Card versions. Discovery considers the complete public set before matching and
+ranking, so an ordinary Library page boundary cannot hide a relevant Deck.
+
+A Deck appears in at most one Progress section: relevant active memberships under
+My Decks, relevant archived memberships under Archived, and matching published Decks
+without either membership under Library. Exclusion uses the canonical Deck template identity, not
+the title, shared Cards or publication version. Distinct Deck forks remain separate.
+Reopening the Area modal refreshes membership placement and section counts after
+adding, archiving or restoring. This rule applies only to Progress: the main Library
+continues showing all eligible publications, including personally adopted Decks.
+The Progress Library front shows only canonical public content and creator attribution,
+never personal completion, confidence or assessment state. Selecting a Library front opens that exact published
+Deck in the existing Library interface, where its Cards can be browsed before deciding
+whether to add it. Selection does not import, restore or update anything. Add, Restore
+and Open in My Decks remain explicit actions in Library, not duplicate Area-modal actions.
+Returning to Progress refreshes the section counts after an Add or Restore.
+Existing personal Card and Deck versions are preserved; public and working versions
+may differ. Publication or membership changes require refresh and review before retrying.
+The existing Library workflow handles import recovery; reopening the Library Deck
+checks its membership before offering another action.
 
 Missing required data is distinguished from an empty section. Readable matches remain
 visible, unavailable Decks cannot be opened, and an uncertain total is shown as unavailable.
-A failed database read offers retry rather than presenting an empty list.
+A failed database read offers retry rather than presenting an empty list. Unavailable
+public content makes Library discovery incomplete when its relevance cannot be established;
+valid matches remain visible and inaccessible content is not offered as a destination.
 
 Selecting an active Deck opens it directly, preserving its valid Deck-specific active
 Card. Selecting an archived Deck first reveals Restore and open; only that explicit
@@ -287,7 +309,9 @@ action restores it. Membership and access are rechecked before entry. If restora
 succeeds but opening fails, the Deck remains restored and the learner can retry opening
 or return to Progress. No automatic reversal discards a successful restoration.
 
-Progress-origin working views offer Back to Progress. Return waits for outstanding
+Progress-origin working and Library views use the same Back to Progress control in
+the same Deck-header position. Adding a Deck in Library, or explicitly continuing to
+My Decks from Library, retains this return destination. Return waits for outstanding
 personal work and restores the selected Framework, session-scoped Area expansion and
 scroll position where the browser permits it. Progress rereads saved completion,
 confidence and assessments. Creator retains its established My Decks origin, with the

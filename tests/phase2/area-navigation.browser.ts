@@ -161,7 +161,7 @@ for (const width of [320, 390, 1280]) test(`Area modal visual/front selection, s
     await page.setViewportSize({ width, height: 800 }); await show(page);
     await dialog(page).getByRole("button", { name: /^Archived/ }).click();
     await dialog(page).getByRole("button", { name: /^Library/ }).click();
-    await expect(dialog(page).getByText("Library content will be available here in the next checkpoint.")).toBeVisible();
+    await expect(dialog(page).getByText("No matching Library Decks.", { exact: true })).toBeVisible();
     const box = await dialog(page).boundingBox(); expect(box!.width).toBeLessThanOrEqual(width - 20);
     expect(await dialog(page).evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     // Natural tile height must keep personal metadata inside the visible front.

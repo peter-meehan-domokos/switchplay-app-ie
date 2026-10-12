@@ -25,6 +25,10 @@ test("Progress return destinations are local and session scroll remains actor/Fr
   assert.equal(withProgressReturn("/decks?openDeck=deck&openCard=card", context), "/decks?openDeck=deck&openCard=card&progressFramework=practice&progressArea=skills&progressRestored=1");
   assert.equal(progressReturnHref(context), "/progress?framework=practice&area=skills");
   assert.equal(withProgressReturn("https://example.com/decks", context), "https://example.com/decks");
+  assert.equal(withProgressReturn("/library/public-deck", context), "/library/public-deck?progressFramework=practice&progressArea=skills&progressRestored=1");
+  assert.equal(withProgressReturn("/library", context), "/library");
+  assert.equal(withProgressReturn("https://example.com/library/public-deck", context), "https://example.com/library/public-deck");
+  assert.equal(withProgressReturn("/library/public-deck", null), "/library/public-deck");
   assert.equal(readProgressReturn(new URLSearchParams("progressFramework=%20bad")), null);
   const values = new Map<string, string>(), storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };
   rememberProgressPosition(storage, "alice", "practice", 450);
