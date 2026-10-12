@@ -17,6 +17,9 @@
 .spvExpression { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 0.25em; margin: 0; color: #24332f; font-size: 1.1rem; line-height: 1.4; }
 .spvFixedFactor { color: #5b6861; }
 .spvMovingFactor { color: #28634f; font-weight: 700; }
+.spvRootTask { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0.8em; color: #435349; font-size: 1.1rem; line-height: 1.4; }
+.spvRootTask span { white-space: nowrap; }
+.spvTaskFactor { display: inline-flex; align-items: baseline; gap: 0.25em; }
 .spvRootSlider { position: absolute; z-index: 1; border: 0; border-radius: 50%; background: transparent; touch-action: none; cursor: grab; user-select: none; }
 .spvRootSlider[data-editing="true"] { cursor: grabbing; }
 .spvRootSlider:focus-visible { outline: 2px dashed #28634f; outline-offset: 2px; }

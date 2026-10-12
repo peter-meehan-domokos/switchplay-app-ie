@@ -15,6 +15,7 @@ export default memo(function ActivityPrompt({ scene, onAction, sizing = false, s
     <div className={styles.spvPrompt} data-spv-prompt={sizing ? undefined : true}>
       <h2 className={styles.spvPromptTitle} ref={heading} tabIndex={stageKey ? -1 : undefined} aria-describedby={stageKey ? instructionId : undefined}>{scene.title}</h2>
       {scene.target ? <p className={styles.spvTarget}>{scene.target}</p> : null}
+      {scene.summary.map((text) => <p className={styles.spvInstruction} key={text}>{text}</p>)}
       {scene.comparison.length ? <dl className={styles.spvComparison}>{scene.comparison.map((row) => (
         <div className={styles.spvComparisonRow} key={row.label}>
           <dt>{row.label}<span className={styles.spvFactorLabel}>{row.factor}</span></dt>
@@ -25,7 +26,9 @@ export default memo(function ActivityPrompt({ scene, onAction, sizing = false, s
       <p className={styles.spvInstruction} id={stageKey ? instructionId : undefined}>{scene.instruction}</p>
       {scene.feedback ? <p className={styles.spvFeedback}>{scene.feedback}</p> : null}
       {scene.actions.length ? <div className={styles.spvActions}>{scene.actions.map((action) => <button key={action.id} className={action.appearance === "primary" ? styles.spvPrimaryAction : styles.spvSecondaryAction} type="button" disabled={!action.enabled || !onAction} onClick={() => onAction?.(action.id)}>{action.label}</button>)}</div> : null}
-      {stageKey ? <span className={styles.spvStatus} role="status" aria-live="polite">{announceEligibility ? "Next is now available." : ""}</span> : null}
+      {stageKey ? <span className={styles.spvStatus} role="status" aria-live="polite" aria-atomic="true">
+        {scene.announcement ? <span key={scene.announcement.id}>{scene.announcement.text}</span> : announceEligibility ? "Next is now available." : ""}
+      </span> : null}
     </div>
   );
 });

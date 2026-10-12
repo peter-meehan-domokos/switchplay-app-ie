@@ -7,6 +7,8 @@ export type Card1Math = Readonly<{ movingRoot: RootInteger }>;
 /** Continuous geometry during an edit; settled state still uses Card1Math. */
 export type Card1GraphMath = Readonly<{ movingRoot: number }>;
 export const initialMath: Card1Math = immutable({ movingRoot: 3 });
+/** Card 1's fixed retrieval task, independent of any student placement. */
+export const retrievalTarget: LinearFactor = immutable({ id: "retrieval-target", root: -4 });
 
 export const createCard1Math = (movingRoot: number): Card1Math => {
   const root = finiteNumber(movingRoot);

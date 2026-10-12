@@ -1,8 +1,9 @@
 import { immutable } from "../core/immutable";
-import { createCard1Math, initialMath } from "../activities/roots-factors/model";
+import { createCard1Math, initialMath, retrievalTarget } from "../activities/roots-factors/model";
 import { activityPromptLayout, type RootsFactorsPresentation } from "../activities/roots-factors/presentationLayouts";
 import type { Card1Math } from "../activities/roots-factors/model";
 import type { RootInputPolicy } from "../core/interaction/rootInteraction";
+import { rootTaskLayout } from "../core/expressions/rootTaskLayout";
 
 export type LayoutPreviewMode = "orientation" | "prediction" | "incorrect-reveal" | "retrieval" | "assistance";
 export const layoutPreviewOptions = immutable([
@@ -16,12 +17,12 @@ export const previewInputPolicies: Readonly<Record<LayoutPreviewMode, RootInputP
   "incorrect-reveal": { enabled: false, bounds: [-5, 5] }, retrieval: { enabled: true, bounds: [-5, 5] }, assistance: { enabled: false, bounds: [-5, 5] },
 });
 const demonstratedMath = createCard1Math(-3);
-const target = { id: "target", root: -4 };
+const target = retrievalTarget;
 /** Temporary lab fixtures only: selecting a fixture is not a learning transition. */
 export const layoutPreviewFixtures: Readonly<Record<LayoutPreviewMode, LayoutFixture>> = immutable({
   orientation: { math: initialMath, presentation: { policy: { maskMovingFactor: false, markerPresentation: "orientation" }, prompt: activityPromptLayout({ kind: "orientation" }) } },
   prediction: { math: initialMath, presentation: { policy: { maskMovingFactor: false, markerPresentation: "locked" }, prompt: activityPromptLayout({ kind: "prediction" }) } },
   "incorrect-reveal": { math: demonstratedMath, presentation: { policy: { maskMovingFactor: false, markerPresentation: "locked" }, prompt: activityPromptLayout({ kind: "incorrect-reveal", root: -3, predicted: { id: "predicted", root: 3 }, actual: { id: "actual", root: -3 } }) } },
-  retrieval: { math: demonstratedMath, presentation: { policy: { maskMovingFactor: true, markerPresentation: "available" }, prompt: activityPromptLayout({ kind: "retrieval", target, incorrectFeedback: true }) } },
-  assistance: { math: demonstratedMath, presentation: { policy: { maskMovingFactor: true, markerPresentation: "locked" }, prompt: activityPromptLayout({ kind: "assistance", target }) } },
+  retrieval: { math: demonstratedMath, presentation: { policy: { maskMovingFactor: true, markerPresentation: "available" }, task: rootTaskLayout(target), prompt: activityPromptLayout({ kind: "retrieval", target, incorrectFeedback: true }) } },
+  assistance: { math: demonstratedMath, presentation: { policy: { maskMovingFactor: true, markerPresentation: "locked" }, task: rootTaskLayout(target), prompt: activityPromptLayout({ kind: "assistance", target }) } },
 });

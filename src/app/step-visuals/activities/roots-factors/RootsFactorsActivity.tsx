@@ -22,10 +22,11 @@ export default function RootsFactorsActivity({ onExit, visible = true }: RootsFa
   const policy = useMemo(() => learningInputPolicy(lesson, active), [lesson, active]);
   const revision = manipulation.revision;
   const onAction = useCallback((id: string) => {
-    if (id === "ready" || id === "continue") dispatch({ type: id, revision });
+    if (id === "ready" || id === "continue" || id === "check" || id === "explanation" || id === "start-again") dispatch({ type: id, revision });
     else if (id === "predict-minus" || id === "predict-plus") dispatch({ type: "predict", revision, choice: id === "predict-minus" ? "minus" : "plus" });
   }, [revision]);
   return visible ? <RootsFactorsView math={effectiveMath(manipulation)} presentation={presentation}
     manipulation={{ state: manipulation, policy, dispatch: rootDispatch }} onExit={onExit}
-    onPromptAction={onAction} stageKey={lesson.stage} announceEligibility={lesson.stage === "orientation" && manipulation.hasChangedPlacement} /> : null;
+    onPromptAction={onAction} stageKey={lesson.stage} promptKey={lesson.stage === "retrieval" ? `retrieval-${lesson.panel}` : lesson.stage}
+    announceEligibility={lesson.stage === "orientation" && manipulation.hasChangedPlacement} /> : null;
 }

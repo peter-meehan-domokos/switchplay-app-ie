@@ -164,7 +164,7 @@ test("continuous negative dragging, fractional cancellation and final-coordinate
     await page.mouse.move(point.x, point.y);
     await value(page, label);
     await expectPointerPosition(page, Math.max(-5, root));
-    await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times a hidden factor");
+    await expect(page.getByRole("math")).toHaveAccessibleName("Factor: (x + 4). Root = ?");
   }
   await slider(page).dispatchEvent("pointercancel", { pointerId: 1, isPrimary: true });
   await page.mouse.up();
@@ -277,7 +277,7 @@ test("locked previews reject manipulation; retrieval stays masked and cannot com
   await slider(page).focus();
   await page.keyboard.press("ArrowLeft");
   await value(page, -4);
-  await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times a hidden factor");
+  await expect(page.getByRole("math")).toHaveAccessibleName("Factor: (x + 4). Root = ?");
   await expect(page.getByRole("button", { name: "Check", exact: true })).toBeDisabled();
   await expect(page.getByRole("heading", { name: "Activity complete" })).toHaveCount(0);
 });

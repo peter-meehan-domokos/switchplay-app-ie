@@ -4,6 +4,8 @@ import { useMemo, useRef, type Dispatch } from "react";
 import ActivityFrame from "../../platform/web/ActivityFrame";
 import MathGraph from "../../platform/web/Graph";
 import FactorExpression from "../../platform/web/FactorExpression";
+import RootTask from "../../platform/web/RootTask";
+import { rootTaskSizingLayout } from "../../core/expressions/rootTaskLayout";
 import ActivityPrompt from "../../platform/web/ActivityPrompt";
 import ActivityNavigation from "../../platform/web/ActivityNavigation";
 import { useGraphMeasurement } from "../../platform/web/measurement";
@@ -18,14 +20,16 @@ import type { ManipulationAction, ManipulationState } from "./manipulation";
 
 const safeExpressionSizingScene = factorExpressionSizingLayout();
 const navigationSizingScene = activityNavigationSizingLayout();
+const taskSizingScene = rootTaskSizingLayout();
 
 /** Shared presentation and web-input bindings; no lab fixtures or learning transitions. */
-export default function RootsFactorsView({ math, presentation, manipulation, onExit, onPromptAction, stageKey, announceEligibility }: {
+export default function RootsFactorsView({ math, presentation, manipulation, onExit, onPromptAction, stageKey, promptKey, announceEligibility }: {
   math: Card1GraphMath; presentation: RootsFactorsPresentation;
   manipulation: Readonly<{ state: ManipulationState; policy: RootInputPolicy; dispatch: Dispatch<ManipulationAction> }>;
   onExit?: () => void;
   onPromptAction?: (id: string) => void;
   stageKey?: string;
+  promptKey?: string;
   announceEligibility?: boolean;
 }) {
   const { ref, size, ready } = useGraphMeasurement();
@@ -54,11 +58,11 @@ export default function RootsFactorsView({ math, presentation, manipulation, onE
             if (inputPolicy.enabled) place(root);
           }} />
       </div>}
-      expression={<FactorExpression scene={scene.expression} />}
-      expressionSizing={<FactorExpression scene={safeExpressionSizingScene} />}
+      expression={presentation.task ? <RootTask scene={presentation.task} /> : <FactorExpression scene={scene.expression} />}
+      expressionSizing={<><FactorExpression scene={safeExpressionSizingScene} /><RootTask scene={taskSizingScene} /></>}
       navigation={<ActivityNavigation action={presentation.prompt.navigation} onAction={onPromptAction} />}
       navigationSizing={<ActivityNavigation action={navigationSizingScene} sizing />}
-      prompt={<ActivityPrompt scene={presentation.prompt} onAction={onPromptAction} stageKey={stageKey} announceEligibility={announceEligibility} />}
+      prompt={<ActivityPrompt scene={presentation.prompt} onAction={onPromptAction} stageKey={promptKey ?? stageKey} announceEligibility={announceEligibility} />}
       promptSizing={promptSizingScenes.map((prompt, index) => <ActivityPrompt key={index} scene={prompt} sizing />)}
     />
   );

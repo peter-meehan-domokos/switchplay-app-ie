@@ -4,12 +4,52 @@ The default selector option mounts the independently reusable guided activity.
 The lab and its direct stage previews remain available in development and deployed
 previews, but are not exported with the activity.
 
-The genuine sequence is Explore → Predict → Test → Explain → Try (retrieval
-entry). One changed committed placement enables the compact footer Next action; the student then
+The genuine sequence is Explore → Predict → Test → Explain → Try → Finished.
+One changed committed placement enables
+the compact footer Next action; the student then
 chooses when to proceed. The selected orientation root is preserved through the
 next two stages. Only a settled placement at −3 reveals the explanation. The moving
-factor is masked in prediction and positioning. Continue retains −3, displays
-`(x + 4)` and enables adjustment, without Check, assistance or completion in C4.
+factor is masked in prediction and positioning. Next retains −3, displays
+`(x + 4)` and enables dragging/keyboard adjustment and an immediately available Check.
+
+Try evaluates only an explicit Check of the settled integer, using the target
+linear factor evaluator (not the quadratic, which is zero at every movable root).
+Dragging, snapping and keyboard placement cannot assess or complete the task.
+Check and help actions are unavailable during an active edit. Accepted assessment
+and panel actions increment the input revision so duplicate/stale actions are ignored.
+
+Retrieval owns immutable evidence: `checkAttempts`, `incorrectChecks` and
+`assistanceViewed`. A wrong Check records its checked root/attempt and offers help;
+only a genuinely changed committed placement clears visible retry feedback.
+Transient/cancelled/unchanged edits do not clear it. Help eligibility remains latched.
+Requested help preserves the current root and keeps manipulation enabled, shows the
+target equation/solution and retains Check in the footer. The explanation remains
+visible during editing, without a Try again barrier. Check is unavailable during a
+drag. An unsuccessful Check returns to the masked challenge, preserving assistance
+evidence; assistance never places or submits the root.
+
+A correct Check at −4 enters Finished, locks the root, unmasks its factor and shows
+the zero substitution. `successMode` is explicitly `independent` unless the Guided
+explanation was requested, otherwise `assisted`. Wrong attempts alone are not help.
+Both modes have identical calm presentation, without scores or visible mode labels.
+Preview E intentionally contains the answer but cannot affect Guided evidence;
+independent therefore means no explanation request within Guided, not proof of no
+answer exposure elsewhere. Start again resets the full guided lesson to root 3,
+bounds [0,5], no prediction/assistance/attempt evidence and an unavailable Next.
+The input revision increases and past pointer session IDs remain invalid. There is
+no post-completion free-exploration state.
+
+Try uses a portable `rootTaskLayout` scene to display `Factor: (x + 4)` separately
+from `Root = ?` in place of the current function equation. It never claims that the
+current plotted quadratic contains the target factor. Its graph description remains
+masked, and the unknown factor never appears as an ambiguous visible equation.
+
+Attempting the initially unavailable Next shows its prerequisite on demand. The
+button uses aria-disabled rather than native disabled for this specific case; click,
+tap, Enter and Space show a small positioned message and polite announcement without
+dispatching a lesson action. Escape, blur and outside input dismiss the message.
+This is ephemeral web presentation state, not progress or assessment state; the
+tooltip occupies no layout space. Preview/inactive/active-edit controls remain blocked.
 
 `RootsFactorsActivity` owns one composed reducer: portable `learningReducer`
 delegates root transactions to the existing `manipulationReducer` before evaluating
@@ -62,12 +102,15 @@ The selector and all five options must remain until the user explicitly authoris
 removal. Any future teacher/student stage navigation is a separate product decision.
 The session probe exists solely to test preservation and reset boundaries.
 
-Checkpoint 5 extends the retrieval-entry lesson and explicit actions; it must not
-teach renderers to assess answers or turn the lab selector into learner progression.
+Checkpoint 5 extends the retrieval lesson and explicit actions without teaching
+renderers to assess answers or turning the lab selector into learner progression.
 Root/lesson session assertions now supplement the original session-note probe.
 
-Stage changes focus the new instruction heading, whose description contains the
-instruction. Eligibility is announced through a polite status region. Pointer
+Stage and retrieval-panel changes focus the new instruction heading, whose description
+contains the instruction. A failed Check keeps focus on Check and announces prepared
+retry feedback through a persistent polite status region. Each accepted retry has
+a distinct announcement identity; no visible attempt counter is introduced.
+Eligibility is announced through the same status region. Pointer
 movement does not refocus or continuously announce state. Returning from a preview
 leaves focus on the selector so keyboard preview navigation remains predictable.
 

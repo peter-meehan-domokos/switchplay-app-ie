@@ -45,7 +45,7 @@ test.beforeEach(async ({ page }) => {
 test("quiet footer Next replaces redundant controls without moving the graph when enabled", async ({ page, browserName }) => {
   const next = page.getByRole("button", { name: "Next", exact: true });
   await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeVisible();
-  await expect(page.getByText("Drag the green root and see how the graph and factor change.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Drag the green root between 0 and 5 and see how the graph and factor change.", { exact: true })).toBeVisible();
   await expect(page.getByRole("banner").getByText("Lab", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Move root (left|right)/ })).toHaveCount(0);
   await expect(page.getByText("Root position", { exact: true })).toHaveCount(0);
@@ -113,7 +113,7 @@ test("guided is default; readiness requires a changed commit and remains an expl
   await page.mouse.up();
   await expect(ready).toBeEnabled();
   await stage(page, "orientation");
-  await expect(page.getByRole("status")).toHaveText("Next is now available.");
+  await expect(page.locator("[data-spv-prompt]").getByRole("status")).toHaveText("Next is now available.");
   await begin(page);
   await expect(ready).toBeDisabled();
   await slider(page).dispatchEvent("pointercancel", { pointerId: 1, isPrimary: true });
@@ -126,7 +126,7 @@ test("server markup and calibration contain no premature solution; preview activ
   expect(response.ok()).toBe(true);
   const html = await response.text();
   expect(html).not.toContain("−3 + 3 = 0");
-  expect(html).not.toContain("Matching factor");
+  expect(html).not.toContain("Correct factor");
   expect(html).not.toContain("(x + 3)");
   const dropdown = page.getByRole("combobox", { name: "Layout preview" });
   await dropdown.selectOption("orientation");
@@ -149,7 +149,7 @@ test("keyboard eligibility preserves a noninitial root through prediction and un
   await expect(slider(page)).toHaveAttribute("aria-valuenow", "0");
   await expect(slider(page)).toHaveAttribute("aria-disabled", "true");
   await expect(page.getByRole("heading", { name: "Predict" })).toBeFocused();
-  await expect(page.getByRole("heading", { name: "Predict" })).toHaveAccessibleDescription("If the movable root becomes x = −3, which factor will it produce?");
+  await expect(page.getByRole("heading", { name: "Predict" })).toHaveAccessibleDescription("If the green root moves to x = −3, which factor will it give? Choose one.");
   await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times a hidden factor");
   await page.getByRole("button", { name: "(x + 3)", exact: true }).click();
   await stage(page, "reveal-position");
@@ -158,11 +158,11 @@ test("keyboard eligibility preserves a noninitial root through prediction and un
   await expect(slider(page)).toHaveAttribute("aria-disabled", "false");
   await expect(page.getByRole("heading", { name: "Test" })).toBeFocused();
   await expect(page.locator("[data-spv-prompt]")).toContainText("Your prediction");
-  await expect(page.getByText("Matching factor", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Correct factor", { exact: true })).toHaveCount(0);
 });
 
 for (const choice of ["minus", "plus"] as const) {
-  test(`${choice} prediction: settled −3 gives the correct branch and Continue opens only retrieval entry`, async ({ page }) => {
+  test(`${choice} prediction: settled −3 gives the correct branch and Next opens the masked retrieval challenge`, async ({ page }) => {
     await makePrediction(page, choice);
     await settleByKeyboard(page, -3);
     await stage(page, "reveal-explanation");
@@ -171,20 +171,22 @@ for (const choice of ["minus", "plus"] as const) {
     await expect(page.getByRole("heading", { name: "Explain" })).toBeFocused();
     await expect(page.locator("[data-spv-prompt]")).toContainText("−3 + 3 = 0");
     await expect(page.getByText("−3 − 3 = −6", { exact: true })).toHaveCount(choice === "minus" ? 1 : 0);
-    await expect(page.locator("[data-spv-prompt]")).toContainText("At a root, its corresponding linear factor must equal zero.");
-    await expect(page.getByText(/Your prediction matches\./)).toHaveCount(choice === "plus" ? 1 : 0);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await stage(page, "retrieval-entry");
+    await expect(page.locator("[data-spv-prompt]")).toContainText("The factor equals zero at the root.");
+    await expect(page.getByText(/You chose the correct factor\./)).toHaveCount(choice === "plus" ? 1 : 0);
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await stage(page, "retrieval");
     await expect(slider(page)).toHaveAttribute("aria-valuenow", "-3");
     await expect(slider(page)).toHaveAttribute("aria-disabled", "false");
     await expect(page.getByRole("heading", { name: "Try" })).toBeFocused();
-    await expect(page.locator("[data-spv-prompt]")).toContainText("(x + 4)");
-    await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times a hidden factor");
-    for (const label of ["Check", "Show explanation", "Keep exploring"]) await expect(page.getByRole("button", { name: label, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("math")).toHaveAccessibleName("Factor: (x + 4). Root = ?");
+    await expect(page.getByText("Factor:", { exact: true })).toBeVisible();
+    await expect(page.getByText("Root = ?", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Check", exact: true })).toBeEnabled();
+    for (const label of ["Show explanation", "Keep exploring"]) await expect(page.getByRole("button", { name: label, exact: true })).toHaveCount(0);
     await step(page, "ArrowLeft");
     await expect(slider(page)).toHaveAttribute("aria-valuenow", "-4");
-    await stage(page, "retrieval-entry");
-    await expect(page.getByRole("heading", { name: "Activity complete" })).toHaveCount(0);
+    await stage(page, "retrieval");
+    await expect(page.getByRole("heading", { name: "Finished", exact: true })).toHaveCount(0);
   });
 }
 
@@ -202,9 +204,9 @@ test("passing −3, rounded −3 and other negative commits stay masked until fi
   await stage(page, "reveal-position");
   await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times a hidden factor");
   expect(await page.locator("body").textContent()).not.toContain("(x + 3)");
-  await expect(graph(page)).not.toHaveAccessibleDescription(/\(x \+ 3\)|Matching factor|−3 \+ 3 = 0/);
+  await expect(graph(page)).not.toHaveAccessibleDescription(/\(x \+ 3\)|Correct factor|−3 \+ 3 = 0/);
   const hidden = await page.locator("[inert]").allTextContents();
-  expect(hidden.join(" ")).not.toMatch(/Matching factor|\(x [−+] 3\)|−3 [−+] 3/);
+  expect(hidden.join(" ")).not.toMatch(/Correct factor|\(x [−+] 3\)|−3 [−+] 3/);
   await move(page, -2.1);
   await page.mouse.up();
   await expect(slider(page)).toHaveAttribute("aria-valuenow", "-2");
@@ -237,11 +239,11 @@ test("previews preserve the guided session, cancel active edits and cannot chang
   await dropdown.selectOption("assistance");
   await dropdown.selectOption("guided");
   await stage(page, "reveal-explanation");
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await step(page, "ArrowLeft");
   await dropdown.selectOption("prediction");
   await dropdown.selectOption("guided");
-  await stage(page, "retrieval-entry");
+  await stage(page, "retrieval");
   await expect(slider(page)).toHaveAttribute("aria-valuenow", "-4");
   await page.getByRole("button", { name: "Restart guided activity" }).click();
   await stage(page, "orientation");
@@ -283,7 +285,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 360, height: 640 }
     expect(await frame(page)).toEqual(baseline);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath("guided-reveal.png"), fullPage: true });
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
     expect(await frame(page)).toEqual(baseline);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
@@ -298,7 +300,7 @@ for (const choice of ["minus", "plus"] as const) test(`200% text keeps guided st
   expect(await frame(page)).toEqual(baseline);
   await settleByKeyboard(page, -3);
   expect(await frame(page)).toEqual(baseline);
-  const button = page.getByRole("button", { name: "Continue", exact: true });
+  const button = page.getByRole("button", { name: "Next", exact: true });
   await button.scrollIntoViewIfNeeded();
   await expect(button).toBeInViewport();
   expect(await page.locator("[data-spv-prompt]").evaluate((element) => [...element.querySelectorAll<HTMLElement>("p,dt,dd,button")].every((node) => node.scrollWidth <= node.clientWidth + 1))).toBe(true);

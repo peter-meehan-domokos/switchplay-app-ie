@@ -71,19 +71,20 @@ for (const choice of ["minus", "plus"] as const) {
     expect(revealed.lesson).toEqual({ stage: "reveal-explanation", prediction: choice });
     const prompt = guidedPresentation(revealed.lesson, true, false, true).prompt;
     expect(prompt.comparison.map((row) => row.substitution)).toEqual(choice === "minus" ? ["−3 − 3 = −6", "−3 + 3 = 0"] : ["−3 + 3 = 0"]);
-    expect(prompt.instruction).toContain("At a root, its corresponding linear factor must equal zero.");
-    expect(prompt.instruction.startsWith("Your prediction matches.")).toBe(choice === "plus");
+    expect(prompt.instruction).toContain("The factor equals zero at the root.");
+    expect(prompt.instruction.startsWith("You chose the correct factor.")).toBe(choice === "plus");
     expect(prompt.title).toBe("Explain");
     expect(learningInputPolicy(revealed.lesson).enabled).toBe(false);
     expect(place(revealed, -2)).toBe(revealed);
     const entry = learningReducer(revealed, { type: "continue", revision: revealed.manipulation.revision });
-    expect(entry.lesson).toEqual({ stage: "retrieval-entry", prediction: choice });
+    expect(entry.lesson).toEqual({ stage: "retrieval", prediction: choice, panel: "challenge", evidence: { checkAttempts: 0, incorrectChecks: 0, assistanceViewed: false }, feedback: null });
     expect(entry.manipulation.math.movingRoot).toBe(-3);
     const entryPresentation = guidedPresentation(entry.lesson, true, false, true);
     expect(entryPresentation.policy.maskMovingFactor).toBe(true);
-    expect(entryPresentation.prompt.target).toBe("(x + 4)");
+    expect(entryPresentation.task?.factor).toBe("(x + 4)");
     expect(entryPresentation.prompt.actions).toEqual([]);
-    expect(place(entry, -4).lesson.stage).toBe("retrieval-entry");
+    expect(entryPresentation.prompt.navigation).toMatchObject({ id: "check", enabled: true });
+    expect(place(entry, -4).lesson.stage).toBe("retrieval");
   });
 }
 
@@ -111,7 +112,7 @@ test("prediction masking and neutral sizing contain no hidden factor/operator/su
   expect(presentation.prompt.actions.map((action) => action.label)).toEqual(["(x − 3)", "(x + 3)"]);
   expect(presentation.prompt.actions.every((action) => action.enabled)).toBe(true);
   for (const sizing of promptSizingScenes) {
-    const content = [sizing.title, sizing.instruction, sizing.target, sizing.feedback, sizing.navigation?.label ?? null, ...sizing.working,
+    const content = [sizing.title, sizing.instruction, sizing.target, sizing.feedback, sizing.navigation?.label ?? null, ...sizing.working, ...sizing.summary,
       ...sizing.comparison.flatMap((row) => [row.label, row.factor, row.substitution]), ...sizing.actions.map((action) => action.label)];
     expect(content.filter((text) => text !== null).every((text) => /^[0\s]*$/.test(text!))).toBe(true);
   }

@@ -19,7 +19,6 @@ export default function RootsFactorsLabSession({ mode, onExit }: { mode: LabActi
     <RootsFactorsActivity key={session} visible={mode === "guided"} onExit={onExit} />
     {mode !== "guided" ? <RootsFactorsLayoutPreview mode={mode} onExit={onExit} /> : null}
     {mode === "guided" ? <div className={styles.spvGuidedTools}>
-      <p className={styles.spvPreviewDisclaimer}>Guided activity · retrieval assessment follows in Checkpoint 5.</p>
       <button className={styles.spvRestart} type="button" disabled={!active} onClick={() => setSession((value) => value + 1)}>Restart guided activity</button>
     </div> : null}
     <details className={styles.spvSessionProbe}>

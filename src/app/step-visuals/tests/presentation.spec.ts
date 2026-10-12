@@ -4,13 +4,26 @@ import { card1Vertex, createCard1Math } from "../activities/roots-factors/model"
 import { projectPoint } from "../core/graph/coordinatePlaneLayout";
 import { layoutPreviewFixtures } from "../lab/layoutPreviewFixtures";
 import { guidedPresentation, rootAdjustmentLayout } from "../activities/roots-factors/presentationLayouts";
+import { rootTaskLayout, rootTaskSizingLayout } from "../core/expressions/rootTaskLayout";
+
+test("the target-root task is immutable given notation, never a quadratic equation or current root", () => {
+  const target = { id: "target", root: -4 };
+  const scene = rootTaskLayout(target);
+  expect(scene).toEqual({ label: "Factor:", factor: "(x + 4)", question: "Root = ?", accessibleDescription: "Factor: (x + 4). Root = ?" });
+  expect(Object.isFrozen(scene)).toBe(true);
+  expect(Object.isFrozen(target)).toBe(false);
+  expect(JSON.parse(JSON.stringify(scene))).toEqual(scene);
+  expect(JSON.stringify(scene)).not.toMatch(/f\(x\)|x = −4/);
+  expect(rootTaskSizingLayout()).toEqual({ label: "0000000", factor: "0000000", question: "0000 0 0", accessibleDescription: "" });
+});
 
 test("Next is a secondary navigation action governed only by existing eligibility and editing policy", () => {
   for (const eligible of [false, true]) for (const editing of [false, true]) for (const active of [false, true]) {
     const prompt = guidedPresentation({ stage: "orientation" }, eligible, editing, active).prompt;
     expect(prompt.title).toBe("Explore");
     expect(prompt.actions).toEqual([]);
-    expect(prompt.navigation).toEqual({ id: "ready", label: "Next", appearance: "secondary", enabled: eligible && !editing && active });
+    expect(prompt.navigation).toMatchObject({ id: "ready", label: "Next", appearance: "secondary", enabled: eligible && !editing && active });
+    expect(prompt.navigation?.unavailableReason).toBe(!eligible && !editing && active ? "Drag the green root to a new position first." : undefined);
   }
   // Retained portable adjustment preparation is available to future alternate interfaces.
   expect(rootAdjustmentLayout(0, true, [0, 5]).actions.map((action) => action.enabled)).toEqual([false, true]);
@@ -27,9 +40,9 @@ test("static preview content retains the agreed maths and contains no enabled ac
   expect(reveal.math.movingRoot).toBe(-3);
   expect(reveal.presentation.prompt.comparison).toEqual([
     { label: "Your choice", factor: "(x − 3)", substitution: "−3 − 3 = −6" },
-    { label: "Matching factor", factor: "(x + 3)", substitution: "−3 + 3 = 0" },
+    { label: "Correct factor", factor: "(x + 3)", substitution: "−3 + 3 = 0" },
   ]);
-  expect(layoutPreviewFixtures.assistance.presentation.prompt.working).toEqual(["(x + 4) = 0", "x = −4", "−4 + 4 = 0"]);
+  expect(layoutPreviewFixtures.assistance.presentation.prompt.working).toEqual(["(x + 4) = 0", "x = −4"]);
 });
 
 test("masking removes the live factor from expression and graph descriptions", () => {

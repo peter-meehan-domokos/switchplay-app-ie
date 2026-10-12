@@ -94,7 +94,7 @@ test("reveal substitutions, masking and inactive affordances render without lear
   await expect(graph.locator("[data-spv-halo]")).toHaveCount(0);
   await expect(graph.locator("[data-spv-movement-cue] line")).toHaveCount(0);
   await selector.selectOption("retrieval");
-  await expect(page.getByRole("math")).toHaveAccessibleName("f of x equals (x − 1) times a hidden factor");
+  await expect(page.getByRole("math")).toHaveAccessibleName("Factor: (x + 4). Root = ?");
   await expect(graph).not.toHaveAccessibleDescription(/\(x \+ 3\)/);
   await expect(page.getByText("(x + 3)", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Check", exact: true })).toBeDisabled();

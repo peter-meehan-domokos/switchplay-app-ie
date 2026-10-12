@@ -1,17 +1,23 @@
 import { immutable } from "../../core/immutable";
 import type { RootInputPolicy } from "../../core/interaction/rootInteraction";
-import { initialMath } from "./model";
+import { evaluateFactor } from "../../core/math/realFactors";
+import { initialMath, retrievalTarget, type RootInteger } from "./model";
 import { initialManipulation, manipulationReducer, type ManipulationAction, type ManipulationState } from "./manipulation";
 
 export type PredictionChoice = "minus" | "plus";
+export type RetrievalEvidence = Readonly<{ checkAttempts: number; incorrectChecks: number; assistanceViewed: boolean }>;
+export type SuccessMode = "independent" | "assisted";
+export type RetrievalFeedback = Readonly<{ checkedRoot: RootInteger; attempt: number }>;
 export type Lesson =
   | Readonly<{ stage: "orientation" }>
   | Readonly<{ stage: "prediction" }>
-  | Readonly<{ stage: "reveal-position" | "reveal-explanation" | "retrieval-entry"; prediction: PredictionChoice }>;
+  | Readonly<{ stage: "reveal-position" | "reveal-explanation"; prediction: PredictionChoice }>
+  | Readonly<{ stage: "retrieval"; prediction: PredictionChoice; panel: "challenge" | "explanation"; evidence: RetrievalEvidence; feedback: RetrievalFeedback | null }>
+  | Readonly<{ stage: "completed"; prediction: PredictionChoice; evidence: RetrievalEvidence; successMode: SuccessMode }>;
 export type LearningState = Readonly<{ manipulation: ManipulationState; lesson: Lesson }>;
 export type LearningAction =
   | Readonly<{ type: "root"; action: ManipulationAction }>
-  | Readonly<{ type: "ready" | "continue"; revision: number }>
+  | Readonly<{ type: "ready" | "continue" | "check" | "explanation" | "start-again"; revision: number }>
   | Readonly<{ type: "predict"; revision: number; choice: PredictionChoice }>
   | Readonly<{ type: "suspend" }>;
 
@@ -21,7 +27,7 @@ export const initialLearning = (): LearningState => immutable({
   manipulation: initialManipulation(initialMath, "guided"), lesson: { stage: "orientation" },
 });
 export const learningInputPolicy = (lesson: Lesson, active = true): RootInputPolicy => immutable({
-  enabled: active && ["orientation", "reveal-position", "retrieval-entry"].includes(lesson.stage),
+  enabled: active && ["orientation", "reveal-position", "retrieval"].includes(lesson.stage),
   bounds: lesson.stage === "orientation" || lesson.stage === "prediction" ? positiveBounds : fullBounds,
 });
 const transition = (state: LearningState, lesson: Lesson): LearningState => immutable({
@@ -42,6 +48,11 @@ export const learningReducer = (state: LearningState, action: LearningAction, ac
         !manipulation.edit && manipulation.math.movingRoot === -3) {
       return transition(next, { stage: "reveal-explanation", prediction: state.lesson.prediction });
     }
+    if (state.lesson.stage === "retrieval" && state.lesson.feedback &&
+        (action.action.type === "commit" || action.action.type === "place") &&
+        !manipulation.edit && manipulation.math.movingRoot !== state.manipulation.math.movingRoot) {
+      return immutable({ ...next, lesson: { ...state.lesson, feedback: null } });
+    }
     return next;
   }
   if (!active || action.revision !== state.manipulation.revision || state.manipulation.edit) return state;
@@ -51,6 +62,25 @@ export const learningReducer = (state: LearningState, action: LearningAction, ac
     case "predict": return state.lesson.stage === "prediction" && (action.choice === "minus" || action.choice === "plus")
       ? transition(state, { stage: "reveal-position", prediction: action.choice }) : state;
     case "continue": return state.lesson.stage === "reveal-explanation"
-      ? transition(state, { stage: "retrieval-entry", prediction: state.lesson.prediction }) : state;
+      ? transition(state, { stage: "retrieval", prediction: state.lesson.prediction, panel: "challenge", evidence: { checkAttempts: 0, incorrectChecks: 0, assistanceViewed: false }, feedback: null }) : state;
+    case "check": {
+      if (state.lesson.stage !== "retrieval") return state;
+      const root = state.manipulation.math.movingRoot;
+      // Assess the target linear factor, not f(root): every movable root zeros f.
+      const correct = evaluateFactor(retrievalTarget, root) === 0;
+      const evidence = { ...state.lesson.evidence, checkAttempts: state.lesson.evidence.checkAttempts + 1,
+        incorrectChecks: state.lesson.evidence.incorrectChecks + (correct ? 0 : 1) };
+      return correct
+        ? transition(state, { stage: "completed", prediction: state.lesson.prediction, evidence, successMode: evidence.assistanceViewed ? "assisted" : "independent" })
+        : transition(state, { ...state.lesson, panel: "challenge", evidence, feedback: { checkedRoot: root, attempt: evidence.checkAttempts } });
+    }
+    case "explanation": return state.lesson.stage === "retrieval" && state.lesson.panel === "challenge" && state.lesson.evidence.incorrectChecks > 0
+      ? transition(state, { ...state.lesson, panel: "explanation", evidence: { ...state.lesson.evidence, assistanceViewed: true } }) : state;
+    case "start-again": {
+      if (state.lesson.stage !== "completed") return state;
+      const fresh = initialLearning();
+      // Restart the lesson, not the input clock: old sessions must remain invalid.
+      return immutable({ ...fresh, manipulation: { ...fresh.manipulation, revision: state.manipulation.revision + 1, lastSessionId: state.manipulation.lastSessionId } });
+    }
   }
 };
