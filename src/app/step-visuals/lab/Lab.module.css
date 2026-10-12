@@ -1,13 +1,21 @@
 .spvLab { box-sizing: border-box; display: flex; flex-direction: column; min-height: 100svh; min-height: 100dvh; background: #f4f4ed; color: #24332f; font-family: Arial, Helvetica, sans-serif; line-height: 1.5; }
 .spvLabHeader { position: sticky; top: 0; z-index: 1; padding-top: env(safe-area-inset-top); border-bottom: 1px solid #d9ded6; background: #fffdf8; }
-.spvHeaderInner { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 760px; min-height: 72px; margin-inline: auto; padding: 10px 16px; }
+.spvHeaderInner { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 760px; min-height: 52px; margin-inline: auto; padding: 4px 12px; }
 .spvBurger, .spvClose { display: grid; flex-shrink: 0; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid #c9d1c9; border-radius: 12px; background: #fffdf8; color: #24332f; cursor: pointer; font: inherit; }
 .spvBurgerLines { display: grid; width: 18px; gap: 4px; }
 .spvBurgerLines span { height: 2px; border-radius: 2px; background: currentColor; }
 .spvHeaderCopy { flex: 1; min-width: 0; }
 .spvLabName { margin: 0; font-size: 0.9rem; font-weight: 700; }
-.spvSelectedName { margin: 0; color: #5b6861; font-size: 0.75rem; overflow-wrap: anywhere; }
-.spvHost { display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 72px); margin-inline: auto; padding: 20px 16px max(20px, env(safe-area-inset-bottom)); }
+.spvHost { display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 52px); margin-inline: auto; padding: 6px 12px max(12px, env(safe-area-inset-bottom)); }
+.spvPreviewSelector { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
+.spvPreviewSelector span { flex-shrink: 0; color: #68746d; font-size: 0.65rem; line-height: 1.2; }
+.spvPreviewSelector select { min-width: 0; width: 100%; max-width: 245px; min-height: 44px; padding: 6px; border: 1px solid #d0d9ce; border-radius: 8px; background: #fffdf8; color: #435349; font-family: inherit; font-size: 1rem; }
+.spvPreviewSelector select:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
+.spvPreviewDisclaimer { margin: 8px 0 0; color: #68746d; font-size: 0.65rem; line-height: 1.4; }
+.spvSessionProbe { margin-top: 8px; color: #5b6861; font-size: 0.75rem; }
+.spvSessionProbe summary { display: list-item; min-height: 44px; padding: 10px 0; cursor: pointer; }
+.spvSessionProbe label { display: block; margin: 4px 0; }
+.spvSessionProbe input { width: 100%; min-height: 44px; padding: 8px; border: 1px solid #aebfb3; border-radius: 8px; background: #fffdf8; color: #24332f; font: inherit; font-size: 1rem; }
 .spvDialog { position: fixed; inset: 0 auto 0 0; box-sizing: border-box; width: min(90vw, 380px); max-width: 100%; height: 100svh; height: 100dvh; max-height: 100%; margin: 0; padding: max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); border: 0; border-right: 1px solid #c9d1c9; background: #fffdf8; color: #24332f; font-family: Arial, Helvetica, sans-serif; line-height: 1.5; overflow-y: auto; overscroll-behavior: contain; }
 .spvDialog::backdrop { background: rgb(18 32 25 / 45%); }
 .spvDialogHeading { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 28px; }

@@ -1,45 +1,20 @@
 "use client";
 
-import { useId, useState } from "react";
-import ActivityFrame from "../../platform/web/ActivityFrame";
-import { useSurfaceActive } from "../../platform/web/SurfaceLifecycle";
-import styles from "./RootsFactorsActivity.module.css";
+import RootsFactorsView from "./RootsFactorsView";
+import { initialMath } from "./model";
+import { staticDisplayPolicy } from "./rootsFactorsLayout";
+import { activityPromptLayout, rootAdjustmentLayout, type RootsFactorsPresentation } from "./presentationLayouts";
+import { immutable } from "../../core/immutable";
 
 export type RootsFactorsActivityProps = Readonly<{ onExit?: () => void }>;
 
-/** Checkpoint 1 placeholder: no mathematical model or pedagogical interactions yet. */
-export default function RootsFactorsActivity({ onExit }: RootsFactorsActivityProps) {
-  const [note, setNote] = useState("");
-  const noteId = useId();
-  const active = useSurfaceActive();
+const initialPresentation: RootsFactorsPresentation = immutable({
+  policy: staticDisplayPolicy,
+  prompt: activityPromptLayout({ kind: "orientation" }),
+  adjustments: rootAdjustmentLayout(initialMath.movingRoot),
+});
 
-  return (
-    <ActivityFrame
-      title="Roots and factors"
-      eyebrow="Card 1 · Interactive visualisation"
-      onExit={onExit}
-      graph={
-        <div className={styles.spvGraphPlaceholder}>
-          <span className={styles.spvPlaceholderLabel}>Graph canvas</span>
-          <p className={styles.spvPlaceholderCopy}>The interactive graph will appear here.</p>
-        </div>
-      }
-      expression={<p className={styles.spvExpressionPlaceholder}>Factor expression</p>}
-      prompt={
-        <fieldset className={styles.spvPreviewNote} disabled={!active}>
-          <p className={styles.spvPromptTitle}>Frame preview</p>
-          <p className={styles.spvPlaceholderCopy}>The guided activity will follow in the next checkpoints.</p>
-          <label className={styles.spvNoteLabel} htmlFor={noteId}>Session note</label>
-          <input
-            className={styles.spvNoteInput}
-            id={noteId}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Optional note for this preview"
-            autoComplete="off"
-          />
-        </fieldset>
-      }
-    />
-  );
+/** Static checkpoint entry. Later checkpoints supply real activity state and semantic dispatch. */
+export default function RootsFactorsActivity({ onExit }: RootsFactorsActivityProps) {
+  return <RootsFactorsView math={initialMath} presentation={initialPresentation} onExit={onExit} />;
 }

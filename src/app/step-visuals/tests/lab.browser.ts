@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/step-visuals");
   await expect(page.getByRole("heading", { name: "Roots and factors", exact: true })).toBeVisible();
+  await page.getByText("Lab session test", { exact: true }).click();
 });
 
 test.afterEach(async ({ page }) => {
@@ -33,7 +34,7 @@ test("starts on the first experience and exposes exactly two levels of implement
   await expect(dialog.getByRole("menu")).toHaveCount(0);
 });
 
-test("preserves local activity state through dismissal and reselection of the current experience", async ({ page }) => {
+test("preserves the mounted preview session through dismissal and reselection of the current experience", async ({ page }) => {
   const note = page.getByRole("textbox", { name: "Session note" });
   await note.fill("Keep my place");
   await openMenu(page);
@@ -45,7 +46,7 @@ test("preserves local activity state through dismissal and reselection of the cu
   await expect(note).toHaveValue("Keep my place");
 });
 
-test("switching experiences shows three variants and returning restarts the activity", async ({ page }) => {
+test("switching experiences shows three variants and returning creates a fresh preview session", async ({ page }) => {
   await page.getByRole("textbox", { name: "Session note" }).fill("Previous attempt");
   let dialog = await openMenu(page);
   await dialog.getByRole("button", { name: "Sparkline preview" }).click();
@@ -55,11 +56,12 @@ test("switching experiences shows three variants and returning restarts the acti
   }
   dialog = await openMenu(page);
   await dialog.getByRole("button", { name: "Interactive visualisation" }).click();
-  await expect(page.getByRole("textbox", { name: "Session note" })).toHaveValue("");
   await expect(page.getByRole("heading", { name: "Roots and factors", exact: true })).toBeFocused();
+  await page.getByText("Lab session test", { exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Session note" })).toHaveValue("");
 });
 
-test("exit ends the mounted session and allows a fresh selection", async ({ page }) => {
+test("exit ends the mounted preview session and allows a fresh selection", async ({ page }) => {
   await page.getByRole("textbox", { name: "Session note" }).fill("Leaving now");
   await page.getByRole("button", { name: "Exit", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -67,6 +69,7 @@ test("exit ends the mounted session and allows a fresh selection", async ({ page
   await expect(page.getByRole("heading", { name: "Choose an experience" })).toBeVisible();
   const dialog = await openMenu(page);
   await dialog.getByRole("button", { name: "Interactive visualisation" }).click();
+  await page.getByText("Lab session test", { exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Session note" })).toHaveValue("");
 });
 
@@ -111,7 +114,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 360, height: 740 }
     await page.setViewportSize(viewport);
     const overflow = async () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(await overflow()).toBe(false);
-    await expect(page.getByText("Graph canvas", { exact: true })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Quadratic graph", exact: true })).toBeVisible();
     const dialog = await openMenu(page);
     const panelBox = await dialog.boundingBox();
     expect(panelBox?.x).toBe(0);
@@ -158,6 +161,7 @@ test("touch navigation and phone reference views", async ({ browser, baseURL }, 
   const page = await context.newPage();
   try {
     await page.goto("/step-visuals");
+    await page.getByText("Lab session test", { exact: true }).click();
     await page.getByRole("textbox", { name: "Session note" }).fill("Touch preview");
     await page.screenshot({ path: testInfo.outputPath("phone-frame.png"), fullPage: true });
     await page.getByRole("button", { name: "Open visualisations menu" }).tap();

@@ -2,9 +2,8 @@
   --spv-ink: #24332f;
   --spv-muted: #5b6861;
   display: grid;
-  flex: 1;
-  grid-template-rows: auto minmax(220px, 1fr) auto auto;
-  gap: 12px;
+  align-content: start;
+  gap: 6px;
   min-width: 0;
   color: var(--spv-ink);
   font-family: Arial, Helvetica, sans-serif;
@@ -13,14 +12,15 @@
 
 .spvHeadingRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .spvEyebrow { margin: 0 0 4px; color: var(--spv-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-.spvTitle { margin: 0; color: var(--spv-ink); font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; overflow-wrap: anywhere; }
+.spvTitle { margin: 0; color: var(--spv-ink); font-size: 1.35rem; line-height: 1.2; overflow-wrap: anywhere; }
 .spvTitle:focus-visible { outline: 2px solid #28634f; outline-offset: 5px; border-radius: 4px; }
-.spvExit { flex-shrink: 0; min-height: 44px; min-width: 56px; padding: 8px 14px; border: 1px solid #c9d1c9; border-radius: 12px; background: #fffdf8; color: var(--spv-ink); font: inherit; cursor: pointer; }
+.spvExit { flex-shrink: 0; min-height: 44px; min-width: 44px; padding: 6px; border: 0; border-radius: 8px; background: transparent; color: var(--spv-muted); font: inherit; font-size: 0.85rem; cursor: pointer; }
 .spvExit:focus-visible { outline: 3px solid #28634f; outline-offset: 3px; }
 .spvGraphRegion, .spvExpressionRegion, .spvPromptRegion { min-width: 0; }
-.spvGraphRegion { display: flex; min-height: 220px; }
-.spvExpressionRegion { padding: 18px; border: 1px solid #d9ded6; border-radius: 16px; background: #fffdf8; }
-.spvPromptRegion { padding: 18px; border: 1px solid #d9ded6; border-radius: 16px; background: #fffdf8; }
+.spvGraphRegion { display: flex; width: 100%; aspect-ratio: 1.5; min-height: 210px; max-height: 280px; }
+.spvExpressionRegion { padding: 4px 8px; }
+.spvAdjustmentRegion { min-width: 0; }
+.spvPromptRegion { padding: 10px 12px; border: 1px solid #d9ded6; border-radius: 12px; background: #fffdf8; }
 
 @media (prefers-reduced-motion: reduce) {
   .spvFrame { scroll-behavior: auto; }
