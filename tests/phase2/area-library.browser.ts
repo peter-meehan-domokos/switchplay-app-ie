@@ -60,6 +60,9 @@ async function show(page: Page) {
   await expect(toggle).toHaveAttribute("aria-expanded", "false"); await toggle.click();
 }
 async function dispose(page: Page, f: Awaited<ReturnType<typeof fixture>>) {
+  // Let late/cancelled dialog reads settle before removing their route handlers.
+  // Unregistering while a callback is still arriving can auto-handle its route.
+  await page.waitForLoadState("networkidle");
   await page.unrouteAll({ behavior: "wait" });
   // Public discovery intentionally sees every creator. Remove only this fixture's
   // own canonical records so deliberate corruption cannot contaminate later tests.
@@ -294,6 +297,7 @@ for (const width of [320, 390, 1440]) test(`Library/working Back to Progress mat
     await page.evaluate(() => window.scrollTo(0, 190));
     await page.locator('tr[data-area-id="algebra"] .progress-content-title').click();
     const savedScroll = await page.evaluate(() => window.scrollY);
+    await expect(dialog(page).getByRole("button", { name: "Open Working Algebra", exact: true })).toBeEnabled();
     await dialog(page).getByRole("button", { name: /^Library/ }).click();
     expect(await dialog(page).evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await page.screenshot({ path: info.outputPath(`area-library-${width}.png`), fullPage: true });
@@ -320,6 +324,7 @@ for (const width of [320, 390, 1440]) test(`Library/working Back to Progress mat
     await expect(page.getByRole("button", { name: "Expand Additional Area 0", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(savedScroll);
     await page.locator('tr[data-area-id="algebra"] .progress-content-title').click();
+    await expect(dialog(page).getByRole("button", { name: "Open Working Algebra", exact: true })).toBeEnabled();
     await dialog(page).getByRole("button", { name: "Close", exact: true }).focus(); await page.keyboard.press("Tab");
     expect(await page.evaluate(() => !!document.activeElement?.closest("dialog"))).toBe(true);
     await page.keyboard.press("Escape");

@@ -31,7 +31,7 @@ test("Progress reads reject another actor's header/payload or a different select
   await withResponse({ viewerUserId: "alice", frameworks: [] }, async () => { await assert.rejects(readProgressMetadata("alice"), /session changed/); }, "bob");
   await withResponse({ viewerUserId: "alice", framework: summary() }, async () => { await assert.rejects(readProgressSummary("alice", "other"), /unavailable/); });
 });
-test("Progress preserves null, zero and 100 scores and rejects numeric incomplete calculations or uncertain indicators", async () => {
+test("Progress preserves null, zero and 100 scores and rejects numeric incomplete calculations or malformed indicators", async () => {
   for (const completion of [null, 0, 100]) {
     const framework = summary();
     framework.areas[0].progress = { ...empty, state: completion === null ? "empty" : "complete", completion } as typeof empty;
@@ -42,6 +42,21 @@ test("Progress preserves null, zero and 100 scores and rejects numeric incomplet
   await withResponse({ viewerUserId: "alice", framework: badFramework }, async () => { await assert.rejects(readProgressSummary("alice", "practice"), /unavailable/); });
   const partial = summary(); partial.areas[0].items[0].assessments = { ...assessments, state: "incomplete", latestThree: [{}] } as typeof assessments;
   await withResponse({ viewerUserId: "alice", framework: partial }, async () => { await assert.rejects(readProgressSummary("alice", "practice"), /unavailable/); });
+});
+test("Progress accepts readable partial indicators without accepting invalid or duplicated source events", async () => {
+  const known = { id: "known", date: "2026-10-13", result: true, createdAt: "2026-10-13T10:00:00Z", source: { kind: "item", itemId: "practice-control" } };
+  const framework = summary();
+  const partial = { ...framework, areas: [{ ...framework.areas[0], items: [{ ...framework.areas[0].items[0],
+    assessments: { ...assessments, state: "incomplete", count: null, readableCount: 1, latestThree: [known], issues: [{ code: "MISSING_PERSONAL_HISTORY_SOURCE" }] } }] }] };
+  await withResponse({ viewerUserId: "alice", framework: partial }, async () => {
+    const result = await readProgressSummary("alice", "practice");
+    assert.equal(result.areas[0].items[0].assessments.state, "incomplete");
+    assert.deepEqual(result.areas[0].items[0].assessments.latestThree, [known]);
+  });
+  for (const results of [[{ ...known, result: "pass" }], [{ ...known, source: { kind: "card" } }], [known, known]]) {
+    const invalid = structuredClone(partial); invalid.areas[0].items[0].assessments.latestThree = results as unknown as (typeof known)[];
+    await withResponse({ viewerUserId: "alice", framework: invalid }, async () => { await assert.rejects(readProgressSummary("alice", "practice"), /unavailable/); });
+  }
 });
 test("Area expansion storage is actor/Framework scoped, validates entries and tolerates disabled or malformed storage", () => {
   const values = new Map<string, string>(), storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); } };

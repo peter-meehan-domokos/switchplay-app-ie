@@ -40,8 +40,10 @@ export function orderHistoryResults(results: readonly HistoryResult[]) {
     || compare(originatingAssessmentKey(a), originatingAssessmentKey(b)));
 }
 export function compactAssessmentHistory(history: AssessmentHistory): CompactAssessmentHistory {
-  const { state, count, readableCount, latestThree, issues } = history;
-  return { state, count, readableCount, latestThree, issues };
+  const { state, count, readableCount, issues } = history;
+  // Progress shows the latest readable events with an incomplete-history warning.
+  // Full-history latestThree retains its certainty contract for Card controls.
+  return { state, count, readableCount, latestThree: history.results.slice(0, 3).reverse(), issues };
 }
 type CardHistoryInput = { cardTemplateId: string; segments: ReturnType<typeof personalHistorySegments>; issues: PersonalHistoryIssue[] };
 export function collectCardHistory(records: CardData[], cardTemplateId: string): CardHistoryInput {

@@ -82,7 +82,9 @@ test("configured order, independent session expansion, blank/zero/all-skipped/in
     await expect(row(page, "other-item").locator("td").nth(1)).toHaveText("");
     await expect(row(page, "partial").getByLabel("Completion unavailable")).toBeAttached();
     await expect(row(page, "partial").locator("td").first()).toHaveText("");
-    await expect(row(page, "partial").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("+ Test");
+    await expect(row(page, "partial").locator(".assessment-pass")).toHaveCount(1);
+    await expect(row(page, "partial").locator(".progress-tests-warning")).toHaveText("!");
+    await expect(row(page, "partial").locator(".assessment-empty-control")).toHaveCount(0);
     expect(histories).toBe(0); expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
     await expect(page.locator('tr[data-area-id="skills"] .progress-content-title')).toBeEnabled();
     await page.getByRole("button", { name: "Collapse Algebra", exact: true }).press("Enter"); await expect(row(page, "control")).toBeHidden();
@@ -131,17 +133,28 @@ test("the entire Tests cell provides direct CRUD, mounted indicator refresh, sou
     expect(after.cardsData.find((card) => card.cardTemplateId === f.source.root.cardTemplateId)!.tests).toMatchObject([{ date: "2026-10-18", result: false }]);
     expect(after.cardsData.find((card) => card.cardTemplateId === f.fork.root.cardTemplateId)!.tests).toHaveLength(1);
     await row(page, "partial").getByRole("button", { name: /assessment history unavailable/ }).click();
-    await expect(modal(page).getByText(/Some assessment history is unavailable/)).toBeVisible(); await expect(modal(page).locator("tbody tr")).toHaveCount(1);
+    await expect(modal(page).getByText(/Some assessment history may be missing/)).toBeVisible(); await expect(modal(page).locator("tbody tr")).toHaveCount(1);
   } finally { await f.client.close(); }
 });
 
-test("Item modal distinguishes empty history from incomplete history with and without readable results", async ({ page }) => {
+test("Tests cells and Item modal preserve normal presentation in all four complete/incomplete empty/known cases", async ({ page }) => {
   const f = await fixture(page);
   try {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/progress");
+    await expect(row(page, "direct").locator(".assessment-empty-control")).toHaveText("+ Test");
+    await expect(row(page, "direct").locator(".progress-tests-warning")).toHaveCount(0);
     await row(page, "direct").locator(".progress-tests-trigger").click();
     await expect(modal(page).getByText("No tests recorded yet.", { exact: true })).toBeVisible();
-    await expect(modal(page).getByText(/Some assessment history is unavailable/)).toHaveCount(0);
+    await expect(modal(page).getByText(/Some assessment history may be missing/)).toHaveCount(0);
+    await expect(modal(page).getByRole("button", { name: "Add test", exact: true })).toBeEnabled();
+    await modal(page).getByRole("button", { name: "Close", exact: true }).click();
+
+    await expect(row(page, "control").locator(".assessment-pass, .assessment-fail")).toHaveText(["✓", "●"]);
+    await expect(row(page, "control").locator(".progress-tests-warning")).toHaveCount(0);
+    await row(page, "control").locator(".progress-tests-trigger").click();
+    await expect(modal(page).locator("tbody tr")).toHaveCount(2);
+    await expect(modal(page).getByText(/Some assessment history may be missing/)).toHaveCount(0);
     await modal(page).getByRole("button", { name: "Close", exact: true }).click();
 
     const populated = await page.evaluate(async (actor) => (await (await fetch("/api/items-data/partial/history", {
@@ -149,9 +162,20 @@ test("Item modal distinguishes empty history from incomplete history with and wi
     expect(populated.state).toBe("incomplete"); expect(populated.results).toHaveLength(1);
     expect(populated.issues).toContainEqual({ code: "MISSING_PERSONAL_HISTORY_SOURCE", cardTemplateId: f.missing.data.historySourceCardTemplateId });
     expect(populated.latestThree).toEqual([]);
+    const partial = row(page, "partial");
+    await expect(partial.locator(".assessment-pass")).toHaveCount(1);
+    await expect(partial.locator(".progress-tests-warning")).toHaveText("!");
+    expect(await partial.locator(".progress-tests-warning").evaluate((element) => {
+      const icon = element.getBoundingClientRect(), cell = element.closest("td")!.getBoundingClientRect();
+      return icon.right <= cell.right && cell.right - icon.right < 7 && cell.bottom - icon.bottom < 7 && getComputedStyle(element).pointerEvents === "none";
+    })).toBe(true);
     await row(page, "partial").locator(".progress-tests-trigger").click();
-    await expect(modal(page).getByText(/Readable results are shown below/)).toBeVisible();
+    await expect(modal(page).getByText(/Some assessment history may be missing/)).toBeVisible();
     await expect(modal(page).locator("tbody tr")).toHaveCount(1);
+    await expect(modal(page).getByRole("button", { name: "Add test", exact: true })).toBeEnabled();
+    await expect(modal(page).getByRole("button", { name: /^Edit test/ }).first()).toBeEnabled();
+    await expect(modal(page).getByRole("button", { name: /^Delete test/ }).first()).toBeEnabled();
+    await page.screenshot({ path: "/tmp/switchplay-progress-incomplete-known.png", fullPage: true });
     await modal(page).getByRole("button", { name: "Close", exact: true }).click();
 
     await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $set: { "cardsData.$[card].tests": [] } },
@@ -160,11 +184,19 @@ test("Item modal distinguishes empty history from incomplete history with and wi
       headers: { "X-Personal-Viewer": actor }, cache: "no-store" })).json()).history, f.actor);
     expect(unpopulated.state).toBe("incomplete"); expect(unpopulated.results).toEqual([]);
     expect(unpopulated.latestThree).toEqual([]);
+    await page.reload();
+    await expect(partial.locator(".assessment-empty-control")).toHaveText("+ Test");
+    await expect(partial.locator(".progress-tests-warning")).toHaveText("!");
     await row(page, "partial").locator(".progress-tests-trigger").click();
-    await expect(modal(page).getByText(/No readable results are currently available; the history could not be confirmed as empty/)).toBeVisible();
+    await expect(modal(page).getByText(/Some assessment history may be missing/)).toBeVisible();
     await expect(modal(page).getByText(/Readable results are shown below/)).toHaveCount(0);
     await expect(modal(page).getByText("No tests recorded yet.", { exact: true })).toHaveCount(0);
     await expect(modal(page).locator("tbody tr")).toHaveCount(0);
+    await expect(modal(page).getByRole("button", { name: "Add test", exact: true })).toBeEnabled();
+    await page.screenshot({ path: "/tmp/switchplay-progress-incomplete-empty.png", fullPage: true });
+    await modal(page).getByRole("button", { name: "Add test", exact: true }).click();
+    await expect(modal(page).getByRole("form", { name: "Add assessment" })).toBeVisible();
+    await modal(page).getByRole("button", { name: "Cancel", exact: true }).click();
   } finally {
     await page.unrouteAll({ behavior: "wait" });
     await f.client.close();
@@ -202,7 +234,8 @@ test("an obsolete summary cannot replace a new Framework and refresh failures ne
     await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await expect(page.locator("main").getByRole("alert")).toContainText("Progress could not be loaded");
     await expect(row(page, "alternative-item").getByLabel("Completion unavailable")).toBeAttached();
     await expect(row(page, "alternative-item").locator("td").first()).toHaveText("");
-    await expect(row(page, "alternative-item").getByRole("button", { name: /assessment history unavailable/ })).toHaveText("+ Test");
+    await expect(row(page, "alternative-item").locator(".assessment-pass, .assessment-fail")).toHaveCount(2);
+    await expect(row(page, "alternative-item").locator(".progress-tests-warning")).toHaveText("!");
     await page.unroute("**/api/frameworks/alternative/summary"); await page.getByRole("button", { name: "Refresh progress" }).click();
     await expect(row(page, "alternative-item").locator("td").nth(0)).toHaveText("33%");
   } finally { await f.client.close(); }

@@ -62,7 +62,7 @@ async function show(page: Page, item = "item-core", title = "Practice") {
 }
 const card = (page: Page, id: string, title = "Practice") => dialog(page, title).locator(`[data-card-template-id="${id}"]`);
 
-test("one Card always opens its visual modal first, then working entry targets that Card rather than the previously active Card", async ({ page }) => {
+test("one Card opens its visual modal first, targets the selected working Card and refreshes saved completion on return", async ({ page }) => {
   const f = await fixture(page, "single");
   try {
     const before = await f.repo.getPersonalUser(f.actor); await show(page);
@@ -75,8 +75,15 @@ test("one Card always opens its visual modal first, then working entry targets t
     await expect(page.locator(".deck-detail h1")).toHaveText("Active Path");
     await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Shared practice");
     expect((await f.repo.getPersonalUser(f.actor))!.decksData[0].activeCardId).toBe(f.original.root.cardTemplateId);
+    await page.locator(".deck-card.is-active").press("Enter");
+    await page.getByRole("button", { name: "Update step progress. Current status: todo", exact: true }).first().click();
+    await expect.poll(async () => (await f.repo.getPersonalUser(f.actor))!.cardsData.find((value) => value.cardTemplateId === f.original.root.cardTemplateId)!.items[0].completionStatus).toBe("inProgress");
+    await page.getByRole("button", { name: "Update step progress. Current status: inProgress", exact: true }).first().click();
+    await expect.poll(async () => (await f.repo.getPersonalUser(f.actor))!.cardsData.find((value) => value.cardTemplateId === f.original.root.cardTemplateId)!.items[0].completionStatus).toBe("done");
+    await page.getByRole("button", { name: "Close focused card", exact: true }).press("Enter");
     await page.getByRole("button", { name: "Back to Progress", exact: true }).click();
     await expect(page.getByLabel("Framework", { exact: true })).toHaveValue("item-maths");
+    await expect(page.locator('tr[data-item-id="item-core"] td').first()).toHaveText("33%");
   } finally { await dispose(page, f); }
 });
 
@@ -270,6 +277,8 @@ for (const width of [320, 390, 1440]) test(`Item static Card fronts, internal Ba
     });
     expect(Math.abs(sizing.width - sizing.expected)).toBeLessThan(1);
     expect(sizing.center).toBeLessThan(1); expect(sizing.zoom).toBe("0.95");
+    await expect(card(page, f.original.root.cardTemplateId).locator("..")).toHaveCSS("padding-top", "12px");
+    await expect(card(page, f.original.root.cardTemplateId).locator("p").last()).toHaveCSS("padding-top", "8px");
     const rectangles = await fronts.evaluateAll((elements) => elements.map((element) => { const rect = element.getBoundingClientRect(); return { x: rect.x, y: rect.y, bottom: rect.bottom }; }));
     expect(rectangles[1].y).toBeGreaterThan(rectangles[0].bottom); expect(rectangles[1].x).toBe(rectangles[0].x);
     expect(await modal.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);

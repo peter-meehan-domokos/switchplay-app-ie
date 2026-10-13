@@ -1,5 +1,7 @@
 import { assertFrameworkConfiguration, type Framework } from "./configurationContracts";
 import type { frameworkMetadata, readFrameworkSummary } from "./readModels";
+import { assertAssessmentId, assertAssessmentSource } from "../assessments/contracts";
+import { isIsoDateOnlyString } from "../dateOnly";
 
 export type ProgressMetadata = ReturnType<typeof frameworkMetadata>;
 export type ProgressSummary = Awaited<ReturnType<typeof readFrameworkSummary>>["framework"];
@@ -41,8 +43,16 @@ export async function readProgressSummary(actor: string, frameworkId: string, si
       }
       for (const item of area.items) {
         if (typeof item.hasConfiguredCards !== "boolean" || !item.assessments || !["complete", "empty", "incomplete"].includes(item.assessments.state)
-          || !Array.isArray(item.assessments.latestThree) || item.assessments.latestThree.length > 3
-          || item.assessments.state === "incomplete" && item.assessments.latestThree.length) throw new Error();
+          || !Array.isArray(item.assessments.latestThree) || item.assessments.latestThree.length > 3) throw new Error();
+        const events = new Set<string>();
+        for (const result of item.assessments.latestThree) {
+          assertAssessmentId(result.id); assertAssessmentSource(result.source);
+          if (!isIsoDateOnlyString(result.date) || typeof result.result !== "boolean"
+            || typeof result.createdAt !== "string" || !Number.isFinite(Date.parse(result.createdAt))) throw new Error();
+          const key = JSON.stringify([result.source.kind, result.source.kind === "card" ? result.source.cardTemplateId : result.source.itemId, result.id]);
+          if (events.has(key)) throw new Error();
+          events.add(key);
+        }
       }
     }
   } catch { throw new Error("Progress results are unavailable. Please retry."); }

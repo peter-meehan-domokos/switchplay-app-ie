@@ -114,7 +114,10 @@ export default function AssessmentModal({ context, history, onClose }: {
       <button type="button" onClick={() => close("modal")} disabled={saving}>Close</button></div>
     {history.loading ? <p role="status">Loading assessments…</p> : null}
     {history.error ? <p role="alert">Assessment history could not be refreshed. {data ? "The results below may be out of date." : ""} <button type="button" onClick={history.refresh}>Refresh history</button></p> : null}
-    {data?.state === "incomplete" ? <p className="assessment-notice" role="status">Some assessment history is unavailable. {data.results.length ? "Readable results are shown below." : "No readable results are currently available; the history could not be confirmed as empty."} {!history.error ? <button type="button" onClick={history.refresh}>Refresh history</button> : null}</p> : null}
+    {data?.state === "incomplete" ? <p className="assessment-notice" role="status">{context.source.kind === "item"
+      ? <><span aria-hidden="true">! </span>Some assessment history may be missing.</>
+      : <>Some assessment history is unavailable. {data.results.length ? "Readable results are shown below." : "No readable results are currently available; the history could not be confirmed as empty."}</>}
+      {!history.error ? <button type="button" onClick={history.refresh}>Refresh history</button> : null}</p> : null}
     {!history.loading && !history.error && data?.state === "empty" ? <p>No tests recorded yet.</p> : null}
     {data?.results.length ? <div className="assessment-table-scroll"><table className="assessment-table"><caption className="sr-only">Assessments, newest first</caption>
       <thead><tr><th scope="col">Date</th><th scope="col">Result</th><th scope="col">Card</th><th scope="col">Actions</th></tr></thead>

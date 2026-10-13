@@ -27,6 +27,7 @@
 .shell :global(.assessment-empty-control) { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; white-space: nowrap; color: rgba(181, 189, 201, .65); border: 1px solid rgba(96, 104, 117, .5); border-radius: 5px; padding: 3px 5px; font-weight: 400; }
 .shell :global(.progress-tests-trigger .assessment-pass) { color: #69b9eb; font-size: 16px; }
 .shell :global(.progress-tests-trigger .assessment-fail) { color: #f18282; font-size: 13px; }
+.shell :global(.progress-tests-warning) { position: absolute; bottom: 3px; right: 4px; font-size: 10px; line-height: 1; color: #b5bdc9; opacity: .65; pointer-events: none; }
 .shell :global(.progress-help), .shell :global(.progress-notice), .shell :global(.progress-refresh) { font-size: 13px; line-height: 1.5; color: #b5bdc9; margin: 16px 0; }
 .shell :global(.progress-refresh) { margin: 8px 0; }
 .shell :global(.progress-notice button) { margin-left: 6px; padding: 8px; border: 1px solid #626b7a; border-radius: 6px; background: none; color: inherit; cursor: pointer; }

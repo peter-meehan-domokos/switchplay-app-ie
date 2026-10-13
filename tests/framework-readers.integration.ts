@@ -79,6 +79,10 @@ test("API partial Item history preserves readable results and identifies the una
   const { history }: { history: AssessmentHistory } = await response.json();
   assert.equal(history.state, "incomplete"); assert.equal(history.count, null); assert.equal(history.readableCount, 2);
   assert.deepEqual(history.results.map((row) => row.id), ["direct", "same"]); assert.deepEqual(history.latestThree, []);
+  const summary = await readFrameworkSummary(repo, "alice", "practice", frameworks);
+  const compact = summary.framework.areas[0].items[0].assessments;
+  assert.equal(compact.state, "incomplete"); assert.equal(compact.count, null);
+  assert.deepEqual(compact.latestThree.map((row) => row.id), ["same", "direct"]);
   assert.ok(history.issues.some((issue) => issue.code === "MISSING_PERSONAL_HISTORY_SOURCE" && issue.cardTemplateId === "original"));
   assert.ok(history.sources.some((dependency) => dependency.source.kind === "card" && dependency.source.cardTemplateId === "original"
     && dependency.revision === null && dependency.canMutate === false));

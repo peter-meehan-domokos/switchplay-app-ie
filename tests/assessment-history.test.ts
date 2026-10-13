@@ -8,6 +8,25 @@ import type { CardData, CardTest, PersonalUser } from "../src/lib/cards/model";
 const event = (id: string, date = "2026-10-11", result = true, createdAt = "2026-10-11T10:00:00Z"): CardTest => ({ id, date, result, createdAt: new Date(createdAt) });
 const user = (cardsData: CardData[]): PersonalUser => ({ _id: "alice", decksData: [], cardsData });
 
+test("Progress compact histories preserve empty/known presentation and show only ordered readable events when incomplete", () => {
+  for (const incomplete of [false, true]) for (const populated of [false, true]) {
+    const data = cardFixture("own").data;
+    if (incomplete) data.historySourceCardTemplateId = "missing";
+    if (populated) data.tests = [event("old", "2026-10-08"), event("latest", "2026-10-12"),
+      event("middle", "2026-10-10", false), event("recent", "2026-10-11")];
+    const history = projectAssessmentHistory(user([data]), [collectCardHistory([data], "own"), collectCardHistory([data], "own")],
+      new Map(), { ownCardIds: ["own"] });
+    const compact = compactAssessmentHistory(history);
+    assert.equal(compact.state, incomplete ? "incomplete" : populated ? "complete" : "empty");
+    assert.deepEqual(compact.latestThree.map((result) => result.id), populated ? ["middle", "recent", "latest"] : []);
+    assert.equal(compact.readableCount, populated ? 4 : 0); // Repeated exposure does not duplicate source events.
+    if (incomplete) {
+      assert.equal(compact.count, null); assert.ok(compact.issues.length);
+      assert.deepEqual(history.latestThree, []); // Card certainty contract is unchanged.
+    }
+  }
+});
+
 test("metadata keeps configuration order, permits empty structures and does not expose content mappings", () => {
   assert.deepEqual(frameworkMetadata([]), []);
   const metadata = frameworkMetadata(frameworkFixtures());

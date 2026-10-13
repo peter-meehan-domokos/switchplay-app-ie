@@ -158,7 +158,7 @@ title. If the title is unavailable, the result remains with a neutral “Card ti
 unavailable” fallback. Identical titles never merge result identities.
 
 Missing or corrupt required history sources produce an incomplete history with readable
-rows retained and an unknown total. The latest-three projection is suppressed because
+rows retained and an unknown total. Card indicators suppress a latest-three claim because
 an unavailable source could contain newer results. A missing title alone does not make
 personal results unreadable. Missing adopted content can suppress an Item/Area's metrics
 while its retained assessments remain readable. Database failures are errors, not empty
@@ -174,10 +174,12 @@ remain available through progress results; completion/confidence rules are uncha
 
 ## Assessment interface and refresh [Phase 6]
 
-Working Card headers show up to three compact assessment symbols next to the Card
+Working Card backs show up to three compact assessment symbols next to the Card
 label: a blue tick for Pass and a red dot for Fail, with the newest result on the right.
-There are no placeholder results. With no tests, a subdued plus button opens the history;
-on the Card back this is a small outlined + Test control beside the Card label. It opens
+There are no placeholder results. With no tests, a small subdued outlined + Test
+control appears beside the Card label. [Phase 7] Assessment controls appear only on
+the back and are interactive only after the Card is focused; an unfocused back keeps
+its visible metadata but cannot open the assessment dialog. The focused control opens
 the normal history dialog without creating a result or starting the Add form. Loading,
 failed reads and incomplete histories use a neutral status entry instead of an uncertain
 latest-three sequence.
@@ -248,13 +250,20 @@ or updates learning content.
 Item rows are indented beneath their Area. Blank completion/confidence values mean no
 eligible personal content or unset readings; no extra distinction is made between an
 unmapped Item and a mapped Item without eligible work. Zero and 100% remain numeric.
-Unavailable calculations have an explicit unavailable indication rather than a fabricated
-score. A fully resolved calculation can still show unfinished learning.
+Unavailable calculations remain blank with accessible unavailable labels rather than
+fabricated scores. A fully resolved calculation can still show unfinished learning.
 
 The whole Tests cell is an assessment entry point. It displays the combined history's
 latest three blue Pass ticks/red Fail dots, newest on the right. With no results, it shows
-a subdued + Test control. Incomplete histories use an unavailable indication instead of
-pretending that no tests exist. Area rows do not display assessments.
+a subdued + Test control. Incomplete histories keep the normal presentation: the latest
+three known readable results, or + Test when none are known. A small subdued ! in the
+cell's bottom-right corner warns that other results may be missing; it never replaces
+the control or inserts guessed results. Ordering and original-source deduplication are
+unchanged. A failed summary refresh also warns on the retained known results. The Item
+dialog shows ! Some assessment history may be missing. and retains all readable rows,
+Add test and authorised Edit/Delete actions, including when no rows can be read.
+Complete histories show no warning. Area rows do not display assessments. This Progress
+presentation does not change the Card-back indicator's incomplete-history treatment.
 
 Opening a Tests cell loads the existing Item assessment dialog on demand. Adding records
 a direct Item test; editing/deleting an inherited Card result still changes its original
@@ -264,7 +273,8 @@ Assessment saves refresh mounted Progress indicators. Background refresh preserv
 open assessment form and its entered values, including revision-conflict recovery. Reads
 are actor-bound, ignore superseded requests and keep personal results isolated. Progress
 refreshes on focus/return and offers explicit retry after a failed read; previously loaded
-rows retain their structure but stale scores/indicators are marked unavailable. Continuous
+rows retain their structure; stale scores remain unavailable and known assessment indicators
+carry a warning. Continuous
 cross-tab synchronization is not provided.
 
 With no configured Frameworks, Progress displays a deliberate empty message. A Framework
@@ -335,7 +345,8 @@ attribution, without working controls, assessments or media playback. Cards are
 identified by their template identity: repeated references collapse into one visual,
 while originals and forks remain separate even when their titles match. Canonical
 fork ancestry supplies the Item mapping; personal-history inheritance is unchanged.
-Selection Cards are slightly smaller and horizontally centred. A single destination's
+Selection Cards are approximately 5% narrower and horizontally centred, with 12px
+of additional space below the modal header and 8px above each caption. A single destination's
 caption names its context and actual Deck title; multiple destinations show a neutral
 choice caption, with Deck names on the subsequent Deck fronts. Captions omit version
 numbers; underlying version checks and context-specific opening remain unchanged.
