@@ -4,11 +4,10 @@ import { useRouter } from "next/navigation";
 import LibraryDialog from "@/components/library/LibraryDialog";
 import DeckFrontContents from "@/components/decks/DeckFrontContents";
 import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
-import { libraryFetch, LibraryRequestError, workingDeckHref } from "@/components/library/libraryClient";
+import { LibraryRequestError } from "@/components/library/libraryClient";
 import { flushPersonalMutations } from "@/lib/deckMutations";
 import type { AreaDeckDestination, AreaDestinations, DestinationSection, LibraryDeckDestination } from "@/lib/frameworks/destinations";
-import type { LibraryEntry } from "@/lib/cards/libraryProjection";
-import { withProgressReturn } from "@/lib/frameworks/progressNavigation";
+import { progressLibraryHref, progressWorkingHref } from "./progressDeckSelection";
 import styles from "./areaDialog.module.css";
 
 function errorMessage(cause: unknown) {
@@ -57,14 +56,9 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
     running.current = true; setPending(entry.deckTemplateId); setError(""); setSelected(null);
     const controller = new AbortController(); libraryController.current = controller;
     try {
-      const auth = await libraryFetch<{ user: { id: string } | null }>("/api/auth/me", controller.signal);
-      if (auth.user?.id !== actor) throw new Error("Your sign-in changed. Reload Progress before continuing.");
-      const detail = await libraryFetch<LibraryEntry>(`/api/library/decks/${encodeURIComponent(entry.deckTemplateId)}`, controller.signal);
-      if (detail.availability !== "available" || detail.deckTemplateId !== entry.deckTemplateId) throw new Error("This public Deck is unavailable. Refresh Decks before continuing.");
-      if (JSON.stringify(detail.manifest) !== JSON.stringify(entry.manifest)) throw new Error("This publication changed. Refresh Decks and review it before continuing.");
+      const href = await progressLibraryHref(actor, entry, frameworkId, areaId, controller.signal);
       if (!live.current || controller.signal.aborted) return;
-      onLeaving();
-      router.push(withProgressReturn(`/library/${encodeURIComponent(entry.deckTemplateId)}`, { frameworkId, areaId }));
+      onLeaving(); router.push(href);
     } catch (cause) { if (live.current && !controller.signal.aborted) setError(errorMessage(cause)); }
     finally { running.current = false; if (live.current) setPending(null); }
   };
@@ -77,14 +71,9 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
       if (!live.current) return;
       setData(latest);
       const current = [...latest.myDecks.entries, ...latest.archived.entries].find((item) => item.deckTemplateId === entry.deckTemplateId);
-      if (!current || current.availability !== "available" || current.kind !== entry.kind ||
-        current.membershipRevision !== entry.membershipRevision || current.adoptedDeckVersion !== entry.adoptedDeckVersion)
-        throw new Error("This Deck changed or is unavailable. Refresh the list before opening it.");
-      if (restore) await workingRequest(actor, `/api/decks-data/${encodeURIComponent(entry.deckTemplateId)}`, "PATCH",
-        { type: "restore", membershipRevision: entry.membershipRevision });
+      const href = await progressWorkingHref(actor, entry, current, frameworkId, areaId, restore);
       if (!live.current) return;
-      onLeaving();
-      router.push(withProgressReturn(workingDeckHref(entry.deckTemplateId), { frameworkId, areaId, restored: restore }));
+      onLeaving(); router.push(href);
     } catch (cause) { if (live.current) setError(errorMessage(cause)); }
     finally { running.current = false; if (live.current) setPending(null); }
   };

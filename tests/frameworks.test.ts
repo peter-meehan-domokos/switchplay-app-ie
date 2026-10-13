@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertFrameworkConfiguration, createFrameworkAccess, getFrameworks, getFramework, getFrameworkItem, validateFrameworkConfiguration } from "../src/lib/frameworks/configuration";
+import { assertFrameworkConfiguration, createFrameworkAccess, getFrameworks, getFramework, getFrameworkItem, hasConfiguredCards, hasConfiguredAreaCards, validateFrameworkConfiguration } from "../src/lib/frameworks/configuration";
 import { resolveEffectiveMapping, validateFrameworkAncestry } from "../src/lib/frameworks/mapping";
 import { collectPersonalEligibility } from "../src/lib/frameworks/eligibility";
 import { calculateCardProgress, calculateMappedProgress, resolveAdoptedCardCalculation } from "../src/lib/frameworks/calculations";
@@ -13,6 +13,20 @@ const cards = () => [cardFixture("original"), cardFixture("second"), cardFixture
 const graph = () => new Map(cards().map((card) => [card.root.cardTemplateId, card.root]));
 function calculation(card: ReturnType<typeof cardFixture>) { return resolveAdoptedCardCalculation("alice", card.root.cardTemplateId, [card.root], [card.version], [card.data]); }
 const eligible = (ids: string[]) => ({ cardTemplateIds: ids, unknownComposition: false, issues: [] });
+
+test("configured Card presence does not require resolved, accessible or personally eligible Cards", () => {
+  assert.equal(hasConfiguredCards({ id: "empty", title: "Empty", cardTemplateIds: [] }), false);
+  assert.equal(hasConfiguredCards({ id: "missing", title: "Missing", cardTemplateIds: ["missing-source"] }), true);
+  assert.equal(hasConfiguredCards(frameworkFixtures()[0].areas[0].items[0]), true);
+});
+
+test("Area configured Card presence checks its Items, including empty Areas and unresolved mapped Cards", () => {
+  const empty = { id: "empty", title: "Empty", cardTemplateIds: [] };
+  const missing = { id: "mapped", title: "Mapped", cardTemplateIds: ["missing-source"] };
+  assert.equal(hasConfiguredAreaCards({ id: "area", title: "Area", items: [] }), false);
+  assert.equal(hasConfiguredAreaCards({ id: "area", title: "Area", items: [empty] }), false);
+  assert.equal(hasConfiguredAreaCards({ id: "area", title: "Area", items: [empty, missing] }), true);
+});
 
 test("sample catalogue retains its identities/order; injected empty Frameworks, Areas, Items and mappings are valid", () => {
   assertFrameworkConfiguration(getFrameworks());

@@ -1,7 +1,14 @@
 import { isRecord, nonblank } from "../cards/domain";
 
 export type FrameworkItem = { readonly id: string; readonly title: string; readonly cardTemplateIds: readonly string[] };
+// Configured identities only: this does not establish accessible Deck destinations.
+export function hasConfiguredCards(item: FrameworkItem): boolean {
+  return item.cardTemplateIds.length > 0;
+}
 export type FrameworkArea = { readonly id: string; readonly title: string; readonly items: readonly FrameworkItem[] };
+export function hasConfiguredAreaCards(area: FrameworkArea): boolean {
+  return area.items.some(hasConfiguredCards);
+}
 export type Framework = { readonly id: string; readonly title: string; readonly areas: readonly FrameworkArea[] };
 export type FrameworkIssue = {
   code: string;

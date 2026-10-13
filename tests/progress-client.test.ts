@@ -17,8 +17,8 @@ async function withResponse(body: unknown, run: () => Promise<void>, actor = "al
 }
 const empty = { state: "empty", completion: null, confidence: null, eligibleCardCount: 0, resolvedCardCount: 0, issues: [] };
 const assessments = { state: "empty", count: 0, readableCount: 0, latestThree: [], issues: [] };
-const summary = () => ({ id: "practice", title: "Practice", areas: [{ id: "skills", title: "Skills", progress: empty,
-  items: [{ id: "practice-control", title: "Control", progress: empty, assessments }] }] });
+const summary = () => ({ id: "practice", title: "Practice", areas: [{ id: "skills", title: "Skills", hasConfiguredCards: true, progress: empty,
+  items: [{ id: "practice-control", title: "Control", hasConfiguredCards: true, progress: empty, assessments }] }] });
 
 test("Progress metadata retains configured ordering and supports an explicitly empty catalogue", async () => {
   const frameworks = frameworkFixtures().map(({ id, title, areas }) => ({ id, title, areas: areas.map(({ id, title, items }) => ({ id, title,

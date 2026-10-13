@@ -93,3 +93,13 @@ test("working all-skipped Card/Deck is 100%, while genuine zero remains visible"
     steps: working.steps.map((step) => ({ ...step, completionStatus: "todo" })) }, { currentUserId: "alice", users: [] })]);
   assert.equal(zero.progressPercentage, 0); assert.match(tile(zero), /0%/); assert.doesNotMatch(tile(zero), /Completed/);
 });
+
+test("static Item Card selection reuses content without players, nested actions, dates or personal state", () => {
+  const selected = { ...card, intro: { ...card.intro, description: "Selection description" } };
+  const html = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: selected, dateLabel: "", staticSelection: true,
+    variant: "focused", onOpenIntroView: noop, onOpenStepView: noop }));
+  assert.match(html, /active-card-front/); assert.match(html, /Selection description/); assert.match(html, /Instruction 1/);
+  assert.doesNotMatch(html, /<button|<video|role="button"|href=|Update step progress|Move target date|card-confidence/);
+  const ordinary = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: selected, dateLabel: "" }));
+  assert.doesNotMatch(ordinary, /Selection description/);
+});

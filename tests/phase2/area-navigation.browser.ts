@@ -77,8 +77,8 @@ test("Area title and chevron are independent; static ranked fronts and archive s
     await areaTitle(page).click(); await expect(dialog(page)).toBeVisible();
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
     await expect(page.getByRole("button", { name: "Expand Algebra", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Empty Area", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Empty Area" }).getByText("No matching Decks.", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Empty Area", exact: true })).toBeDisabled();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   } finally { await dispose(page, f.client); }
 });
 test("Area opening preserves active Card and Back to Progress restores selection/expansion/scroll and refreshes saved completion/confidence", async ({ page }) => {

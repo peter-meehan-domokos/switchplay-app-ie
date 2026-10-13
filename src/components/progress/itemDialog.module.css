@@ -1,0 +1,17 @@
+.dialog { touch-action: pan-y; }
+.cards { display: flex; flex-direction: column; align-items: center; gap: 22px; padding-top: 12px; }
+.cards[hidden] { display: none; }
+.choice { width: min(95%, 304px); }
+.card:global(.deck-card-surface) { position: relative; inset: auto; display: flex; flex-direction: column; width: 100%; zoom: .95; min-height: 450px; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; box-shadow: 0 18px 42px rgba(0,0,0,.25); overflow: hidden; }
+.caption { overflow-wrap: anywhere; padding-top: 8px; }
+.card :global(.deck-card-content) { flex: 1; }
+.card :global(.card-title-anchor h2) { margin: 0; font-size: .82rem; }
+.card :global(.card-creator-attribution) { position: static; transform: none; width: 100%; max-width: none; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.card :global(.card-creator-name) { position: static; transform: none; max-width: 100%; }
+.card :global(.card-selection-source) { font-size: 10px; color: var(--card-metadata-color, #a7abb2); }
+.card :global(.card-selection-description) { margin: 0; font-size: 12px; color: #b5bdc9; overflow-wrap: anywhere; }
+.card :global(.active-card-front), .card :global(.card-creator-attribution) { pointer-events: none; }
+.card :global(.step-description), .card :global(.active-card-title-block) { overflow-wrap: anywhere; }
+.dialog .select { border-radius: 22px; }
+.dialog .back { border: 1px solid #626b7a; border-radius: 6px; background: transparent; padding: 8px; }
+@media (max-width: 360px) { .card:global(.deck-card-surface) { min-height: 400px; } }

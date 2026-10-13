@@ -1,5 +1,5 @@
 "use client";
-import { workingRequest } from "@/components/decks/updateClient";
+import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
 import { personalWork } from "@/lib/cards/personalWork";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,11 +44,13 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
     if (fromUrl) setSelected(null);
     ++refreshGeneration.current;
     setPending(id); setError("");
+    const expectedVersion = fromUrl ? new URLSearchParams(window.location.search).get("cardVersion") : null;
     const stillRequested = () => {
       const query = new URLSearchParams(window.location.search);
-      return !fromUrl || query.get("openDeck") === id && (query.get("openCard") ?? undefined) === cardTemplateId;
+      return !fromUrl || query.get("openDeck") === id && (query.get("openCard") ?? undefined) === cardTemplateId && query.get("cardVersion") === expectedVersion;
     };
     try {
+      if (expectedVersion !== null && (!cardTemplateId || !/^[1-9]\d*$/.test(expectedVersion) || !Number.isSafeInteger(Number(expectedVersion)))) throw new Error("The selected Card version is invalid. Return to Progress and refresh your choices.");
       await flushPersonalMutations();
       // URL entry can follow an archive restoration or stale server navigation.
       // Revalidate membership instead of trusting a cached page projection.
@@ -57,19 +59,21 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
       if (fromUrl) setRecords(current);
       const membership = current.find((item) => item.deckTemplateId === id && item.archivedAt === null);
       if (!membership || membership.availability === "unavailable") throw new Error("This Deck cannot currently be opened. Your membership and personal state are retained.");
-      const deck = await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}) });
+      const deck = await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}), ...(expectedVersion === null ? {} : { expectedCardVersion: Number(expectedVersion) }) });
       if (actorRef.current !== currentUserId || !live.current || !stillRequested()) return;
+      if (expectedVersion !== null && deck.cards.find((card) => card.cardTemplateId === cardTemplateId)?.adoptedVersion !== Number(expectedVersion)) throw new Error("The selected Card version changed. Return to Progress and refresh your choices.");
       workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
-      openedParam.current = JSON.stringify([currentUserId, id, null]); setSelected(deck); setRotation(0);
+      openedParam.current = JSON.stringify([currentUserId, id, null, null]); setSelected(deck); setRotation(0);
       window.history.replaceState(null, "", withProgressReturn(`/decks?openDeck=${encodeURIComponent(id)}`, progressReturn ? { ...progressReturn, restored: false } : null));
     } catch (error) { if (actorRef.current === currentUserId && live.current && stillRequested()) setError(
       (progressReturn?.restored ? "The Deck was restored, but opening failed. Retry opening or return to Progress. " : "") +
-      (error instanceof Error ? error.message : "Unable to open Deck")); }
+      (error instanceof WorkingRequestError && error.code === "TARGET_CARD_VERSION_CONFLICT" ? "The selected Card version changed. Return to Progress and refresh your choices."
+        : error instanceof Error ? error.message : "Unable to open Deck")); }
     finally { if (opening.current === currentUserId) opening.current = null; if (actorRef.current === currentUserId && live.current) setPending(null); }
   }
   useEffect(() => {
     const id = search.get("openDeck"), card = search.get("openCard");
-    const key = JSON.stringify([currentUserId, id, card]);
+    const key = JSON.stringify([currentUserId, id, card, search.get("cardVersion")]);
     if (id && openedParam.current !== key && opening.current !== currentUserId) {
       openedParam.current = key; void open(id, card ?? undefined, true);
     }

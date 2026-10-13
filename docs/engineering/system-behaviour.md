@@ -232,9 +232,18 @@ independently without hiding its completion or confidence. Expansion choices are
 per learner and Framework for the browser session, including after reload or switching
 Frameworks. Empty Areas remain visible and have no expandable children.
 
-Area expansion uses its own chevron control. Clicking an Area title opens a separate
-Deck-selection dialog without changing expansion. Item content navigation is reserved
-for a later checkpoint. Browsing the table never restores, imports or updates learning content.
+Area expansion uses its own chevron control. An Area title is clickable when at least
+one child Item has configured Card mappings; it uses the same brighter text, pointer
+cursor and hover/focus treatment as a clickable Item. Areas without mappings retain
+subdued non-clickable titles. Their expansion chevrons remain independent and usable
+when they contain Items. Clicking a mapped Area title opens a separate Deck-selection
+dialog without changing expansion. An Item title opens its Card-selection
+dialog when it has explicitly configured Card mappings. Such titles are slightly brighter
+and show a pointer cursor and hover underline. This is a configuration rule, not a guarantee
+of accessible destinations: missing or unavailable mapped Cards remain inspectable through
+the dialog's empty/incomplete states. Items without mappings have subdued non-clickable
+titles; their Tests cells remain fully usable. Browsing the table never restores, imports
+or updates learning content.
 
 Item rows are indented beneath their Area. Blank completion/confidence values mean no
 eligible personal content or unset readings; no extra distinction is made between an
@@ -317,3 +326,46 @@ scroll position where the browser permits it. Progress rereads saved completion,
 confidence and assessments. Creator retains its established My Decks origin, with the
 Progress return context carried through rather than replacing Creator origin semantics.
 Ordinary My Decks and Library navigation keep their existing return destinations.
+
+## Item Cards and Deck contexts [Phase 7]
+
+A configured Item opens a scrollable column of static Card fronts before navigation,
+even when only one Card is available. The visuals retain Card content and creator
+attribution, without working controls, assessments or media playback. Cards are
+identified by their template identity: repeated references collapse into one visual,
+while originals and forks remain separate even when their titles match. Canonical
+fork ancestry supplies the Item mapping; personal-history inheritance is unchanged.
+Selection Cards are slightly smaller and horizontally centred. A single destination's
+caption names its context and actual Deck title; multiple destinations show a neutral
+choice caption, with Deck names on the subsequent Deck fronts. Captions omit version
+numbers; underlying version checks and context-specific opening remain unchanged.
+
+Only Cards with an accessible Deck context are offered. An unmapped Item or a mapped
+standalone Card has no content destination; direct Item assessments remain independent
+and usable. Incomplete discovery retains available choices with a warning; a failed
+read offers retry rather than claiming the Item is empty.
+
+The visual prefers an accessible personal adopted Card version, including archived
+work, and otherwise shows a current public version. Version differences between
+available contexts are noted. Choosing a Deck uses that context's version, never an
+implicit update. A Card retained in an adopted Deck can remain reachable after removal
+from its current publication. As in Area selection, any personal Deck membership
+excludes the same Deck identity from Progress Library choices. A Card appearing only
+in that Deck's newer public composition therefore needs another accessible Deck
+context to be offered here; it remains browsable through the main Library.
+
+A Card with one active or Library context opens that Deck at the selected Card.
+Multiple contexts reveal visual Deck fronts inside the same modal, with My Decks,
+Archived and Library distinguished. Back to Cards restores the list's scroll and focus.
+Archived choices require explicit Restore and open; the initial selection does not
+restore anything. A successful restoration remains committed if working entry fails.
+Library choices open the existing published Deck and target the selected Card without
+importing it. Add remains an explicit Library action. Stale or inaccessible destinations
+require refresh rather than opening another Card or silently changing versions.
+Item navigation carries the chosen Card version into entry checks. If adoption or
+publication changes between selection and opening, the learner must refresh choices;
+ordinary Deck entry retains its existing behaviour.
+
+Progress return context is retained for all these routes. The shared Back to Progress
+control restores the selected Framework, Area expansion and scroll where practical,
+and rereads saved progress. Ordinary content entry keeps its existing Back behaviour.

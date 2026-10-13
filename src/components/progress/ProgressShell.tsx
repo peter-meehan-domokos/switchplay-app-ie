@@ -5,6 +5,7 @@ import { readProgressMetadata, type ProgressMetadata } from "@/lib/frameworks/pr
 import FrameworkProgressTable from "./FrameworkProgressTable";
 import { useProgressSummary } from "./useProgressSummary";
 import styles from "./progress.module.css";
+import ItemCardDialog from "./ItemCardDialog";
 import AreaDeckDialog from "./AreaDeckDialog";
 import { readProgressPosition, rememberProgressPosition } from "@/lib/frameworks/progressNavigation";
 
@@ -15,6 +16,7 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
   const [metadata, setMetadata] = useState<ProgressMetadata>(), [metadataError, setMetadataError] = useState("");
   const [metadataRequest, setMetadataRequest] = useState(0), [selected, setSelected] = useState("");
   const [area, setArea] = useState<{ id: string; title: string } | null>(null);
+  const [item, setItem] = useState<{ id: string; title: string } | null>(null);
   const restoredPosition = useRef(false);
   const summary = useProgressSummary(actor, selected);
   useEffect(() => {
@@ -40,7 +42,7 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
     return () => controller.abort();
   }, [actor, metadataRequest]);
   const select = useCallback((id: string) => {
-    setSelected(id); setArea(null);
+    setSelected(id); setArea(null); setItem(null);
     const url = new URL(window.location.href); url.searchParams.set("framework", id);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }, []);
@@ -65,9 +67,12 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
       {summary.loading ? <p className="progress-refresh" role="status">{summary.data ? "Refreshing progress…" : "Loading progress…"}</p> : null}
       {summary.data ? <section aria-label={summary.data.title} aria-busy={summary.loading}>
         <FrameworkProgressTable key={JSON.stringify([actor, selected])} actor={actor} framework={summary.data} unavailable={!!summary.error}
-          onArea={(id, title) => setArea({ id, title })} />
+          onArea={(id, title) => { setItem(null); setArea({ id, title }); }} onItem={(id, title) => { setArea(null); setItem({ id, title }); }} />
       </section> : null}
     </> : null}
+    {item ? <ItemCardDialog key={JSON.stringify([actor, selected, item.id])} actor={actor} frameworkId={selected}
+      itemId={item.id} title={item.title} onClose={() => setItem(null)}
+      onLeaving={() => { try { rememberProgressPosition(sessionStorage, actor, selected, window.scrollY); } catch { /* Session storage is optional. */ } }} /> : null}
     {area ? <AreaDeckDialog key={JSON.stringify([actor, selected, area.id])} actor={actor} frameworkId={selected}
       areaId={area.id} title={area.title} onClose={() => setArea(null)}
       onLeaving={() => { try { rememberProgressPosition(sessionStorage, actor, selected, window.scrollY); } catch { /* Navigation must work without storage. */ } }} /> : null}

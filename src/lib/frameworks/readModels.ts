@@ -5,7 +5,7 @@ import type { CardRepository } from "../cards/repository";
 import { assertCardVersionAccess } from "../cards/versionAccess";
 import { assertAssessmentId } from "../assessments/contracts";
 import { collectCardHistory, compactAssessmentHistory, projectAssessmentHistory, unavailableCardTitle, type HistoryIssue, type SourceTitle } from "../assessments/history";
-import { assertFrameworkConfiguration, getFrameworks, type Framework } from "./configuration";
+import { assertFrameworkConfiguration, getFrameworks, hasConfiguredCards, hasConfiguredAreaCards, type Framework } from "./configuration";
 import { collectPersonalEligibility, type PersonalEligibility } from "./eligibility";
 import { calculateMappedProgress, resolveAdoptedCardCalculation } from "./calculations";
 import { resolveEffectiveMapping, validateFrameworkAncestry, type CanonicalAncestry } from "./mapping";
@@ -60,7 +60,7 @@ type HistorySelection = { cardIds: string[]; issues: HistoryIssue[] };
 function selectItemHistory(framework: Framework, itemId: string, graph: CanonicalAncestry, eligible: PersonalEligibility): HistorySelection {
   const item = framework.areas.flatMap((area) => area.items).find((item) => item.id === itemId)!;
   // Unmapped Items have only direct tests: canonical content cannot contribute.
-  if (!item.cardTemplateIds.length) return { cardIds: [], issues: [] };
+  if (!hasConfiguredCards(item)) return { cardIds: [], issues: [] };
   // Explicit mapping validation identifies the Items implicated by that chain.
   // Framework-wide diagnostics remain on the unchanged progress calculations.
   const configurationIssues = validateFrameworkAncestry(framework, graph)
@@ -118,13 +118,13 @@ export async function readFrameworkSummaries(repo: CardRepository, actor: string
     }
     const titles = await sourceTitles(repo, actor, user, [...histories.values()], session);
     return { viewerUserId: actor, frameworks: frameworks.map((framework) => ({ id: framework.id, title: framework.title,
-      areas: framework.areas.map((area) => ({ id: area.id, title: area.title,
+      areas: framework.areas.map((area) => ({ id: area.id, title: area.title, hasConfiguredCards: hasConfiguredAreaCards(area),
         progress: calculateMappedProgress(framework, { areaId: area.id }, graph, eligible, calculations),
         items: area.items.map((item) => {
           const selection = selections.get(item.id)!;
           const history = projectAssessmentHistory(user, selection.cardIds.map((id) => histories.get(id)!), titles,
             { itemId: item.id, ownCardIds: selection.cardIds, issues: selection.issues });
-          return { id: item.id, title: item.title, progress: calculateMappedProgress(framework, { itemId: item.id }, graph, eligible, calculations),
+          return { id: item.id, title: item.title, hasConfiguredCards: hasConfiguredCards(item), progress: calculateMappedProgress(framework, { itemId: item.id }, graph, eligible, calculations),
             assessments: compactAssessmentHistory(history) };
         }) })) })) };
   });

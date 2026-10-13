@@ -242,15 +242,12 @@ test("ordinary Library entry retains its normal Back destination", async ({ page
   } finally { await dispose(page, f); }
 });
 
-test("Library distinguishes genuine empty, partial discovery and database request failures", async ({ page }) => {
+test("unmapped Areas stay non-navigable; Library partial discovery and database request failures stay distinguishable", async ({ page }) => {
   const f = await fixture(page);
   try {
-    await page.goto("/progress"); await page.getByRole("button", { name: "Empty Area", exact: true }).click();
-    const empty = page.getByRole("dialog", { name: "Empty Area", exact: true });
-    await expect(empty.getByRole("button", { name: /^Library/ }).locator("span").first()).toHaveText("0");
-    await empty.getByRole("button", { name: /^Library/ }).click();
-    await expect(empty.getByText("No matching Library Decks.", { exact: true })).toBeVisible();
-    await empty.getByRole("button", { name: "Close", exact: true }).click();
+    await page.goto("/progress");
+    await expect(page.getByRole("button", { name: "Empty Area", exact: true })).toBeDisabled();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     // Keep a distinct unadopted public Deck readable while the fresh publication
     // becomes unavailable; adopted Decks remain excluded from the Library section.
     const readable = structuredClone(f.fresh.root), version = structuredClone(f.fresh.version);

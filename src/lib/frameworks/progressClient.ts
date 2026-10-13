@@ -32,6 +32,7 @@ export async function readProgressSummary(actor: string, frameworkId: string, si
     })) };
     assertFrameworkConfiguration([structure]);
     for (const area of summary.areas as ProgressSummary["areas"]) {
+      if (typeof area.hasConfiguredCards !== "boolean") throw new Error();
       for (const progress of [area.progress, ...area.items.map((item) => item.progress)]) {
         if (!progress || !["complete", "empty", "incomplete"].includes(progress.state)
           || progress.state !== "complete" && (progress.completion !== null || progress.confidence !== null)
@@ -39,7 +40,7 @@ export async function readProgressSummary(actor: string, frameworkId: string, si
           || progress.confidence !== null && (!Number.isInteger(progress.confidence) || progress.confidence < 1 || progress.confidence > 10)) throw new Error();
       }
       for (const item of area.items) {
-        if (!item.assessments || !["complete", "empty", "incomplete"].includes(item.assessments.state)
+        if (typeof item.hasConfiguredCards !== "boolean" || !item.assessments || !["complete", "empty", "incomplete"].includes(item.assessments.state)
           || !Array.isArray(item.assessments.latestThree) || item.assessments.latestThree.length > 3
           || item.assessments.state === "incomplete" && item.assessments.latestThree.length) throw new Error();
       }

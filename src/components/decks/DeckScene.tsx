@@ -21,6 +21,7 @@ export type DeckSceneProps = {
   deckFlipRotationY?: number;
   onBack: () => void;
   backLabel?: string;
+  initialCardTemplateId?: string;
   onToggleDeckFlip?: (rotationDelta?: number) => void;
   transition: object;
   error?: string;
@@ -137,12 +138,12 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
   const [activeCardIndex, setActiveCardIndex] = useState(() => {
-    const initialCardIndex = hasPersonalDeck(deck) ? deck.cards.findIndex((card) => card.id === deck.activeCardId) : -1;
+    const initialCardIndex = hasPersonalDeck(deck) ? deck.cards.findIndex((card) => card.id === deck.activeCardId) : cards.findIndex((card) => card.cardTemplateId === initialCardTemplateId);
     return initialCardIndex >= 0 ? initialCardIndex : deck.cards.length ? 0 : -1;
   });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
@@ -177,11 +178,11 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
     }
   }, [activeCardTemplateId, deck.deckTemplateId, templateIdLogContext]);
 
-  const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id)]);
+  const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id), hasPersonalDeck(deck) ? null : initialCardTemplateId]);
   const [selectedComposition, setSelectedComposition] = useState(compositionKey);
   if (selectedComposition !== compositionKey) {
     setSelectedComposition(compositionKey);
-    const index = hasPersonalDeck(deck) ? cards.findIndex((card) => card.id === deck.activeCardId) : -1;
+    const index = hasPersonalDeck(deck) ? cards.findIndex((card) => card.id === deck.activeCardId) : cards.findIndex((card) => card.cardTemplateId === initialCardTemplateId);
     setActiveCardIndex(index >= 0 ? index : cards.length ? 0 : -1);
     if (!cards.length) setIsFocusModeOpen(false);
     setTransitionPhase(null);

@@ -83,7 +83,7 @@ test("connected assessments, actual fork publication, archived Framework summari
     await page.setViewportSize({ width: 390, height: 844 }); await open(f.title);
     await expect(page.locator(".detail-progress")).toHaveText("Completion 80%"); // Includes the unrelated Card.
     await page.locator(".deck-card.is-active").press("Enter");
-    await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     const back = page.locator(".focused-card-surface--back .card-semantic-anchors");
     await back.getByRole("button", { name: "Add first test" }).click();
     await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-10", "Pass");
@@ -149,14 +149,14 @@ test("connected assessments, actual fork publication, archived Framework summari
     combined = (await read<{ history: AssessmentHistory }>(historyUrl)).history; expect(combined.results[0].sourceTitle).toBe("Adopted source title");
 
     await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter");
-    await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     await back.getByRole("button", { name: "Open assessment history" }).click();
     await expect(dialog(page).getByText("Source Card", { exact: true })).toHaveCount(1);
     await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-15", "Pass");
     await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await expect(dialog(page).locator("tbody tr")).toHaveCount(2);
     await dialog(page).getByRole("button", { name: "Edit test 2026-10-10 from Adopted source title", exact: true }).click(); await changeForm(page, "2026-10-16", "Fail");
     await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
-    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     await expect(back.locator(".assessment-indicator .assessment-pass, .assessment-indicator .assessment-fail")).toHaveText(["✓", "●"]);
 
     await harness(page, [itemId, directOnlyId].map((id) => ({ viewerUserId: f.actor, source: { kind: "item" as const, itemId: id }, canCreate: true })));
@@ -179,7 +179,7 @@ test("connected assessments, actual fork publication, archived Framework summari
     expect(after.itemTests).toHaveLength(2);
     const denied = await page.request.post(`/api/cards-data/${sourceId}/tests`, { data: { viewerUserId: f.actor, source: { kind: "card", cardTemplateId: sourceId }, action: "add", id: randomUUID(), expectedRevision: 2, date: "2026-10-17", result: true, deckTemplateId: f.deck.root.deckTemplateId } });
     expect(denied.status()).toBe(400); expect((await denied.json()).code).toBe("WORKING_DECK_REQUIRED");
-    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     await back.getByRole("button", { name: "Open assessment history" }).click();
     await dialog(page).getByRole("button", { name: "Delete test 2026-10-16 from Adopted source title", exact: true }).click(); await dialog(page).getByRole("button", { name: "Confirm delete", exact: true }).click();
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click(); await page.reload();
@@ -214,14 +214,15 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
       await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $set: { "cardsData.$[card].mediaItems": mediaItems } }, { arrayFilters: [{ "card.cardTemplateId": cardId }] });
       await page.goto("/decks"); await page.getByRole("button", { name: `Open ${f.title}`, exact: true }).last().click();
       const active = page.locator(".deck-card.is-active"); await expect(active).toBeVisible();
-      // Both rendered Card surfaces retain the visible, bordered first-test entry.
+      // Assessments appear only on the back and stay disabled until focus.
       await expect(active.locator(".deck-card-surface--back")).toHaveAttribute("inert", "");
-      await expect(active.locator(".deck-card-surface--front .assessment-empty-control")).toHaveText("+ Test");
-      await swipeHeader(page, ".deck-card.is-active .deck-card-surface--front .assessment-indicator", 1);
+      await expect(active.locator(".deck-card-surface--front .assessment-indicator")).toHaveCount(0);
+      await swipeHeader(page, ".deck-card.is-active .deck-card-surface--front .card-title-anchor", 1);
       const activeBack = page.locator(".deck-card.is-active .deck-card-surface--back .card-semantic-anchors");
       const activeEmptyControl = activeBack.locator(".assessment-empty-control");
       await expect(activeBack.getByRole("button", { name: "Add first test" })).toBeVisible();
       await expect(activeEmptyControl).toHaveText("+ Test");
+      await expect(activeBack.getByRole("button", { name: "Add first test" })).toBeDisabled();
       const activeEmptyAppearance = await activeEmptyControl.evaluate((node) => {
         const style = getComputedStyle(node);
         return { borderWidth: style.borderWidth, borderStyle: style.borderStyle, borderRadius: style.borderRadius,
@@ -238,7 +239,7 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
       const activeBox = (await active.boundingBox())!;
       await active.click({ position: { x: activeBox.width / 2, y: activeBox.height / 2 } });
       const front = ".focused-card-surface--front .card-semantic-anchors";
-      await expect(page.locator(front)).toBeVisible(); await swipeHeader(page, `${front} .assessment-indicator`, 1);
+      await expect(page.locator(front)).toBeVisible(); await swipeHeader(page, `${front} .card-title-anchor`, 1);
       const header = page.locator(backSelector);
       await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
       await expect(header.locator(".assessment-empty-control")).toHaveText("+ Test");
@@ -274,7 +275,7 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
       await page.locator(front).getByRole("button", { name: "Move target date one day later" }).click();
     }
     // Real back entry switches from + Test to exactly one/two/three symbols.
-    await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     const header = page.locator(backSelector);
     await header.getByRole("button", { name: "Add first test" }).click();
     for (let count = 1; count <= 4; count++) {
@@ -289,15 +290,14 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
     await page.getByRole("button", { name: "Close focused card", exact: true }).press("Enter");
     await expect(page.locator(".focused-card-layer")).toHaveCount(0);
-    await swipeHeader(page, ".deck-card.is-active .deck-card-surface--front .assessment-indicator", 1);
+    await swipeHeader(page, ".deck-card.is-active .deck-card-surface--front .card-title-anchor", 1);
     const stackedHeader = page.locator(".deck-card.is-active .deck-card-surface--back .card-semantic-anchors");
     await expect(stackedHeader.getByRole("button", { name: "Open assessment history" })).toBeVisible();
     await geometry(page, [".deck-card.is-active", ".deck-card.is-active .deck-card-surface--back .card-semantic-anchors"]);
     const stackedControl = await stackedHeader.locator(".assessment-indicator").boundingBox();
     expect(stackedControl!.width).toBeGreaterThanOrEqual(44); expect(stackedControl!.height).toBeGreaterThanOrEqual(44);
-    await stackedHeader.getByRole("button", { name: "Open assessment history" }).click();
-    await expect(dialog(page)).toBeVisible(); await expect(page.locator(".focused-card-layer")).toHaveCount(0);
-    await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    await expect(stackedHeader.getByRole("button", { name: "Open assessment history" })).toBeDisabled();
+    await expect(dialog(page)).toHaveCount(0); await expect(page.locator(".focused-card-layer")).toHaveCount(0);
     await expect(page.locator(".deck-card.is-compressed .card-semantic-anchors")).toHaveCount(0);
     await page.screenshot({ path: `/tmp/switchplay-quiet-header-stacked-${width}.png`, fullPage: true });
   } finally { await f.client.close(); }
@@ -311,7 +311,7 @@ test("back unset confidence and incomplete history never invent a score or a + T
     await page.setViewportSize({ width: 320, height: 740 }); await page.goto("/decks");
     await page.getByRole("button", { name: `Open ${f.title}`, exact: true }).last().click();
     await expect(page.locator(".deck-card.is-active")).toBeVisible(); await page.locator(".deck-card.is-active").press("Enter");
-    await swipeHeader(page, ".focused-card-surface--front .assessment-indicator", 1);
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     const header = page.locator(".focused-card-surface--back .card-semantic-anchors");
     await expect(header.getByLabel("Confidence not set")).toBeEmpty();
     await expect(header.getByRole("button", { name: "Assessment history incomplete" })).toBeVisible();
@@ -355,43 +355,41 @@ test("two mounted fork histories and indicators immediately refresh source edits
   } finally { await f.client.close(); }
 });
 
-test("working Card header confidence, assessment CRUD, mobile layout and focus preserve Card geometry and gestures", async ({ page }) => {
+test("working Card back assessment CRUD and focused gestures preserve geometry; front and unfocused assessments stay inactive", async ({ page }) => {
   const f = await fixture(page);
   try {
     await page.setViewportSize({ width: 390, height: 844 }); await page.goto("/decks");
     await page.getByRole("button", { name: `Open ${f.title}`, exact: true }).last().click();
-    const header = page.locator(".deck-card.is-active .deck-card-surface--front .card-semantic-anchors");
+    await expect(page.locator(".deck-card.is-active .deck-card-surface--front .assessment-indicator")).toHaveCount(0);
+    await page.locator(".deck-card.is-active").press("Enter");
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
+    const selector = ".focused-card-surface--back .card-semantic-anchors", header = page.locator(selector);
     await expect(header.getByLabel("Confidence not set")).toBeEmpty();
-    const before = (await geometry(page, [".deck-card.is-active"]))[".deck-card.is-active"];
+    const before = (await geometry(page, [selector]))[selector];
     await header.getByRole("button", { name: "Open assessment history" }).click();
-    await expect(page.locator(".focused-card-layer")).toHaveCount(0);
     await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-15", "Pass");
     await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();
     await expect(dialog(page).locator("tbody tr")).toHaveCount(5);
-    const overflow = await dialog(page).evaluate((element) => element.scrollWidth > element.clientWidth); expect(overflow).toBe(false);
+    expect(await dialog(page).evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
     await page.keyboard.press("Escape"); await expect(dialog(page)).toHaveCount(0);
     await expect(header.getByRole("button", { name: "Open assessment history" })).toBeFocused();
-    const after = (await geometry(page, [".deck-card.is-active"]))[".deck-card.is-active"]; expect(Math.abs(after[2] - before[2])).toBeLessThanOrEqual(1); expect(Math.abs(after[3] - before[3])).toBeLessThanOrEqual(1);
-    await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-stage")).toBeVisible();
-    const focused = page.locator(".focused-card-surface--front .card-semantic-anchors");
-    await focused.getByRole("button", { name: "Open assessment history" }).press("Enter");
+    expect((await geometry(page, [selector]))[selector]).toEqual(before);
+    await header.getByRole("button", { name: "Open assessment history" }).press("Enter");
     await dialog(page).getByRole("button", { name: "Delete test 2026-10-15 from Shared practice", exact: true }).click();
     await dialog(page).getByRole("button", { name: "Confirm delete", exact: true }).click();
     await expect(dialog(page).locator("tbody tr")).toHaveCount(4); await page.keyboard.press("Escape");
-    await focused.getByRole("button", { name: "Move target date one day later" }).click();
-    await expect(focused.getByLabel("Confidence not set")).toHaveCount(1);
-    const control = focused.locator(".assessment-indicator"), rect = await control.boundingBox();
-    await page.mouse.move(rect!.x + rect!.width / 2, rect!.y + rect!.height / 2); await page.mouse.down();
-    await page.mouse.move(rect!.x + rect!.width / 2 + 220, rect!.y + rect!.height / 2, { steps: 12 }); await page.mouse.up();
-    await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible(); await expect(dialog(page)).toHaveCount(0);
-    const backSelector = ".focused-card-surface--back .card-title-anchor", back = (await geometry(page, [backSelector]))[backSelector];
-    await page.mouse.move(back[0] + back[2] / 2, back[1] + back[3] / 2); await page.mouse.down();
-    await page.mouse.move(back[0] + back[2] / 2 - 220, back[1] + back[3] / 2, { steps: 12 }); await page.mouse.up();
-    await control.click(); await expect(dialog(page)).toBeVisible(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
-    const card = (await f.repo.getPersonalUser(f.actor))!.cardsData.find((card) => card.cardTemplateId === f.source.root.cardTemplateId)!;
-    expect(card.tests.length).toBe(4); expect(card.cardTemplateVersion).toBe(1);
-    // The center remains at the header midpoint regardless of label/indicators.
-    const center = await focused.locator(".card-confidence").evaluate((node) => {
+    await swipeHeader(page, `${selector} .assessment-indicator`, -1);
+    const front = page.locator(".focused-card-surface--front .card-semantic-anchors");
+    await expect(front.locator(".assessment-indicator")).toHaveCount(0);
+    await front.getByRole("button", { name: "Move target date one day later" }).click();
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
+    await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
+    await expect(dialog(page)).toHaveCount(0);
+    await header.getByRole("button", { name: "Open assessment history" }).click();
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    const record = (await f.repo.getPersonalUser(f.actor))!.cardsData.find((card) => card.cardTemplateId === f.source.root.cardTemplateId)!;
+    expect(record.tests.length).toBe(4); expect(record.cardTemplateVersion).toBe(1);
+    const center = await header.locator(".card-confidence").evaluate((node) => {
       const h = node.parentElement!.getBoundingClientRect(), c = node.getBoundingClientRect(); return Math.abs(c.x + c.width / 2 - h.x - h.width / 2);
     }); expect(center).toBeLessThan(1);
   } finally { await f.client.close(); }
@@ -567,12 +565,19 @@ test("set raw confidence stays centered on a narrow Card and the native dialog t
     await page.getByRole("button", { name: `Open ${f.title}`, exact: true }).last().click();
     await expect(page.locator(".deck-card.is-active")).toBeVisible();
     await geometry(page, [".deck-card.is-active"]);
-    const header = page.locator(".deck-card.is-active .deck-card-surface--front .card-semantic-anchors");
+    await expect(page.locator(".deck-card.is-active .deck-card-surface--front .assessment-indicator")).toHaveCount(0);
+    await page.locator(".deck-card.is-active").press("Enter");
+    await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
+    const header = page.locator(".focused-card-surface--back .card-semantic-anchors");
     await expect(header.getByLabel("Confidence 5 out of 10")).toHaveText("5");
+    await geometry(page, [".focused-card-surface--back .card-semantic-anchors"]);
     const gap = await header.evaluate((node) => {
       const h = node.getBoundingClientRect(), c = node.querySelector(".card-confidence")!.getBoundingClientRect();
-      const label = node.querySelector("h2")!.getBoundingClientRect(), indicator = node.querySelector(".assessment-indicator")!.getBoundingClientRect();
-      return { offset: Math.abs(c.x + c.width / 2 - h.x - h.width / 2), labelBeforeIndicator: label.right <= indicator.x + 5, controlBeforeCenter: indicator.right <= c.x + 1 };
+      const label = node.querySelector("h2")!.getBoundingClientRect();
+      const symbols = Array.from(node.querySelectorAll(".assessment-pass, .assessment-fail"), (element) => element.getBoundingClientRect());
+      return { offset: Math.abs(c.x + c.width / 2 - h.x - h.width / 2),
+        labelBeforeIndicator: label.right <= Math.min(...symbols.map((symbol) => symbol.x)),
+        controlBeforeCenter: Math.max(...symbols.map((symbol) => symbol.right)) <= c.x + 1 };
     }); expect(gap.offset).toBeLessThan(1); expect(gap.labelBeforeIndicator).toBe(true); expect(gap.controlBeforeCenter).toBe(true);
     await header.getByRole("button", { name: "Open assessment history" }).press("Enter");
     await expect(dialog(page)).toBeVisible();
@@ -583,6 +588,6 @@ test("set raw confidence stays centered on a narrow Card and the native dialog t
     await page.screenshot({ path: testInfo.outputPath("assessment-mobile-320.png"), fullPage: true });
     await dialog(page).getByRole("button", { name: "Close", exact: true }).focus(); await page.keyboard.press("Escape"); await dialog(page).getByRole("button", { name: "Discard changes" }).click(); await expect(dialog(page)).toHaveCount(0);
     await expect(header.getByRole("button", { name: "Open assessment history" })).toBeFocused();
-    await expect(page.locator(".focused-card-layer")).toHaveCount(0);
+    await expect(page.locator(".focused-card-layer")).toHaveCount(1);
   } finally { await f.client.close(); }
 });

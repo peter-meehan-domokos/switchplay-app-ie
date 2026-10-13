@@ -153,6 +153,7 @@ test("snapshot summaries aggregate adopted active/archived compositions, indepen
   assert.equal(control.progress.eligibleCardCount, 4); assert.equal(control.progress.completion, 44); assert.equal(control.progress.confidence, 7);
   assert.equal(area.progress.eligibleCardCount, 5); assert.equal(area.progress.completion, 42); assert.equal(area.progress.confidence, 6);
   assert.equal(speed.progress.completion, 33); assert.equal(area.items[2].progress.state, "empty");
+  assert.equal(control.hasConfiguredCards, true); assert.equal(area.items[2].hasConfiguredCards, false);
   assert.equal(result.frameworks[0].areas[1].progress.state, "empty"); assert.deepEqual(result.frameworks[2].areas, []);
   assert.equal(control.assessments.count, 4); assert.equal("results" in control.assessments, false);
   assert.equal(JSON.stringify(result).includes("unmapped-secret"), false); assert.equal(JSON.stringify(result).includes("orphan-secret"), false);

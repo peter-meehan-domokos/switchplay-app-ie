@@ -60,6 +60,12 @@ export function canonicalIntroductionDTO(value: DeckIntroduction | null): DeckIn
 
 export function libraryCardPresentation(version: CardTemplateVersion, label: string, creator: CreatorAttribution): LibraryCardPresentation {
   requireCondition(version.visibility === "public", "LIBRARY_CARD_FORBIDDEN");
+  return cardContentPresentation(version, label, creator);
+}
+
+// Content-only selection visuals may also use an authorised personal adopted version.
+// The caller must check access; public Library selection retains its stricter gate above.
+export function cardContentPresentation(version: CardTemplateVersion, label: string, creator: CreatorAttribution): LibraryCardPresentation {
   assertAdoption(version.version); assertCardContent(version.content);
   const content = version.content;
   return { surface: "canonical", id: version.cardTemplateId, cardTemplateId: version.cardTemplateId,

@@ -12,9 +12,11 @@
 .shell :global(.progress-area-row) { background: #ffffff04; }
 .shell :global(.progress-area-heading) { display: flex; gap: 4px; align-items: center; }
 .shell :global(.progress-content-title) { color: inherit; background: none; border: none; padding: 0; text-align: left; font: inherit; cursor: default; opacity: .85; }
-.shell :global(.progress-area-row .progress-content-title:not(:disabled)) { cursor: pointer; min-height: 44px; }
+.shell :global(.progress-area-row .progress-content-title) { min-height: 44px; }
 .shell :global(.progress-area-row th) { text-align: left; font-weight: 600; }
 .shell :global(.progress-item-row th) { padding-left: 60px; text-align: left; font-weight: 400; }
+.shell :global(.progress-content-title:not(:disabled)) { cursor: pointer; opacity: 1; font-weight: 500; }
+.shell :global(.progress-content-title:not(:disabled):hover) { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #aeb5c080; }
 .shell :global(.progress-item-row) { height: 48px; }
 .shell :global(.progress-area-toggle) { flex: 0 0 44px; min-height: 44px; border: none; background: none; color: #c6cbd4; font-size: 24px; cursor: pointer; padding: 0; }
 .shell :global(.progress-area-toggle:disabled) { opacity: .25; cursor: default; }

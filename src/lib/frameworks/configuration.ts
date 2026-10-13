@@ -15,7 +15,7 @@ const catalogue: readonly Framework[] = Object.freeze([
           {
             id: "quadratic-equations",
             title: "Quadratic Equations",
-            cardTemplateIds: ["card-978dd6c8-683b-476e-bd18-50f99018fe16"],
+            cardTemplateIds: ["card-978dd6c8-683b-476e-bd18-50f99018fe16", "card-a8e7ca26-2422-44b0-8f32-518ab483751f", "card-2ce6e32f-354a-420a-8766-abae800e1a0e", "card-0a2da2c9-8d4b-4779-a2f8-9e468313443a"],
           },
           {
             id: "factor-theorem",

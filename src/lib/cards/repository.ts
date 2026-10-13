@@ -964,12 +964,14 @@ export class CardRepository {
   async activeMemberships(actor: string): Promise<DeckData[]> {
     const user = await this.getPersonalUser(actor); return user?.decksData.filter((deck) => deck.archivedAt === null) ?? [];
   }
-  async openWorkingDeck(actor: string, deckTemplateId: string, localDate: string, targetCardTemplateId?: string) {
+  async openWorkingDeck(actor: string, deckTemplateId: string, localDate: string, targetCardTemplateId?: string, expectedCardVersion?: number) {
     entityId(deckTemplateId);
     if (targetCardTemplateId !== undefined) entityId(targetCardTemplateId);
+    if (expectedCardVersion !== undefined) { assertAdoption(expectedCardVersion); requireCondition(targetCardTemplateId !== undefined, "TARGET_CARD_CONTEXT_REQUIRED"); }
     requireCondition(isIsoDateOnlyString(localDate) && localDate === localDate.trim(), "INVALID_CADENCE_ANCHOR");
     await this.transaction(async (session) => {
       const user = await this.assertUser(actor, session);
+      if (expectedCardVersion !== undefined) requireCondition(user.cardsData.find((card) => card.cardTemplateId === targetCardTemplateId)?.cardTemplateVersion === expectedCardVersion, "TARGET_CARD_VERSION_CONFLICT");
       const data = user.decksData.find((item) => item.deckTemplateId === deckTemplateId);
       requireCondition(data && data.archivedAt === null, "WORKING_DECK_REQUIRED");
       const root = await this.decks().findOne({ deckTemplateId }, { session });

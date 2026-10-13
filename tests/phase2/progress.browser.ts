@@ -177,12 +177,12 @@ test("direct Item tests work on the real sample with no CardData or Deck members
     const repo = new CardRepository(client.db(process.env.MONGODB_DB!), client), actor = new ObjectId(), username = `direct-${randomUUID()}`;
     const user = { _id: actor, username, email: `${username}@example.invalid`, passwordHash: hashSync("local-test-only", 4), cardsData: [], decksData: [], createdAt: new Date(), updatedAt: new Date() };
     await repo.users().insertOne(user); await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } });
-    await page.goto("/progress"); const item = row(page, "quadratic-equations"); await expect(item).toBeVisible();
+    await page.goto("/progress"); const item = row(page, "factor-theorem"); await expect(item).toBeVisible();
     await item.getByRole("button", { name: /add first test/ }).click(); await modal(page).getByRole("button", { name: "Add test", exact: true }).click(); await form(page, "2026-10-20", "Pass");
     await modal(page).getByRole("button", { name: "Save test", exact: true }).click(); await modal(page).getByRole("button", { name: "Close", exact: true }).click();
     await expect(item.locator(".assessment-pass")).toHaveCount(1); await expect(item.locator("td").nth(0)).toHaveText(""); await expect(item.locator("td").nth(1)).toHaveText("");
     const personal = (await repo.getPersonalUser(actor.toHexString()))!; expect(personal.cardsData).toEqual([]); expect(personal.decksData).toEqual([]);
-    expect(personal.itemTests).toMatchObject([{ itemId: "quadratic-equations", result: true }]);
+    expect(personal.itemTests).toMatchObject([{ itemId: "factor-theorem", result: true }]);
   } finally { await client.close(); }
 });
 

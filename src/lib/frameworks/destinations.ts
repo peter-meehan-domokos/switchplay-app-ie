@@ -2,7 +2,10 @@ import { ObjectId, type ClientSession, type Collection, type Document, type Filt
 import { CardArchitectureError, isRecord, nonblank, requireCondition } from "../cards/domain";
 import type { CardRepository } from "../cards/repository";
 import type { CardData, CardTemplateRoot, CardTemplateVersion, DeckTemplateRoot, DeckTemplateVersion } from "../cards/model";
-import { canonicalIntroductionDTO } from "../cards/libraryProjection";
+import { canonicalIntroductionDTO, cardContentPresentation } from "../cards/libraryProjection";
+import { cardCreatorAttributions } from "../cards/creatorAttribution";
+import { layoutCardLabels } from "../cards/layout";
+import type { CanonicalCardPresentation } from "../../components/decks/presentation";
 import { assertAssessmentId } from "../assessments/contracts";
 import { assertFrameworkConfiguration, getFrameworks, type Framework } from "./configuration";
 import { collectPersonalEligibility } from "./eligibility";
@@ -16,7 +19,7 @@ import { deckFrontPresentation } from "../../components/decks/deckFrontPresentat
 import { publishedLibraryEntries } from "../cards/libraryReadModels";
 import type { LibraryPreviewManifest } from "../cards/libraryProjection";
 
-export type DestinationIssue = { code: string; deckTemplateId?: string };
+export type DestinationIssue = { code: string; deckTemplateId?: string; cardTemplateId?: string };
 export type AreaDeckDestination = { kind: "active" | "archived"; deckTemplateId: string; adoptedDeckVersion: number;
   membershipRevision: number; matchingCardCount: number; availability: "available" | "unavailable"; front: DeckFrontPresentation };
 export type DestinationSection = { state: "complete" | "empty" | "incomplete"; count: number | null; entries: AreaDeckDestination[]; issues: DestinationIssue[] };
@@ -24,6 +27,11 @@ export type LibraryDeckDestination = { kind: "library"; deckTemplateId: string; 
   manifest: LibraryPreviewManifest; front: DeckFrontPresentation };
 export type LibraryDestinationSection = Omit<DestinationSection, "entries"> & { entries: LibraryDeckDestination[] };
 export type AreaDestinations = { viewerUserId: string; frameworkId: string; areaId: string; myDecks: DestinationSection; archived: DestinationSection; library: LibraryDestinationSection };
+export type ItemDeckContext = (AreaDeckDestination | LibraryDeckDestination) & { cardVersion: number };
+export type ItemCardDestination = { cardTemplateId: string; presentation: CanonicalCardPresentation;
+  presentationContext: "active" | "archived" | "library"; versionsDiffer: boolean; contexts: ItemDeckContext[] };
+export type ItemDestinations = { viewerUserId: string; frameworkId: string; areaId: string; itemId: string;
+  state: "complete" | "empty" | "incomplete"; count: number | null; cards: ItemCardDestination[]; issues: DestinationIssue[] };
 export function matchingAreaCards(framework: Framework, areaId: string, ids: readonly string[], graph: CanonicalAncestry) {
   const matched = new Set<string>(); let incomplete = false;
   for (const id of new Set(ids)) {
@@ -49,6 +57,17 @@ async function batches<T extends Document>(collection: Collection<T>, clauses: D
 // existing public canonical projection. Both are read in one snapshot, never drafts.
 export async function readAreaDestinations(repo: CardRepository, actor: string, frameworkId: string, areaId: string,
   frameworks: readonly Framework[] = getFrameworks()): Promise<AreaDestinations> {
+  return (await readDestinations(repo, actor, frameworkId, areaId, frameworks)).area;
+}
+export async function readItemDestinations(repo: CardRepository, actor: string, frameworkId: string, itemId: string,
+  frameworks: readonly Framework[] = getFrameworks()): Promise<ItemDestinations> {
+  assertAssessmentId(itemId); assertFrameworkConfiguration(frameworks);
+  const area = frameworks.find((framework) => framework.id === frameworkId)?.areas.find((area) => area.items.some((item) => item.id === itemId));
+  requireCondition(area, "FRAMEWORK_ITEM_CONTEXT_FORBIDDEN");
+  return (await readDestinations(repo, actor, frameworkId, area.id, frameworks, itemId)).item!;
+}
+async function readDestinations(repo: CardRepository, actor: string, frameworkId: string, areaId: string,
+  frameworks: readonly Framework[], itemId?: string) {
   assertAssessmentId(actor); assertAssessmentId(frameworkId); assertAssessmentId(areaId); assertFrameworkConfiguration(frameworks);
   const framework = frameworks.find((item) => item.id === frameworkId), area = framework?.areas.find((item) => item.id === areaId);
   requireCondition(framework && area, "FRAMEWORK_AREA_CONTEXT_FORBIDDEN");
@@ -59,8 +78,22 @@ export async function readAreaDestinations(repo: CardRepository, actor: string, 
     requireCondition(user && Array.isArray(user.decksData) && Array.isArray(user.cardsData), "PERSONAL_DATA_CONTEXT_REQUIRED");
     const result: AreaDestinations = { viewerUserId: actor, frameworkId, areaId, myDecks: section(), archived: section(),
       library: { state: "empty", count: 0, entries: [], issues: [] } };
-    // An Area without explicit mappings cannot acquire a matching descendant.
-    if (!area.items.some((item) => item.cardTemplateIds.length)) return result;
+    const item: ItemDestinations | null = itemId ? { viewerUserId: actor, frameworkId, areaId, itemId,
+      state: "empty", count: 0, cards: [], issues: [] } : null;
+    const finish = () => ({ area: result, item });
+    const mappedItems = itemId ? area.items.filter((entry) => entry.id === itemId) : area.items;
+    // Unmapped scopes cannot acquire matching descendants through Deck position.
+    if (!mappedItems.some((entry) => entry.cardTemplateIds.length)) return finish();
+    const matchingCards = (ids: readonly string[], graph: CanonicalAncestry) => {
+      if (!itemId) return matchingAreaCards(framework, areaId, ids, graph);
+      const cardTemplateIds: string[] = []; let incomplete = false;
+      for (const id of new Set(ids)) {
+        const mapping = resolveEffectiveMapping(framework, id, graph);
+        if (mapping.state === "mapped" && mapping.itemId === itemId) cardTemplateIds.push(id);
+        if (mapping.state === "incomplete" && mapping.issues.some((issue) => issue.code !== "MAPPING_CONFLICT" || !issue.itemIds?.length || issue.itemIds.includes(itemId))) incomplete = true;
+      }
+      return { cardTemplateIds, incomplete };
+    };
     const memberships = user.decksData.filter((data) => isRecord(data) && nonblank(data.deckTemplateId));
     if (memberships.length !== user.decksData.length) {
       result.myDecks.issues.push({ code: "INVALID_DECK_MEMBERSHIP" }); result.archived.issues.push({ code: "INVALID_DECK_MEMBERSHIP" });
@@ -80,18 +113,19 @@ export async function readAreaDestinations(repo: CardRepository, actor: string, 
       .filter((entry) => !membershipIds.has(entry.deckTemplateId));
     const publicCardIds = publicEntries.flatMap((entry) => entry.availability === "available" ? entry.manifest.cards.map((card) => card.cardTemplateId) : []);
     const graph = await readCanonicalAncestry(repo, [framework], [...ids, ...publicCardIds], session);
-    const configurationIssues = validateFrameworkAncestry(framework, graph);
+    const configurationIssues = validateFrameworkAncestry(framework, graph).filter((issue) => !itemId || !issue.itemIds?.length || issue.itemIds.includes(itemId));
     if (configurationIssues.length) {
       for (const target of [result.myDecks, result.archived, result.library]) { target.state = "incomplete"; target.count = null;
         target.issues.push(...configurationIssues.map(({ code }) => ({ code }))); }
-      return result;
+      if (item) { item.state = "incomplete"; item.count = null; item.issues = result.library.issues; }
+      return finish();
     }
     for (const entry of publicEntries) {
       if (entry.availability !== "available") {
         result.library.issues.push({ code: "PUBLIC_CONTENT_UNAVAILABLE", deckTemplateId: entry.deckTemplateId });
         continue;
       }
-      const matching = matchingAreaCards(framework, areaId, entry.manifest.cards.map((card) => card.cardTemplateId), graph);
+      const matching = matchingCards(entry.manifest.cards.map((card) => card.cardTemplateId), graph);
       if (matching.incomplete) {
         result.library.issues.push({ code: "UNRESOLVED_CARD_MAPPING", deckTemplateId: entry.deckTemplateId });
         continue;
@@ -103,7 +137,7 @@ export async function readAreaDestinations(repo: CardRepository, actor: string, 
     result.library.count = result.library.issues.length ? null : result.library.entries.length;
     result.library.state = result.library.issues.length ? "incomplete" : result.library.entries.length ? "complete" : "empty";
     const cardRoots = await batches<CardTemplateRoot>(repo.cards(), ids.map((cardTemplateId) => ({ cardTemplateId })), session,
-      { _id: 0, cardTemplateId: 1, ownerUserId: 1, visibility: 1 });
+      { _id: 0, cardTemplateId: 1, ownerUserId: 1, visibility: 1, forkedFrom: 1 });
     const personal = user.cardsData.filter((data) => isRecord(data) && nonblank(data.cardTemplateId));
     const cardVersions = await batches<CardTemplateVersion>(repo.cardVersions(), personal.filter((data) => ids.includes(data.cardTemplateId)
       && Number.isInteger(data.cardTemplateVersion) && data.cardTemplateVersion > 0)
@@ -115,7 +149,7 @@ export async function readAreaDestinations(repo: CardRepository, actor: string, 
       if (!target) { for (const section of [result.myDecks, result.archived]) section.issues.push({ code: "INVALID_ARCHIVE_STATE" }); continue; }
       if (duplicates.has(data.deckTemplateId)) { target.issues.push({ code: "AMBIGUOUS_DECK_MEMBERSHIP", deckTemplateId: data.deckTemplateId }); continue; }
       if (eligible.unknownComposition) { target.issues.push(...eligible.issues.map(({ code }) => ({ code, deckTemplateId: data.deckTemplateId }))); continue; }
-      const matching = matchingAreaCards(framework, areaId, eligible.cardTemplateIds, graph);
+      const matching = matchingCards(eligible.cardTemplateIds, graph);
       if (matching.incomplete) { target.issues.push({ code: "UNRESOLVED_CARD_MAPPING", deckTemplateId: data.deckTemplateId }); continue; }
       if (!matching.cardTemplateIds.length) continue;
       try {
@@ -140,6 +174,40 @@ export async function readAreaDestinations(repo: CardRepository, actor: string, 
       target.entries = rankAreaDecks(target.entries); target.count = target.issues.length ? null : target.entries.length;
       target.state = target.issues.length ? "incomplete" : target.entries.length ? "complete" : "empty";
     }
-    return result;
+    if (item) {
+      const creators = await cardCreatorAttributions(repo, cardRoots, session);
+      const cards = new Map<string, ItemCardDestination>();
+      const attach = (presentation: CanonicalCardPresentation, context: ItemDeckContext) => {
+        const id = presentation.cardTemplateId, existing = cards.get(id);
+        if (existing) existing.contexts.push(context);
+        else cards.set(id, { cardTemplateId: id, presentation, presentationContext: context.kind, versionsDiffer: false, contexts: [context] });
+      };
+      // Active contexts precede archived and public contexts. Shared CardData pins
+      // the same personal Card version independently of every adopted Deck version.
+      for (const entry of [...result.myDecks.entries, ...result.archived.entries]) {
+        if (entry.availability !== "available") continue;
+        const deck = versions.find((version) => version.deckTemplateId === entry.deckTemplateId && version.version === entry.adoptedDeckVersion)!;
+        for (const ref of layoutCardLabels(deck.content.labelPrefix, deck.content.cards)) {
+          const mapping = resolveEffectiveMapping(framework, ref.cardTemplateId, graph);
+          if (mapping.state !== "mapped" || mapping.itemId !== itemId) continue;
+          const adopted = personal.find((record) => record.cardTemplateId === ref.cardTemplateId);
+          const version = cardVersions.find((version) => version.cardTemplateId === ref.cardTemplateId && version.version === adopted?.cardTemplateVersion)!;
+          attach(cardContentPresentation(version, ref.label, creators.get(ref.cardTemplateId)!), { ...entry, cardVersion: version.version });
+        }
+      }
+      for (const entry of result.library.entries) {
+        const published = publicEntries.find((candidate) => candidate.deckTemplateId === entry.deckTemplateId)!;
+        if (published.availability !== "available") continue;
+        for (const card of published.deck.cards) {
+          const mapping = resolveEffectiveMapping(framework, card.cardTemplateId, graph);
+          if (mapping.state === "mapped" && mapping.itemId === itemId) attach(card, { ...entry, cardVersion: card.version });
+        }
+      }
+      item.cards = [...cards.values()].map((card) => ({ ...card, versionsDiffer: new Set(card.contexts.map((context) => context.cardVersion)).size > 1 }));
+      item.issues = [...result.myDecks.issues, ...result.archived.issues, ...result.library.issues];
+      item.state = item.issues.length ? "incomplete" : item.cards.length ? "complete" : "empty";
+      item.count = item.issues.length ? null : item.cards.length;
+    }
+    return finish();
   });
 }

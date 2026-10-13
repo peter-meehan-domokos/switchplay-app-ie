@@ -22,7 +22,9 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string;
 }) {
   const router = useRouter();
-  const progressReturn = readProgressReturn(useSearchParams());
+  const search = useSearchParams(), progressReturn = readProgressReturn(search);
+  const requestedCard = search.get("openCard");
+  const requestedVersion = search.get("cardVersion");
   const [collection, setCollection] = useState(initialCollection);
   const [entry, setEntry] = useState(initialEntry);
   const [status, setStatus] = useState<LibraryViewerStatusDTO | null>(null);
@@ -144,11 +146,15 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   return <main className={`app-shell library-shell${entry ? " app-shell--deck" : ""}`}>
     {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1><Link href="/decks" prefetch={false}>My Decks</Link></header></>}
     {error && !stale && !chooser && <p className="library-error" role="alert">{error}{!status && <button type="button" onClick={() => window.location.reload()}>Reload Library</button>}</p>}
-    {active ? <>
+    {active && requestedCard && !active.deck.cards.some((card) => card.cardTemplateId === requestedCard &&
+      (requestedVersion === null || String(card.version) === requestedVersion)) ? <section className="library-unavailable">
+      <button type="button" className="back-button" onClick={() => router.push(progressReturn ? progressReturnHref(progressReturn) : "/library", { scroll: false })}>{progressReturn ? "Back to Progress" : "Back to Library"}</button>
+      <h1>Unavailable Card</h1><p>The selected Card or publication changed. Return to Progress and refresh your choices. Your personal state has not changed.</p>
+    </section> : active ? <>
       <button type="button" disabled={!membership || pending !== null} onClick={() => void primaryAction()}>
         {pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state)}
       </button>
-      <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} transition={transition}
+      <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} transition={transition} initialCardTemplateId={requestedCard ?? undefined}
         backLabel={progressReturn ? "Back to Progress" : "Back"}
         onBack={() => {
           if (!progressReturn) { router.push("/library"); return; }
