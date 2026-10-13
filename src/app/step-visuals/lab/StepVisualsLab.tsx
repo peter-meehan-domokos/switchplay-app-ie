@@ -51,6 +51,7 @@ export default function StepVisualsLab() {
                 <select id={previewId} aria-label="Layout preview" disabled={menuOpen} value={previewMode} onChange={(event) => setPreviewMode(event.target.value as LabActivityMode)}>
                   <option value="guided">Guided activity</option>
                   {layoutPreviewOptions.map((option) => <option key={option.id} value={option.id} aria-label={option.description}>{option.label}</option>)}
+                  <option value="sparkline">Sparkline preview</option>
                 </select>
               </label>
             ) : <p className={styles.spvLabName}>{experience?.label ?? "Choose an experience"}</p>}

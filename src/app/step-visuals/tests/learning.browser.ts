@@ -91,7 +91,7 @@ test("Next fits the reported 393×852 phone viewport at 100% scale", async ({ br
 });
 
 test("guided is default; readiness requires a changed commit and remains an explicit choice", async ({ page }) => {
-  await expect(page.getByRole("combobox").locator("option")).toHaveCount(6);
+  await expect(page.getByRole("combobox").locator("option")).toHaveCount(7);
   const ready = page.getByRole("button", { name: "Next" });
   await expect(ready).toBeDisabled();
   await begin(page);

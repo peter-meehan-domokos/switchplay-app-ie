@@ -4,10 +4,11 @@ import { useId, useState } from "react";
 import RootsFactorsActivity from "../activities/roots-factors/RootsFactorsActivity";
 import { useSurfaceActive } from "../platform/web/SurfaceLifecycle";
 import RootsFactorsLayoutPreview from "./RootsFactorsLayoutPreview";
+import SparklinePreview from "./SparklinePreview";
 import type { LayoutPreviewMode } from "./layoutPreviewFixtures";
 import styles from "./Lab.module.css";
 
-export type LabActivityMode = "guided" | LayoutPreviewMode;
+export type LabActivityMode = "guided" | LayoutPreviewMode | "sparkline";
 
 /** Lab owns visibility and explicit restart identity, never the mathematical or learning state. */
 export default function RootsFactorsLabSession({ mode, onExit }: { mode: LabActivityMode; onExit: () => void }) {
@@ -17,7 +18,7 @@ export default function RootsFactorsLabSession({ mode, onExit }: { mode: LabActi
   const active = useSurfaceActive();
   return <>
     <RootsFactorsActivity key={session} visible={mode === "guided"} onExit={onExit} />
-    {mode !== "guided" ? <RootsFactorsLayoutPreview mode={mode} onExit={onExit} /> : null}
+    {mode === "sparkline" ? <SparklinePreview /> : mode !== "guided" ? <RootsFactorsLayoutPreview mode={mode} onExit={onExit} /> : null}
     {mode === "guided" ? <div className={styles.spvGuidedTools}>
       <button className={styles.spvRestart} type="button" disabled={!active} onClick={() => setSession((value) => value + 1)}>Restart guided activity</button>
     </div> : null}

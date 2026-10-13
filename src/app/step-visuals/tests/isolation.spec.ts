@@ -33,7 +33,7 @@ test("portable mathematics and layouts contain no framework imports or browser t
 });
 
 test("reusable activity and web renderers have no imports from the lab", () => {
-  for (const path of [...sourceFiles(resolve(feature, "activities")), ...sourceFiles(resolve(feature, "platform"))]) {
+  for (const path of [...sourceFiles(resolve(feature, "activities")), ...sourceFiles(resolve(feature, "platform")), ...sourceFiles(resolve(feature, "sparklines"))]) {
     expect(readFileSync(path, "utf8")).not.toMatch(/from\s+["'][^"']*\/lab\//);
   }
 });

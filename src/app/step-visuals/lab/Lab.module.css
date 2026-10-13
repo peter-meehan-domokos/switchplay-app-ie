@@ -37,9 +37,6 @@
 .spvExperienceTitle { margin: 0; color: #24332f; font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; overflow-wrap: anywhere; }
 .spvExperienceTitle:focus-visible { outline: 2px solid #28634f; outline-offset: 4px; }
 .spvDescription { margin: 8px 0 0; color: #5b6861; font-size: 0.9rem; }
-.spvVariant { min-width: 0; padding: 16px; border: 1px solid #d9ded6; border-radius: 16px; background: #fffdf8; }
-.spvVariantTitle { margin: 0 0 12px; color: #24332f; font-size: 0.9rem; }
-.spvSparklinePlaceholder { display: grid; place-items: center; width: 100%; max-width: 320px; min-height: 112px; margin-inline: auto; padding: 20px; border: 1px dashed #aebfb3; border-radius: 12px; background: #e9eee6; color: #5b6861; text-align: center; font-size: 0.85rem; }
 .spvEmpty { margin-block: auto; padding: 32px 0; text-align: center; }
 .spvChooseButton { min-height: 48px; margin-top: 20px; padding: 10px 18px; border: 1px solid #c4d3c2; border-radius: 12px; background: #e9eee6; color: #24332f; font: inherit; font-weight: 700; cursor: pointer; }
 

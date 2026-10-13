@@ -51,8 +51,9 @@ test("switching experiences shows three variants and returning creates a fresh p
   let dialog = await openMenu(page);
   await dialog.getByRole("button", { name: "Sparkline preview" }).click();
   await expect(page.getByRole("heading", { name: "Sparkline preview", exact: true })).toBeFocused();
-  for (const name of ["Complete", "Graphics-only", "Notation-only"]) {
-    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  for (const name of ["Graph + factor notation", "Graph only", "Factor notation only"]) {
+    await expect(page.getByRole("heading", { name, exact: true })).toHaveCount(3);
+    await expect(page.getByRole("heading", { name, exact: true }).first()).toBeVisible();
   }
   dialog = await openMenu(page);
   await dialog.getByRole("button", { name: "Interactive visualisation" }).click();

@@ -59,8 +59,9 @@ When inspecting a preview, the guided state owner stays mounted but renders no
 view. Hiding or opening navigation cancels editing, advances the input revision,
 and preserves the settled root and lesson. Returning restores that session; preview
 interaction never dispatches to it. Restart guided activity is an explicit lab
-mounting action. Leaving the actual experience (including Exit or Sparkline preview)
-still ends the session according to the original navigation contract.
+mounting action. Leaving the actual experience (including Exit or the burger-menu
+Sparkline preview entry) still ends the session according to the original navigation
+contract. Sparkline preview selected through the dropdown preserves Guided state.
 
 The lab-header selector selects authored fixtures:
 
@@ -101,6 +102,34 @@ disclaimer and collapsed session-note probe are lab-only.
 The selector and all five options must remain until the user explicitly authorises
 removal. Any future teacher/student stage navigation is a separate product decision.
 The session probe exists solely to test preservation and reset boundaries.
+
+## Checkpoint 6: static sparkline comparison
+
+Sparkline preview is available through the existing dropdown and the burger menu.
+The dropdown suspends the Guided view while keeping its reducer mounted; changing
+the lab-owned sparkline root never dispatches learning or manipulation actions.
+The root selector starts at 3 and offers integers from −5 to 5. Menu interruption
+disables it and preserves its selection. All nine reference samples share that value.
+
+`Card1Sparkline` is independently reusable, bringing its own CSS Module. Its props
+are `movingRoot`, `variant` (`complete`, `graphics-only`, `notation-only`), `width`
+and `graphHeight`. Defaults are root 3, complete, 240px and 112px respectively.
+The three variants are compared at widths up to 160, 240 and 320px. Notation-only
+has no graph node or reserved graph height. Both graphical variants use identical
+graph dimensions and the same pure preparation pipeline.
+
+`card1SparklineLayout` composes the existing factor formatting and quadratic model
+with a dedicated compact graph layout. The browser width adapter reports available
+space; the portable layout fits roots, vertex and origin with modest mathematical
+padding, then expands the visible window to maintain equal horizontal/vertical unit
+scales. Root/value and viewport changes deliberately alter this static framing;
+the Guided coordinate frame is unaffected. The existing D3 sampling includes exact
+roots and vertex, retains offscreen curve samples and uses SVG clipping. Coincident
+roots use a fixed outer ring and moving inner dot at one exact centre. No sparklines
+have gesture handlers, activity reducers, grids or general axis tick labels.
+Both graphical variants show each root number directly below its marker; coincident
+roots share one label. Label positions are prepared by the pure layout without
+changing the coordinate frame, curve or marker geometry.
 
 Checkpoint 5 extends the retrieval lesson and explicit actions without teaching
 renderers to assess answers or turning the lab selector into learner progression.
