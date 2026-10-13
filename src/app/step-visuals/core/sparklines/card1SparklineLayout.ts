@@ -1,5 +1,5 @@
 import { scaleLinear } from "d3-scale";
-import { card1Evaluator, card1Factors, card1Vertex, createCard1GraphMath } from "../../activities/roots-factors/model";
+import { card1Evaluator, card1Factors, card1Vertex, createCard1GraphMath, createCard1Math } from "../../activities/roots-factors/model";
 import { factorExpressionLayout, type FactorExpressionScene } from "../expressions/factorExpressionLayout";
 import { functionPlotLayout } from "../graph/functionPlotLayout";
 import type { Bounds, FunctionPlotScene, Point, PositionedLabel, ProjectionSpec, Segment, Size } from "../graph/types";
@@ -69,7 +69,7 @@ export const sparklineGraphLayout = (movingRoot: number, size: Size): SparklineG
 };
 
 export const card1SparklineLayout = (movingRoot: number, size: Size, variant: SparklineVariant): Card1SparklineScene => {
-  const math = createCard1GraphMath(movingRoot);
+  const math = createCard1Math(movingRoot);
   if (!["complete", "graphics-only", "notation-only"].includes(variant)) throw new RangeError("Unknown sparkline variant.");
   return immutable({
     variant,

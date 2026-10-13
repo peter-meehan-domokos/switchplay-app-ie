@@ -6,6 +6,7 @@ import { formatNumber } from "../core/math/realFactors";
 import { useSurfaceActive } from "../platform/web/SurfaceLifecycle";
 import styles from "./Lab.module.css";
 import previewStyles from "./SparklinePreview.module.css";
+import { createCard1Math, type RootInteger } from "../activities/roots-factors/model";
 
 const variants = [
   { id: "complete", label: "Graph + factor notation" },
@@ -16,7 +17,7 @@ const referenceWidths = [160, 240, 320] as const;
 const roots = Array.from({ length: 11 }, (_, index) => index - 5);
 
 export default function SparklinePreview() {
-  const [root, setRoot] = useState(3);
+  const [root, setRoot] = useState<RootInteger>(3);
   const rootId = useId();
   const active = useSurfaceActive();
   return (
@@ -27,7 +28,7 @@ export default function SparklinePreview() {
       </header>
       <label className={previewStyles.spvSparklineControl} htmlFor={rootId}>
         Movable root
-        <select id={rootId} aria-label="Sparkline root" value={root} disabled={!active} onChange={(event) => setRoot(Number(event.target.value))}>
+        <select id={rootId} aria-label="Sparkline root" value={root} disabled={!active} onChange={(event) => setRoot(createCard1Math(Number(event.target.value)).movingRoot)}>
           {roots.map((value) => <option key={value} value={value}>x = {formatNumber(value)}</option>)}
         </select>
       </label>

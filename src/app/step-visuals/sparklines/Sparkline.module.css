@@ -1,6 +1,6 @@
 .spvSparkline { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 8px; min-width: 0; color: #435349; font-family: Arial, Helvetica, sans-serif; }
 .spvSparklineGraph { display: block; max-width: 100%; background: #fffdf8; }
-.spvSparklineAxes { stroke: #8a978d; stroke-width: 0.8; }
+.spvSparklineAxes { stroke: #7f8d83; stroke-width: 0.8; }
 .spvSparklineCurve { fill: none; stroke: #537969; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .spvSparklineFixedRoot { fill: #fffdf8; stroke: #7c887f; stroke-width: 1; }
 .spvSparklineMovingRoot { fill: #28634f; stroke: #fffdf8; stroke-width: 0.75; }

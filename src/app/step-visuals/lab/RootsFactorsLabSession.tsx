@@ -1,24 +1,25 @@
 "use client";
 
-import { useId, useState } from "react";
+import { StrictMode, useId, useState } from "react";
 import RootsFactorsActivity from "../activities/roots-factors/RootsFactorsActivity";
 import { useSurfaceActive } from "../platform/web/SurfaceLifecycle";
 import RootsFactorsLayoutPreview from "./RootsFactorsLayoutPreview";
 import SparklinePreview from "./SparklinePreview";
 import type { LayoutPreviewMode } from "./layoutPreviewFixtures";
 import styles from "./Lab.module.css";
+import type { Card1LearningCallbacks } from "../activities/roots-factors/learningRecords";
 
 export type LabActivityMode = "guided" | LayoutPreviewMode | "sparkline";
 
-/** Lab owns visibility and explicit restart identity, never the mathematical or learning state. */
-export default function RootsFactorsLabSession({ mode, onExit }: { mode: LabActivityMode; onExit: () => void }) {
+/** Lab owns visibility and explicit restart requests, never mathematical or learning state. */
+export default function RootsFactorsLabSession({ mode, onExit, onExitRequest, exitKey, ...callbacks }: Card1LearningCallbacks & { mode: LabActivityMode; onExit: () => void; onExitRequest: () => void; exitKey: number }) {
   const [session, setSession] = useState(0);
   const [note, setNote] = useState("");
   const noteId = useId();
   const active = useSurfaceActive();
   return <>
-    <RootsFactorsActivity key={session} visible={mode === "guided"} onExit={onExit} />
-    {mode === "sparkline" ? <SparklinePreview /> : mode !== "guided" ? <RootsFactorsLayoutPreview mode={mode} onExit={onExit} /> : null}
+    <StrictMode><RootsFactorsActivity restartKey={session} exitKey={exitKey} visible={mode === "guided"} onExit={onExit} {...callbacks} /></StrictMode>
+    {mode === "sparkline" ? <SparklinePreview /> : mode !== "guided" ? <RootsFactorsLayoutPreview mode={mode} onExit={onExitRequest} /> : null}
     {mode === "guided" ? <div className={styles.spvGuidedTools}>
       <button className={styles.spvRestart} type="button" disabled={!active} onClick={() => setSession((value) => value + 1)}>Restart guided activity</button>
     </div> : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import RootsFactorsLabSession, { type LabActivityMode } from "./RootsFactorsLabSession";
 import { layoutPreviewOptions } from "./layoutPreviewFixtures";
 import { SurfaceLifecycle } from "../platform/web/SurfaceLifecycle";
@@ -8,12 +8,22 @@ import { findExperience, initialExperienceId, labCards, type ExperienceId } from
 import LabNavigationDialog from "./LabNavigationDialog";
 import SparklinePreview from "./SparklinePreview";
 import styles from "./Lab.module.css";
+import LearningRecordPreview from "./LearningRecordPreview";
+import type { Card1LearningEvent, Card1LearningResult, Card1SessionRecords } from "../activities/roots-factors/learningRecords";
 
 export default function StepVisualsLab() {
   const [selected, setSelected] = useState<ExperienceId | null>(initialExperienceId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState<LabActivityMode>("guided");
   const [expandedCards, setExpandedCards] = useState<readonly string[]>([labCards[0].id]);
+  const [exitKey, setExitKey] = useState(0);
+  const [records, setRecords] = useState<Card1SessionRecords | null>(null);
+  const [events, setEvents] = useState<readonly Card1LearningEvent[]>([]);
+  const [completed, setCompleted] = useState<readonly Card1LearningResult[]>([]);
+  const nextExperience = useRef<ExperienceId | null>(null);
+  const onEvent = useCallback((event: Card1LearningEvent) => setEvents((previous) => [...previous, event]), []);
+  const onComplete = useCallback((result: Card1LearningResult) => setCompleted((previous) => [...previous, result]), []);
+  const onRecordsChange = useCallback((value: Card1SessionRecords) => setRecords(value), []);
   const burgerRef = useRef<HTMLButtonElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const focusExperience = useRef(false);
@@ -22,6 +32,11 @@ export default function StepVisualsLab() {
   const experience = findExperience(selected);
 
   const selectExperience = (id: ExperienceId) => {
+    if (selected === "card-1-interactive" && id !== selected) {
+      nextExperience.current = id;
+      setExitKey((value) => value + 1);
+      return;
+    }
     focusExperience.current = id !== selected;
     if (id !== selected) setPreviewMode("guided");
     setSelected(id);
@@ -29,10 +44,20 @@ export default function StepVisualsLab() {
   };
 
   const exitExperience = () => {
+    if (nextExperience.current) {
+      const id = nextExperience.current;
+      nextExperience.current = null;
+      focusExperience.current = true;
+      setPreviewMode("guided");
+      setSelected(id);
+      setMenuOpen(false);
+      return;
+    }
     focusExperience.current = false;
     setSelected(null);
     setMenuOpen(true);
   };
+  const requestExit = () => setExitKey((value) => value + 1);
 
   const toggleCard = (id: string) => {
     setExpandedCards((previous) => previous.includes(id) ? previous.filter((cardId) => cardId !== id) : [...previous, id]);
@@ -60,7 +85,8 @@ export default function StepVisualsLab() {
       </header>
       <main className={styles.spvHost} ref={hostRef}>
         <SurfaceLifecycle active={!menuOpen}>
-          {selected === "card-1-interactive" ? <RootsFactorsLabSession key={selected} mode={previewMode} onExit={exitExperience} /> : null}
+          {selected === "card-1-interactive" ? <RootsFactorsLabSession key={selected} mode={previewMode} onExit={exitExperience}
+            exitKey={exitKey} onExitRequest={requestExit} onEvent={onEvent} onComplete={onComplete} onRecordsChange={onRecordsChange} /> : null}
           {selected === "card-1-sparklines" ? <SparklinePreview key={selected} /> : null}
           {selected === null ? (
             <section className={styles.spvEmpty}>
@@ -69,6 +95,7 @@ export default function StepVisualsLab() {
               <button className={styles.spvChooseButton} type="button" onClick={() => setMenuOpen(true)}>Browse visualisations</button>
             </section>
           ) : null}
+          <LearningRecordPreview records={records} events={events} completed={completed} />
         </SurfaceLifecycle>
       </main>
       <LabNavigationDialog

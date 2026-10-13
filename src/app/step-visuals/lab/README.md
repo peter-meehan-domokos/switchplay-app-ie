@@ -51,15 +51,16 @@ dispatching a lesson action. Escape, blur and outside input dismiss the message.
 This is ephemeral web presentation state, not progress or assessment state; the
 tooltip occupies no layout space. Preview/inactive/active-edit controls remain blocked.
 
-`RootsFactorsActivity` owns one composed reducer: portable `learningReducer`
-delegates root transactions to the existing `manipulationReducer` before evaluating
-lesson transitions. There is no effect-driven assessment or duplicate gesture system.
+`RootsFactorsActivity` owns one composed reducer: portable `recordedLearningReducer`
+wraps `learningReducer`, which delegates root transactions to `manipulationReducer`
+before evaluating lesson transitions. Effects deliver already accepted records; they
+never infer assessment or introduce another gesture system.
 
 When inspecting a preview, the guided state owner stays mounted but renders no
 view. Hiding or opening navigation cancels editing, advances the input revision,
 and preserves the settled root and lesson. Returning restores that session; preview
-interaction never dispatches to it. Restart guided activity is an explicit lab
-mounting action. Leaving the actual experience (including Exit or the burger-menu
+interaction never dispatches to it. Restart guided activity requests a recorded
+new attempt without remounting the owner. Leaving the actual experience (including Exit or the burger-menu
 Sparkline preview entry) still ends the session according to the original navigation
 contract. Sparkline preview selected through the dropdown preserves Guided state.
 
@@ -114,6 +115,7 @@ disables it and preserves its selection. All nine reference samples share that v
 `Card1Sparkline` is independently reusable, bringing its own CSS Module. Its props
 are `movingRoot`, `variant` (`complete`, `graphics-only`, `notation-only`), `width`
 and `graphHeight`. Defaults are root 3, complete, 240px and 112px respectively.
+The public v1 component and compositor validate settled integer roots from −5 to 5.
 The three variants are compared at widths up to 160, 240 and 320px. Notation-only
 has no graph node or reserved graph height. Both graphical variants use identical
 graph dimensions and the same pure preparation pipeline.
@@ -130,6 +132,18 @@ have gesture handlers, activity reducers, grids or general axis tick labels.
 Both graphical variants show each root number directly below its marker; coincident
 roots share one label. Label positions are prepared by the pure layout without
 changing the coordinate frame, curve or marker geometry.
+
+## Checkpoint 7: records and final fixes
+
+See [learning-records.md](../learning-records.md) for the versioned callback/schema contract.
+The lab is a sample client consumer, with an on-demand Learning records inspector.
+Completed snapshots survive Start again; explicit lab restarts and exits preserve partial
+data, and callbacks are delivered before navigation unmounts the activity. No persistence,
+application user/card identifiers or refresh restoration are included.
+
+The Next prerequisite hint adapts its width to text scaling without covering graph or
+instructions. Axis colour is #7F8D83, exceeding 3:1 against #FFFDF8 with a margin.
+Existing dragging/keyboard controls are unchanged. The non-drag touch alternative is parked.
 
 Checkpoint 5 extends the retrieval lesson and explicit actions without teaching
 renderers to assess answers or turning the lab selector into learner progression.

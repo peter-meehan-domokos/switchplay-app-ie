@@ -5,9 +5,11 @@ import { card1SparklineLayout, type SparklineGraphScene, type SparklineVariant }
 import type { FactorExpressionScene } from "../core/expressions/factorExpressionLayout";
 import { useSparklineWidth } from "../platform/web/sparklineMeasurement";
 import styles from "./Sparkline.module.css";
+import { createCard1Math, type RootInteger } from "../activities/roots-factors/model";
 
 export type Card1SparklineProps = Readonly<{
-  movingRoot?: number;
+  /** Static v1 snapshots use settled integer roots from −5 to 5. */
+  movingRoot?: RootInteger;
   variant?: SparklineVariant;
   width?: number;
   graphHeight?: number;
@@ -47,6 +49,7 @@ function SparklineNotation({ scene }: { scene: FactorExpressionScene }) {
 
 /** Static presentation only. Mathematical state and any controls belong to its host. */
 export default function Card1Sparkline({ movingRoot = 3, variant = "complete", width = 240, graphHeight = 112 }: Card1SparklineProps) {
+  createCard1Math(movingRoot);
   if (!Number.isFinite(width) || width < 48 || !Number.isFinite(graphHeight) || graphHeight < 48) throw new RangeError("Invalid sparkline dimensions.");
   const { ref, width: availableWidth } = useSparklineWidth(width);
   const scene = useMemo(() => card1SparklineLayout(movingRoot, { width: availableWidth, height: graphHeight }, variant), [movingRoot, availableWidth, graphHeight, variant]);

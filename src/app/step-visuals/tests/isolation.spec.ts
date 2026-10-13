@@ -25,7 +25,7 @@ test("all feature imports remain local or use permitted framework, D3 and test p
 });
 
 test("portable mathematics and layouts contain no framework imports or browser types", () => {
-  const paths = [...sourceFiles(resolve(feature, "core")), resolve(feature, "activities/roots-factors/model.ts"), resolve(feature, "activities/roots-factors/rootsFactorsLayout.ts"), resolve(feature, "activities/roots-factors/presentationLayouts.ts"), resolve(feature, "activities/roots-factors/manipulation.ts"), resolve(feature, "activities/roots-factors/learning.ts")];
+  const paths = [...sourceFiles(resolve(feature, "core")), ...["model", "rootsFactorsLayout", "presentationLayouts", "manipulation", "learning", "learningRecords", "recordedLearning"].map((name) => resolve(feature, `activities/roots-factors/${name}.ts`))];
   for (const path of paths) {
     const source = readFileSync(path, "utf8");
     expect(source).not.toMatch(/from\s+["'](?:react|next)|\b(?:window|document|HTMLElement|SVGElement|PointerEvent|ResizeObserver)\b/);

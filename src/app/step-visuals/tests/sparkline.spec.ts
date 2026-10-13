@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { card1SparklineLayout, sparklineGraphLayout } from "../core/sparklines/card1SparklineLayout";
 import { card1Vertex, evaluateCard1 } from "../activities/roots-factors/model";
 import { projectPoint } from "../core/graph/coordinatePlaneLayout";
+import type { Card1SparklineProps } from "../sparklines/Card1Sparkline";
 
 test("compact windows fit roots, vertex and origin with equal unit scales across sizes and the full root range", () => {
   for (const width of [128, 160, 240, 320]) for (const height of [80, 112, 148]) {
@@ -78,5 +79,14 @@ test("invalid root values and graph dimensions fail explicitly", () => {
   for (const root of [NaN, Infinity, -5.1, 5.1]) expect(() => sparklineGraphLayout(root, { width: 160, height: 112 })).toThrow(RangeError);
   for (const size of [{ width: 47, height: 112 }, { width: 160, height: 47 }, { width: Infinity, height: 112 }]) {
     expect(() => sparklineGraphLayout(3, size)).toThrow(RangeError);
+  }
+});
+
+test("the public static sparkline contract rejects fractional roots for every variant", () => {
+  // @ts-expect-error v1 public snapshots require the settled integer union.
+  const invalid: Card1SparklineProps = { movingRoot: 1.1 };
+  for (const variant of ["complete", "graphics-only", "notation-only"] as const) {
+    expect(() => card1SparklineLayout(invalid.movingRoot!, { width: 160, height: 112 }, variant)).toThrow(RangeError);
+    expect(() => card1SparklineLayout(-3.5, { width: 160, height: 112 }, variant)).toThrow(RangeError);
   }
 });

@@ -83,7 +83,9 @@ test("touch attempts explain Next without granting eligibility, and an outside t
     await page.getByRole("heading", { name: "Explore", exact: true }).tap();
     await expect(hint(page)).toHaveCount(0);
     await blocked(page);
-    await expect(page.getByRole("combobox").locator("option")).toHaveCount(6);
+    await expect(page.getByRole("combobox", { name: "Layout preview" }).locator("option")).toHaveText([
+      "Guided activity", "A · Explore", "B · Predict", "C · Reveal", "D · Retrieve", "E · Help", "Sparkline preview",
+    ]);
   } finally { await context.close(); }
 });
 
@@ -124,3 +126,26 @@ test("all guided progression labels are Next and Finished offers only Start agai
   await blocked(page);
   await expect(hint(page)).toHaveCount(0);
 });
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 393, height: 852 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1280, height: 800 }]) {
+  test(`200% prerequisite hint leaves the graph and instruction unobscured at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.addStyleTag({ content: "html { font-size: 200%; }" });
+    await expect.poll(async () => graph(page).evaluate((element) => Math.abs((element as SVGSVGElement).viewBox.baseVal.height - element.getBoundingClientRect().height))).toBeLessThan(0.1);
+    const baseline = await frame(page);
+    await next(page).click({ force: true });
+    await shown(page);
+    const intersections = await hint(page).evaluate((element) => {
+      const a = element.getBoundingClientRect();
+      return [...document.querySelectorAll("[data-spv-prompt] p,[data-spv-graphical-root]")].filter((node) => {
+        const b = node.getBoundingClientRect();
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      }).length;
+    });
+    expect(intersections).toBe(0);
+    expect(await frame(page)).toEqual(baseline);
+    const box = await hint(page).boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width);
+  });
+}

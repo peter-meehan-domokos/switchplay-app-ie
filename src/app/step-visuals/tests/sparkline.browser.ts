@@ -129,3 +129,16 @@ for (const width of [320, 360, 390]) for (const enlarged of [false, true]) {
     }
   });
 }
+
+test("activity and sparkline axes exceed the non-text contrast threshold with a margin", async ({ page }) => {
+  await page.goto("/step-visuals");
+  const activityStroke = await page.getByRole("img", { name: "Quadratic graph", exact: true }).evaluate((element) => getComputedStyle(element.children[4].children[1]).stroke);
+  await dropdown(page).selectOption("sparkline");
+  const sparklineStroke = await preview(page).locator("svg line").first().evaluate((element) => getComputedStyle(element).stroke);
+  const luminance = (channels: number[]) => channels.map((channel) => channel / 255).map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+  for (const stroke of [activityStroke, sparklineStroke]) {
+    const colour = stroke.match(/[\d.]+/g)!.map(Number);
+    expect((luminance([255, 253, 248]) + 0.05) / (luminance(colour) + 0.05)).toBeGreaterThan(3.3);
+  }
+});
