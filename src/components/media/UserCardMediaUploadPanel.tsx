@@ -1,5 +1,6 @@
 "use client";
 
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useStreamVideoReadiness } from "@/components/media/useStreamVideoReadiness";
 import type { UserCardMediaUploadState, UserCardMediaUploadTarget } from "@/components/media/useKeyedUserCardMediaUploadController";
@@ -144,9 +145,9 @@ export default function UserCardMediaUploadPanel({
             return (
               <li className="user-card-media-tile" data-media-item-id={item.id} key={getMediaKey(item)}>
                 <div className="user-card-media-tile-preview">
-                  {/* User images are delivered from the configured R2 custom domain. */}
+                  {/* Protected mode serves retained images through session-authorized delivery. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt={item.description} src={item.src} />
+                  <img alt={item.description} src={imageDeliveryUrl(item.src)} />
                 </div>
                 <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
                 <button

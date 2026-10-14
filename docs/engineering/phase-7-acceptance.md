@@ -1,12 +1,12 @@
 # Phase 7 — Connected acceptance and Phase 8 handover
 
 Date: 13 October 2026.
-Status: **Phase 7 implementation complete — automated acceptance passed; Checkpoint 5 awaits user review.**
+Status: **Phase 7 complete — acceptance passed and approved.**
 
 Scope: final verification of the Progress functionality delivered in Checkpoints 1–4,
 plus the approved incomplete-history presentation refinement. No production access,
 migration, deployment or real-provider operations. The Checkpoint 4 baseline is
-`38af548`; Checkpoint 5 changes remain uncommitted.
+`38af548`; the approved Checkpoint 5 changes were committed as `06c5466`.
 
 ## Delivered behaviour and connected acceptance
 

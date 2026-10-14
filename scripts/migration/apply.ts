@@ -30,15 +30,23 @@ export async function applyMigrationPlan(client: MongoClient, db: Db, plan: Migr
   const before = await inspectTargets(db, plan);
   if (before.exact) return { applied: false, reused: true, validation: validateMigrationPlan(plan) };
   requireCondition(before.empty, "CONFLICTING_OR_PARTIAL_TARGET_REFUSED");
+  await populateMigrationTargets(client, db, plan);
+  const after = await inspectTargets(db, plan);
+  requireCondition(after.exact, "POST_APPLY_TARGET_DRIFT");
+  return { applied: true, reused: false, validation: validateMigrationPlan(plan) };
+}
+
+// Callers own connection/namespace authorization. Kept separate from the guarded
+// local apply entry point so production preparation cannot relax its restrictions.
+export async function populateMigrationTargets(client: MongoClient, db: Db, plan: MigrationPlan, extraTargets: Record<string, Document[]> = {}) {
+  validateMigrationPlan(plan);
+  requireCondition(Object.keys(extraTargets).every((name) => !Object.hasOwn(plan.targets, name) && !name.startsWith("legacy_")), "INVALID_EXTRA_TARGET");
   await createFoundationIndexes(db);
   await withMongoTransaction(client, async (session) => {
-    for (const [collection, documents] of Object.entries(plan.targets)) {
+    for (const [collection, documents] of Object.entries({ ...plan.targets, ...extraTargets })) {
       requireCondition(await db.collection(collection).countDocuments({}, { session }) === 0, "TARGET_CHANGED_BEFORE_APPLY");
       // Driver inserts add _id to their input. Keep the persisted plan unchanged.
       if (documents.length) await db.collection(collection).insertMany(documents.map((document) => ({ ...document })), { session });
     }
   });
-  const after = await inspectTargets(db, plan);
-  requireCondition(after.exact, "POST_APPLY_TARGET_DRIFT");
-  return { applied: true, reused: false, validation: validateMigrationPlan(plan) };
 }

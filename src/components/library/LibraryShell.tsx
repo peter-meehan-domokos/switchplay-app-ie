@@ -1,4 +1,5 @@
 "use client";
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -181,7 +182,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     </>}
     {stale && <LibraryDialog title="Preview has changed" onCancel={() => { if (!pending) setStale(false); }}>{error && <p role="alert">{error}</p>}<p>This Deck or one of its Cards has a newer publication. Refresh the preview before adding.</p><button type="button" disabled={pending !== null} onClick={() => void refreshPreview()}>Refresh preview</button><button type="button" disabled={pending !== null} onClick={() => setStale(false)}>Cancel</button></LibraryDialog>}
     {chooser && <LibraryDialog title="Open Card in My Decks" onCancel={() => { if (!pending) setChooser(null); }}>{error && <p role="alert">{error}</p>}<p>Choose the Deck to open.</p>{chooser.destinations.map((deck) => <button className="library-destination" data-deck-template-id={deck.deckTemplateId} key={deck.deckTemplateId} type="button" disabled={pending !== null} onClick={() => void openCard(chooser.cardId, deck.deckTemplateId)}>
-      {deck.introduction?.image && <span className="library-destination-cover" style={{ backgroundImage: `url(${JSON.stringify(deck.introduction.image.src)})` }} role="img" aria-label={deck.introduction.image.description || "Deck cover"} />}
+      {deck.introduction?.image && <span className="library-destination-cover" style={{ backgroundImage: `url(${JSON.stringify(imageDeliveryUrl(deck.introduction.image.src))})` }} role="img" aria-label={deck.introduction.image.description || "Deck cover"} />}
       <span>{deck.title}<small>{deck.creatorUsername}</small></span>
     </button>)}<button type="button" disabled={pending !== null} onClick={() => setChooser(null)}>Cancel</button></LibraryDialog>}
   </main>;

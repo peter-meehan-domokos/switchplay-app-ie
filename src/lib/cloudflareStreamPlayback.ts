@@ -1,4 +1,5 @@
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
+import { streamDeliveryUrl } from "./mediaDelivery";
 
 function createCloudflareStreamAssetUrl(assetId: string, path: string) {
   return `https://videodelivery.net/${encodeURIComponent(assetId)}${path}`;
@@ -32,6 +33,8 @@ export function createCloudflareStreamIframeUrl(assetId: string) {
 }
 
 export function getCloudflareStreamHlsManifestUrl(mediaItem: CloudflareStreamVideoMediaItem) {
+  const protectedUrl = streamDeliveryUrl(mediaItem.assetId, "manifest");
+  if (protectedUrl) return protectedUrl;
   try {
     const sourceUrl = new URL(mediaItem.src);
 
@@ -53,6 +56,8 @@ export function getCloudflareStreamHlsManifestUrl(mediaItem: CloudflareStreamVid
 }
 
 export function getCloudflareStreamThumbnailUrl(mediaItem: CloudflareStreamVideoMediaItem) {
+  const protectedUrl = streamDeliveryUrl(mediaItem.assetId, "thumbnail");
+  if (protectedUrl) return protectedUrl;
   return mediaItem.thumbnailSrc && isValidHttpsUrl(mediaItem.thumbnailSrc)
     ? mediaItem.thumbnailSrc
     : createCloudflareStreamAssetUrl(mediaItem.assetId, "/thumbnails/thumbnail.jpg");

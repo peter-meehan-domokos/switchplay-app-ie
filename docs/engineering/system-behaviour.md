@@ -1,9 +1,35 @@
 # System behaviour
 
 This cumulative reference describes user-visible rules and important edge cases.
-Entries below describe the behaviour delivered in Phases 6–7. Future checkpoints
+Entries below describe the behaviour delivered in Phases 6–8. Future checkpoints
 should update the relevant sections as behaviour is delivered. Earlier phases are
 not backfilled here.
+
+## Production migration and media delivery [Phase 8]
+
+The repository now supports explicit Atlas application configuration alongside the
+unchanged disposable-local development flow. Production mode requires the approved
+`switchplay` database/host and protected media presentation; it refuses test-media
+settings. The production migration completed on 14 October 2026. The five original
+collections remain intact under `legacy_` names; the new collections contain the
+reviewed canonical content and embedded personal records. Approved original demo
+learning state was reset, while user identities, ownership, sharing metadata and
+uploaded personal media were preserved. This reset does not apply to future learning
+state. Vercel remains paused pending a separately approved compatible deployment.
+
+Protected delivery checks the signed-in learner before serving stored R2 image
+references or issuing Stream playback tokens. Another creator's personal uploads
+are not accessible through canonical fork ancestry. Retained own source/archived
+media remains readable. Canonical published-version visibility and ownership still
+apply. Delivery changes do not rewrite stored media keys, IDs or URLs.
+
+Stream tokens expire after one hour; a copied token remains usable until expiry.
+R2 images use session-authorized requests without public redirects. Existing provider
+origins/assets must be configured separately before this protects direct old URLs;
+those changes and real-provider acceptance remain pending approval. Local mocks
+retain their previous behaviour. The explicitly discarded gym-trace mock illustration
+is omitted from new personal lists during migration, while original references remain
+in the backup/legacy users. Other bundled public artwork remains public.
 
 ## Framework organisation and mappings [Phase 6]
 

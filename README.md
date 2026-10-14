@@ -46,6 +46,12 @@ refactor. Intentional changes in later phases should update those expectations.
 
 ## Read-only migration preflight
 
+Phase 8's approved same-database rename strategy, Vercel setup and protected-media
+preparation are described in [phase-8-preparation.md](docs/engineering/phase-8-preparation.md).
+The older audit/reset policy below applies only to the agreed original demo dataset.
+Production execution and provider changes require explicit approval; the existing
+local migration commands and `dev:phase2` remain available.
+
 Review `scripts/audit-pre-library-migration.mjs`, then run it locally from the
 project root against your selected Atlas database:
 

@@ -7,7 +7,7 @@ import type { AdoptedVersion, CardContent, CardTemplateRoot, CardTemplateVersion
 import type { CompletionStatus } from "../../components/decks/types";
 import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
 import type { MediaItem } from "../media";
-import { assertDisposableDatabase } from "./localDatabase";
+import { assertApplicationDatabase } from "../applicationDatabase";
 import { createDefaultCardContent, restoreCreatorCardTitle, restoreCreatorDeckTitle } from "./creatorDefaults";
 import { cardPublicationIssue, deckPublicationIssue, deckDraftContent, publicationVisibility, hasVisibilityChange } from "./publicationRules";
 import { deckContentHash, type CopyCardCommand, type CopyCardResult } from "./cardReuse";
@@ -53,7 +53,7 @@ export async function createFoundationIndexes(db: Db) {
 
 export class CardRepository {
   constructor(readonly db: Db, readonly client: MongoClient) {}
-  static async application() { assertDisposableDatabase(); return new CardRepository(await getDatabase(), await getMongoClient()); }
+  static async application() { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient()); }
   cards() { return this.db.collection<CardTemplateRoot>(COLLECTIONS.cards); }
   cardVersions() { return this.db.collection<CardTemplateVersion>(COLLECTIONS.cardVersions); }
   decks() { return this.db.collection<DeckTemplateRoot>(COLLECTIONS.decks); }

@@ -1,3 +1,4 @@
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { isCloudflareStreamVideoMediaItem, isVideoMediaItem } from "@/lib/media";
 import type { MediaItem } from "@/lib/media";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -19,7 +20,7 @@ function getLayoutMode(count: number): LayoutMode {
 
 function MediaItem({ item }: { item: MediaItem }) {
   const isVideo = isVideoMediaItem(item);
-  const src = isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : item.src;
+  const src = isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : imageDeliveryUrl(item.src);
 
   return (
     <div className="back-card-media-carousel-item">

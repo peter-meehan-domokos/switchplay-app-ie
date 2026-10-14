@@ -1,4 +1,5 @@
 import { MongoClient, type ClientSession, type Collection, type Db, type Document } from "mongodb";
+import { assertApplicationDatabase } from "./applicationDatabase";
 
 const globalForMongo = globalThis as typeof globalThis & {
 	mongoClientPromise?: Promise<MongoClient>;
@@ -6,6 +7,7 @@ const globalForMongo = globalThis as typeof globalThis & {
 
 // Importing a repository must not connect to Atlas (including during builds/tests).
 export async function getMongoClient(): Promise<MongoClient> {
+	assertApplicationDatabase();
 	const uri = process.env.MONGODB_URI;
 	if (!uri) throw new Error("MONGODB_URI is not set.");
 	if (!globalForMongo.mongoClientPromise) {

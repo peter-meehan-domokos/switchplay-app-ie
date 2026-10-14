@@ -42,8 +42,8 @@ try {
   if (!appAddress || typeof appAddress === "string") throw new Error("Missing app port");
   await new Promise<void>((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
   const baseURL = `http://127.0.0.1:${appAddress.port}`;
-  const env = { ...process.env, MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
-    PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
+  const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
+    PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,

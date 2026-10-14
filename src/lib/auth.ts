@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId, type WithId } from "mongodb";
 import type { UserDeckData } from "@/components/decks/types";
-import { assertDisposableDatabase } from "@/lib/cards/localDatabase";
+import { assertApplicationDatabase } from "@/lib/applicationDatabase";
 import { getCollection } from "@/lib/mongodb";
 
 const USERS_COLLECTION = "users";
@@ -71,7 +71,7 @@ function toAuthUser(user: WithId<UserDocument>): AuthUser {
 }
 
 async function getUsersCollection() {
-	assertDisposableDatabase();
+	assertApplicationDatabase();
 	return getCollection<UserDocument>(USERS_COLLECTION);
 }
 

@@ -1,3 +1,4 @@
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { motion } from "motion/react";
 import type { RefCallback } from "react";
 import type { DeckFrontPresentation } from "./deckFrontPresentation";
@@ -13,7 +14,7 @@ export default function DeckFrontContents({ front, animated = false, preparing =
     <motion.div className="tile-card-stack" layout={animated} ref={introAnchor}>
       {front.cardIds.map((id, index) => <span key={id} className={`tile-mini-card${front.posterSrc && index === 0 ? " tile-mini-card--intro-poster" : ""}`}
         style={{ transform: `translate(${index * 8}px, ${index * -6}px) rotate(${index * 2 - 2}deg)`, zIndex: 3 - index }}>
-        {front.posterSrc && index === 0 ? <><img className="tile-mini-card-poster" src={front.posterSrc} alt="" aria-hidden="true" />
+        {front.posterSrc && index === 0 ? <><img className="tile-mini-card-poster" src={imageDeliveryUrl(front.posterSrc)} alt="" aria-hidden="true" />
           <span className="tile-mini-card-poster-overlay" aria-hidden="true" /></>
           : index === 0 && front.themes.length ? <div className="deck-preview-streams" aria-hidden="true">
             {front.themes.map((theme) => <div key={theme.id} className="deck-preview-stream-title">{theme.title}</div>)}
