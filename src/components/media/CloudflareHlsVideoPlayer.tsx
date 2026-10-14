@@ -1,5 +1,6 @@
 "use client";
 
+import type { PlaybackGrant } from "@/lib/cardPlaybackGrants";
 import type { VideoLoadGuard } from "./publishedVideo";
 import Hls from "hls.js";
 import {
@@ -32,6 +33,7 @@ export type CloudflareHlsVideoPlayerHandle = {
 
 type CloudflareHlsVideoPlayerProps = {
   beforeLoad?: VideoLoadGuard;
+  resolvePlayback?: (item: CloudflareStreamVideoMediaItem, signal: AbortSignal) => Promise<PlaybackGrant>;
   displayMode?: "embedded" | "expanded";
   mediaItem?: CloudflareStreamVideoMediaItem | null;
   onMediaDisplayStateChange?: (state: { assetId: string; state: "failed" | "renderable" }) => void;
@@ -73,6 +75,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
   function CloudflareHlsVideoPlayer(
     {
       beforeLoad,
+      resolvePlayback,
       displayMode = "embedded",
       mediaItem,
       onMediaDisplayStateChange,
@@ -86,9 +89,10 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     },
     ref
   ) {
-    const guardedSelection = useRef<{ guard: VideoLoadGuard; assetId: string } | null>(null);
+    const guardedSelection = useRef<{ guard?: VideoLoadGuard; resolver?: CloudflareHlsVideoPlayerProps["resolvePlayback"]; assetId: string } | null>(null);
     const pendingLoad = useRef<AbortController | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [resolvedGrant, setResolvedGrant] = useState<{ resolver: CloudflareHlsVideoPlayerProps["resolvePlayback"]; grant: PlaybackGrant } | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     // TEMP DIAGNOSTIC: stable instance id + native <video> id for tracing player identity across expand/collapse.
     const diagInstanceIdRef = useRef<number | null>(null);
@@ -112,7 +116,8 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const isExpandedMode = displayMode === "expanded";
     const isDeckPreview = variant === "deck-preview";
     const manifestUrl = useMemo(() => mediaItem ? getCloudflareStreamHlsManifestUrl(mediaItem) : null, [mediaItem]);
-    const posterUrl = useMemo(() => mediaItem ? getCloudflareStreamThumbnailUrl(mediaItem) : null, [mediaItem]);
+    const posterUrl = resolvePlayback ? (resolvedGrant?.resolver === resolvePlayback && resolvedGrant.grant.assetId === mediaItem?.assetId ? resolvedGrant.grant.thumbnailUrl : null)
+      : mediaItem ? getCloudflareStreamThumbnailUrl(mediaItem) : null;
 
     const emitPlaybackState = useCallback((state: VideoPlaybackState, assetId = activeAssetIdRef.current) => {
       onPlaybackStateChange?.({ assetId, state });
@@ -199,14 +204,14 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       }
     }, [clearInternalTransition, emitPlaybackState, onPlaybackIntentChange]);
 
-    const loadMediaDirect = useCallback((nextMediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean; beforeLoad?: VideoLoadGuard }) => {
+    const loadMediaDirect = useCallback((nextMediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean; beforeLoad?: VideoLoadGuard; manifestUrl?: string }) => {
       const video = videoRef.current;
 
       if (!video) {
         return;
       }
 
-      const nextManifestUrl = getCloudflareStreamHlsManifestUrl(nextMediaItem);
+      const nextManifestUrl = options?.manifestUrl ?? getCloudflareStreamHlsManifestUrl(nextMediaItem);
 
       const isSameSource =
         activeAssetIdRef.current === nextMediaItem.assetId &&
@@ -303,14 +308,15 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
     const loadMedia = useCallback((nextMediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean; beforeLoad?: VideoLoadGuard }) => {
       const guard = options?.beforeLoad ?? beforeLoad;
-      if (!guard) { pendingLoad.current?.abort(); pendingLoad.current = null; loadMediaDirect(nextMediaItem, options); return; }
+      if (!guard && !resolvePlayback) { pendingLoad.current?.abort(); pendingLoad.current = null; loadMediaDirect(nextMediaItem, options); return; }
       // Display callbacks may change while a poster/overlay animates. That is
       // not a new playback request or permission to retry a failed status read.
-      if (!options?.shouldPlay && guardedSelection.current?.guard === guard
-        && guardedSelection.current.assetId === nextMediaItem.assetId) return;
-      guardedSelection.current = { guard, assetId: nextMediaItem.assetId };
+      if (!options?.shouldPlay && guardedSelection.current && guardedSelection.current.guard === guard
+        && guardedSelection.current.resolver === resolvePlayback && guardedSelection.current.assetId === nextMediaItem.assetId) return;
+      const previousSelection = guardedSelection.current;
+      guardedSelection.current = { guard, resolver: resolvePlayback, assetId: nextMediaItem.assetId };
       pendingLoad.current?.abort();
-      if (activeAssetIdRef.current !== nextMediaItem.assetId) {
+      if (activeAssetIdRef.current !== nextMediaItem.assetId || previousSelection?.resolver !== resolvePlayback) {
         beginInternalTransition();
         removeReadinessListenersRef.current?.();
         sourceGenerationRef.current += 1;
@@ -330,14 +336,19 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       }
       const abort = new AbortController(); pendingLoad.current = abort;
       setIsProcessing(true); setHasFailed(false); emitPlaybackState("loading", nextMediaItem.assetId);
-      void guard(nextMediaItem, abort.signal).then(() => {
+      void (async () => {
+        await guard?.(nextMediaItem, abort.signal);
         if (abort.signal.aborted) return;
-        pendingLoad.current = null; loadMediaDirect(nextMediaItem, options);
-      }).catch(() => {
+        const grant = await resolvePlayback?.(nextMediaItem, abort.signal);
+        if (abort.signal.aborted) return;
+        if (grant) setResolvedGrant({ resolver: resolvePlayback, grant });
+        pendingLoad.current = null;
+        loadMediaDirect(nextMediaItem, { ...options, manifestUrl: grant?.manifestUrl });
+      })().catch(() => {
         if (abort.signal.aborted) return;
         setIsProcessing(false); pendingLoad.current = null; markFailed(nextMediaItem.assetId);
       });
-    }, [beforeLoad, beginInternalTransition, destroyHls, emitPlaybackState, loadMediaDirect, markFailed]);
+    }, [beforeLoad, resolvePlayback, beginInternalTransition, destroyHls, emitPlaybackState, loadMediaDirect, markFailed]);
 
     const togglePlayback = useCallback(() => {
       const video = videoRef.current;

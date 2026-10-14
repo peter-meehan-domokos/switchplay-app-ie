@@ -1,6 +1,7 @@
 import { cloneElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
+import { createCardPlaybackGrants } from "@/lib/cardPlaybackGrants";
 import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
@@ -31,6 +32,7 @@ import {
 
 export type FocusedCardViewProps = {
   card: PresentedCard;
+  playbackViewerUserId?: string;
   cardIndex: number;
   deckTemplateId: string;
   isDeckFlipped: boolean;
@@ -217,6 +219,7 @@ export default function FocusedCardView({
   overlays,
   frontAction,
   assessment,
+  playbackViewerUserId,
   interactionLocked = false,
   onRequestAddComment,
   traversalDirection,
@@ -226,6 +229,19 @@ export default function FocusedCardView({
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("card", card.cardTemplateId!, canonicalVersion), [card.cardTemplateId, canonicalVersion]);
   const isDeckFlipped = Boolean(backFace) && requestedDeckFlip;
   const contentIdentity = cardPresentationIdentity(card);
+  const playbackActor = hasPersonalCard(card) ? card.dataOwnerUserId : playbackViewerUserId;
+  const playbackVersion = hasPersonalCard(card) ? card.adoptedVersion : card.version;
+  const playbackMode = hasPersonalCard(card) ? "working" : "canonical";
+  const playbackGrants = useMemo(() => process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1" && playbackActor && playbackVersion
+    ? createCardPlaybackGrants({ viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode }) : null,
+    [playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
+  const [, refreshPlaybackGrants] = useState(0);
+  useEffect(() => () => playbackGrants?.clear(), [playbackGrants]);
+  const resolvePlayback = useMemo(() => playbackGrants ? async (media: import("@/lib/media").CloudflareStreamVideoMediaItem, signal: AbortSignal) => {
+    const grant = await playbackGrants.read(media, signal);
+    refreshPlaybackGrants(value => value + 1);
+    return grant;
+  } : undefined, [playbackGrants]);
   const [flipState, setFlipState] = useState<FocusedFlipState>({
     cardId: card.id,
     side: isDeckFlipped ? "back" : "front",
@@ -272,7 +288,8 @@ export default function FocusedCardView({
   const isExpandedVideoLandscape =
     activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
   const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
-  const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem) : null;
+  const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? (playbackGrants ? playbackGrants.peek(activeCloudflareVideoMediaItem.assetId)?.thumbnailUrl ?? null
+    : getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem)) : null;
   const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
   const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId);
   const isCurrentVideoFailed = Boolean(activeVideoAssetId && failedVideoAssetId === activeVideoAssetId);
@@ -773,6 +790,7 @@ export default function FocusedCardView({
                     ref={videoPlayerRef}
                     displayMode={isVideoExpanded ? "expanded" : "embedded"}
                     beforeLoad={videoGuard}
+                    resolvePlayback={resolvePlayback}
                     mediaItem={activeCloudflareVideoMediaItem}
                     onMediaDisplayStateChange={({ assetId, state }) => {
                       if (assetId !== activeVideoAssetIdRef.current) {

@@ -1,12 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { build } from "esbuild";
 
-let bundle: string;
+let bundle: string, protectedBundle: string;
 test.beforeAll(async () => {
-  const result = await build({ stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
+  const options: import("esbuild").BuildOptions = { stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
     import React, { useState, useRef } from 'react';
     import { createRoot } from 'react-dom/client';
     import Player from './src/components/media/CloudflareHlsVideoPlayer';
+    import { createCardPlaybackGrants } from './src/lib/cardPlaybackGrants';
     const gates = new Map(); window.events = []; window.plays = []; window.intents = [];
     const guard = (item) => new Promise((resolve, reject) => gates.set(item.assetId, { resolve, reject }));
     window.finishGuard = (id, failed = false) => gates.get(id)[failed ? 'reject' : 'resolve']();
@@ -34,6 +35,14 @@ test.beforeAll(async () => {
       current = window.sources.get(id) ?? 'https://videodelivery.net/' + id + '/manifest/video.m3u8';
       video.dispatchEvent(new Event(event));
     };
+    window.grantRequests = [];
+    const grantReader = createCardPlaybackGrants({ viewerUserId: 'alice', cardTemplateId: 'card', version: 1,
+      mode: location.search.includes('canonical') ? 'canonical' : 'working' }, async (input) => {
+      const assetId = new URL(input, location.origin).searchParams.get('identity'); window.grantRequests.push(assetId);
+      return Response.json({ viewerUserId: 'alice', assetId, manifestUrl: 'https://videodelivery.net/' + assetId + '/manifest/video.m3u8',
+        thumbnailUrl: 'https://videodelivery.net/' + assetId + '/thumbnails/thumbnail.jpg', expiresAt: Date.now()+3600000, reuseUntil: Date.now()+300000 });
+    });
+    const resolvePlayback = process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === '1' ? (item, signal) => grantReader.read(item, signal) : undefined;
     function App() {
       const [item, setItem] = useState(null), ref = useRef(null);
       window.select = (id, autoplay = false) => {
@@ -41,7 +50,7 @@ test.beforeAll(async () => {
           src: 'https://videodelivery.net/' + id, description: id };
         ref.current.loadMedia(next, { shouldPlay: autoplay }); setItem(next);
       };
-      return <Player ref={ref} mediaItem={item} beforeLoad={location.search.includes('canonical') ? guard : undefined}
+      return <Player ref={ref} mediaItem={item} resolvePlayback={resolvePlayback} beforeLoad={location.search.includes('canonical') ? guard : undefined}
         onMediaDisplayStateChange={state => window.events.push(state)} onPlaybackIntentChange={intent => window.intents.push(intent)} />;
     }
     createRoot(document.getElementById('root')).render(<App />);
@@ -54,21 +63,22 @@ test.beforeAll(async () => {
         on(name, fn) { this[name] = fn; } attachMedia(video) { this.video = video; }
         loadSource(src) { const id = new URL(src).pathname.split('/')[1]; this.video.src = 'blob:https://fixture.invalid/' + id; window.sources.set(id, this.video.src); window.hlsInstances.push(this); this.manifest?.(); }
         destroy() {} } window.hlsInstances = [];`, loader: "js" }));
-    } }] });
-  bundle = result.outputFiles[0].text;
+    } }] };
+  const result = await build(options); bundle = result.outputFiles![0].text;
+  protectedBundle = (await build({ ...options, define: { ...options.define, "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1") } })).outputFiles![0].text;
 });
 
 type Fixture = Window & { select(id: string, autoplay?: boolean): void; finishGuard(id: string, failed?: boolean): void;
-  frame(id: string, state?: number, event?: string): void; plays: string[]; intents: string[]; events: { assetId: string; state: string }[];
+  frame(id: string, state?: number, event?: string): void; plays: string[]; grantRequests: string[]; intents: string[]; events: { assetId: string; state: string }[];
   hlsInstances: { error?: (event: string, data: { fatal: boolean }) => void }[] };
 
-for (const transport of ["native", "hls"]) for (const context of ["working", "canonical"]) {
-  test(`${context} ${transport}: delayed/failed and superseded videos stay concealed; autoplay and pause survive`, async ({ page }) => {
+for (const protectedDelivery of [false, true]) for (const transport of ["native", "hls"]) for (const context of ["working", "canonical"]) {
+  test(`${protectedDelivery ? "grants" : "direct"} ${context} ${transport}: delayed/failed and superseded videos stay concealed; autoplay and pause survive`, async ({ page }) => {
     await page.route("https://fixture.invalid/**", route => route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' }));
     await page.route("https://videodelivery.net/**", route => route.abort());
     await page.goto(`https://fixture.invalid/?${transport}&${context}`);
     page.on("pageerror", error => { throw error; });
-    await page.addScriptTag({ content: bundle });
+    await page.addScriptTag({ content: protectedDelivery ? protectedBundle : bundle });
     const video = page.locator("video"); await expect(video).toHaveCount(1);
     const identity = await video.getAttribute("data-diag-video-id");
     const select = async (id: string, autoplay = false) => page.evaluate(([id, autoplay]) => (window as unknown as Fixture).select(id as string, autoplay as boolean), [id, autoplay]);
@@ -104,5 +114,6 @@ for (const transport of ["native", "hls"]) for (const context of ["working", "ca
     await page.evaluate(() => (window as unknown as Fixture).frame("d")); await expect(video).toBeHidden();
     await page.evaluate(() => (window as unknown as Fixture).frame("failure")); await expect(video).toBeHidden();
     await expect(video).toHaveAttribute("data-diag-video-id", identity!);
+    if (protectedDelivery) expect(await page.evaluate(() => (window as unknown as Fixture).grantRequests.filter(id => id === "a"))).toHaveLength(1);
   });
 }

@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { CardRepository } from "@/lib/cards/repository";
 import { CardArchitectureError, requireCondition } from "@/lib/cards/domain";
-import { authorizeProtectedMedia, readProtectedImage, streamTokenUrl } from "@/lib/cards/protectedMedia";
+import { authorizeCardPlayback, authorizeProtectedMedia, readProtectedImage, streamPlaybackGrant, streamTokenUrl } from "@/lib/cards/protectedMedia";
 
 export const runtime = "nodejs";
 export async function GET(request: Request) {
@@ -11,6 +11,14 @@ export async function GET(request: Request) {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401, headers });
     const query = new URL(request.url).searchParams;
+    if (query.get("format") === "grant") {
+      requireCondition(request.headers.get("X-Personal-Viewer") === user.id, "MEDIA_FORBIDDEN");
+      requireCondition(query.get("provider") === "stream"
+        && [...query.keys()].every(key => ["provider", "identity", "format", "cardTemplateId", "version", "mode"].includes(key) && query.getAll(key).length === 1), "INVALID_PLAYBACK_CONTEXT");
+      await authorizeCardPlayback(await CardRepository.application(), user.id, { cardTemplateId: query.get("cardTemplateId") ?? "",
+        version: Number(query.get("version")), mode: query.get("mode") as "working" | "canonical" }, query.get("identity") ?? "");
+      return Response.json({ ...await streamPlaybackGrant(query.get("identity")!), viewerUserId: user.id }, { headers });
+    }
     requireCondition([...query.keys()].every((key) => ["provider", "identity", "format", "controls", "muted"].includes(key) && query.getAll(key).length === 1), "INVALID_MEDIA_QUERY");
     const provider = query.get("provider"), format = query.get("format");
     requireCondition(provider === "r2" && format === "image" || provider === "stream" && ["manifest", "thumbnail", "iframe"].includes(format ?? ""), "INVALID_MEDIA_QUERY");
@@ -20,7 +28,7 @@ export async function GET(request: Request) {
     if (format === "iframe") for (const key of ["controls", "muted"]) if (["true", "false"].includes(query.get(key) ?? "")) location.searchParams.set(key, query.get(key)!);
     return new Response(null, { status: 302, headers: { ...headers, Location: location.toString(), "Referrer-Policy": "no-referrer" } });
   } catch (error) {
-    const denied = error instanceof CardArchitectureError && error.code === "MEDIA_FORBIDDEN";
+    const denied = error instanceof CardArchitectureError && error.code.endsWith("_FORBIDDEN");
     console.error("Protected media failed", error instanceof CardArchitectureError ? error.code : "PROVIDER_OR_CONFIGURATION_FAILURE");
     return Response.json({ error: denied ? "Media unavailable" : "Media could not be loaded" }, { status: denied ? 403 : 503, headers });
   }

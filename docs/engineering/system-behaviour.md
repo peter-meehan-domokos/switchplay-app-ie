@@ -23,6 +23,14 @@ are not accessible through canonical fork ancestry. Retained own source/archived
 media remains readable. Canonical published-version visibility and ownership still
 apply. Delivery changes do not rewrite stored media keys, IDs or URLs.
 
+Card introduction/Step playback reuses an authorized manifest-and-thumbnail grant
+for up to five minutes within the mounted learner/Card/version context. Grants are
+kept only in memory and refreshed after expiry or context changes; the same grant
+serves the thumbnail and video. New grants check the exact adopted or public Card
+version. Access changes may take until the reuse window ends to be rechecked.
+Switching videos still conceals the outgoing frame immediately and reveals only
+current-video frame data; reuse does not retain multiple players or video buffers.
+
 Stream tokens expire after one hour; a copied token remains usable until expiry.
 R2 images use session-authorized requests without public redirects. Existing provider
 origins/assets must be configured separately before this protects direct old URLs;
