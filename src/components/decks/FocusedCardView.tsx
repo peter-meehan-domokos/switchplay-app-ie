@@ -762,6 +762,7 @@ export default function FocusedCardView({
                   <img
                     alt=""
                     aria-hidden="true"
+                    key={activeVideoAssetId}
                     className={`switchplay-video-poster${isPosterFadeOutActive ? " switchplay-video-poster--fade-out" : ""}`}
                     onError={() => setFailedVideoPosterSrc(activeVideoPosterSrc)}
                     src={activeVideoPosterSrc ?? undefined}

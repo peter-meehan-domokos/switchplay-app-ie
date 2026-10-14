@@ -101,6 +101,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const activeAssetIdRef = useRef<string | null>(null);
     const activeManifestUrlRef = useRef<string | null>(null);
     const operationIdRef = useRef(0);
+    const sourceGenerationRef = useRef(0);
+    const removeReadinessListenersRef = useRef<(() => void) | null>(null);
+    const [displayableAssetId, setDisplayableAssetId] = useState<string | null>(null);
     const internalTransitionRef = useRef<InternalTransition | null>(null);
     const [isPlayable, setIsPlayable] = useState(false);
     const [hasFailed, setHasFailed] = useState(false);
@@ -148,12 +151,21 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
     const markRenderable = useCallback((assetId: string) => {
       setIsPlayable(true);
+      setIsProcessing(false);
+      setDisplayableAssetId(assetId);
       setHasFailed(false);
       onMediaDisplayStateChange?.({ assetId, state: "renderable" });
     }, [onMediaDisplayStateChange]);
 
     const markFailed = useCallback((assetId: string) => {
+      sourceGenerationRef.current += 1;
+      removeReadinessListenersRef.current?.();
+      activeAssetIdRef.current = null;
+      activeManifestUrlRef.current = null;
       setIsPlayable(false);
+      setIsProcessing(false);
+      setDisplayableAssetId(null);
+      if (videoRef.current) videoRef.current.style.visibility = "hidden";
       setHasFailed(true);
       setIsPaused(true);
       emitPlaybackState("failed", assetId);
@@ -214,6 +226,13 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       }
 
       operationIdRef.current = operationId;
+      const sourceGeneration = ++sourceGenerationRef.current;
+      removeReadinessListenersRef.current?.();
+      // Clear synchronously: React state alone would leave the old frame visible
+      // until the next commit, including while canonical authorization is pending.
+      video.style.visibility = "hidden";
+      setDisplayableAssetId(null);
+      setIsProcessing(true);
       video.defaultMuted = false;
       video.muted = false;
       video.playsInline = true;
@@ -232,6 +251,18 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       video.removeAttribute("src");
       video.load();
 
+      const handleFrameReady = () => {
+        if (sourceGenerationRef.current !== sourceGeneration
+          || activeAssetIdRef.current !== nextMediaItem.assetId
+          || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+          || !video.currentSrc || video.currentSrc !== video.src) return;
+        markRenderable(nextMediaItem.assetId);
+      };
+      for (const event of ["loadeddata", "canplay", "playing"]) video.addEventListener(event, handleFrameReady);
+      removeReadinessListenersRef.current = () => {
+        for (const event of ["loadeddata", "canplay", "playing"]) video.removeEventListener(event, handleFrameReady);
+      };
+
       if (canPlayNativeHls(video)) {
         video.src = nextManifestUrl;
         video.load();
@@ -239,15 +270,8 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         const hls = new Hls();
 
         hlsRef.current = hls;
-        hls.on(Hls.Events.MANIFEST_LOADING, () => {
-        });
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (isCurrentOperation(operationIdRef.current, operationId)) {
-            markRenderable(nextMediaItem.assetId);
-          }
-        });
         hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (!isCurrentOperation(operationIdRef.current, operationId) || !data.fatal) {
+          if (sourceGenerationRef.current !== sourceGeneration || !data.fatal) {
             return;
           }
 
@@ -260,8 +284,6 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         video.src = nextManifestUrl;
         video.load();
       }
-
-      markRenderable(nextMediaItem.assetId);
 
       if (options?.shouldPlay) {
         requestUnmutedPlayback(video, operationId);
@@ -281,7 +303,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
     const loadMedia = useCallback((nextMediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean; beforeLoad?: VideoLoadGuard }) => {
       const guard = options?.beforeLoad ?? beforeLoad;
-      if (!guard) { loadMediaDirect(nextMediaItem, options); return; }
+      if (!guard) { pendingLoad.current?.abort(); pendingLoad.current = null; loadMediaDirect(nextMediaItem, options); return; }
       // Display callbacks may change while a poster/overlay animates. That is
       // not a new playback request or permission to retry a failed status read.
       if (!options?.shouldPlay && guardedSelection.current?.guard === guard
@@ -289,19 +311,33 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       guardedSelection.current = { guard, assetId: nextMediaItem.assetId };
       pendingLoad.current?.abort();
       if (activeAssetIdRef.current !== nextMediaItem.assetId) {
-        videoRef.current?.pause();
+        beginInternalTransition();
+        removeReadinessListenersRef.current?.();
+        sourceGenerationRef.current += 1;
         operationIdRef.current += 1;
+        destroyHls();
+        activeAssetIdRef.current = null;
+        activeManifestUrlRef.current = null;
+        setDisplayableAssetId(null);
+        setIsPlayable(false);
+        const video = videoRef.current;
+        if (video) {
+          video.style.visibility = "hidden";
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+        }
       }
       const abort = new AbortController(); pendingLoad.current = abort;
       setIsProcessing(true); setHasFailed(false); emitPlaybackState("loading", nextMediaItem.assetId);
       void guard(nextMediaItem, abort.signal).then(() => {
         if (abort.signal.aborted) return;
-        setIsProcessing(false); pendingLoad.current = null; loadMediaDirect(nextMediaItem, options);
+        pendingLoad.current = null; loadMediaDirect(nextMediaItem, options);
       }).catch(() => {
         if (abort.signal.aborted) return;
         setIsProcessing(false); pendingLoad.current = null; markFailed(nextMediaItem.assetId);
       });
-    }, [beforeLoad, emitPlaybackState, loadMediaDirect, markFailed]);
+    }, [beforeLoad, beginInternalTransition, destroyHls, emitPlaybackState, loadMediaDirect, markFailed]);
 
     const togglePlayback = useCallback(() => {
       const video = videoRef.current;
@@ -345,8 +381,12 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       operationIdRef.current += 1;
       const transitionToken = beginInternalTransition();
 
+      sourceGenerationRef.current += 1;
+      removeReadinessListenersRef.current?.();
       activeAssetIdRef.current = null;
       activeManifestUrlRef.current = null;
+      setDisplayableAssetId(null);
+      if (video) video.style.visibility = "hidden";
       setIsPlayable(false);
       setHasFailed(false);
       setIsPaused(true);
@@ -407,31 +447,16 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       };
       const handleEmptied = () => {
       };
-      const handleLoadedMetadata = () => {
-        clearInternalTransition();
-        const assetId = activeAssetIdRef.current;
-        if (assetId) {
-          markRenderable(assetId);
-        }
-      };
-      const handleCanPlay = () => {
-        clearInternalTransition();
-        const assetId = activeAssetIdRef.current;
-        if (assetId) {
-          markRenderable(assetId);
-        }
-      };
       const handlePlay = () => {
+        if (!activeAssetIdRef.current || !video.currentSrc || video.currentSrc !== video.src) return;
         setIsPaused(false);
         setIsEnded(false);
         onPlaybackIntentChange?.("continue");
       };
       const handlePlaying = () => {
+        if (!activeAssetIdRef.current || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+          || !video.currentSrc || video.currentSrc !== video.src) return;
         clearInternalTransition();
-        const assetId = activeAssetIdRef.current;
-        if (assetId) {
-          markRenderable(assetId);
-        }
         setIsPaused(false);
         setIsEnded(false);
         emitPlaybackState("playing");
@@ -469,8 +494,6 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       video.addEventListener("stalled", handleStalled);
       video.addEventListener("abort", handleAbort);
       video.addEventListener("emptied", handleEmptied);
-      video.addEventListener("loadedmetadata", handleLoadedMetadata);
-      video.addEventListener("canplay", handleCanPlay);
       video.addEventListener("play", handlePlay);
       video.addEventListener("playing", handlePlaying);
       video.addEventListener("pause", handlePause);
@@ -483,15 +506,13 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         video.removeEventListener("stalled", handleStalled);
         video.removeEventListener("abort", handleAbort);
         video.removeEventListener("emptied", handleEmptied);
-        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        video.removeEventListener("canplay", handleCanPlay);
         video.removeEventListener("play", handlePlay);
         video.removeEventListener("playing", handlePlaying);
         video.removeEventListener("pause", handlePause);
         video.removeEventListener("ended", handleEnded);
         video.removeEventListener("error", handleError);
       };
-    }, [clearInternalTransition, diagInstanceId, emitPlaybackState, markFailed, markRenderable, onPlaybackIntentChange]);
+    }, [clearInternalTransition, diagInstanceId, emitPlaybackState, markFailed, onPlaybackIntentChange]);
 
     useEffect(() => {
 
@@ -531,9 +552,10 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         <video
           ref={assignVideoRef}
           className="cloudflare-stream-player"
+          style={{ visibility: displayableAssetId !== null && displayableAssetId === mediaItem?.assetId && !hasFailed ? "visible" : "hidden" }}
           controls={!isDeckPreview}
           playsInline
-          preload={mediaItem ? "metadata" : "none"}
+          preload={mediaItem ? "auto" : "none"}
           poster={posterUrl ?? undefined}
           aria-hidden={isDeckPreview ? "true" : undefined}
           aria-label={isDeckPreview ? undefined : mediaItem?.description || "Step video"}
