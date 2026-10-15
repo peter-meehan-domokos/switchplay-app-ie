@@ -22,6 +22,21 @@ test("R2 location uses configured origins and original keys, refusing arbitrary 
   assert.throws(() => r2Location({ ...item, src: "https://untrusted.example.com/legacy/original.png" }, env), { code: "UNSUPPORTED_LEGACY_IMAGE_ORIGIN" });
   assert.throws(() => r2Location({ ...item, assetId: "other.png" }, env), { code: "INVALID_R2_REFERENCE" });
 });
+test("both historical canonical cover origins map to the same bucket without rewriting stored references", () => {
+  const origins = ["https://historical.r2.dev", "https://assets.example.com"];
+  for (const base of origins) {
+    const env = { CLOUDFLARE_R2_PUBLIC_BASE_URL: base, CLOUDFLARE_R2_BUCKET_NAME: "canonical",
+      CLOUDFLARE_R2_LEGACY_ORIGINS: JSON.stringify(Object.fromEntries(origins.map(origin => [origin, "canonical"]))) };
+    for (const origin of origins) {
+      const item = { id: "cover", mediaType: "image" as const, provider: "cloudflare-r2" as const,
+        assetId: "path-templates/deck/introduction/cover.png", src: `${origin}/path-templates/deck/introduction/cover.png`, description: "Cover" };
+      const before = structuredClone(item);
+      assert.deepEqual(r2Location(item, env), { bucket: "canonical", key: item.assetId });
+      assert.deepEqual(item, before);
+      if (origin !== base) assert.throws(() => r2Location(item, { ...env, CLOUDFLARE_R2_LEGACY_ORIGINS: undefined }), { code: "UNSUPPORTED_LEGACY_IMAGE_ORIGIN" });
+    }
+  }
+});
 test("Stream token request is bounded, source ID remains unchanged and provider failures fail closed", async (t) => {
   const previous = { account: process.env.CLOUDFLARE_ACCOUNT_ID, token: process.env.CLOUDFLARE_STREAM_API_TOKEN };
   process.env.CLOUDFLARE_ACCOUNT_ID = "fixture"; process.env.CLOUDFLARE_STREAM_API_TOKEN = "fixture";
