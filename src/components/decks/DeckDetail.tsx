@@ -10,10 +10,10 @@ import BackCardFaceContent from "./BackCardFaceContent";
 import { hasPersonalCard } from "./presentation";
 import { useWorkingDeck } from "./useWorkingDeck";
 
-type DeckDetailProps = Pick<DeckSceneProps, "isDeckFlipped" | "deckFlipRotationY" | "onBack" | "backLabel" | "onToggleDeckFlip" | "transition"> & { deck: DeckLayout; creatorEditHref?: string; onAdopted: (command: import("@/lib/cards/updateAdoption").UpdateCommand) => Promise<void> };
+type DeckDetailProps = Pick<DeckSceneProps, "isDeckFlipped" | "deckFlipRotationY" | "onBack" | "backLabel" | "onToggleDeckFlip" | "transition"> & { deck: DeckLayout; creatorEditHref?: string; onArchive?: () => Promise<boolean>; archiveDisabled?: boolean; onAdopted: (command: import("@/lib/cards/updateAdoption").UpdateCommand) => Promise<void> };
 
 // Existing working entry point: canonical consumers mount DeckScene directly.
-export default function DeckDetail({ deck, onAdopted, creatorEditHref, ...props }: DeckDetailProps) {
+export default function DeckDetail({ deck, onAdopted, creatorEditHref, onArchive, archiveDisabled, ...props }: DeckDetailProps) {
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const working = useWorkingDeck(deck);
   const updates = useWorkingUpdates(deck, async (command) => { await onAdopted(command); working.clearMutationError(); });
@@ -25,7 +25,8 @@ export default function DeckDetail({ deck, onAdopted, creatorEditHref, ...props 
       source: { kind: "card", cardTemplateId: card.id }, deckTemplateId: deck.deckTemplateId,
       canCreate: deck.hasUserDeckData && deck.context === "working" }} onOpenChange={setAssessmentOpen} /> : undefined;
   return <><DeckScene {...props} deck={working.deck} updateAction={updates.deckButton} cardFrontAction={(card) => updates.cardButton(card.id)} error={working.mutationError || updates.discoveryError}
-    deckActions={canEnterCreator ? <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} editHref={creatorEditHref} /> : undefined}
+    deckActions={canEnterCreator || onArchive ? <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} editHref={creatorEditHref}
+      showEdit={!!canEnterCreator} deckTitle={deck.title} onArchive={onArchive} archiveDisabled={archiveDisabled} /> : undefined}
     onActiveCardChange={working.commitActiveCard}
     renderCardBackFace={(card, options) => hasPersonalCard(card) ? <BackCardFaceContent assessment={assessment(card, "back", false)} card={card} deckTemplateId={deck.deckTemplateId} {...options} /> : null}
     renderFocusedCard={(focused) => hasPersonalCard(focused.card) ? <WorkingFocusedCardView {...focused} card={focused.card}

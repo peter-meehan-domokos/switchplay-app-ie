@@ -1,3 +1,4 @@
+import { libraryDeckAction, confirmArchive } from "./deck-menu-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { randomUUID } from "node:crypto";
@@ -107,7 +108,7 @@ test("Library relevance reaches beyond the ordinary first page; static public fr
     await library(page).getByRole("button", { name: "Select Library New Algebra", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/library/${f.fresh.root.deckTemplateId}\\?progressFramework=library-maths&progressArea=algebra`));
     await expect(page.locator(".deck-detail h1")).toHaveText("New Algebra");
-    await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toBeEnabled();
+    await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
     await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Public algebra Card v2");
     await page.locator(".deck-card.is-active").press("Enter");
     await expect(page.locator(".focused-card-stage")).toBeVisible();
@@ -130,8 +131,8 @@ test("Add, archive and Restore and open move a public Deck between Progress sect
   try {
     await show(page); await expect(page.locator('tr[data-item-id="library-equations"] td').nth(0)).toHaveText("11%");
     await library(page).getByRole("button", { name: "Select Library New Algebra", exact: true }).click();
-    await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled();
+    await (await libraryDeckAction(page, "Add to My Decks")).click();
+    await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled();
     await expect(page).toHaveURL(new RegExp(`/library/${f.fresh.root.deckTemplateId}\\?progressFramework=library-maths&progressArea=algebra`));
     const user = (await f.repo.getPersonalUser(f.actor))!;
     expect(user.decksData.filter((deck) => deck.deckTemplateId === f.fresh.root.deckTemplateId)).toHaveLength(1);
@@ -149,7 +150,7 @@ test("Add, archive and Restore and open move a public Deck between Progress sect
     await dialog(page).getByRole("button", { name: "Open New Algebra", exact: true }).click();
     await expect(page.locator(".deck-detail h1")).toHaveText("New Algebra");
     await expect(page.getByRole("button", { name: "Back to Progress", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Archive Deck", exact: true }).click();
+    await confirmArchive(page);
     await expect(page.getByLabel("Framework", { exact: true })).toHaveValue("library-maths");
     await page.locator('tr[data-area-id="algebra"] .progress-content-title').click();
     await expect(dialog(page).getByRole("button", { name: /^My Decks/ }).locator("span").first()).toHaveText("1");
@@ -169,7 +170,7 @@ test("Add, archive and Restore and open move a public Deck between Progress sect
     // Normal Library remains a public browsing destination after all transitions.
     await page.goto(`/library/${f.fresh.root.deckTemplateId}`);
     await expect(page.locator(".deck-detail h1")).toHaveText("New Algebra");
-    await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled();
+    await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled();
   } finally { await dispose(page, f); }
 });
 
@@ -182,9 +183,9 @@ test("main Library still displays imported Decks at public versions while explic
     await page.goto(`/library/${f.active.root.deckTemplateId}?progressFramework=library-maths&progressArea=algebra`);
     await expect(page.locator(".deck-detail h1")).toHaveText("Public Algebra");
     await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Public algebra Card v2");
-    await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled();
+    await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled();
     expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
-    await page.getByRole("button", { name: "Open in My Decks", exact: true }).click();
+    await (await libraryDeckAction(page, "Open in My Decks")).click();
     await expect(page.locator(".deck-detail h1")).toHaveText("Working Algebra");
     const working = (await f.repo.getPersonalUser(f.actor))!;
     expect(working.decksData.find((deck) => deck.deckTemplateId === f.active.root.deckTemplateId)!.activeCardId).toBe(f.active.data.activeCardId);
@@ -200,10 +201,10 @@ test("Library browsing archived Decks does not restore them; explicit existing L
     await show(page);
     await expect(library(page).locator(`[data-destination="${f.archived.root.deckTemplateId}"]`)).toHaveCount(0);
     await page.goto(`/library/${f.archived.root.deckTemplateId}?progressFramework=library-maths&progressArea=algebra`);
-    await expect(page.getByRole("button", { name: "Restore to My Decks", exact: true })).toBeEnabled();
+    await expect((await libraryDeckAction(page, "Restore to My Decks"))).toBeEnabled();
     expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
-    await page.getByRole("button", { name: "Restore to My Decks", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled();
+    await (await libraryDeckAction(page, "Restore to My Decks")).click();
+    await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled();
     await page.getByRole("button", { name: "Back to Progress", exact: true }).click();
     await page.locator('tr[data-area-id="algebra"] .progress-content-title').click();
     await expect(dialog(page).getByRole("button", { name: /^My Decks/ }).locator("span").first()).toHaveText("2");

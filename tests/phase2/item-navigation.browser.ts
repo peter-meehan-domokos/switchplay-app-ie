@@ -1,3 +1,4 @@
+import { libraryDeckAction } from "./deck-menu-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { randomUUID } from "node:crypto";
@@ -104,7 +105,7 @@ test("original/forks remain separate visuals, one Card exposes multiple visual D
     await dialog(page).getByRole("button", { name: "Open Library Public Path", exact: true }).click();
     await expect(page.locator(".deck-detail h1")).toHaveText("Public Path");
     await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Current public practice");
-    await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toBeEnabled();
+    await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
     expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
     await page.getByRole("button", { name: "Back to Progress", exact: true }).click();
     await page.locator('tr[data-item-id="item-core"] .progress-content-title').click();
@@ -141,7 +142,7 @@ test("Library-only Card opens at its exact non-first public position without imp
     await card(page, f.library.root.cardTemplateId, "Library practice").getByRole("button", { name: "Choose Library only Card", exact: true }).press("Enter");
     await expect(page.locator(".deck-detail h1")).toHaveText("Public Path");
     await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Library only Card");
-    await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toBeEnabled();
+    await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
     expect(await f.repo.getPersonalUser(f.actor)).toEqual(before);
     await page.getByRole("button", { name: "Back to Progress", exact: true }).click();
     await expect(page.getByLabel("Framework", { exact: true })).toHaveValue("item-maths");

@@ -2251,6 +2251,19 @@ input {
   color: #fffaf0;
 }
 
+.deck-menu-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-menu-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .detail-chip {
   max-width: 44%;
   overflow: hidden;

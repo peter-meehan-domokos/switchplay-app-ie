@@ -1,3 +1,4 @@
+import { confirmArchive } from "./deck-menu-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { randomUUID } from "node:crypto";
@@ -161,7 +162,7 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowLeft");
   await expect(page.locator(".focused-card-layer")).toHaveCount(0); await page.reload(); await expect(page.locator(".deck-detail h1")).toHaveText(name);
   const dto = await (await page.request.get(`/api/decks-data/${id}`)).json(); expect(dto.cards).toEqual([]);
-  await page.getByRole("button", { name: "Archive Deck", exact: true }).click(); await expect(page.getByRole("button", { name: `Open ${name}`, exact: true })).toHaveCount(0);
+  await confirmArchive(page); await expect(page.getByRole("button", { name: `Open ${name}`, exact: true })).toHaveCount(0);
   await page.getByText("Archived decks", { exact: true }).click(); await page.getByRole("button", { name: `Restore ${name}`, exact: true }).click();
   await page.getByRole("button", { name: `Open ${name}`, exact: true }).click(); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click(); const cardId = await add(page);

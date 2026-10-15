@@ -73,6 +73,18 @@ retain their previous behaviour. The explicitly discarded gym-trace mock illustr
 is omitted from new personal lists during migration, while original references remain
 in the backup/legacy users. Other bundled public artwork remains public.
 
+## Deck action menus
+
+My Decks places Archive directly below Edit in the Deck menu. Archive opens a
+confirmation naming the Deck; Cancel makes no changes. Confirmation retains the
+existing archive operation, keeps learning progress, blocks duplicate submissions
+and leaves failures available for retry. Archived Decks can still be restored.
+
+Library places Add to My Decks, Open in My Decks or Restore to My Decks in the same
+Deck menu, beneath Edit where editing is permitted. These retain their existing
+explicit actions, version checks and Progress return context. Selecting an action
+closes the menu; browsing never adds or restores content automatically.
+
 ## Framework organisation and mappings [Phase 6]
 
 A Framework contains ordered Areas, each containing ordered Items. The configuration

@@ -145,16 +145,13 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     });
   }
   return <main className={`app-shell library-shell${entry ? " app-shell--deck" : ""}`}>
-    {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1><Link href="/decks" prefetch={false}>My Decks</Link></header></>}
+    {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1></header></>}
     {error && !stale && !chooser && <p className="library-error" role="alert">{error}{!status && <button type="button" onClick={() => window.location.reload()}>Reload Library</button>}</p>}
     {active && requestedCard && !active.deck.cards.some((card) => card.cardTemplateId === requestedCard &&
       (requestedVersion === null || String(card.version) === requestedVersion)) ? <section className="library-unavailable">
       <button type="button" className="back-button" onClick={() => router.push(progressReturn ? progressReturnHref(progressReturn) : "/library", { scroll: false })}>{progressReturn ? "Back to Progress" : "Back to Library"}</button>
       <h1>Unavailable Card</h1><p>The selected Card or publication changed. Return to Progress and refresh your choices. Your personal state has not changed.</p>
     </section> : active ? <>
-      <button type="button" disabled={!membership || pending !== null} onClick={() => void primaryAction()}>
-        {pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state)}
-      </button>
       <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} playbackViewerUserId={currentUserId} transition={transition} initialCardTemplateId={requestedCard ?? undefined}
         backLabel={progressReturn ? "Back to Progress" : "Back"}
         onBack={() => {
@@ -164,9 +161,12 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
             if (!signal.aborted) router.push(progressReturnHref(progressReturn), { scroll: false });
           });
         }} cardActions={cardAction}
-        deckActions={membership?.canEditInCreator ? <DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
+        deckActions={<DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
+          showEdit={!!membership?.canEditInCreator}
+          membershipAction={{ label: pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state),
+            disabled: !membership || pending !== null, onSelect: () => void primaryAction() }}
           editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?${new URLSearchParams({ returnTo: "library", returnDeckId: active.deckTemplateId,
-            version: String(active.manifest.deckVersion), cards: JSON.stringify(active.manifest.cards) })}`} /> : undefined}
+            version: String(active.manifest.deckVersion), cards: JSON.stringify(active.manifest.cards) })}`} />}
         renderFocusedCard={(props) => <FocusedCardView {...props} playbackViewerUserId={currentUserId} overlays={cardAction(props.card)} />} />
     </> : entry ? <section className="library-unavailable"><Link href={progressReturn ? progressReturnHref(progressReturn) : "/library"}>{progressReturn ? "Back to Progress" : "Back to Library"}</Link><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
       <DeckGrid orderedEntries={(collection?.entries ?? []).map((item) => item.availability === "available" ? item.deck : {

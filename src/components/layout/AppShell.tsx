@@ -1,7 +1,6 @@
 "use client";
 import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
 import { personalWork } from "@/lib/cards/personalWork";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import OverviewMenu from "./OverviewMenu";
@@ -79,7 +78,7 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
     }
   });
   async function membershipAction(id: string, type: "archive" | "restore") {
-    if (pending) return;
+    if (pending) return false;
     ++refreshGeneration.current;
     setPending(id); setError("");
     try { await flushPersonalMutations(); await workingRequest(currentUserId, `/api/decks-data/${encodeURIComponent(id)}`, "PATCH", { type,
@@ -87,8 +86,9 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
       setRecords(await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data"));
       setSelected(null);
       if (progressReturn && type === "archive") router.push(progressReturnHref(progressReturn), { scroll: false });
-      else window.history.replaceState(null, "", "/decks"); }
-    catch (error) { setError(error instanceof Error ? error.message : "Membership update failed"); }
+      else window.history.replaceState(null, "", "/decks");
+      return true; }
+    catch (error) { setError(error instanceof Error ? error.message : "Membership update failed"); return false; }
     finally { setPending(null); }
   }
   async function refreshWorking(command?: import("@/lib/cards/updateAdoption").UpdateCommand) {
@@ -147,13 +147,13 @@ export default function AppShell({ memberships, currentUserId, userName }: { mem
       <button type="button" disabled={pending !== null} onClick={() => void close()}>Back to Progress</button>
     </div> : null}
     {selected ? <>
-      <button type="button" disabled={pending !== null} onClick={() => void membershipAction(selected.deckTemplateId, "archive")}>Archive Deck</button>
       <DeckDetail key={`${currentUserId}:${selected.deckTemplateId}`} onAdopted={refreshWorking} deck={selectedLayout!}
+        onArchive={() => membershipAction(selected.deckTemplateId, "archive")} archiveDisabled={pending !== null}
         backLabel={progressReturn ? "Back to Progress" : undefined}
         creatorEditHref={progressReturn ? `/creator/edit/${encodeURIComponent(selected.deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(selected.deckTemplateId)}&progressFramework=${encodeURIComponent(progressReturn.frameworkId)}${progressReturn.areaId ? `&progressArea=${encodeURIComponent(progressReturn.areaId)}` : ""}` : undefined}
         isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation} onBack={() => void close()} onToggleDeckFlip={(delta = 180) => setRotation((value) => value + delta)} transition={transition} />
     </> : <>
-      <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1><Link href="/creator/new">Create Deck</Link></header>
+      <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1></header>
       <DeckGrid decks={decks} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null} onSelectDeck={(id) => void open(id)} transition={transition} />
       {active.filter((item) => item.availability === "unavailable").map((item) => <p key={item.deckTemplateId}>
         Unavailable Deck — your membership is retained. <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "archive")}>Archive unavailable Deck</button>

@@ -1,3 +1,4 @@
+import { libraryDeckAction } from "./deck-menu-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { randomUUID } from "node:crypto";
@@ -28,7 +29,8 @@ async function login(page: Page, username = "other") {
   expect((await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } })).ok()).toBeTruthy();
 }
 async function detail(page: Page, id: string) {
-  await page.goto(`/library/${id}`); await expect(page.getByRole("button", { name: /^(Add to|Open in|Restore to) My Decks$/ })).toBeEnabled();
+  await page.goto(`/library/${id}`); await expect((await libraryDeckAction(page, /^(Add to|Open in|Restore to) My Decks$/))).toBeEnabled();
+  await page.getByRole("button", { name: "Deck menu", exact: true }).click();
 }
 async function focus(page: Page) {
   await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-stage")).toBeVisible();
@@ -226,8 +228,8 @@ test("Library collection and full preview share presentation and never mount a p
 test("Add stays in Library, pins personal records unopened, then Open runs normal first-open initialization", async ({ page }) => {
   const { repo, viewer, id, ids } = await fixture(); await login(page); await detail(page, id);
   await expect(page.getByRole("button", { name: "Open Card in My Decks" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled(); expect(page.url()).toContain(`/library/${id}`);
+  await (await libraryDeckAction(page, "Add to My Decks")).click();
+  await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled(); expect(page.url()).toContain(`/library/${id}`);
   const user = (await repo.getPersonalUser(viewer))!, data = user.decksData.find((item) => item.deckTemplateId === id)!;
   expect(data.openedAt).toBeNull(); expect(data.cadenceAnchorDate).toBeNull();
   expect(user.cardsData.filter((item) => ids.includes(item.cardTemplateId)).every((item) => item.targetDate === null)).toBeTruthy();
@@ -235,7 +237,7 @@ test("Add stays in Library, pins personal records unopened, then Open runs norma
   // Assert initialization only after that exact working operation commits.
   const workingOpen = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/decks-data"
     && response.request().method() === "POST" && response.request().postDataJSON()?.deckTemplateId === id);
-  await page.getByRole("button", { name: "Open in My Decks", exact: true }).click();
+  await (await libraryDeckAction(page, "Open in My Decks")).click();
   expect((await workingOpen).ok()).toBeTruthy();
   await expect(page.locator(".deck-detail h1")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/decks\\?openDeck=${id}`));
   const opened = (await repo.getPersonalUser(viewer))!.decksData.find((item) => item.deckTemplateId === id)!;
@@ -247,8 +249,8 @@ test("Restore stays in Library and preserves older adopted composition and learn
   const old = (await repo.getPersonalUser(viewer))!;
   const content = deckDraftContent((await repo.getDeckVersion(id, 1))!.content);
   await repo.saveDeckDraft(owner, id, 1, { ...content, title: "Latest canonical programme", cards: [] }); await repo.publishDeck(owner, id, 2);
-  await login(page); await detail(page, id); await page.getByRole("button", { name: "Restore to My Decks", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled(); expect(page.url()).toContain(`/library/${id}`);
+  await login(page); await detail(page, id); await (await libraryDeckAction(page, "Restore to My Decks")).click();
+  await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled(); expect(page.url()).toContain(`/library/${id}`);
   const user = (await repo.getPersonalUser(viewer))!, data = user.decksData.find((item) => item.deckTemplateId === id)!;
   expect(data.deckTemplateVersion).toBe(1); expect(data.archivedAt).toBeNull(); expect(data.openedAt).toBeNull(); expect(data.cadenceAnchorDate).toBeNull();
   expect(user.cardsData.filter((item) => ids.includes(item.cardTemplateId))).toEqual(old.cardsData.filter((item) => ids.includes(item.cardTemplateId)));
@@ -260,16 +262,16 @@ for (const kind of ["Card", "Deck"] as const) test(`stale ${kind} preview blocks
   await page.getByRole("button", { name: "Close focused card" }).click({ position: { x: 4, y: 4 } });
   if (kind === "Card") { const old = (await repo.getCardVersion(ids[0], 1))!.content; await repo.saveCardDraft(owner, ids[0], 1, { ...old, intro: { ...old.intro, title: "Fresh published Card" } }); await repo.publishCard(owner, ids[0], 2); }
   else { const old = deckDraftContent((await repo.getDeckVersion(id, 1))!.content); await repo.saveDeckDraft(owner, id, 1, { ...old, title: "Fresh published Deck" }); await repo.publishDeck(owner, id, 2); }
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
+  await (await libraryDeckAction(page, "Add to My Decks")).click();
   await expect(page.getByRole("dialog", { name: "Preview has changed" })).toBeVisible();
   expect((await repo.getPersonalUser(viewer))!.decksData.some((item) => item.deckTemplateId === id)).toBe(false);
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Library practice 2");
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
+  await (await libraryDeckAction(page, "Add to My Decks")).click();
   await page.getByRole("button", { name: "Refresh preview", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText(kind === "Card" ? "Fresh published Card" : "Library practice 1");
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click(); await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeEnabled();
+  await (await libraryDeckAction(page, "Add to My Decks")).click(); await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled();
 });
 
 test("one exact Card destination opens directly at adopted version and initializes a never-opened Deck", async ({ page }) => {
@@ -311,10 +313,10 @@ test("retained CardData without active membership hides Open Card; empty and bro
   const { repo, viewer, id } = await fixture(); await repo.ensureDeckData(viewer, id, 1); await repo.archiveDeckData(viewer, id);
   await login(page); await detail(page, id); await expect(page.getByRole("button", { name: "Open Card in My Decks" })).toHaveCount(0);
   const empty = await fixture(0); await detail(page, empty.id); await expect(page.locator(".deck-card, .deck-scene-frame")).toHaveCount(0);
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click(); await expect(page.getByRole("button", { name: "Open in My Decks" })).toBeEnabled();
+  await (await libraryDeckAction(page, "Add to My Decks")).click(); await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeEnabled();
   await empty.repo.deckVersions().updateOne({ deckTemplateId: empty.id, version: 1 }, { $set: { "content.cards": [{ cardTemplateId: "missing-private-content" }] } });
   await page.goto(`/library/${empty.id}`); await expect(page.getByRole("heading", { name: "Unavailable Deck" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add to My Decks" })).toHaveCount(0);
+  await expect((await libraryDeckAction(page, "Add to My Decks", true))).toHaveCount(0);
   await page.goto("/library"); await expect(page.getByRole("link", { name: "Unavailable Deck" }).last()).toBeVisible();
 });
 
@@ -365,9 +367,9 @@ test("a delayed viewer-status response cannot install another account's actions"
   });
   await page.goto(`/library/${id}`); await ready;
   await login(page, "phase2"); release();
-  await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toBeEnabled();
+  await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
   await expect(page.getByRole("button", { name: "Open Card in My Decks", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toHaveCount(0);
+  await expect((await libraryDeckAction(page, "Open in My Decks"))).toHaveCount(0);
 });
 
 test("Library is authenticated and private content is unavailable even to its owner on the Library surface", async ({ page }) => {
@@ -377,7 +379,7 @@ test("Library is authenticated and private content is unavailable even to its ow
   await page.goto("/library"); await expect(page.getByLabel("Username or email")).toBeVisible();
   await login(page, "phase2"); await page.goto(`/library/${privateDeck.deckTemplateId}`);
   await expect(page.getByText("PRIVATE SECRET TITLE")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Add to My Decks" })).toHaveCount(0);
+  await expect((await libraryDeckAction(page, "Add to My Decks", true))).toHaveCount(0);
   await page.goto("/library"); await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
   await expect(page.getByText("PRIVATE SECRET TITLE")).toHaveCount(0);
 });
@@ -385,11 +387,11 @@ test("Library is authenticated and private content is unavailable even to its ow
 test("lost Add response followed by Archive cannot be undone by the UI's retry", async ({ page }) => {
   const { repo, viewer, id } = await fixture(); await login(page); await detail(page, id);
   await page.route(`**/api/library/decks/${id}/add`, async (route) => { await route.fetch(); await route.abort("failed"); }, { times: 1 });
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click(); await expect(page.locator(".library-error")).toBeVisible();
+  await (await libraryDeckAction(page, "Add to My Decks")).click(); await expect(page.locator(".library-error")).toBeVisible();
   expect((await repo.getPersonalUser(viewer))!.decksData.some((item) => item.deckTemplateId === id)).toBeTruthy();
   await repo.archiveDeckData(viewer, id);
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Restore to My Decks", exact: true })).toBeEnabled();
+  await (await libraryDeckAction(page, "Add to My Decks")).click();
+  await expect((await libraryDeckAction(page, "Restore to My Decks"))).toBeEnabled();
   const data = (await repo.getPersonalUser(viewer))!.decksData.filter((item) => item.deckTemplateId === id); expect(data).toHaveLength(1); expect(data[0].archivedAt).not.toBeNull();
 });
 
@@ -419,8 +421,8 @@ test("account change between the UI auth check and POST cannot add content to th
     expect(response.status()).toBe(409); expect((await response.json()).code).toBe("LIBRARY_SESSION_CONFLICT");
     await route.fulfill({ response });
   }, { times: 1 });
-  await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toBeEnabled();
+  await (await libraryDeckAction(page, "Add to My Decks")).click();
+  await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
   for (const actor of [owner, viewer]) expect((await repo.getPersonalUser(actor))!.decksData.some((item) => item.deckTemplateId === id)).toBe(false);
 });
 
@@ -429,7 +431,7 @@ test("Open Card through another personal Deck does not add the Library Deck or i
   const personal = await repo.createDeckDraft(owner, { ...createDefaultDeckContent([]), title: "Existing learning programme", cards: [{ cardTemplateId: ids[0] }] }, "public");
   await repo.publishDeck(owner, personal.deckTemplateId, 0); await repo.ensureDeckData(viewer, personal.deckTemplateId, 1);
   await login(page); await detail(page, id);
-  await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toBeEnabled();
+  await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
   await page.getByRole("button", { name: "Open Card in My Decks", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/decks\\?openDeck=${personal.deckTemplateId}`));
   await expect(page.locator(".deck-card.is-active .active-card-identity")).toContainText("Library practice 1");

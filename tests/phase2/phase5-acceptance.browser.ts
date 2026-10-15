@@ -1,3 +1,4 @@
+import { libraryDeckAction } from "./deck-menu-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { MongoClient } from "mongodb";
@@ -49,13 +50,13 @@ test("offline browser journey adds, adopts an owner update, then publishes a med
     const before = (await f.repo.getPersonalUser(f.viewer))!;
     await expect(page.locator(".working-update-button, .step-progress-hit-area, .card-target-date-value")).toHaveCount(0);
     expect(await f.repo.getPersonalUser(f.viewer)).toEqual(before);
-    await page.getByRole("button", { name: "Add to My Decks", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Open in My Decks", exact: true })).toBeVisible();
+    await (await libraryDeckAction(page, "Add to My Decks")).click();
+    await expect((await libraryDeckAction(page, "Open in My Decks"))).toBeVisible();
     const added = (await f.repo.getPersonalUser(f.viewer))!;
     const membership = added.decksData.find((data) => data.deckTemplateId === f.deck.deckTemplateId)!;
     expect(membership.openedAt).toBe(null); expect(membership.cadenceAnchorDate).toBe(null);
     expect(added.cardsData.find((data) => data.cardTemplateId === f.card.cardTemplateId)!.targetDate).toBe(null);
-    await page.getByRole("button", { name: "Open in My Decks", exact: true }).click();
+    await (await libraryDeckAction(page, "Open in My Decks")).click();
     await expect(page).toHaveURL(new RegExp(`/decks\\?openDeck=${f.deck.deckTemplateId}`));
     await expect(page.locator(".deck-detail h1")).toHaveText(f.deck.draft!.title);
     await page.locator(".deck-card.is-active").press("Enter");

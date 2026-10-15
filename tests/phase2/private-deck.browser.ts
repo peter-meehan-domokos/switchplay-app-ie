@@ -1,3 +1,4 @@
+import { confirmArchive } from "./deck-menu-helpers";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
@@ -57,7 +58,8 @@ async function flip(page: Page) {
 test("private Creator → adopted work → media/state → recoverable publication → archive/restore", async ({ page }) => {
   // Asset delivery is mocked; actual upload authorization and metadata persistence remain real.
   await page.route(/https:\/\/(.*cloudflare.*|.*videodelivery.*|.*youtube.*)\//, (route) => route.abort());
-  await login(page); await page.getByRole("link", { name: "Create Deck", exact: true }).click();
+  await login(page); await page.getByRole("button", { name: "Overview menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Create", exact: true }).click();
   await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   await title(page, "Phase 2 path");
   const cardIds = [await add(page, "First practice"), await add(page, "Second practice")];
@@ -71,7 +73,8 @@ test("private Creator → adopted work → media/state → recoverable publicati
   await page.goto("/decks"); await expect(page.getByRole("link", { name: "Phase 2 path — Draft" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Open Phase 2 path", exact: true })).toHaveCount(0);
   await expect(page.getByText("Shared with me", { exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Create Deck", exact: true }).click();
+  await page.getByRole("button", { name: "Overview menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Create", exact: true }).click();
   await page.getByRole("button", { name: "My Drafts", exact: true }).click();
   await page.getByRole("dialog", { name: "My Drafts", exact: true }).getByRole("button", { name: "Phase 2 path", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}`));
@@ -187,7 +190,7 @@ test("private Creator → adopted work → media/state → recoverable publicati
   user = await database().collection("users").findOne({ _id: actor() });
   const updatedPersonal = user!.cardsData.find((data: { cardTemplateId: string }) => data.cardTemplateId === cardId);
   expect(updatedPersonal.cardTemplateVersion).toBe(2); expect(updatedPersonal.reflection).toBe(personal.reflection);
-  await page.getByRole("button", { name: "Archive Deck", exact: true }).click(); await expect(page.getByRole("button", { name: "Open Phase 2 revised", exact: true })).toHaveCount(0);
+  await confirmArchive(page); await expect(page.getByRole("button", { name: "Open Phase 2 revised", exact: true })).toHaveCount(0);
   await page.getByText("Archived decks", { exact: true }).click(); await page.getByRole("button", { name: "Restore Phase 2 revised", exact: true }).click();
   await page.getByRole("button", { name: "Open Phase 2 revised", exact: true }).last().click();
   user = await database().collection("users").findOne({ _id: actor() });
@@ -228,7 +231,8 @@ for (const width of [375, 390]) {
     const page = await context.newPage();
     try {
       await login(page);
-      await page.getByRole("link", { name: "Create Deck", exact: true }).click();
+      await page.getByRole("button", { name: "Overview menu", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Create", exact: true }).click();
       await title(page, `Mobile layout ${width}`);
       await add(page, `Mobile first ${width}`); await add(page, `Mobile second ${width}`);
       await expect(page.getByText(/draft outstanding/)).toHaveCount(0);
