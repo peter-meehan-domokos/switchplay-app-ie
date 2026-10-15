@@ -57,3 +57,14 @@ test("Card/learner caches do not share images, clear invalidates pending decodes
   const short = { ...grant("short"), expiresAt: 40_000 }; second.cache.prepare(short); second.advance(10_000);
   assert.equal(second.cache.peek(short), undefined); second.cache.prepare(short); assert.equal(second.images.length, 2); second.cache.clear();
 });
+
+test("focused cleanup preserves a shared pending intro; expired decoding releases its background slot", async () => {
+  const f = fixture(); f.cache.prepare(grant("intro"), "low"); f.cache.prepare(grant("step"));
+  assert.equal(f.images[0].node.fetchPriority, "low");
+  f.cache.prepare(grant("intro")); assert.equal(f.images[0].node.fetchPriority, "auto");
+  f.cache.cancelPending(["intro"]);
+  assert.equal(f.images[0].removed, 0); assert.equal(f.images[1].removed, 1);
+  f.advance(600_000); f.images[0].complete(); await Promise.resolve();
+  assert.equal(f.cache.peek(grant("intro")), undefined);
+  assert.equal(f.images[0].removed, 1); assert.equal(f.changes(), 1);
+});

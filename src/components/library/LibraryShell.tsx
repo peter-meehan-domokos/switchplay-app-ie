@@ -155,7 +155,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
       <button type="button" disabled={!membership || pending !== null} onClick={() => void primaryAction()}>
         {pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state)}
       </button>
-      <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} transition={transition} initialCardTemplateId={requestedCard ?? undefined}
+      <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} playbackViewerUserId={currentUserId} transition={transition} initialCardTemplateId={requestedCard ?? undefined}
         backLabel={progressReturn ? "Back to Progress" : "Back"}
         onBack={() => {
           if (!progressReturn) { router.push("/library"); return; }

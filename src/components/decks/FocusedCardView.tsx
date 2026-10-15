@@ -4,6 +4,7 @@ import type { Transition } from "motion/react";
 import { createCardPlaybackGrants } from "@/lib/cardPlaybackGrants";
 import { createCardVideoThumbnails } from "@/lib/cardVideoThumbnails";
 import PreparedVideoPoster from "@/components/media/PreparedVideoPoster";
+import { useDeckVideoResource } from "@/components/media/DeckVideoPreparation";
 import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
@@ -234,16 +235,24 @@ export default function FocusedCardView({
   const playbackActor = hasPersonalCard(card) ? card.dataOwnerUserId : playbackViewerUserId;
   const playbackVersion = hasPersonalCard(card) ? card.adoptedVersion : card.version;
   const playbackMode = hasPersonalCard(card) ? "working" : "canonical";
-  const playbackGrants = useMemo(() => process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1" && playbackActor && playbackVersion
+  const sharedPreparation = useDeckVideoResource(card);
+  const sharedResource = sharedPreparation.resource;
+  const preparationManager = sharedPreparation.manager;
+  const preparationKey = sharedPreparation.key;
+  const playbackGrants = useMemo(() => sharedResource ? sharedResource.grants : process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1" && playbackActor && playbackVersion
     ? createCardPlaybackGrants({ viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode }) : null,
-    [playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
+    [sharedResource, playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
   const [, refreshPlaybackGrants] = useState(0);
-  const thumbnails = useMemo(() => createCardVideoThumbnails(() => refreshPlaybackGrants(value => value + 1)),
+  const thumbnails = useMemo(() => sharedResource?.thumbnails ?? createCardVideoThumbnails(() => refreshPlaybackGrants(value => value + 1)),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- A fresh image store is required for each learner/Card/version, even if URLs match.
-    [playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
+    [sharedResource, playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
   const preparePlayback = useRef<() => void>(() => {});
-  useEffect(() => () => playbackGrants?.clear(), [playbackGrants]);
-  useEffect(() => () => thumbnails.clear(), [thumbnails]);
+  useEffect(() => () => { if (!sharedResource) playbackGrants?.clear(); }, [playbackGrants, sharedResource]);
+  useEffect(() => () => { if (!sharedResource) thumbnails.clear(); }, [thumbnails, sharedResource]);
+  useEffect(() => {
+    preparationManager?.focus(preparationKey);
+    return () => { preparationManager?.setVideoOpen(false); preparationManager?.focus(null); };
+  }, [preparationManager, preparationKey]);
   const resolvePlayback = useMemo(() => playbackGrants ? async (media: import("@/lib/media").CloudflareStreamVideoMediaItem, signal: AbortSignal) => {
     const grant = await playbackGrants.read(media, signal);
     if (!signal.aborted && document.visibilityState !== "hidden") thumbnails.prepare(grant);
@@ -309,10 +318,12 @@ export default function FocusedCardView({
     document.addEventListener("visibilitychange", visibility);
     start();
     return () => {
-      live = false; preparation?.abort(); thumbnails.cancelPending(); preparePlayback.current = () => {};
+      live = false; preparation?.abort();
+      thumbnails.cancelPending(sharedResource?.card.intro ? [sharedResource.card.intro.assetId] : []);
+      preparePlayback.current = () => {};
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [playbackGrants, thumbnails, instructionalVideos, isFlipped, videoGuard]);
+  }, [playbackGrants, thumbnails, instructionalVideos, isFlipped, videoGuard, sharedResource]);
   const stepViewSequence = getStepViewSequence(card);
   const stepViewItemIndex =
     stepViewState?.cardId === card.id && !isFlipped
@@ -329,6 +340,9 @@ export default function FocusedCardView({
   const isExpandedVideoLandscape =
     activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
   const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
+  useEffect(() => {
+    preparationManager?.setVideoOpen(activeVideoAssetId !== null);
+  }, [preparationManager, activeVideoAssetId]);
   const activeGrant = activeCloudflareVideoMediaItem ? (playbackGrants ? playbackGrants.peek(activeCloudflareVideoMediaItem.assetId)
     : { assetId: activeCloudflareVideoMediaItem.assetId, thumbnailUrl: getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem), reuseUntil: Infinity, expiresAt: Infinity }) : null;
   const activeThumbnail = activeGrant ? thumbnails.peek(activeGrant) : undefined;
@@ -417,6 +431,8 @@ export default function FocusedCardView({
       return;
     }
 
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.steps[stepIndex]?.mediaItem));
+
     const nextStepViewState = {
       cardId: card.id,
       itemIndex: stepIndex + 1,
@@ -432,6 +448,8 @@ export default function FocusedCardView({
     if (isFlipped) {
       return;
     }
+
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.intro.mediaItem));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -483,6 +501,7 @@ export default function FocusedCardView({
     setIsVideoExpanded(false);
 
     if (nextCloudflareVideoMediaItem) {
+      preparationManager?.setVideoOpen(true);
       activeVideoAssetIdRef.current = nextCloudflareVideoMediaItem.assetId;
       resetVideoDisplayState();
       videoPlayerRef.current?.loadMedia(nextCloudflareVideoMediaItem, { shouldPlay: shouldContinuePlayback });

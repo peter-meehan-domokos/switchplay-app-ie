@@ -36,8 +36,8 @@ idle refresh timers or extra video players.
 Each returned grant independently starts downloading and decoding its thumbnail.
 The focused Card retains those image nodes for selection and return navigation,
 using the same signed URLs without a second display download. Unfinished image
-preparation stops with the Card's background preparation; all retained images are
-released on context change or closing. Until a thumbnail or video frame is ready,
+preparation stops with the Card's background preparation; Step images are released
+when focus closes. Until a thumbnail or video frame is ready,
 the video area shows a visible loading message; an unavailable thumbnail does not
 block video playback. Loading and failure messages sit outside the concealed player.
 Library Cards also prepare one readiness check per video; videos still processing
@@ -48,6 +48,22 @@ only after current-source frame presentation and a rendering boundary. Browsers
 without frame callbacks use rendering boundaries after current-frame data arrives.
 Paused navigation does not require playback. Reuse does not retain multiple players
 or video buffers.
+
+Open My Decks and Library Decks also prepare neighbouring Card introduction images.
+Decks of up to seven Cards prepare every introduction; larger Decks use two behind
+and four ahead, shifting unused capacity at either end to fill seven positions.
+The cold active Card keeps its existing lazy image path. Neighbour work waits for
+that image to decode or fail, then runs at most two low-priority grant/image jobs.
+Opening a Card video cancels neighbour work until the video view closes; it never
+blocks active playback. Neighbours prepare no Step images or video data.
+Prepared introduction images and valid grants are shared with the focused Card;
+small Card-front canvases preserve simultaneous stack/focused/poster presentation
+without downloading another copy. Proactive decoded images are limited to the
+window (plus the focused Card's Step images). Images leaving the window are
+released, while valid grants remain reusable within the open Deck. Existing lazy
+loading outside the window remains unchanged; already-painted small Card-front
+copies may remain visible. Deck/learner/version changes invalidate the appropriate
+resources, and closing the Deck releases them all. This adds no persistent storage.
 
 Stream tokens expire after one hour; a copied token remains usable until expiry.
 R2 images use session-authorized requests without public redirects. Existing provider

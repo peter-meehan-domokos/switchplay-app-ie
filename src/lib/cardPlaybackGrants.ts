@@ -6,7 +6,8 @@ export type CardPlaybackContext = { viewerUserId: string; cardTemplateId: string
 export type PlaybackGrant = { assetId: string; manifestUrl: string; thumbnailUrl: string; expiresAt: number; reuseUntil: number };
 type PendingGrant = { controller: AbortController; promise: Promise<PlaybackGrant>; consumers: number };
 
-// One mounted Card/learner/version only. No storage, global cache or media buffers.
+// One learner/Card/version only; an open Deck may retain the reader between
+// focused Cards. No storage, global cache or media buffers.
 export function createCardPlaybackGrants(context: CardPlaybackContext, fetchImpl: typeof fetch = fetch, now = Date.now) {
   context = { ...context };
   const grants = new Map<string, PlaybackGrant>(), pending = new Map<string, PendingGrant>();

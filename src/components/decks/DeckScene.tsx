@@ -13,10 +13,12 @@ import type { GestureCommitment, GestureVector } from "./gestures/gestureTypes";
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackState } from "@/components/media/CloudflareHlsVideoPlayer";
 import { DECK_SCENE_BASELINE_HEIGHT, DECK_SCENE_BASELINE_WIDTH, DECK_SCENE_BOTTOM_CROP_ALLOWANCE, ROLE_TRANSITION_SETTLE_MS } from "@/constants/cardStack";
 import type { ReactNode } from "react";
+import { DeckVideoPreparationProvider } from "@/components/media/DeckVideoPreparation";
 
 export type DeckSceneProps = {
   renderCardBackFace?: CardBackPresentation;
   deck: PresentedDeck;
+  playbackViewerUserId?: string;
   isDeckFlipped?: boolean;
   deckFlipRotationY?: number;
   onBack: () => void;
@@ -138,7 +140,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -393,6 +395,7 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
     deckGestures.vector.distance >= DECK_GESTURE_THRESHOLDS.deadZonePx;
 
   return (
+    <DeckVideoPreparationProvider deck={deck} viewerUserId={playbackViewerUserId} activeIndex={activeCardIndex} suspended={isDeckFlipped || isDeckIntroExpanded}>
     <motion.section
       ref={deckDetailRef}
       className="deck-detail"
@@ -515,5 +518,6 @@ export default function DeckScene({ deck, isDeckFlipped = false, deckFlipRotatio
 
 
     </motion.section>
+    </DeckVideoPreparationProvider>
   );
 }
