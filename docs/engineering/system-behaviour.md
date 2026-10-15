@@ -24,12 +24,30 @@ media remains readable. Canonical published-version visibility and ownership sti
 apply. Delivery changes do not rewrite stored media keys, IDs or URLs.
 
 Card introduction/Step playback reuses an authorized manifest-and-thumbnail grant
-for up to five minutes within the mounted learner/Card/version context. Grants are
+for up to ten minutes within the mounted learner/Card/version context. Grants are
 kept only in memory and refreshed after expiry or context changes; the same grant
 serves the thumbnail and video. New grants check the exact adopted or public Card
 version. Access changes may take until the reuse window ends to be rechecked.
-Switching videos still conceals the outgoing frame immediately and reveals only
-current-video frame data; reuse does not retain multiple players or video buffers.
+When the focused Card opens, its video grants prepare independently in the background;
+selected playback waits only for its own grant. Near-expiry grants refresh during
+navigation or return to the tab while valid grants remain usable. Preparation stops
+when the Card closes, changes, flips to its back or the tab is hidden. There are no
+idle refresh timers or extra video players.
+Each returned grant independently starts downloading and decoding its thumbnail.
+The focused Card retains those image nodes for selection and return navigation,
+using the same signed URLs without a second display download. Unfinished image
+preparation stops with the Card's background preparation; all retained images are
+released on context change or closing. Until a thumbnail or video frame is ready,
+the video area shows a visible loading message; an unavailable thumbnail does not
+block video playback. Loading and failure messages sit outside the concealed player.
+Library Cards also prepare one readiness check per video; videos still processing
+are polled only when selected for playback.
+Switching videos still conceals the outgoing frame immediately. The incoming
+thumbnail stays opaque while the decoded video paints beneath it; its fade starts
+only after current-source frame presentation and a rendering boundary. Browsers
+without frame callbacks use rendering boundaries after current-frame data arrives.
+Paused navigation does not require playback. Reuse does not retain multiple players
+or video buffers.
 
 Stream tokens expire after one hour; a copied token remains usable until expiry.
 R2 images use session-authorized requests without public redirects. Existing provider

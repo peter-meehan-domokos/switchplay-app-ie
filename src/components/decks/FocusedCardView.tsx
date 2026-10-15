@@ -2,6 +2,8 @@ import { cloneElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef,
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
 import { createCardPlaybackGrants } from "@/lib/cardPlaybackGrants";
+import { createCardVideoThumbnails } from "@/lib/cardVideoThumbnails";
+import PreparedVideoPoster from "@/components/media/PreparedVideoPoster";
 import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
@@ -236,12 +238,19 @@ export default function FocusedCardView({
     ? createCardPlaybackGrants({ viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode }) : null,
     [playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
   const [, refreshPlaybackGrants] = useState(0);
+  const thumbnails = useMemo(() => createCardVideoThumbnails(() => refreshPlaybackGrants(value => value + 1)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- A fresh image store is required for each learner/Card/version, even if URLs match.
+    [playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
+  const preparePlayback = useRef<() => void>(() => {});
   useEffect(() => () => playbackGrants?.clear(), [playbackGrants]);
+  useEffect(() => () => thumbnails.clear(), [thumbnails]);
   const resolvePlayback = useMemo(() => playbackGrants ? async (media: import("@/lib/media").CloudflareStreamVideoMediaItem, signal: AbortSignal) => {
     const grant = await playbackGrants.read(media, signal);
+    if (!signal.aborted && document.visibilityState !== "hidden") thumbnails.prepare(grant);
     refreshPlaybackGrants(value => value + 1);
+    preparePlayback.current();
     return grant;
-  } : undefined, [playbackGrants]);
+  } : undefined, [playbackGrants, thumbnails]);
   const [flipState, setFlipState] = useState<FocusedFlipState>({
     cardId: card.id,
     side: isDeckFlipped ? "back" : "front",
@@ -253,8 +262,8 @@ export default function FocusedCardView({
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
   const [expandedLandscapeFrameSize, setExpandedLandscapeFrameSize] = useState<{ width: number; height: number } | null>(null);
   const [renderableVideoAssetId, setRenderableVideoAssetId] = useState<string | null>(null);
+  const [decodedVideoAssetId, setDecodedVideoAssetId] = useState<string | null>(null);
   const [failedVideoAssetId, setFailedVideoAssetId] = useState<string | null>(null);
-  const [failedVideoPosterSrc, setFailedVideoPosterSrc] = useState<string | null>(null);
   const [fadingPosterAssetId, setFadingPosterAssetId] = useState<string | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -272,6 +281,38 @@ export default function FocusedCardView({
   };
   const cardFlipState = flipState.cardId === card.id ? flipState : deckSideFlipState;
   const isFlipped = cardFlipState.side === "back";
+  const instructionalVideos = useMemo(() => [card.intro.mediaItem, ...card.steps.map(step => step.mediaItem)]
+    .filter(isCloudflareStreamVideoMediaItem), [card.intro.mediaItem, card.steps]);
+  useEffect(() => {
+    if (isFlipped) { preparePlayback.current = () => {}; return; }
+    let preparation: AbortController | null = null, preparing = false, live = true;
+    const start = () => {
+      if (!live || document.visibilityState === "hidden" || preparing) return;
+      const controller = new AbortController(); preparation = controller; preparing = true;
+      const onGrant = (grant: import("@/lib/cardPlaybackGrants").PlaybackGrant) => {
+        if (!live || controller.signal.aborted) return;
+        thumbnails.prepare(grant); refreshPlaybackGrants(value => value + 1);
+      };
+      if (!playbackGrants) for (const media of instructionalVideos) thumbnails.prepare({ assetId: media.assetId,
+        thumbnailUrl: getCloudflareStreamThumbnailUrl(media), reuseUntil: Infinity, expiresAt: Infinity });
+      void Promise.allSettled([playbackGrants?.prepare(instructionalVideos, controller.signal, onGrant),
+        ...instructionalVideos.map(media => videoGuard?.prepare?.(media, controller.signal))]).then(() => {
+        if (live && !controller.signal.aborted) refreshPlaybackGrants(value => value + 1);
+      }).finally(() => { if (preparation === controller) preparing = false; });
+    };
+    const visibility = () => {
+      if (document.visibilityState === "hidden") {
+        preparation?.abort(); thumbnails.cancelPending(); preparing = false;
+      } else start();
+    };
+    preparePlayback.current = start;
+    document.addEventListener("visibilitychange", visibility);
+    start();
+    return () => {
+      live = false; preparation?.abort(); thumbnails.cancelPending(); preparePlayback.current = () => {};
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [playbackGrants, thumbnails, instructionalVideos, isFlipped, videoGuard]);
   const stepViewSequence = getStepViewSequence(card);
   const stepViewItemIndex =
     stepViewState?.cardId === card.id && !isFlipped
@@ -288,16 +329,17 @@ export default function FocusedCardView({
   const isExpandedVideoLandscape =
     activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
   const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
-  const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? (playbackGrants ? playbackGrants.peek(activeCloudflareVideoMediaItem.assetId)?.thumbnailUrl ?? null
-    : getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem)) : null;
-  const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
-  const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId);
+  const activeGrant = activeCloudflareVideoMediaItem ? (playbackGrants ? playbackGrants.peek(activeCloudflareVideoMediaItem.assetId)
+    : { assetId: activeCloudflareVideoMediaItem.assetId, thumbnailUrl: getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem), reuseUntil: Infinity, expiresAt: Infinity }) : null;
+  const activeThumbnail = activeGrant ? thumbnails.peek(activeGrant) : undefined;
+  const hasPosterFallback = activeThumbnail?.state === "ready";
+  const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId && failedVideoAssetId !== activeVideoAssetId);
   const isCurrentVideoFailed = Boolean(activeVideoAssetId && failedVideoAssetId === activeVideoAssetId);
   const isPosterFadeOutActive = Boolean(
     activeVideoAssetId && isCurrentVideoRenderable && fadingPosterAssetId === activeVideoAssetId
   );
   const shouldConcealCloudflarePlayer = Boolean(
-    activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
+    activeVideoAssetId && decodedVideoAssetId !== activeVideoAssetId
   );
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
@@ -328,9 +370,9 @@ export default function FocusedCardView({
     videoPlaybackIntentRef.current = intent;
   }, []);
   const resetVideoDisplayState = useCallback(() => {
+    setDecodedVideoAssetId(null);
     setRenderableVideoAssetId(null);
     setFailedVideoAssetId(null);
-    setFailedVideoPosterSrc(null);
     setFadingPosterAssetId(null);
   }, []);
   const toggleFocusedCardSide = (commitment: GestureCommitment, vector: GestureVector) => {
@@ -462,12 +504,14 @@ export default function FocusedCardView({
   };
   const handleVideoAnchorRef = useCallback((nextAnchorElement: HTMLDivElement | null) => {
     // Ignore transient null callbacks during re-render so the hosted player remains mounted.
-    if (!nextAnchorElement) {
+    if (!nextAnchorElement || stepViewItemIndex === null) {
       return;
     }
 
     setVideoAnchorElement((currentAnchorElement) => (currentAnchorElement === nextAnchorElement ? currentAnchorElement : nextAnchorElement));
-  }, []);
+    // Rebind on selection, including when reversing to a view still animating
+    // out. Its retained DOM must become the anchor again without a player remount.
+  }, [stepViewItemIndex]);
   const focusedGestures = useDeckGestures({
     mode: "focus",
     allowedIntents: backFace ? ["settleToPast", "restoreFromPast", "flip"] : ["settleToPast", "restoreFromPast"],
@@ -488,10 +532,10 @@ export default function FocusedCardView({
 
   const [displayedAssetId, setDisplayedAssetId] = useState(activeVideoAssetId);
   if (displayedAssetId !== activeVideoAssetId) {
+    setDecodedVideoAssetId(null);
     setDisplayedAssetId(activeVideoAssetId);
     setRenderableVideoAssetId(null);
     setFailedVideoAssetId(null);
-    setFailedVideoPosterSrc(null);
     setFadingPosterAssetId(null);
     if (!activeVideoAssetId) {
       setIsVideoExpanded(false);
@@ -623,6 +667,7 @@ export default function FocusedCardView({
   const [displayedContentIdentity, setDisplayedContentIdentity] = useState(contentIdentity);
   const [displayedDeckFlip, setDisplayedDeckFlip] = useState(isDeckFlipped);
   if (displayedContentIdentity !== contentIdentity) {
+    setDecodedVideoAssetId(null);
     setDisplayedContentIdentity(contentIdentity);
     setDisplayedDeckFlip(isDeckFlipped);
     setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
@@ -630,7 +675,6 @@ export default function FocusedCardView({
     setExpandedLandscapeFrameSize(null);
     setRenderableVideoAssetId(null);
     setFailedVideoAssetId(null);
-    setFailedVideoPosterSrc(null);
     setFadingPosterAssetId(null);
     setVideoHostRect(null);
     setVideoAnchorElement(null);
@@ -775,15 +819,15 @@ export default function FocusedCardView({
               }
             >
               <div className="switchplay-video-content">
-                {shouldShowVideoPoster ? (
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    key={activeVideoAssetId}
-                    className={`switchplay-video-poster${isPosterFadeOutActive ? " switchplay-video-poster--fade-out" : ""}`}
-                    onError={() => setFailedVideoPosterSrc(activeVideoPosterSrc)}
-                    src={activeVideoPosterSrc ?? undefined}
-                  />
+                {shouldShowVideoPoster && activeThumbnail ? (
+                  <PreparedVideoPoster image={activeThumbnail.image} fading={isPosterFadeOutActive} />
+                ) : null}
+                {isCurrentVideoFailed || (!isCurrentVideoRenderable && !hasPosterFallback) ? (
+                  <div className="switchplay-video-loading-cover">
+                    <p className="cloudflare-stream-player-status" role="status">
+                      {isCurrentVideoFailed ? "Video unavailable." : "Preparing video…"}
+                    </p>
+                  </div>
                 ) : null}
                 <div className="switchplay-video-player-layer" style={shouldConcealCloudflarePlayer ? { visibility: "hidden" } : undefined}>
                   <CloudflareHlsVideoPlayer
@@ -791,11 +835,14 @@ export default function FocusedCardView({
                     displayMode={isVideoExpanded ? "expanded" : "embedded"}
                     beforeLoad={videoGuard}
                     resolvePlayback={resolvePlayback}
+                    externalLoadingPresentation
                     mediaItem={activeCloudflareVideoMediaItem}
                     onMediaDisplayStateChange={({ assetId, state }) => {
                       if (assetId !== activeVideoAssetIdRef.current) {
                         return;
                       }
+
+                      if (state === "decoded") { setDecodedVideoAssetId(assetId); return; }
 
                       if (state === "renderable") {
                         setRenderableVideoAssetId(assetId);

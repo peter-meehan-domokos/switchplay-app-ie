@@ -23,29 +23,41 @@ test.beforeAll(async () => {
     HTMLMediaElement.prototype.removeEventListener = function(type, listener, options) {
       nativeRemove.call(this, type, wrappers.get(listener), options);
     };
-    let ready = 0, current = '';
+    let ready = 0, current = '', selected = '', frameId = 0; const frameCallbacks = new Map();
+    if (location.search.includes('fallback')) {
+      HTMLVideoElement.prototype.requestVideoFrameCallback = undefined;
+      HTMLVideoElement.prototype.cancelVideoFrameCallback = undefined;
+    } else {
+      HTMLVideoElement.prototype.requestVideoFrameCallback = function(callback) { const id = ++frameId; frameCallbacks.set(id, {callback, assetId:selected}); return id; };
+      // Keep cancelled callbacks available to simulate an already queued,
+      // superseded browser response; the player must still reject it.
+      HTMLVideoElement.prototype.cancelVideoFrameCallback = function() {};
+    }
+    window.present = id => { for (const [key, entry] of [...frameCallbacks]) if (entry.assetId === id) { frameCallbacks.delete(key); entry.callback(performance.now(), {}); } };
     Object.defineProperty(HTMLMediaElement.prototype, 'readyState', { get: () => ready });
     Object.defineProperty(HTMLMediaElement.prototype, 'currentSrc', { get: () => current });
     HTMLMediaElement.prototype.canPlayType = () => location.search.includes('hls') ? '' : 'probably';
     HTMLMediaElement.prototype.load = function () { ready = 0; current = ''; };
     HTMLMediaElement.prototype.pause = function () {};
     HTMLMediaElement.prototype.play = function () { window.plays.push(this.src); return Promise.resolve(); };
-    window.frame = (id, state = 2, event = 'loadeddata') => {
+    window.frame = (id, state = 2, event = 'loadeddata', present = true) => {
       const video = document.querySelector('video'); ready = state;
       current = window.sources.get(id) ?? 'https://videodelivery.net/' + id + '/manifest/video.m3u8';
       video.dispatchEvent(new Event(event));
+      if (present) window.present(id);
     };
     window.grantRequests = [];
     const grantReader = createCardPlaybackGrants({ viewerUserId: 'alice', cardTemplateId: 'card', version: 1,
       mode: location.search.includes('canonical') ? 'canonical' : 'working' }, async (input) => {
       const assetId = new URL(input, location.origin).searchParams.get('identity'); window.grantRequests.push(assetId);
       return Response.json({ viewerUserId: 'alice', assetId, manifestUrl: 'https://videodelivery.net/' + assetId + '/manifest/video.m3u8',
-        thumbnailUrl: 'https://videodelivery.net/' + assetId + '/thumbnails/thumbnail.jpg', expiresAt: Date.now()+3600000, reuseUntil: Date.now()+300000 });
+        thumbnailUrl: 'https://videodelivery.net/' + assetId + '/thumbnails/thumbnail.jpg', expiresAt: Date.now()+3600000, reuseUntil: Date.now()+600000 });
     });
     const resolvePlayback = process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === '1' ? (item, signal) => grantReader.read(item, signal) : undefined;
     function App() {
       const [item, setItem] = useState(null), ref = useRef(null);
       window.select = (id, autoplay = false) => {
+        selected = id;
         const next = { id, assetId: id, mediaType: 'video', provider: 'cloudflare-stream',
           src: 'https://videodelivery.net/' + id, description: id };
         ref.current.loadMedia(next, { shouldPlay: autoplay }); setItem(next);
@@ -69,7 +81,7 @@ test.beforeAll(async () => {
 });
 
 type Fixture = Window & { select(id: string, autoplay?: boolean): void; finishGuard(id: string, failed?: boolean): void;
-  frame(id: string, state?: number, event?: string): void; plays: string[]; grantRequests: string[]; intents: string[]; events: { assetId: string; state: string }[];
+  frame(id: string, state?: number, event?: string, present?: boolean): void; present(id: string): void; plays: string[]; grantRequests: string[]; intents: string[]; events: { assetId: string; state: string }[];
   hlsInstances: { error?: (event: string, data: { fatal: boolean }) => void }[] };
 
 for (const protectedDelivery of [false, true]) for (const transport of ["native", "hls"]) for (const context of ["working", "canonical"]) {
@@ -81,7 +93,12 @@ for (const protectedDelivery of [false, true]) for (const transport of ["native"
     await page.addScriptTag({ content: protectedDelivery ? protectedBundle : bundle });
     const video = page.locator("video"); await expect(video).toHaveCount(1);
     const identity = await video.getAttribute("data-diag-video-id");
-    const select = async (id: string, autoplay = false) => page.evaluate(([id, autoplay]) => (window as unknown as Fixture).select(id as string, autoplay as boolean), [id, autoplay]);
+    const select = async (id: string, autoplay = false) => page.evaluate(async ([id, autoplay]) => {
+      (window as unknown as Fixture).select(id as string, autoplay as boolean);
+      // Let the selected prop and passive effects commit before simulating
+      // provider events. Same-task concealment is checked separately below.
+      await new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())));
+    }, [id, autoplay]);
     const authorize = async (id: string) => { if (context === "canonical") await page.evaluate(id => (window as unknown as Fixture).finishGuard(id), id); };
     await select("a", true); await authorize("a");
     await expect(video).toBeHidden();
@@ -117,3 +134,24 @@ for (const protectedDelivery of [false, true]) for (const transport of ["native"
     if (protectedDelivery) expect(await page.evaluate(() => (window as unknown as Fixture).grantRequests.filter(id => id === "a"))).toHaveLength(1);
   });
 }
+
+for (const transport of ["native", "hls"]) for (const fallback of [false, true]) test(`${transport}: ${fallback ? "paint-boundary fallback" : "presentation callback"} controls handoff and rejects obsolete callbacks`, async ({page}) => {
+  await page.route("https://fixture.invalid/**", route=>route.fulfill({contentType:"text/html",body:'<div id="root"></div>'}));
+  await page.route("https://videodelivery.net/**",route=>route.abort());
+  await page.goto(`https://fixture.invalid/?${transport}${fallback ? "&fallback" : ""}`);await page.addScriptTag({content:bundle});
+  await page.evaluate(()=>(window as unknown as Fixture).select("a",false));
+  await page.evaluate(()=>(window as unknown as Fixture).frame("a",2,"loadeddata",false));
+  if (!fallback) {
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(()=>(window as unknown as Fixture).events.some(e=>e.state==="renderable"))).toBe(false);
+  } else await expect.poll(()=>page.evaluate(()=>(window as unknown as Fixture).events.some(e=>e.assetId==="a"&&e.state==="renderable"))).toBe(true);
+  await page.evaluate(()=>(window as unknown as Fixture).select("b",false));
+  await page.evaluate(()=>(window as unknown as Fixture).frame("b",2,"canplay",false));
+  await page.evaluate(()=>(window as unknown as Fixture).present("a"));
+  if(!fallback) {
+    expect(await page.evaluate(()=>(window as unknown as Fixture).events.some(e=>e.state==="renderable"))).toBe(false);
+    await page.evaluate(()=>(window as unknown as Fixture).present("b"));
+  }
+  await expect.poll(()=>page.evaluate(()=>(window as unknown as Fixture).events.some(e=>e.assetId==="b"&&e.state==="renderable"))).toBe(true);
+  expect(await page.evaluate(()=>(window as unknown as Fixture).plays)).toEqual([]);
+});

@@ -4,7 +4,7 @@ import { isMediaItem } from "../media";
 import type { CardRepository } from "./repository";
 import { requireCondition, isRecord } from "./domain";
 import { assertCardVersionAccess } from "./versionAccess";
-import type { CardPlaybackContext } from "../cardPlaybackGrants";
+import { PLAYBACK_GRANT_REUSE_MS, type CardPlaybackContext } from "../cardPlaybackGrants";
 
 // Match trusted stored references; an arbitrary URL/key supplied by a browser is
 // never used for fetching. Ancestry does not grant another actor's personal media.
@@ -106,7 +106,7 @@ export async function streamPlaybackGrant(assetId: string, fetchImpl: typeof fet
   const token = encodeURIComponent(body.result.token);
   return { assetId, manifestUrl: `https://videodelivery.net/${token}/manifest/video.m3u8`,
     thumbnailUrl: `https://videodelivery.net/${token}/thumbnails/thumbnail.jpg`,
-    expiresAt, reuseUntil: Math.min(issuedAt + 300_000, expiresAt - 30_000) };
+    expiresAt, reuseUntil: Math.min(issuedAt + PLAYBACK_GRANT_REUSE_MS, expiresAt - 30_000) };
 }
 export async function streamTokenUrl(assetId: string, format: "manifest" | "thumbnail" | "iframe", fetchImpl: typeof fetch = fetch) {
   const grant = await streamPlaybackGrant(assetId, fetchImpl);

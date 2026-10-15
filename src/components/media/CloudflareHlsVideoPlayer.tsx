@@ -36,13 +36,14 @@ type CloudflareHlsVideoPlayerProps = {
   resolvePlayback?: (item: CloudflareStreamVideoMediaItem, signal: AbortSignal) => Promise<PlaybackGrant>;
   displayMode?: "embedded" | "expanded";
   mediaItem?: CloudflareStreamVideoMediaItem | null;
-  onMediaDisplayStateChange?: (state: { assetId: string; state: "failed" | "renderable" }) => void;
+  onMediaDisplayStateChange?: (state: { assetId: string; state: "failed" | "decoded" | "renderable" }) => void;
   onPlaybackIntentChange?: (intent: VideoPlaybackIntent) => void;
   onPlaybackStateChange?: (state: { assetId: string | null; state: VideoPlaybackState }) => void;
   onRequestCollapse?: () => void;
   onRequestExpand?: () => void;
   previewControlDisabled?: boolean;
   previewLabel?: string;
+  externalLoadingPresentation?: boolean;
   variant?: "standard" | "deck-preview";
 };
 
@@ -85,6 +86,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       onRequestExpand,
       previewControlDisabled = false,
       previewLabel = "Introduction video",
+      externalLoadingPresentation = false,
       variant = "standard",
     },
     ref
@@ -256,16 +258,52 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       video.removeAttribute("src");
       video.load();
 
-      const handleFrameReady = () => {
-        if (sourceGenerationRef.current !== sourceGeneration
-          || activeAssetIdRef.current !== nextMediaItem.assetId
-          || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
-          || !video.currentSrc || video.currentSrc !== video.src) return;
-        markRenderable(nextMediaItem.assetId);
+      let decoded = false, submitted = false, revealed = false;
+      let videoFrame: number | null = null, paintFrame: number | null = null;
+      const hasFrameCallback = typeof video.requestVideoFrameCallback === "function";
+      const isCurrentSource = () => sourceGenerationRef.current === sourceGeneration
+        && activeAssetIdRef.current === nextMediaItem.assetId;
+      const hasCurrentData = () => isCurrentSource() && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+        && !!video.currentSrc && video.currentSrc === video.src;
+      const revealAfterPaint = () => {
+        if (!decoded || revealed || paintFrame !== null || (hasFrameCallback && !submitted)) return;
+        // Allow the decoded video layer to commit and paint beneath the still
+        // opaque thumbnail before starting its fade. These are rendering
+        // boundaries, not a timed loading delay; paused videos need not play.
+        paintFrame = requestAnimationFrame(() => {
+          if (!hasCurrentData()) { paintFrame = null; return; }
+          paintFrame = requestAnimationFrame(() => {
+            paintFrame = null;
+            if (!hasCurrentData()) return;
+            revealed = true; markRenderable(nextMediaItem.assetId);
+          });
+        });
       };
+      const handleFrameReady = () => {
+        if (!hasCurrentData()) return;
+        if (!decoded) {
+          decoded = true;
+          setDisplayableAssetId(nextMediaItem.assetId);
+          onMediaDisplayStateChange?.({ assetId: nextMediaItem.assetId, state: "decoded" });
+        }
+        revealAfterPaint();
+      };
+      const waitForPresentedFrame = () => {
+        videoFrame = video.requestVideoFrameCallback(() => {
+          videoFrame = null;
+          if (!isCurrentSource()) return;
+          if (!hasCurrentData()) { waitForPresentedFrame(); return; }
+          submitted = true; handleFrameReady();
+        });
+      };
+      // Register before assigning the source so the first paused frame cannot
+      // be missed if it reaches the compositor before loadeddata is dispatched.
+      if (hasFrameCallback) waitForPresentedFrame();
       for (const event of ["loadeddata", "canplay", "playing"]) video.addEventListener(event, handleFrameReady);
       removeReadinessListenersRef.current = () => {
         for (const event of ["loadeddata", "canplay", "playing"]) video.removeEventListener(event, handleFrameReady);
+        if (videoFrame !== null) video.cancelVideoFrameCallback(videoFrame);
+        if (paintFrame !== null) cancelAnimationFrame(paintFrame);
       };
 
       if (canPlayNativeHls(video)) {
@@ -302,6 +340,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       destroyHls,
       markFailed,
       markRenderable,
+      onMediaDisplayStateChange,
       requestUnmutedPlayback,
       emitPlaybackState,
     ]);
@@ -567,13 +606,13 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
           controls={!isDeckPreview}
           playsInline
           preload={mediaItem ? "auto" : "none"}
-          poster={posterUrl ?? undefined}
+          poster={externalLoadingPresentation ? undefined : posterUrl ?? undefined}
           aria-hidden={isDeckPreview ? "true" : undefined}
           aria-label={isDeckPreview ? undefined : mediaItem?.description || "Step video"}
           tabIndex={isDeckPreview ? -1 : undefined}
         />
-        {isProcessing ? <p className="cloudflare-stream-player-status" role="status">Preparing video…</p> : null}
-        {isPhase2MockVideo(mediaItem?.assetId) && !isDeckPreview ? <p className="cloudflare-stream-player-status">{PHASE2_MOCK_VIDEO_NOTICE}</p> : hasFailed && !isDeckPreview ? (
+        {!externalLoadingPresentation && isProcessing ? <p className="cloudflare-stream-player-status" role="status">Preparing video…</p> : null}
+        {isPhase2MockVideo(mediaItem?.assetId) && !isDeckPreview ? <p className="cloudflare-stream-player-status">{PHASE2_MOCK_VIDEO_NOTICE}</p> : !externalLoadingPresentation && hasFailed && !isDeckPreview ? (
           <p className="cloudflare-stream-player-status">Video unavailable.</p>
         ) : null}
         {isDeckPreview ? (

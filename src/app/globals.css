@@ -3461,6 +3461,14 @@ input {
   opacity: 0;
 }
 
+.switchplay-video-loading-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 15px;
+  background: #05070b;
+}
+
 .switchplay-video-host--expanded.switchplay-video-host--portrait .switchplay-video-frame {
   height: 100%;
   width: auto;

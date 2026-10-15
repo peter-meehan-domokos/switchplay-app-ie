@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { imageDeliveryUrl, streamDeliveryUrl } from "../src/lib/mediaDelivery";
-import { r2Location, streamTokenUrl, readProtectedImage } from "../src/lib/cards/protectedMedia";
+import { r2Location, streamTokenUrl, streamPlaybackGrant, readProtectedImage } from "../src/lib/cards/protectedMedia";
 import { createCloudflareStreamDirectUpload } from "../src/lib/cloudflareStream";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
@@ -35,6 +35,10 @@ test("Stream token request is bounded, source ID remains unchanged and provider 
   };
   assert.equal(await streamTokenUrl("original-video", "manifest", fakeFetch), "https://videodelivery.net/signed.fixture.token/manifest/video.m3u8");
   assert.equal(called, true);
+  const before = Date.now(), grant = await streamPlaybackGrant("original-video", fakeFetch);
+  assert.ok(grant.reuseUntil >= before + 600_000 && grant.reuseUntil <= Date.now() + 600_000);
+  assert.ok(grant.reuseUntil < grant.expiresAt - 30_000);
+  assert.equal(grant.thumbnailUrl, "https://videodelivery.net/signed.fixture.token/thumbnails/thumbnail.jpg");
   await assert.rejects(streamTokenUrl("original-video", "iframe", async () => Response.json({ success: false }, { status: 403 })), { code: "STREAM_TOKEN_FAILED" });
 });
 test("new protected Stream uploads require signed URLs without altering provider identities", async (t) => {
