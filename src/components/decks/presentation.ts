@@ -33,7 +33,7 @@ export type CanonicalDeckPresentation = {
 // The union makes the personal projection optional at the presentation boundary.
 export type PresentedCard = CardLayout | CanonicalCardPresentation;
 export type PresentedDeck = DeckLayout | CanonicalDeckPresentation;
-export type CardBackPresentation = (card: PresentedCard, options: { dateLabel: string; variant: "preview" | "deck" }) => ReactNode;
+export type CardBackPresentation = (card: PresentedCard, options: { dateLabel: string; variant: "preview" | "deck"; onOpenMedia?: import("@/lib/cardMediaViewer").OpenCardMedia }) => ReactNode;
 export function hasPersonalCard(card: PresentedCard): card is CardLayout {
   return !("surface" in card);
 }

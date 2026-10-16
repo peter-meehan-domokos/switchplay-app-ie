@@ -23,6 +23,34 @@ are not accessible through canonical fork ancestry. Retained own source/archived
 media remains readable. Canonical published-version visibility and ownership still
 apply. Delivery changes do not rewrite stored media keys, IDs or URLs.
 
+### Card-back media viewer and downloads [Phase 8 integration]
+
+Personal media thumbnails open one full-screen gallery from the working Card back,
+in either the stack or focused view. The row still shows at most five thumbnails;
+the gallery navigates the complete ordered current and inherited personal-media
+list. Original/fork items keep their source Card identity, including when media IDs
+repeat. Opening pauses underlying playback and locks Card gestures; closing restores
+focus and scroll without restarting playback. Assessment controls remain back-only
+and focused-only, with their existing appearance.
+
+Images support fit, zoom and pan. Each selected Stream video starts paused from the
+beginning, using the existing player and frame-presentation handoff. Navigation or
+closing stops and releases the selected gallery video; it does not prepare other
+gallery videos. Existing instructional-video grant and thumbnail preparation is
+unchanged. Library/Creator presentations do not acquire personal media.
+
+Viewing and downloading use only the signed-in learner's CardData and permitted
+personal-history sources. Public templates, Deck ownership and admin status do not
+grant another learner's uploads. Reads do not create memberships, change adoption
+or write learning state. Missing sources fail without substituting another item.
+Images download through authorized same-origin responses using preserved current or
+historical R2 references. Stream downloads are encoded MP4s, prepared only by an
+explicit action and delivered with download-enabled signed tokens; playback tokens
+do not gain download permission. Safari retains its file-sharing flow, explicit
+second-tap/retry handling, cancellation, 32 MB memory limit and same-origin new-tab
+fallback. A prepared download or closed share sheet does not prove a file was saved.
+Real iPhone sharing and provider delivery require separate manual acceptance.
+
 Card introduction/Step playback reuses an authorized manifest-and-thumbnail grant
 for up to ten minutes within the mounted learner/Card/version context. Grants are
 kept only in memory and refreshed after expiry or context changes; the same grant

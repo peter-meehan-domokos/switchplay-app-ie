@@ -423,6 +423,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     }, []);
 
     const pauseAndReset = useCallback((reason: string = "unspecified") => {
+      // A cancelled/reset selection must be loadable again, including when
+      // Strict Mode replays setup after its development cleanup cycle.
+      guardedSelection.current = null;
       pendingLoad.current?.abort(); pendingLoad.current = null; setIsProcessing(false);
       const video = videoRef.current;
 

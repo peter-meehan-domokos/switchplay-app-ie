@@ -1,4 +1,5 @@
 "use client";
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -15,7 +16,11 @@ import { DECK_SCENE_BASELINE_HEIGHT, DECK_SCENE_BASELINE_WIDTH, DECK_SCENE_BOTTO
 import type { ReactNode } from "react";
 import { DeckVideoPreparationProvider } from "@/components/media/DeckVideoPreparation";
 
+export type MediaOverlayContext = { activeCardId: string; focused: boolean; transitioning: boolean; backgroundRef: RefObject<HTMLElement | null> };
 export type DeckSceneProps = {
+  onOpenMedia?: OpenCardMedia;
+  mediaViewerOpen?: boolean;
+  renderMediaOverlay?: (context: MediaOverlayContext) => ReactNode;
   renderCardBackFace?: CardBackPresentation;
   deck: PresentedDeck;
   playbackViewerUserId?: string;
@@ -35,6 +40,13 @@ export type DeckSceneProps = {
   onActiveCardChange?: (previous: number, next: number, rollback: (index: number) => void) => void;
   renderFocusedCard?: (props: FocusedCardViewProps) => ReactNode;
 };
+
+function FocusedCardSlot({ render, props }: { render: NonNullable<DeckSceneProps["renderFocusedCard"]>; props: FocusedCardViewProps }) {
+  return render(props);
+}
+function MediaOverlaySlot({ render, context }: { render: NonNullable<DeckSceneProps["renderMediaOverlay"]>; context: MediaOverlayContext }) {
+  return render(context);
+}
 
 const ACTIVE_SETTLE_PREVIEW_MAX_Y = 8;
 
@@ -140,7 +152,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace }: DeckSceneProps) {
+export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -164,8 +176,15 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
   const deckIntroVideoWidth = deckIntroVideo?.width ?? 9;
   const deckIntroVideoHeight = deckIntroVideo?.height ?? 16;
   const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
-  const finalCardIndex = optimisticDeck.cards.length - 1;
   const activeCard = optimisticDeck.cards[activeCardIndex];
+  const handleOpenMedia = useCallback<OpenCardMedia>((cardId, key, source) => {
+    if (mediaViewerOpen || transitionPhase || !activeCard) return;
+    introPlayerRef.current?.pauseAndReset("opening personal media viewer");
+    setIsDeckIntroExpanded(false);
+    onOpenMedia?.(cardId, key, source, { activeCardId: activeCard.id, focused: isFocusModeOpen });
+  }, [mediaViewerOpen, transitionPhase, activeCard, onOpenMedia, isFocusModeOpen]);
+  const openMedia = onOpenMedia ? handleOpenMedia : undefined;
+  const finalCardIndex = optimisticDeck.cards.length - 1;
   // Temporary development diagnostics: canonical identities only, never personal state.
   const templateIdLogContext = hasPersonalDeck(deck) ? "My Decks" : "Library";
   const activeCardTemplateId = activeCard?.cardTemplateId;
@@ -367,7 +386,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
   const deckGestures = useDeckGestures({
     mode: "deck",
     allowedIntents: onToggleDeckFlip ? ["settleToPast", "restoreFromPast", "flip"] : ["settleToPast", "restoreFromPast"],
-    locked: !activeCard || transitionPhase !== null || isFocusModeOpen,
+    locked: mediaViewerOpen || !activeCard || transitionPhase !== null || isFocusModeOpen,
     onSettleToPast: goToNextCard,
     onRestoreFromPast: goToPreviousCard,
     onFlip: toggleDeckSide,
@@ -375,7 +394,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
   const latestPastGestures = useDeckGestures({
     mode: "deck",
     allowedIntents: ["restoreFromPast"],
-    locked: !activeCard || transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
+    locked: mediaViewerOpen || !activeCard || transitionPhase !== null || isFocusModeOpen || activeCardIndex === 0,
     onRestoreFromPast: goToPreviousCard,
   });
   const activeGesturePreviewY =
@@ -458,6 +477,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
             deckFlipRotationY={deckFlipRotationY}
             transitionPhase={transitionPhase}
             onFocusCard={openFocusMode}
+            onOpenMedia={openMedia}
             activeGestureHandlers={deckGestures.handlers}
             latestPastGestureHandlers={latestPastGestures.handlers}
             activeGesturePreviewY={activeGesturePreviewY}
@@ -469,13 +489,14 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
 
       {!isFocusModeOpen && activeCard && cardActions ? <div className="deck-card-actions">{cardActions(activeCard)}</div> : null}
 
+      {renderMediaOverlay ? <MediaOverlaySlot render={renderMediaOverlay} context={{ activeCardId: activeCard?.id ?? "", focused: isFocusModeOpen, transitioning: transitionPhase !== null, backgroundRef: deckDetailRef }} /> : null}
       <AnimatePresence>
         {isFocusModeOpen && activeCard ? (
-          renderFocusedCard ? renderFocusedCard({
-            card: activeCard, cardIndex: activeCardIndex, deckTemplateId: deck.deckTemplateId,
+          renderFocusedCard ? <FocusedCardSlot render={renderFocusedCard} props={{
+            onOpenMedia: openMedia, mediaViewerOpen, card: activeCard, cardIndex: activeCardIndex, deckTemplateId: deck.deckTemplateId,
             totalCards: cards.length, onClose: closeFocusMode, onPrevious: goToPreviousFocusedCard,
             onNext: goToNextFocusedCard, isDeckFlipped, traversalDirection: focusedTraversalDirection, transition,
-          }) : <FocusedCardView card={activeCard} cardIndex={activeCardIndex} deckTemplateId={deck.deckTemplateId}
+          }} /> : <FocusedCardView card={activeCard} cardIndex={activeCardIndex} deckTemplateId={deck.deckTemplateId}
             totalCards={cards.length} onClose={closeFocusMode} onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard} isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection} transition={transition} />

@@ -81,17 +81,17 @@ export function r2Location(item: MediaItem, env: Record<string, string | undefin
   // Providerless external images need an explicit mapping, never arbitrary HTTP fetch.
   requireCondition(false, "UNSUPPORTED_LEGACY_IMAGE_ORIGIN");
 }
-export async function readProtectedImage(item: MediaItem) {
+export async function readProtectedImage(item: MediaItem, signal?: AbortSignal) {
   const { bucket, key } = r2Location(item);
   requireCondition(process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_R2_ACCESS_KEY_ID && process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY, "R2_CONFIGURATION_REQUIRED");
   const client = new S3Client({ region: "auto", endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID, secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY } });
-  const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }), { abortSignal: signal });
   requireCondition(object.Body && /^image\/(avif|gif|jpeg|png|webp)$/.test(object.ContentType ?? ""), "INVALID_IMAGE_RESPONSE");
   return new Response(object.Body.transformToWebStream(), { headers: { "Content-Type": object.ContentType!,
     "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" } });
 }
-export async function streamPlaybackGrant(assetId: string, fetchImpl: typeof fetch = fetch) {
+export async function streamPlaybackGrant(assetId: string, fetchImpl: typeof fetch = fetch, downloadable = false) {
   const issuedAt = Date.now();
   const expiresAt = (Math.floor(issuedAt / 1000) + 3600) * 1000;
   requireCondition(/^[a-zA-Z0-9_-]+$/.test(assetId), "INVALID_STREAM_ID");
@@ -100,7 +100,7 @@ export async function streamPlaybackGrant(assetId: string, fetchImpl: typeof fet
     method: "POST", headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_API_TOKEN}`, "Content-Type": "application/json" },
     // One hour covers the current upload limit. Bearer URLs can be
     // copied until expiry; this is the explicitly approved delivery trade-off.
-    body: JSON.stringify({ exp: expiresAt / 1000 }), cache: "no-store" });
+    body: JSON.stringify({ exp: expiresAt / 1000, ...(downloadable ? { downloadable: true } : {}) }), cache: "no-store" });
   const body = await response.json();
   requireCondition(response.ok && body.success && typeof body.result?.token === "string" && /^[a-zA-Z0-9_.-]+$/.test(body.result.token), "STREAM_TOKEN_FAILED");
   const token = encodeURIComponent(body.result.token);

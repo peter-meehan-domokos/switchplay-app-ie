@@ -1,3 +1,4 @@
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { cloneElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { Transition } from "motion/react";
@@ -34,6 +35,8 @@ import {
 } from "@/constants/cardStack";
 
 export type FocusedCardViewProps = {
+  onOpenMedia?: OpenCardMedia;
+  mediaViewerOpen?: boolean;
   card: PresentedCard;
   playbackViewerUserId?: string;
   cardIndex: number;
@@ -45,7 +48,7 @@ export type FocusedCardViewProps = {
   onNext: () => void;
   onCycleStepStatus?: (stepId: string) => void;
   onAdjustTargetDate?: (direction: -1 | 1) => void;
-  backFace?: ReactElement<{ onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void }>;
+  backFace?: ReactElement<{ onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void; onOpenMedia?: OpenCardMedia }>;
   overlays?: ReactNode;
   assessment?: ReactNode;
   frontAction?: ReactNode;
@@ -200,15 +203,17 @@ function useFocusedCardScale() {
   return focusedCardScale;
 }
 
-function CardBackSlot({ content, onNext, onPrevious }: {
+function CardBackSlot({ content, onNext, onPrevious, onOpenMedia }: {
+  onOpenMedia?: OpenCardMedia;
   content: NonNullable<FocusedCardViewProps["backFace"]>;
   onNext: () => void;
   onPrevious: () => void;
 }) {
-  return cloneElement(content, { onSignalNavigateNext: onNext, onSignalNavigatePrevious: onPrevious });
+  return cloneElement(content, { onSignalNavigateNext: onNext, onSignalNavigatePrevious: onPrevious, onOpenMedia });
 }
 
 export default function FocusedCardView({
+  onOpenMedia, mediaViewerOpen = false,
   card,
   cardIndex,
   isDeckFlipped: requestedDeckFlip,
@@ -537,7 +542,7 @@ export default function FocusedCardView({
     locked:
       isFocusedGestureLocked ||
       Boolean(stepViewItem) ||
-      interactionLocked ||
+      mediaViewerOpen || interactionLocked ||
       isVideoExpanded,
     onSettleToPast: settleFocusedCardToPast,
     onRestoreFromPast: restoreFocusedCardFromPast,
@@ -774,7 +779,11 @@ export default function FocusedCardView({
               {!isFlipped ? frontAction : null}
             </div>
             {backFace ? <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
-              <CardBackSlot content={backFace} onNext={settleFocusedCardToPast} onPrevious={restoreFocusedCardFromPast} />
+              <CardBackSlot onOpenMedia={onOpenMedia ? (cardId, key, source) => {
+                if (!isFlipped || isFocusedGestureLocked || stepViewItem || interactionLocked || mediaViewerOpen) return;
+                videoPlayerRef.current?.pauseAndReset("opening personal media viewer");
+                onOpenMedia(cardId, key, source);
+              } : undefined} content={backFace} onNext={settleFocusedCardToPast} onPrevious={restoreFocusedCardFromPast} />
             </div> : null}
             <AnimatePresence>
               {stepViewItem && stepViewItemIndex !== null ? (

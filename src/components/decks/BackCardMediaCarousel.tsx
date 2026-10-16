@@ -1,11 +1,12 @@
+import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
 import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { isCloudflareStreamVideoMediaItem, isVideoMediaItem } from "@/lib/media";
-import type { MediaItem } from "@/lib/media";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 
 type BackCardMediaCarouselProps = {
   items: PersonalMediaDisplayItem[];
+  onOpen?: (mediaKey: string, source: HTMLButtonElement) => void;
 };
 
 type LayoutMode = "count-1" | "count-2" | "count-3" | "count-4" | "count-5";
@@ -18,12 +19,11 @@ function getLayoutMode(count: number): LayoutMode {
   return "count-5";
 }
 
-function MediaItem({ item }: { item: MediaItem }) {
+function MediaItem({ item, index, count, onOpen }: { item: PersonalMediaDisplayItem; index: number; count: number; onOpen?: BackCardMediaCarouselProps["onOpen"] }) {
   const isVideo = isVideoMediaItem(item);
   const src = isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : imageDeliveryUrl(item.src);
 
-  return (
-    <div className="back-card-media-carousel-item">
+  const contents = (<>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {src ? <img src={src} alt={item.description || "Card media"} className="back-card-media-carousel-image" /> : <span>{item.description || "Video"}</span>}
       {isVideo && (
@@ -33,11 +33,17 @@ function MediaItem({ item }: { item: MediaItem }) {
           </svg>
         </div>
       )}
-    </div>
-  );
+    </>);
+  return onOpen ? <button type="button" className="back-card-media-carousel-item back-card-media-carousel-item--button"
+    aria-label={`Open ${isVideo ? "video" : "image"} ${index + 1} of ${count}: ${item.description}`}
+    aria-haspopup="dialog" onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}
+    onPointerUp={event => event.stopPropagation()} onPointerCancel={event => event.stopPropagation()}
+    onKeyDown={event => event.stopPropagation()}
+    onClick={event => { event.stopPropagation(); onOpen(personalMediaKey(item), event.currentTarget); }}>{contents}</button>
+    : <div className="back-card-media-carousel-item">{contents}</div>;
 }
 
-export default function BackCardMediaCarousel({ items }: BackCardMediaCarouselProps) {
+export default function BackCardMediaCarousel({ items, onOpen }: BackCardMediaCarouselProps) {
   if (items.length === 0) {
     return null;
   }
@@ -50,8 +56,8 @@ export default function BackCardMediaCarousel({ items }: BackCardMediaCarouselPr
       className={`back-card-media-carousel back-card-media-carousel--${mode}`}
       aria-label="Card media"
     >
-      {renderedItems.map((item) => (
-        <MediaItem key={`${item.sourceCardTemplateId ?? "current"}:${item.id}`} item={item} />
+      {renderedItems.map((item, index) => (
+        <MediaItem index={index} count={items.length} onOpen={onOpen} key={`${item.sourceCardTemplateId ?? "current"}:${item.id}`} item={item} />
       ))}
     </section>
   );

@@ -4789,3 +4789,7 @@ input {
   .assessment-table th:nth-child(4) { width: 56px; }
   .assessment-row-actions { flex-direction: column; }
 }
+
+/* Interactive media thumbnails preserve the existing carousel geometry. */
+.back-card-media-carousel-item--button { border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.back-card-media-carousel-item--button:focus-visible { outline: 2px solid #c9e6ee; outline-offset: -3px; }

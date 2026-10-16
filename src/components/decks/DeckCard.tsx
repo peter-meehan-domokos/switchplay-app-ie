@@ -1,3 +1,4 @@
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { motion, type MotionStyle } from "motion/react";
 import type { CSSProperties } from "react";
 import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
@@ -13,6 +14,7 @@ import {
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
+  onOpenMedia?: OpenCardMedia;
   assessment?: import("react").ReactNode;
   frontAction?: import("react").ReactNode;
   renderBackFace?: CardBackPresentation;
@@ -41,6 +43,7 @@ const deckFlipTransition = {
 } as const;
 
 export default function DeckCard({
+  onOpenMedia,
   assessment,
   frontAction,
   renderBackFace,
@@ -74,6 +77,7 @@ export default function DeckCard({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget) return;
     if (!onActivate) {
       return;
     }
@@ -90,7 +94,8 @@ export default function DeckCard({
       data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
       layoutId={`week-card-${cardPresentationIdentity(card)}`}
-      role={onActivate ? "button" : undefined}
+      role={onActivate ? isDeckFlipped && onOpenMedia ? "group" : "button" : undefined}
+      aria-label={isDeckFlipped && onOpenMedia ? `${card.label}. Press Enter to focus this card, or open a media item.` : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onClick={onActivate ? handleActivate : undefined}
       onKeyDown={handleKeyDown}
@@ -117,7 +122,7 @@ export default function DeckCard({
             {frontAction}
           </div>
           {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped} inert={!isDeckFlipped}>
-            {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: backFaceVariant }) : null}
+            {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: backFaceVariant, onOpenMedia: isDeckFlipped ? onOpenMedia : undefined }) : null}
           </div> : null}
         </div>
       </motion.div>
