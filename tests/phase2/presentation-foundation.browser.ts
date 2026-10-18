@@ -15,7 +15,8 @@ test.beforeAll(async () => {
   const result = await build({
     entryPoints: ["tests/fixtures/canonicalPresentationHarness.tsx"], bundle: true, write: false,
     platform: "browser", format: "iife", jsx: "automatic", tsconfig: "tsconfig.json",
-    define: { "process.env.NODE_ENV": '"development"', "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": '"1"' },
+    define: { "process.env.NODE_ENV": '"development"', "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": '"1"',
+      "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": '"0"' },
     plugins: [{ name: "no-working-dependencies", setup(builder) {
       builder.onResolve({ filter: /workingCardStore|useWorkingDeck|WorkingFocusedCardView|BackCardFaceContent|useKeyedUserCardMediaUploadController|userCardMediaMutationQueue/ }, ({ path }) => {
         throw new Error(`Canonical presentation must not initialize working dependency: ${path}`);
@@ -116,7 +117,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
             fits: label.offsetWidth <= face.clientWidth - 39 && name.clientWidth <= label.clientWidth,
             name: name.textContent, title: name.title,
             overflow: getComputedStyle(name).textOverflow,
-            scale: getComputedStyle(face.parentElement!).transform,
+            physicalWidth: face.getBoundingClientRect().width,
           };
         });
         expect(values.faceAnchored).toBe(true);
@@ -157,7 +158,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       const past = await inspect(".deck-card.is-past .deck-card-surface--front", "past");
       expect(Math.abs(active.fontProportion - past.fontProportion)).toBeLessThan(.001);
       expect(Math.abs(active.bottomProportion - past.bottomProportion)).toBeLessThan(.003);
-      expect(past.scale).toMatch(/^matrix\(0\.58/); // Existing whole-Card scale applies to attribution too.
+      // The original 148px past slot, including its first-depth scale, remains
+      // the same physical size even though the authored surface stays at 252px.
+      expect(past.physicalWidth / active.physicalWidth).toBeCloseTo(148 * .965 / 252, 2);
     });
   }
 }
@@ -208,6 +211,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       const focused = await geometry(page, [".focused-card-stage", ".focused-card-object", ".focused-card-surface--front .card-title-anchor", ".focused-card-surface--front .deck-card-date-shell", ".focused-card-surface--front .active-card-identity", ".focused-card-surface--front .active-step-list", ".focused-card-surface--front .active-step-item"]);
       const focusedTitle = await geometry(page, [".focused-card-surface--front .card-title-anchor h2"]);
       const actual = { collection, detail, focused };
+      // Collection/detail baselines include the approved removal of the header
+      // Create link and standalone Archive control; Card-local geometry is unchanged.
       const baselinePath = `tests/fixtures/presentation-${viewport.width}.json`;
       if (process.env.PHASE4_CAPTURE_BASELINE === "1") {
         await writeFile(`/tmp/p4-c1-geometry-${viewport.width}.json`, JSON.stringify(actual, null, 2));

@@ -2550,12 +2550,6 @@ input {
   transform-style: preserve-3d;
 }
 
-.deck-card.is-past .deck-card-render-surface {
-  width: var(--deck-card-render-width);
-  height: var(--deck-card-render-height);
-  transform: scale(var(--deck-card-render-scale));
-}
-
 .deck-card-surface {
   position: absolute;
   inset: 0;
@@ -3616,12 +3610,6 @@ input {
   height: 156%;
   transform: scale(0.641025641);
   transform-origin: top left;
-}
-
-.back-card-face-content--preview.focused-card-back-layout {
-  width: 266%;
-  height: 266%;
-  transform: scale(0.376);
 }
 
 .focused-card-object.is-flipped .focused-card-surface--front {

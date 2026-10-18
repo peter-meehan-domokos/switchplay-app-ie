@@ -10,10 +10,9 @@ function Harness({ deck, collection }: { deck: CanonicalDeckPresentation; collec
   const [open, setOpen] = useState(!collection);
   return <main className={`app-shell${open ? " app-shell--deck" : ""}`}>
     {open ? <>
-      <button type="button">Fixture action</button>
       <DeckScene key={`${deck.id}:${deck.version}`} deck={deck} onBack={() => setOpen(false)} transition={transition} />
     </> : <>
-      <header className="overview-header"><p className="eyebrow">phase2</p><h1>My decks</h1><a>Create Deck</a></header>
+      <header className="overview-header"><p className="eyebrow">phase2</p><h1>My decks</h1></header>
       <DeckGrid decks={[deck]} instantiatingDeckTemplateId={null} isInteractionLocked={false}
         onSelectDeck={() => setOpen(true)} transition={transition} />
     </>}

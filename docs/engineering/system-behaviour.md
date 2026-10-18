@@ -323,6 +323,14 @@ abandoned; cleanup never cancels unrelated uploads or a newer save. Partial hist
 readable rows with an unavailable-history notice. A failed refresh keeps previously readable
 rows marked as potentially out of date, suppresses indicators and offers Refresh history.
 
+## Card placement and retrieval
+
+Stack navigation prepares the incoming Card's complete front before movement exposes
+it. Both faces retain the same authored layout during placement and retrieval; the
+whole Card scales proportionately into its existing past position. Returning a Card
+preserves its face, content and interaction boundaries. Navigation remains locked
+during the existing placement phase; no content fetch or extra delay is introduced.
+
 ## Card header confidence [Phase 6]
 
 Personal Card confidence is centered independently of the label, assessments and date.
