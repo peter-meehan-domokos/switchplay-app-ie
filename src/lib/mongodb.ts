@@ -1,29 +1,41 @@
-import { MongoClient, type Collection, type Db, type Document } from "mongodb";
-
-const uri = process.env.MONGODB_URI;
-const databaseName = process.env.MONGODB_DB;
-
-if (!uri) {
-	throw new Error("MONGODB_URI is not set.");
-}
-
-if (!databaseName) {
-	throw new Error("MONGODB_DB is not set.");
-}
+import { MongoClient, type ClientSession, type Collection, type Db, type Document } from "mongodb";
+import { assertApplicationDatabase } from "./applicationDatabase";
 
 const globalForMongo = globalThis as typeof globalThis & {
 	mongoClientPromise?: Promise<MongoClient>;
 };
 
-const clientPromise = globalForMongo.mongoClientPromise ?? new MongoClient(uri).connect();
-
-if (process.env.NODE_ENV !== "production") {
-	globalForMongo.mongoClientPromise = clientPromise;
+// Importing a repository must not connect to Atlas (including during builds/tests).
+export async function getMongoClient(): Promise<MongoClient> {
+	assertApplicationDatabase();
+	const uri = process.env.MONGODB_URI;
+	if (!uri) throw new Error("MONGODB_URI is not set.");
+	if (!globalForMongo.mongoClientPromise) {
+		globalForMongo.mongoClientPromise = new MongoClient(uri).connect().catch((error) => {
+			globalForMongo.mongoClientPromise = undefined;
+			throw error;
+		});
+	}
+	return globalForMongo.mongoClientPromise;
 }
 
 export async function getDatabase(): Promise<Db> {
-	const client = await clientPromise;
+	const databaseName = process.env.MONGODB_DB;
+	if (!databaseName) throw new Error("MONGODB_DB is not set.");
+	const client = await getMongoClient();
 	return client.db(databaseName);
+}
+
+// Callbacks can be retried by Mongo. Keep writes sequential and external side effects outside.
+export async function withMongoTransaction<T>(client: MongoClient, operation: (session: ClientSession) => Promise<T>): Promise<T> {
+	const session = client.startSession();
+	try {
+		return await session.withTransaction(() => operation(session), {
+			readConcern: { level: "snapshot" }, writeConcern: { w: "majority" }, readPreference: "primary",
+		});
+	} finally {
+		await session.endSession();
+	}
 }
 
 export async function getCollection<TSchema extends Document>(

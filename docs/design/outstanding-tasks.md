@@ -1,5 +1,23 @@
 # Outstanding Tasks
 
+## Deferred: programme adaptations and personal continuity
+
+Review how users identify their current programme and manage successive adaptations
+without exposing a technical fork tree. Consider guidance for archiving superseded
+Decks, avoiding continuing chats in an old programme context, and an explicit
+“keep both” versus “replace/archive original” choice. Originals remain retained
+and active until the user explicitly archives them under the current rules.
+
+Phase 5 must support a seamless first-edit fork identity transition, preserving
+keystrokes, pending saves/uploads and the correct Card target without a reload or
+duplicate Card. Design that coordinator handoff with the actual foreign-edit flow.
+
+Test-history UI remains deferred: latest three header indicators and a reusable
+full-history modal, with original event context retained. A later learning event
+log should track completion, signals and reflection changes without duplicating
+events across forks. Creator-controlled Step-state reset semantics also remain
+deferred; normal continuing Step identity never resets personal state.
+
 ## 1. Signal Continuity Model
 
 ### Current State

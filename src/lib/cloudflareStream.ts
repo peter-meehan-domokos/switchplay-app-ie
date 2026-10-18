@@ -140,6 +140,7 @@ export async function createCloudflareStreamDirectUpload({
     },
     body: JSON.stringify({
       maxDurationSeconds: STREAM_DIRECT_UPLOAD_MAX_DURATION_SECONDS,
+      ...(process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1" ? { requireSignedURLs: true } : {}),
       ...(name ? { meta: { name } } : {}),
     }),
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { DECK_GESTURE_THRESHOLDS, getVerticalCommitmentDistance } from "@/components/decks/gestures/gestureThresholds";
 import type {
@@ -235,7 +235,9 @@ export function useDeckGestures({
   const [commitment, setCommitment] = useState<GestureCommitment>(emptyCommitment);
   const callbacksRef = useRef({ onSettleToPast, onRestoreFromPast, onFlip, onFocus, onDefocus });
 
-  callbacksRef.current = { onSettleToPast, onRestoreFromPast, onFlip, onFocus, onDefocus };
+  useLayoutEffect(() => {
+    callbacksRef.current = { onSettleToPast, onRestoreFromPast, onFlip, onFocus, onDefocus };
+  }, [onSettleToPast, onRestoreFromPast, onFlip, onFocus, onDefocus]);
 
   const resetGesture = useCallback((nextPhase: GesturePhase) => {
     sessionRef.current = null;
@@ -248,6 +250,9 @@ export function useDeckGestures({
 
   useEffect(() => {
     if (disabled || locked) {
+      // Parent-controlled locks can interrupt an active pointer session. Cancel
+      // synchronously here so a later pointer-up cannot commit that stale gesture.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       resetGesture("idle");
     }
   }, [disabled, locked, resetGesture]);
@@ -302,7 +307,9 @@ export function useDeckGestures({
           last: start,
           axis: null,
         };
-        event.currentTarget.setPointerCapture?.(event.pointerId);
+        // Header controls capture their own pointer so a tap can activate them.
+        // Their drag events still bubble through this existing gesture session.
+        if (!(event.target instanceof Element && event.target.closest("[data-card-header-control]"))) event.currentTarget.setPointerCapture?.(event.pointerId);
         setVector(emptyVector);
         setDirection(null);
         setIntent("none");

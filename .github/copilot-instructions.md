@@ -68,7 +68,7 @@ until the structural layout is stable.
 * **Ask When Uncertain:** If an architectural boundary, data contract, or solution approach is ambiguous, stop, present the trade-offs, and ask for clarification.
 
 ### 2. Component & Visual Layout Architecture (Universal Rule)
-> **CRITICAL DISAMBIGUATION:** 
+> **CRITICAL DISAMBIGUATION:**
 > 1. This pattern applies to **ALL visual components, UI views, and rendered components across the entire codebase** (e.g., standard React components like `CardLayout`). It is **NOT** restricted to D3 visualization code.
 > 2. This has **NOTHING** to do with Next.js route layout files (`layout.tsx`).
 

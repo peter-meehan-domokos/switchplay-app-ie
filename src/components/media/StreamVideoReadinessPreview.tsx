@@ -4,6 +4,7 @@ import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
 import { useStreamVideoReadiness } from "@/components/media/useStreamVideoReadiness";
 import type { MediaUploadTarget } from "@/lib/mediaUploadClient";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
+import { isPhase2MockVideo, PHASE2_MOCK_VIDEO_NOTICE } from "@/lib/phase2MediaFixture";
 
 type StreamVideoReadinessPreviewProps = {
   mediaItem: CloudflareStreamVideoMediaItem;
@@ -15,7 +16,9 @@ function getProcessingLabel(progress: number | undefined) {
 }
 
 export default function StreamVideoReadinessPreview({ mediaItem, target }: StreamVideoReadinessPreviewProps) {
-  const { retry, state } = useStreamVideoReadiness(target, mediaItem.assetId);
+  const mock = isPhase2MockVideo(mediaItem.assetId);
+  const { retry, state } = useStreamVideoReadiness(target, mediaItem.assetId, !mock);
+  if (mock) return <p className="stream-video-readiness-preview">{PHASE2_MOCK_VIDEO_NOTICE}</p>;
 
   if (state.status === "ready") {
     return <CloudflareStreamPlayer key={`${mediaItem.assetId}:ready`} mediaItem={mediaItem} />;

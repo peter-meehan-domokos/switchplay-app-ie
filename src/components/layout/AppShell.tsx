@@ -1,480 +1,164 @@
 "use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
+import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
+import { personalWork } from "@/lib/cards/personalWork";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import DeckDetail from "@/components/decks/DeckDetail";
+import { useEffect, useMemo, useRef, useState } from "react";
+import OverviewMenu from "./OverviewMenu";
 import DeckGrid from "@/components/decks/DeckGrid";
-import type { Deck } from "@/components/decks/types";
+import DeckDetail from "@/components/decks/DeckDetail";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
 import { buildMyDecksLayout } from "@/components/decks/myDecksLayout";
-import type { LayoutUser } from "@/components/cards/cardLayout";
-import OverviewMenu from "@/components/layout/OverviewMenu";
-import SupportErrorMessage from "@/components/support/SupportErrorMessage";
-import { persistDeckOpenedAt } from "@/lib/deckMutations";
-
-type AppShellProps = {
-  currentUserId: string;
-  decks: Deck[];
-  userName: string;
-  users: LayoutUser[];
-};
-
-type DeckFlipState = {
-  isFlipped: boolean;
-  rotationY: number;
-};
-
-const springTransition = {
-  type: "spring",
-  stiffness: 340,
-  damping: 34,
-  mass: 0.9,
-} as const;
-
-const OVERVIEW_REFRESH_AFTER_CLOSE_MS = 350;
-
-export default function AppShell({ currentUserId, decks, userName, users }: AppShellProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const appShellInstanceRef = useRef(`app-shell-${Math.random().toString(36).slice(2, 8)}`);
-  const [layoutUsers, setLayoutUsers] = useState<LayoutUser[]>(users);
-  const [viewMode, setViewMode] = useState<"mine" | "shared">("mine");
-  const [sharedDecks, setSharedDecks] = useState<Deck[] | null>(null);
-  const [isLoadingSharedDecks, setIsLoadingSharedDecks] = useState(false);
-  const [sharedDeckError, setSharedDeckError] = useState<string | null>(null);
-  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
-  const [pendingDeckOpenId, setPendingDeckOpenId] = useState<string | null>(null);
-  const [instantiatingDeckTemplateId, setInstantiatingDeckTemplateId] = useState<string | null>(null);
-  const [deckInstantiationError, setDeckInstantiationError] = useState<string | null>(null);
-  const [deckFlipStateById, setDeckFlipStateById] = useState<Record<string, DeckFlipState>>({});
-  const overviewRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDeckOpenedAtPersistenceRef = useRef<Promise<void> | null>(null);
-  const hasHandledOpenDeckParamRef = useRef(false);
-  const myDeckLayouts = useMemo(() => {
-    const layouts = decks.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers }));
-
-    return buildMyDecksLayout(layouts);
-  }, [currentUserId, decks, layoutUsers]);
-  const sharedDeckLayouts = useMemo(
-    () => sharedDecks?.map((deck) => buildDeckLayout(deck, { currentUserId, users: layoutUsers })) ?? null,
-    [currentUserId, layoutUsers, sharedDecks],
-  );
-  const activeDeckLayouts = viewMode === "shared" ? sharedDeckLayouts ?? [] : myDeckLayouts;
-  const selectedDeck = activeDeckLayouts.find((deck) => deck.id === selectedDeckId) ?? null;
-  const isDeckInteractionLocked = Boolean(instantiatingDeckTemplateId) || Boolean(pendingDeckOpenId);
-  const selectedDeckFlipState = selectedDeck ? deckFlipStateById[selectedDeck.id] : null;
-  const isSelectedDeckFlipped = selectedDeckFlipState?.isFlipped ?? false;
-  const selectedDeckFlipRotationY = selectedDeckFlipState?.rotationY ?? 0;
-  const overviewError = viewMode === "shared" ? sharedDeckError : deckInstantiationError;
-
+import type { Deck } from "@/components/decks/types";
+import type { MembershipDTO } from "@/lib/cards/readModels";
+import { getTodayDateOnly } from "@/lib/dateOnly";
+import { workingCardStore } from "@/lib/cards/workingCardStore";
+import { flushPersonalMutations } from "@/lib/deckMutations";
+import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
+const transition = { type: "spring", stiffness: 300, damping: 30 };
+export default function AppShell({ memberships, currentUserId, userName }: { memberships: MembershipDTO[]; currentUserId: string; userName: string }) {
+  const router = useRouter(), search = useSearchParams();
+  const progressReturn = readProgressReturn(search);
+  const [records, setRecords] = useState(memberships);
+  const [selected, setSelected] = useState<Deck | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [rotation, setRotation] = useState(0);
+  const selectedLayout = useMemo(() => selected ? buildDeckLayout(selected, { currentUserId, users: [{ id: currentUserId, name: userName }] }) : null, [selected, currentUserId, userName]);
+  const actorRef = useRef(currentUserId);
+  const refreshGeneration = useRef(0);
+  const live = useRef(true);
   useEffect(() => {
-    const summary = decks
-      .filter((deck) => deck.isOwnedByCurrentUser)
-      .map((deck) => ({
-        id: deck.id,
-        templateId: deck.deckTemplateId,
-        openedAt: deck.openedAt ?? null,
-      }));
-
-    console.log("[DIAG OPEN-RACE] AppShell decks prop updated", {
-      instanceId: appShellInstanceRef.current,
-      at: new Date().toISOString(),
-      viewMode,
-      selectedDeckId,
-      ownedDeckCount: summary.length,
-      ownedDecksByOrder: summary,
-    });
-  }, [decks, selectedDeckId, viewMode]);
-
-  useEffect(() => {
-    const summary = myDeckLayouts
-      .filter((deck) => deck.isOwnedByCurrentUser)
-      .map((deck) => ({
-        id: deck.id,
-        templateId: deck.deckTemplateId,
-        openedAt: deck.openedAt ?? null,
-      }));
-
-    console.log("[DIAG OPEN-RACE] myDeckLayouts recomputed", {
-      instanceId: appShellInstanceRef.current,
-      at: new Date().toISOString(),
-      selectedDeckId,
-      ownedDecksByOrder: summary,
-    });
-  }, [myDeckLayouts, selectedDeckId]);
-
-  function cancelPendingOverviewRefresh() {
-    if (overviewRefreshTimeoutRef.current) {
-      clearTimeout(overviewRefreshTimeoutRef.current);
-      overviewRefreshTimeoutRef.current = null;
-    }
-  }
-
-  function clearSelectedDeckAndPendingRefresh() {
-    setSelectedDeckId(null);
-    cancelPendingOverviewRefresh();
-  }
-
-  //console.log("Rendering AppShell", {
-    //decks
-  //});
-
-  useEffect(() => {
-    if (!pendingDeckOpenId) {
-      return;
-    }
-
-    const pendingDeck = myDeckLayouts.find((deck) => deck.id === pendingDeckOpenId);
-
-    if (pendingDeck && pendingDeck.hasUserDeckData) {
-      setSelectedDeckId(pendingDeckOpenId);
-      setPendingDeckOpenId(null);
-      setInstantiatingDeckTemplateId(null);
-      setDeckInstantiationError(null);
-    }
-  }, [myDeckLayouts, pendingDeckOpenId]);
-
-  useEffect(() => {
-    if (hasHandledOpenDeckParamRef.current) {
-      return;
-    }
-
-    const requestedDeckId = searchParams.get("openDeck")?.trim();
-
-    if (!requestedDeckId) {
-      hasHandledOpenDeckParamRef.current = true;
-      return;
-    }
-
-    const requestedDeck = myDeckLayouts.find((deck) => deck.id === requestedDeckId);
-
-    if (!requestedDeck) {
-      hasHandledOpenDeckParamRef.current = true;
-      return;
-    }
-
-    if (isDeckInteractionLocked) {
-      return;
-    }
-
-    hasHandledOpenDeckParamRef.current = true;
-    void handleSelectDeck(requestedDeck.id);
-  }, [isDeckInteractionLocked, myDeckLayouts, searchParams]);
-
-  useEffect(() => {
-    let isCanceled = false;
-
-    async function loadLayoutUsers() {
-      try {
-        const response = await fetch("/api/users", { method: "GET" });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const payload = (await response.json()) as { users?: LayoutUser[] };
-
-        if (!isCanceled && Array.isArray(payload.users)) {
-          setLayoutUsers(payload.users);
-        }
-      } catch {
-        // Keep existing users list when lookup refresh fails.
-      }
-    }
-
-    void loadLayoutUsers();
-
-    return () => {
-      isCanceled = true;
+    actorRef.current = currentUserId; live.current = true;
+    return () => { live.current = false; };
+  }, [currentUserId]);
+  const [recordActor, setRecordActor] = useState(currentUserId);
+  if (recordActor !== currentUserId) { setRecordActor(currentUserId); setRecords(memberships); setSelected(null); setPending(null); setError(""); }
+  const openedParam = useRef<string | null>(null);
+  const active = records.filter((item) => item.archivedAt === null);
+  const decks = buildMyDecksLayout(active.flatMap((item) => item.display ? [buildDeckLayout(item.display, { currentUserId, users: [{ id: currentUserId, name: userName }] })] : []));
+  const opening = useRef<string | null>(null);
+  async function open(id: string, cardTemplateId?: string, fromUrl = false) {
+    if (opening.current === currentUserId) return;
+    opening.current = currentUserId;
+    if (fromUrl) setSelected(null);
+    ++refreshGeneration.current;
+    setPending(id); setError("");
+    const expectedVersion = fromUrl ? new URLSearchParams(window.location.search).get("cardVersion") : null;
+    const stillRequested = () => {
+      const query = new URLSearchParams(window.location.search);
+      return !fromUrl || query.get("openDeck") === id && (query.get("openCard") ?? undefined) === cardTemplateId && query.get("cardVersion") === expectedVersion;
     };
-  }, []);
-
+    try {
+      if (expectedVersion !== null && (!cardTemplateId || !/^[1-9]\d*$/.test(expectedVersion) || !Number.isSafeInteger(Number(expectedVersion)))) throw new Error("The selected Card version is invalid. Return to Progress and refresh your choices.");
+      await flushPersonalMutations();
+      // URL entry can follow an archive restoration or stale server navigation.
+      // Revalidate membership instead of trusting a cached page projection.
+      const current = fromUrl ? await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data") : records;
+      if (actorRef.current !== currentUserId || !live.current || !stillRequested()) return;
+      if (fromUrl) setRecords(current);
+      const membership = current.find((item) => item.deckTemplateId === id && item.archivedAt === null);
+      if (!membership || membership.availability === "unavailable") throw new Error("This Deck cannot currently be opened. Your membership and personal state are retained.");
+      const deck = await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}), ...(expectedVersion === null ? {} : { expectedCardVersion: Number(expectedVersion) }) });
+      if (actorRef.current !== currentUserId || !live.current || !stillRequested()) return;
+      if (expectedVersion !== null && deck.cards.find((card) => card.cardTemplateId === cardTemplateId)?.adoptedVersion !== Number(expectedVersion)) throw new Error("The selected Card version changed. Return to Progress and refresh your choices.");
+      workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
+      openedParam.current = JSON.stringify([currentUserId, id, null, null]); setSelected(deck); setRotation(0);
+      window.history.replaceState(null, "", withProgressReturn(`/decks?openDeck=${encodeURIComponent(id)}`, progressReturn ? { ...progressReturn, restored: false } : null));
+    } catch (error) { if (actorRef.current === currentUserId && live.current && stillRequested()) setError(
+      (progressReturn?.restored ? "The Deck was restored, but opening failed. Retry opening or return to Progress. " : "") +
+      (error instanceof WorkingRequestError && error.code === "TARGET_CARD_VERSION_CONFLICT" ? "The selected Card version changed. Return to Progress and refresh your choices."
+        : error instanceof Error ? error.message : "Unable to open Deck")); }
+    finally { if (opening.current === currentUserId) opening.current = null; if (actorRef.current === currentUserId && live.current) setPending(null); }
+  }
   useEffect(() => {
-    return () => {
-      if (overviewRefreshTimeoutRef.current) {
-        clearTimeout(overviewRefreshTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  async function instantiateDeckData(deckTemplateId: string) {
-    const response = await fetch("/api/decks-data", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ deckTemplateId }),
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      throw new Error(payload?.error ?? "Unable to prepare deck data.");
+    const id = search.get("openDeck"), card = search.get("openCard");
+    const key = JSON.stringify([currentUserId, id, card, search.get("cardVersion")]);
+    if (id && openedParam.current !== key && opening.current !== currentUserId) {
+      openedParam.current = key; void open(id, card ?? undefined, true);
     }
+  });
+  async function membershipAction(id: string, type: "archive" | "restore") {
+    if (pending) return false;
+    ++refreshGeneration.current;
+    setPending(id); setError("");
+    try { await flushPersonalMutations(); await workingRequest(currentUserId, `/api/decks-data/${encodeURIComponent(id)}`, "PATCH", { type,
+      ...(type === "restore" ? { membershipRevision: records.find((item) => item.deckTemplateId === id)?.membershipRevision } : {}) });
+      setRecords(await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data"));
+      setSelected(null);
+      if (progressReturn && type === "archive") router.push(progressReturnHref(progressReturn), { scroll: false });
+      else window.history.replaceState(null, "", "/decks");
+      return true; }
+    catch (error) { setError(error instanceof Error ? error.message : "Membership update failed"); return false; }
+    finally { setPending(null); }
   }
-
-  async function loadSharedDecks() {
-    if (isLoadingSharedDecks) {
-      return;
+  async function refreshWorking(command?: import("@/lib/cards/updateAdoption").UpdateCommand) {
+    if (!selected) return;
+    const beforeWaiting = refreshGeneration.current;
+    const id = selected.deckTemplateId;
+    const scope = { userId: currentUserId, ...(command?.kind === "card" ? {} : { deckId: id }), cardIds: command?.kind === "card" ? [command.entityId] : selected.cards.map((card) => card.id) };
+    if (!command && personalWork.isLocked(scope)) return;
+    await personalWork.wait(scope);
+    if (!command && personalWork.isLocked(scope)) return;
+    if (!live.current || actorRef.current !== currentUserId || refreshGeneration.current !== beforeWaiting) {
+      if (!command) return;
+      throw new Error("Working state changed during refresh. Retry to load the current state.");
     }
-
-    if (sharedDecks !== null) {
-      setSelectedDeckId(null);
-      setPendingDeckOpenId(null);
-      setInstantiatingDeckTemplateId(null);
-      setDeckInstantiationError(null);
-      setViewMode("shared");
-      setSharedDeckError(null);
-      clearSelectedDeckAndPendingRefresh();
-      return;
+    const generation = ++refreshGeneration.current;
+    const epoch = workingCardStore.epoch(currentUserId);
+    const workRevision = personalWork.revision(scope);
+    const [projection, membershipRecords] = await Promise.all([
+      command?.kind === "deck" ? workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly() }) : workingRequest<Deck>(currentUserId, `/api/decks-data/${encodeURIComponent(id)}`),
+      workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data"),
+    ]);
+    // Focus is a read, not another opening. Only an externally adopted Deck
+    // composition needs normal open initialization for its newly introduced Cards.
+    const deck = !command && projection.adoptedVersion !== selected.adoptedVersion
+      ? await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly() }) : projection;
+    if (!live.current || actorRef.current !== currentUserId || refreshGeneration.current !== generation || workingCardStore.epoch(currentUserId) !== epoch || personalWork.hasWork(scope) || personalWork.revision(scope) !== workRevision) {
+      if (!command) return; // Obsolete background data must not replace optimistic work.
+      throw new Error("Working state changed during refresh. Retry to load the current state.");
     }
-
-    setSelectedDeckId(null);
-    setPendingDeckOpenId(null);
-    setInstantiatingDeckTemplateId(null);
-    setDeckInstantiationError(null);
-    setIsLoadingSharedDecks(true);
-    setSharedDeckError(null);
-
+    workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
+    setSelected(deck); setRecords(membershipRecords);
+  }
+  useEffect(() => {
+    let reading = false;
+    const refresh = () => {
+      if (!selected || reading || document.visibilityState === "hidden") return;
+      reading = true;
+      void refreshWorking().catch((error) => setError(error instanceof Error ? error.message : "Unable to refresh My Decks")).finally(() => { reading = false; }); };
+    window.addEventListener("focus", refresh); window.addEventListener("pageshow", refresh); document.addEventListener("visibilitychange", refresh);
+    return () => { window.removeEventListener("focus", refresh); window.removeEventListener("pageshow", refresh); document.removeEventListener("visibilitychange", refresh); };
+  });
+  async function close() {
+    ++refreshGeneration.current;
     try {
-      const response = await fetch("/api/decks-data/shared", {
-        method: "GET",
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Unable to load shared decks.");
-      }
-
-      const payload = (await response.json()) as { decks?: Deck[] };
-      setSharedDecks(Array.isArray(payload.decks) ? payload.decks : []);
-      setViewMode("shared");
-      clearSelectedDeckAndPendingRefresh();
-    } catch (error) {
-      setSharedDeckError(error instanceof Error ? error.message : "Unable to load shared decks.");
-    } finally {
-      setIsLoadingSharedDecks(false);
+      await flushPersonalMutations();
+      if (progressReturn && selected) await personalWork.wait({ userId: currentUserId, deckId: selected.deckTemplateId, cardIds: selected.cards.map((card) => card.id) });
+      if (progressReturn) { router.push(progressReturnHref(progressReturn), { scroll: false }); return; }
+      setRecords(await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data")); setSelected(null); window.history.replaceState(null, "", "/decks");
     }
+    catch (error) { setError(error instanceof Error ? error.message : "Some changes could not be saved"); }
   }
-
-  function showMyDecks() {
-    if (viewMode === "mine") {
-      return;
-    }
-
-    setSelectedDeckId(null);
-    setPendingDeckOpenId(null);
-    setInstantiatingDeckTemplateId(null);
-    setDeckInstantiationError(null);
-    setViewMode("mine");
-    setSharedDeckError(null);
-    clearSelectedDeckAndPendingRefresh();
-  }
-
-  async function handleSelectDeck(deckId: string) {
-    if (isDeckInteractionLocked) {
-      return;
-    }
-
-    const deck = activeDeckLayouts.find((candidateDeck) => candidateDeck.id === deckId);
-
-    if (!deck) {
-      return;
-    }
-
-    cancelPendingOverviewRefresh();
-
-    if (viewMode === "shared") {
-      setDeckInstantiationError(null);
-      setSelectedDeckId(deckId);
-      return;
-    }
-
-    if (deck.hasUserDeckData) {
-      setDeckInstantiationError(null);
-      setSelectedDeckId(deckId);
-      if (deck.isOwnedByCurrentUser) {
-        console.log("[DIAG OPEN-RACE] persistDeckOpenedAt start", {
-          instanceId: appShellInstanceRef.current,
-          at: new Date().toISOString(),
-          deckId,
-          deckTemplateId: deck.deckTemplateId,
-        });
-        const persistence = persistDeckOpenedAt(deck.deckTemplateId).catch((error) => {
-          console.warn("Unable to record deck opening.", error);
-        });
-
-        pendingDeckOpenedAtPersistenceRef.current = persistence;
-        void persistence.then(() => {
-          console.log("[DIAG OPEN-RACE] persistDeckOpenedAt settled", {
-            instanceId: appShellInstanceRef.current,
-            at: new Date().toISOString(),
-            deckId,
-            deckTemplateId: deck.deckTemplateId,
-            isCurrentPendingPromise: pendingDeckOpenedAtPersistenceRef.current === persistence,
-          });
-
-          if (pendingDeckOpenedAtPersistenceRef.current === persistence) {
-            pendingDeckOpenedAtPersistenceRef.current = null;
-          }
-        });
-      }
-      return;
-    }
-
-    setDeckInstantiationError(null);
-    setInstantiatingDeckTemplateId(deck.deckTemplateId);
-
-    try {
-      await instantiateDeckData(deck.deckTemplateId);
-      setPendingDeckOpenId(deckId);
-      router.refresh();
-    } catch (error) {
-      setInstantiatingDeckTemplateId(null);
-      setPendingDeckOpenId(null);
-      setDeckInstantiationError(error instanceof Error ? error.message : "Unable to prepare deck data.");
-    }
-  }
-
-  const toggleSelectedDeckFlip = (deckId: string, rotationDelta = 180) => {
-    setDeckFlipStateById((current) => ({
-      ...current,
-      [deckId]: {
-        isFlipped: !(current[deckId]?.isFlipped ?? false),
-        rotationY: (current[deckId]?.rotationY ?? 0) + rotationDelta,
-      },
-    }));
-  };
-
-  const handleCloseDeckDetail = () => {
-    const pendingDeckOpenedAtPersistence = pendingDeckOpenedAtPersistenceRef.current;
-    console.log("[DIAG OPEN-RACE] close requested", {
-      instanceId: appShellInstanceRef.current,
-      at: new Date().toISOString(),
-      selectedDeckId,
-      hasPendingPersistence: Boolean(pendingDeckOpenedAtPersistence),
-    });
-    pendingDeckOpenedAtPersistenceRef.current = null;
-    clearSelectedDeckAndPendingRefresh();
-
-    if (viewMode === "shared") {
-      return;
-    }
-
-    if (overviewRefreshTimeoutRef.current) {
-      clearTimeout(overviewRefreshTimeoutRef.current);
-    }
-
-    const refreshTimeout = setTimeout(() => {
-      void (async () => {
-        if (pendingDeckOpenedAtPersistence) {
-          console.log("[DIAG OPEN-RACE] awaiting pending persistence before refresh", {
-            instanceId: appShellInstanceRef.current,
-            at: new Date().toISOString(),
-            selectedDeckId,
-          });
-          await pendingDeckOpenedAtPersistence;
-          console.log("[DIAG OPEN-RACE] pending persistence await complete", {
-            instanceId: appShellInstanceRef.current,
-            at: new Date().toISOString(),
-            selectedDeckId,
-          });
-        }
-
-        if (overviewRefreshTimeoutRef.current !== refreshTimeout) {
-          console.log("[DIAG OPEN-RACE] refresh suppressed due to stale timeout identity", {
-            instanceId: appShellInstanceRef.current,
-            at: new Date().toISOString(),
-          });
-          return;
-        }
-
-        console.log("[DIAG OPEN-RACE] router.refresh invoked from close flow", {
-          instanceId: appShellInstanceRef.current,
-          at: new Date().toISOString(),
-        });
-        router.refresh();
-        overviewRefreshTimeoutRef.current = null;
-      })();
-    }, OVERVIEW_REFRESH_AFTER_CLOSE_MS);
-    overviewRefreshTimeoutRef.current = refreshTimeout;
-  };
-
-  return (
-    <LayoutGroup>
-      <main className={`app-shell${selectedDeck ? " app-shell--deck" : ""}`}>
-      {selectedDeckId === null && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{
-            delay: 1.5,
-            duration: 0.8,
-            ease: "easeOut",
-          }}
-        >
-          <OverviewMenu
-            currentViewMode={viewMode}
-            isLoadingSharedDecks={isLoadingSharedDecks}
-            username={userName}
-            onSelectMyDecks={showMyDecks}
-            onSelectSharedWithMe={loadSharedDecks}
-          />
-        </motion.div>
-      )}
-        <AnimatePresence initial={false}>
-          {!selectedDeck ? (
-            <motion.header
-              className="overview-header"
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              <p className="eyebrow">{userName}</p>
-              <h1>{viewMode === "shared" ? "Shared with me" : "My decks"}</h1>
-              <p className="overview-summary">
-                {viewMode === "shared"
-                  ? `${activeDeckLayouts.length} shared skill paths`
-                  : `${activeDeckLayouts.length} active skill paths`}
-              </p>
-              {overviewError ? <SupportErrorMessage className="auth-error" /> : null}
-            </motion.header>
-          ) : null}
-        </AnimatePresence>
-
-        <AnimatePresence mode="popLayout" initial={false}>
-          {selectedDeck ? (
-            <DeckDetail
-              key={`deck-detail-${selectedDeck.id}`}
-              deck={selectedDeck}
-              isDeckFlipped={isSelectedDeckFlipped}
-              deckFlipRotationY={selectedDeckFlipRotationY}
-              onBack={handleCloseDeckDetail}
-              onToggleDeckFlip={(rotationDelta) => toggleSelectedDeckFlip(selectedDeck.id, rotationDelta)}
-              transition={springTransition}
-            />
-          ) : (
-            <motion.section
-              key="deck-overview"
-              className="overview-screen"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-            >
-              <DeckGrid
-                key={`deck-grid-${viewMode}`}
-                decks={activeDeckLayouts}
-                instantiatingDeckTemplateId={instantiatingDeckTemplateId}
-                isInteractionLocked={isDeckInteractionLocked}
-                onSelectDeck={handleSelectDeck}
-                transition={springTransition}
-              />
-            </motion.section>
-          )}
-        </AnimatePresence>
-      </main>
-    </LayoutGroup>
-  );
+  return <main className={`app-shell${selected ? " app-shell--deck" : ""}`}>
+    {error && <p role="alert">{error}</p>}
+    {!selected && progressReturn ? <div>
+      {search.get("openDeck") ? <button type="button" disabled={pending !== null} onClick={() => void open(search.get("openDeck")!, search.get("openCard") ?? undefined, true)}>Retry opening Deck</button> : null}
+      <button type="button" disabled={pending !== null} onClick={() => void close()}>Back to Progress</button>
+    </div> : null}
+    {selected ? <>
+      <DeckDetail key={`${currentUserId}:${selected.deckTemplateId}`} onAdopted={refreshWorking} deck={selectedLayout!}
+        onArchive={() => membershipAction(selected.deckTemplateId, "archive")} archiveDisabled={pending !== null}
+        backLabel={progressReturn ? "Back to Progress" : undefined}
+        creatorEditHref={progressReturn ? `/creator/edit/${encodeURIComponent(selected.deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(selected.deckTemplateId)}&progressFramework=${encodeURIComponent(progressReturn.frameworkId)}${progressReturn.areaId ? `&progressArea=${encodeURIComponent(progressReturn.areaId)}` : ""}` : undefined}
+        isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation} onBack={() => void close()} onToggleDeckFlip={(delta = 180) => setRotation((value) => value + delta)} transition={transition} />
+    </> : <>
+      <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1></header>
+      <DeckGrid decks={decks} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null} onSelectDeck={(id) => void open(id)} transition={transition} />
+      {active.filter((item) => item.availability === "unavailable").map((item) => <p key={item.deckTemplateId}>
+        Unavailable Deck — your membership is retained. <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "archive")}>Archive unavailable Deck</button>
+      </p>)}
+      {records.some((item) => item.archivedAt !== null) && <details><summary>Archived decks</summary>{records.filter((item) => item.archivedAt !== null).map((item) => <p key={item.deckTemplateId}>{item.title} <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "restore")}>Restore {item.title}</button></p>)}</details>}
+    </>}
+  </main>;
 }

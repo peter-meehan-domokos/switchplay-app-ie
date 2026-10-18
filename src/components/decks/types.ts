@@ -14,6 +14,7 @@ export type CardComment = {
 
 export type CardChat = {
   id: string;
+  deckTemplateId?: string;
   comments: CardComment[];
 };
 
@@ -25,6 +26,7 @@ export type CardIntro = {
 
 export type CardTemplateStep = {
   stepId: string;
+  forkedFrom?: { cardTemplateId: string; version: number; stepId: string };
   title?: string;
   description: string | null;
   descriptionContent?: StepDescriptionSpan[];
@@ -152,6 +154,22 @@ export type WeeklyCardSignal = {
 };
 
 export type WeeklyCard = {
+  creator?: { username: string; immediateSourceUsername: string | null };
+  // Viewer-owned history. Events retain their original Card/Deck context;
+  // adoption is explicitly not an event-time version attribution.
+  personalHistory?: {
+    cardTemplateId: string;
+    currentAdoptedCardTemplateVersion: number | null; // Unknown for corrupt historical metadata, never event-time attribution.
+    eventVersionAttribution: "not-recorded";
+    tests: { id: string; date: string; result: boolean; createdAt: string }[];
+    chats: CardChat[];
+    mediaItems: MediaItem[];
+  }[];
+  cardTemplateId?: string;
+  adoptedVersion?: number;
+  templateOwnerUserId?: string;
+  dataOwnerUserId?: string;
+  permissions?: import("@/lib/cards/model").Capabilities;
   id: string;
   label: string;
   targetDate: string;
@@ -164,6 +182,11 @@ export type WeeklyCard = {
 };
 
 export type Deck = {
+  templateOwnerUserId?: string;
+  dataOwnerUserId?: string;
+  context?: "working";
+  adoptedVersion?: number;
+  permissions?: import("@/lib/cards/model").Capabilities;
   id: string;
   deckTemplateId: string;
   hasUserDeckData: boolean;

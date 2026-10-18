@@ -1,5 +1,6 @@
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { createCloudflareStreamIframeUrl } from "@/lib/cloudflareStreamPlayback";
+import { streamDeliveryUrl } from "@/lib/mediaDelivery";
 import { CollapseVideoIcon, ExpandVideoIcon } from "@/components/icons/videoControlIcons";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
@@ -44,6 +45,8 @@ function isValidCloudflareStreamIframeUrl(value: string) {
 }
 
 export function getCloudflareStreamIframeUrl(mediaItem: CloudflareStreamVideoMediaItem) {
+  const protectedUrl = streamDeliveryUrl(mediaItem.assetId, "iframe");
+  if (protectedUrl) return protectedUrl;
   return isValidCloudflareStreamIframeUrl(mediaItem.src)
     ? mediaItem.src
     : createCloudflareStreamIframeUrl(mediaItem.assetId);
@@ -55,12 +58,12 @@ function getCloudflareStreamIframeUrlWithControls(
   muted: boolean
 ) {
   const iframeUrl = getCloudflareStreamIframeUrl(mediaItem);
-  const url = new URL(iframeUrl);
+  const url = new URL(iframeUrl, typeof window === "undefined" ? "https://switchplay.invalid" : window.location.origin);
 
   url.searchParams.set("controls", controls ? "true" : "false");
   url.searchParams.set("muted", muted ? "true" : "false");
 
-  return url.toString();
+  return iframeUrl.startsWith("/") ? url.pathname + url.search : url.toString();
 }
 
 function loadCloudflareStreamSdk() {

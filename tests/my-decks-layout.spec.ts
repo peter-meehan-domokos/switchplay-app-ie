@@ -3,12 +3,12 @@ import { expect, test } from "@playwright/test";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 import { buildMyDecksLayout } from "@/components/decks/myDecksLayout";
 
-function createDeckLayout(id: string, openedAt?: string | null): DeckLayout {
+function createDeckLayout(id: string, openedAt?: string | null, createdAt = "2026-01-01T00:00:00.000Z"): DeckLayout {
   return {
     id,
     deckTemplateId: id,
     hasUserDeckData: true,
-    createdAt: "2026-01-01T00:00:00.000Z",
+    createdAt,
     updatedAt: "2026-01-01T00:00:00.000Z",
     openedAt,
     canMutate: true,
@@ -28,21 +28,21 @@ function createDeckLayout(id: string, openedAt?: string | null): DeckLayout {
 }
 
 test.describe("My Decks collection layout", () => {
-  test("orders newest openedAt first and leaves null or undefined values last", () => {
+  test("places never-opened Decks first by personal creation time, then opened Decks by openedAt", () => {
     const decks = [
       createDeckLayout("missing-a"),
       createDeckLayout("older", "2026-01-02T00:00:00.000Z"),
-      createDeckLayout("null", null),
+      createDeckLayout("null", null, "2026-01-05T00:00:00.000Z"),
       createDeckLayout("newest", "2026-01-04T00:00:00.000Z"),
       createDeckLayout("missing-b"),
     ];
 
     expect(buildMyDecksLayout(decks).map((deck) => deck.id)).toEqual([
+      "null",
+      "missing-a",
+      "missing-b",
       "newest",
       "older",
-      "missing-a",
-      "null",
-      "missing-b",
     ]);
   });
 
@@ -58,6 +58,15 @@ test.describe("My Decks collection layout", () => {
 
     expect(result).not.toBe(decks);
     expect(decks).toEqual(originalOrder);
-    expect(result.map((deck) => deck.id)).toEqual(["first", "second", "missing"]);
+    expect(result.map((deck) => deck.id)).toEqual(["missing", "first", "second"]);
+  });
+
+  test("keeps stable ties for never-opened Decks and ignores creation time once opened", () => {
+    const decks = [
+      createDeckLayout("unopened-first", null), createDeckLayout("unopened-second"),
+      createDeckLayout("recent-open", "2026-02-01T00:00:00.000Z"),
+      createDeckLayout("recent-create", "2026-01-02T00:00:00.000Z", "2026-01-31T00:00:00.000Z"),
+    ];
+    expect(buildMyDecksLayout(decks).map((deck) => deck.id)).toEqual(["unopened-first", "unopened-second", "recent-open", "recent-create"]);
   });
 });

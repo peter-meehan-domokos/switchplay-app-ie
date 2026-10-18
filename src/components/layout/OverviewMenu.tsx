@@ -4,26 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-type OverviewMenuProps = {
-  username: string;
-  currentViewMode: "mine" | "shared";
-  isLoadingSharedDecks: boolean;
-  onSelectMyDecks: () => void;
-  onSelectSharedWithMe: () => void;
-};
-
-export default function OverviewMenu({
-  username,
-  currentViewMode,
-  isLoadingSharedDecks,
-  onSelectMyDecks,
-  onSelectSharedWithMe,
-}: OverviewMenuProps) {
+type OverviewMenuProps = { username: string; userId: string };
+export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   async function handleLogout() {
+    // Library may share this menu without initializing working infrastructure.
+    // Logout alone drains any previous working session and clears its store.
+    const [{ flushPersonalMutations }, { workingCardStore }] = await Promise.all([import("@/lib/deckMutations"), import("@/lib/cards/workingCardStore")]);
+    await flushPersonalMutations();
     const response = await fetch("/api/auth/logout", {
       method: "POST",
     });
@@ -32,6 +23,7 @@ export default function OverviewMenu({
       return;
     }
 
+    workingCardStore.clearUser(userId);
     startTransition(() => {
       router.refresh();
     });
@@ -52,23 +44,9 @@ export default function OverviewMenu({
       </button>
       {isOpen ? (
         <div className="deck-menu-popover" role="menu">
-          <button
-            className="deck-menu-item overview-menu-item-button"
-            disabled={isLoadingSharedDecks}
-            role="menuitem"
-            onClick={() => {
-              setIsOpen(false);
-              if (currentViewMode === "shared") {
-                onSelectMyDecks();
-                return;
-              }
-
-              onSelectSharedWithMe();
-            }}
-            type="button"
-          >
-            {currentViewMode === "shared" ? "My decks" : isLoadingSharedDecks ? "Loading shared decks..." : "Shared with me"}
-          </button>
+          <Link className="deck-menu-item" href="/library" role="menuitem" onClick={() => setIsOpen(false)}>Library</Link>
+          <Link className="deck-menu-item" href="/decks" prefetch={false} role="menuitem" onClick={() => setIsOpen(false)}>My Decks</Link>
+          <Link className="deck-menu-item" href="/progress" prefetch={false} role="menuitem" onClick={() => setIsOpen(false)}>Progress</Link>
           <Link className="deck-menu-item" href="/creator/new" role="menuitem" onClick={() => setIsOpen(false)}>
             Create
           </Link>

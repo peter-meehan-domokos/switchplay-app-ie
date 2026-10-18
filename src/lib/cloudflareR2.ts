@@ -1,18 +1,10 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { personalCardImageKey } from "@/lib/cards/media";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getFileExtensionForImageUploadContentType, isSupportedImageUploadContentType, type SupportedImageUploadContentType } from "@/lib/imageUploadContentTypes";
 import type { CloudflareR2ImageMediaItem } from "@/lib/media";
 
 export const R2_PRESIGNED_UPLOAD_EXPIRATION_SECONDS = 300;
-
-// Only call with an object key resolved from an authorized persisted media record.
-export async function createUserCardImageDownloadUrl(objectKey: string, signedUrlImpl = getSignedUrl) {
-  const config = getCloudflareR2UserDataConfig();
-  return signedUrlImpl(createCloudflareR2S3Client(config), new GetObjectCommand({
-    Bucket: config.bucketName,
-    Key: objectKey,
-  }), { expiresIn: 300 });
-}
 
 type CloudflareR2Config = {
   accessKeyId: string;
@@ -278,6 +270,7 @@ export async function createCloudflareR2DirectUpload({
 
 export async function createCloudflareR2UserCardImageDirectUpload({
   cardId,
+  cardTemplateId,
   contentType,
   creator,
   deckTemplateId,
@@ -285,6 +278,7 @@ export async function createCloudflareR2UserCardImageDirectUpload({
   signedUrlImpl = getSignedUrl,
 }: {
   cardId: string;
+  cardTemplateId?: string;
   contentType: string;
   creator: string;
   deckTemplateId: string;
@@ -292,7 +286,7 @@ export async function createCloudflareR2UserCardImageDirectUpload({
   signedUrlImpl?: typeof getSignedUrl;
 }): Promise<CloudflareR2UserCardImageDirectUpload> {
   const config = getCloudflareR2UserDataConfig();
-  const objectKey = createCloudflareR2UserCardImageObjectKey(creator, deckTemplateId, cardId, contentType);
+  const objectKey = cardTemplateId ? personalCardImageKey(creator, cardTemplateId, assertSupportedImageUploadContentType(contentType)) : createCloudflareR2UserCardImageObjectKey(creator, deckTemplateId, cardId, contentType);
   const command = new PutObjectCommand({
     Bucket: config.bucketName,
     Key: objectKey,

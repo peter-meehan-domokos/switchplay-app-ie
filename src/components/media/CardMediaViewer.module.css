@@ -46,7 +46,7 @@
 .mediaStatus { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; text-align: center; }
 .videoArea { position: relative; display: flex; align-items: stretch; width: 100%; min-height: 0; }
 .videoArea :global(.cloudflare-stream-player-shell), .videoArea :global(.cloudflare-stream-player) { width: 100%; height: 100%; min-height: 0; object-fit: contain; border-radius: 0; }
-.poster { position: absolute; width: 100%; height: 100%; object-fit: contain; opacity: 0.3; }
+.poster { position: absolute; width: 100%; height: 100%; object-fit: contain; opacity: 0.3; pointer-events: none; }
 .videoStatus { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; width: max-content; max-width: calc(100% - 24px); padding: 8px 12px; border-radius: 8px; font-size: 13px; background: #222429; pointer-events: none; }
 .videoStatus button { pointer-events: auto; }
 @keyframes viewerFade { from { opacity: 0; } to { opacity: 1; } }

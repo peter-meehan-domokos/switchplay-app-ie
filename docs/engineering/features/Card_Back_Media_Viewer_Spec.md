@@ -1,3 +1,29 @@
+# Card-back media viewer
+
+## First-class Cards integration
+
+The original viewer specification below is retained. For the integrated application,
+personal state and authorization follow the accepted first-class Cards architecture:
+
+- Personal media is read from the authenticated learner's `users.cardsData` and its
+  existing personal-history source chain, never embedded Deck Cards or `sharedDeckData`.
+- Selection uses the displayed Card template, source Card template and media item ID.
+  The complete current/inherited projection drives gallery order; the thumbnail row
+  remains limited to five. Shared Card state is consistent across Deck contexts.
+- `DeckDetail` owns working-viewer selection. Small presentation slots in `DeckScene`
+  coordinate focus, gesture locking and playback suspension; canonical consumers do
+  not receive personal-media state. Pure viewer layout helpers derive selection.
+- Protected image reading resolves existing bucket/key mappings, including historical
+  origins. It does not assume an old Deck-based upload prefix or rewrite references.
+- Personal Stream playback and MP4 downloads authorize the persisted personal item.
+  Download tokens explicitly enable MP4 delivery; normal playback tokens do not.
+- Main's Safari file-sharing/attachment fallback is retained. Reciprocal Deck sharing
+  and administrator access to another learner's media are obsolete and are not restored.
+- Current instructional-video grant reuse, Deck/Card thumbnail preparation, paused
+  navigation and first-frame presentation handling remain authoritative.
+
+## Original viewer specification
+
 Implement the complete card-back image and video viewer described below, including image zoom and downloads.
 
 Use your earlier investigation as a starting point, verify its findings against the current code, and carry the work through implementation, relevant testing, and a final self-review in this run. Make routine implementation decisions yourself within this specification.

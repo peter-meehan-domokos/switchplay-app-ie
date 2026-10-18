@@ -1,12 +1,12 @@
-import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
+import { isCloudflareStreamVideoMediaItem, isVideoMediaItem } from "@/lib/media";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
-
-import type { SyntheticEvent } from "react";
+import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 
 type BackCardMediaCarouselProps = {
-  items: ModernUserCardMediaItem[];
-  onOpen?: (mediaItemId: string, source: HTMLButtonElement) => void;
+  items: PersonalMediaDisplayItem[];
+  onOpen?: (mediaKey: string, source: HTMLButtonElement) => void;
 };
 
 type LayoutMode = "count-1" | "count-2" | "count-3" | "count-4" | "count-5";
@@ -19,14 +19,13 @@ function getLayoutMode(count: number): LayoutMode {
   return "count-5";
 }
 
-function MediaItem({ item, index, count, onOpen }: { item: ModernUserCardMediaItem; index: number; count: number; onOpen?: BackCardMediaCarouselProps["onOpen"] }) {
-  const isVideo = isCloudflareStreamVideoMediaItem(item);
-  const src = isVideo ? getCloudflareStreamThumbnailUrl(item) : item.src;
+function MediaItem({ item, index, count, onOpen }: { item: PersonalMediaDisplayItem; index: number; count: number; onOpen?: BackCardMediaCarouselProps["onOpen"] }) {
+  const isVideo = isVideoMediaItem(item);
+  const src = isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : imageDeliveryUrl(item.src);
 
-  const content = (
-    <>
+  const contents = (<>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={item.description || "Card media"} className="back-card-media-carousel-image" />
+      {src ? <img src={src} alt={item.description || "Card media"} className="back-card-media-carousel-image" /> : <span>{item.description || "Video"}</span>}
       {isVideo && (
         <div className="back-card-media-carousel-play-affordance">
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
@@ -34,16 +33,14 @@ function MediaItem({ item, index, count, onOpen }: { item: ModernUserCardMediaIt
           </svg>
         </div>
       )}
-    </>
-  );
-  if (!onOpen) return <div className="back-card-media-carousel-item">{content}</div>;
-  const isolate = (event: SyntheticEvent) => event.stopPropagation();
-  return <button type="button" className="back-card-media-carousel-item back-card-media-carousel-item--button"
-    aria-label={`Open ${isVideo ? "video" : "image"} ${index + 1} of ${count}: ${item.description || "Card media"}`}
-    aria-haspopup="dialog" onClick={(event) => { event.stopPropagation(); onOpen(item.id, event.currentTarget); }}
-    onPointerDown={isolate} onPointerMove={isolate} onPointerUp={isolate} onPointerCancel={isolate} onKeyDown={isolate} onKeyUp={isolate}>
-    {content}
-  </button>;
+    </>);
+  return onOpen ? <button type="button" className="back-card-media-carousel-item back-card-media-carousel-item--button"
+    aria-label={`Open ${isVideo ? "video" : "image"} ${index + 1} of ${count}: ${item.description}`}
+    aria-haspopup="dialog" onPointerDown={event => event.stopPropagation()} onPointerMove={event => event.stopPropagation()}
+    onPointerUp={event => event.stopPropagation()} onPointerCancel={event => event.stopPropagation()}
+    onKeyDown={event => event.stopPropagation()}
+    onClick={event => { event.stopPropagation(); onOpen(personalMediaKey(item), event.currentTarget); }}>{contents}</button>
+    : <div className="back-card-media-carousel-item">{contents}</div>;
 }
 
 export default function BackCardMediaCarousel({ items, onOpen }: BackCardMediaCarouselProps) {
@@ -60,7 +57,7 @@ export default function BackCardMediaCarousel({ items, onOpen }: BackCardMediaCa
       aria-label="Card media"
     >
       {renderedItems.map((item, index) => (
-        <MediaItem key={item.id} item={item} index={index} count={items.length} onOpen={onOpen} />
+        <MediaItem index={index} count={items.length} onOpen={onOpen} key={`${item.sourceCardTemplateId ?? "current"}:${item.id}`} item={item} />
       ))}
     </section>
   );

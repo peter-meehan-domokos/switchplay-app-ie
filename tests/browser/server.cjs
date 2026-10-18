@@ -21,6 +21,11 @@ webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'f
       response.end(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#ded5c6"/><text x="50%" y="50%" text-anchor="middle" font-size="80">Image ${index + 1}</text></svg>`);
       return;
     }
+    if (/^\/api\/(decks-data|cards-data)\/[^/]+\/update$/.test(request.url)) {
+      response.setHeader('Content-Type', 'application/json');
+      response.setHeader('X-Personal-Viewer', '507f1f77bcf86cd799439011');
+      response.end(JSON.stringify({ review: null })); return;
+    }
     if (request.url?.startsWith('/api/media/card/file?')) {
       response.setHeader('Content-Type', 'image/png');
       response.setHeader('Content-Disposition', 'attachment; filename="written-work.png"');
@@ -30,7 +35,14 @@ webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'f
     if (request.url?.startsWith('/api/media/card')) {
       response.setHeader('Content-Type', 'application/json');
       const action = new URL(request.url, 'http://localhost').searchParams.get('action');
-      if (action === 'playback') { response.end(JSON.stringify({ status: 'ready' })); return; }
+      if (action === 'playback') {
+        const query = new URL(request.url, 'http://localhost').searchParams;
+        const assetId = query.get('mediaItemId').replace('stream-', 'video-');
+        response.end(JSON.stringify({ status: 'ready', viewerUserId: query.get('viewerUserId'), grant: {
+          assetId, manifestUrl: `https://videodelivery.net/${assetId}/manifest/video.m3u8`,
+          thumbnailUrl: `https://videodelivery.net/${assetId}/thumbnails/thumbnail.jpg`, expiresAt: Date.now() + 3600000, reuseUntil: Date.now() + 600000,
+        } })); return;
+      }
       const reply = (mediaItemId) => response.end(JSON.stringify(mediaItemId?.startsWith('stream-')
         ? { status: 'ready', url: `https://customer-test.cloudflarestream.com/${mediaItemId}/downloads/default.mp4?filename=Practice`, filename: 'Practice.mp4' }
         : { status: 'ready', url: '/api/media/card/file?fixture=1', filename: 'written-work.png' }));

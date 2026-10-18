@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId, type WithId } from "mongodb";
 import type { UserDeckData } from "@/components/decks/types";
-import { normalizeUserDeckDataSharingFields } from "@/lib/deckApiTransforms";
+import { assertApplicationDatabase } from "@/lib/applicationDatabase";
 import { getCollection } from "@/lib/mongodb";
 
 const USERS_COLLECTION = "users";
@@ -32,7 +32,7 @@ export type SharedDeckDataReference = {
 	deckUserId: string; // user whose DeckData/progress this is, not template creator
 };
 
-export type AuthUser = {
+export type LegacyAuthUser = {
 	id: string;
 	email: string;
 	username: string;
@@ -43,9 +43,7 @@ export type AuthUser = {
 	updatedAt: string;
 };
 
-function normalizeEmail(email: string) {
-	return email.trim().toLowerCase();
-}
+export type AuthUser = Omit<LegacyAuthUser, "decksData" | "sharedDeckData">;
 
 function getSessionSecret() {
 	const secret = process.env.SESSION_SECRET;
@@ -61,26 +59,11 @@ function toIsoString(value: Date | string) {
 	return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-function normalizeSharedDeckData(value: unknown): SharedDeckDataReference[] {
-	if (!Array.isArray(value)) {
-		return [];
-	}
-
-	return value.filter((entry): entry is SharedDeckDataReference => (
-		typeof entry === "object" &&
-		entry !== null &&
-		typeof (entry as SharedDeckDataReference).deckTemplateId === "string" &&
-		typeof (entry as SharedDeckDataReference).deckUserId === "string"
-	));
-}
-
 function toAuthUser(user: WithId<UserDocument>): AuthUser {
 	return {
 		id: user._id.toHexString(),
 		email: user.email,
 		username: user.username,
-		decksData: user.decksData.map(normalizeUserDeckDataSharingFields),
-		sharedDeckData: normalizeSharedDeckData(user.sharedDeckData),
 		isAdmin: user.isAdmin === true,
 		createdAt: toIsoString(user.createdAt),
 		updatedAt: toIsoString(user.updatedAt),
@@ -88,6 +71,7 @@ function toAuthUser(user: WithId<UserDocument>): AuthUser {
 }
 
 async function getUsersCollection() {
+	assertApplicationDatabase();
 	return getCollection<UserDocument>(USERS_COLLECTION);
 }
 

@@ -1,5 +1,31 @@
 # Switchplay Data Model
 
+## Current canonical and personal model
+
+The authoritative persisted types are `src/lib/cards/model.ts`. The approved
+Phase5 contract is [phase-5-plan.md](phase-5-plan.md); the README documents current
+runtime boundaries. The mock-era sketches below are historical, not storage DTOs.
+
+- Card/Deck roots own drafts, next-publication visibility intent and provenance.
+  Immutable versions own content, effective version visibility and publication
+  timestamps. Public publication never exposes private historical versions.
+- Card identities are first-class across Decks. `cardVersionAtPublish` records
+  historical publication context, not future entrant adoption.
+- User DeckData represents personal membership; CardData represents retained
+  learning state independent of current membership. Both adopt positive published
+  versions; canonical drafts/forks have no personal records merely for existing.
+- New entry creates missing CardData at current published versions; existing
+  CardData remains unchanged. Add/Restore leave first-open cadence initialization
+  to the working-open transaction.
+- Card Update changes the user's global Card adoption; Deck Update changes only
+  Deck composition and initializes missing CardData. Stable Step identities retain
+  completion/skipped and readings irrespective of content edits. Reflection,
+  target date and source-stored media/chat/test history remain preserved.
+- Public Deck publication requires published public Cards and never promotes a
+  private Card. Private Decks may contain eligible private/public Cards.
+
+## Historical mock-era sketches
+
 ## Core Concept
 
 Switchplay is built around progress decks.

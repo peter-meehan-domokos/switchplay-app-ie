@@ -1,10 +1,11 @@
 type UserCardMediaMutationTarget = {
   deckTemplateId: string;
+  userId?: string;
   cardId: string;
 };
 
 export function createUserCardMediaMutationKey(target: UserCardMediaMutationTarget) {
-  return `user-card:${encodeURIComponent(target.deckTemplateId)}:${encodeURIComponent(target.cardId)}`;
+  return target.userId ? `user-card:${encodeURIComponent(target.userId)}:${encodeURIComponent(target.cardId)}` : `user-card:${encodeURIComponent(target.deckTemplateId)}:${encodeURIComponent(target.cardId)}`;
 }
 
 export class UserCardMediaMutationQueue {

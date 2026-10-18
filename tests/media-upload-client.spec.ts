@@ -27,16 +27,19 @@ const userCardTarget = {
   cardId: "card-3",
 } as const;
 
-test("creator image request body remains unchanged", () => {
+test("creator image request includes explicit authorization context", () => {
   expect(createImageDirectUploadRequestBody(deckIntroductionTarget, { type: "image/png" })).toEqual({
+    scope: "deck-introduction",
     contentType: "image/png",
     deckTemplateId: "deck-1",
   });
 });
 
-test("creator video request body remains unchanged", () => {
+test("creator video request includes explicit authorization context", () => {
   expect(createStreamDirectUploadRequestBody(deckIntroductionTarget, { name: "clip.mp4" })).toEqual({
-    name: "clip.mp4",
+    scope: "deck-introduction",
+    deckTemplateId: "deck-1",
+    originalFilename: "clip.mp4",
   });
 });
 
@@ -44,7 +47,7 @@ test("user-card image request body includes its scoped card target", () => {
   expect(createImageDirectUploadRequestBody(userCardTarget, { type: "image/webp" })).toEqual({
     scope: "user-card",
     deckTemplateId: "deck-1",
-    cardId: "card-3",
+    cardTemplateId: "card-3",
     contentType: "image/webp",
   });
 });
@@ -53,7 +56,7 @@ test("user-card video request body includes its scoped card target", () => {
   expect(createStreamDirectUploadRequestBody(userCardTarget, { name: "clip.mp4" })).toEqual({
     scope: "user-card",
     deckTemplateId: "deck-1",
-    cardId: "card-3",
+    cardTemplateId: "card-3",
     originalFilename: "clip.mp4",
   });
 });
@@ -63,7 +66,7 @@ test("Stream readiness requests retain the target scope without exposing server 
     "/api/media/stream/status?assetId=intro-video&deckTemplateId=deck-1&scope=deck-introduction",
   );
   expect(createStreamVideoReadinessRequestUrl(userCardTarget, "card-video")).toBe(
-    "/api/media/stream/status?assetId=card-video&deckTemplateId=deck-1&scope=user-card&cardId=card-3",
+    "/api/media/stream/status?assetId=card-video&deckTemplateId=deck-1&scope=user-card&cardTemplateId=card-3",
   );
 });
 

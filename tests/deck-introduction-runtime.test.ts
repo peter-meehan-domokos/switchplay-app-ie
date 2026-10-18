@@ -3,7 +3,7 @@ import test from "node:test";
 import { mergeDeckTemplatesWithUserData } from "../src/lib/deckData";
 import { normalizeDeckTemplateForRuntime } from "../src/lib/deckApiTransforms";
 import type { DeckTemplate } from "../src/components/decks/types";
-import type { CloudflareR2ImageMediaItem, LegacyProviderlessImageMediaItem, CloudflareStreamVideoMediaItem } from "../src/lib/media";
+import type { CloudflareR2ImageMediaItem, LegacyProviderlessImageMediaItem } from "../src/lib/media";
 
 const legacyImage = {
   id: "legacy-image-1",
@@ -20,15 +20,6 @@ const cloudflareImage = {
   description: "R2 image",
   src: "https://cdn.example.com/images/deck-introductions/asset-1.webp",
 } satisfies CloudflareR2ImageMediaItem;
-
-const introVideo = {
-  id: "video-1",
-  mediaType: "video",
-  provider: "cloudflare-stream",
-  assetId: "video-asset-1",
-  description: "Video",
-  src: "https://iframe.videodelivery.net/video-asset-1",
-} satisfies CloudflareStreamVideoMediaItem;
 
 function buildTemplate(introduction: DeckTemplate["introduction"]) {
   return normalizeDeckTemplateForRuntime({

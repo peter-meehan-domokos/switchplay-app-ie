@@ -3,28 +3,33 @@ import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem } from 
 
 export const MAX_MEDIA_IMAGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
-export type MediaUploadTarget =
+type CreatorUploadOptions = { prospective?: import("./cards/prospectiveUpload").ProspectiveUpload; creatorActor?: string; publishedVersion?: number };
+export type MediaUploadTarget = CreatorUploadOptions & (
+  | { scope: "card-template"; deckTemplateId: string; cardTemplateId: string }
   | {
       scope: "deck-introduction";
       deckTemplateId: string;
     }
   | {
       scope: "user-card";
+      userId?: string;
       deckTemplateId: string;
       cardId: string;
-    };
+    });
 
 export type ImageDirectUploadResponse = {
   assetId: string;
   deliveryUrl: string;
   mediaItemId?: string;
   uploadURL: string;
+  attachmentProof?: string;
 };
 
 export type StreamDirectUploadResponse = {
   maxDurationSeconds: number;
   uid: string;
   uploadURL: string;
+  attachmentProof?: string;
 };
 
 export type StreamVideoReadinessStatus = {
@@ -52,15 +57,12 @@ export function createImageDirectUploadRequestBody(target: MediaUploadTarget, fi
     return {
       scope: "user-card" as const,
       deckTemplateId: target.deckTemplateId,
-      cardId: target.cardId,
+      cardTemplateId: target.cardId,
       contentType: file.type,
     };
   }
 
-  return {
-    contentType: file.type,
-    deckTemplateId: target.deckTemplateId,
-  };
+  return { ...(target.prospective ? { prospective: target.prospective } : {}), scope: target.scope, contentType: file.type, deckTemplateId: target.deckTemplateId, ...(target.scope === "card-template" ? { cardTemplateId: target.cardTemplateId } : {}) };
 }
 
 export function createStreamDirectUploadRequestBody(target: MediaUploadTarget, file: Pick<File, "name">) {
@@ -68,12 +70,12 @@ export function createStreamDirectUploadRequestBody(target: MediaUploadTarget, f
     return {
       scope: "user-card" as const,
       deckTemplateId: target.deckTemplateId,
-      cardId: target.cardId,
+      cardTemplateId: target.cardId,
       originalFilename: file.name,
     };
   }
 
-  return { name: file.name };
+  return { ...(target.prospective ? { prospective: target.prospective } : {}), scope: target.scope, deckTemplateId: target.deckTemplateId, originalFilename: file.name, ...(target.scope === "card-template" ? { cardTemplateId: target.cardTemplateId } : {}) };
 }
 
 function getUploadErrorMessage(errorBody: unknown, fallback: string) {
@@ -161,6 +163,7 @@ export async function requestImageDirectUpload(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(target.creatorActor ? { "X-Creator-Actor": target.creatorActor } : {}),
     },
     body: JSON.stringify(createImageDirectUploadRequestBody(target, file)),
     signal,
@@ -191,6 +194,7 @@ export async function requestStreamDirectUpload(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(target.creatorActor ? { "X-Creator-Actor": target.creatorActor } : {}),
     },
     body: JSON.stringify(createStreamDirectUploadRequestBody(target, file)),
     signal,
@@ -209,6 +213,12 @@ export async function requestStreamDirectUpload(
 }
 
 export function createStreamVideoReadinessRequestUrl(target: MediaUploadTarget, assetId: string) {
+  if (target.publishedVersion !== undefined && target.scope !== "user-card") {
+    const query = new URLSearchParams({ kind: target.scope === "card-template" ? "card" : "deck",
+      templateId: target.scope === "card-template" ? target.cardTemplateId : target.deckTemplateId,
+      version: String(target.publishedVersion), assetId });
+    return `/api/library/media/stream-status?${query}`;
+  }
   const searchParams = new URLSearchParams({
     assetId,
     deckTemplateId: target.deckTemplateId,
@@ -216,9 +226,10 @@ export function createStreamVideoReadinessRequestUrl(target: MediaUploadTarget, 
   });
 
   if (target.scope === "user-card") {
-    searchParams.set("cardId", target.cardId);
+    searchParams.set("cardTemplateId", target.cardId);
   }
 
+  if (target.scope === "card-template") searchParams.set("cardTemplateId", target.cardTemplateId);
   return `/api/media/stream/status?${searchParams.toString()}`;
 }
 
@@ -290,6 +301,9 @@ export async function uploadFileToCloudflareStream(uploadURL: string, file: File
   }
 }
 
+const attachmentProofs = new WeakMap<MediaItemForProof, string>();
+type MediaItemForProof = CloudflareR2ImageMediaItem | CloudflareStreamVideoMediaItem;
+export function prospectiveAttachmentProof(item: MediaItemForProof) { return attachmentProofs.get(item); }
 export function createImageMediaItem(
   directUpload: ImageDirectUploadResponse,
   description: string,
@@ -380,7 +394,9 @@ export async function uploadImageMedia(
   await uploadFileToR2(directUpload.uploadURL, file, signal);
   throwIfUploadAborted(signal);
 
-  return createImageMediaItem(directUpload, file.name || "Introduction image");
+  const item = createImageMediaItem(directUpload, file.name || "Introduction image");
+  if (directUpload.attachmentProof) attachmentProofs.set(item, directUpload.attachmentProof);
+  return item;
 }
 
 export async function uploadVideoMedia(
@@ -395,7 +411,9 @@ export async function uploadVideoMedia(
   await uploadFileToCloudflareStream(directUpload.uploadURL, file, signal);
   throwIfUploadAborted(signal);
 
-  return createStreamVideoMediaItem(directUpload, file.name || "Video attached", dimensions);
+  const item = createStreamVideoMediaItem(directUpload, file.name || "Video attached", dimensions);
+  if (directUpload.attachmentProof) attachmentProofs.set(item, directUpload.attachmentProof);
+  return item;
 }
 
 export function clearSelectedFileInput(input: Pick<HTMLInputElement, "value">) {

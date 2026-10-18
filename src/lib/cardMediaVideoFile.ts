@@ -18,9 +18,11 @@ export function createCardMediaVideoFileHandler(deps = dependencies) {
     try {
       const user = await deps.currentUser();
       if (!user) return errorResponse("Sign in again to access this media.", 401);
-      const target = readCardMediaRequest(Object.fromEntries(new URL(request.url).searchParams));
+      const query = new URL(request.url).searchParams;
+      if ([...query.keys()].some(key => query.getAll(key).length !== 1)) return errorResponse("Invalid media query.", 400);
+      const target = readCardMediaRequest(Object.fromEntries(query));
       const item = await deps.resolveMedia(user, target);
-      if (item.mediaType !== "video") return errorResponse("This item is not a video.", 400);
+      if (item.mediaType !== "video" || item.provider !== "cloudflare-stream") return errorResponse("This item is not a video.", 400);
       const download = await deps.download(item, false);
       if (download.status !== "ready") return errorResponse("The video download is not ready yet. Please retry.", 409);
       const url = new URL(download.url);
@@ -46,7 +48,7 @@ export function createCardMediaVideoFileHandler(deps = dependencies) {
       Object.entries({
         "Content-Type": "video/mp4",
         "Content-Disposition": `attachment; filename="${download.filename}"`,
-        "Cache-Control": "private, no-store",
+        "Cache-Control": "private, no-store", "Vary": "Cookie",
         "X-Content-Type-Options": "nosniff",
       }).forEach(([name, value]) => headers.set(name, value));
       for (const name of ["content-length", "content-range", "accept-ranges"] as const) {
@@ -56,7 +58,7 @@ export function createCardMediaVideoFileHandler(deps = dependencies) {
       return new Response(upstream.body, { status: upstream.status, headers });
     } catch (error) {
       if (error instanceof CardMediaAccessError) return errorResponse(error.message, error.status);
-      console.error("Unable to deliver card video", error);
+      console.error("Unable to deliver card video", error instanceof Error ? error.name : "Provider failure");
       return errorResponse("The video could not be delivered. Please retry.", 502);
     }
   };

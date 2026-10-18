@@ -1,0 +1,59 @@
+{
+  "deckTemplates": [
+    {
+      "_id": "legacy-deck-1", "deckTemplateId": "deck-1", "ownerUserId": "alice", "visibility": "private",
+      "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z",
+      "previousVersions": [{"template": {"title": "Ignored"}}], "savedTemplate": {"title": "Ignored draft"},
+      "template": {
+        "deckTemplateId": "deck-1", "title": "First", "category": "Practice",
+        "channels": [{"id": "a", "title": "Prepare"}, {"id": "b", "title": "Practise"}, {"id": "c", "title": "Reflect"}],
+        "cards": [{
+          "cardId": "card-001", "label": "Custom legacy label", "suggestedTargetDate": "",
+          "intro": {"title": "First Card", "description": null, "mediaItem": {"id": "canonical", "description": "Legacy image", "mediaType": "image", "src": "/legacy/canonical.webp"}},
+          "steps": [
+            {"stepId": "old-step-1", "description": "One", "descriptionContent": [{"type": "text", "text": "One"}]},
+            {"stepId": "old-step-2", "title": "Two", "description": "Two", "mediaItem": null},
+            {"stepId": "old-step-3", "title": "Three", "description": null, "mediaItem": null}
+          ],
+          "signals": [{"signalId": "obsolete", "reading": 9}]
+        }]
+      }
+    },
+    {
+      "_id": "legacy-deck-2", "deckTemplateId": "deck-2", "ownerUserId": "alice", "visibility": "public",
+      "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z",
+      "template": {
+        "deckTemplateId": "deck-2", "title": "Second", "category": null, "introduction": null,
+        "streams": [{"id": "a", "title": "Prepare"}, {"id": "b", "title": "Practise"}, {"id": "c", "title": "Reflect"}],
+        "cards": [{
+          "cardId": "card-001", "label": "Card 1", "suggestedTargetDate": "2026-10-10",
+          "intro": {"title": "Second Card", "description": "Unchanged content", "mediaItem": null},
+          "steps": [
+            {"stepId": "old-step-1", "description": "One"}, {"stepId": "old-step-2", "description": "Two"}, {"stepId": "old-step-3", "description": "Three"}
+          ]
+        }]
+      }
+    }
+  ],
+  "users": [{
+    "_id": "alice", "username": "Fixture", "passwordHash": "FIXTURE-ONLY-NOT-A-REAL-HASH",
+    "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z",
+    "sharedDeckData": [{"deckTemplateId": "deck-1", "deckUserId": "legacy-sharing", "extra": "retain verbatim"}],
+    "decksData": [
+      {"deckTemplateId": "deck-1", "activeCardId": "card-001", "sharedWithUserIds": ["legacy-sharing"],
+       "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z",
+       "cards": [{"cardId": "card-001", "targetDate": "impossible-demo-date", "items": [{"itemId": "unknown", "completionStatus": "broken-demo"}],
+         "signalReadings": [{"signalId": "obsolete", "reading": 1}, {"signalId": "0", "reading": 8}],
+         "reflection": "discard", "tests": [{"result": true}], "chats": [{"id": "chat", "comments": [{"text": "discard"}]}],
+         "mediaItems": [
+           {"id": "personal-legacy", "description": "Personal legacy image", "mediaType": "image", "src": "/legacy/personal.webp"},
+           {"id": "personal-r2", "description": "Personal R2 image", "mediaType": "image", "provider": "cloudflare-r2", "assetId": "user-decks/alice/deck-1/cards/card-001/original.webp", "src": "https://assets.example.com/original.webp"}
+         ]}]},
+      {"deckTemplateId": "deck-2", "activeCardId": "card-001", "sharedWithUserIds": [],
+       "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z",
+       "cards": [{"cardId": "card-001", "items": null, "signalReadings": [{"signalId": "2", "reading": 6}], "mediaItems": [
+         {"id": "personal-stream", "description": "Personal video", "mediaType": "video", "provider": "cloudflare-stream", "assetId": "original-stream-id", "src": "https://iframe.videodelivery.net/original-stream-id"}
+       ]}]}
+    ]
+  }]
+}

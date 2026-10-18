@@ -1,4 +1,4 @@
-import type { AuthUser } from "@/lib/auth";
+import type { LegacyAuthUser } from "@/lib/auth";
 import { getDeckTemplateById, getVisibleDeckTemplateByIdForUser } from "@/lib/deckTemplateQueries";
 
 type UserCardUploadAuthorizationResult =
@@ -6,7 +6,7 @@ type UserCardUploadAuthorizationResult =
   | { ok: false; error: string; status: 400 | 403 | 404 };
 
 export async function authorizeUserCardUpload(
-  user: AuthUser,
+  user: LegacyAuthUser,
   deckTemplateId: string,
   cardId: string,
 ): Promise<UserCardUploadAuthorizationResult> {

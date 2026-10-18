@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { boundImageTransform, fittedImage, gallerySwipeDirection, type ImageTransform } from "@/lib/cardMediaViewer";
-import type { CloudflareR2ImageMediaItem } from "@/lib/media";
+import type { ImageMediaItem } from "@/lib/media";
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import styles from "./CardMediaViewer.module.css";
 
 type Point = { x: number; y: number };
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const midpoint = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
-export default function CardMediaViewerImage({ item, onNavigate }: { item: CloudflareR2ImageMediaItem; onNavigate: (direction: -1 | 1) => void }) {
+export default function CardMediaViewerImage({ item, onNavigate }: { item: ImageMediaItem; onNavigate: (direction: -1 | 1) => void }) {
   const surface = useRef<HTMLDivElement>(null);
   const size = useRef({ width: 1, height: 1 });
   const naturalSize = useRef({ width: 1, height: 1 });
@@ -113,7 +114,7 @@ export default function CardMediaViewerImage({ item, onNavigate }: { item: Cloud
     <div className={styles.imageSurface} ref={surface} onPointerDown={start} onPointerMove={move} onPointerUp={(event) => end(event)} onPointerCancel={(event) => end(event, true)}
       aria-label="Image. Pinch or double tap to zoom; drag to pan when zoomed.">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img key={attempt} className={styles.image} src={item.src} alt={item.description || "Card image"} draggable={false}
+      <img key={attempt} className={styles.image} src={imageDeliveryUrl(item.src)} alt={item.description || "Card image"} draggable={false}
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, visibility: status === "ready" ? "visible" : "hidden" }}
         onLoad={(event) => { naturalSize.current = { width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight }; setStatus("ready"); }} onError={() => setStatus("failed")} />
       {status !== "ready" ? <div className={styles.mediaStatus} role={status === "failed" ? "alert" : "status"}>

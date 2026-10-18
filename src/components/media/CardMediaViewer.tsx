@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
 import { useIsPresent } from "motion/react";
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { personalMediaKey, type PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 import type { CardMediaTarget } from "@/lib/cardMediaViewer";
 import CardMediaViewerImage from "./CardMediaViewerImage";
 import CardMediaViewerVideo, { type ViewerVideoHandle } from "./CardMediaViewerVideo";
@@ -11,7 +11,7 @@ import CardMediaDownloadButton from "./CardMediaDownloadButton";
 import styles from "./CardMediaViewer.module.css";
 
 type Props = {
-  items: ModernUserCardMediaItem[];
+  items: PersonalMediaDisplayItem[];
   index: number;
   target: CardMediaTarget;
   sourceRef: RefObject<HTMLButtonElement | null>;
@@ -28,6 +28,8 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
   const [closing, setClosing] = useState(false);
   const isPresent = useIsPresent();
   const item = items[index];
+  const itemKey = item ? JSON.stringify([personalMediaKey(item), item.src]) : "";
+  const itemTarget = item ? { ...target, sourceCardTemplateId: item.sourceCardTemplateId ?? target.cardTemplateId, mediaItemId: item.id } : null;
   const leaving = closing || !item || !isPresent;
   const stop = useCallback(() => video.current?.stop(), []);
   const close = () => { stop(); setClosing(true); };
@@ -35,7 +37,7 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
     (dialog.current?.querySelector("video") as (HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }) | null)?.webkitDisplayingFullscreen);
   const navigate = (direction: -1 | 1) => {
     const nextIndex = Math.min(items.length - 1, Math.max(0, index + direction));
-    if (nextIndex !== index && !leaving) { stop(); onSelect(items[nextIndex].id, nextIndex); }
+    if (nextIndex !== index && !leaving) { stop(); onSelect(personalMediaKey(items[nextIndex]), nextIndex); }
   };
 
   useLayoutEffect(() => {
@@ -93,11 +95,11 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
     <header className={styles.toolbar}>
       <button ref={closeButton} className={styles.control} type="button" onClick={close} aria-label="Close media viewer">✕ <span>Close</span></button>
       <p className={styles.counter} aria-live="polite" aria-atomic="true">{index + 1} of {items.length}</p>
-      {!leaving && item ? <CardMediaDownloadButton key={item.id} target={{ ...target, mediaItemId: item.id }} isVideo={item.mediaType === "video"} /> : <span />}
+      {!leaving && item ? <CardMediaDownloadButton key={itemKey} target={itemTarget!} isVideo={item.mediaType === "video"} /> : <span />}
     </header>
     <div className={styles.content}>
-      {!leaving && item ? item.mediaType === "image" ? <CardMediaViewerImage key={item.id} item={item} onNavigate={navigate} /> :
-        <CardMediaViewerVideo key={item.id} ref={video} item={item} target={{ ...target, mediaItemId: item.id }} /> : null}
+      {!leaving && item ? item.mediaType === "image" ? <CardMediaViewerImage key={itemKey} item={item} onNavigate={navigate} /> :
+        <CardMediaViewerVideo key={itemKey} ref={video} item={item} target={itemTarget!} /> : null}
     </div>
     {items.length > 1 ? <nav className={styles.navigation} aria-label="Media navigation">
       <button className={styles.control} type="button" disabled={leaving || index === 0} onClick={() => navigate(-1)} aria-label="Previous media">← Previous</button>

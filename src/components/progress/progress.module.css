@@ -1,0 +1,47 @@
+.shell { color: #dddfe4; }
+.shell > header, .shell > section, .shell > :global(.progress-framework-selector), .shell > :global(.progress-notice), .shell > :global(.progress-refresh) { max-width: 900px; margin-inline: auto; }
+.shell :global(.progress-framework-selector) { display: grid; gap: 6px; font-size: 12px; color: #b5b9c2; margin-block: 12px 22px; }
+.shell select { min-width: 0; max-width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 8px; border: 1px solid #555c68; background: #222832; color: #eee; font: inherit; font-size: 14px; }
+.shell :global(.progress-table) { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; }
+.shell :global(.progress-table th), .shell :global(.progress-table td) { border-bottom: 1px solid #343c48; padding: 9px 8px; overflow-wrap: anywhere; vertical-align: middle; }
+.shell :global(.progress-table thead th) { text-align: center; color: #aeb5c0; font-weight: 500; font-size: 12px; }
+.shell :global(.progress-table thead th:first-child) { text-align: left; width: 49%; }
+.shell :global(.progress-table thead th:nth-child(2)) { width: 18%; }
+.shell :global(.progress-table thead th:nth-child(3)) { width: 16%; }
+.shell :global(.progress-table thead th:last-child) { width: 17%; }
+.shell :global(.progress-area-row) { background: #ffffff04; }
+.shell :global(.progress-area-heading) { display: flex; gap: 4px; align-items: center; }
+.shell :global(.progress-content-title) { color: inherit; background: none; border: none; padding: 0; text-align: left; font: inherit; cursor: default; opacity: .85; }
+.shell :global(.progress-area-row .progress-content-title) { min-height: 44px; }
+.shell :global(.progress-area-row th) { text-align: left; font-weight: 600; }
+.shell :global(.progress-item-row th) { padding-left: 60px; text-align: left; font-weight: 400; }
+.shell :global(.progress-content-title:not(:disabled)) { cursor: pointer; opacity: 1; font-weight: 500; }
+.shell :global(.progress-content-title:not(:disabled):hover) { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #aeb5c080; }
+.shell :global(.progress-item-row) { height: 48px; }
+.shell :global(.progress-area-toggle) { flex: 0 0 44px; min-height: 44px; border: none; background: none; color: #c6cbd4; font-size: 24px; cursor: pointer; padding: 0; }
+.shell :global(.progress-area-toggle:disabled) { opacity: .25; cursor: default; }
+.shell :global(.progress-metric) { text-align: center; color: #b5bdc9; font-variant-numeric: tabular-nums; }
+.shell :global(.progress-unavailable) { color: #bfb8ac; }
+.shell :global(.progress-table td.progress-tests-cell) { position: relative; padding: 0; }
+.shell :global(.progress-tests-trigger) { position: absolute; inset: 0; display: flex; width: 100%; height: 100%; min-height: 48px; justify-content: center; align-items: center; gap: 6px; padding: 9px 7px; background: none; border: none; color: #b5bdc9; cursor: pointer; }
+.shell :global(.assessment-empty-control) { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; white-space: nowrap; color: rgba(181, 189, 201, .65); border: 1px solid rgba(96, 104, 117, .5); border-radius: 5px; padding: 3px 5px; font-weight: 400; }
+.shell :global(.progress-tests-trigger .assessment-pass) { color: #69b9eb; font-size: 16px; }
+.shell :global(.progress-tests-trigger .assessment-fail) { color: #f18282; font-size: 13px; }
+.shell :global(.progress-tests-warning) { position: absolute; bottom: 3px; right: 4px; font-size: 10px; line-height: 1; color: #b5bdc9; opacity: .65; pointer-events: none; }
+.shell :global(.progress-help), .shell :global(.progress-notice), .shell :global(.progress-refresh) { font-size: 13px; line-height: 1.5; color: #b5bdc9; margin: 16px 0; }
+.shell :global(.progress-refresh) { margin: 8px 0; }
+.shell :global(.progress-notice button) { margin-left: 6px; padding: 8px; border: 1px solid #626b7a; border-radius: 6px; background: none; color: inherit; cursor: pointer; }
+.shell button:focus-visible, .shell select:focus-visible { outline: 2px solid #69b9eb; outline-offset: -2px; }
+.shell :global(.progress-sr-only) { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 480px) {
+  .shell :global(.progress-table) { font-size: 12px; }
+  .shell :global(.progress-table th), .shell :global(.progress-table td) { padding: 7px 3px; }
+  .shell :global(.progress-table thead th) { font-size: 10px; }
+  .shell :global(.progress-table thead th:first-child) { width: 47%; }
+  .shell :global(.progress-table thead th:nth-child(2)) { width: 18%; }
+  .shell :global(.progress-table thead th:nth-child(3)) { width: 19%; }
+  .shell :global(.progress-table thead th:last-child) { width: 16%; }
+  .shell :global(.progress-table thead th:not(:first-child)) { padding-inline: 0; white-space: nowrap; }
+  .shell :global(.progress-item-row th) { padding-left: 57px; }
+  .shell :global(.progress-tests-trigger) { padding: 9px 3px; gap: 3px; }
+}

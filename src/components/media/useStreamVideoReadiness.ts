@@ -100,7 +100,7 @@ export function startStreamVideoReadinessPolling(
 }
 
 function getUserCardId(target: MediaUploadTarget) {
-  return target.scope === "user-card" ? target.cardId : null;
+  return target.scope === "user-card" ? target.cardId : target.scope === "card-template" ? target.cardTemplateId : null;
 }
 
 export function useStreamVideoReadiness(target: MediaUploadTarget, assetId: string, enabled = true) {
@@ -109,11 +109,13 @@ export function useStreamVideoReadiness(target: MediaUploadTarget, assetId: stri
   const cardId = getUserCardId(target);
   const scope = target.scope;
   const deckTemplateId = target.deckTemplateId;
+  const publishedVersion = target.publishedVersion;
   const stableTarget = useMemo(
-    () => scope === "user-card" && cardId
+    () => ({ ...(publishedVersion !== undefined ? { publishedVersion } : {}), ...(scope === "user-card" && cardId
       ? { scope: "user-card" as const, deckTemplateId, cardId }
-      : { scope: "deck-introduction" as const, deckTemplateId },
-    [cardId, deckTemplateId, scope],
+      : scope === "card-template" && cardId ? { scope: "card-template" as const, deckTemplateId, cardTemplateId: cardId }
+      : { scope: "deck-introduction" as const, deckTemplateId }) }),
+    [cardId, deckTemplateId, scope, publishedVersion],
   );
 
   const retry = useCallback(() => {

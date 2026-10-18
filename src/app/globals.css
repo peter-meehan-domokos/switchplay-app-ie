@@ -370,6 +370,7 @@ input {
 
 .creator-lab {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--creator-header-height) minmax(0, 1fr);
   height: 100svh;
   height: 100dvh;
@@ -384,6 +385,7 @@ input {
   justify-content: space-between;
   gap: var(--creator-header-gap);
   min-height: 0;
+  min-width: 0;
   padding: 0 var(--creator-header-padding-x) var(--creator-header-padding-bottom);
 }
 
@@ -426,6 +428,61 @@ input {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  flex-shrink: 0;
+}
+
+.creator-publish-controls {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.creator-visibility-control {
+  border: 1px solid #c5c9cc;
+  border-radius: 3px;
+  background: #fffefa;
+  color: #555d67;
+  font-size: 11px;
+  line-height: 16px;
+  max-width: 76px;
+  padding: 1px 2px;
+}
+
+.creator-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.creator-card-identity .creator-visibility-control {
+  max-width: 60px;
+  font-size: 9px;
+  padding: 0;
+}
+
+.creator-add-note {
+  border: 0;
+  background: transparent;
+  color: #6f7880;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 12px;
+  padding: 0;
+}
+
+.creator-card-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.creator-card-publish-controls .creator-save-button {
+  font-size: 10px;
+  line-height: 12px;
+  padding: 2px 4px;
 }
 
 .creator-preview-output-button {
@@ -456,12 +513,17 @@ input {
 }
 
 .creator-save-button:disabled {
-  cursor: wait;
+  cursor: default;
   opacity: 0.72;
 }
+.creator-save-button[aria-busy="true"] { cursor: wait; }
 
 .creator-save-message {
-  align-self: center;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(280px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
   color: #4f5965;
   font-size: 0.8rem;
   font-weight: 700;
@@ -605,6 +667,7 @@ input {
   width: var(--creator-column-width);
   flex: 0 0 var(--creator-column-width);
   min-height: 0;
+  min-width: 0;
   border: 1px solid #9ca4aa;
   border-radius: 16px;
   background: #f3f4f1;
@@ -634,7 +697,7 @@ input {
   min-width: 0;
 }
 
-.creator-editable.creator-card-label-button {
+.creator-card-label-button {
   color: #6f7880;
   font-size: 12px;
   font-weight: 500;
@@ -1621,6 +1684,25 @@ input {
 }
 
 @media (max-width: 640px) {
+  .creator-header > div:first-child {
+    min-width: 0;
+  }
+
+  .creator-header-actions {
+    gap: 4px;
+  }
+
+  .creator-header-actions .creator-save-button,
+  .creator-header-actions .creator-preview-output-button,
+  .creator-header-actions .creator-back-link {
+    font-size: 11px;
+    padding: 6px 4px;
+  }
+
+  .creator-header-actions .creator-draft-button {
+    max-width: 44px;
+  }
+
   .creator-modal-backdrop {
     place-items: start center;
     overflow-y: auto;
@@ -2169,6 +2251,19 @@ input {
   color: #fffaf0;
 }
 
+.deck-menu-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-menu-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .detail-chip {
   max-width: 44%;
   overflow: hidden;
@@ -2702,6 +2797,7 @@ input {
 }
 
 .card-semantic-anchors--back {
+  --card-back-metadata: rgba(255, 250, 240, 0.42);
   position: absolute;
   top: 25px;
   right: 29px;
@@ -2722,7 +2818,7 @@ input {
 }
 
 .card-semantic-anchors--back .deck-card-date {
-  color: rgba(255, 250, 240, 0.42);
+  color: var(--card-back-metadata);
   font-size: 0.64rem;
   font-weight: 680;
   letter-spacing: 0.01em;
@@ -3376,6 +3472,14 @@ input {
 
 .switchplay-video-poster--fade-out {
   opacity: 0;
+}
+
+.switchplay-video-loading-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 15px;
+  background: #05070b;
 }
 
 .switchplay-video-host--expanded.switchplay-video-host--portrait .switchplay-video-frame {
@@ -4462,15 +4566,230 @@ input {
   aspect-ratio: 46 / 58;
 }
 
-/* Interactive card-media thumbnails retain the existing five-item geometry. */
-.back-card-media-carousel-item--button {
+/* Bounded feedback stays within the existing header, outside the two-row
+   Creator grid. It never changes Card/header geometry or intercepts the modal. */
+.creator-feedback {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  width: min(280px, calc(100vw - 32px));
+  max-height: 144px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.creator-feedback:empty { display: none; }
+.creator-drafts-trigger {
   border: 0;
   padding: 0;
+  background: transparent;
   color: inherit;
-  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.creator-drafts-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.creator-drafts-list button {
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  border: 1px solid #d3d9dc;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.creator-drafts-list button[aria-current="true"] { background: rgba(17, 19, 24, 0.045); }
+.creator-modal--card-title:has(.creator-copy-to[data-open="true"]) {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.creator-publish-lock {
+  width: 10px;
+  height: 10px;
+  margin-left: 3px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.creator-leave-modal .creator-modal-actions { flex-wrap: wrap; justify-content: flex-end; }
+.creator-navigation-status { font-size: 12px; padding: 0 16px; }
+.creator-feedback .creator-save-message { position: static; width: auto; }
+.creator-entity-save-error {
+  padding: 4px;
+  background: #f5f5f2;
+  color: #9d2525;
+  font-size: 12px;
+}
+.creator-entity-save-error button {
+  margin-left: 8px;
+  text-decoration: underline;
+}
+
+/* Canonical presentation reserves personal layout slots without values or controls. */
+.personal-layout-slot {
+  visibility: hidden;
+  pointer-events: none;
+}
+.personal-date-slot {
+  width: 3rem;
+  min-height: 0.72rem;
+}
+.detail-progress.personal-layout-slot {
+  min-height: 1lh;
+}
+
+/* Surface actions and attribution do not participate in shared Card geometry. */
+.deck-card-actions { position: fixed; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 45; }
+.library-card-open { border: 1px solid #d6d0c8; border-radius: 18px; background: #faf8f3; padding: 7px 14px; font-size: 12px; white-space: nowrap; }
+.focused-card-layer .library-card-open { position: fixed; bottom: max(8px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 110; }
+.card-creator-attribution { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 3; max-width: calc(100% - 40px); font-size: 10px; opacity: .55; white-space: nowrap; }
+.card-creator-attribution .card-creator-name { display: block; max-width: 100%; padding: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2; }
+.card-creator-attribution button { background: transparent; border: 0; padding: 2px; color: inherit; font: inherit; }
+.card-source-attribution { position: absolute; bottom: 23px; left: 50%; transform: translateX(-50%); background: #faf8f3; border: 1px solid #d6d0c8; border-radius: 8px; padding: 7px 10px; }
+.library-dialog { width: min(420px, calc(100vw - 32px)); max-height: 80svh; overflow: auto; padding: 22px; border: 1px solid #d6d0c8; border-radius: 16px; background: #faf8f3; margin: auto; }
+.library-dialog::backdrop { background: #0006; }
+.library-dialog h2 { font-size: 20px; margin-bottom: 12px; }
+.library-dialog button { margin: 8px 8px 0 0; padding: 8px 12px; border: 1px solid #d6d0c8; border-radius: 8px; }
+.library-destination { display: flex; width: 100%; align-items: center; gap: 10px; text-align: left; }
+.library-destination small { display: block; opacity: .6; }
+.library-destination-cover { width: 40px; height: 50px; background-size: cover; background-position: center; border-radius: 5px; flex-shrink: 0; }
+.library-error { position: fixed; top: 50px; left: 16px; right: 16px; z-index: 120; background: #faf8f3; padding: 10px; border: 1px solid #b16a54; border-radius: 8px; }
+.library-unavailable { margin-top: 60px; }
+
+.library-unavailable-tile { padding: 18px; display: grid; align-content: center; font-size: 13px; }
+
+/* Working-only Update actions occupy independent slots, never canonical layout. */
+.working-update-button {
+  display: inline-flex;
+  min-height: 24px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9.6px;
+  border: 1px solid rgba(198, 204, 214, .24);
+  border-radius: 8px;
+  background: rgba(8, 10, 16, .18);
+  color: rgba(226, 231, 239, .9);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
 }
-.back-card-media-carousel-item--button:focus-visible {
-  outline: 2px solid #c9e6ee;
-  outline-offset: -3px;
+.working-update-button:hover { border-color: rgba(226, 231, 239, .42); background: rgba(255, 255, 255, .05); color: #fff; }
+.working-update-button:focus-visible { outline: 2px solid rgba(168, 214, 228, .62); outline-offset: 2px; color: #fff; }
+/* A compact, centred control preserves the existing 14px header slot. */
+.detail-progress-row > .working-update-button { margin-block: -5px; }
+/* Card faces share a 252px layout; 15px becomes about 24px in focused mode. */
+.working-card-update { position: absolute; left: 15px; bottom: 15px; z-index: 4; }
+.working-update-dialog { width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 24px; border: 1px solid rgba(198, 204, 214, .2); border-radius: 16px; background: #171b23; color: #eef1f6; }
+.working-update-dialog::backdrop { background: rgba(0, 0, 0, .65); }
+.working-update-dialog h2 { margin: 0 0 16px; font-size: 18px; }
+.working-update-dialog p { font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.working-update-dialog ol { padding-left: 20px; }
+.working-update-dialog li > span { font-size: 12px; opacity: .7; }
+.working-update-dialog-actions { display: flex; justify-content: flex-end; gap: 16px; margin-top: 20px; }
+.working-update-dialog-actions button { border: 0; background: transparent; color: inherit; padding: 8px; cursor: pointer; }
+.working-update-dialog-actions button:disabled { opacity: .5; cursor: default; }
+
+/* Personal assessment controls use the existing semantic header anchors. */
+.card-semantic-anchors--front { position: relative; }
+.card-semantic-anchors--assessment .card-title-anchor {
+  grid-template-columns: max-content max-content;
+  column-gap: 6px;
 }
+.card-semantic-anchors--assessment .card-title-anchor h2 { grid-column: 1; grid-row: 1; max-width: 54px; }
+.card-semantic-anchors--assessment .completion-strip { grid-column: 1; grid-row: 2; }
+.card-assessment-anchor { position: relative; grid-column: 2; grid-row: 1; align-self: start; width: 34px; height: 0; }
+.card-confidence { position: absolute; left: 50%; top: 0; transform: translateX(-50%); font-size: .8rem; font-weight: 700; line-height: 1; color: #efe0bf; pointer-events: none; }
+.assessment-indicator { position: absolute; top: -16px; left: -4px; display: inline-flex; gap: 3px; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; font-size: .7rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.assessment-indicator:focus-visible { outline: 2px solid #70b5dc; outline-offset: -4px; border-radius: 6px; }
+.assessment-pass { color: #1675b4; font-weight: 800; }
+.assessment-fail { color: #c94249; font-size: .65em; }
+.assessment-empty { color: #b8af9e; }
+.card-semantic-anchors--back.card-semantic-anchors--assessment .card-confidence {
+  color: var(--card-back-metadata);
+  font-size: .64rem;
+  font-weight: 600;
+}
+.card-semantic-anchors--back .assessment-indicator {
+  /* Back content has its own 0.641 scale; enlarge only the invisible hit area. */
+  width: 70px;
+  height: 70px;
+  top: -29px;
+  left: -17px;
+  pointer-events: auto;
+}
+.card-semantic-anchors--back.card-semantic-anchors--assessment { z-index: 3; }
+.deck-card.is-active .card-semantic-anchors--back .assessment-indicator {
+  /* Preserve a 44px touch target when the Deck scene also scales down to 320px. */
+  width: 94px;
+  height: 94px;
+  top: -41px;
+  left: -29px;
+}
+.card-semantic-anchors .assessment-empty-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  color: var(--card-back-metadata, rgba(255, 250, 240, 0.42));
+  font-size: .62rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.card-semantic-anchors--front .assessment-empty-control {
+  transform: scale(0.641);
+  transform-origin: center;
+}
+.assessment-dialog.library-dialog { width: min(560px, calc(100vw - 24px)); padding: 18px; color: #302d28; }
+.assessment-dialog.library-dialog button { margin: 0; min-height: 44px; padding: 6px 10px; font-size: 13px; cursor: pointer; }
+.assessment-dialog.library-dialog button:disabled { opacity: .5; cursor: default; }
+.assessment-dialog button:focus-visible, .assessment-dialog input:focus-visible, .assessment-dialog select:focus-visible { outline: 2px solid #1675b4; outline-offset: 2px; }
+.assessment-toolbar, .assessment-form-actions { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0 12px; }
+.assessment-dialog p { font-size: 13px; margin: 10px 0; }
+.assessment-notice { color: #625b50; font-size: 13px; border-left: 2px solid #c9bfae; padding: 8px; margin: 10px 0; }
+.assessment-notice button + button { margin-left: 6px !important; }
+.assessment-table-scroll { overflow-x: auto; }
+.assessment-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.assessment-table th { font-weight: 600; color: #746b60; text-align: left; }
+.assessment-table th, .assessment-table td { padding: 8px 3px; border-bottom: 1px solid #e6dfd5; vertical-align: top; overflow-wrap: anywhere; }
+.assessment-table th:nth-child(1) { width: 72px; }
+.assessment-table th:nth-child(2) { width: 58px; }
+.assessment-table th:nth-child(2), .assessment-table td:nth-child(2) { white-space: nowrap; overflow-wrap: normal; }
+.assessment-table th:nth-child(4) { width: 96px; }
+.assessment-table .assessment-pass, .assessment-table .assessment-fail { font-size: 16px; }
+.assessment-source { color: #746b60; }
+.assessment-source small { display: block; font-size: 10px; margin-top: 3px; }
+.assessment-row-actions { display: flex; gap: 3px; flex-wrap: wrap; }
+.assessment-dialog .assessment-row-actions button { padding: 4px; font-size: 12px; white-space: nowrap; }
+.assessment-form { margin-top: 16px; padding-top: 12px; border-top: 1px solid #d6d0c8; }
+.assessment-form h3 { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.assessment-fields { display: flex; gap: 12px; }
+.assessment-fields label { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 5px; font-size: 13px; }
+.assessment-fields input, .assessment-fields select { min-width: 0; width: 100%; height: 44px; padding: 6px; border: 1px solid #c9bfae; border-radius: 6px; background: white; }
+.assessment-dialog .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 400px) {
+  .assessment-dialog.library-dialog { padding: 12px; }
+  .assessment-table { font-size: 12px; }
+  .assessment-table th:nth-child(1) { width: 62px; }
+  .assessment-table th:nth-child(2) { width: 52px; }
+  .assessment-table th:nth-child(4) { width: 56px; }
+  .assessment-row-actions { flex-direction: column; }
+}
+
+/* Interactive media thumbnails preserve the existing carousel geometry. */
+.back-card-media-carousel-item--button { border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.back-card-media-carousel-item--button:focus-visible { outline: 2px solid #c9e6ee; outline-offset: -3px; }

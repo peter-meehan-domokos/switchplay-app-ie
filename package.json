@@ -11,7 +11,14 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:unit": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --import tsx --test --test-concurrency=1 tests/*.integration.ts",
+    "migration:plan": "node --import tsx scripts/migrate-first-class-cards.ts",
+    "migration:phase8": "node --import tsx scripts/prepare-phase8.ts",
+    "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit",
+    "test:phase2": "node --import tsx scripts/test-phase2.ts",
+    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",
@@ -36,9 +43,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "mongodb-memory-server": "^11.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

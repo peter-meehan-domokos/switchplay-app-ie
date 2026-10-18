@@ -1,6 +1,6 @@
 import { motion, type Transition } from "motion/react";
 import { type PointerEvent, type MouseEvent, type RefCallback } from "react";
-import type { CardLayout } from "@/components/cards/cardLayout";
+import type { PresentedCard } from "./presentation";
 import StepDescriptionText from "@/components/cards/StepDescriptionText";
 import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
 import {
@@ -15,7 +15,7 @@ export type StepViewItem =
   | { type: "step"; stepIndex: number };
 
 type StepViewProps = {
-  card: CardLayout;
+  card: PresentedCard;
   cloudflareVideoAnchorRef?: RefCallback<HTMLDivElement>;
   item: StepViewItem;
   itemIndex: number;
@@ -39,11 +39,11 @@ function getStepViewItemLabel(item: StepViewItem) {
   return `STEP ${item.stepIndex + 1}`;
 }
 
-function getStepViewItemTitle(card: CardLayout, item: StepViewItem) {
+function getStepViewItemTitle(card: PresentedCard, item: StepViewItem) {
   return item.type === "step" ? card.steps[item.stepIndex]?.title : null;
 }
 
-function getStepViewItemText(card: CardLayout, item: StepViewItem) {
+function getStepViewItemText(card: PresentedCard, item: StepViewItem) {
   if (item.type === "intro") {
     return card.intro.title ?? card.label;
   }
@@ -51,11 +51,11 @@ function getStepViewItemText(card: CardLayout, item: StepViewItem) {
   return card.steps[item.stepIndex]?.description ?? "";
 }
 
-function getStepViewItemContent(card: CardLayout, item: StepViewItem) {
+function getStepViewItemContent(card: PresentedCard, item: StepViewItem) {
   return item.type === "step" ? card.steps[item.stepIndex]?.descriptionContent : undefined;
 }
 
-function getStepViewMediaItem(card: CardLayout, item: StepViewItem) {
+function getStepViewMediaItem(card: PresentedCard, item: StepViewItem) {
   return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
 }
 
@@ -80,7 +80,7 @@ function stopStepViewPropagation(event: PointerEvent<HTMLElement> | MouseEvent<H
 }
 
 function renderStepViewMedia(
-  card: CardLayout,
+  card: PresentedCard,
   item: StepViewItem,
   cloudflareVideoAnchorRef?: RefCallback<HTMLDivElement>,
   useCloudflareVideoHost = false

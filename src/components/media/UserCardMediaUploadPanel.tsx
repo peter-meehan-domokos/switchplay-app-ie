@@ -1,12 +1,13 @@
 "use client";
 
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useStreamVideoReadiness } from "@/components/media/useStreamVideoReadiness";
 import type { UserCardMediaUploadState, UserCardMediaUploadTarget } from "@/components/media/useKeyedUserCardMediaUploadController";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
-import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem } from "@/lib/media";
+import type { ImageMediaItem, VideoMediaItem, MediaItem } from "@/lib/media";
 import { clearSelectedFileInput } from "@/lib/mediaUploadClient";
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
 
 export type UserCardMediaRemovalState = {
   error: string | null;
@@ -14,23 +15,26 @@ export type UserCardMediaRemovalState = {
 };
 
 type UserCardMediaUploadPanelProps = {
-  images: CloudflareR2ImageMediaItem[];
-  videos: CloudflareStreamVideoMediaItem[];
+  images: ImageMediaItem[];
+  videos: VideoMediaItem[];
   target: UserCardMediaUploadTarget;
   uploadState: UserCardMediaUploadState;
   removalStatesById: Record<string, UserCardMediaRemovalState | undefined>;
   onAddImage: (file: File) => void;
   onAddVideo: (file: File) => void;
-  onRemoveMedia: (item: ModernUserCardMediaItem) => void;
+  onRemoveMedia: (item: MediaItem) => void;
+  getMediaKey?: (item: MediaItem) => string;
+  getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
 function VideoTile({ item, target, removalState, onRemove }: {
-  item: CloudflareStreamVideoMediaItem;
+  item: VideoMediaItem;
   target: UserCardMediaUploadTarget;
   removalState?: UserCardMediaRemovalState;
   onRemove: () => void;
 }) {
-  const { retry, state } = useStreamVideoReadiness(target, item.assetId);
+  const { retry, state: streamState } = useStreamVideoReadiness(target, item.assetId, isCloudflareStreamVideoMediaItem(item));
+  const state = isCloudflareStreamVideoMediaItem(item) ? streamState : { status: "ready" as const };
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const showThumbnail = state.status === "ready" && !thumbnailFailed;
   const canRetry = state.status === "waiting" || state.status === "failed" || state.status === "unavailable";
@@ -52,7 +56,7 @@ function VideoTile({ item, target, removalState, onRemove }: {
         {showThumbnail ? (
           // Stream thumbnail delivery is resolved by the existing playback helper.
           // eslint-disable-next-line @next/next/no-img-element
-          <img alt="" onError={() => setThumbnailFailed(true)} src={getCloudflareStreamThumbnailUrl(item)} />
+          <img alt="" onError={() => setThumbnailFailed(true)} src={isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : item.thumbnailSrc ?? item.src} />
         ) : <span aria-hidden="true">Video</span>}
       </div>
       <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
@@ -87,6 +91,8 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
+  getMediaKey = (item) => item.id,
+  getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,14 +140,14 @@ export default function UserCardMediaUploadPanel({
         {uploadState.imageError ? <p className="creator-modal-error" role="alert">{uploadState.imageError}</p> : null}
         <ul className="user-card-media-rail" aria-label="Uploaded images">
           {images.map((item) => {
-            const removalState = removalStatesById[item.id];
+            const removalState = removalStatesById[getMediaKey(item)];
 
             return (
-              <li className="user-card-media-tile" data-media-item-id={item.id} key={item.id}>
+              <li className="user-card-media-tile" data-media-item-id={item.id} key={getMediaKey(item)}>
                 <div className="user-card-media-tile-preview">
-                  {/* User images are delivered from the configured R2 custom domain. */}
+                  {/* Protected mode serves retained images through session-authorized delivery. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt={item.description} src={item.src} />
+                  <img alt={item.description} src={imageDeliveryUrl(item.src)} />
                 </div>
                 <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
                 <button
@@ -190,10 +196,10 @@ export default function UserCardMediaUploadPanel({
           {videos.map((item) => (
             <VideoTile
               item={item}
-              key={item.id}
+              key={getMediaKey(item)}
               onRemove={() => onRemoveMedia(item)}
-              removalState={removalStatesById[item.id]}
-              target={target}
+              removalState={removalStatesById[getMediaKey(item)]}
+              target={getVideoTarget(item)}
             />
           ))}
         </ul>

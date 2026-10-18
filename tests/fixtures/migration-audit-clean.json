@@ -1,0 +1,72 @@
+{
+  "deckTemplates": [
+    {
+      "_id": "fixture-deck-document",
+      "deckTemplateId": "fixture-deck",
+      "ownerUserId": "fixture-owner",
+      "visibility": "private",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "template": {
+        "deckTemplateId": "fixture-deck",
+        "title": "Audit fixture",
+        "category": null,
+        "introduction": null,
+        "streams": [
+          { "id": "theme-1", "title": "Prepare" },
+          { "id": "theme-2", "title": "Practice" },
+          { "id": "theme-3", "title": "Reflect" }
+        ],
+        "cards": [
+          {
+            "cardId": "card-001",
+            "label": "Card 1",
+            "suggestedTargetDate": "",
+            "intro": { "title": "First Card", "description": null, "mediaItem": null },
+            "steps": [
+              { "stepId": "fixture-step-1", "title": "Prepare", "description": "Prepare", "mediaItem": null },
+              { "stepId": "fixture-step-2", "title": "Practice", "description": "Practice", "mediaItem": null },
+              { "stepId": "fixture-step-3", "title": "Reflect", "description": "Reflect", "mediaItem": null }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "users": [
+    {
+      "_id": "fixture-owner",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "sharedDeckData": [],
+      "decksData": [
+        {
+          "deckTemplateId": "fixture-deck",
+          "activeCardId": "card-001",
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z",
+          "sharedWithUserIds": [],
+          "cards": [
+            {
+              "cardId": "card-001",
+              "targetDate": "2026-01-08",
+              "items": [
+                { "itemId": "fixture-step-1", "completionStatus": "done" },
+                { "itemId": "fixture-step-2", "completionStatus": "inProgress" },
+                { "itemId": "fixture-step-3", "completionStatus": "todo" }
+              ],
+              "signalReadings": [
+                { "signalId": "0", "reading": null },
+                { "signalId": "1", "reading": 1 },
+                { "signalId": "2", "reading": 7.5 }
+              ],
+              "reflection": "",
+              "mediaItems": [],
+              "chats": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

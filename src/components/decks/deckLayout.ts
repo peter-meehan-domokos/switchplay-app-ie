@@ -5,7 +5,7 @@ import { getDeckConfidenceScore } from "@/lib/signals";
 
 export type DeckLayout = Omit<Deck, "cards"> & {
   cards: CardLayout[];
-  progressPercentage: number;
+  progressPercentage: number | null;
   confidenceScore: number | null;
 };
 

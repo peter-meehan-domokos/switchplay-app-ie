@@ -7,9 +7,18 @@ async function readResponse(response: Response) {
   return body;
 }
 
-export async function requestCardVideoReadiness(target: CardMediaRequest, signal: AbortSignal): Promise<StreamVideoReadinessStatus> {
+export async function requestCardVideoReadiness(target: CardMediaRequest, signal: AbortSignal): Promise<StreamVideoReadinessStatus & { grant?: import("./cardPlaybackGrants").PlaybackGrant }> {
   try {
     const body = await readResponse(await fetch(cardMediaRequestUrl(target, "playback"), { signal, cache: "no-store" }));
+    if (body.viewerUserId !== target.viewerUserId) throw new Error("Your account changed. Reopen the viewer.");
+    if (body?.status === "ready") {
+      const grant = body.grant;
+      const validUrl = (url: unknown, suffix: string) => {
+        try { const parsed = new URL(String(url)); return parsed.origin === "https://videodelivery.net" && parsed.pathname.endsWith(suffix); } catch { return false; }
+      };
+      if (!grant || typeof grant.assetId !== "string" || !Number.isFinite(grant.expiresAt) || grant.expiresAt <= Date.now() + 30000
+        || !validUrl(grant.manifestUrl, "/manifest/video.m3u8") || !validUrl(grant.thumbnailUrl, "/thumbnails/thumbnail.jpg")) throw new Error("Video authorization unavailable.");
+    }
     if (!["ready", "processing", "failed"].includes(body?.status)) throw new Error("Unable to read video status.");
     return body;
   } catch (error) {

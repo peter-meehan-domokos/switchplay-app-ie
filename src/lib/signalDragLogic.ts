@@ -1,4 +1,4 @@
-import { clampSignalReading, roundSignalReadingForStorage, normalizedToSignalReading } from "./signals";
+import { roundSignalReadingForStorage, normalizedToSignalReading } from "./signals";
 
 export type SignalGestureIntent = "pending" | "signal" | "cancelled";
 

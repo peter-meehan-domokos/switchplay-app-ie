@@ -7,12 +7,17 @@ type SignalQueue = {
 
 export class OptimisticSignalManager {
   private confirmedReadings: Record<string, SignalState> = {};
+  private tasks = new Map<string, Promise<void>>();
   private queues: Record<string, SignalQueue> = {};
 
   constructor(
     private persistFn: (cardId: string, signalId: string, reading: number) => Promise<void>,
     private onRollback: (cardId: string, signalId: string, restored: SignalState) => void
   ) {}
+
+  public resetConfirmed() {
+    for (const key of Object.keys(this.confirmedReadings)) if (!this.queues[key]?.inFlight) delete this.confirmedReadings[key];
+  }
 
   public getConfirmedSignal(
     cardId: string,
@@ -42,11 +47,14 @@ export class OptimisticSignalManager {
     if (q.inFlight) {
       // Coalesce intermediate updates: only track the most recent desired reading
       q.nextReading = reading;
-      return;
+      return this.tasks.get(key)!;
     }
 
     // Start a new background processor for this signal
-    void this.processQueue(cardId, signalId, reading);
+    const task = this.processQueue(cardId, signalId, reading);
+    this.tasks.set(key, task);
+    void task.finally(() => { if (this.tasks.get(key) === task) this.tasks.delete(key); });
+    return task;
   }
 
   private async processQueue(cardId: string, signalId: string, targetReading: number) {
@@ -75,7 +83,7 @@ export class OptimisticSignalManager {
       if (q.nextReading !== null) {
         const next = q.nextReading;
         q.nextReading = null;
-        void this.processQueue(cardId, signalId, next);
+        await this.processQueue(cardId, signalId, next);
       }
     }
   }
