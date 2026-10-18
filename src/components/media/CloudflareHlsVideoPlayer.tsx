@@ -605,7 +605,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         <video
           ref={assignVideoRef}
           className="cloudflare-stream-player"
-          style={{ visibility: displayableAssetId !== null && displayableAssetId === mediaItem?.assetId && !hasFailed ? "visible" : "hidden" }}
+          style={{ visibility: displayableAssetId !== null && (!mediaItem || displayableAssetId === mediaItem.assetId) && !hasFailed ? "visible" : "hidden" }}
           controls={!isDeckPreview}
           playsInline
           preload={mediaItem ? "auto" : "none"}
