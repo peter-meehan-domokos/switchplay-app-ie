@@ -1,7 +1,7 @@
 "use client";
 import { imageDeliveryUrl } from "@/lib/mediaDelivery";
-import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { forwardRef, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, LayoutGroup, motion, useIsPresent } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DeckGrid from "@/components/decks/DeckGrid";
 import DeckScene from "@/components/decks/DeckScene";
@@ -17,8 +17,18 @@ import { deckEntryAction, libraryFetch, LibraryRequestError, workingDeckHref } f
 import LibraryDialog from "./LibraryDialog";
 import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import { flushPersonalMutations } from "@/lib/deckMutations";
+import { useLibraryNavigation } from "./useLibraryNavigation";
 
 const transition = { type: "spring", stiffness: 300, damping: 30 };
+const LibraryView = forwardRef<HTMLDivElement, { children: ReactNode; detail: boolean }>(function LibraryView({ children, detail }, ref) {
+  const present = useIsPresent();
+  return <motion.div ref={ref} className="library-view" style={{ position: "relative", zIndex: detail ? 2 : 1 }}
+    inert={!present} aria-hidden={!present || undefined}>
+    {/* Motion retains the closing Deck's layout snapshot; its live players and
+        preparation resources must still clean up as soon as we leave it. */}
+    {present || !detail ? children : null}
+  </motion.div>;
+});
 export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName }: {
   initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string;
 }) {
@@ -26,8 +36,6 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   const search = useSearchParams(), progressReturn = readProgressReturn(search);
   const requestedCard = search.get("openCard");
   const requestedVersion = search.get("cardVersion");
-  const [collection, setCollection] = useState(initialCollection);
-  const [entry, setEntry] = useState(initialEntry);
   const [status, setStatus] = useState<LibraryViewerStatusDTO | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -38,7 +46,6 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   const requestSequence = useRef(0);
   const statusEpoch = useRef(0);
   const actionRunning = useRef(false);
-  const active = entry?.availability === "available" ? entry : null;
   useEffect(() => () => { requestSequence.current++; controller.current?.abort(); }, []);
   const current = useCallback(async (signal: AbortSignal) => {
     let auth;
@@ -46,8 +53,17 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     catch (cause) { if (!signal.aborted && cause instanceof LibraryRequestError && cause.status === 401) router.refresh(); throw cause; }
     // A delayed response or browser Back after switching accounts cannot install
     // another viewer's status/actions into this session.
-    if (auth.user?.id !== currentUserId) { router.refresh(); throw new Error("Your session changed. Reload Library before continuing."); }
+    if (auth.user?.id !== currentUserId) { router.refresh(); throw new LibraryRequestError(409, "LIBRARY_SESSION_CONFLICT"); }
   }, [currentUserId, router]);
+  const resetSelection = useCallback(() => {
+    ++requestSequence.current; ++statusEpoch.current; controller.current?.abort(); actionRunning.current = false;
+    setStatus(null); setPending(null); setError(""); setStale(false); setChooser(null);
+  }, [setStatus, setPending, setError, setStale, setChooser]);
+  const busy = useCallback(() => actionRunning.current, []);
+  const navigation = useLibraryNavigation({ initialCollection, initialEntry, assertCurrent: current,
+    onNavigate: resetSelection, onError: setError, busy });
+  const { collection, entry } = navigation;
+  const active = entry?.availability === "available" ? entry : null;
   const readStatus = useCallback(async (selected: LibraryEntry | undefined, signal: AbortSignal) => {
     const query = new URLSearchParams();
     if (selected?.availability === "available") {
@@ -102,11 +118,11 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
       if (abort.signal.aborted || token !== requestSequence.current) return;
       if (cause instanceof LibraryRequestError && cause.code === "LIBRARY_PREVIEW_CONFLICT") setStale(true);
       else { if (cause instanceof LibraryRequestError && (cause.status === 401 || cause.code === "LIBRARY_SESSION_CONFLICT")) router.refresh(); setError(cause instanceof Error ? cause.message : "Library request failed. Please retry."); }
-    } finally { if (!abort.signal.aborted && token === requestSequence.current) setPending(null); actionRunning.current = false; }
+    } finally { if (token === requestSequence.current) { if (!abort.signal.aborted) setPending(null); actionRunning.current = false; } }
   }
   const membership = status?.decks.find((data) => data.deckTemplateId === active?.deckTemplateId);
   async function primaryAction() {
-    if (!active || !membership) return;
+    if (!active || !membership || !navigation.verified || navigation.checking) return;
     if (membership.state === "active") { await perform("open", async (signal) => { await current(signal); if (!signal.aborted) router.push(withProgressReturn(workingDeckHref(active.deckTemplateId), progressReturn)); }); return; }
     await perform(membership.state === "archived" ? "restore" : "add", async (signal) => {
       const result = await libraryFetch<PersonalEntryResult>(`/api/library/decks/${encodeURIComponent(active.deckTemplateId)}/${membership.state === "archived" ? "restore" : "add"}`, signal,
@@ -132,7 +148,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   }
   function cardAction(card: PresentedCard) {
     const data = status?.cards.find((item) => item.cardTemplateId === card.cardTemplateId);
-    if (!data?.activeDecks.length) return null;
+    if (!data?.activeDecks.length || !navigation.verified) return null;
     return <button className="library-card-open" disabled={pending !== null} onClick={() => void openCard(data.cardTemplateId)} type="button">Open Card in My Decks</button>;
   }
   async function refreshPreview() {
@@ -141,49 +157,63 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
       const next = await libraryFetch<LibraryEntry>(`/api/library/decks/${encodeURIComponent(entry.deckTemplateId)}`, signal);
       await current(signal);
       if (signal.aborted) return;
-      setStatus(null); setEntry(next); setPreviewGeneration((generation) => generation + 1); setStale(false); setChooser(null);
+      setStatus(null); navigation.acceptEntry(next); setPreviewGeneration((generation) => generation + 1); setStale(false); setChooser(null);
     });
   }
-  return <main className={`app-shell library-shell${entry ? " app-shell--deck" : ""}`}>
+  const backToLibrary = () => navigation.select(null);
+  if (navigation.sessionChanged) return <main className="app-shell"><p role="alert">Your session changed. Reload Library before continuing.</p><button type="button" onClick={() => router.refresh()}>Reload Library</button></main>;
+  return <LayoutGroup id={`library-${currentUserId}`}>
+    {/* Keep document scroll coordinates stable while the Deck occupies its fixed
+        viewport. Otherwise the browser clamps scroll before Motion can project
+        the selected tile, making lower-page Decks fly in from off screen. */}
+    {entry && navigation.listHeight > 0 && <div aria-hidden="true" style={{ height: navigation.listHeight }} />}
+    <main className={`app-shell library-shell${entry ? " app-shell--deck" : ""}`}>
+    <AnimatePresence initial={false} mode="popLayout">
+    <LibraryView key={entry ? `deck-${entry.deckTemplateId}` : "collection"} detail={!!entry}>
     {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1></header></>}
     {error && !stale && !chooser && <p className="library-error" role="alert">{error}{!status && <button type="button" onClick={() => window.location.reload()}>Reload Library</button>}</p>}
+    {navigation.changed && <p className="library-error" role="status">A newer publication is available. <button type="button" disabled={pending !== null} onClick={() => void refreshPreview()}>Refresh preview</button></p>}
     {active && requestedCard && !active.deck.cards.some((card) => card.cardTemplateId === requestedCard &&
       (requestedVersion === null || String(card.version) === requestedVersion)) ? <section className="library-unavailable">
-      <button type="button" className="back-button" onClick={() => router.push(progressReturn ? progressReturnHref(progressReturn) : "/library", { scroll: false })}>{progressReturn ? "Back to Progress" : "Back to Library"}</button>
+      <button type="button" className="back-button" onClick={() => progressReturn ? router.push(progressReturnHref(progressReturn), { scroll: false }) : backToLibrary()}>{progressReturn ? "Back to Progress" : "Back to Library"}</button>
       <h1>Unavailable Card</h1><p>The selected Card or publication changed. Return to Progress and refresh your choices. Your personal state has not changed.</p>
     </section> : active ? <>
       <DeckScene key={`${currentUserId}:${deckPresentationIdentity(active.deck)}:${previewGeneration}`} deck={active.deck} playbackViewerUserId={currentUserId} transition={transition} initialCardTemplateId={requestedCard ?? undefined}
         backLabel={progressReturn ? "Back to Progress" : "Back"}
         onBack={() => {
-          if (!progressReturn) { router.push("/library"); return; }
+          if (!progressReturn) { backToLibrary(); return; }
           void perform("back", async (signal) => {
             await flushPersonalMutations();
             if (!signal.aborted) router.push(progressReturnHref(progressReturn), { scroll: false });
           });
         }} cardActions={cardAction}
         deckActions={<DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
-          showEdit={!!membership?.canEditInCreator}
+          showEdit={!!membership?.canEditInCreator && navigation.verified}
           membershipAction={{ label: pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state),
-            disabled: !membership || pending !== null, onSelect: () => void primaryAction() }}
+            disabled: !membership || pending !== null || !navigation.verified || navigation.checking, onSelect: () => void primaryAction() }}
           editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?${new URLSearchParams({ returnTo: "library", returnDeckId: active.deckTemplateId,
             version: String(active.manifest.deckVersion), cards: JSON.stringify(active.manifest.cards) })}`} />}
         renderFocusedCard={(props) => <FocusedCardView {...props} playbackViewerUserId={currentUserId} overlays={cardAction(props.card)} />} />
-    </> : entry ? <section className="library-unavailable"><Link href={progressReturn ? progressReturnHref(progressReturn) : "/library"}>{progressReturn ? "Back to Progress" : "Back to Library"}</Link><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
+    </> : entry ? <section className="library-unavailable"><button type="button" className="back-button" onClick={() => progressReturn ? router.push(progressReturnHref(progressReturn), { scroll: false }) : backToLibrary()}>{progressReturn ? "Back to Progress" : "Back to Library"}</button><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
+      {navigation.loading && <p role="status">Loading Library…</p>}
       <DeckGrid orderedEntries={(collection?.entries ?? []).map((item) => item.availability === "available" ? item.deck : {
-        id: item.deckTemplateId, unavailable: <div className="deck-tile library-unavailable-tile"><Link href={`/library/${encodeURIComponent(item.deckTemplateId)}`}>Unavailable Deck</Link><p>Public content needs attention.</p></div>,
+        id: item.deckTemplateId, unavailable: <div className="deck-tile library-unavailable-tile"><button type="button" onClick={() => navigation.select(item.deckTemplateId)}>Unavailable Deck</button><p>Public content needs attention.</p></div>,
       })} decks={(collection?.entries ?? []).flatMap((item) => item.availability === "available" ? [item.deck] : [])}
         instantiatingDeckTemplateId={null} isInteractionLocked={pending !== null} transition={transition}
-        onSelectDeck={(id) => router.push(`/library/${encodeURIComponent(id)}`)} />
+        onSelectDeck={(id) => navigation.select(id)} />
       {collection?.entries.length === 0 && <p>No public Decks yet.</p>}
       {collection?.nextCursor && <button type="button" disabled={pending !== null} onClick={() => void perform("more", async (signal) => {
         const next = await libraryFetch<LibraryCollectionDTO>(`/api/library/decks?cursor=${encodeURIComponent(collection.nextCursor!)}`, signal);
-        if (!signal.aborted) setCollection({ entries: [...collection.entries, ...next.entries.filter((item) => !collection.entries.some((old) => old.deckTemplateId === item.deckTemplateId))], nextCursor: next.nextCursor });
+        await current(signal);
+        if (!signal.aborted) navigation.appendPage(next);
       })}>More Decks</button>}
     </>}
+    </LibraryView>
+    </AnimatePresence>
     {stale && <LibraryDialog title="Preview has changed" onCancel={() => { if (!pending) setStale(false); }}>{error && <p role="alert">{error}</p>}<p>This Deck or one of its Cards has a newer publication. Refresh the preview before adding.</p><button type="button" disabled={pending !== null} onClick={() => void refreshPreview()}>Refresh preview</button><button type="button" disabled={pending !== null} onClick={() => setStale(false)}>Cancel</button></LibraryDialog>}
     {chooser && <LibraryDialog title="Open Card in My Decks" onCancel={() => { if (!pending) setChooser(null); }}>{error && <p role="alert">{error}</p>}<p>Choose the Deck to open.</p>{chooser.destinations.map((deck) => <button className="library-destination" data-deck-template-id={deck.deckTemplateId} key={deck.deckTemplateId} type="button" disabled={pending !== null} onClick={() => void openCard(chooser.cardId, deck.deckTemplateId)}>
       {deck.introduction?.image && <span className="library-destination-cover" style={{ backgroundImage: `url(${JSON.stringify(imageDeliveryUrl(deck.introduction.image.src))})` }} role="img" aria-label={deck.introduction.image.description || "Deck cover"} />}
       <span>{deck.title}<small>{deck.creatorUsername}</small></span>
     </button>)}<button type="button" disabled={pending !== null} onClick={() => setChooser(null)}>Cancel</button></LibraryDialog>}
-  </main>;
+  </main></LayoutGroup>;
 }

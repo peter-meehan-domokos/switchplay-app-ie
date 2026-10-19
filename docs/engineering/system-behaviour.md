@@ -113,6 +113,16 @@ Deck menu, beneath Edit where editing is permitted. These retain their existing
 explicit actions, version checks and Progress return context. Selecting an action
 closes the menu; browsing never adds or restores content automatically.
 
+Ordinary Library tile selection keeps the same mounted Library presentation: the
+loaded tile expands into its Deck without waiting for another server-page read.
+Back and browser history retain the loaded pages and list scroll position. Fresh
+Library data is checked in the background on return when over a minute old, and
+while the view remains visible; usable content stays displayed during refresh.
+Opening a retained Deck revalidates publication/access before enabling actions.
+An unavailable Deck loses its actions; a changed publication offers explicit
+Refresh preview rather than silently replacing the open version. Direct Deck
+links, Creator returns and Back to Progress keep their existing destinations.
+
 ## Framework organisation and mappings [Phase 6]
 
 A Framework contains ordered Areas, each containing ordered Items. The configuration
