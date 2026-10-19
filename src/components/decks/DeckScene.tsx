@@ -29,6 +29,8 @@ export type DeckSceneProps = {
   onBack: () => void;
   backLabel?: string;
   initialCardTemplateId?: string;
+  // One-time entry confirmation, independent of subsequent working navigation.
+  entrySelection?: { revision: number; cardId: string };
   onToggleDeckFlip?: (rotationDelta?: number) => void;
   transition: object;
   error?: string;
@@ -152,7 +154,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay }: DeckSceneProps) {
+export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -200,17 +202,23 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
   }, [activeCardTemplateId, deck.deckTemplateId, templateIdLogContext]);
 
   const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id), hasPersonalDeck(deck) ? null : initialCardTemplateId]);
+  const [confirmedEntry, setConfirmedEntry] = useState(entrySelection?.revision);
   const [selectedComposition, setSelectedComposition] = useState(compositionKey);
-  if (selectedComposition !== compositionKey) {
+  const entryChanged = confirmedEntry !== entrySelection?.revision;
+  // A confirmation arriving mid-placement must let that movement finish and
+  // retain its destination. A real composition change still reconciles at once.
+  if (selectedComposition !== compositionKey || (entryChanged && !transitionPhase)) {
     setSelectedComposition(compositionKey);
-    const index = hasPersonalDeck(deck) ? cards.findIndex((card) => card.id === deck.activeCardId) : cards.findIndex((card) => card.cardTemplateId === initialCardTemplateId);
+    setConfirmedEntry(entrySelection?.revision);
+    const entryCardId = entryChanged ? entrySelection?.cardId : undefined;
+    const index = hasPersonalDeck(deck) ? cards.findIndex((card) => card.id === (entryCardId ?? deck.activeCardId)) : cards.findIndex((card) => card.cardTemplateId === initialCardTemplateId);
     setActiveCardIndex(index >= 0 ? index : cards.length ? 0 : -1);
     if (!cards.length) setIsFocusModeOpen(false);
     setTransitionPhase(null);
   }
   useEffect(() => {
     if (roleTransitionTimeoutRef.current) clearTimeout(roleTransitionTimeoutRef.current);
-  }, [compositionKey]);
+  }, [compositionKey, confirmedEntry]);
 
   useEffect(() => {
     return () => {

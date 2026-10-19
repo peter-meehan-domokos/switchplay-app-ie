@@ -12,7 +12,7 @@ export function UpdateButton({ card = false, title, onClick }: { card?: boolean;
     onClick={(event) => { event.stopPropagation(); onClick(); }}><span aria-hidden="true">↻</span> Update</button>;
 }
 
-export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateCommand) => Promise<void>) {
+export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateCommand) => Promise<void>, enabled = true) {
   const userId = deck.dataOwnerUserId!;
   const [reviews, setReviews] = useState<Record<string, UpdateReview>>({});
   const [review, setReview] = useState<UpdateReview | null>(null);
@@ -33,7 +33,7 @@ export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateC
     ...(selected.command.kind === "deck" ? { deckId: deck.deckTemplateId } : {}),
     cardIds: selected.command.kind === "card" ? [selected.command.entityId] : deck.cards.map((card) => card.id) });
   const reloadReviews = useCallback(async (signal?: AbortSignal) => {
-    if (!userId || currentSelection.current !== selectionKey) return;
+    if (!enabled || !userId || currentSelection.current !== selectionKey) return;
     const generation = ++readGeneration.current;
     const selections = [{ kind: "deck" as const, id: deck.deckTemplateId }, ...deck.cards.map((card) => ({ kind: "card" as const, id: card.id }))];
     const results = await Promise.all(selections.map(async ({ kind, id }) => {
@@ -41,7 +41,7 @@ export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateC
       return result.review;
     }));
     if (!signal?.aborted && mounted.current && currentSelection.current === selectionKey && generation === readGeneration.current) { setDiscoveryError(""); setReviews(Object.fromEntries(results.flatMap((item) => item ? [[`${item.command.kind}:${item.command.entityId}`, item]] : []))); }
-  }, [userId, deck.deckTemplateId, deck.cards, selectionKey]);
+  }, [enabled, userId, deck.deckTemplateId, deck.cards, selectionKey]);
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; attempt.current?.abort(); };
@@ -65,6 +65,7 @@ export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateC
     attempt.current?.abort(); setReview(null); setError(""); dialog.current?.close();
   }
   function choose(selected: UpdateReview) {
+    if (!enabled) return;
     committed.current = false; activeScope.current = scopeFor(selected);
     setStage("review"); setError(""); setReview(selected);
   }
@@ -80,7 +81,7 @@ export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateC
     } catch (error) { if (mounted.current && !controller.signal.aborted) { setError((error as Error).message); setStage("stale"); } }
   }
   async function adopt(retry = false) {
-    if (!review || running.current || ["waiting", "saving", "refreshing", "review-refresh"].includes(stage)) return;
+    if (!enabled || !review || running.current || ["waiting", "saving", "refreshing", "review-refresh"].includes(stage)) return;
     running.current = true;
     const controller = new AbortController(); attempt.current = controller;
     const scope = activeScope.current!;
@@ -109,8 +110,8 @@ export function useWorkingUpdates(deck: DeckLayout, onAdopted: (command: UpdateC
   }
   return {
     discoveryError,
-    deckButton: reviews[`deck:${deck.deckTemplateId}`]?.command.adoptedVersion === deck.adoptedVersion ? <UpdateButton title={deck.title} onClick={() => choose(reviews[`deck:${deck.deckTemplateId}`])} /> : null,
-    cardButton: (id: string) => reviews[`card:${id}`] && reviews[`card:${id}`].command.adoptedVersion === deck.cards.find((card) => card.id === id)?.adoptedVersion ? <UpdateButton card title={reviews[`card:${id}`].title} onClick={() => choose(reviews[`card:${id}`])} /> : null,
+    deckButton: enabled && reviews[`deck:${deck.deckTemplateId}`]?.command.adoptedVersion === deck.adoptedVersion ? <UpdateButton title={deck.title} onClick={() => choose(reviews[`deck:${deck.deckTemplateId}`])} /> : null,
+    cardButton: (id: string) => enabled && reviews[`card:${id}`] && reviews[`card:${id}`].command.adoptedVersion === deck.cards.find((card) => card.id === id)?.adoptedVersion ? <UpdateButton card title={reviews[`card:${id}`].title} onClick={() => choose(reviews[`card:${id}`])} /> : null,
     modal: review ? <dialog ref={dialog} className="working-update-dialog" aria-labelledby="working-update-title"
       onCancel={(event) => { event.preventDefault(); close(); }}>
       <h2 id="working-update-title">Update {review.title}</h2>

@@ -4781,3 +4781,18 @@ input {
 /* Interactive media thumbnails preserve the existing carousel geometry. */
 .back-card-media-carousel-item--button { border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
 .back-card-media-carousel-item--button:focus-visible { outline: 2px solid #c9e6ee; outline-offset: -3px; }
+.working-entry-status {
+  position: fixed;
+  z-index: 40;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--background, #101014);
+  color: var(--muted, #aaaab5);
+  font-size: 12px;
+  pointer-events: none;
+}

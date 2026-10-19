@@ -108,6 +108,19 @@ confirmation naming the Deck; Cancel makes no changes. Confirmation retains the
 existing archive operation, keeps learning progress, blocks duplicate submissions
 and leaves failures available for retry. Archived Decks can still be restored.
 
+Recently loaded, previously opened My Decks presentations can animate open and
+allow Card browsing immediately, using existing membership and shared Card state.
+Opening still verifies access, adopted versions and scheduling on the server.
+Personal edits, assessments, Creator and membership/update actions wait for that
+verification; Card navigation saves its latest selection afterward. Confirmation
+updates the mounted Deck without restarting its players or opening animation.
+First openings, targeted Progress entry, uncertain initialization and presentations
+over a minute old or invalidated by tab inactivity use authoritative entry.
+Failed verification offers Retry/Back without enabling edits; confirmed loss of
+access or a changed account withdraws the retained presentation. Late responses
+cannot reopen a closed Deck or overwrite newer personal work. No second Deck cache
+or additional persistent storage is introduced.
+
 Library places Add to My Decks, Open in My Decks or Restore to My Decks in the same
 Deck menu, beneath Edit where editing is permitted. These retain their existing
 explicit actions, version checks and Progress return context. Selecting an action

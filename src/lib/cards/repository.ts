@@ -982,12 +982,25 @@ export class CardRepository {
       requireCondition(targetCardTemplateId === undefined || version.content.cards.some((ref) => ref.cardTemplateId === targetCardTemplateId), "TARGET_CARD_CONTEXT_UNAVAILABLE");
       const anchor = data.cadenceAnchorDate ?? localDate;
       const now = new Date();
-      for (const [index, ref] of version.content.cards.entries()) {
-        const card = await this.cards().findOne({ cardTemplateId: ref.cardTemplateId }, { session });
+      // Keep transaction operations sequential, but resolve the entire adopted
+      // composition in two reads rather than two round trips for every Card.
+      const ids = version.content.cards.map((ref) => ref.cardTemplateId);
+      const roots = ids.length ? await this.cards().find({ cardTemplateId: { $in: ids } }, { session }).toArray() : [];
+      const rootsById = new Map(roots.map((root) => [root.cardTemplateId, root]));
+      const requests = ids.map((cardTemplateId) => {
+        const card = rootsById.get(cardTemplateId);
         requireCondition(card && (card.ownerUserId === actor || card.visibility === "public"), "CARD_FORBIDDEN");
-        const existing = user.cardsData.find((item) => item.cardTemplateId === ref.cardTemplateId);
+        const existing = user.cardsData.find(card => card.cardTemplateId === cardTemplateId);
         requireCondition(existing, "MISSING_CARD_DATA");
-        const adopted = await this.getCardVersion(ref.cardTemplateId, existing.cardTemplateVersion, session);
+        assertAdoption(existing.cardTemplateVersion);
+        return { cardTemplateId, version: existing.cardTemplateVersion };
+      });
+      const versions = requests.length ? await this.cardVersions().find({ $or: requests }, { session }).toArray() : [];
+      const versionsById = new Map(versions.map((card) => [card.cardTemplateId, card]));
+      for (const [index, ref] of version.content.cards.entries()) {
+        const card = rootsById.get(ref.cardTemplateId)!;
+        const existing = user.cardsData.find(card => card.cardTemplateId === ref.cardTemplateId)!;
+        const adopted = versionsById.get(ref.cardTemplateId);
         requireCondition(adopted, "MISSING_CARD_VERSION");
         assertCardVersionAccess(actor, card, adopted);
         const generated = addDaysToDateOnly(anchor, (index + 1) * version.content.cadence.intervalDays);
