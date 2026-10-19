@@ -2550,12 +2550,6 @@ input {
   transform-style: preserve-3d;
 }
 
-.deck-card.is-past .deck-card-render-surface {
-  width: var(--deck-card-render-width);
-  height: var(--deck-card-render-height);
-  transform: scale(var(--deck-card-render-scale));
-}
-
 .deck-card-surface {
   position: absolute;
   inset: 0;
@@ -3616,12 +3610,6 @@ input {
   height: 156%;
   transform: scale(0.641025641);
   transform-origin: top left;
-}
-
-.back-card-face-content--preview.focused-card-back-layout {
-  width: 266%;
-  height: 266%;
-  transform: scale(0.376);
 }
 
 .focused-card-object.is-flipped .focused-card-surface--front {
@@ -4793,3 +4781,18 @@ input {
 /* Interactive media thumbnails preserve the existing carousel geometry. */
 .back-card-media-carousel-item--button { border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
 .back-card-media-carousel-item--button:focus-visible { outline: 2px solid #c9e6ee; outline-offset: -3px; }
+.working-entry-status {
+  position: fixed;
+  z-index: 40;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--background, #101014);
+  color: var(--muted, #aaaab5);
+  font-size: 12px;
+  pointer-events: none;
+}

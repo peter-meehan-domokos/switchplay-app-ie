@@ -2,31 +2,31 @@
   "collection": {
     ".deck-grid": [
       16,
-      130.7,
+      106.7,
       358,
       255.4
     ],
     ".deck-tile": [
       16,
-      130.7,
+      106.7,
       172,
       255.4
     ],
     ".tile-card-stack": [
       43.2,
-      151.7,
+      127.7,
       117.5,
       170.3
     ],
     ".deck-tile-title": [
       29,
-      330,
+      306,
       146,
       16.4
     ],
     ".deck-tile-meta": [
       29,
-      354.4,
+      330.4,
       146,
       18.7
     ]
@@ -34,49 +34,49 @@
   "detail": {
     ".deck-detail": [
       16,
-      40,
+      12,
       358,
       832
     ],
     ".detail-heading": [
       31,
-      55,
+      27,
       328,
       154.8
     ],
     ".deck-scene-frame": [
       31,
-      209.8,
+      181.8,
       328,
-      633.7
+      640
     ],
     ".deck-card.is-active": [
       69,
-      307.8,
+      279.8,
       252,
       365.4
     ],
     ".deck-card.is-active .card-title-anchor": [
       90,
-      327.8,
+      299.8,
       159.7,
       17.1
     ],
     ".deck-card.is-active .deck-card-date-shell": [
       259.7,
-      327.8,
+      299.8,
       40.3,
       11.5
     ],
     ".deck-card.is-active .active-card-identity": [
       90,
-      362.8,
+      334.8,
       210,
       18.1
     ],
     ".deck-card.is-active .active-step-list": [
       90,
-      393.9,
+      365.9,
       210,
       155.5
     ]

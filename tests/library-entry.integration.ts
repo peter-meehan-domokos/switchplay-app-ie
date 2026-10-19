@@ -266,3 +266,32 @@ test("reconciliation initializes only missing CardData, and broken-reference rem
   await repo.saveDeckDraft("bob", id, 1, { ...deckDraftContent((await repo.getDeckVersion(id, 1))!.content), cards: [{ cardTemplateId: ids[0] }] });
   assert.equal((await repo.decks().findOne({ deckTemplateId: id }))!.draft!.cards.length, 1);
 });
+
+test("working open batches four adopted Card reads without changing dates, adoption or access checks", async () => {
+  const { repo, id, ids, manifest: reviewed } = await fixture(4);
+  await repo.addLibraryDeck("alice", reviewed);
+  const monitored = await new MongoClient(mongo.getUri(), { monitorCommands: true }).connect();
+  const reads: string[] = [];
+  monitored.on("commandStarted", event => {
+    if (event.commandName === "find" && ["cardTemplates", "cardTemplateVersions"].includes(event.command.find)) reads.push(event.command.find);
+  });
+  try {
+    const opening = new CardRepository(monitored.db(repo.db.databaseName), monitored);
+    await opening.openWorkingDeck("alice", id, "2026-10-19", ids[2], 1);
+    assert.deepEqual(reads, ["cardTemplates", "cardTemplateVersions"]);
+    const first = (await repo.getPersonalUser("alice"))!;
+    assert.equal(first.decksData[0].activeCardId, ids[2]);
+    assert.deepEqual(first.cardsData.map(card => card.targetDate), ["2026-10-26", "2026-11-02", "2026-11-09", "2026-11-16"]);
+    reads.length = 0;
+    await opening.openWorkingDeck("alice", id, "2026-12-01");
+    assert.deepEqual(reads, ["cardTemplates", "cardTemplateVersions"]);
+    const reopened = (await repo.getPersonalUser("alice"))!;
+    assert.equal(reopened.decksData[0].activeCardId, ids[2]);
+    assert.equal(reopened.decksData[0].cadenceAnchorDate, "2026-10-19");
+    assert.deepEqual(reopened.cardsData, first.cardsData);
+    await repo.cardVersions().updateOne({ cardTemplateId: ids[3], version: 1 }, { $set: { visibility: "private" } });
+    const beforeDenied = await repo.getPersonalUser("alice");
+    await assert.rejects(opening.openWorkingDeck("alice", id, "2026-12-01"), /CARD_VERSION_FORBIDDEN/);
+    assert.deepEqual(await repo.getPersonalUser("alice"), beforeDenied);
+  } finally { await monitored.close(); }
+});

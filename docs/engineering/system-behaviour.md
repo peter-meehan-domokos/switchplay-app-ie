@@ -108,10 +108,33 @@ confirmation naming the Deck; Cancel makes no changes. Confirmation retains the
 existing archive operation, keeps learning progress, blocks duplicate submissions
 and leaves failures available for retry. Archived Decks can still be restored.
 
+Recently loaded, previously opened My Decks presentations can animate open and
+allow Card browsing immediately, using existing membership and shared Card state.
+Opening still verifies access, adopted versions and scheduling on the server.
+Personal edits, assessments, Creator and membership/update actions wait for that
+verification; Card navigation saves its latest selection afterward. Confirmation
+updates the mounted Deck without restarting its players or opening animation.
+First openings, targeted Progress entry, uncertain initialization and presentations
+over a minute old or invalidated by tab inactivity use authoritative entry.
+Failed verification offers Retry/Back without enabling edits; confirmed loss of
+access or a changed account withdraws the retained presentation. Late responses
+cannot reopen a closed Deck or overwrite newer personal work. No second Deck cache
+or additional persistent storage is introduced.
+
 Library places Add to My Decks, Open in My Decks or Restore to My Decks in the same
 Deck menu, beneath Edit where editing is permitted. These retain their existing
 explicit actions, version checks and Progress return context. Selecting an action
 closes the menu; browsing never adds or restores content automatically.
+
+Ordinary Library tile selection keeps the same mounted Library presentation: the
+loaded tile expands into its Deck without waiting for another server-page read.
+Back and browser history retain the loaded pages and list scroll position. Fresh
+Library data is checked in the background on return when over a minute old, and
+while the view remains visible; usable content stays displayed during refresh.
+Opening a retained Deck revalidates publication/access before enabling actions.
+An unavailable Deck loses its actions; a changed publication offers explicit
+Refresh preview rather than silently replacing the open version. Direct Deck
+links, Creator returns and Back to Progress keep their existing destinations.
 
 ## Framework organisation and mappings [Phase 6]
 
@@ -322,6 +345,14 @@ cannot be dismissed. An uncertain failed save must be checked before it can be s
 abandoned; cleanup never cancels unrelated uploads or a newer save. Partial histories keep
 readable rows with an unavailable-history notice. A failed refresh keeps previously readable
 rows marked as potentially out of date, suppresses indicators and offers Refresh history.
+
+## Card placement and retrieval
+
+Stack navigation prepares the incoming Card's complete front before movement exposes
+it. Both faces retain the same authored layout during placement and retrieval; the
+whole Card scales proportionately into its existing past position. Returning a Card
+preserves its face, content and interaction boundaries. Navigation remains locked
+during the existing placement phase; no content fetch or extra delay is introduced.
 
 ## Card header confidence [Phase 6]
 

@@ -44,6 +44,35 @@ async function nextCard(page: Page) {
   await expect(page.locator(".focused-card-surface--front .active-card-identity")).toHaveCount(1);
 }
 
+test("mounted Library opens from loaded tiles before validation, retains its list and supports real Next history", async ({ page }) => {
+  const { repo, viewer, id, title } = await fixture();
+  const before = await repo.getPersonalUser(viewer);
+  await login(page); await page.goto("/library");
+  const tile = page.getByRole("button", { name: `Open ${title}`, exact: true }).last();
+  await expect(tile).toBeVisible();
+  const reads: string[] = [];
+  page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/library")) reads.push(request.url()); });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**/api/library/decks/${id}`, async route => { await held; await route.continue(); }, { times: 1 });
+  await tile.click();
+  await expect(page).toHaveURL(`/library/${id}`);
+  const selected = page.locator('.library-view:not([aria-hidden="true"])');
+  await expect(selected.locator(".deck-detail h1")).toHaveText(title);
+  expect(reads).toEqual([]); // Native history does not replace the presentation with a server page.
+  release();
+  await expect((await libraryDeckAction(page, "Add to My Decks"))).toBeEnabled();
+  await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
+  await expect(page.getByText("Loading Library…", { exact: true })).toHaveCount(0);
+  await page.goBack(); await expect(selected.locator(".deck-detail h1")).toHaveText(title);
+  await page.goForward(); await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
+  await tile.click(); await expect(selected.locator(".deck-detail h1")).toHaveText(title);
+  expect(reads).toEqual([]);
+  expect(await repo.getPersonalUser(viewer)).toEqual(before);
+});
+
 test("Library owner Edit opens the same Creator identity without membership and publishes the next immutable version", async ({ page }) => {
   const { repo, owner, viewer, id, ids, title } = await fixture(1);
   const before = await repo.getPersonalUser(owner), otherBefore = await repo.getPersonalUser(viewer);
@@ -317,7 +346,9 @@ test("retained CardData without active membership hides Open Card; empty and bro
   await empty.repo.deckVersions().updateOne({ deckTemplateId: empty.id, version: 1 }, { $set: { "content.cards": [{ cardTemplateId: "missing-private-content" }] } });
   await page.goto(`/library/${empty.id}`); await expect(page.getByRole("heading", { name: "Unavailable Deck" })).toBeVisible();
   await expect((await libraryDeckAction(page, "Add to My Decks", true))).toHaveCount(0);
-  await page.goto("/library"); await expect(page.getByRole("link", { name: "Unavailable Deck" }).last()).toBeVisible();
+  await page.goto("/library"); await expect(page.getByRole("button", { name: "Unavailable Deck", exact: true }).last()).toBeVisible();
+  await page.getByRole("button", { name: "Unavailable Deck", exact: true }).last().click();
+  await expect(page.getByRole("heading", { name: "Unavailable Deck", exact: true })).toBeVisible();
 });
 
 for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) test(`Library and My Decks retain shared visible geometry ${viewport.width}`, async ({ page }, info) => {
