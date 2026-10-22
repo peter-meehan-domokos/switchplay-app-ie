@@ -11,7 +11,7 @@ import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
 import { hasPersonalCard, cardPresentationIdentity, type PresentedCard } from "./presentation";
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackIntent } from "@/components/media/CloudflareHlsVideoPlayer";
-import StepView, { type StepViewItem } from "@/components/decks/StepView";
+import StepView, { type StepViewInfoCards, type StepViewItem } from "@/components/decks/StepView";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -50,6 +50,8 @@ export type FocusedCardViewProps = {
   onAdjustTargetDate?: (direction: -1 | 1) => void;
   backFace?: ReactElement<{ onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void; onOpenMedia?: OpenCardMedia }>;
   overlays?: ReactNode;
+  stepViewInfoCards?: StepViewInfoCards;
+  stepViewMediaPreview?: ReactNode;
   assessment?: ReactNode;
   frontAction?: ReactNode;
   interactionLocked?: boolean;
@@ -225,6 +227,8 @@ export default function FocusedCardView({
   onAdjustTargetDate,
   backFace,
   overlays,
+  stepViewInfoCards,
+  stepViewMediaPreview,
   frontAction,
   assessment,
   playbackViewerUserId,
@@ -798,6 +802,8 @@ export default function FocusedCardView({
                   onNext={goToNextStepViewItem}
                   onPrevious={goToPreviousStepViewItem}
                   useCloudflareVideoHost={Boolean(activeCloudflareVideoMediaItem)}
+                  infoCards={stepViewInfoCards}
+                  mediaPreview={stepViewMediaPreview}
                 />
               ) : null}
             </AnimatePresence>

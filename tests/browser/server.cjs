@@ -4,16 +4,30 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const http = require('node:http');
+const host = process.env.SWITCHPLAY_FIXTURE_HOST || '127.0.0.1';
+const port = Number(process.env.SWITCHPLAY_FIXTURE_PORT || 4178);
+if (!['127.0.0.1', '0.0.0.0'].includes(host) || !Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid fixture host/port');
 const { webpack } = require('next/dist/compiled/webpack/webpack');
 const output = fs.mkdtempSync(path.join(os.tmpdir(), 'switchplay-media-viewer-'));
-webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'fixture.tsx'), output: { path: output, filename: 'fixture.js' },
+webpack({ mode: 'development', devtool: false, entry: { fixture: path.resolve(__dirname, 'fixture.tsx'), 'info-cards': path.resolve(__dirname, 'info-cards-fixture.tsx') }, output: { path: output, filename: '[name].js' },
   resolve: { extensions: ['.tsx', '.ts', '.js'], alias: { '@': path.resolve(__dirname, '../../src') } },
   module: { rules: [{ test: /\.(tsx?|css)$/, exclude: /node_modules/, use: path.resolve(__dirname, 'fixture-loader.cjs') }] },
   plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'development' }) })],
 }, (error, stats) => {
   if (error || stats.hasErrors()) { console.error(error || stats.toString({ all: false, errors: true })); process.exit(1); }
   const server = http.createServer((request, response) => {
-    if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); fs.createReadStream(path.join(output, 'fixture.js')).pipe(response); return; }
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+    const references = {
+      '/info-card-references/closed-step-view.png': 'closed-step-view.png',
+      '/info-card-references/open-info-card-bundle.png': 'open-info-card-bundle.png',
+      '/info-card-references/emerging-bundle.png': 'emerging-bundle.png',
+    };
+    if (references[pathname]) {
+      response.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(path.resolve(__dirname, '../../docs/design/features/info-cards', references[pathname])).pipe(response);
+      return;
+    }
+    if (pathname === '/fixture.js' || pathname === '/info-cards.js') { response.setHeader('Content-Type', 'text/javascript'); fs.createReadStream(path.join(output, pathname.slice(1))).pipe(response); return; }
     if (/^\/image-\d+\.svg$/.test(request.url)) {
       const index = Number(request.url.match(/\d+/)[0]);
       const [width, height] = index === 0 ? [800, 1200] : index === 3 ? [1600, 400] : [900, 900];
@@ -54,9 +68,15 @@ webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'f
       return;
     }
     response.setHeader('Content-Type', 'text/html');
-    response.end('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><div id="fixture-root"></div><script src="/fixture.js"></script></body></html>');
+    const script = pathname === '/info-cards' ? 'info-cards' : 'fixture';
+    response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>${script === 'info-cards' ? 'Info Cards Phase 1A' : 'Media viewer fixture'}</title></head><body><div id="fixture-root"></div><script src="/${script}.js"></script></body></html>`);
   });
-  server.listen(4178, '127.0.0.1', () => console.log('Media viewer fixture ready on 4178'));
+  server.listen(port, host, () => {
+    console.log(`Fixtures ready: http://127.0.0.1:${port}/info-cards`);
+    if (host === '0.0.0.0') for (const entries of Object.values(os.networkInterfaces())) for (const entry of entries || []) {
+      if (entry.family === 'IPv4' && !entry.internal) console.log(`Phone (same network): http://${entry.address}:${port}/info-cards`);
+    }
+  });
   const close = () => server.close(() => { fs.rmSync(output, { recursive: true, force: true }); process.exit(0); });
   process.on('SIGTERM', close); process.on('SIGINT', close);
 });

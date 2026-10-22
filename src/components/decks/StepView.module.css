@@ -1,0 +1,117 @@
+/* Ordinary Step Views keep their existing spacing until a supplement/preview is supplied. */
+section.surface {
+  --step-view-top-padding: 17px;
+  --step-view-bottom-padding: 12px;
+  --step-view-row-to-description-gap: 7px;
+  --step-view-description-to-video-gap: 10px;
+}
+
+/* The footer stays one row; the corner pocket is positioned by Step View itself. */
+footer.actions {
+  position: static;
+  grid-template-columns: 36px minmax(0, 1fr) 24px minmax(0, 1fr) 36px;
+  gap: 4px;
+  margin-inline: -12px;
+}
+
+footer.actions > button {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding-inline: 2px;
+}
+
+.previous {
+  grid-column: 2;
+}
+
+.index {
+  grid-column: 3;
+}
+
+.next {
+  grid-column: 4;
+}
+
+footer.actions[data-info-open="true"] > button,
+footer.actions[data-info-open="true"] > .index {
+  visibility: hidden;
+}
+
+.pouch {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  bottom: 0;
+}
+
+.preview {
+  position: absolute;
+  z-index: 2;
+  left: 6px;
+  right: 6px;
+  bottom: 15px;
+}
+
+.backing {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(179, 195, 217, 0.16);
+  border-radius: 12px;
+  background: #2c3543;
+  transform: translate(3px, -3px) rotate(0.4deg);
+}
+
+.backing:first-child {
+  transform: translate(-2px, -6px) rotate(-0.35deg);
+}
+
+.topCard {
+  position: relative;
+}
+
+.topCard [data-info-card-header] {
+  /* Reserve the header's right end for the consultation-only close target. */
+  padding-inline-end: 28px;
+}
+
+.consultationClose {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0 12px 0 0;
+  background: transparent;
+  color: #c6d0de;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.consultationClose:focus-visible {
+  outline: 2px solid #a8d6e4;
+  outline-offset: -3px;
+}
+
+.surface .mediaPreview {
+  width: auto;
+  height: 95%;
+  align-self: start;
+  aspect-ratio: 9 / 16;
+  border: 0;
+  background: transparent;
+}
+
+.mediaPreview > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}

@@ -1,0 +1,71 @@
+.pouch[type="button"] {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #cee1e9;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: #36414f;
+}
+
+.shape .fold {
+  fill: none;
+  stroke: rgba(190, 208, 225, 0.13);
+  stroke-width: 0.6;
+}
+
+.pouch .label {
+  position: absolute;
+  left: 8px;
+  bottom: 5.5px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.information {
+  display: block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+/* The open face takes precedence over the pocket's seam. */
+.pouch[aria-expanded="true"] .shape {
+  fill: #2c3542;
+}
+
+.pouch[aria-expanded="true"] .shape .fold {
+  stroke: rgba(190, 208, 225, 0.025);
+}
+
+.pouch[aria-expanded="false"]:hover .shape {
+  fill: #3b4857;
+}
+
+.pouch:focus-visible {
+  outline: none;
+}
+
+.pouch:focus-visible .fold {
+  stroke: #a8d6e4;
+  stroke-width: 2;
+}

@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 
-let bundle: string;
+let bundle: string, componentCss: string;
 test.beforeAll(async () => {
-  bundle = (await build({ stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
+  const compiled = await build({ stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
     import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
     import DeckScene from './src/components/decks/DeckScene';
     import FocusedCardView from './src/components/decks/FocusedCardView';
@@ -23,10 +23,12 @@ test.beforeAll(async () => {
           <FocusedCardView {...props} playbackViewerUserId={actor}/></>}/>:null;
     }
     createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
-  ` }, bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", define: {
+  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", define: {
     "process.env.NODE_ENV": JSON.stringify("test"), "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1"),
     "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": JSON.stringify("0"), "process.env": "{}",
-  } })).outputFiles![0].text;
+  } });
+  bundle = compiled.outputFiles!.find(file => file.path.endsWith(".js"))!.text;
+  componentCss = compiled.outputFiles!.find(file => file.path.endsWith(".css"))?.text ?? "";
 });
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#ac6330"/><text x="10" y="180" fill="white" font-size="40">Introduction</text></svg>';
 type Harness = { switchActor(): void; closeDeck(): void; decoded: string[]; frame(): void };
@@ -63,7 +65,7 @@ async function setup(page: Page, query: string, holdCold = false) {
     return route.abort();
   });
   await page.goto(`https://fixture.invalid/?${query}`);
-  await page.addStyleTag({ content: await readFile("src/app/globals.css", "utf8") });
+  await page.addStyleTag({ content: await readFile("src/app/globals.css", "utf8") + componentCss });
   await page.addScriptTag({ content: bundle });
   return { requests, release: async () => { await expect.poll(() => !!release).toBe(true); await release(); } };
 }

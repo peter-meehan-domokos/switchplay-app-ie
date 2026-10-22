@@ -2,7 +2,7 @@ import { expect, test, webkit, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { inflateSync } from "node:zlib";
-let bundle: string, decodedBundle: string;
+let bundle: string, decodedBundle: string, componentCss: string;
 test.beforeAll(async () => {
   const options: import("esbuild").BuildOptions = { stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
     import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
@@ -23,11 +23,13 @@ test.beforeAll(async () => {
         playbackViewerUserId={scope.actor} onClose={()=>{}} onPrevious={()=>{}} onNext={()=>{}} traversalDirection="next" transition={{duration:0}} />;
     }
     createRoot(document.getElementById('root')).render(<App />);
-  ` }, bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", define: {
+  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", define: {
     "process.env.NODE_ENV": JSON.stringify("test"), "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1"),
     "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": JSON.stringify("0"), "process.env": "{}",
   } };
-  bundle = (await build(options)).outputFiles![0].text;
+  const compiled = await build(options);
+  bundle = compiled.outputFiles!.find(file => file.path.endsWith(".js"))!.text;
+  componentCss = compiled.outputFiles!.find(file => file.path.endsWith(".css"))?.text ?? "";
   // Only the transport URL adapter is replaced for real decoder tests: local
   // WebM fixtures are not HLS manifests. Card/player/poster code stays real.
   decodedBundle=(await build({...options,define:{...options.define,"process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA":JSON.stringify("0")},plugins:[{
@@ -106,7 +108,7 @@ for (const mode of ["working", "canonical"]) test(`${mode}: each grant prepares 
     return route.abort();
   });
   await page.goto(`https://fixture.invalid/?${mode}`);
-  await page.addStyleTag({content:await readFile("src/app/globals.css", "utf8")});
+  await page.addStyleTag({content:await readFile("src/app/globals.css", "utf8") + componentCss});
   await page.addScriptTag({content:bundle});
   try {
     await page.evaluate(() => (window as unknown as Harness).mountCard()); await expect.poll(()=>grants.size).toBe(4);
@@ -167,7 +169,7 @@ test("renewed grants replace thumbnails; learner/version changes and closing rel
     if(route.request().url().includes("thumbnail.jpg")) {downloads.push(route.request().url());return route.fulfill({contentType:"image/svg+xml",body:thumbnail});}
     return route.abort();
   });
-  await page.goto("https://fixture.invalid/?working");await page.addStyleTag({content:await readFile("src/app/globals.css","utf8")});await page.addScriptTag({content:bundle});
+  await page.goto("https://fixture.invalid/?working");await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss});await page.addScriptTag({content:bundle});
   await page.evaluate(()=>(window as unknown as Harness).mountCard());
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {decoded:string[]}).decoded.length)).toBe(4);
   await page.locator(".active-card-identity").press("Enter");await expect(page.locator(".switchplay-video-poster")).toBeVisible();
@@ -203,7 +205,7 @@ test("delayed and failed thumbnails leave a visible loading message; video readi
     if(route.request().url().includes("/intro/thumbnails/")) {await new Promise<void>(done=>{releaseImage=async()=>{await route.abort();done();};});return;}
     return route.abort();
   });
-  await page.goto("https://fixture.invalid/?working"); await page.addStyleTag({content:await readFile("src/app/globals.css","utf8")}); await page.addScriptTag({content:bundle});
+  await page.goto("https://fixture.invalid/?working"); await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss}); await page.addScriptTag({content:bundle});
   try {
     await page.evaluate(()=>(window as unknown as Harness).mountCard()); await expect.poll(()=>!!releaseImage).toBe(true);
     await page.locator(".active-card-identity").press("Enter");
@@ -257,7 +259,7 @@ for(const engine of ["chromium","webkit"]) for(const paused of [true,false]) tes
     return route.fulfill({contentType:"text/html",body:'<div id="root"></div>'});
   });
   try {
-    await page.goto("https://fixture.invalid/?working");await page.addStyleTag({content:await readFile("src/app/globals.css","utf8")});await page.addScriptTag({content:decodedBundle});
+    await page.goto("https://fixture.invalid/?working");await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss});await page.addScriptTag({content:decodedBundle});
     await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
     await page.evaluate(()=>(window as unknown as Harness).mountCard());await page.locator(".active-card-identity").press("Enter");
     const video=page.locator("video"),poster=page.locator(".switchplay-video-poster");
