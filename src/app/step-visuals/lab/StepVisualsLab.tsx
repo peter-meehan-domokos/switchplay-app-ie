@@ -9,6 +9,7 @@ import LabNavigationDialog from "./LabNavigationDialog";
 import SparklinePreview from "./SparklinePreview";
 import styles from "./Lab.module.css";
 import LearningRecordPreview from "./LearningRecordPreview";
+import { createLearningConsole } from "./learningConsole";
 import type { Card1LearningEvent, Card1LearningResult, Card1SessionRecords } from "../activities/roots-factors/learningRecords";
 
 export default function StepVisualsLab() {
@@ -21,9 +22,19 @@ export default function StepVisualsLab() {
   const [events, setEvents] = useState<readonly Card1LearningEvent[]>([]);
   const [completed, setCompleted] = useState<readonly Card1LearningResult[]>([]);
   const nextExperience = useRef<ExperienceId | null>(null);
-  const onEvent = useCallback((event: Card1LearningEvent) => setEvents((previous) => [...previous, event]), []);
-  const onComplete = useCallback((result: Card1LearningResult) => setCompleted((previous) => [...previous, result]), []);
-  const onRecordsChange = useCallback((value: Card1SessionRecords) => setRecords(value), []);
+  const [learningConsole] = useState(() => createLearningConsole());
+  const onEvent = useCallback((event: Card1LearningEvent) => {
+    learningConsole.onEvent?.(event);
+    setEvents((previous) => [...previous, event]);
+  }, [learningConsole]);
+  const onComplete = useCallback((result: Card1LearningResult) => {
+    learningConsole.onComplete?.(result);
+    setCompleted((previous) => [...previous, result]);
+  }, [learningConsole]);
+  const onRecordsChange = useCallback((value: Card1SessionRecords) => {
+    learningConsole.onRecordsChange?.(value);
+    setRecords(value);
+  }, [learningConsole]);
   const burgerRef = useRef<HTMLButtonElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const focusExperience = useRef(false);
@@ -44,6 +55,7 @@ export default function StepVisualsLab() {
   };
 
   const exitExperience = () => {
+    learningConsole.onExit();
     if (nextExperience.current) {
       const id = nextExperience.current;
       nextExperience.current = null;

@@ -116,5 +116,13 @@ The inspector is never imported by or exported with the reusable activity. Dropd
 and Sparkline preview preserve Guided records; leaving the actual experience reports exit.
 Native tab closure, refresh and arbitrary parent unmount are not treated as guaranteed exits.
 
+During `npm run dev`, the lab also automatically writes collapsed **Step Visuals** console
+groups. Each accepted-action callback batch logs its full session snapshot and delivered
+events/results as objects. Events and completion arrive before the snapshot; exit arrives
+afterwards. Logging closes at the snapshot, not separately for each callback. Initial open,
+restart and exit are included; pointer previews, cancellations and dropdown changes are not.
+The logger is lab-only and silent unless `NODE_ENV` is `development`. It adds no identity
+data, storage, new controls or reusable-activity behaviour.
+
 The non-drag touch alternative remains deferred. Physical iOS/Android assistive-technology
 testing and a host-specific sizing/lifecycle review are still needed before integration.
