@@ -1,12 +1,23 @@
 # Info Cards — Reconciled Engineering Plan
 
-Date: 22 October 2026; Phase 1B handoff updated 23 October 2026. Status: **Phases 1A–1C implemented; user reports successful manual Phase 1C testing. Phase 1B and combined automated checks pass; combined physical-interaction phone acceptance remains pending.**
+Date: 22 October 2026; Phase 2 handoff updated 23 October 2026. Status: **Phases 1A–1C completed; Phase 2 backend implemented and tested, with live media-provider verification still outstanding.**
 
 Implementation order is **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1B start inspection found a clean `feat/info-cards` worktree at `666abb4` (committed Phase 1C), so no concurrent edits require another worktree. The functional specification is unchanged. Later visual decisions (secondary series/primary title and dedicated consultation X) supersede older wording in specification §§4.2/10.3 and are preserved.
 
 Authority: [functional specification v0.3](../../../design/features/info-cards/info-cards-functional-spec.md), together with subsequent approved visual decisions. Section 12 records the earlier reconciliation; section 13 contains deferred improvements and section 14 retains the original 1A task. See [Phase 1B evidence and review instructions](phase-1b/README.md) and the historical [Phase 1C handoff](phase-1c/README.md).
 
-This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Backend files, collections and routes below remain proposals. The former seven approval questions are resolved. Current coding authority covers **1B only**, plus its minimal integration changes; backend work remains unauthorised.
+This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Current coding authority covers **Phase 2 only**. Creator/Library UI and production attachments remain later phases. See the [Phase 2 handoff](phase-2/README.md) for implementation and verification status.
+
+### Phase 2 readiness amendments
+
+1. Phases 1A–1C are complete per the user's acceptance; historical checkpoint instructions below do not reopen them.
+2. Separate incomplete draft content (blank title/body and nullable series allowed) from valid publication content. Save identity before uploads; query drafts directly by owner. Publication alone requires complete, fitting content.
+3. Creation uses a caller-stable ID and exact retry recovery. Save uses revision preconditions; immutable publications retain the consumed revision for lost-response recovery without a second publication or overwriting newer edits.
+4. Capacity validation uses the measured 240×157 face, combined header and close-control reservation, body wrapping/paragraphs, and optional media reservation. Use deterministic measured font advances with conservative fallback and browser comparisons; no arbitrary word limit, client `fits` flag, or publication-time browser service.
+5. Deck publication pins already-published main-card versions. Creator's publish-and-leave separately publishes owned main drafts first; that sequence is not an atomic graph publication. Enforce private-attachment rules in every actual main-card publication entry point in Phase 4.
+6. Phase 2 supplies reference guards, indexed draft/history deletion checks and permission primitives. Phase 4 must wire every canonical main create/save/fork/publish writer before enabling attachments. Copying an owned main card by reference into another deck creates no new main content. Do not add reverse-reference counts.
+7. Media must prove owner/target/provider provenance and be read through an exact owner-draft or immutable-publication context. Private-era versions remain private after promotion. Provider-side protection is a separate deployment gate; fail closed until verified. No eager asset garbage collection.
+8. Absent and empty attachment lists are semantically equal. Phase 2 provides normalisation/guard primitives; Phase 4 audits strict validators, equality and all projections/forks before persisting the optional field. Do not rewrite historical publications.
 
 ## 1. Confirmed repository findings
 
@@ -16,7 +27,7 @@ This document distinguishes **Fact** (inspected repository or observed diagnosti
 - Current worktree branch: `feat/info-cards`; 1C start HEAD `a4c2e2a`, with a clean worktree and committed 1A corrections. The original planning inspection was at `5bf8992`.
 - At the original inspection, design/engineering documents were untracked; they are now committed. Existing design and 1A evidence remain preserved.
 - A separate `feat/step-visuals` worktree exists. Its work is not assumed to be available in this branch. In particular, future interactive activities must not be claimed as already integrated here.
-- The present task implements 1B against the committed 1A/1C baseline and updates handoff documentation. It does not change the functional specification, run migrations, upgrade dependencies or reopen WebKit troubleshooting.
+- The present task implements Phase 2 against completed Phases 1A–1C. It preserves the functional specification and prototype. Index setup is explicit; no live database migration or provider configuration changes have been made.
 
 ### 1.2 Architecture evidence
 
@@ -77,6 +88,7 @@ All source paths in this document are relative to the repository root.
 | `infoCards` root | Stable `infoCardId`, immutable owner, published visibility, draft visibility intent, `draft`, authoring `revision`, `latestVersion`, timestamps, separate reference guard counter. No step IDs, progress, deck membership or adoption fields. |
 | `infoCardVersions` | Immutable `{infoCardId, version, content, visibility, publishedAt, publishedByUserId}`. Content contains title, series ID, plain text and zero/one validated media item. Unique `(infoCardId, version)`. |
 | `infoCardSeries` | Stable `seriesId`, display title, normalised name/search key, `createdByUserId`, timestamp. Unique `(createdByUserId, normalisedTitle)`; no manually managed visibility or member-edit ACL. Different creators can have identical titles. |
+| `infoCardMediaAssets` | Server-issued upload provenance, unique provider/asset identity and owner/info target. Retained after deletion to prevent private info assets being served through forged references in older main/personal media APIs; no asset browser or management UI. |
 | Existing main `CardContent` | Optional ordered `infoCardIds: string[]`; absence means empty for old content. Persist in normal draft and immutable main-card publications. No info publication numbers in this array. |
 
 Retaining immutable backend info publications is **approved**. It lets existing save/recovery mechanics verify a publication after a lost response, and keeps a consultation's media authorisable after a newer publication. Private-era versions remain owner-only. There is no history selector, old-version browsing UI, follower migration or per-deck pinning.
@@ -259,7 +271,7 @@ Use image zoom/rendering and HLS player primitives in an info-media wrapper; do 
 - Public main-card publish: every referenced info card must already be published public. Private main cards may use public info or their owner's own private info; series participation grants no exception.
 - Once an info card has been published public, a later draft cannot make it private. Publication intent stays distinct from current effective access.
 - Content updates affect only the info publication/root, never main versions, followers' data or adoption notifications.
-- Main attachment updates follow existing main draft/publication/adoption rules, including deck publication paths that publish contained main drafts.
+- Main attachment updates follow existing main draft/publication/adoption rules. Deck publication pins existing published main versions; Creator publishes owned main drafts separately before publishing the deck.
 
 Use a unique root ID and `(infoCardId, version)` index, plus owner/draft listing and published visibility/series indexes. Publish the immutable record and root pointer/draft clear atomically. Reuse expected revisions and bounded ambiguous-response recovery; a retry must not create an extra publication or overwrite later edits. Unchanged clean content need not create a publication.
 
@@ -281,7 +293,7 @@ Deletion checks must inspect **all main-card drafts and all retained immutable m
 
 Recommend indexed existence checks over these canonical stores, not a reverse-reference collection or denormalised reference count requiring repair. All main attachment-writing paths—including create, save, fork/copy and publication—must participate in the guard protocol. Optional field absence means no refs; attachment-bearing paths cannot skip validation just because they copy trusted main content.
 
-Within the transaction, both a reference-creating operation and deletion write the relevant info root's guard. Deletion scans references and removes the unreferenced root/publications in that same transaction; reference creation revalidates existence/publication/access. Concurrent operations then conflict/retry instead of leaving a dangling reference. Test both race orders. Document a consistent lock order extending the existing card/deck guard order (info IDs sorted, then affected main cards, then decks) and audit existing composite write paths rather than assuming the new order is already true everywhere. No provider deletion/network side effects inside retriable transaction callbacks.
+Within the transaction, both a reference-creating operation and deletion write the relevant info root's guard. Deletion scans references and removes content/publications in that same transaction; it retains a content-free root reservation (`deletedAt`, draft null, latestVersion zero) so the stable ID cannot be recreated and confuse delayed publication/media requests. The exact owner/revision deletion retry succeeds safely. Reference creation revalidates existence/publication/access. Concurrent operations then conflict/retry instead of leaving a dangling reference. Test both race orders. Document a consistent lock order extending the existing card/deck guard order (info IDs sorted, then affected main cards, then decks) and audit existing composite write paths rather than assuming the new order is already true everywhere. No provider deletion/network side effects inside retriable transaction callbacks.
 
 **Confirmed:** an owner may delete an unreferenced public or private info card. Public visibility is permanent while the record exists. Retained main drafts and every historical main reference block deletion. Provider asset garbage collection is separate and conservative: never delete a historical/shared asset as part of removing a current media field. No new media cleanup framework is required for v1.
 
@@ -303,9 +315,11 @@ Published media access verifies exact stored media in the requested info publica
 
 Historical backend records do not imply anonymous private-media URLs are safe. Verify bucket/provider delivery configuration at implementation time: an ACL in an API cannot protect a directly public storage object. Reuse the existing protected delivery pattern and fail closed for unrecognised assets. Tests must include private-era media after public promotion, forged IDs, another creator's draft and expired/session-changed grants.
 
+**Phase 2 implementation:** a signed upload proof binds the owner, stable info ID, creation identity and allocated asset. R2 uploads use signed `If-None-Match: *` to prevent replacing an already-published object. Stream readiness checks require the issuing creator and signed-only playback. A small immutable allocation registry prevents older broad media routes, exact main-card playback and personal downloads/status from accepting an info asset through a forged legacy reference. Registry records survive info deletion; this is provenance protection, not a reverse attachment index. Provider operations remain outside Mongo transaction callbacks. New info upload/publication-with-media/delivery fail closed unless protected delivery and the explicit provider-verification deployment gate are enabled. Real provider configuration remains unverified; automated stubs are not evidence of private-bucket delivery.
+
 ## 8. Phased implementation and acceptance checkpoints
 
-The user now authorises **Phase 1B only**, following successful manual Phase 1C testing. There was no animation/controller dependency preventing the reordered sequence: the real player and Step View have independent stable lifecycles. Each checkpoint still ends with evidence and review; backend phases require separate authorisation. File names marked “new” in future phases remain proposals.
+The user now authorises **Phase 2 only**, following completion of Phases 1A–1C. Historical prototype checkpoints remain below as evidence. Later phases still require separate authorisation.
 
 ### Phase 1A — Footer geometry and content-capacity prototype
 
@@ -348,6 +362,8 @@ Phase 1B supplies current-card selection, movement and transition completion wit
 - **Dependencies:** accepted final 1A → 1C → 1B integration verification and measured publication capacity envelope. Series identity/discovery, public deletion and backend retention are resolved in this plan. No main attachment UI yet.
 - **Validation:** repository/API tests against existing disposable replica-set harness; same-creator compound uniqueness under concurrent creation, different-creator identical titles, eligible search/direct-ID access, last-public-member disappearance, draft/historical membership exclusion, existing contributor retention, no hidden names/counts, direct owner draft query with no decks, draft/public isolation, CAS conflicts, publish retries, permanent public visibility, internal historical visibility and media checks.
 - **Done when:** domain/API invariants pass independently of UI; no application caller can use an unguarded reference write. Review the guard integration design before attachments become available.
+
+Implementation checkpoints: (1) domain/indexes and per-creator series uniqueness; (2) stable incomplete drafts, revisions and recovery; (3) measured capacity and atomic publications; (4) authorised catalogue/series/snapshots; (5) deletion/reference guards and exact media security; (6) replica-set acceptance, failure/race regressions and documented Phase 4 writer requirements. Tests must include deterministic transaction rollback/interleavings as well as concurrent calls. Existing `test:phase2` is an unrelated historical test programme, not this feature's acceptance command.
 
 ### Phase 3 — Creator, real Library and info media
 
@@ -451,7 +467,7 @@ Higher capability does not replace disposable-database concurrency tests or phon
 | Public deletion | Owner can delete an unreferenced public record; public visibility remains permanent while it exists. Historical/main-draft refs still block. |
 | Capacity/accessibility | Measure normal content/mobile envelope first, keep ordinary faces complete and fixed; broader extreme-size accessibility work is backlog, with zoom preserved. |
 | Backend publications | Immutable retention approved; no user-facing history or adoption. |
-| Prototype | 1A/1C implemented; user reports successful manual 1C testing and authorises 1B. Combined physical-interaction acceptance remains a separate gate before any backend authorisation. |
+| Prototype | Phases 1A–1C completed; user has authorised Phase 2 following readiness review. |
 
 **No architectural obstacle requires 1B before 1C.** Card dimensions/capacity have 1A evidence; motion tuning remains a 1B output. Phone evidence requires access to the actual device; absent coverage must be reported. WebKit availability does not block progress.
 
@@ -509,7 +525,7 @@ These tasks are recommendations for later scheduling, not additions to Phase 1 o
 
 ## 14. Precise first implementation task
 
-Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **1B after completed 1C**, with its dependencies and acceptance criteria in section 8. No 1A styling redesign or backend implementation is included.
+Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **Phase 2**, with its dependencies and acceptance criteria in section 8. No prototype styling redesign is included.
 
 **Recommended task:** “Info Cards Phase 1A — actual Step View footer geometry and static info-card capacity fixture.” Preferred model: **Sol 6.1, High thinking effort**, consistent with section 10. Geometry, scoped styling and meaningful browser measurement are a bounded coding task; device evidence matters more than escalating model effort. No independent second implementation is warranted for this checkpoint.
 

@@ -5,6 +5,7 @@ import type { CardRepository } from "./repository";
 import { requireCondition, isRecord } from "./domain";
 import { assertCardVersionAccess } from "./versionAccess";
 import { PLAYBACK_GRANT_REUSE_MS, type CardPlaybackContext } from "../cardPlaybackGrants";
+import { assertNotInfoMedia } from "../infoCards/mediaRegistry";
 
 // Match trusted stored references; an arbitrary URL/key supplied by a browser is
 // never used for fetching. Ancestry does not grant another actor's personal media.
@@ -16,6 +17,7 @@ function contentMedia(value: unknown): MediaItem[] {
 }
 export async function authorizeProtectedMedia(repo: CardRepository, actor: string, provider: "r2" | "stream", identity: string) {
   requireCondition(identity.length > 0 && identity.length <= 2048, "INVALID_MEDIA_IDENTITY");
+  await assertNotInfoMedia(repo.db, provider, identity);
   const matches = (item: MediaItem) => provider === "stream"
     ? item.mediaType === "video" && item.provider === "cloudflare-stream" && item.assetId === identity
     : item.mediaType === "image" && item.src === identity && (!("provider" in item) || item.provider === "cloudflare-r2");
@@ -48,6 +50,7 @@ export async function authorizeCardPlayback(repo: CardRepository, actor: string,
   requireCondition(typeof context.cardTemplateId === "string" && context.cardTemplateId.length > 0 && context.cardTemplateId.length <= 200
     && Number.isSafeInteger(context.version) && context.version >= 1
     && ["working", "canonical"].includes(context.mode) && assetId.length <= 2048 && /^[a-zA-Z0-9_-]+$/.test(assetId), "INVALID_PLAYBACK_CONTEXT");
+  await assertNotInfoMedia(repo.db, "stream", assetId);
   return repo.transaction(async (session) => {
     const user = await repo.getPersonalUser(actor, session);
     requireCondition(user, "MEDIA_FORBIDDEN");
