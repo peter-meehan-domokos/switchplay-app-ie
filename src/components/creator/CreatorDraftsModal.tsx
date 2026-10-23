@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { CreatorDraftSummary } from "@/lib/cards/creatorDrafts";
+import type { CreatorDraftEntry } from "./creatorDraftEntries";
 
-export default function CreatorDraftsModal({ drafts, currentDeckTemplateId, loading, error, switchingTo, onSelect, onClose }: {
-  drafts: CreatorDraftSummary[];
+export default function CreatorDraftsModal({ drafts, currentDeckTemplateId, currentInfoCardId, loading, error, switchingTo, onSelect, onClose }: {
+  drafts: CreatorDraftEntry[];
   currentDeckTemplateId: string;
+  currentInfoCardId?: string;
   loading: boolean;
   error: string;
   switchingTo: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, kind: CreatorDraftEntry["kind"]) => void;
   onClose: () => void;
 }) {
   const modal = useRef<HTMLDivElement>(null);
@@ -31,14 +32,16 @@ export default function CreatorDraftsModal({ drafts, currentDeckTemplateId, load
       </header>
       {loading ? <p>Loading drafts…</p> : null}
       {error ? <p role="alert" className="creator-modal-error">{error}</p> : null}
-      {!loading && !error && drafts.length === 0 ? <p>No unfinished Deck drafts.</p> : null}
+      {!loading && !error && drafts.length === 0 ? <p>No unfinished drafts.</p> : null}
       <ul className="creator-drafts-list">
-        {drafts.map((draft) => <li key={draft.deckTemplateId}>
-          <button type="button" aria-current={draft.deckTemplateId === currentDeckTemplateId ? "true" : undefined}
-            disabled={switchingTo !== null} onClick={() => onSelect(draft.deckTemplateId)}>
-            {draft.title || "Untitled Deck"}
+        {drafts.map((draft) => { const id = draft.kind === "deck" ? draft.deckTemplateId : draft.infoCardId;
+          return <li key={`${draft.kind}:${id}`}>
+          <button type="button" aria-current={(draft.kind === "deck" ? id === currentDeckTemplateId : id === currentInfoCardId) ? "true" : undefined}
+            disabled={switchingTo !== null} onClick={() => onSelect(id, draft.kind)}>
+            {draft.title || (draft.kind === "deck" ? "Untitled Deck" : "Untitled Info Card")}
+            {draft.kind === "infoCard" ? <small> · Info Card</small> : null}
           </button>
-        </li>)}
+        </li>; })}
       </ul>
       {switchingTo !== null ? <p role="status">Saving current work before switching…</p> : null}
     </div>

@@ -54,7 +54,7 @@ test("My Drafts is authenticated/read-only; untouched sessions stay absent and p
   await page.getByRole("button", { name: "My Drafts", exact: true }).click();
   await expect(popup(page).getByRole("button", { name: before!.draft.title, exact: true })).toHaveAttribute("aria-current", "true");
   await popup(page).getByRole("button", { name: before!.draft.title, exact: true }).click();
-  await expect(popup(page)).toHaveCount(0); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+  await expect(popup(page)).toHaveCount(0); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   expect(await root(id)).toEqual(before);
   const response = await page.request.get("/api/creator/drafts"); expect(response.headers()["cache-control"]).toBe("no-store");
   const list = await response.json(); expect(list.find((item: { deckTemplateId: string }) => item.deckTemplateId === id).status).toBe("unpublished");
@@ -65,7 +65,7 @@ test("My Drafts is authenticated/read-only; untouched sessions stay absent and p
   const user = await db().collection("users").findOne({ _id: actor() });
   expect(user!.decksData.some((data: { deckTemplateId: string }) => data.deckTemplateId === id)).toBe(false);
   await page.goto("/creator/new"); await page.getByRole("button", { name: "My Drafts", exact: true }).click();
-  await popup(page).getByRole("button", { name: before!.draft.title, exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+  await popup(page).getByRole("button", { name: before!.draft.title, exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
 });
 
 test("My Decks puts never-opened memberships first by personal creation time, then recently opened", async ({ page }) => {
@@ -99,13 +99,15 @@ test("switching waits for the latest save and gives each Deck a fresh board/coor
   await editStep(page, cardId, "Keep this local edit"); await expect.poll(() => started).toBe(true);
   await page.getByRole("button", { name: "My Drafts", exact: true }).click();
   await popup(page).getByRole("button", { name: other.title, exact: true }).click();
-  await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
-  pause.resolve(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}$`));
+  await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
+  pause.resolve(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}(?:[?]|$)`));
+  await expect(page.getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Back to My Drafts", exact: true })).toBeVisible();
   await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toContainText(other.title);
   await page.getByRole("button", { name: "My Drafts", exact: true }).click();
   const original = (await root(id))!.draft.title;
-  await popup(page).getByRole("button", { name: original, exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+  await popup(page).getByRole("button", { name: original, exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   await expect(column(page, cardId).locator(".creator-pair-step").first()).toContainText("Keep this local edit");
   expect((await cardRoot(cardId))!.latestVersion).toBe(0); expect((await root(id))!.latestVersion).toBe(0);
   await editStep(page, cardId, "A subsequent edit belongs to the original Card");
@@ -121,7 +123,7 @@ for (const status of [400, 409]) test(`failed/conflicted save ${status} prevents
   await editStep(page, cardId, "Retained local content"); await expect(page.locator(".creator-entity-save-error")).toBeVisible();
   await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
   await expect(popup(page).getByRole("alert")).toContainText("Current work could not be saved");
-  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`)); await popup(page).getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); await popup(page).getByRole("button", { name: "Close", exact: true }).click();
   await expect(column(page, cardId).locator(".creator-pair-step").first()).toContainText("Retained local content");
   expect((await cardRoot(cardId))!.draft.steps[0].description).toBeNull();
 });
@@ -137,14 +139,14 @@ for (const succeeds of [true, false]) test(`switching waits for an attached uplo
   const file = { name: "navigation.mp4", mimeType: "video/mp4", buffer: Buffer.from("local fixture video") };
   await input.setInputFiles(file); await expect.poll(() => started).toBe(true);
   await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
-  await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`)); pause.resolve();
+  await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); pause.resolve();
   if (!succeeds) {
-    await expect(popup(page).getByRole("alert")).toContainText("save or upload errors"); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+    await expect(popup(page).getByRole("alert")).toContainText("save or upload errors"); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
     await popup(page).getByRole("button", { name: "Close", exact: true }).click(); failed = false; await input.setInputFiles(file);
     await expect.poll(async () => (await cardRoot(cardId))?.draft?.intro.mediaItem?.description).toBe("navigation.mp4");
     await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
   }
-  await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}$`));
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}(?:[?]|$)`));
   expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("navigation.mp4");
 });
 
@@ -216,7 +218,7 @@ for (const succeeds of [true, false]) test(`return waits for attached upload/sav
   await column(page, cardId).locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({ name: "leave.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
   await expect.poll(() => started).toBe(true); await page.getByRole("link", { name: "Decks", exact: true }).click();
   await expect(page.locator(".creator-navigation-status")).toContainText("Finishing saves and uploads");
-  await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+  await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   pause.resolve();
   if (succeeds) {
     await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toBeVisible();
@@ -225,7 +227,7 @@ for (const succeeds of [true, false]) test(`return waits for attached upload/sav
     await expect(page).toHaveURL(/\/decks$/); expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("leave.mp4");
   } else {
     await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`)); expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();
+    await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();
   }
   expect((await root(id))!.latestVersion).toBe(0);
 });
@@ -240,7 +242,7 @@ for (const status of [400, 409]) test(`normal leave retains failed/conflicted lo
   await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
-  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`)); await expect(column(page, cardId)).toContainText("Do not lose this");
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); await expect(column(page, cardId)).toContainText("Do not lose this");
 });
 
 test("saved unpublished work offers publication only on return; Cancel and leave preserve drafts", async ({ page }) => {
@@ -255,7 +257,7 @@ test("saved unpublished work offers publication only on return; Cancel and leave
   await back.click(); const leave = page.getByRole("dialog", { name: "Leave Creator confirmation" });
   await expect(leave).toBeVisible(); await expect(leave.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
   await leave.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(leave).toHaveCount(0); await expect(back).toBeFocused(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}$`));
+  await expect(leave).toHaveCount(0); await expect(back).toBeFocused(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
   await back.click(); await page.keyboard.press("Escape"); await expect(leave).toHaveCount(0); await expect(back).toBeFocused();
   await back.click(); await leave.getByRole("button", { name: "Leave without publishing", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);

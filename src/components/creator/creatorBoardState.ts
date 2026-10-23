@@ -2,6 +2,7 @@ import type { DeckIntroduction, DeckTemplate, StepDescriptionSpan } from "@/comp
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import { normalizeDeckIntroductionForRuntime } from "@/lib/deckApiTransforms";
 import type { MediaItem } from "@/lib/media";
+import { clientId } from "@/lib/clientId";
 import { createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_DECK_CADENCE_DAYS, defaultCreatorThemeTitle, restoreCreatorCardTitle } from "@/lib/cards/creatorDefaults";
 
 export type CardColumnId = `card-${number}`;
@@ -41,7 +42,7 @@ export const STEP_PLACEHOLDER_TEXT = "Describe the step";
 export const VIDEO_PLACEHOLDER_TEXT = "Video placeholder";
 
 function createCreatorId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
+  return `${prefix}-${clientId()}`;
 }
 
 export function createCreatorDeckTemplateId() {

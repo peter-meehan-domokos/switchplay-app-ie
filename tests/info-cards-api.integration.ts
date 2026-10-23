@@ -17,7 +17,7 @@ before(async () => {
   server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   fixture.client = await new MongoClient(server.getUri()).connect(); fixture.db = fixture.client.db("switchplay_info_api_tests");
   await createInfoCardIndexes(fixture.db); global.__infoApi = fixture;
-  for (const name of ["info-cards", "info-cards/[infoCardId]", "info-cards/[infoCardId]/publish", "info-cards/[infoCardId]/publication", "info-cards/[infoCardId]/upload", "info-cards/[infoCardId]/media", "info-card-series", "library/info-cards", "media/card", "media/protected"]) {
+  for (const name of ["info-cards", "info-cards/[infoCardId]", "info-cards/[infoCardId]/publish", "info-cards/[infoCardId]/publication", "info-cards/[infoCardId]/upload", "info-cards/[infoCardId]/media", "info-cards/[infoCardId]/media/status", "info-card-series", "library/info-cards", "media/card", "media/protected"]) {
     const bundle = await build({ entryPoints: [`src/app/api/${name}/route.ts`], bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
       plugins: [{ name: "info-api-auth-and-disposable-db", setup(builder) {
         builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: "export async function getCurrentUser() { return globalThis.__infoApi.actor; }", loader: "ts" }));
@@ -28,6 +28,29 @@ before(async () => {
     new Function("require", "module", "exports", bundle.outputFiles[0].text)(createRequire(resolve("package.json")), fixtureModule, fixtureModule.exports);
     routes[name] = fixtureModule.exports as Route;
   }
+});
+
+test("info processing route checks owner/exact revision before provider access and enforces signed provenance", async t => {
+  t.after(() => { fixture.actor = null; });
+  const config = { NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", INFO_CARDS_PRIVATE_MEDIA_VERIFIED: "1", CLOUDFLARE_ACCOUNT_ID: "fixture", CLOUDFLARE_STREAM_API_TOKEN: "fixture" };
+  const prior = Object.fromEntries(Object.keys(config).map(key => [key, process.env[key]])); Object.assign(process.env, config);
+  t.after(() => { for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+  await fixture.db!.collection("infoCards").insertOne({ infoCardId: "status", ownerUserId: "alice", revision: 4, latestVersion: 0,
+    draft: { mediaItem: { id: "video", provider: "cloudflare-stream", mediaType: "video", assetId: "owned-video", src: "https://iframe.videodelivery.net/owned-video", description: "Video" } } });
+  let calls = 0, creator = "alice", signed = true;
+  t.mock.method(globalThis, "fetch", async () => { calls++; return Response.json({ success: true, result: { creator, requireSignedURLs: signed, readyToStream: false, status: { state: "inprogress", pctComplete: 42 } } }); });
+  const route = routes["info-cards/[infoCardId]/media/status"], ctx = { params: Promise.resolve({ infoCardId: "status" }) };
+  fixture.actor = { id: "bob" };
+  assert.equal((await route.GET(request("info-cards/status/media/status?revision=4"), ctx)).status, 403); assert.equal(calls, 0);
+  fixture.actor = { id: "alice" };
+  assert.equal((await route.GET(request("info-cards/status/media/status?revision=3"), ctx)).status, 403); assert.equal(calls, 0);
+  const response = await route.GET(request("info-cards/status/media/status?revision=4"), ctx);
+  assert.equal(response.status, 200); assert.deepEqual(await response.json(), { status: "processing", progress: 42 });
+  creator = "bob"; assert.equal((await route.GET(request("info-cards/status/media/status?revision=4"), ctx)).status, 403);
+  creator = "alice"; signed = false; assert.equal((await route.GET(request("info-cards/status/media/status?revision=4"), ctx)).status, 403);
+  assert.equal((await route.GET(request("info-cards/status/media/status?revision=4&assetId=foreign"), ctx)).status, 403);
+  delete process.env.INFO_CARDS_PRIVATE_MEDIA_VERIFIED;
+  assert.equal((await route.GET(request("info-cards/status/media/status?revision=4"), ctx)).status, 503);
 });
 after(async () => { delete global.__infoApi; await fixture.client?.close(); await server?.stop(); });
 function request(path: string, method = "GET", body?: unknown, headers?: Record<string, string>) {

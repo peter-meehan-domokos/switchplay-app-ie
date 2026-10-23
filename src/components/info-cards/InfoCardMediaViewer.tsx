@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import CardMediaViewerImage from "@/components/media/CardMediaViewerImage";
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle } from "@/components/media/CloudflareHlsVideoPlayer";
 import type { ImageMediaItem, CloudflareStreamVideoMediaItem } from "@/lib/media";
+import type { PlaybackGrant } from "@/lib/cardPlaybackGrants";
 import { containInfoCardFocus, isolateInfoCardEvent, useInfoCardDialog } from "./useInfoCardDialog";
 import styles from "./InfoCardConsultation.module.css";
 import mediaStyles from "@/components/media/CardMediaViewer.module.css";
@@ -12,7 +13,8 @@ import mediaStyles from "@/components/media/CardMediaViewer.module.css";
 export type InfoCardMedia = ImageMediaItem | CloudflareStreamVideoMediaItem;
 const noNavigation = () => {};
 
-export default function InfoCardMediaViewer({ media, onClose }: { media: InfoCardMedia; onClose: () => void }) {
+export default function InfoCardMediaViewer({ media, onClose, imageSrc, resolvePlayback }: { media: InfoCardMedia; onClose: () => void;
+  imageSrc?: string; resolvePlayback?: (item: CloudflareStreamVideoMediaItem, signal: AbortSignal) => Promise<PlaybackGrant> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const player = useRef<CloudflareHlsVideoPlayerHandle>(null);
@@ -33,8 +35,8 @@ export default function InfoCardMediaViewer({ media, onClose }: { media: InfoCar
       <button ref={closeButton} className={styles.mediaClose} type="button" onClick={close} aria-label="Close info card media">×</button>
     </header>
     <div className={styles.mediaContent}>
-      {media.mediaType === "image" ? <CardMediaViewerImage item={media} onNavigate={noNavigation} /> :
-        <div className={mediaStyles.videoArea}><CloudflareHlsVideoPlayer ref={player} mediaItem={media} /></div>}
+      {media.mediaType === "image" ? <CardMediaViewerImage item={media} onNavigate={noNavigation} deliverySrc={imageSrc} /> :
+        <div className={mediaStyles.videoArea}><CloudflareHlsVideoPlayer ref={player} mediaItem={media} resolvePlayback={resolvePlayback} /></div>}
     </div>
   </dialog>, document.body);
 }

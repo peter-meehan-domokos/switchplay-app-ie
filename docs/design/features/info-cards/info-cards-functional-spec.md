@@ -2,7 +2,7 @@
 
 **Product:** Switchplay / Puckle  
 **Version:** 0.3 — revised product specification  
-**Date:** 22 October 2026  
+**Date:** 22 October 2026; agreed Phase 3 UX corrections incorporated 23 October 2026
 **Status:** Product-design baseline for the approved prototype-first programme; this document does **not** itself authorise application-code changes or later implementation phases.  
 **Supersedes:** Functional specification v0.2 (21 October 2026).  
 **Companion document:** `docs/engineering/features/info-cards/info-cards-engineering-plan.md` (technical recommendations and implementation checkpoints).
@@ -61,14 +61,14 @@ There is **no manually set public/private visibility field on a series**.
 
 ### 3.3 Series selector and attribution
 
-In Info Card Creator mode, the searchable series selector presents **eligible** series in two groups:
+In Info Card Creator mode, **one dropdown** presents eligible series in two clearly distinguished groups, separated visually:
 
 1. Series originally created by the signed-in user, first.
 2. Other discoverable series, below, alphabetically.
 
-Search supports finding eligible existing series and entering a new title. Show matches before offering creation. Creating a series happens on an intentional confirmation, not merely as characters are typed.
+The dropdown includes an option to create a new series, using a small inline input or modal. Creation is explicitly confirmed, then the new series is selected automatically. There is no separate series search text box or collection of selection buttons. An existing authorised selection remains valid in its editor even if no longer generally discoverable.
 
-**Whenever a series is shown in browsing, search, a selector or management UI, display its name with the originating creator's username**, for example `What You Need (username)`. Use compact secondary typography; do not add the words “Created by”. The same applies when two different creators have identically named series.
+**Show the series creator's username wherever series are selected or managed**, for example `What You Need (username)`. Use compact secondary typography; do not add the words “Created by”. The same applies when two creators have identically named series. Library attribution uses the explicit `What You Need (series by username)` format described in §6 to distinguish series creator from card creator.
 
 **Exception:** on the compact **info-card face**, show only the series name followed by that info card's title. Tapping the series name reveals its originating creator username in a small tooltip/popover; on desktop, hover also reveals it. The tooltip must be accessible without hover alone, and must not interfere with browsing the cards.
 
@@ -110,11 +110,12 @@ Very short viewports and unusual text enlargement may require an accessibility a
 
 ### 5.1 Mode switch
 
-The existing **Create** entry continues to open Creator mode. The top-left **Create New Deck** control becomes a mode selector offering **Deck** and **Info Card**. The surrounding Creator header should remain substantially consistent across modes.
+The application's main **Create** menu is the authoritative creation entry point. New-item Creator sessions show a top-left **Deck / Info Card** selector. Existing-item editing never shows that selector, whether entered from Library, My Drafts or an existing Deck. Creation versus editing is explicit navigation context and survives autosave/reload where appropriate; obtaining a saved draft ID during new-item creation does not itself change that context.
 
 - Deck mode retains its current functionality.
 - Info Card mode provides the editor for the info-card title, series, short text, optional single image/video, draft and public/private publication.
 - The main-card attachment selector is **not** a second inline info-card creation tool.
+- Switching new-item modes finishes saves/uploads without implicit publication or loss of work.
 
 ### 5.2 My Drafts
 
@@ -131,6 +132,22 @@ Failed saves, uploads, mode changes and publishing must not silently abandon or 
 
 An owner can open their published info card from the **Info Cards Library** and enter Info Card Creator mode to edit it. Do not add a temporary “Open existing…” selector as the expected v1 route.
 
+Return navigation preserves the editing entry point, including across reloads: Library → Edit → Library's Info Cards tab; My Drafts → Edit → the originating drafts context. Existing Deck editing keeps its appropriate originating context. Opening a clean published info card for editing must not create an outstanding draft.
+
+### 5.4 Editor structure and contextual feedback
+
+The header says **New Info Card** during creation or **Edit Info Card** during existing-item editing, with discreet Saving…/Saved status and appropriate publication controls. Do not repeat the card title above the form or add a separate `Series: …` summary.
+
+Form order is **Series → Title → Explanation → Image/video (optional) → Live preview**. Title starts empty: there is no default title. The live preview uses the approved fixed-size `InfoCardFace` and updates as the user edits.
+
+Authoring sequence is **Series → Title → Explanation/media**. Title is read-only but focusable until an existing series is selected or a new series has been successfully created and selected with its returned ID. Merely choosing Create a new series, entering its name, or waiting on/receiving a failed creation response does not unlock Title. Premature Title interaction by keyboard or touch explains: **Choose or create a series first.** Once selected, use the actual series name for live combined-header validation.
+
+Series selection and a non-empty title are prerequisites for explanation entry and media addition/replacement. Controls and form order communicate this sequencing. An attempted premature interaction explains: **Choose a series and enter a title first.** Do not rely on unreachable disabled fields. Remaining controls become available automatically when prerequisites are met.
+
+This is UI sequencing, not a new backend completeness rule. Incomplete drafts continue to save and recover. Existing titles, explanation and media remain intact when a prerequisite is missing. A legacy draft's stored title is displayed read-only until a series is selected. Changing series preserves all content and may immediately expose title overflow; never erase, truncate or shrink stored content to enforce sequencing or capacity.
+
+Missing-field feedback appears by relevant controls when needed. Capacity errors appear immediately beneath Title and Explanation as the creator types, updating for series changes and media addition/removal. The title error concerns the combined series/title header; the explanation error concerns the available body space. Associate errors accessibly with the relevant field. When either exceeds capacity, keep the explicit unavailable-preview state without repeating generic capacity advice. Oversized drafts remain saveable with their full content; server-side capacity validation still prevents publication. Other publication/persistence errors remain visible and actionable near Publish or the relevant field. There is no large permanent requirements/explanation block below the preview. Do not shrink, clip, truncate or silently discard invalid content.
+
 ## 6. Info Cards Library
 
 The Library includes two tabs:
@@ -144,11 +161,20 @@ The Info Cards tab shows:
 - Additionally, the signed-in user's own **published private** info cards.
 - **No** other creator's private info cards and **no** unpublished draft content.
 
-Cards appear in a **simple grid, grouped/ordered by series** so cards sharing a series are adjacent and series identity is clear. Each displayed series heading/label includes the **series creator username**. A series group shows only info cards the viewer is authorised to see. Within groups, a straightforward stable order is sufficient; no animated series pack or bespoke browsing mechanism is required.
+Cards appear face-up in **one simple chronological grid**, without series headings or a separate opening interaction:
+
+1. All published info cards owned by the current user, newest original creation date first.
+2. All other public published info cards, newest original creation date first.
+
+Publication/update dates do not affect this order; series do not affect it. The complete order remains correct across pagination, rather than sorting fetched pages independently.
+
+Each card has secondary series attribution, e.g. `Basics (series by other)`, and **Card by phase2** immediately beneath the face with a small gap. Use actual names/usernames and clearly distinguish the two creators without redundant series-creator labels. The compact face itself remains unchanged, with its creator-attribution tooltip rather than a permanent username.
+
+The Info Cards tab has **no Search Info Cards input, Search button or Create Info Card link**. Creation belongs to the main Create menu. Decks / Info Cards tabs and existing Deck Library behaviour remain unchanged. No new filters, management controls or animated packs are required.
 
 A creator may use the Library to open **their own** published info card for editing, whether public or private. Viewing another creator's public info card does not grant editing rights. A published card that also has an outstanding draft remains represented by its published content in the Library, not by draft changes.
 
-Series displayed in the Library derive from visible published cards; a private-only or empty series created by someone else does not appear. Series selection in Creator mode remains distinct from browsing published info-card content.
+Series labels in the Library derive only from authorised published cards; no empty/hidden foreign series are enumerated. Series selection in Creator mode remains distinct from browsing published info-card content.
 
 ## 7. Attaching info cards to main cards
 
@@ -275,19 +301,21 @@ Broader text-enlargement/very-small-screen accessibility and detached-main-card 
 
 ### 12.3 Creator and publication acceptance
 
-1. Create opens Creator mode; the top-left Deck/Info Card selector switches modes without redesigning the header.
+1. Main Create opens a new-item session with the Deck/Info Card selector; existing-item edits have no selector. Mode changes preserve saved work without publishing; return navigation preserves Library, drafts and existing Deck origins across reloads.
 2. Creating a series assigns stable identity; selecting an eligible series created by someone else does not confer rights over that creator's cards.
 3. Two creators may use identical series titles with distinct IDs; one creator cannot create their own normalised duplicate.
-4. Series created by the owner appear first in search; other discoverable series appear alphabetically, always with creator attribution.
+4. One series dropdown shows own series first, a divider, other discoverable series alphabetically, and explicit new-series creation with automatic selection. Options show series creator usernames; retained authorised selections survive discovery loss.
 5. Private-only/empty series are not discoverable to others; a series with a public published member becomes discoverable without exposing its private members.
 6. Every saved unpublished or outstanding published info draft is discoverable in My Drafts **regardless of attachments or decks**.
 7. A clean published info card is accessible for owner editing from the Library; a dirty published card shows its published snapshot there while its draft remains in My Drafts.
-8. Library Decks stays unchanged; Info Cards shows published public and own-private cards in a static series-grouped grid, without leaking drafts or others' private cards.
+8. Library Decks stays unchanged; Info Cards shows published own cards first then others' public cards by original creation date across pagination, without series grouping, search/create controls, draft/private leakage or an extra opening interaction. Series and card creator attribution are distinct; card attribution sits immediately beneath the face.
 9. The main-card header modal searches **published only** info cards by title, series/series creator and info-card creator; allows ordered attachment and removal without deleting the info content.
 10. Publishing attachments follows normal main-card versions/adoption; republishing info content updates the next consultation without changing a main-card version.
 11. Public main-card publication rejects private info attachments at the server; direct routes and media enforce access independently of the UI.
 12. A referenced info card cannot be deleted if any retained main-card draft or historical version refers to it; an unreferenced public info card may be deleted by its owner.
 13. Preview and publication validation disclose overflow without clipping, scrolling, discarding the draft or silently shrinking text.
+
+Creator acceptance also includes §5.4: empty initial title; series/title prerequisites with accessible feedback; preserved incomplete content/recovery; minimal contextual header/status/validation.
 
 ### 12.4 Student interaction acceptance
 

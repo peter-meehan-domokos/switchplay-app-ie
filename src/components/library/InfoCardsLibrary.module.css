@@ -1,0 +1,9 @@
+.metadata a { color: #c9e2f4; text-underline-offset: 3px; }
+.metadata a { display: inline-flex; align-items: center; min-height: 36px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, 240px); gap: 22px; margin: 24px 0; }
+.item { min-width: 0; }
+.series { font-size: 12px; color: #b9c7d3; margin: 0 0 8px; }
+.attribution { font-size: 12px; color: #b9c7d3; margin: 5px 0 0; }
+.metadata { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; margin: 8px 0; }
+.grid button, .metadata a { touch-action: manipulation; }
+@media (max-width: 360px) { .grid { justify-content: center; } }

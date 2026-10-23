@@ -65,7 +65,7 @@ test("untouched Create makes no writes; rapid Add and immediate Card edit retain
   await expect.poll(async () => !!await cardRoot(second)).toBe(true);
   await expect(card(page, first).getByRole("button", { name: "Publish Card 1", exact: true })).toBeEnabled();
   await expect(card(page, second).getByRole("button", { name: "Publish Card 2", exact: true })).toHaveCount(0);
-  const id = page.url().split("/").at(-1)!;
+  const id = new URL(page.url()).pathname.split("/").at(-1)!;
   await expect.poll(async () => (await db().collection("deckTemplates").findOne({ deckTemplateId: id }))?.draft?.cards.map((ref: { cardTemplateId: string }) => ref.cardTemplateId)).toEqual([first, second]);
 });
 
@@ -83,7 +83,7 @@ test("Card publication is independent of failed Card saves; Deck warning Cancel/
   const deck = page.getByRole("button", { name: "Publish Deck", exact: true }); await expect(deck).toBeEnabled();
   await deck.click(); const warning = page.getByRole("dialog", { name: "Unpublished Card changes" }); await expect(warning).toBeVisible();
   await warning.getByRole("button", { name: "Cancel", exact: true }).click();
-  const id = page.url().split("/").at(-1)!; expect(await db().collection("deckTemplateVersions").countDocuments({ deckTemplateId: id })).toBe(0);
+  const id = new URL(page.url()).pathname.split("/").at(-1)!; expect(await db().collection("deckTemplateVersions").countDocuments({ deckTemplateId: id })).toBe(0);
   await deck.click(); await warning.getByRole("button", { name: "Publish anyway", exact: true }).click(); await expect.poll(async () => !!await db().collection("deckTemplateVersions").findOne({ deckTemplateId: id })).toBe(true); await expect(deck).toHaveText("Published");
   const published = await db().collection("deckTemplateVersions").findOne({ deckTemplateId: id });
   expect(published!.content.cards).toEqual([{ cardTemplateId: a, cardVersionAtPublish: 1 }, { cardTemplateId: b, cardVersionAtPublish: 1 }]);
@@ -95,7 +95,7 @@ test("saved newer Card draft warns and Deck publishes its older published Card v
   await editStep(page, a, "Newer saved draft"); await expect(card(page, a).getByRole("button", { name: "Publish Card 1" })).toBeEnabled();
   await editDeck(page, "Older published Card is permitted"); const deck = page.getByRole("button", { name: "Publish Deck", exact: true }); await expect(deck).toBeEnabled();
   await deck.click(); await page.getByRole("dialog", { name: "Unpublished Card changes" }).getByRole("button", { name: "Publish anyway" }).click();
-  await expect(deck).toHaveText("Published"); await expect.poll(async () => !!await db().collection("deckTemplateVersions").findOne({ deckTemplateId: page.url().split("/").at(-1)! })).toBe(true); expect((await cardRoot(a))!.latestVersion).toBe(1); expect((await cardRoot(a))!.draft.steps[0].description).toBe("Newer saved draft");
+  await expect(deck).toHaveText("Published"); await expect.poll(async () => !!await db().collection("deckTemplateVersions").findOne({ deckTemplateId: new URL(page.url()).pathname.split("/").at(-1)! })).toBe(true); expect((await cardRoot(a))!.latestVersion).toBe(1); expect((await cardRoot(a))!.draft.steps[0].description).toBe("Newer saved draft");
 });
 
 test("removed Card save continues after column unmount and final removal is allowed", async ({ page }) => {
@@ -105,7 +105,7 @@ test("removed Card save continues after column unmount and final removal is allo
   await editStep(page, a, "Independent detached content"); await expect.poll(() => started).toBe(true);
   await remove(page, a); pause.resolve();
   await expect.poll(async () => (await cardRoot(a))?.draft.steps[0].description).toBe("Independent detached content");
-  const id = page.url().split("/").at(-1)!;
+  const id = new URL(page.url()).pathname.split("/").at(-1)!;
   await expect.poll(async () => (await db().collection("deckTemplates").findOne({ deckTemplateId: id }))?.draft.cards).toEqual([]);
   await expect(page.locator(".creator-entity-save-error")).toHaveCount(0);
 });
@@ -221,7 +221,7 @@ test("pending local Card edits warn; remote changes invalidate consent and retai
   const rejected = await rejection;
   expect(rejected.status()).toBe(409); expect((await rejected.json()).code).toBe("DECK_PUBLICATION_REVIEW_CONFLICT");
   await expect(page.getByText("The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained.", { exact: true })).toBeVisible();
-  const id = page.url().split("/").at(-1)!; expect(await db().collection("deckTemplateVersions").countDocuments({ deckTemplateId: id })).toBe(0);
+  const id = new URL(page.url()).pathname.split("/").at(-1)!; expect(await db().collection("deckTemplateVersions").countDocuments({ deckTemplateId: id })).toBe(0);
   pause.resolve(); await expect(page.locator(".creator-entity-save-error")).toContainText("Save conflict");
   await expect(card(page, a).locator(".creator-pair-step").first()).toHaveText("Pending browser-only change");
   expect((await cardRoot(a))!.draft.intro.title).toBe("Another tab");

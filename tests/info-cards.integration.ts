@@ -144,6 +144,33 @@ test("collaboration preserves ownership; discovery uses current public membershi
   assert.equal((await discoverSeries(repo, "carol")).items.length, 0);
 });
 
+test("catalogue orders all own cards first then others by original creation date across page boundaries", async () => {
+  const repo = await setup();
+  // Intentionally interleave owners and publication/series order. Creation
+  // times are deterministic fixtures, not a client-controlled API parameter.
+  const fixtures = [
+    { id: "foreign-new", owner: "bob", time: 9, visibility: "public" },
+    { id: "own-old", owner: "alice", time: 1, visibility: "public" },
+    { id: "foreign-old", owner: "carol", time: 2, visibility: "public" },
+    { id: "own-new", owner: "alice", time: 5, visibility: "private" },
+    { id: "hidden", owner: "bob", time: 10, visibility: "private" },
+    { id: "own-tie", owner: "alice", time: 5, visibility: "public" },
+  ] as const;
+  for (const item of fixtures) {
+    await publish(repo, item.id, item.owner, item.visibility, `series-${item.owner}`);
+    await repo.roots().updateOne({ infoCardId: item.id }, { $set: { createdAt: new Date(2026, 0, item.time) } });
+  }
+  // Republishing the oldest own card must not promote it.
+  await repo.save("alice", "own-old", 2, content("series-alice", "Republished"), "public");
+  await repo.publish("alice", "own-old", 3);
+  const ids: string[] = []; let offset: number | null = 0;
+  do {
+    const result = await infoCatalogue(repo, "alice", { limit: 2, offset });
+    ids.push(...result.items.map(item => item.infoCardId)); offset = result.nextOffset;
+  } while (offset !== null);
+  assert.deepEqual(ids, ["own-new", "own-tie", "own-old", "foreign-new", "foreign-old"]);
+});
+
 test("public visibility is permanent, but unreferenced public deletion is permitted", async () => {
   const repo = await setup(); await publish(repo);
   await assert.rejects(repo.save("alice", "a", 2, content(), "private"), { code: "PUBLIC_VISIBILITY_PERMANENT" });

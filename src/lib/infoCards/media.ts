@@ -111,3 +111,19 @@ export async function deliverInfoMedia(repo: InfoCardRepository, actor: string, 
   return media.mediaType === "image" ? readProtectedImage(media, signal)
     : Response.json(await streamPlaybackGrant(media.assetId), { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }
+
+// Owner draft only. An arbitrary provider UID never grants a processing read.
+export async function infoDraftVideoStatus(repo: InfoCardRepository, actor: string, id: string, expected: number) {
+  const media = await authorizeInfoMedia(repo, actor, { infoCardId: id, kind: "draft", revision: expected });
+  assertInfoMediaConfigured();
+  requireCondition(media.mediaType === "video", "INVALID_INFO_MEDIA_CONTEXT");
+  requireCondition(!!process.env.CLOUDFLARE_ACCOUNT_ID && !!process.env.CLOUDFLARE_STREAM_API_TOKEN, "INFO_MEDIA_CONFIGURATION_REQUIRED");
+  const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID!)}/stream/${encodeURIComponent(media.assetId)}`, {
+    headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_API_TOKEN}` }, cache: "no-store", signal: AbortSignal.timeout(20000),
+  });
+  const value = await response.json();
+  requireCondition(response.ok && value.success && value.result?.creator === actor && value.result?.requireSignedURLs === true, "INFO_MEDIA_FORBIDDEN");
+  const state = value.result.readyToStream === true ? "ready" : value.result.status?.state === "error" ? "failed" : "processing";
+  const progress = value.result.status?.pctComplete;
+  return { status: state, ...(state === "processing" && typeof progress === "number" && Number.isFinite(progress) ? { progress: Math.max(0, Math.min(100, progress)) } : {}) };
+}

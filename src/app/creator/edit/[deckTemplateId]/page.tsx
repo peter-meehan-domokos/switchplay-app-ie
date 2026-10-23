@@ -6,6 +6,7 @@ import { CardRepository } from "@/lib/cards/repository";
 import { creatorSessionDTO } from "@/lib/cards/creatorSession";
 import { getCurrentUser } from "@/lib/auth";
 import { readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
+import { creatorNavigation, draftsReturnTarget } from "@/components/creator/creatorNavigation";
 
 
 type CreatorEditPageProps = {
@@ -19,6 +20,9 @@ type CreatorEditPageProps = {
     cards?: string;
     progressFramework?: string;
     progressArea?: string;
+    entry?: string;
+    draftOrigin?: string;
+    drafts?: string;
   }>;
 };
 
@@ -35,6 +39,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
 
   const { deckTemplateId } = await params;
   const resolvedSearchParams = await searchParams;
+  const navigation = creatorNavigation(resolvedSearchParams);
   const returnTo = readFirstSearchParam(resolvedSearchParams.returnTo);
   const returnDeckId = readFirstSearchParam(resolvedSearchParams.returnDeckId);
   const templateDocument = await Promise.resolve().then(async () => creatorSessionDTO(await CardRepository.application(), user.id, deckTemplateId,
@@ -64,7 +69,8 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
     <CreatorDragLab
       key={`${user.id}:${deckTemplateId}`}
       canPreviewOutput={canPreviewOutput}
-      creatorReturnTarget={creatorReturnTarget}
+      creatorReturnTarget={navigation.draftOrigin ? draftsReturnTarget(navigation.draftOrigin) : creatorReturnTarget}
+      navigation={navigation}
       initialBoard={creatorBoard(sessionBoardDTO(templateDocument))}
       initialSession={templateDocument}
       currentUserId={user.id}

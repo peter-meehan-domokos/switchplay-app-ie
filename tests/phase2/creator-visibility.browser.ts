@@ -35,7 +35,7 @@ async function leaveDialog(page: Page) {
 test("empty Deck public intent stays private until confirmed publication; Cancel retains draft and no membership is created", async ({ page }) => {
   await open(page); await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Deck publication visibility" }).selectOption("public");
-  await expect(page).toHaveURL(/\/creator\/edit\//); const id = page.url().split("/").at(-1)!;
+  await expect(page).toHaveURL(/\/creator\/edit\//); const id = new URL(page.url()).pathname.split("/").at(-1)!;
   await expect.poll(async () => (await db().collection("deckTemplates").findOne({ deckTemplateId: id }))?.draftVisibility).toBe("public");
   expect((await db().collection("deckTemplates").findOne({ deckTemplateId: id }))!.visibility).toBe("private");
   expect((await page.request.get(`/api/library/decks/${id}`)).status()).toBe(403);
@@ -87,7 +87,7 @@ test("public Deck lock explains private Cards; explicit Card publication preserv
   await expect(card(page, id).getByRole("combobox", { name: "Card 1 publication visibility" })).toBeDisabled();
   await expect(deckPublish.getByRole("img", { name: "Publication blocked" })).toHaveCount(0); await deckPublish.click();
   await expect(publicDialog(page)).toContainText("0 Cards and 1 Deck"); await publicDialog(page).getByRole("button", { name: "Publish publicly", exact: true }).click(); await expect(deckPublish).toHaveText("Published");
-  const deckId = page.url().split("/").at(-1)!; const preview = await (await page.request.get(`/api/library/decks/${deckId}`)).json(); expect(preview.manifest.cards).toEqual([{ cardTemplateId: id, version: 2 }]);
+  const deckId = new URL(page.url()).pathname.split("/").at(-1)!; const preview = await (await page.request.get(`/api/library/decks/${deckId}`)).json(); expect(preview.manifest.cards).toEqual([{ cardTemplateId: id, version: 2 }]);
 });
 
 test("partial Publish and leave retry retains public Card success and confirms only remaining first-public entities", async ({ page }) => {

@@ -82,6 +82,7 @@ test("Library owner Edit opens the same Creator identity without membership and 
   const edit = page.getByRole("menuitem", { name: "Edit", exact: true });
   await expect(edit).toHaveAttribute("href", new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`)); await edit.click();
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`));
+  await expect(page.getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toContainText(title);
   await expect(page.locator(`.creator-column[data-card-template-id="${ids[0]}"]`)).toBeVisible();
   expect(await repo.getPersonalUser(owner)).toEqual(before);

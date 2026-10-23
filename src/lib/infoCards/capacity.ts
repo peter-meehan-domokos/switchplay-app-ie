@@ -38,6 +38,12 @@ function lineCount(text: string): number {
   return lines;
 }
 
+export type InfoCapacityFieldIssue = {
+  field: "title" | "body";
+  code: "HEADER_OVERFLOW" | "BODY_OVERFLOW";
+  message: string;
+};
+
 export function measureInfoCapacity(input: { title: string; body: string; seriesTitle: string; hasMedia: boolean }) {
   const { title, body, seriesTitle, hasMedia } = input;
   const paragraphs = body.split(/\n\s*\n/);
@@ -48,7 +54,14 @@ export function measureInfoCapacity(input: { title: string; body: string; series
   const issues: string[] = [];
   if (!title.trim() || !body.trim() || !seriesTitle.trim()) issues.push("Title, series and explanatory text are required.");
   if (/[\r\n\t]/u.test(title + seriesTitle) || /[\p{Cc}\p{Cf}]/u.test((title + body + seriesTitle).replace(/\n/g, ""))) issues.push("Remove unsupported control characters (paragraph breaks are supported).");
-  if (headerWidth > INFO_CAPACITY.headerWidth) issues.push("Shorten the title or choose a shorter series name so the single-line header fits beside Close.");
-  if (bodyHeight > availableBodyHeight) issues.push("Shorten the explanation or reduce paragraph breaks to fit the card without scrolling.");
-  return { fits: issues.length === 0, issues, headerWidth, bodyHeight, availableBodyHeight, lines, metricVersion: INFO_CAPACITY.version };
+  // Field diagnostics are renderer-independent output. Editors consume these
+  // rather than reproducing geometry or assuming a line height. The measured
+  // plain-text renderer remains the v1 capacity implementation.
+  const fieldIssues: InfoCapacityFieldIssue[] = [];
+  if (headerWidth > INFO_CAPACITY.headerWidth) fieldIssues.push({ field: "title", code: "HEADER_OVERFLOW",
+    message: "The series name and title are too wide to fit together. Shorten either one." });
+  if (bodyHeight > availableBodyHeight) fieldIssues.push({ field: "body", code: "BODY_OVERFLOW",
+    message: "The explanation is too long to fit on the card. Shorten it or reduce paragraph breaks." });
+  issues.push(...fieldIssues.map(issue => issue.message));
+  return { fits: issues.length === 0, issues, fieldIssues, headerWidth, bodyHeight, availableBodyHeight, lines, metricVersion: INFO_CAPACITY.version };
 }

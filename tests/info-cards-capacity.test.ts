@@ -32,6 +32,29 @@ test("incomplete/overflow drafts are valid; unknown fields and unsafe media are 
   assert.throws(() => assertInfoDraft({ ...EMPTY_INFO_DRAFT, seriesId: { $ne: null } }));
   assert.throws(() => assertInfoDraft({ ...EMPTY_INFO_DRAFT, mediaItem: { id: "x", mediaType: "image", src: "https://evil.invalid/x", description: "x" } }));
 });
+
+test("field diagnostics distinguish header and explanation overflow without editor geometry", () => {
+  const input = { title: "Signs", seriesTitle: "Basics", body: "A note.", hasMedia: false };
+  assert.deepEqual(measureInfoCapacity(input).fieldIssues, []);
+  assert.deepEqual(measureInfoCapacity({ ...input, title: "W".repeat(40) }).fieldIssues.map(issue => [issue.field, issue.code]), [["title", "HEADER_OVERFLOW"]]);
+  assert.deepEqual(measureInfoCapacity({ ...input, seriesTitle: "W".repeat(40) }).fieldIssues.map(issue => issue.field), ["title"]);
+  assert.deepEqual(measureInfoCapacity({ ...input, body: "Line\n".repeat(30) }).fieldIssues.map(issue => [issue.field, issue.code]), [["body", "BODY_OVERFLOW"]]);
+  const both = measureInfoCapacity({ ...input, title: "W".repeat(40), body: "Line\n".repeat(30) });
+  assert.equal(both.fieldIssues.length, 2);
+  assert.deepEqual(both.issues, both.fieldIssues.map(issue => issue.message));
+});
+
+test("explicit lines and collapsed blank paragraph separators retain their existing space", () => {
+  const input = { title: "Signs", seriesTitle: "Basics", hasMedia: false };
+  assert.equal(measureInfoCapacity({ ...input, body: "One\nTwo" }).bodyHeight, 2 * INFO_CAPACITY.lineHeight);
+  const paragraph = measureInfoCapacity({ ...input, body: "One\n\nTwo" });
+  assert.equal(paragraph.bodyHeight, 2 * INFO_CAPACITY.lineHeight + INFO_CAPACITY.paragraphGap);
+  assert.equal(measureInfoCapacity({ ...input, body: "One\n\n\n\nTwo" }).bodyHeight, paragraph.bodyHeight);
+  const sevenLines = { ...input, body: Array(7).fill("Line").join("\n") };
+  assert.deepEqual(measureInfoCapacity(sevenLines).fieldIssues, []);
+  assert.equal(measureInfoCapacity({ ...sevenLines, hasMedia: true }).fieldIssues[0].code, "BODY_OVERFLOW");
+  assert.equal(measureInfoCapacity(sevenLines).availableBodyHeight - measureInfoCapacity({ ...sevenLines, hasMedia: true }).availableBodyHeight, 36);
+});
 test("absent and empty main attachment lists are equal without rewriting history", () => {
   assert(sameInfoReferences(undefined, [])); assert(sameInfoReferences(["a", "b"], ["a", "b"]));
   assert(!sameInfoReferences(["a", "b"], ["b", "a"]));

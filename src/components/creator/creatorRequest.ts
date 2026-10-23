@@ -1,10 +1,10 @@
 export class CreatorRequestError extends Error {
-  constructor(readonly status: number, readonly code: string) { super(code); }
+  constructor(readonly status: number, readonly code: string, readonly details?: Record<string, unknown>) { super(code); }
 }
 export async function creatorRequest<T>(url: string, method = "GET", body?: unknown): Promise<T> {
   const response = await fetch(url, { method, signal: AbortSignal.timeout(15000), cache: "no-store", headers: { "Content-Type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const result = await response.json();
-  if (!response.ok) throw new CreatorRequestError(response.status, result.code ?? result.error ?? "REQUEST_FAILED");
+  if (!response.ok) throw new CreatorRequestError(response.status, result.code ?? result.error ?? "REQUEST_FAILED", result);
   return result;
 }
 export type CreatorTransport = (<T>(url: string, method?: string, body?: unknown) => Promise<T>) & { allowDetachedCard?: (id: string) => void };
@@ -17,7 +17,7 @@ export function actorCreatorTransport(actor: string, live: (url: string, method:
     const response = await fetch(url, { method, signal: AbortSignal.timeout(15000), cache: "no-store",
       headers: { "Content-Type": "application/json", "X-Creator-Actor": actor }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const result = await response.json();
-    if (!response.ok) throw new CreatorRequestError(response.status, result.code ?? result.error ?? "REQUEST_FAILED");
+    if (!response.ok) throw new CreatorRequestError(response.status, result.code ?? result.error ?? "REQUEST_FAILED", result);
     const after = await creatorRequest<{ user: { id: string } | null }>("/api/auth/me");
     if (after.user?.id !== actor || !live(url, method, body)) throw new CreatorRequestError(409, "CREATOR_SESSION_CONFLICT");
     return result as T;

@@ -21,12 +21,15 @@ import type { CreatorSessionDTO } from "@/lib/cards/creatorSession";
 import CreatorDraftsModal from "./CreatorDraftsModal";
 import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
+import CreatorModeSelector from "./CreatorModeSelector";
+import { currentDraftOrigin, type CreatorNavigation } from "./creatorNavigation";
+import { clientId } from "@/lib/clientId";
+import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "./creatorDraftEntries";
 import CreatorPublishControl from "./CreatorPublishControl";
 import CreatorVisibilityControl from "./CreatorVisibilityControl";
 import CreatorPublicConfirmation from "./CreatorPublicConfirmation";
 import { cardPublicationPresentation, deckPublicationPresentation } from "./creatorPublicationPresentation";
 import { creatorRequest } from "./creatorRequest";
-import type { CreatorDraftSummary } from "@/lib/cards/creatorDrafts";
 import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { restoreCreatorDeckTitle } from "@/lib/cards/creatorDefaults";
@@ -110,7 +113,7 @@ const STEP_TEXT_WARNING_LENGTH = 65;
 const SUPPORT_ERROR_MESSAGE = "support";
 
 function createStepLinkId() {
-  return `step-link-${crypto.randomUUID()}`;
+  return `step-link-${clientId()}`;
 }
 
 function isIsoDateOnlyString(value: string) {
@@ -937,7 +940,7 @@ function BoardCell({
 type CreatorDragLabProps = {
   canPreviewOutput: boolean;
   creatorReturnTarget?: {
-    label: "Deck" | "Decks";
+    label: "Deck" | "Decks" | "Back to My Drafts";
     href: string;
   };
   initialBoard: BoardState;
@@ -946,9 +949,10 @@ type CreatorDragLabProps = {
   initialSession?: CreatorSessionDTO;
   currentUserId?: string;
   mode: "edit" | "new";
+  navigation?: CreatorNavigation;
 };
 
-export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode, navigation }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [canonical, setCanonical] = useState<CreatorBoardDTO | null>(initialCreator ?? null);
@@ -965,7 +969,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const confirmedCards = useRef(new Set<string>());
   const [entryConfirmed, setEntryConfirmed] = useState(initialSession?.deck.kind !== "foreign");
   const [isDraftsOpen, setIsDraftsOpen] = useState(false);
-  const [drafts, setDrafts] = useState<CreatorDraftSummary[]>([]);
+  const [drafts, setDrafts] = useState<CreatorDraftEntry[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [draftsError, setDraftsError] = useState("");
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
@@ -1053,9 +1057,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if (!persistence.deck.uncertainPublication && ![...persistence.cards.values()].some((lane) => lane.uncertainPublication)) setPublishMessage((current) => current.startsWith("Publication outcome is not yet confirmed.") ? "" : current);
     const dto = persistence.dto;
     // Autosave may install the edit URL, but must retain the explicit entry origin for reloads.
-    if (dto) { setCanonical(persistence.presentation); window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${window.location.search}`); persistence.routeInstalled(); }
+    if (dto) {
+      setCanonical(persistence.presentation);
+      const query = new URLSearchParams(window.location.search);
+      if (navigation?.creating) query.set("entry", "create");
+      window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${query.size ? `?${query}` : ""}`); persistence.routeInstalled();
+    }
     });
-  }, [persistence]);
+  }, [persistence, navigation?.creating]);
 
   useEffect(() => {
     boardRef.current = board;
@@ -1148,22 +1157,33 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   async function openDrafts() {
     setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
-    try { setDrafts(await creatorRequest<CreatorDraftSummary[]>("/api/creator/drafts")); }
+    try { const result = await loadCreatorDraftEntries(persistence.request); setDrafts(result.items); setDraftsError(result.error); }
     catch { setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
     finally { setDraftsLoading(false); }
   }
+  useEffect(() => {
+    if (!navigation?.openDrafts) return;
+    let active = true;
+    void Promise.resolve().then(async () => {
+      if (!active) return;
+      setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
+      try { const result = await loadCreatorDraftEntries(persistence.request); if (active) { setDrafts(result.items); setDraftsError(result.error); } }
+      catch { if (active) setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
+      finally { if (active) setDraftsLoading(false); }
+    });
+    return () => { active = false; };
+  }, [navigation?.openDrafts, persistence]);
   function closeDrafts() {
     setIsDraftsOpen(false);
     requestAnimationFrame(() => draftsButtonRef.current?.focus());
   }
-  async function switchDraft(id: string) {
+  async function switchDraft(id: string, kind: CreatorDraftEntry["kind"] = "deck") {
     if (switchingRef.current !== null) return;
-    if (id === persistence.deckTemplateId) { closeDrafts(); return; }
+    if (kind === "deck" && id === persistence.deckTemplateId) { closeDrafts(); return; }
     switchingRef.current = id; setSwitchingTo(id); setDraftsError("");
     try {
       await prepareForNavigation();
-      // A plain edit URL deliberately does not inherit another Deck's return context.
-      router.push(`/creator/edit/${encodeURIComponent(id)}`);
+      router.push(creatorDraftHref(id, kind, currentDraftOrigin(window.location)));
     } catch {
       switchingRef.current = null; setSwitchingTo(null);
       setDraftsError("Current work could not be saved. Close My Drafts and review the save or upload errors before switching.");
@@ -1686,10 +1706,17 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   return (
-    <main className="creator-lab" style={creatorGeometryStyle}>
+    <main className="creator-lab" style={creatorGeometryStyle} data-creator-entry={mode}>
       <header className="creator-header" inert={navigationLocked}>
         <div>
-          <p className="creator-kicker">{mode === "edit" ? "Edit Template" : "Create New Deck"}</p>
+          {navigation?.creating ? <CreatorModeSelector mode="deck" disabled={anyPublishing || navigationPending} onChange={() => {
+            if (navigationRef.current) return;
+            navigationRef.current = true; setNavigationPending(true);
+            void prepareForNavigation().then(() => router.push("/creator/info-cards/new")).catch(() => {
+              navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
+              setPublishMessage("Current work could not be saved. Review the save or upload errors before switching modes.");
+            });
+          }} /> : <p className="creator-kicker">Edit Template</p>}
           <p className="creator-edit-hint">Tap text to edit</p>
         </div>
         <div className="creator-header-actions">
@@ -1739,7 +1766,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {publicConfirmation ? <CreatorPublicConfirmation review={publicConfirmation.review}
         onCancel={() => closePublicConfirmation(false)} onConfirm={() => closePublicConfirmation(true)} /> : null}
       {isDraftsOpen ? <CreatorDraftsModal drafts={drafts} currentDeckTemplateId={persistence.deckTemplateId} loading={draftsLoading} error={draftsError}
-        switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id) => void switchDraft(id)} /> : null}
+        switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id, kind) => void switchDraft(id, kind)} /> : null}
       {blockedPublication ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Publication blocked"
         onKeyDown={(event) => { if (event.key === "Escape") closePublicationBlock(); if (event.key === "Tab") event.preventDefault(); }}>
         <p>{blockedPublication}</p><button className="creator-modal-secondary" type="button" autoFocus onClick={closePublicationBlock}>Close</button>

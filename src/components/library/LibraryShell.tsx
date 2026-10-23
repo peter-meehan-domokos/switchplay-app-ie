@@ -15,6 +15,7 @@ import type { PresentedCard } from "@/components/decks/presentation";
 import { deckPresentationIdentity } from "@/components/decks/presentation";
 import { deckEntryAction, libraryFetch, LibraryRequestError, workingDeckHref } from "./libraryClient";
 import LibraryDialog from "./LibraryDialog";
+import LibraryTabs from "./LibraryTabs";
 import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import { flushPersonalMutations } from "@/lib/deckMutations";
 import { useLibraryNavigation } from "./useLibraryNavigation";
@@ -170,7 +171,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     <main className={`app-shell library-shell${entry ? " app-shell--deck" : ""}`}>
     <AnimatePresence initial={false} mode="popLayout">
     <LibraryView key={entry ? `deck-${entry.deckTemplateId}` : "collection"} detail={!!entry}>
-    {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1></header></>}
+    {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1></header><LibraryTabs active="decks" /></>}
     {error && !stale && !chooser && <p className="library-error" role="alert">{error}{!status && <button type="button" onClick={() => window.location.reload()}>Reload Library</button>}</p>}
     {navigation.changed && <p className="library-error" role="status">A newer publication is available. <button type="button" disabled={pending !== null} onClick={() => void refreshPreview()}>Refresh preview</button></p>}
     {active && requestedCard && !active.deck.cards.some((card) => card.cardTemplateId === requestedCard &&

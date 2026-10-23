@@ -1,0 +1,23 @@
+.editor { min-height: 100svh; padding: 18px; color: #202b38; background: #eef1f3; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.heading h1 { font-size: 20px; margin: 0; }
+.saveStatus { font-size: 13px; color: #526170; }
+.actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.layout { display: grid; grid-template-columns: minmax(0, 420px) minmax(240px, 1fr); gap: 28px; max-width: 950px; margin: auto; }
+.form { display: grid; align-content: start; gap: 16px; min-width: 0; }
+.form label { display: grid; gap: 6px; }
+.form input, .form textarea, .form select { width: 100%; padding: 9px; border: 1px solid #84909c; border-radius: 5px; background: white; color: #202b38; font: inherit; font-size: 16px; }
+.form textarea { min-height: 160px; resize: vertical; }
+.preview { min-width: 0; }
+.face { width: 240px; margin: 14px 0; }
+.message { margin: 10px 0; max-width: 70ch; overflow-wrap: anywhere; }
+.fieldError { margin: 6px 0 0; color: #8b2525; font-size: 14px; }
+.form input[aria-disabled="true"], .form textarea[aria-disabled="true"] { background: #e5e9ed; cursor: default; }
+.media { display: grid; gap: 8px; }
+.actions button, .form button { font: inherit; font-size: 14px; min-height: 36px; padding: 6px 10px; border: 1px solid #9aa9b7; border-radius: 6px; color: #243341; background: #f8fafb; cursor: pointer; }
+.actions select { min-height: 36px; }
+.actions button:disabled, .form button:disabled { opacity: .65; cursor: default; }
+.form button[aria-disabled="true"] { background: #e5e9ed; color: #526170; cursor: default; }
+.actions button:focus-visible, .form button:focus-visible { outline: 2px solid #24778a; outline-offset: 3px; }
+@media (max-width: 640px) { .editor { padding: 12px; } .layout { grid-template-columns: minmax(0, 1fr); gap: 22px; } .header { align-items: start; } }

@@ -10,6 +10,7 @@ import { forkCardContent } from "@/lib/cards/forks";
 import { sessionBoardDTO, type CreatorBoardDTO } from "./cardArchitectureAdapter";
 import type { BoardState } from "./creatorBoardState";
 import { creatorRequest, CreatorRequestError, type CreatorTransport } from "./creatorRequest";
+import { clientId } from "@/lib/clientId";
 
 type CardAck = CreatorDTO["cards"][number];
 type DeckAck = Pick<CreatorDTO, "root" | "content" | "publishedContent">;
@@ -203,7 +204,7 @@ export class CreatorPersistenceCoordinator {
   private submitted: SubmittedCreatorOperation | null = null;
   private creationAcknowledged = false;
   recovering = false;
-  private sessionId = globalThis.crypto.randomUUID();
+  private sessionId = clientId();
   private origin = "";
   private reservedDeckId: string | null = null;
   private mediaProofs = new Map<string, string[]>();
@@ -318,7 +319,7 @@ export class CreatorPersistenceCoordinator {
       return { scope: "card-template", deckTemplateId: this.deckTemplateId, cardTemplateId: target?.id ?? this.cardIdentity(id),
         creatorActor: this.session?.actor, ...(card && target ? { prospective: { kind: "card", source: card.source, targetId: target.id, slot, context: this.session!.context } } : {}) };
     }
-    if (this.deckSource && !this.deck.ack) this.reservedDeckId ??= crypto.randomUUID();
+    if (this.deckSource && !this.deck.ack) this.reservedDeckId ??= clientId();
     return { scope: "deck-introduction", deckTemplateId: this.reservedDeckId ?? this.deckTemplateId, creatorActor: this.session?.actor,
       ...(this.deckSource && !this.deck.ack ? { prospective: { kind: "deck", source: this.deckSource.source, targetId: this.reservedDeckId!, slot: slot as "image" | "video", context: this.session!.context } } : {}) };
   }
@@ -328,7 +329,7 @@ export class CreatorPersistenceCoordinator {
       // Lineage allocation follows the immutable source order, even when the
       // first meaningful edit is a reorder of the visible Steps.
       const source = this.foreignCards.get(id)?.content ?? this.cards.get(id)!.desired;
-      target = { id: crypto.randomUUID(), steps: new Map(source.steps.map((step) => [step.stepId, crypto.randomUUID()])) };
+      target = { id: clientId(), steps: new Map(source.steps.map((step) => [step.stepId, clientId()])) };
       this.targets.set(id, target);
     }
     return target;
@@ -343,7 +344,7 @@ export class CreatorPersistenceCoordinator {
   private queueForeignDeck(content: DeckContent, visibility?: Visibility, cardFork?: CardForkCommand, newCards?: DeckForkCommand["newCards"]) {
     if (this.deckCreationQueued || this.deck.ack) return;
     this.deckCreationQueued = true;
-    const command: DeckForkCommand = { source: this.deckSource!.source, deckTemplateId: this.reservedDeckId ?? crypto.randomUUID(),
+    const command: DeckForkCommand = { source: this.deckSource!.source, deckTemplateId: this.reservedDeckId ?? clientId(),
       context: this.session!.context, content: clone(content), ...(visibility ? { visibility } : {}),
       mediaProofs: this.mediaProofs.get("deck"), foreignCardSelections: this.selections().filter((ref) => ref.cardTemplateId !== cardFork?.source.cardTemplateId), ...(cardFork ? { cardFork } : {}), ...(newCards ? { newCards } : {}) };
     this.enqueueFork("deck", command);

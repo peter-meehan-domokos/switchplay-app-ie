@@ -1,12 +1,23 @@
 # Info Cards — Reconciled Engineering Plan
 
-Date: 22 October 2026; Phase 2 handoff updated 23 October 2026. Status: **Phases 1A–1C completed; Phase 2 backend implemented and tested, with live media-provider verification still outstanding.**
+Date: 22 October 2026; agreed Phase 3 UX corrections incorporated 23 October 2026. Status: **Phase 3 UX corrections implemented and automated checks passed (one hot-reload-disrupted regression passed on isolated rerun); manual iPhone acceptance, application index deployment and live media-provider verification remain explicit gates.**
 
-Implementation order is **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1B start inspection found a clean `feat/info-cards` worktree at `666abb4` (committed Phase 1C), so no concurrent edits require another worktree. The functional specification is unchanged. Later visual decisions (secondary series/primary title and dedicated consultation X) supersede older wording in specification §§4.2/10.3 and are preserved.
+Implementation order is **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1B start inspection found a clean `feat/info-cards` worktree at `666abb4` (committed Phase 1C), so no concurrent edits require another worktree. The functional specification now incorporates only the explicitly agreed Phase 3 UX corrections. Later visual decisions (secondary series/primary title and dedicated consultation X) supersede older wording in specification §§4.2/10.3 and are preserved.
 
 Authority: [functional specification v0.3](../../../design/features/info-cards/info-cards-functional-spec.md), together with subsequent approved visual decisions. Section 12 records the earlier reconciliation; section 13 contains deferred improvements and section 14 retains the original 1A task. See [Phase 1B evidence and review instructions](phase-1b/README.md) and the historical [Phase 1C handoff](phase-1c/README.md).
 
-This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Current coding authority covers **Phase 2 only**. Creator/Library UI and production attachments remain later phases. See the [Phase 2 handoff](phase-2/README.md) for implementation and verification status.
+This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Current coding authority covers **Phase 3 only**. Production attachments remain Phase 4. See the [Phase 2 handoff](phase-2/README.md) for backend contracts and verification status.
+
+### Phase 3 readiness corrections
+
+1. Use implemented contracts: offset/limit pagination and `nextOffset`, caller-stable creation IDs, and `/api/info-cards/:id/media` with exact draft revision or publication version. Earlier route tables are conceptual where these differ; no history reader is added.
+2. Use a small independent info editor persistence controller with serial revision-checked autosaves, captured-command retries, publication-receipt recovery and retained local edits on conflicts. Preserve structured capacity/error details in the actor-bound transport. Do not instantiate the deck board/coordinator for info content.
+3. My Drafts combines typed deck and independently owner-queried info entries, routes by kind/ID, handles every info page and reports source failures. Finish current saves/uploads before switching, without implicit publication.
+4. Add collection-level Library tabs with an independent static info panel; preserve existing deck detail/navigation. Apply owner-first/original-creation-date ordering server-side before pagination; no series groups or Library search/create controls. Refresh on return, discard stale/account-mismatched responses, and preserve editing origin through reloads.
+5. Add info-specific upload adapters honouring returned headers/proofs, an authorised exact-context processing-status read, explicit image delivery source and the player's playback resolver. Preserve the fail-closed provider gate and test replacement, cancellation, stale results and publication-specific access.
+6. Reuse the approved fixed-width `InfoCardFace` and shared capacity validator; preserve secondary-series/primary-title hierarchy. Invalid drafts remain editable and saved, with explicit overflow feedback rather than silent truncation/shrinking.
+7. Extend real-Next disposable browser setup with info indexes and controlled media boundaries. Automated UI acceptance uses authenticated real routes; the port 4180 Phase 1 fixture is not Phase 3 evidence. Provide opt-in LAN access to the disposable application for phone review.
+8. Main-card attachment UI, canonical writer guards, production pouch fetching and reference-feedback UI remain Phase 4. Phase 3 may consume existing backend contracts but must not enable unguarded attachment writes. No unrelated Creator/Library framework refactor.
 
 ### Phase 2 readiness amendments
 
@@ -27,7 +38,7 @@ This document distinguishes **Fact** (inspected repository or observed diagnosti
 - Current worktree branch: `feat/info-cards`; 1C start HEAD `a4c2e2a`, with a clean worktree and committed 1A corrections. The original planning inspection was at `5bf8992`.
 - At the original inspection, design/engineering documents were untracked; they are now committed. Existing design and 1A evidence remain preserved.
 - A separate `feat/step-visuals` worktree exists. Its work is not assumed to be available in this branch. In particular, future interactive activities must not be claimed as already integrated here.
-- The present task implements Phase 2 against completed Phases 1A–1C. It preserves the functional specification and prototype. Index setup is explicit; no live database migration or provider configuration changes have been made.
+- The present task implements Phase 3 against completed Phases 1–2. It preserves the functional specification and prototype. Index setup is explicit; no live database migration or provider configuration changes have been made.
 
 ### 1.2 Architecture evidence
 
@@ -116,7 +127,7 @@ No eager fetch of every media asset, persistent content cache or real-time subsc
 
 ## 3. Library architecture and implementation cost
 
-**Decision: implement the actual Decks/Info Cards Library in v1.** The earlier cost comparison found its incremental cost reasonable: published search, visibility filtering, owner editor routes and attribution are already required for Creator and the attachment picker. Additional work is the tab wrapper, static grouped grid, pagination and navigation/accessibility states. There is no temporary published-item selector phase.
+**Decision: implement the actual Decks/Info Cards Library in v1.** The earlier cost comparison found its incremental cost reasonable: published queries, visibility filtering, owner editor routes and attribution are already required. Additional work is the tab wrapper, static chronological grid, pagination and navigation/accessibility states. There is no temporary published-item selector phase. Search support remains a backend capability for the later attachment picker, not a Library control.
 
 Most complexity is in permissions, editor persistence and derived series discovery. A static grid does not need the existing animated deck-detail state machine, adoption manifests or membership actions. This is a source-based relative estimate, not a time quote.
 
@@ -132,25 +143,27 @@ Most complexity is in permissions, editor persistence and derived series discove
 | `/library?tab=info-cards` | Authenticated static grid of all published public info cards plus the actor's published private cards, progressively paginated. No drafts. |
 | Existing `/library/[deckTemplateId]` | Unchanged deck detail links. Do not accidentally treat `info-cards` as a deck ID. |
 | `/creator/info-cards/new`, `/creator/info-cards/[infoCardId]` | Creator mode entry/editor; existing record route is owner-only. |
-| `GET /api/library/info-cards` | Published catalogue, bounded search/filter/cursor, server visibility filtering. Reusable query core for attachment results. |
+| `GET /api/library/info-cards` | Published catalogue, bounded search/filter/offset pagination, server visibility filtering. Reusable query core for attachment results. |
 | `/api/info-cards`, `/api/info-cards/[id]` and publish action | Owner create/read-draft/save/publish/delete; explicit revision preconditions. Public catalogue reads never return draft fields. |
 | `/api/info-card-series` | Authenticated eligible-series search and creator-scoped get-or-create; policy in section 4. |
 | Main-card consultation endpoint | Proposed `GET /api/card-templates/[id]/info-cards` with validated context/version; snapshot response, not a client-authorised ID batch. |
-| Info media endpoint | Proposed `/api/media/info-cards/[id]`; publication/owner-draft context, exact stored asset match, authenticated delivery. |
+| Info media endpoint | `/api/info-cards/[id]/media`; publication/owner-draft context, exact stored asset match, authenticated delivery. Owner draft video processing uses `/api/info-cards/[id]/media/status?revision=N`. |
 
 Choose one thin tab wrapper at the Library collection level. Do not mount the deck navigation controller while the info panel is active. Retain existing deck deep links and refresh behaviour. Account switching clears private lists, searches and previews; session-aware no-store responses prevent cross-viewer cache reuse.
 
-Group cards by series **ID**, ordered alphabetically by series title with creator ID/series ID tie-breakers, and within series by title then info ID. Headings display `Series title (username)` with secondary username styling; identical titles from different creators never collapse into one group. Apply card permissions **before** grouping, counts and pagination. Pagination may continue a large series on the next page with a repeated heading; it must eventually expose every accessible published card. Use a simple InfoCardFace presentation without stack motion; info-owner attribution and owner Edit actions can sit outside the constrained face. The face itself retains only series/title text and a series attribution tooltip. No independent animated series packs, membership or adoption controls.
+**Agreed UX correction:** no grouping, search form or creation link. In `infoCatalogue`, after ACL filtering set an own-card priority and sort `(own ASC, root.createdAt DESC, infoCardId ASC)` **before** offset/limit. Original creation timestamp is immutable through publication; publication/update/series order has no effect. The client appends server-ordered pages without independently sorting them. Stable ID breaks timestamp ties. Ordinary offset pagination is retained; concurrent catalogue mutations are not a frozen multi-request snapshot and focus/return refresh restarts the first page.
+
+Use the approved face-up `InfoCardFace`, no extra opening interaction. Show secondary `Series title (series by username)` above each face and `Card by username` immediately beneath it (small gap), followed by privacy/owner Edit actions. No series headings, duplicate permanent creator labels, animated packs, membership or adoption controls. Card face/tooltip and media publication identity remain unchanged.
 
 ## 4. Shared collaborative series
 
 ### 4.1 Identity, names and attribution
 
-**Decision:** stable server-generated UUID; immutable original `createdByUserId`; display title plus `normalisedTitle`. Enforce a unique compound index on `(createdByUserId, normalisedTitle)`, never on title alone. Normalise consistently using Unicode NFKC, trim/collapse whitespace and locale-independent lowercase. Preserve the confirmed display title; do not strip punctuation/diacritics or fuzzy-merge titles. This is a documented technical normalisation policy, not a series rename feature.
+**Decision:** stable caller-generated UUID validated by the server; immutable original `createdByUserId` bound to the authenticated actor; display title plus `normalisedTitle`. Enforce a unique compound index on `(createdByUserId, normalisedTitle)`, never on title alone. Normalise consistently using Unicode NFKC, trim/collapse whitespace and locale-independent lowercase. Preserve the confirmed display title; do not strip punctuation/diacritics or fuzzy-merge titles. This is a documented technical normalisation policy, not a series rename feature.
 
 Creation is explicit, not a request on each keystroke. The actor supplies a title, never an arbitrary series creator ID. If that actor already has the normalised title, return their existing ID. Concurrent creations by the same actor use the unique-index duplicate-key/re-read pattern; creations by different actors produce distinct IDs. A match belonging to another creator is selectable only through eligible search results and is never substituted automatically for Create.
 
-Display `Series title (username)` in Library headings, Creator fields, dropdown results and attachment metadata, with secondary username styling and no “Created by” label. Resolve creator usernames through existing attribution helpers, with the established unavailable-user fallback; a changed/deleted username does not change series identity. On the actual face, omit the username from the single-line header and reveal it on series-title tap, hover or keyboard focus/activation. `CardCreatorAttribution.tsx` is an existing small popover/event-isolation pattern, but its main-card placement/source labels are not reusable face markup.
+Display `Series title (username)` in Creator dropdowns and attachment metadata. Library instead uses `Series title (series by username)` and separately `Card by username` to distinguish series creator from card owner. Resolve usernames through existing attribution helpers and fallback; changing/deleting a username does not change identity. On the actual face retain only the series title, revealing its creator through the existing tooltip. Do not change Phase 1 markup or styling.
 
 ### 4.2 Derived discovery and retained selections
 
@@ -162,7 +175,7 @@ Use the **latest published** series membership and effective published visibilit
 
 Search filters eligible series before returning names, attribution, suggestions, pagination or any metadata. A hidden foreign series must produce the same unavailable result as an unknown ID. Bound and escape search input. Sort matching own-created series alphabetically first, then eligible other-created series alphabetically, with stable ID tie-breakers **before pagination**. Empty/private-only/unpublished-only own series are included for the creator; those of others are excluded. No private member counts are exposed.
 
-Library grouping starts from **authorised current published info cards**, then projects their series labels/attribution. It never enumerates all series as empty headings. This lets an owner see their own private member in a formerly discoverable series without showing that private group to anyone else.
+Library rows start from **authorised current published info cards**, then project their series labels/attribution without grouping or enumerating hidden series. An owner can still see their own private member in a formerly discoverable series; no private members are exposed to others.
 
 If a contributor already owns a card referencing a series which later becomes undiscoverable, permit its existing selected label in that card's authorised draft/published editor/preview and permit retaining that ID on save/publish. This limited context is necessary to keep their own content editable; it is not general search eligibility. New assignments to a foreign series must be discoverable when validated in the save snapshot. Revalidate after selection; if eligibility has disappeared before save, preserve entered content and ask the creator to choose an eligible series. Do not erase an existing valid selection merely because discovery changed. No new cross-document series locks or permanent contributor ACL are justified.
 
@@ -176,9 +189,17 @@ Keep unused series metadata: the creator can still find it and drafts may refer 
 
 ### 5.1 Mode switching and editing
 
-Keep Create as the existing entry. Add Deck/Info Card to the top-left control without redesigning the header. Switching modes, drafts or Library destinations waits for in-flight saves using the existing navigation preparation pattern; failure keeps the editor visible with retry/recovery feedback.
+Keep the application's main Create menu as the authoritative entry. Show the Deck/Info Card selector **only in explicit new-item sessions**, never ordinary existing-item edits. Carry `entry=create` when autosave installs a stable edit URL so reload preserves creation intent. Existing Library/My Drafts/Deck edit entries default to editing. Switching modes or destinations waits for saves/uploads without publishing; failure keeps the editor visible.
 
-The info editor has series search/create, title, plain text, one media item, visibility, draft status, preview and Publish. Public publication has the existing style of permanent-public confirmation. Persist an info draft identity before requesting upload credentials. Reopening a clean published card does not itself manufacture an outstanding draft; the first actual content/visibility edit does. If saved content and intent return to the published baseline, clear the outstanding draft rather than leave a false My Drafts entry. Invalid/over-capacity content may remain a recoverable draft but cannot publish.
+Header: New Info Card/Edit Info Card, discreet save status, appropriate publication controls. Form: single Series dropdown, initially empty Title, Explanation, optional media, live preview. No duplicate title/series summary, separate series search/buttons or permanent requirements block. The dropdown loads all eligible pages, groups own/other series with a divider and usernames, offers explicit inline creation then auto-selects, and retains an authorised selected series excluded by general discovery.
+
+**Series-first Title correction:** the title input is focusable/read-only (`aria-disabled`) until the desired series ID matches an available selected series DTO, including its actual title. Keyboard/focus/touch interaction gives “Choose or create a series first.” New-series intent is not a selection: only the successful returned ID unlocks Title. No changes to series discovery/creation APIs are required. Existing stored title/body/media are preserved; a no-series legacy title stays visible and read-only. The downstream explanation/media gate uses that resolved selection plus nonblank title. Capacity feedback uses the real selected series; no speculative title-width warning is shown before it is known. No backend measurement, typography, rendering, navigation or Phase 4 changes.
+
+Series plus nonblank title gate **only UI explanation/media add/replace**, not backend draft saves. Read-only focusable explanation and a keyboard/touch-operable unavailable media control provide the exact contextual prerequisite message; stored body/media are never cleared. Missing fields appear beside controls after attempted publication. Live capacity diagnostics appear directly beneath Title/Explanation, with `aria-invalid` and `aria-describedby`, updating on typing, series changes and media changes. The preview becomes an explicit “Preview unavailable.” state, without repeating the field warnings. The shared capacity module returns typed field/code/message diagnostics alongside its existing aggregate issues/metrics; React consumes those diagnostics without text measurement or fixed-line-height assumptions. Only server capacity messages already visible at current fields are suppressed; other structured validation, upload and persistence errors remain actionable. Oversized drafts autosave; server publication validation remains authoritative. No mathematical rendering, dimensions, typography or wrapping/paragraph policy changes are included.
+
+Public publication retains permanent-public confirmation. Persist identity before upload allocation; clean published editing creates no spurious draft. Reverting to published content clears outstanding state. Incomplete/overflow drafts remain recoverable but cannot publish.
+
+Navigation uses a small shared `creatorNavigation.ts` context, not a generic routing framework. Info Library editing returns to `/library?tab=info-cards`; draft editing stores a bounded internal `draftOrigin` and returns to that editor with `drafts=1`, reopening the existing My Drafts dialog. Origins allow only known Creator routes and query keys, strip recursive origins, and do not trust external return URLs. Existing Deck Library/My Decks return parameters remain unchanged. Save-installed URLs retain context across reloads.
 
 Reuse `EntityLane`'s save/revision/recovery mechanics if its small generic contract fits. Do not instantiate the deck coordinator or broaden its board, fork and publication-review machinery for info cards. Any extraction should be limited to genuinely shared persistence code and covered by its existing tests.
 
@@ -319,7 +340,7 @@ Historical backend records do not imply anonymous private-media URLs are safe. V
 
 ## 8. Phased implementation and acceptance checkpoints
 
-The user now authorises **Phase 2 only**, following completion of Phases 1A–1C. Historical prototype checkpoints remain below as evidence. Later phases still require separate authorisation.
+The user now authorises **Phase 3 only**, following completion of Phases 1–2. Historical checkpoints remain below as evidence. Later phases still require separate authorisation.
 
 ### Phase 1A — Footer geometry and content-capacity prototype
 
@@ -370,8 +391,12 @@ Implementation checkpoints: (1) domain/indexes and per-creator series uniqueness
 - **Objective:** complete create/edit/publish workflows, independent My Drafts, static Library and real single-item media upload/preview.
 - **Files:** Creator header and `CreatorDraftsModal.tsx`, new info editor/routes, `LibraryShell.tsx` collection chrome or thin wrapper, `library/page.tsx`, new grid/query UI, upload target validation/routes and info media delivery.
 - **Dependencies:** Phase 2 APIs and accepted preview/validation.
-- **Validation:** new/unattached draft persists after reload; dirty published item in My Drafts and published snapshot in Library; clean item Library-only; mode switch save failures; owner/foreign editor access; public/own-private list; distinct identically titled attributed groups; hidden/private-only series not discoverable through search/API; authorised own-card label still available after discovery loss; pagination/session change; image/video readiness/replacement; rejected overflow preserves draft.
+- **Validation:** new/unattached draft reload; dirty published snapshot separation; creation-only selector including autosave/reload; no implicit publishing on switch; origin-aware Library/drafts/Deck returns; chronological owner-first pagination independent of publication dates; distinct series/card attribution; no Library search/create controls; own/other dropdown ordering, creation and retained hidden selection; accessible prerequisites preserving incomplete body/media; contextual validation; media/session regressions and normal mobile/keyboard operation.
 - **Done when:** two creators can contribute to one series without edit-right leakage; all required drafts are recoverable; Library Decks behaviour is unchanged; real media and understandable publication feedback work.
+
+Implementation checkpoints are **3A editor/persistence → 3B series/publication → 3C My Drafts/Library → 3D media → 3E combined acceptance**. Check each before proceeding. The local controller journals submitted commands, serialises captured save retries and recovers publications by consumed revision; no historical-publication UI/API is added. Local conflicts retain text and offer an explicitly confirmed reload of saved content. Native Back drains an outstanding actor-bound save. Upload cancellation retains the previous media; processing status is exact-owner-draft scoped. Viewer adapters preserve the consulted publication and default Phase 1 behaviour. See [Phase 3 handoff](phase-3/README.md) for evidence and operational limitations.
+
+Full media acceptance remains gated on actual Cloudflare protection/CORS verification; mocked provider contracts are not live delivery evidence. Install indexes explicitly in the intended deployed database before exposing these routes. The disposable review runner creates its own indexes and test users; `--dev --lan --info-cards` serves the authenticated Next app on port 4181, with only the actual review hostnames allowed by Next's development-origin check. It is separate from the Phase 1 fixture on 4180.
 
 ### Phase 4 — Main attachments, guarded deletion and live consultation
 
@@ -467,7 +492,7 @@ Higher capability does not replace disposable-database concurrency tests or phon
 | Public deletion | Owner can delete an unreferenced public record; public visibility remains permanent while it exists. Historical/main-draft refs still block. |
 | Capacity/accessibility | Measure normal content/mobile envelope first, keep ordinary faces complete and fixed; broader extreme-size accessibility work is backlog, with zoom preserved. |
 | Backend publications | Immutable retention approved; no user-facing history or adoption. |
-| Prototype | Phases 1A–1C completed; user has authorised Phase 2 following readiness review. |
+| Prototype | Phases 1A–1C completed; Phase 2 committed and Phase 3 authorised. Automated Phase 1 regressions remain green. |
 
 **No architectural obstacle requires 1B before 1C.** Card dimensions/capacity have 1A evidence; motion tuning remains a 1B output. Phone evidence requires access to the actual device; absent coverage must be reported. WebKit availability does not block progress.
 
@@ -480,7 +505,7 @@ The companion specification was updated during the earlier planning task, not du
 | §§2, 4.4 series | Stable creator-associated identity, per-creator duplicate prevention, independent contributions and attributed selectors. |
 | §4.4 discovery | Derived current-public membership, hidden empty/private-only foreign series, no historical/draft visibility leakage; retained owner-card context. |
 | §4.3 drafts | All owner info drafts independently accessible; published-dirty snapshot separation and clean Library access. |
-| §4.5 Library | Real static Decks/Info Cards Library in v1, authorised published cards only, distinct attributed series groups and owner editing. |
+| §6 Library (Phase 3 UX correction) | Real static Decks/Info Cards Library, authorised published cards only, own-first chronological pagination, no series groups/search/create controls, distinct per-card attribution and owner editing. |
 | §5 attachments | Published-only title/series/card-owner picker, attributed series metadata, remove/reorder, normal main publishing/adoption. |
 | §§3.1, 8 face | One bold body-sized series/title line; series creator tooltip; no separate INFO label, index/dots, thumbnail, scroll or truncation; measured capacity. |
 | §6 publication/deletion | Permanent public visibility, owner deletion when unreferenced, all main draft/history blockers, immutable backend publications and stable open consultations. |
@@ -525,7 +550,7 @@ These tasks are recommendations for later scheduling, not additions to Phase 1 o
 
 ## 14. Precise first implementation task
 
-Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **Phase 2**, with its dependencies and acceptance criteria in section 8. No prototype styling redesign is included.
+Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **Phase 3**, with its dependencies and acceptance criteria in section 8. No prototype styling redesign is included.
 
 **Recommended task:** “Info Cards Phase 1A — actual Step View footer geometry and static info-card capacity fixture.” Preferred model: **Sol 6.1, High thinking effort**, consistent with section 10. Geometry, scoped styling and meaningful browser measurement are a bounded coding task; device evidence matters more than escalating model effort. No independent second implementation is warranted for this checkpoint.
 
