@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 
-let bundle: string;
+let bundle: string, componentCss: string;
 test.beforeAll(async () => {
-  bundle = (await build({
+  const compiled = await build({
     stdin: { resolveDir: process.cwd(), loader: "tsx", contents: `
       import React from 'react'; import { createRoot } from 'react-dom/client';
       import DeckGrid from './src/components/decks/DeckGrid';
@@ -25,9 +25,11 @@ test.beforeAll(async () => {
         <DeckScene deck={decks[0]} onBack={()=>{}} transition={{duration:0}} />;
       createRoot(document.getElementById('root')).render(<React.StrictMode>{view}</React.StrictMode>);
     ` },
-    bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic",
+    bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic",
     define: { "process.env": JSON.stringify({ NODE_ENV: "development" }) },
-  })).outputFiles![0].text;
+  });
+  bundle = compiled.outputFiles!.find(file => file.path.endsWith(".js"))!.text;
+  componentCss = compiled.outputFiles!.find(file => file.path.endsWith(".css"))?.text ?? "";
 });
 
 async function setup(page: Page, context: string, canonical: boolean) {
@@ -75,7 +77,7 @@ async function setup(page: Page, context: string, canonical: boolean) {
     return route.fulfill({ contentType: "video/webm", headers: { "Accept-Ranges": "bytes" }, body: video });
   });
   await page.goto(`https://fixture.invalid/?${context}${canonical ? "&canonical" : ""}`);
-  await page.addStyleTag({ content: await readFile("src/app/globals.css", "utf8") });
+  await page.addStyleTag({ content: await readFile("src/app/globals.css", "utf8") + componentCss });
   await page.addScriptTag({ content: bundle });
   return { errors, release: async (asset: string) => {
     await expect.poll(() => pending.has(asset)).toBe(true);

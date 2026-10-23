@@ -26,8 +26,19 @@ export default function InfoCardFace({ card, onOpenMedia }: {
     const dismiss = (event: globalThis.PointerEvent) => {
       if (!attribution.current?.contains(event.target as Node)) setShowCreator(false);
     };
-    document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
+    const escape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setShowCreator(false);
+    };
+    // Observe before the consultation consumes bubbling background events.
+    document.addEventListener("pointerdown", dismiss, true);
+    document.addEventListener("keydown", escape, true);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss, true);
+      document.removeEventListener("keydown", escape, true);
+    };
   }, [showCreator]);
 
   return (
@@ -67,7 +78,7 @@ export default function InfoCardFace({ card, onOpenMedia }: {
         {card.body.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </div>
       {card.mediaKind ? (
-        <button className={styles.media} type="button" onClick={onOpenMedia} disabled={!onOpenMedia}>
+        <button className={styles.media} type="button" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowCreator(false); onOpenMedia?.(); }} disabled={!onOpenMedia}>
           <svg viewBox="0 0 20 20" aria-hidden="true">
             {card.mediaKind === "video" ? <path d="M6 3.5 16 10 6 16.5Z" /> : <><rect x="2" y="3" width="16" height="14" rx="2" /><path d="m3 14 4-5 4 4 3-3 3 4" /><circle cx="13" cy="7" r="1" /></>}
           </svg>

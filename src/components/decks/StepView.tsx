@@ -1,6 +1,7 @@
 import { motion, type Transition } from "motion/react";
 import { type PointerEvent, type MouseEvent, type ReactNode, type RefCallback } from "react";
 import InfoCardPouch, { type InfoCardPouchProps } from "@/components/info-cards/InfoCardPouch";
+import InfoCardStack from "@/components/info-cards/InfoCardStack";
 import styles from "./StepView.module.css";
 import type { PresentedCard } from "./presentation";
 import StepDescriptionText from "@/components/cards/StepDescriptionText";
@@ -30,6 +31,8 @@ type StepViewProps = {
   useCloudflareVideoHost?: boolean;
   infoCards?: StepViewInfoCards;
   mediaPreview?: ReactNode;
+  surfaceRef?: RefCallback<HTMLElement>;
+  activity?: ReactNode;
 };
 
 const stepViewTransition: Transition = {
@@ -120,6 +123,8 @@ export default function StepView({
   useCloudflareVideoHost = false,
   infoCards,
   mediaPreview,
+  surfaceRef,
+  activity,
 }: StepViewProps) {
   const itemLabel = getStepViewItemLabel(item);
   const itemTitle = getStepViewItemTitle(card, item);
@@ -133,6 +138,7 @@ export default function StepView({
 
   return (
     <motion.section
+      ref={surfaceRef}
       className={`step-view-layer${infoCards || mediaPreview ? ` ${styles.surface}` : ""}`}
       data-step-view-item={item.type}
       initial={{ x: "-100%" }}
@@ -169,7 +175,7 @@ export default function StepView({
           onPointerUp={stopStepViewPropagation}
           onPointerCancel={stopStepViewPropagation}
         >
-          {mediaPreview ?? renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost)}
+          {activity ?? mediaPreview ?? renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost)}
         </div>
       </main>
       <footer className={`step-view-actions ${styles.actions}`} data-info-open={Boolean(infoCards && infoCards.count > 0 && infoCards.expanded)}>
@@ -183,12 +189,7 @@ export default function StepView({
         </button>
       </footer>
       {infoCards && infoCards.count > 0 && infoCards.expanded && infoCards.content ? (
-        <section id={infoCards.controlsId} className={styles.preview} aria-label="Information cards" data-info-card-stack="">
-          <div className={styles.backing} aria-hidden="true" data-info-card-backing="" />
-          <div className={styles.backing} aria-hidden="true" data-info-card-backing="" />
-          <div className={styles.topCard}>{infoCards.content}</div>
-          <button className={styles.consultationClose} type="button" aria-label="Close information card stack" onClick={infoCards.onToggle}>×</button>
-        </section>
+        <InfoCardStack id={infoCards.controlsId} onClose={infoCards.onToggle}>{infoCards.content}</InfoCardStack>
       ) : null}
     </motion.section>
   );
