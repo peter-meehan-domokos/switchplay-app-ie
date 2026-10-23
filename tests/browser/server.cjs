@@ -9,6 +9,7 @@ const port = Number(process.env.SWITCHPLAY_FIXTURE_PORT || 4178);
 if (!['127.0.0.1', '0.0.0.0'].includes(host) || !Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid fixture host/port');
 const { webpack } = require('next/dist/compiled/webpack/webpack');
 const output = fs.mkdtempSync(path.join(os.tmpdir(), 'switchplay-media-viewer-'));
+const buildId = Date.now().toString(36);
 webpack({ mode: 'development', devtool: false, entry: { fixture: path.resolve(__dirname, 'fixture.tsx'), 'info-cards': path.resolve(__dirname, 'info-cards-fixture.tsx'), 'info-cards-integration': path.resolve(__dirname, 'info-cards-integration-fixture.tsx') }, output: { path: output, filename: '[name].js' },
   resolve: { extensions: ['.tsx', '.ts', '.js'], alias: { '@': path.resolve(__dirname, '../../src') } },
   module: { rules: [{ test: /\.(tsx?|css)$/, exclude: /node_modules/, use: path.resolve(__dirname, 'fixture-loader.cjs') }] },
@@ -17,7 +18,8 @@ webpack({ mode: 'development', devtool: false, entry: { fixture: path.resolve(__
 }, (error, stats) => {
   if (error || stats.hasErrors()) { console.error(error || stats.toString({ all: false, errors: true })); process.exit(1); }
   const server = http.createServer((request, response) => {
-    const pathname = new URL(request.url, 'http://localhost').pathname;
+    response.setHeader('Cache-Control', 'no-store');
+    const pathname = new URL(request.url, 'http://localhost').pathname.replace(/\/+$/, '') || '/';
     if (pathname === '/api/library/media/stream-status') {
       response.setHeader('Content-Type', 'application/json');
       response.end(JSON.stringify({ status: 'ready' })); return;
@@ -86,9 +88,14 @@ webpack({ mode: 'development', devtool: false, entry: { fixture: path.resolve(__
       } else reply(new URL(request.url, 'http://localhost').searchParams.get('mediaItemId'));
       return;
     }
+    const script = { '/': 'fixture', '/info-cards': 'info-cards', '/info-cards/integration': 'info-cards-integration' }[pathname];
+    if (!script) {
+      response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('Unknown fixture URL. Open /info-cards/integration for the Info Cards prototype.');
+      return;
+    }
     response.setHeader('Content-Type', 'text/html');
-    const script = pathname === '/info-cards/integration' ? 'info-cards-integration' : pathname === '/info-cards' ? 'info-cards' : 'fixture';
-    response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>${script === 'info-cards-integration' ? 'Info Cards Phase 1C' : script === 'info-cards' ? 'Info Cards Phase 1A' : 'Media viewer fixture'}</title></head><body><div id="fixture-root"></div><script src="/${script}.js"></script></body></html>`);
+    response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>${script === 'info-cards-integration' ? 'Info Cards Phase 1B review' : script === 'info-cards' ? 'Info Cards Phase 1A' : 'Media viewer fixture'}</title></head><body><div id="fixture-root"></div><script src="/${script}.js?build=${buildId}"></script></body></html>`);
   });
   server.listen(port, host, () => {
     console.log(`Fixtures ready: http://127.0.0.1:${port}/info-cards`);

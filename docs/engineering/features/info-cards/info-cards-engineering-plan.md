@@ -1,12 +1,12 @@
 # Info Cards — Reconciled Engineering Plan
 
-Date: 22 October 2026; Phase 1C handoff updated 23 October 2026. Status: **Phase 1A implemented; Phase 1C implemented and automated checks passed before 1B. Visual/device acceptance remains pending.**
+Date: 22 October 2026; Phase 1B handoff updated 23 October 2026. Status: **Phases 1A–1C implemented; user reports successful manual Phase 1C testing. Phase 1B and combined automated checks pass; combined physical-interaction phone acceptance remains pending.**
 
-Implementation order is now **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1C start inspection found a clean `feat/info-cards` worktree, so no concurrent edits require another worktree. This targeted update changes sequencing and integration boundaries only; the functional specification is unchanged. Later visual decisions (secondary series/primary title and dedicated consultation X) supersede older wording in specification §§4.2/10.3 and are preserved.
+Implementation order is **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1B start inspection found a clean `feat/info-cards` worktree at `666abb4` (committed Phase 1C), so no concurrent edits require another worktree. The functional specification is unchanged. Later visual decisions (secondary series/primary title and dedicated consultation X) supersede older wording in specification §§4.2/10.3 and are preserved.
 
-Authority: [functional specification v0.3](../../../design/features/info-cards/info-cards-functional-spec.md), together with subsequent approved visual decisions. Section 12 records the earlier reconciliation; section 13 contains deferred improvements and section 14 retains the original 1A task. See [Phase 1C evidence and review instructions](phase-1c/README.md) for current implementation/test coverage.
+Authority: [functional specification v0.3](../../../design/features/info-cards/info-cards-functional-spec.md), together with subsequent approved visual decisions. Section 12 records the earlier reconciliation; section 13 contains deferred improvements and section 14 retains the original 1A task. See [Phase 1B evidence and review instructions](phase-1b/README.md) and the historical [Phase 1C handoff](phase-1c/README.md).
 
-This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Backend files, collections and routes below remain proposals. The former seven approval questions are resolved. Current coding authority covers 1C only; 1B and backend work remain unauthorised.
+This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Backend files, collections and routes below remain proposals. The former seven approval questions are resolved. Current coding authority covers **1B only**, plus its minimal integration changes; backend work remains unauthorised.
 
 ## 1. Confirmed repository findings
 
@@ -16,7 +16,7 @@ This document distinguishes **Fact** (inspected repository or observed diagnosti
 - Current worktree branch: `feat/info-cards`; 1C start HEAD `a4c2e2a`, with a clean worktree and committed 1A corrections. The original planning inspection was at `5bf8992`.
 - At the original inspection, design/engineering documents were untracked; they are now committed. Existing design and 1A evidence remain preserved.
 - A separate `feat/step-visuals` worktree exists. Its work is not assumed to be available in this branch. In particular, future interactive activities must not be claimed as already integrated here.
-- The present task updates this plan and implements 1C. It does not change the functional specification, run migrations, upgrade dependencies or reopen WebKit troubleshooting.
+- The present task implements 1B against the committed 1A/1C baseline and updates handoff documentation. It does not change the functional specification, run migrations, upgrade dependencies or reopen WebKit troubleshooting.
 
 ### 1.2 Architecture evidence
 
@@ -215,6 +215,8 @@ Phase 1 focuses on ordinary supported mobile layouts, standard text and realisti
 
 Use a small consultation owner for the immutable open snapshot, playback suspension, interaction isolation and nested media. Phase 1C uses immediate static open/closed states and the first fixture card. Phase 1B subsequently adds a local `motion/react` presentation controller for opening/browsing/closing, with no ownership of underlying playback or activity lifecycle. Avoid a global overlay framework.
 
+**1B implementation:** `InfoCardPhysicalStack` supplies measured, clipped translation/rotation and keyed current/adjacent card layers. It reuses the corrected 1A CSS, keeps at most two backing edges, and uses a local pointer session with the existing dead-zone/axis-lock conventions and a smaller card-relative commitment threshold. Committed turns are serial: inputs during motion are ignored, not queued. Cancelled drags restore the same card. The pouch can reverse an unfinished return within the still-open session; a fully closed/new consultation always starts at the first attachment. Reduced motion uses a short pack fade and small physical card movement. Freeze the pack's portal geometry during each movement and apply viewport changes after settling, preserving card dimensions in flight. The pouch independently follows the live Step View corner; if resizing moves it during closing, retarget the return without resizing the pack.
+
 - Set a landscape card size from the current viewport/layout before opening. Translation and subtle rotation move the **whole fixed-size bundle** diagonally up/right out of the actual pouch; neither scale nor dimensions change through the transition. Clip/mask the emergence if necessary rather than shrink cards into the pouch.
 - Settle over the lower navigation region, allowing the lower video/activity to be covered while its upper context remains visible. Keep the pouch separately reachable above the stack hit-blocking layer.
 - Use the top card and two or three subtle backing layers, not every hidden card. Down sends top to bottom; up brings bottom to top; wrap modulo attachment count. With one card, consume swipes without artificial movement to a duplicate card.
@@ -303,7 +305,7 @@ Historical backend records do not imply anonymous private-media URLs are safe. V
 
 ## 8. Phased implementation and acceptance checkpoints
 
-The user's subsequent instruction authorises **Phase 1C only**, using the existing static 1A interface before 1B. There is no animation/controller dependency preventing this order: the real player and Step View already have independent stable lifecycles. Each checkpoint still ends with evidence and review; 1B and backend phases require separate authorisation. File names marked “new” are proposed.
+The user now authorises **Phase 1B only**, following successful manual Phase 1C testing. There was no animation/controller dependency preventing the reordered sequence: the real player and Step View have independent stable lifecycles. Each checkpoint still ends with evidence and review; backend phases require separate authorisation. File names marked “new” in future phases remain proposals.
 
 ### Phase 1A — Footer geometry and content-capacity prototype
 
@@ -333,7 +335,7 @@ The user's subsequent instruction authorises **Phase 1C only**, using the existi
 
 `FocusedCardView` owns open/closed consultation identity and an opening-time copy of the temporary ordered data, suspends its mounted player, and guards its navigation/flip callbacks. An info-specific modal above the hosted video supplies transparent input interception and focus containment; the unchanged static face/pack aligns to the actual Step View bounds. Nested media uses a second modal and existing image/HLS rendering primitives, with no personal-media queue/download context. Closing media returns to its originating card/control; closing consultation restores the real pouch and never plays the step.
 
-Phase 1B will supply current-card selection, movement and transition completion within this modal. It must keep the integration owner's session alive through return/cancel/reversal, freeze selection while media is open, and notify closure only after exit completes. Reopening creates a new snapshot and starts at its first card. No generic overlay/gesture framework is required.
+Phase 1B supplies current-card selection, movement and transition completion within this modal. The integration owner's session stays alive through return/cancel/reversal, selection is frozen while media is open, and closure is notified only after exit completes. A new consultation creates a new snapshot and starts at its first card. No generic overlay/gesture framework is required. See the 1B handoff for combined automated evidence; a fresh physical-interaction phone review is required despite the earlier successful manual 1C review.
 
 **Verify now:** real Intro/Steps 1–3 composition; pause without reset/resume; pending authorization/load/play races; stable player/activity identity, inputs and scroll; static hit testing above hosted video; close click-through prevention; pointer/keyboard/focus isolation and restoration; nested image/video return and disposal; navigation/account/unmount cleanup. The first card is the temporary static selection, not a circular browsing implementation.
 
@@ -449,7 +451,7 @@ Higher capability does not replace disposable-database concurrency tests or phon
 | Public deletion | Owner can delete an unreferenced public record; public visibility remains permanent while it exists. Historical/main-draft refs still block. |
 | Capacity/accessibility | Measure normal content/mobile envelope first, keep ordinary faces complete and fixed; broader extreme-size accessibility work is backlog, with zoom preserved. |
 | Backend publications | Immutable retention approved; no user-facing history or adoption. |
-| Prototype | 1A implemented; 1C explicitly authorised before 1B. Visual/device acceptance and subsequent coding authorisation remain separate gates. |
+| Prototype | 1A/1C implemented; user reports successful manual 1C testing and authorises 1B. Combined physical-interaction acceptance remains a separate gate before any backend authorisation. |
 
 **No architectural obstacle requires 1B before 1C.** Card dimensions/capacity have 1A evidence; motion tuning remains a 1B output. Phone evidence requires access to the actual device; absent coverage must be reported. WebKit availability does not block progress.
 
@@ -507,7 +509,7 @@ These tasks are recommendations for later scheduling, not additions to Phase 1 o
 
 ## 14. Precise first implementation task
 
-Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **1C before 1B**, with its dependencies and acceptance criteria in section 8. No further 1A styling redesign is part of 1C.
+Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **1B after completed 1C**, with its dependencies and acceptance criteria in section 8. No 1A styling redesign or backend implementation is included.
 
 **Recommended task:** “Info Cards Phase 1A — actual Step View footer geometry and static info-card capacity fixture.” Preferred model: **Sol 6.1, High thinking effort**, consistent with section 10. Geometry, scoped styling and meaningful browser measurement are a bounded coding task; device evidence matters more than escalating model effort. No independent second implementation is warranted for this checkpoint.
 

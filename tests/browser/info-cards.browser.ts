@@ -96,7 +96,8 @@ for (const viewport of [{ width: 360, height: 780 }, { width: 390, height: 844 }
     expect(closed.pouchCount!.x).toBeGreaterThan(closed.pouchIcon!.right);
     // Keep the complete count below the diagonal, not just its centre/hit target.
     expect(closed.pouchCount!.right - closed.pouch!.x).toBeLessThanOrEqual(closed.pouchCount!.y - closed.pouch!.y + 0.25);
-    expect(Math.abs(closed.pouchIcon!.y + closed.pouchIcon!.height / 2 - closed.pouchCount!.y - closed.pouchCount!.height / 2)).toBeLessThan(0.2);
+    // Count is intentionally a lower-right subscript, not a centre-aligned peer.
+    expect(closed.pouchCount!.y).toBeGreaterThan(closed.pouchIcon!.y);
     await expect(page.locator("[data-info-card-pouch-icon] circle")).toHaveCount(2);
     await expect(page.locator("[data-info-card-pouch-icon] path")).toHaveCount(1);
     expect(closed.video.width / closed.step.width).toBeGreaterThan(0.52);

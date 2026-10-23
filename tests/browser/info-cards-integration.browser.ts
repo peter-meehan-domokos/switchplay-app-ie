@@ -2,13 +2,46 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
+test("review server loads the actual Info Cards prototype with or without a trailing slash", async ({ page }) => {
+  for (const path of ["/info-cards/integration?review=phase1b", "/info-cards/integration/?review=phase1b"]) {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(200);
+    expect(response?.headers()["cache-control"]).toBe("no-store");
+    await expect(page).toHaveTitle("Info Cards Phase 1B review");
+    await expect(page.getByText("Info Cards · Phase 1B physical stack", { exact: true })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Cards", exact: true })).toHaveValue("5");
+    const script = await page.locator("script[src]").getAttribute("src");
+    expect(script).toMatch(/^\/info-cards-integration\.js\?build=\w+$/);
+    await page.locator(".deck-card.is-active").click();
+    await page.locator(".focused-card-layer .active-card-identity").click();
+    await page.getByRole("button", { name: /^Open information cards/ }).click();
+    await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
+  }
+});
+
+test("review server keeps explicit legacy fixtures and rejects unknown routes instead of showing Media Viewer", async ({ request }) => {
+  const legacy = await request.get("/");
+  expect(legacy.status()).toBe(200);
+  expect(await legacy.text()).toContain("<title>Media viewer fixture</title>");
+  const staticPreview = await request.get("/info-cards/");
+  expect(staticPreview.status()).toBe(200);
+  expect(await staticPreview.text()).toContain("<title>Info Cards Phase 1A</title>");
+  const unknown = await request.get("/info-cards/not-a-fixture");
+  expect(unknown.status()).toBe(404);
+  expect(await unknown.text()).not.toContain('/fixture.js');
+});
+
 const player = (page: Page) => page.locator(".switchplay-video-host-layer video");
 const consultation = (page: Page) => page.getByRole("dialog", { name: "Info card consultation", exact: true });
 const open = async (page: Page) => {
   await expect(page.locator(".step-view-layer")).toHaveCount(1);
   await page.getByRole("button", { name: /^Open information cards/ }).click();
+  await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
 };
-const close = (page: Page) => page.getByRole("button", { name: "Close information card stack", exact: true }).click();
+const close = async (page: Page) => {
+  await page.getByRole("button", { name: "Close information card stack", exact: true }).click();
+  await expect(consultation(page)).toHaveCount(0);
+};
 
 async function enter(page: Page, options: { activity?: boolean; media?: string; item?: number; parentDialog?: boolean } = {}) {
   await page.goto(`/info-cards/integration${options.parentDialog ? "?parent-dialog" : ""}`);
@@ -121,6 +154,7 @@ test("pointer, keyboard and programmatic step handlers stay isolated; tooltip cl
     await page.mouse.down();
     await page.mouse.move(r.x + r.width / 2 + dx, r.y + r.height / 2 + dy, { steps: 8 });
     await page.mouse.up();
+    await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
   }
   await expect(consultation(page)).toBeVisible();
   await expect(page.locator(".focused-card-object")).not.toHaveClass(/is-flipped/);

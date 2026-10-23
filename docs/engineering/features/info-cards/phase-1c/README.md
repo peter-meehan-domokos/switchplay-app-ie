@@ -1,5 +1,7 @@
 # Info Cards Phase 1C — Integration handoff
 
+**Subsequent status:** the user reports successful manual Phase 1C testing and has authorised Phase 1B. The evidence below records the original 1C handoff; [Phase 1B's handoff](../phase-1b/README.md) records the combined animated prototype. Manual review of the new physical interaction remains separate; no specific unreported Safari/VoiceOver scenario is inferred from that confirmation.
+
 Updated 23 October 2026. Branch: `feat/info-cards`. Starting commit: `a4c2e2a` (committed Phase 1A visual corrections). Implementation and automated verification are complete; actual-phone Safari testing and user acceptance remain pending. No commit, Phase 1B work, backend implementation or migrations were made.
 
 ## Reordering and implementation

@@ -1,0 +1,19 @@
+.pack {
+  transform-origin: left bottom;
+  touch-action: pinch-zoom;
+  user-select: none;
+}
+
+.cards { display: grid; }
+.card { grid-area: 1 / 1; min-width: 0; transform-origin: left bottom; }
+.close { z-index: 5; }
+
+.announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

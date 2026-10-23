@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 export default defineConfig({
   testDir: "./tests/browser",
-  testMatch: "info-cards-integration.browser.ts",
+  testMatch: ["info-cards-integration.browser.ts", "info-cards-motion.browser.ts", "info-cards-pouch.browser.ts"],
   workers: 1,
   reporter: [["line"], ["json", { outputFile: join(tmpdir(), "switchplay-info-cards-integration-report.json") }]],
   use: { baseURL: "http://127.0.0.1:4180", browserName: "chromium", viewport: { width: 390, height: 844 }, trace: "retain-on-failure" },
