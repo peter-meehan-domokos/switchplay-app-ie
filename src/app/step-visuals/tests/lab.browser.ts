@@ -29,7 +29,8 @@ test("starts on the first experience and exposes exactly two levels of implement
   await expect(card).toHaveAttribute("aria-expanded", "true");
   await expect(dialog.getByRole("button", { name: "Interactive visualisation" })).toHaveAttribute("aria-current", "page");
   await expect(dialog.getByRole("button", { name: "Sparkline preview" })).toBeVisible();
-  await expect(dialog.getByRole("button")).toHaveCount(4);
+  await expect(dialog.getByRole("button")).toHaveCount(5);
+  await expect(dialog.getByRole("button", { name: "Integration", exact: true })).toHaveAttribute("aria-expanded", "false");
   await expect(dialog.getByText("Card 2")).toHaveCount(0);
   await expect(dialog.getByRole("menu")).toHaveCount(0);
 });

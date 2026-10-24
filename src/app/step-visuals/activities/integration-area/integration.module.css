@@ -1,0 +1,78 @@
+.activity { box-sizing: border-box; color: #24332f; font-family: Arial, Helvetica, sans-serif; line-height: 1.45; width: 100%; min-width: 0; scroll-margin-top: 4rem; }
+.activity *, .activity *::before, .activity *::after { box-sizing: border-box; }
+.heading { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 8px; }
+.heading h1 { margin: 0; font-size: 1.35rem; line-height: 1.25; font-weight: 700; }
+.heading button, .button { min-height: 44px; min-width: 44px; padding: 8px 12px; border: 1px solid #c5d3c6; border-radius: 8px; background: #f0f5ee; color: #375b46; font: inherit; font-size: 0.9rem; cursor: pointer; }
+.heading button { background: transparent; padding-inline: 8px; }
+.intro { display: grid; grid-template-areas: "heading" "instruction"; padding-top: 6px; }
+.intro h2 { grid-area: heading; min-height: 2.6em; margin: 0; font-size: 1rem; line-height: 1.3; font-weight: 700; }
+.instruction { grid-area: instruction; min-height: 4.2em; margin: 0 0 8px; font-size: 0.875rem; line-height: 1.4; color: #4c5b52; }
+.calibration { visibility: hidden; pointer-events: none; user-select: none; }
+.body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.graph { position: relative; min-width: 0; height: clamp(240px, calc(100dvh - 500px), 400px); border-radius: 14px; background: #fffdf8; }
+.svg { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+.grid { fill: none; stroke: #e7ebe3; stroke-width: 1; }
+.axes { fill: none; stroke: #7f8d83; stroke-width: 1.2; }
+.tick { fill: #5b6861; font-size: 11px; }
+.curve { fill: none; stroke: #537969; stroke-width: 2.5; }
+.lowerCurve { fill: none; stroke: #876343; stroke-width: 2.2; stroke-dasharray: 6 3; }
+.region { fill: #abcbb6; fill-opacity: 0.55; }
+.reference { fill: #fffdf8; fill-opacity: 0.4; stroke: #537969; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.excluded { fill: #859486; fill-opacity: 0.45; stroke: #7b8878; stroke-width: .8; }
+.demonstrationBoundary { stroke: #28634f; stroke-width: 2; stroke-dasharray: none; }
+.rectangle { fill: #b3c5a6; fill-opacity: 0.28; stroke: #6e886b; stroke-width: 0.7; }
+.boundary { stroke: #28634f; stroke-width: 1.4; stroke-dasharray: 4 3; }
+.strip { fill: none; stroke: #72553b; stroke-width: 1.25; }
+.enclosing { fill: none; stroke: #87958a; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.upperRectangle { fill: #c7b79f; fill-opacity: .13; stroke: #876343; stroke-width: .65; }
+.lowerRectangle { fill: #abcbb6; fill-opacity: .4; stroke: #537969; stroke-width: .65; }
+.contextCurve { opacity: .3; }
+.selectedAxis { stroke: #537969; stroke-width: 2.5; }
+.regionAnnotation { fill: #375b46; font-size: 11px; font-weight: 500; }
+.regionAnnotation line { stroke: #7b8878; stroke-width: .85; }
+.handle { fill: #28634f; stroke: #fffdf8; stroke-width: 2; }
+.handleA { fill: #fffdf8; stroke: #28634f; stroke-width: 2; }
+.labelPlate { fill: #fffdf8; fill-opacity: 0.96; stroke: #ccd6cb; stroke-width: 0.7; }
+.label { fill: #28634f; font-size: 12px; font-weight: 600; }
+.lowerLabel { fill: #72553b; }
+.hit { position: absolute; border-radius: 50%; touch-action: none; cursor: grab; }
+.hit[data-editing="true"] { cursor: grabbing; }
+.math { display: grid; gap: 7px; align-content: start; min-width: 0; }
+.math p, .note, .feedback { margin: 0; font-size: 0.875rem; overflow-wrap: anywhere; }
+.formula { color: #28634f; font-size: 1.05rem !important; line-height: 1.5; }
+.note { color: #536158; background: #edf1e9; padding: 10px 12px; border-radius: 10px; }
+.feedback { color: #72553b; }
+.controls { display: grid; gap: 10px; min-width: 0; align-content: start; }
+.controls fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+.controls legend { margin-bottom: 6px; font-size: 0.875rem; font-weight: 600; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choices button { flex: 1; }
+.choices button[aria-pressed="true"] { background: #dfeadc; border-color: #537969; color: #24332f; font-weight: 700; }
+.controlRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.controlRow label { flex: 1 1 9em; font-size: 0.875rem; }
+.controlRow input { width: 4.8rem; }
+.controlRow input, .controlRow select, .answer { min-width: 0; min-height: 44px; padding: 8px; border: 1px solid #aebfb3; border-radius: 8px; background: #fffdf8; color: #24332f; font: inherit; font-size: 1rem; }
+.controlRow select { max-width: 100%; flex: 1 1 150px; }
+.refinement { display: grid; gap: 4px; }
+.refinement input { width: 100%; min-height: 44px; accent-color: #28634f; }
+.scaleEnds { display: flex; justify-content: space-between; font-size: 0.8rem; color: #536158; }
+.answerRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.answer { width: 7rem; max-width: 100%; }
+.calculation { display: grid; gap: 8px; }
+.assessmentActions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+.integral { display: flex; align-items: center; gap: 8px; color: #28634f; font-size: 1.1rem; line-height: 1.4; overflow-wrap: anywhere; }
+.integralSymbol { display: grid; flex-shrink: 0; justify-items: center; font-size: 0.75rem; line-height: 1; }
+.integralSymbol span:nth-child(2) { font-family: Georgia, serif; font-size: 2.2rem; line-height: 1.1; }
+.answerRow label { font-size: 0.9rem; }
+.secondary { background: transparent; }
+.navigation { margin-top: 12px; display: flex; justify-content: space-between; gap: 8px; }
+.hit:focus-visible, .activity button:focus-visible, .activity input:focus-visible, .activity select:focus-visible, .intro h2:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
+.activity button:disabled, .activity select:disabled, .activity input:disabled { opacity: 0.55; cursor: default; }
+.status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (min-width: 700px) {
+  .body { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: 16px; }
+  .graph { grid-column: 1; grid-row: 1; height: clamp(300px, calc(100dvh - 300px), 420px); }
+  .math { grid-column: 2; grid-row: 1; }
+  .controls { grid-column: 1; grid-row: 2; }
+  .note { grid-column: 2; grid-row: 2; }
+}

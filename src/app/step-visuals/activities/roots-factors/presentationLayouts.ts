@@ -6,7 +6,8 @@ import type { Lesson } from "./learning";
 import { retrievalTarget } from "./model";
 import { rootTaskLayout, type RootTaskScene } from "../../core/expressions/rootTaskLayout";
 
-export type PresentationAction = Readonly<{ id: string; label: string; enabled: boolean; appearance: "primary" | "secondary"; directionCue?: boolean; unavailableReason?: string }>;
+import type { PresentationAction } from "../../core/presentation/action";
+export type { PresentationAction } from "../../core/presentation/action";
 export type ComparisonRow = Readonly<{ label: string; factor: string; substitution: string }>;
 export type ActivityPromptScene = Readonly<{
   title: string; instruction: string; target: string | null;

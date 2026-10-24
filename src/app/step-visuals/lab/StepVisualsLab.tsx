@@ -11,6 +11,7 @@ import styles from "./Lab.module.css";
 import LearningRecordPreview from "./LearningRecordPreview";
 import { createLearningConsole } from "./learningConsole";
 import type { Card1LearningEvent, Card1LearningResult, Card1SessionRecords } from "../activities/roots-factors/learningRecords";
+import IntegrationLabSession from "./integration-lab-session";
 
 export default function StepVisualsLab() {
   const [selected, setSelected] = useState<ExperienceId | null>(initialExperienceId);
@@ -43,7 +44,7 @@ export default function StepVisualsLab() {
   const experience = findExperience(selected);
 
   const selectExperience = (id: ExperienceId) => {
-    if (selected === "card-1-interactive" && id !== selected) {
+    if ((selected === "card-1-interactive" || selected === "integration-area") && id !== selected) {
       nextExperience.current = id;
       setExitKey((value) => value + 1);
       return;
@@ -55,7 +56,7 @@ export default function StepVisualsLab() {
   };
 
   const exitExperience = () => {
-    learningConsole.onExit();
+    if (selected === "card-1-interactive") learningConsole.onExit();
     if (nextExperience.current) {
       const id = nextExperience.current;
       nextExperience.current = null;
@@ -100,6 +101,7 @@ export default function StepVisualsLab() {
           {selected === "card-1-interactive" ? <RootsFactorsLabSession key={selected} mode={previewMode} onExit={exitExperience}
             exitKey={exitKey} onExitRequest={requestExit} onEvent={onEvent} onComplete={onComplete} onRecordsChange={onRecordsChange} /> : null}
           {selected === "card-1-sparklines" ? <SparklinePreview key={selected} /> : null}
+          {selected === "integration-area" ? <IntegrationLabSession key={selected} onExit={exitExperience} exitKey={exitKey} /> : null}
           {selected === null ? (
             <section className={styles.spvEmpty}>
               <h1 className={styles.spvExperienceTitle}>Choose an experience</h1>
@@ -107,7 +109,7 @@ export default function StepVisualsLab() {
               <button className={styles.spvChooseButton} type="button" onClick={() => setMenuOpen(true)}>Browse visualisations</button>
             </section>
           ) : null}
-          <LearningRecordPreview records={records} events={events} completed={completed} />
+          {selected !== "integration-area" ? <LearningRecordPreview records={records} events={events} completed={completed} /> : null}
         </SurfaceLifecycle>
       </main>
       <LabNavigationDialog

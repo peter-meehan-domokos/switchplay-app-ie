@@ -1,4 +1,4 @@
-export type ExperienceId = "card-1-interactive" | "card-1-sparklines";
+export type ExperienceId = "card-1-interactive" | "card-1-sparklines" | "integration-area";
 
 export type LabExperience = Readonly<{
   id: ExperienceId;
@@ -19,6 +19,11 @@ export const labCards: readonly LabCard[] = [
       { id: "card-1-interactive", label: "Interactive visualisation" },
       { id: "card-1-sparklines", label: "Sparkline preview" },
     ],
+  },
+  {
+    id: "integration",
+    label: "Integration",
+    experiences: [{ id: "integration-area", label: "Integration" }],
   },
 ];
 

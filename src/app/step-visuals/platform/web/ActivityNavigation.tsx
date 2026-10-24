@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { PresentationAction } from "../../activities/roots-factors/presentationLayouts";
+import type { PresentationAction } from "../../core/presentation/action";
 import styles from "./LearningUI.module.css";
 
 /** Navigation presentation only; the action keeps its existing reducer identity. */

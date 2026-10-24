@@ -7,6 +7,9 @@
 .spvHeaderCopy { flex: 1; min-width: 0; }
 .spvLabName { margin: 0; font-size: 0.9rem; font-weight: 700; }
 .spvHost { --spv-surface-height: calc(100dvh - 52px - env(safe-area-inset-top) - 6px - max(12px, env(safe-area-inset-bottom))); display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 52px); margin-inline: auto; padding: 6px 12px max(12px, env(safe-area-inset-bottom)); }
+/* Integration's one-screen review also accounts for the lab header's 1px border.
+   Deliberately restricted: Card 1 and Integration Stages 3–6 retain their frame. */
+.spvHost:has([data-integration-intro], [data-integration-later]) { --spv-surface-height: calc(100dvh - 53px - env(safe-area-inset-top) - 6px - max(12px, env(safe-area-inset-bottom))); min-height: calc(100svh - 53px - env(safe-area-inset-top)); }
 .spvPreviewSelector { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
 .spvPreviewSelector select { min-width: 0; width: 100%; max-width: 245px; min-height: 44px; padding: 6px; border: 1px solid #d0d9ce; border-radius: 8px; background: #fffdf8; color: #435349; font-family: inherit; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; }
 .spvPreviewSelector select:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }

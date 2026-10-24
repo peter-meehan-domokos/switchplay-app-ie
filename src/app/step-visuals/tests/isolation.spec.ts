@@ -13,19 +13,21 @@ const sourceFiles = (directory: string): string[] => readdirSync(directory, { wi
 test("all feature imports remain local or use permitted framework, D3 and test packages", () => {
   for (const path of sourceFiles(feature)) {
     const source = readFileSync(path, "utf8");
-    for (const match of source.matchAll(/(?:from\s+|import\s*)["']([^"']+)["']/g)) {
+    // Match declarations, not ordinary instructional strings containing the word "from".
+    for (const match of source.matchAll(/(?:^\s*(?:import|export)\s+(?:[^;"']*?\s+from\s+)?|import\s*\()["']([^"']+)["']/gm)) {
       const target = match[1];
       if (target.startsWith(".")) {
         expect(relative(feature, resolve(dirname(path), target)).startsWith("..")).toBe(false);
       } else {
-        expect(target).toMatch(/^(react|next|d3-(array|scale|shape)|@playwright\/test|node:[\w/]+)$/);
+        expect(target).toMatch(/^(react|react-dom|next|d3-(array|scale|shape)|@playwright\/test|node:[\w/]+)$/);
       }
     }
   }
 });
 
 test("portable mathematics and layouts contain no framework imports or browser types", () => {
-  const paths = [...sourceFiles(resolve(feature, "core")), ...["model", "rootsFactorsLayout", "presentationLayouts", "manipulation", "learning", "learningRecords", "recordedLearning"].map((name) => resolve(feature, `activities/roots-factors/${name}.ts`))];
+  const paths = [...sourceFiles(resolve(feature, "core")), ...["model", "rootsFactorsLayout", "presentationLayouts", "manipulation", "learning", "learningRecords", "recordedLearning"].map((name) => resolve(feature, `activities/roots-factors/${name}.ts`)),
+    ...["model", "graph-layout", "learning", "records", "legacy-records", "presentation", "display-policy", "math-presentation"].map((name) => resolve(feature, `activities/integration-area/${name}.ts`))];
   for (const path of paths) {
     const source = readFileSync(path, "utf8");
     expect(source).not.toMatch(/from\s+["'](?:react|next)|\b(?:window|document|HTMLElement|SVGElement|PointerEvent|ResizeObserver)\b/);
