@@ -99,6 +99,10 @@ test("private copies of a foreign public Deck and Card use the resulting ownersh
   const copy = (await main.cards().findOne({ ownerUserId: actor, "forkedFrom.cardTemplateId": f.card.cardTemplateId }))!;
   expect(copy.visibility).toBe("private"); expect(copy.draft!.infoCardIds).toEqual(["eligibility-public", "eligibility-private"]);
   expect((await root(f.card.cardTemplateId))!.draft).toBeNull();
+  const deckCopy = (await main.decks().findOne({ ownerUserId: actor, "forkedFrom.deckTemplateId": f.deck.deckTemplateId }))!;
+  // The database commit precedes the client identity/URL handoff. Reload the
+  // completed owned copy, rather than racing that unrelated transition.
+  await expect(page).toHaveURL(new RegExp(`/creator/edit/${deckCopy.deckTemplateId}(?:\\?|$)`));
   await page.reload(); await expect(deckVisibility(page)).toHaveValue("private"); await expect(cardVisibility(page)).toHaveValue("private");
   await titleModal(page); await expect((await dropdown(page)).getByRole("option", { name: "Owned private Basics", exact: true })).toHaveCount(1);
 });

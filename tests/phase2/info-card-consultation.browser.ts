@@ -192,3 +192,66 @@ for (const kind of ["image", "video"] as const) test(`fail-closed ${kind} delive
   await expect(page.locator('[data-info-card-current="true"] [data-info-card-title]')).toHaveText("Media tip");
   await expect(consultation(page).locator("[data-info-card-pouch-count]")).toHaveText("2");
 });
+
+for (const invalid of ["expired", "wrong-asset"] as const) test(`nested video rejects an ${invalid} grant before provider access and preserves consultation`, async ({ page }) => {
+  const f = await mediaFixture("video"); await login(page); let providerRequests = 0;
+  await page.route("https://phase5-media.example.invalid/**", route => { providerRequests++; return route.abort(); });
+  await page.route(`**/api/info-cards/${f.infoId}/media?*`, route => route.fulfill({ json: {
+    assetId: invalid === "wrong-asset" ? "another-asset" : f.media.assetId,
+    manifestUrl: "https://phase5-media.example.invalid/manifest.m3u8",
+    thumbnailUrl: "https://phase5-media.example.invalid/poster.jpg",
+    expiresAt: Date.now() + (invalid === "expired" ? -1000 : 60000),
+  } }));
+  await enter(page, f.deckId); await open(page); await page.keyboard.press("ArrowDown");
+  await expect(page.locator('[data-info-card-current="true"]')).toHaveAttribute("data-info-card-id", f.infoId);
+  const step = await page.locator(".step-view-layer").elementHandle();
+  await page.getByRole("button", { name: "Watch video", exact: true }).click();
+  const viewer = page.getByRole("dialog", { name: "Info card media", exact: true });
+  await expect(viewer.getByText("Video unavailable.", { exact: true })).toBeVisible();
+  expect(providerRequests).toBe(0);
+  await viewer.getByRole("button", { name: "Close info card media", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Watch video", exact: true })).toBeFocused();
+  await expect(page.locator('[data-info-card-current="true"]')).toHaveAttribute("data-info-card-id", f.infoId);
+  expect(await step!.evaluate(node => node.isConnected)).toBe(true);
+  await expect(consultation(page)).toBeVisible();
+});
+
+test("closing nested video aborts a pending grant; its late response cannot replace a fresh exact-publication request", async ({ page }) => {
+  const f = await mediaFixture("video"); await login(page);
+  let release!: () => void, entered!: () => void, delivered!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; }), requested = new Promise<void>(resolve => { entered = resolve; });
+  const oldResponseFinished = new Promise<void>(resolve => { delivered = resolve; });
+  const requests: string[] = []; let providerRequests = 0;
+  await page.route("https://phase5-media.example.invalid/**", route => { providerRequests++; return route.abort(); });
+  await page.route(`**/api/info-cards/${f.infoId}/media?*`, async route => {
+    requests.push(route.request().url());
+    if (requests.length === 1) {
+      entered(); await held;
+      await route.fulfill({ json: { assetId: f.media.assetId, manifestUrl: "https://phase5-media.example.invalid/manifest.m3u8",
+        thumbnailUrl: "https://phase5-media.example.invalid/poster.jpg", expiresAt: Date.now() + 60000 } }).catch(() => {});
+      delivered();
+    } else await route.fulfill({ status: 503, json: { error: "INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED" } });
+  });
+  try {
+    await enter(page, f.deckId); await open(page); await page.keyboard.press("ArrowDown");
+    const media = page.getByRole("button", { name: "Watch video", exact: true });
+    await expect(page.locator('[data-info-card-current="true"]')).toHaveAttribute("data-info-card-id", f.infoId);
+    await media.click(); await requested;
+    const viewer = page.getByRole("dialog", { name: "Info card media", exact: true });
+    await viewer.getByRole("button", { name: "Close info card media", exact: true }).click();
+    await expect(viewer).toHaveCount(0); await expect(media).toBeFocused();
+    // A later publication must not change this consultation's media identity.
+    const root = await f.info.owner(f.owner, f.infoId);
+    await f.info.save(f.owner, f.infoId, root.revision, { title: "Later video tip", body: "Keep this separate.", seriesId: "demo-series-owner", mediaItem: null }, "public");
+    await f.info.publish(f.owner, f.infoId, root.revision + 1);
+    await media.click(); await expect(viewer.getByText("Video unavailable.", { exact: true })).toBeVisible();
+    release(); await oldResponseFinished;
+    // Two rendering turns flush a stale response without an arbitrary sleep.
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(providerRequests).toBe(0); expect(requests).toHaveLength(2);
+    expect(requests.every(url => new URL(url).searchParams.get("version") === "1")).toBe(true);
+    await viewer.getByRole("button", { name: "Close info card media", exact: true }).click();
+    await expect(page.locator('[data-info-card-current="true"] [data-info-card-title]')).toHaveText("Media tip");
+    await expect(consultation(page)).toBeVisible();
+  } finally { release?.(); }
+});

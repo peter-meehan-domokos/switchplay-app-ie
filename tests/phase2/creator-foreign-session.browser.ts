@@ -27,7 +27,7 @@ async function title(page:Page,id:string,value:string){
 test("foreign entry cancellation writes nothing; combined first command hands off without duplicate Cards or personal data",async({page})=>{
   const h=await setup(page), before=await h.repo.getPersonalUser(h.actor), count=await h.repo.decks().countDocuments({ownerUserId:h.actor});
   await page.goto(h.href); await page.getByRole("dialog",{name:"Edit your own Deck"}).getByRole("button",{name:"Cancel",exact:true}).click();
-  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  await expect(page).toHaveURL("/library");
   expect(await h.repo.decks().countDocuments({ownerUserId:h.actor})).toBe(count);
   await page.goto(h.href); await page.getByRole("button",{name:"Continue editing",exact:true}).click();
   let release!:()=>void; const gate=new Promise<void>((resolve)=>release=resolve);
@@ -51,9 +51,9 @@ test("foreign entry cancellation writes nothing; combined first command hands of
   await expect(page.getByText("Copied to the destination draft. Publish that Deck to make it live.",{exact:true})).toBeVisible();
   expect((await h.repo.decks().findOne({deckTemplateId:destination.deckTemplateId}))!.draft!.cards).toEqual([{cardTemplateId:target.cardTemplateId}]);
   await page.locator(".creator-modal").getByRole("button",{name:"Cancel",exact:true}).click();
-  await page.getByRole("link",{name:"Decks",exact:true}).click();
+  await page.getByRole("link",{name:"My Decks",exact:true}).click();
   await page.getByRole("dialog",{name:"Leave Creator confirmation"}).getByRole("button",{name:"Leave without publishing",exact:true}).click();
-  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  await expect(page).toHaveURL("/decks");
 });
 test("cancel foreign visibility confirmation saves nothing; confirmation creates only a Card in an owned Deck",async({page})=>{
   const h=await setup(page,true), before=await h.repo.getPersonalUser(h.actor);
@@ -160,14 +160,14 @@ async function enterLibraryEdit(page:Page,id:string){
   await page.getByRole("button",{name:"Deck menu",exact:true}).click();
   await page.getByRole("menuitem",{name:"Edit",exact:true}).click();
 }
-test("Library foreign Edit confirms without a write; private publication/reload uses owned identity and returns original detail",async({page})=>{
+test("Library foreign Edit confirms without a write; private publication/reload returns the owned copy to My Decks",async({page})=>{
   const h=await setup(page), before=await h.repo.getPersonalUser(h.actor);
   await enterLibraryEdit(page,h.deck.deckTemplateId);
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${h.deck.deckTemplateId}`));
   expect(new URL(page.url()).searchParams.get("version")).toBe("1");
   expect(JSON.parse(new URL(page.url()).searchParams.get("cards")!)).toEqual([{cardTemplateId:h.card.cardTemplateId,version:1}]);
   await page.getByRole("dialog",{name:"Edit your own Deck"}).getByRole("button",{name:"Cancel",exact:true}).click();
-  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  await expect(page).toHaveURL("/library");
   expect(await h.repo.getPersonalUser(h.actor)).toEqual(before);
   await enterLibraryEdit(page,h.deck.deckTemplateId); await page.getByRole("button",{name:"Continue editing",exact:true}).click();
   await editDeckTitle(page,"My private adapted programme");
@@ -178,7 +178,9 @@ test("Library foreign Edit confirms without a write; private publication/reload 
   await expect(page.locator(".creator-card-title-button")).toHaveText("Foreign practice");
   await page.locator(".creator-back-link").click();
   await page.getByRole("dialog",{name:"Leave Creator confirmation"}).getByRole("button",{name:"Publish and leave",exact:true}).click();
-  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  await expect(page).toHaveURL(`/decks?reveal=${fork.deckTemplateId}`);
+  await expect(page.locator(`[data-collection-item-id="${fork.deckTemplateId}"]`)).toBeVisible();
+  await expect(page.locator(".deck-detail h1")).toHaveCount(0);
   const user=(await h.repo.getPersonalUser(h.actor))!;
   const data=user.decksData.find((item)=>item.deckTemplateId===fork.deckTemplateId)!;
   expect(data).toBeTruthy(); expect(data.openedAt).toBe(null); expect(data.cadenceAnchorDate).toBe(null);
@@ -205,7 +207,9 @@ test("public Library copy first-public confirmation publishes Cards before Deck 
   expect((await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!.latestVersion).toBe(0);
   await page.locator(".creator-back-link").click(); await page.getByRole("button",{name:"Publish and leave",exact:true}).click();
   await confirmation.getByRole("button",{name:"Publish publicly",exact:true}).click();
-  await expect(page).toHaveURL(`/library/${h.deck.deckTemplateId}`);
+  const copied=(await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!;
+  await expect(page).toHaveURL(`/library?published=${copied.deckTemplateId}`);
+  await expect(page.locator(`[data-collection-item-id="${copied.deckTemplateId}"]`)).toHaveAttribute("data-return-highlight","true");
   const fork=(await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!;
   const card=(await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId}))!;
   expect(fork.latestVersion).toBe(1); expect(card.latestVersion).toBe(1);
@@ -252,15 +256,17 @@ test("Copy a foreign public Card uses a reference without copying source identit
   await page.goto(`/creator/edit/${dest.deckTemplateId}`);await expect(page.locator(".creator-card-title-button")).toHaveText("Foreign practice");
 });
 
-test("self-use Publish and leave opens the new personal programme and retains the original",async({page})=>{
+test("self-use Publish and leave returns to the My Decks collection and retains the original",async({page})=>{
   const h=await setup(page); await h.repo.ensureDeckData(h.actor,h.deck.deckTemplateId,1);
   await page.goto(`/creator/edit/${h.deck.deckTemplateId}?returnTo=deck&returnDeckId=${h.deck.deckTemplateId}`);
   await page.getByRole("button",{name:"Continue editing",exact:true}).click(); await editDeckTitle(page,"Continuing programme");
   await expect.poll(()=>h.repo.decks().countDocuments({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId})).toBe(1);
   const fork=(await h.repo.decks().findOne({ownerUserId:h.actor,"forkedFrom.deckTemplateId":h.deck.deckTemplateId}))!;
   await page.locator(".creator-back-link").click(); await page.getByRole("button",{name:"Publish and leave",exact:true}).click();
-  await expect(page).toHaveURL(new RegExp(`/decks\\?openDeck=${fork.deckTemplateId}`));
-  await expect(page.getByRole("heading",{name:"Continuing programme",exact:true})).toHaveText("Continuing programme");
+  await expect(page).toHaveURL(`/decks?reveal=${fork.deckTemplateId}`);
+  await expect(page.getByRole("heading",{name:"My Decks",exact:true})).toBeVisible();
+  await expect(page.locator(`[data-collection-item-id="${fork.deckTemplateId}"]`)).toContainText("Continuing programme");
+  await expect(page.locator(".deck-detail h1")).toHaveCount(0);
   const user=(await h.repo.getPersonalUser(h.actor))!;
   expect(user.decksData.find((item)=>item.deckTemplateId===h.deck.deckTemplateId)!.archivedAt).toBe(null);
   expect(user.decksData.find((item)=>item.deckTemplateId===fork.deckTemplateId)).toBeTruthy();

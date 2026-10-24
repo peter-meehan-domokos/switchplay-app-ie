@@ -5,6 +5,12 @@ import type { PublishedInfo } from "@/lib/infoCards/model";
 import type { CreatorTransport } from "./creatorRequest";
 import styles from "./InfoCardAttachments.module.css";
 
+function mergePublicationMetadata(current: Record<string, PublishedInfo>, incoming: PublishedInfo[]) {
+  // Publication order, not response arrival, determines authoritative content.
+  const updates = incoming.filter(info => info.version >= (current[info.infoCardId]?.version ?? 0));
+  return { ...current, ...Object.fromEntries(updates.map(info => [info.infoCardId, info])) };
+}
+
 export default function InfoCardAttachments({ actor, request, value, onChange, publicOnly }: {
   actor: string; request: CreatorTransport; value: string[]; onChange: (ids: string[]) => void; publicOnly: boolean;
 }) {
@@ -18,7 +24,7 @@ export default function InfoCardAttachments({ actor, request, value, onChange, p
     let live = true;
     for (const infoId of JSON.parse(selectedKey) as string[]) {
       void request<PublishedInfo>(`/api/info-cards/${encodeURIComponent(infoId)}/publication`).then(info => {
-        if (live) setLabels(current => ({ ...current, [infoId]: info }));
+        if (live) setLabels(current => mergePublicationMetadata(current, [info]));
       }).catch(() => { /* Keep the reference even when metadata is unavailable. */ });
     }
     return () => { live = false; };
@@ -37,7 +43,7 @@ export default function InfoCardAttachments({ actor, request, value, onChange, p
           offset = page.nextOffset;
         } while (offset !== null);
         const rows = [...all.values()];
-        setItems(rows); setLabels(current => ({ ...current, ...Object.fromEntries(rows.map(info => [info.infoCardId, info])) }));
+        setItems(rows); setLabels(current => mergePublicationMetadata(current, rows));
       } catch { if (live) setError("Unable to load Info Cards. Close and reopen the dropdown to try again."); }
       finally { if (live) setLoading(false); }
     })();
@@ -45,7 +51,8 @@ export default function InfoCardAttachments({ actor, request, value, onChange, p
     document.addEventListener("pointerdown", outside);
     return () => { live = false; document.removeEventListener("pointerdown", outside); };
   }, [open, actor, request]);
-  const eligible = items.filter(info => info.visibility === "public" || !publicOnly && info.ownerUserId === actor);
+  const eligible = items.map(info => labels[info.infoCardId] ?? info)
+    .filter(info => info.visibility === "public" || !publicOnly && info.ownerUserId === actor);
   const own = eligible.filter(info => info.ownerUserId === actor), others = eligible.filter(info => info.ownerUserId !== actor);
   const rows = [...own, ...others];
   const activeIndex = Math.min(active, Math.max(0, rows.length - 1));
