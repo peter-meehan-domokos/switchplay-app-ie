@@ -15,5 +15,5 @@ module.exports = function (source) {
     }
     return `const style = document.createElement('style'); style.textContent = ${JSON.stringify(css)}; document.head.append(style); export default ${JSON.stringify(locals)};`;
   }
-  return ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
+  return ts.transpileModule(source, { fileName: this.resourcePath, compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
 };

@@ -168,7 +168,7 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await page.getByText("Archived decks", { exact: true }).click(); await page.getByRole("button", { name: `Restore ${name}`, exact: true }).click();
   await page.getByRole("button", { name: `Open ${name}`, exact: true }).click(); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click(); const cardId = await add(page);
-  await column(page, cardId).locator(".creator-card-title-button").click(); await page.locator(".creator-modal textarea").fill("Later practice");
+  await column(page, cardId).locator(".creator-card-title-button").click(); await page.locator(".creator-modal").getByRole("textbox").fill("Later practice");
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await column(page, cardId).getByRole("button", { name: "Publish Card 1", exact: true }).click();
   await expect.poll(async () => (await cardRoot(cardId))?.latestVersion).toBe(1);
@@ -205,7 +205,7 @@ test("publication controls distinguish defaults, blocked drafts and genuinely pu
   await page.locator('.creator-modal input[type="date"]').fill("2027-03-14"); await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(async () => (await cardRoot(cardId))!.draft.suggestedTargetDate).toBe("2027-03-14");
   const user = await db().collection("users").findOne({ _id: actor() }); expect(user!.cardsData.some((data: { cardTemplateId: string }) => data.cardTemplateId === cardId)).toBe(false);
-  await column(page, cardId).locator(".creator-card-title-button").click(); await page.locator(".creator-modal textarea").fill("First publication");
+  await column(page, cardId).locator(".creator-card-title-button").click(); await page.locator(".creator-modal").getByRole("textbox").fill("First publication");
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await cardPublish.click(); await expect(cardPublish).toHaveText("Published");
   await deck.click(); await expect(deck).toHaveText("Published");
@@ -268,7 +268,7 @@ test("saved unpublished work offers publication only on return; Cancel and leave
 
 test("clean published work returns without a prompt; Card-only changes trigger the leave option", async ({ page }) => {
   await open(page); const id = await title(page, `Card-only leave ${randomUUID()}`), cardId = await add(page);
-  await column(page, cardId).locator(".creator-card-title-button").click(); await page.locator(".creator-modal textarea").fill("Published Card");
+  await column(page, cardId).locator(".creator-card-title-button").click(); await page.locator(".creator-modal").getByRole("textbox").fill("Published Card");
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   const publishCard = column(page, cardId).getByRole("button", { name: "Publish Card 1", exact: true });
   await expect(publishCard).toBeEnabled(); await publishCard.click(); await expect(publishCard).toHaveText("Published");

@@ -13,6 +13,7 @@ import { hasPersonalCard, cardPresentationIdentity, type PresentedCard } from ".
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackIntent } from "@/components/media/CloudflareHlsVideoPlayer";
 import StepView, { type StepViewInfoCards, type StepViewItem } from "@/components/decks/StepView";
 import InfoCardConsultation, { type InfoCardConsultationCard } from "@/components/info-cards/InfoCardConsultation";
+import { loadInfoConsultation, type ConsultationRequest } from "@/components/info-cards/infoCardConsultationClient";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -220,6 +221,7 @@ function CardBackSlot({ content, onNext, onPrevious, onOpenMedia }: {
 export default function FocusedCardView({
   onOpenMedia, mediaViewerOpen = false,
   card,
+  deckTemplateId,
   cardIndex,
   isDeckFlipped: requestedDeckFlip,
   totalCards,
@@ -245,7 +247,8 @@ export default function FocusedCardView({
   const isPresent = useIsPresent();
   const consultationId = useId();
   const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
-  const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement } | null>(null);
+  const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement;
+    status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest } | null>(null);
   const canonicalVersion = hasPersonalCard(card) ? null : card.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("card", card.cardTemplateId!, canonicalVersion), [card.cardTemplateId, canonicalVersion]);
   const isDeckFlipped = Boolean(backFace) && requestedDeckFlip;
@@ -349,9 +352,25 @@ export default function FocusedCardView({
       : null;
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
   const stepActivity = stepViewItem ? renderStepActivity?.(stepViewItem) : null;
-  const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, stepViewItemIndex]);
+  const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
+  const attachmentCount = infoCards !== undefined ? infoCards.length : card.infoCardIds?.length ?? 0;
   const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);
   if (consultation && (consultation.identity !== consultationIdentity || !stepViewItem || !isPresent || mediaViewerOpen)) setConsultation(null);
+  const consultationRequest = consultation?.request;
+  useEffect(() => {
+    if (!consultationRequest) return;
+    const abort = new AbortController();
+    const timer = setTimeout(() => setConsultation(current => current?.request === consultationRequest && current.status === "pending"
+      ? { ...current, showLoading: true } : current), 1000);
+    void loadInfoConsultation(consultationRequest, abort.signal).then(cards => {
+      if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
+        ? { ...current, cards, status: "ready", showLoading: false } : current);
+    }).catch(() => {
+      if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
+        ? { ...current, status: "failed", showLoading: false } : current);
+    }).finally(() => clearTimeout(timer));
+    return () => { clearTimeout(timer); abort.abort(); };
+  }, [consultationRequest, consultationIdentity]);
   const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem) : null;
   const activeCloudflareVideoMediaItem =
     activeStepViewMediaItem && isCloudflareStreamVideoMediaItem(activeStepViewMediaItem)
@@ -545,14 +564,18 @@ export default function FocusedCardView({
     goToStepViewItem(1);
   };
   const openConsultation = () => {
-    if (!stepViewElement || !stepViewItem || !infoCards?.length || consultationOpen || interactionLocked || mediaViewerOpen) return;
+    if (!stepViewElement || !stepViewItem || !attachmentCount || consultationOpen || interactionLocked || mediaViewerOpen) return;
     const source = stepViewElement.querySelector<HTMLElement>("[data-info-card-pouch]");
     if (!source) return;
     source.focus({ preventScroll: true });
     videoPlayerRef.current?.setPlaybackSuspended(true);
     updateVideoPlaybackIntent("paused");
-    setConsultation({ identity: consultationIdentity, source,
-      cards: infoCards.map(info => ({ ...info, media: info.media ? { ...info.media } : undefined })) });
+    setConsultation({ identity: consultationIdentity, source, showLoading: false,
+      status: infoCards ? "ready" : playbackActor && playbackVersion ? "pending" : "failed",
+      cards: infoCards ? structuredClone([...infoCards]) : [],
+      ...(!infoCards && playbackActor && playbackVersion ? { request: { actor: playbackActor,
+        mainCardId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode,
+        ...(playbackMode === "working" ? { deckTemplateId } : {}), attachmentIds: [...(card.infoCardIds ?? [])] } } : {}) });
   };
   const handleStepViewRef = useCallback((element: HTMLElement | null) => {
     // An outgoing animated Step View can detach after the next one has mounted.
@@ -835,7 +858,7 @@ export default function FocusedCardView({
                   onPrevious={goToPreviousStepViewItem}
                   useCloudflareVideoHost={Boolean(activeCloudflareVideoMediaItem)}
                   surfaceRef={handleStepViewRef}
-                  infoCards={infoCards?.length ? { count: infoCards.length, expanded: consultationOpen, controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
+                  infoCards={attachmentCount ? { count: attachmentCount, expanded: consultationOpen && consultation?.status === "ready", controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
                   mediaPreview={stepViewMediaPreview}
                   activity={stepActivity}
                 />
@@ -931,7 +954,8 @@ export default function FocusedCardView({
         </div>
       ) : null}
       {consultationOpen && consultation && stepViewElement ? <InfoCardConsultation id={consultationId}
-        cards={consultation.cards} anchor={stepViewElement} source={consultation.source} onClose={() => setConsultation(null)} /> : null}
+        cards={consultation.cards} anchor={stepViewElement} source={consultation.source} status={consultation.status}
+        count={attachmentCount} loadingMessage={consultation.showLoading} actor={playbackActor} onClose={() => setConsultation(null)} /> : null}
       {overlays}
     </motion.div>
   );

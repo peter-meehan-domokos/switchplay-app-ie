@@ -1,11 +1,11 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useRef, useState } from "react";
+import { StrictMode, useEffect, useRef, useState } from "react";
 import DeckScene from "@/components/decks/DeckScene";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import LibraryDialog from "@/components/library/LibraryDialog";
 import type { CanonicalDeckPresentation } from "@/components/decks/presentation";
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
-import type { InfoCardConsultationCard } from "@/components/info-cards/InfoCardConsultation";
+import type { AvailableConsultationCard } from "@/components/info-cards/InfoCardConsultation";
 import "@/app/globals.css";
 import styles from "./info-cards-fixture.module.css";
 import integration from "./info-cards-integration-fixture.module.css";
@@ -40,6 +40,7 @@ function Activity() {
 }
 
 function Fixture() {
+  const production = new URLSearchParams(location.search).has("production");
   const root = useRef<HTMLElement>(null);
   const [activity, setActivity] = useState(false);
   const [media, setMedia] = useState("image");
@@ -49,7 +50,7 @@ function Fixture() {
   const [version, setVersion] = useState(1);
   const [actor, setActor] = useState(1);
   const [isFlipped, setIsFlipped] = useState(false);
-  const samples: InfoCardConsultationCard[] = [
+  const samples: Extract<AvailableConsultationCard, { publication?: undefined }>[] = [
     { id: "negative-signs", seriesTitle: "What You Need", seriesCreatorUsername: "peter", title: "Negative signs",
       body: `Keep every minus sign attached to its number. Use brackets to make the signs clear.\n\nTwo negatives multiply to make a positive. One negative gives a negative.${revision > 1 ? ` Updated ${revision}.` : ""}`,
       media: media === "video" ? video("info") : media === "image" ? { id: "info-image", mediaType: "image", src: "/image-0.svg", description: "Reference diagram" } : undefined },
@@ -75,13 +76,14 @@ function Fixture() {
       <label>Info media<select value={media} onChange={event => setMedia(event.target.value)}><option value="image">Image</option><option value="video">Video</option><option value="none">None</option></select></label>
       <label>Cards<select value={count} onChange={event => setCount(Number(event.target.value))}>{[0, 1, 2, 5, 12].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
     </div></header>
-    {visible ? <DeckScene deck={{ ...deck, version, cards: deck.cards.map(card => ({ ...card, version })) }} onBack={() => {}} transition={{ duration: 0 }}
+    {visible ? <DeckScene deck={{ ...deck, version, cards: deck.cards.map(card => ({ ...card, version,
+      ...(production ? { infoCardIds: cards.map(info => info.id) } : {}) })) }} onBack={() => {}} transition={{ duration: 0 }}
       isDeckFlipped={isFlipped} onToggleDeckFlip={() => setIsFlipped(value => !value)}
-      renderFocusedCard={props => <FocusedCardView {...props} infoCards={cards} playbackViewerUserId={`fixture-viewer-${actor}`}
+      renderFocusedCard={props => <FocusedCardView {...props} infoCards={production ? undefined : cards} playbackViewerUserId={`fixture-viewer-${actor}`}
         backFace={<div>Fixture card back</div>} renderStepActivity={activity ? () => <Activity /> : undefined} />} /> : null}
     <aside className={styles.notes}><p>Open a card, then Intro or a step. The pouch pulls out a pack: swipe down for the next card, up for the previous. Keyboard: ↓ / ↑. Closing keeps the step paused.</p></aside>
   </main>;
   return new URLSearchParams(location.search).has("parent-dialog") ?
     <LibraryDialog title="Parent preview" isolateInteractions onCancel={() => setVisible(false)}>{content}</LibraryDialog> : content;
 }
-createRoot(document.getElementById("fixture-root")!).render(<Fixture />);
+createRoot(document.getElementById("fixture-root")!).render(new URLSearchParams(location.search).has("production") ? <StrictMode><Fixture /></StrictMode> : <Fixture />);

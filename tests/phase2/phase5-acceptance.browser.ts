@@ -31,7 +31,7 @@ async function login(page: Page, identifier: string) {
 }
 async function editCardTitle(page: Page, id: string, title: string) {
   await page.locator(`[data-card-template-id="${id}"] .creator-card-title-button`).click();
-  await page.locator(".creator-modal textarea").fill(title);
+  await page.locator(".creator-modal").getByRole("textbox").fill(title);
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
 }
 

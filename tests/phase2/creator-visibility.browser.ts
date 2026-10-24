@@ -18,7 +18,7 @@ async function add(page: Page, title = "Useful Card") {
   await page.getByRole("button", { name: "Add card", exact: true }).click(); await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(count + 1);
   const id = (await page.locator(".creator-column[data-card-template-id]").last().getAttribute("data-card-template-id"))!;
   await expect.poll(async () => !!await root(id)).toBe(true);
-  await card(page, id).locator(".creator-card-title-button").click(); await page.locator(".creator-modal textarea").fill(title);
+  await card(page, id).locator(".creator-card-title-button").click(); await page.locator(".creator-modal").getByRole("textbox").fill(title);
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(async () => (await root(id))?.draft?.intro.title).toBe(title); return id;
 }

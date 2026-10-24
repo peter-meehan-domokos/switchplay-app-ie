@@ -231,12 +231,13 @@ test("Library media uses the selected publication and only its dedicated control
   let query = "";
   await page.route("**/api/info-cards/fixture-publication/media?*", route => { query = route.request().url(); return route.fulfill({ contentType: "image/png", body: pixel }); });
   await page.goto("/library?tab=info-cards");
-  await page.getByText("Keep signs attached.", { exact: true }).click(); await expect(page.getByRole("dialog", { name: "Info card media", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "View image", exact: true }).click();
+  const publication = page.locator('[data-info-id="fixture-publication"]');
+  await publication.getByText("Keep signs attached.", { exact: true }).click(); await expect(page.getByRole("dialog", { name: "Info card media", exact: true })).toHaveCount(0);
+  await publication.getByRole("button", { name: "View image", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Info card media", exact: true }).getByAltText("Image", { exact: true })).toBeVisible();
   expect(new URL(query).searchParams.get("version")).toBe("7");
   await page.getByRole("button", { name: "Close info card media", exact: true }).click();
-  await expect(page.getByRole("button", { name: "View image", exact: true })).toBeFocused();
+  await expect(publication.getByRole("button", { name: "View image", exact: true })).toBeFocused();
 });
 
 test("video upload uses multipart transfer, processing feedback and an exact-context playback resolver", async ({ page }) => {

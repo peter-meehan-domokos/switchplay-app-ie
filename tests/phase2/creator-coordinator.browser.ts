@@ -21,7 +21,7 @@ async function add(page: Page) {
 }
 async function editTitle(page: Page, id: string, title: string) {
   await card(page, id).locator(".creator-card-title-button").click();
-  await page.locator(".creator-modal textarea").fill(title);
+  await page.locator(".creator-modal").getByRole("textbox").fill(title);
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
 }
 async function editStep(page: Page, id: string, text: string) {

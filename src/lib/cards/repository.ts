@@ -9,7 +9,7 @@ import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
 import type { MediaItem } from "../media";
 import { assertApplicationDatabase } from "../applicationDatabase";
 import { createDefaultCardContent, restoreCreatorCardTitle, restoreCreatorDeckTitle } from "./creatorDefaults";
-import { cardPublicationIssue, deckPublicationIssue, deckDraftContent, publicationVisibility, hasVisibilityChange } from "./publicationRules";
+import { cardPublicationIssue, deckPublicationIssue, deckDraftContent, publicationVisibility, hasVisibilityChange, sameContent } from "./publicationRules";
 import { deckContentHash, type CopyCardCommand, type CopyCardResult } from "./cardReuse";
 import { assertForkContext, editedForkContent, inheritForkCardData } from "./forks";
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
@@ -60,6 +60,16 @@ export class CardRepository {
   deckVersions() { return this.db.collection<DeckTemplateVersion>(COLLECTIONS.deckVersions); }
   users() { return this.db.collection<PersonalUser>(COLLECTIONS.users); }
   transaction<T>(operation: (session: ClientSession) => Promise<T>) { return withMongoTransaction(this.client, operation); }
+  // Info roots are the common attach/delete lock, before canonical main/deck
+  // writes. Empty legacy content does not require the Info Cards deployment.
+  private async guardInfoReferences(actor: string, contents: readonly CardContent[], visibility: Visibility, session: ClientSession) {
+    const ids = [...new Set(contents.flatMap(content => content.infoCardIds ?? []))];
+    if (!ids.length) return;
+    const { InfoCardRepository } = await import("../infoCards/repository");
+    const info = new InfoCardRepository(this.db, this.client);
+    await info.assertIndexesReady(true);
+    await info.guardReferences(actor, ids, visibility, session);
+  }
   getCardVersion(cardTemplateId: string, version: number, session?: ClientSession) {
     entityId(cardTemplateId);
     requireCondition(Number.isInteger(version) && version >= 1, "INVALID_VERSION");
@@ -361,13 +371,14 @@ export class CardRepository {
     if (existing) {
       requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && existing.revision === 0
         && isDeepStrictEqual(existing.forkedFrom, command.source) && isDeepStrictEqual(existing.forkContext, command.context)
-        && isDeepStrictEqual(existing.draft, content) && (existing.draftVisibility ?? "private") === (command.visibility ?? "private") && isDeepStrictEqual(existing.stepIds, command.stepIds), "CARD_FORK_RECOVERY_CONFLICT");
+        && sameContent(existing.draft, content) && (existing.draftVisibility ?? "private") === (command.visibility ?? "private") && isDeepStrictEqual(existing.stepIds, command.stepIds), "CARD_FORK_RECOVERY_CONFLICT");
       return existing;
     }
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId: command.cardTemplateId, ownerUserId: actor, visibility: "private",
       ...(command.visibility === "public" ? { draftVisibility: "public" as const } : {}), latestVersion: 0, draft: content, stepIds: [...command.stepIds], revision: 0, forkedFrom: command.source,
       forkContext: command.context, createdAt: now, updatedAt: now };
+    await this.guardInfoReferences(actor, [content], "private", session);
     // The global multikey unique index reserves all new Step identities here.
     await this.cards().insertOne(root, { session }); return root;
   }
@@ -428,10 +439,10 @@ export class CardRepository {
         entityId(card.cardTemplateId); assertCardContent(card.content);
         requireCondition(content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && !version.content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
-          && isDeepStrictEqual(card.content, createDefaultCardContent(card.content.steps.map((step) => step.stepId))), "INVALID_NEW_FORK_CARD");
+          && sameContent(card.content, createDefaultCardContent(card.content.steps.map((step) => step.stepId))), "INVALID_NEW_FORK_CARD");
         const existingCard = await this.cards().findOne({ cardTemplateId: card.cardTemplateId }, { session });
         if (existingCard) requireCondition(existingCard.ownerUserId === actor && existingCard.latestVersion === 0 && existingCard.revision === 0
-          && existingCard.forkedFrom === null && isDeepStrictEqual(existingCard.draft, card.content), "DECK_FORK_RECOVERY_CONFLICT");
+          && existingCard.forkedFrom === null && sameContent(existingCard.draft, card.content), "DECK_FORK_RECOVERY_CONFLICT");
         else await this.cards().insertOne({ cardTemplateId: card.cardTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
           revision: 0, draft: card.content, stepIds: card.content.steps.map((step) => step.stepId), forkedFrom: null, createdAt: new Date(), updatedAt: new Date() }, { session });
       }
@@ -472,11 +483,12 @@ export class CardRepository {
         requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && isDeepStrictEqual(existing.draft, content), "INITIAL_GRAPH_CONFLICT");
         for (const card of cards) {
           const root = await this.cards().findOne({ cardTemplateId: card.cardTemplateId }, { session });
-          requireCondition(root?.ownerUserId === actor && root.latestVersion === 0 && isDeepStrictEqual(root.draft, card.content), "INITIAL_GRAPH_CONFLICT");
+          requireCondition(root?.ownerUserId === actor && root.latestVersion === 0 && sameContent(root.draft, card.content), "INITIAL_GRAPH_CONFLICT");
         }
         return;
       }
       const now = new Date();
+      await this.guardInfoReferences(actor, cards.map(card => card.content), "private", session);
       for (const card of cards) await this.cards().insertOne({ cardTemplateId: card.cardTemplateId, ownerUserId: actor,
         visibility: "private", latestVersion: 0, draft: card.content, stepIds: card.content.steps.map((step) => step.stepId),
         revision: 0, forkedFrom: null, createdAt: now, updatedAt: now }, { session });
@@ -495,7 +507,8 @@ export class CardRepository {
     const existing = await this.transaction(async (session) => {
       await this.assertUser(actor, session);
       const existing = await this.cards().findOne({ cardTemplateId }, { session });
-      if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && publicationVisibility(existing) === visibility && isDeepStrictEqual(existing.draft, content), "INITIAL_CARD_CONFLICT"); return existing; }
+      if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && publicationVisibility(existing) === visibility && sameContent(existing.draft, content), "INITIAL_CARD_CONFLICT"); return existing; }
+      await this.guardInfoReferences(actor, [content], "private", session);
       await this.cards().insertOne(root, { session }); return root;
     });
     return existing;
@@ -521,7 +534,7 @@ export class CardRepository {
         // require explicit recovery; never guess or reattach after another tab removes it.
         requireCondition(deck.revision === expectedDeckRevision + 1 && isDeepStrictEqual(deck.draft, nextDeckContent)
           && existing.ownerUserId === actor && existing.visibility === "private" && existing.latestVersion === 0
-          && existing.revision === 0 && existing.forkedFrom === null && isDeepStrictEqual(existing.draft, content)
+          && existing.revision === 0 && existing.forkedFrom === null && sameContent(existing.draft, content)
           && isDeepStrictEqual(existing.stepIds, stepIds), "ADD_CARD_RECOVERY_CONFLICT");
         const { _id: deckMongoId, ...deckRoot } = deck; void deckMongoId;
         const { _id: cardMongoId, ...cardRoot } = existing; void cardMongoId;
@@ -577,7 +590,8 @@ export class CardRepository {
       // stored blank title is not rewritten by an unrelated content edit.
       const saved = !content.intro.title?.trim() && content.intro.title !== current?.intro.title
         ? { ...content, intro: { ...content.intro, title: restoreCreatorCardTitle(content.intro.title, latest?.content.intro.title) } } : content;
-      const draft = nextVisibility === root.visibility && latest && isDeepStrictEqual(saved, latest.content) ? null : saved;
+      const draft = nextVisibility === root.visibility && latest && sameContent(saved, latest.content) ? null : saved;
+      await this.guardInfoReferences(actor, [saved], "private", session);
       const stepIds = [...new Set([...root.stepIds, ...content.steps.map((step) => step.stepId)])];
       // A root retains historical identities; no other Card may claim them.
       const result = await this.cards().updateOne({ cardTemplateId, revision: expectedRevision }, {
@@ -649,6 +663,7 @@ export class CardRepository {
       const visibility = draftVisibility(root);
       const issue = cardPublicationIssue(root.latestVersion, root.draft, latest?.content ?? null, root);
       requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
+      await this.guardInfoReferences(actor, [root.draft], visibility, session);
       const version = root.latestVersion + 1; const now = new Date();
       await this.cardVersions().insertOne({ cardTemplateId, version, content: root.draft, visibility, ...note,
         ...(version === 1 && root.forkedFrom ? { forkPublicationReceipt: { revision: expectedRevision } } : {}), publishedAt: now, publishedByUserId: actor }, { session });
@@ -1074,6 +1089,23 @@ export class CardRepository {
   // Assessment creation shares the ordinary working-personal-write boundary.
   async assessmentWorkingCard(actor: string, deckTemplateId: string, cardTemplateId: string, session: ClientSession) {
     return this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+  }
+  async consultationCardVersion(actor: string, cardTemplateId: string, context: import("../infoCards/model").MainInfoContext, session: ClientSession) {
+    entityId(actor); entityId(cardTemplateId); assertAdoption(context.version);
+    requireCondition(session.inTransaction() && (context.mode === "working" || context.mode === "canonical"), "INVALID_INFO_CONTEXT");
+    if (context.mode === "working") {
+      entityId(context.deckTemplateId);
+      const { cardVersion } = await this.workingCard(actor, context.deckTemplateId!, cardTemplateId, session);
+      requireCondition(cardVersion.version === context.version, "INFO_MAIN_VERSION_CONFLICT");
+      assertCardContent(cardVersion.content);
+      return cardVersion;
+    }
+    await this.assertUser(actor, session);
+    const root = await this.cards().findOne({ cardTemplateId }, { session });
+    const version = await this.getCardVersion(cardTemplateId, context.version, session);
+    requireCondition(root?.visibility === "public" && version?.visibility === "public" && version.version <= root.latestVersion, "CARD_VERSION_FORBIDDEN");
+    assertCardContent(version.content);
+    return version;
   }
   private async workingCard(actor: string, deckTemplateId: string, cardTemplateId: string, session: ClientSession) {
     const user = await this.assertUser(actor, session);

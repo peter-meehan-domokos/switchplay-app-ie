@@ -22,4 +22,7 @@ export type PublishedInfo = {
   series: { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
 };
 export type MediaContext = { infoCardId: string } & ({ kind: "draft"; revision: number } | { kind: "publication"; version: number });
+export type InfoConsultationEntry = { status: "available"; info: PublishedInfo } | { status: "unavailable" };
+export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[] };
+export type MainInfoContext = { mode: "working" | "canonical"; version: number; deckTemplateId?: string };
 export const EMPTY_INFO_DRAFT: InfoDraft = { title: "", body: "", seriesId: null, mediaItem: null };

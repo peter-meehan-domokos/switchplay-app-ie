@@ -2,7 +2,8 @@ import type { CardContent, DeckContent, PublishedDeckContent, Visibility } from 
 import { DEFAULT_CREATOR_CARD_TITLE, DEFAULT_CREATOR_DECK_TITLE } from "./creatorDefaults";
 
 // Canonical content contains plain objects/arrays. Key order is not a content change;
-// array order and optional-field presence are significant, as in repository comparison.
+// array order and optional-field presence are significant, except the deliberately
+// optional empty main-card attachment list. Never rewrite immutable old content.
 export function sameContent(left: unknown, right: unknown): boolean {
   if (left === right) return true;
   if (left === null || right === null || typeof left !== "object" || typeof right !== "object") return false;
@@ -11,8 +12,11 @@ export function sameContent(left: unknown, right: unknown): boolean {
       && left.every((value, index) => sameContent(value, right[index]));
   }
   const a = left as Record<string, unknown>, b = right as Record<string, unknown>;
-  const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameContent(a[key], b[key]));
+  const mainContent = [a, b].every(value => Object.hasOwn(value, "intro") && Array.isArray(value.steps) && Object.hasOwn(value, "suggestedTargetDate"));
+  const keysFor = (value: Record<string, unknown>) => Object.keys(value).filter(key =>
+    !(mainContent && key === "infoCardIds" && (value[key] === undefined || Array.isArray(value[key]) && value[key].length === 0)));
+  const keys = keysFor(a);
+  return keys.length === keysFor(b).length && keys.every((key) => Object.hasOwn(b, key) && sameContent(a[key], b[key]));
 }
 
 export function deckDraftContent(published: PublishedDeckContent): DeckContent {

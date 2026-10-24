@@ -37,6 +37,8 @@
 
 .alignment > * { pointer-events: auto; }
 
+.status { position: fixed; margin: 0; padding: 0; color: #c9d0da; font: 12px/1.4 Arial, Helvetica, sans-serif; pointer-events: none; }
+
 .mediaViewer {
   padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   background: #151b25;

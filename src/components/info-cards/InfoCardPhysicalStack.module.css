@@ -17,3 +17,4 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.unavailable { display: grid; place-items: center; }

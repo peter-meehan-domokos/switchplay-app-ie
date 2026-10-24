@@ -6,12 +6,13 @@ import styles from "./InfoCardPouch.module.css";
 export type InfoCardPouchProps = {
   count: number;
   expanded: boolean;
+  pending?: boolean;
   position?: number;
   controlsId: string;
   onToggle: () => void;
 };
 
-export default function InfoCardPouch({ count, expanded, position = 1, controlsId, onToggle }: InfoCardPouchProps) {
+export default function InfoCardPouch({ count, expanded, pending = false, position = 1, controlsId, onToggle }: InfoCardPouchProps) {
   const numeral = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     if (!numeral.current) return;
@@ -40,24 +41,26 @@ export default function InfoCardPouch({ count, expanded, position = 1, controlsI
     <button
       className={styles.pouch}
       type="button"
-      aria-label={`${expanded ? "Close" : "Open"} information cards (${count} attached)`}
+      aria-label={`${expanded || pending ? "Close" : "Open"} information cards (${count} attached)`}
       aria-expanded={expanded}
       aria-controls={expanded ? controlsId : undefined}
       onClick={onToggle}
       data-info-card-pouch=""
       data-count-digits={String(count).length}
     >
-      <svg className={styles.shape} viewBox="0 0 46 46" aria-hidden="true">
-        <path d="M0 0 L46 46 H0 Z" />
-        <path className={styles.fold} d="M0 0 L46 46" />
-      </svg>
-      <span className={styles.label} aria-hidden="true" data-info-card-pouch-label="">
-        {!expanded && <svg className={styles.information} viewBox="0 0 16 16" data-info-card-pouch-icon="">
-          <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-          <circle cx="8" cy="4.5" r="1" fill="currentColor" />
-          <path d="M8 7.5v4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-        </svg>}
-        <span ref={numeral} data-info-card-pouch-count="">{expanded ? position : count}</span>
+      <span className={styles.artwork} aria-hidden="true">
+        <svg className={styles.shape} viewBox="0 0 46 46" aria-hidden="true">
+          <path d="M0 0 L46 46 H0 Z" />
+          <path className={styles.fold} d="M0 0 L46 46" />
+        </svg>
+        <span className={styles.label} aria-hidden="true" data-info-card-pouch-label="">
+          {!expanded && <svg className={styles.information} viewBox="0 0 16 16" data-info-card-pouch-icon="">
+            <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            <circle cx="8" cy="4.5" r="1" fill="currentColor" />
+            <path d="M8 7.5v4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>}
+          <span ref={numeral} data-info-card-pouch-count="">{expanded ? position : count}</span>
+        </span>
       </span>
     </button>
   );

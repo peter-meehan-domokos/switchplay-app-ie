@@ -39,12 +39,13 @@ export class InfoCardRepository {
     const main = await CardRepository.application(); const repo = new InfoCardRepository(main.db, main.client);
     await repo.assertIndexesReady(); return repo;
   }
-  async assertIndexesReady() {
+  async assertIndexesReady(includeMainReferences = false) {
     // Index creation is an explicit deployment step. Do not accept writes in an
     // uninitialised database where unique identity/concurrency promises are false.
     let databases = readyIndexes.get(this.client);
     if (!databases) { databases = new Map(); readyIndexes.set(this.client, databases); }
-    let ready = databases.get(this.db.databaseName);
+    const readinessKey = JSON.stringify([this.db.databaseName, includeMainReferences]);
+    let ready = databases.get(readinessKey);
     if (!ready) {
       ready = (async () => {
         for (const [collection, keys] of [
@@ -57,8 +58,14 @@ export class InfoCardRepository {
           requireCondition(keys.every(key => indexes.some(index => index.unique && !index.sparse && !index.partialFilterExpression
             && sameContent(index.key, key))), "INFO_INDEX_SETUP_REQUIRED");
         }
-      })().catch(() => { databases!.delete(this.db.databaseName); throw new CardArchitectureError("INFO_INDEX_SETUP_REQUIRED"); });
-      databases.set(this.db.databaseName, ready);
+        if (includeMainReferences) for (const [collection, key] of [
+          [MAIN.cards, { "draft.infoCardIds": 1 }], [MAIN.cardVersions, { "content.infoCardIds": 1 }],
+        ] as const) {
+          const indexes = await this.db.collection(collection).listIndexes().toArray();
+          requireCondition(indexes.some(index => !index.sparse && !index.partialFilterExpression && sameContent(index.key, key)), "INFO_INDEX_SETUP_REQUIRED");
+        }
+      })().catch(() => { databases!.delete(readinessKey); throw new CardArchitectureError("INFO_INDEX_SETUP_REQUIRED"); });
+      databases.set(readinessKey, ready);
     }
     return ready;
   }

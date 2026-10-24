@@ -36,7 +36,7 @@ test("Copy to reuses unpublished Card in owned draft/archived Decks without pers
   const before = await db().collection("users").findOne({ _id: new ObjectId(actor()) }), count = await db().collection("cardTemplates").countDocuments();
   await expect(section.getByRole("button", { name: source.draft!.title, exact: true })).toHaveCount(0);
   await expect(section.getByRole("button", { name: foreign.draft!.title, exact: true })).toHaveCount(0);
-  await page.locator(".creator-modal textarea").fill("Local modal edit has not been applied");
+  await page.locator(".creator-modal").getByRole("textbox").fill("Local modal edit has not been applied");
   for (const dest of [draft, archived]) {
     await section.getByRole("button", { name: dest.draft!.title, exact: true }).click();
     await expect(section.getByRole("button", { name: `${dest.draft!.title} — already contains this Card`, exact: true })).toBeDisabled();

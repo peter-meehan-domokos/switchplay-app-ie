@@ -153,7 +153,7 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} Creator r
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   const added = page.locator(".creator-column[data-card-template-id]").last();
   await added.locator(".creator-card-title-button").click();
-  await page.locator(".creator-modal textarea").fill("New public practice");
+  await page.locator(".creator-modal").getByRole("textbox").fill("New public practice");
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await added.getByRole("combobox", { name: "Card 2 publication visibility" }).selectOption("public");
   const cardId = (await added.getAttribute("data-card-template-id"))!;

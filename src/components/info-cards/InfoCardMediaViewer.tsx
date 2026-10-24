@@ -13,12 +13,12 @@ import mediaStyles from "@/components/media/CardMediaViewer.module.css";
 export type InfoCardMedia = ImageMediaItem | CloudflareStreamVideoMediaItem;
 const noNavigation = () => {};
 
-export default function InfoCardMediaViewer({ media, onClose, imageSrc, resolvePlayback }: { media: InfoCardMedia; onClose: () => void;
+export default function InfoCardMediaViewer({ media, onClose, imageSrc, resolvePlayback, returnFocus }: { media: InfoCardMedia; onClose: () => void; returnFocus?: HTMLElement;
   imageSrc?: string; resolvePlayback?: (item: CloudflareStreamVideoMediaItem, signal: AbortSignal) => Promise<PlaybackGrant> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const player = useRef<CloudflareHlsVideoPlayerHandle>(null);
-  useInfoCardDialog(dialog, closeButton);
+  useInfoCardDialog(dialog, closeButton, returnFocus);
   const close = () => { player.current?.pausePlayback("info media close"); onClose(); };
   const fullscreen = () => Boolean(document.fullscreenElement ||
     (dialog.current?.querySelector("video") as (HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }) | null)?.webkitDisplayingFullscreen);

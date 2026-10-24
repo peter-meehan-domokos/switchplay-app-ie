@@ -190,7 +190,7 @@ test("My Decks renders an unavailable retained membership alongside valid workin
   await repo.users().updateOne({ _id: new ObjectId(actor) }, { $push: { decksData: { ...sample, deckTemplateId: missingId } } });
   try {
     await page.goto("/decks");
-    await expect(page.getByRole("heading", { name: "My decks", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My Decks", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: `Open ${valid.draft!.title}`, exact: true })).toBeVisible();
     // Earlier acceptance journeys can legitimately leave other unavailable
     // memberships. The API assertion below identifies this exact fixture.

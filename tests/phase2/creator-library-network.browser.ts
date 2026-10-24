@@ -56,7 +56,14 @@ for (const kind of ["deck", "info"] as const) for (const action of ["new", "repu
       id = new URL(page.url()).pathname.split("/").at(-1)!;
     } else {
       const row = page.locator(`[data-collection-item-id="${id}"]`);
-      while (!await row.count()) await page.getByRole("button", { name: kind === "deck" ? "More Decks" : "More Info Cards", exact: true }).click();
+      while (!await row.count()) {
+        const more = page.getByRole("button", { name: kind === "deck" ? "More Decks" : "More Info Cards", exact: true });
+        if (!await more.count()) { await expect(row).toBeVisible(); break; }
+        await more.click();
+        // Wait for the page to settle before deciding whether another page is
+        // needed. The last response may remove More while revealing the row.
+        await expect.poll(async () => !!await row.count() || !await more.count() || await more.isEnabled()).toBe(true);
+      }
       if (kind === "info") await row.getByRole("link", { name: /^Edit / }).click();
       else {
         await row.locator(".deck-tile-open-action").click();

@@ -1,10 +1,11 @@
 import type { ClientSession, Document } from "mongodb";
 import { CardRepository } from "../cards/repository";
 import { creatorUsernames, UNKNOWN_CREATOR } from "../cards/creatorAttribution";
-import { requireCondition } from "../cards/domain";
+import { CardArchitectureError, isRecord, requireCondition } from "../cards/domain";
 import { INFO_COLLECTIONS, type InfoCardRepository } from "./repository";
-import { infoId, infoReferences } from "./domain";
-import type { InfoPublication, InfoRoot, InfoSeries, PublishedInfo } from "./model";
+import { assertInfoDraft, infoId, infoReferences, seriesName, visibility } from "./domain";
+import { measureInfoCapacity } from "./capacity";
+import type { InfoConsultationEntry, InfoConsultationSnapshot, MainInfoContext, InfoPublication, InfoRoot, InfoSeries, PublishedInfo } from "./model";
 
 export type InfoQuery = { search?: string; offset?: number; limit?: number; seriesId?: string };
 export async function infoEditor(repo: InfoCardRepository, actor: string, id: string) {
@@ -49,18 +50,58 @@ function access(actor: string) {
 // Called only by backend code with authorised main-context references in Phase 4.
 // No HTTP endpoint accepts a list and treats it as attachment authority.
 export async function publishedSnapshot(repo: InfoCardRepository, actor: string, ids: unknown, session?: ClientSession): Promise<PublishedInfo[]> {
+  const entries = await publicationSnapshotEntries(repo, actor, ids, session);
+  requireCondition(entries.every(entry => entry.status === "available"), "INFO_PUBLICATION_FORBIDDEN");
+  return entries.map(entry => { requireCondition(entry.status === "available", "INFO_PUBLICATION_FORBIDDEN"); return entry.info; });
+}
+
+function validPublication(row: Joined) {
+  // Only row-local validation is isolated. Database/attribution failures below
+  // must remain whole-request failures, not disguised as unavailable cards.
+  try {
+    requireCondition(isRecord(row.publication) && isRecord(row.series), "INVALID_INFO_PUBLICATION");
+    infoId(row.infoCardId); infoId(row.ownerUserId); visibility(row.visibility);
+    const publication = row.publication, series = row.series;
+    requireCondition(!row.deletedAt && Number.isSafeInteger(row.latestVersion) && row.latestVersion > 0
+      && publication.infoCardId === row.infoCardId && publication.version === row.latestVersion
+      && publication.visibility === row.visibility && publication.publishedByUserId === row.ownerUserId
+      && publication.publishedAt instanceof Date && Number.isFinite(publication.publishedAt.getTime())
+      && Number.isSafeInteger(publication.sourceRevision) && publication.sourceRevision >= 0, "INVALID_INFO_PUBLICATION");
+    assertInfoDraft(publication.content);
+    infoId(publication.content.seriesId); infoId(series.seriesId); infoId(series.createdByUserId);
+    requireCondition(series.seriesId === publication.content.seriesId && seriesName(series.title).title === series.title, "INVALID_INFO_PUBLICATION");
+    requireCondition(measureInfoCapacity({ title: publication.content.title, body: publication.content.body,
+      seriesTitle: series.title, hasMedia: publication.content.mediaItem !== null }).fits, "INVALID_INFO_PUBLICATION");
+    return true;
+  } catch (error) {
+    if (!(error instanceof CardArchitectureError)) throw error;
+    return false;
+  }
+}
+
+// Same resolution machinery as strict catalogue publication reads, but preserves
+// authorised main-reference positions without exposing why a slot is unavailable.
+export async function publicationSnapshotEntries(repo: InfoCardRepository, actor: string, ids: unknown, session?: ClientSession): Promise<InfoConsultationEntry[]> {
   infoId(actor); const ordered = infoReferences(ids);
-  const read = async (snapshot: ClientSession) => {
+  const read = async (snapshot: ClientSession): Promise<InfoConsultationEntry[]> => {
     const rows = await repo.roots().aggregate<Joined>([
       { $match: { infoCardId: { $in: ordered }, latestVersion: { $gt: 0 }, $or: [{ ownerUserId: actor }, { visibility: "public" }] } },
       ...latestJoin(), { $match: access(actor) },
     ], { session: snapshot }).toArray();
-    requireCondition(rows.length === ordered.length, "INFO_PUBLICATION_FORBIDDEN");
-    const items = await decorate(repo, rows, snapshot), byId = new Map(items.map(item => [item.infoCardId, item]));
-    return ordered.map(id => byId.get(id)!);
+    const items = await decorate(repo, rows.filter(validPublication), snapshot), byId = new Map(items.map(item => [item.infoCardId, item]));
+    return ordered.map(id => { const info = byId.get(id); return info ? { status: "available", info } : { status: "unavailable" }; });
   };
   if (session) { requireCondition(session.inTransaction(), "INFO_TRANSACTION_REQUIRED"); return read(session); }
   return repo.transaction(read);
+}
+
+export async function mainInfoConsultation(repo: InfoCardRepository, actor: string, mainCardId: string, context: MainInfoContext): Promise<InfoConsultationSnapshot> {
+  const main = new CardRepository(repo.db, repo.client);
+  return repo.transaction(async session => {
+    const version = await main.consultationCardVersion(actor, mainCardId, context, session);
+    return { mainCardId, mainCardVersion: version.version,
+      entries: await publicationSnapshotEntries(repo, actor, version.content.infoCardIds, session) };
+  });
 }
 
 export async function infoCatalogue(repo: InfoCardRepository, actor: string, query: InfoQuery = {}) {

@@ -22,13 +22,15 @@ import CreatorDraftsModal from "./CreatorDraftsModal";
 import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
 import CreatorModeSelector from "./CreatorModeSelector";
+import InfoCardAttachments from "./InfoCardAttachments";
+import type { CreatorTransport } from "./creatorRequest";
 import { currentDraftOrigin, deckCollectionTarget, type CreatorNavigation } from "./creatorNavigation";
 import { clientId } from "@/lib/clientId";
 import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "./creatorDraftEntries";
 import CreatorPublishControl from "./CreatorPublishControl";
 import CreatorVisibilityControl from "./CreatorVisibilityControl";
 import CreatorPublicConfirmation from "./CreatorPublicConfirmation";
-import { cardPublicationPresentation, deckPublicationPresentation } from "./creatorPublicationPresentation";
+import { cardPublicationPresentation, deckPublicationPresentation, requiresPublicInfoAttachments, creatorPublicationErrorMessage } from "./creatorPublicationPresentation";
 import { creatorRequest } from "./creatorRequest";
 import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
@@ -70,6 +72,7 @@ type EditTarget =
   | { type: "pair-step"; pairId: PairId };
 
 type EditSession = {
+  infoCardIds?: string[];
   descriptionContent?: StepDescriptionSpan[];
   helperText?: string;
   inputKind: "long-text" | "short-text";
@@ -314,8 +317,9 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
 
     return {
       helperText: "Short card title. Aim for 1-4 words.",
-      inputKind: "long-text",
+      inputKind: "short-text",
       label: "Card title",
+      infoCardIds: column.infoCardIds,
       target,
       value: column.cardTitle ?? "",
     };
@@ -369,6 +373,9 @@ function getEditTargetKey(target: EditTarget) {
 }
 
 function CreatorEditModal({
+  actor,
+  request,
+  publicInfoOnly,
   canDeleteCard = false,
   videoReadinessTarget,
   deckIntroductionImage,
@@ -387,6 +394,9 @@ function CreatorEditModal({
   onUploadDeckIntroductionImage,
   session,
 }: {
+  actor?: string;
+  request: CreatorTransport;
+  publicInfoOnly: boolean;
   canDeleteCard?: boolean;
   videoReadinessTarget: MediaUploadTarget;
   deckIntroductionImage: ImageMediaItem | null;
@@ -399,13 +409,14 @@ function CreatorEditModal({
   onClose: () => void;
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
-  onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[], infoCardIds?: string[]) => void;
   copyControl?: React.ReactNode;
   onUploadDeckIntroductionVideo: (file: File) => void;
   onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
 }) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const [draftInfoIds, setDraftInfoIds] = useState(session.infoCardIds);
   const [draftTitle, setDraftTitle] = useState(session.stepTitle ?? "");
   const [linkRanges, setLinkRanges] = useState<StepLinkRange[]>(() =>
     getLinkRangesFromDescriptionContent(session.descriptionContent, session.value)
@@ -539,7 +550,8 @@ function CreatorEditModal({
     onSave(
       draftValue,
       isStepText ? draftTitle : undefined,
-      isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined
+      isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined,
+      isCardTitle ? draftInfoIds : undefined
     );
   }
 
@@ -589,6 +601,7 @@ function CreatorEditModal({
             {primaryField}
           </section>
         ) : primaryField}
+        {isCardTitle && actor && <InfoCardAttachments actor={actor} request={request} value={draftInfoIds ?? []} onChange={setDraftInfoIds} publicOnly={publicInfoOnly} />}
         {isDeckIntroduction ? (
           <MediaUploadPanel
             image={deckIntroductionImage}
@@ -1237,9 +1250,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setPublishStatus("error");
       const uncertain = target === "deck" ? persistence.deck.uncertainPublication : target === "all" ? persistence.deck.uncertainPublication || [...persistence.cards.values()].some((lane) => lane.uncertainPublication) : persistence.cards.get(target)?.uncertainPublication;
       setPublishMessage(uncertain ? "Publication outcome is not yet confirmed. It will be reconciled before another save or publication."
-        : error instanceof Error && error.message === "PUBLIC_PUBLICATION_REVIEW_CHANGED" ? "The changes awaiting public publication changed. Review them and confirm again. Earlier successful publications are retained."
-        : error instanceof Error && error.message === "DECK_PUBLICATION_REVIEW_CONFLICT" ? "The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained."
-        : `${error instanceof Error ? error.message : "Publication failed"}. Earlier successful publications are retained.`);
+        : creatorPublicationErrorMessage(error));
       return false;
     }
   }
@@ -1369,7 +1380,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
 
-  function saveEdit(value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) {
+  function saveEdit(value: string, title?: string, descriptionContent?: StepDescriptionSpan[], infoCardIds?: string[]) {
     if (!editSession) {
       return;
     }
@@ -1395,6 +1406,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         return {
           ...currentBoard,
           columns: currentBoard.columns.map((column) => (column.cardId === target.cardTemplateId ? { ...column,
+            ...(infoCardIds !== undefined ? { infoCardIds: [...infoCardIds] } : {}),
             cardTitle: resolveCreatorCardTitle(column, value, canonical?.cards.find((card) => card.root.cardTemplateId === column.cardId)?.publishedContent?.intro.title ?? null) } : column)),
         };
       }
@@ -1899,6 +1911,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       </DndContext>
       {editSession ? (
         <CreatorEditModal
+          actor={currentUserId}
+          request={persistence.request}
+          publicInfoOnly={editingCardId !== null && requiresPublicInfoAttachments(persistence.deck, persistence.cards.get(editingCardId)!)}
           canDeleteCard={canDeleteActiveCard}
           videoReadinessTarget={persistence.deckReadinessTarget}
           deckIntroductionImage={board.deckIntroduction?.image ?? null}

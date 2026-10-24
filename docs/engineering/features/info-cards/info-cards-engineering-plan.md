@@ -1,12 +1,21 @@
 # Info Cards — Reconciled Engineering Plan
 
-Date: 22 October 2026; agreed Phase 3 UX corrections incorporated 23 October 2026. Status: **Phase 3 UX corrections implemented and automated checks passed (one hot-reload-disrupted regression passed on isolated rerun); manual iPhone acceptance, application index deployment and live media-provider verification remain explicit gates.**
+Date: 22 October 2026; Phase 3 corrections incorporated 23 October; Phase 4 refined and implemented 24 October 2026. Status: **Phases 1–3 implemented; Phase 4 implementation and acceptance evidence are recorded in the [Phase 4 handoff](phase-4/README.md). Application index deployment and live media-provider verification remain explicit production gates.** Historical test reports describe their recorded runs; the handoff identifies fresh implementation checks and remaining manual/operational coverage.
 
-Implementation order is **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1B start inspection found a clean `feat/info-cards` worktree at `666abb4` (committed Phase 1C), so no concurrent edits require another worktree. The functional specification now incorporates only the explicitly agreed Phase 3 UX corrections. Later visual decisions (secondary series/primary title and dedicated consultation X) supersede older wording in specification §§4.2/10.3 and are preserved.
+Implementation order is **1A → 1C → 1B → final integration verification**. Phase 1A's committed visual baseline is `a4c2e2a`; its [refinement evidence](phase-1a/visual-refinement.md) remains authoritative for prototype styling. The 1B start inspection found a clean `feat/info-cards` worktree at `666abb4` (committed Phase 1C). Later visual decisions (secondary series/primary title, dedicated consultation X and positional number confined to the open pouch) are now reconciled in specification §§4.2/10. Preserve them during production integration.
 
 Authority: [functional specification v0.3](../../../design/features/info-cards/info-cards-functional-spec.md), together with subsequent approved visual decisions. Section 12 records the earlier reconciliation; section 13 contains deferred improvements and section 14 retains the original 1A task. See [Phase 1B evidence and review instructions](phase-1b/README.md) and the historical [Phase 1C handoff](phase-1c/README.md).
 
-This document distinguishes **Fact** (inspected repository or observed diagnostic result), **Decision** (agreed product behaviour or a technical choice made under the user's delegated discretion), and **Recommendation** (implementation guidance). Current coding authority covers **Phase 3 only**. Production attachments remain Phase 4. See the [Phase 2 handoff](phase-2/README.md) for backend contracts and verification status.
+This document distinguishes **Fact** (inspected repository), **Approved product decision**, **Engineering recommendation** and **Unresolved product decision**. The subsequent explicit Phase 4 go-ahead authorises checkpoints 4A–4E, not live deployment, commits or Phase 5 implementation. See the [Phase 2 handoff](phase-2/README.md) for backend contracts and verification status and the [Phase 4 handoff](phase-4/README.md) for implemented integration choices.
+
+### Phase 4 refinement: decisions versus proposals
+
+- **Approved:** visually closed pouch during loading; immediate playback suspension/input isolation; discreet `Loading Info Cards…` only after one second, outside the main card near the pouch; remove before the existing opening animation. Whole-request failure uses a short error in the same area; retry by closing/reopening, never a Retry button, spinner, loading card or new overlay.
+- **Approved:** preserve every authorised attachment position. An unresolved item becomes a neutral, same-size unavailable placeholder without protected metadata. Successful publications and unavailable positions remain fixed for that consultation. Media failure leaves the resolved info card intact.
+- **Approved:** one non-searchable dropdown in the existing title modal, My Cards then Other Cards, two-line metadata, select/remove/reorder local until Save. No previews, inline creation or additional screens/controls.
+- **Approved:** deletion UI is deferred beyond Phase 4; backend reference/deletion protections remain mandatory. No editor/Library Delete buttons or new detached-draft recovery workflow.
+- **Implemented engineering choices:** adapt the existing snapshot query for positional results; reuse the existing exact-publication media viewer without a new renewal manager; use a small local grouped listbox for the approved two-line options. Details in §§7.5/8 and the Phase 4 handoff.
+- **Approved — pending/error dismissal:** existing pouch tap, exposed-background tap and Escape cancel/dismiss while the pouch is visually closed. Retain video pause, abort requests where possible, discard late responses, and make the next opening fresh. No additional pending-state close control.
 
 ### Phase 3 readiness corrections
 
@@ -17,7 +26,7 @@ This document distinguishes **Fact** (inspected repository or observed diagnosti
 5. Add info-specific upload adapters honouring returned headers/proofs, an authorised exact-context processing-status read, explicit image delivery source and the player's playback resolver. Preserve the fail-closed provider gate and test replacement, cancellation, stale results and publication-specific access.
 6. Reuse the approved fixed-width `InfoCardFace` and shared capacity validator; preserve secondary-series/primary-title hierarchy. Invalid drafts remain editable and saved, with explicit overflow feedback rather than silent truncation/shrinking.
 7. Extend real-Next disposable browser setup with info indexes and controlled media boundaries. Automated UI acceptance uses authenticated real routes; the port 4180 Phase 1 fixture is not Phase 3 evidence. Provide opt-in LAN access to the disposable application for phone review.
-8. Main-card attachment UI, canonical writer guards, production pouch fetching and reference-feedback UI remain Phase 4. Phase 3 may consume existing backend contracts but must not enable unguarded attachment writes. No unrelated Creator/Library framework refactor.
+8. Main-card attachment UI, canonical writer guards and production pouch fetching remain Phase 4. Reference-feedback/deletion UI is now deferred; backend protections remain mandatory. Phase 3 must not enable unguarded attachment writes. No unrelated Creator/Library framework refactor.
 
 ### Phase 2 readiness amendments
 
@@ -38,7 +47,7 @@ This document distinguishes **Fact** (inspected repository or observed diagnosti
 - Current worktree branch: `feat/info-cards`; 1C start HEAD `a4c2e2a`, with a clean worktree and committed 1A corrections. The original planning inspection was at `5bf8992`.
 - At the original inspection, design/engineering documents were untracked; they are now committed. Existing design and 1A evidence remain preserved.
 - A separate `feat/step-visuals` worktree exists. Its work is not assumed to be available in this branch. In particular, future interactive activities must not be claimed as already integrated here.
-- The present task implements Phase 3 against completed Phases 1–2. It preserves the functional specification and prototype. Index setup is explicit; no live database migration or provider configuration changes have been made.
+- The present task implements Phase 4 against completed Phases 1–3. It preserves the functional specification and prototype. Index setup is explicit; no live database migration or provider configuration changes have been made.
 
 ### 1.2 Architecture evidence
 
@@ -71,7 +80,7 @@ All source paths in this document are relative to the repository root.
 | All info drafts in My Drafts | Existing list is deck-led | Add owner-led info query and typed entries; never join through attachments. |
 | Shared series | No applicable shared-series domain | Stable ID with original creator; unique name per creator; derived discovery and independent card ownership. |
 | Library and owner edit | Auth, shell patterns, dialogs exist | Static info grid and separate query; deck shell/navigation are not generic collection components. |
-| Header attachment picker | Existing title modal | Published-only search, title/series/username, remove/reorder and full persistence audit. |
+| Header attachment picker | Existing title modal; no attachment UI yet | Non-searchable My Cards/Other Cards dropdown with two-line metadata, remove/reorder and full persistence audit. |
 | Historical deletion restrictions | Transaction/reference-lock patterns exist | Indexed canonical reference checks plus guards on every attachment-producing path. |
 | Physical pouch and circular stack | Motion and card gesture grammar exist | New local stack controller/animation; no suitable existing info-stack component. |
 | Preserve video/activity state | Stable Step View/player lifecycle is possible | Do not remount or reset on consultation; explicitly isolate hosted video and all underlying controls. |
@@ -121,13 +130,13 @@ The two timelines must remain independent:
 
 At pouch opening, the server validates the actual main-card context/version, reads its ordered references, and resolves the permitted latest info publications in one read-only snapshot. Return an immutable consultation DTO, including publication identities for media authorisation. Preserve that DTO until close, including while nested media is open. Do not poll or merge newer info content into an open consultation. The next opening makes a fresh no-store request.
 
-Working context must verify the actor's adopted main version; canonical/public preview context must verify its published access. An arbitrary client-supplied list of IDs is not proof of a main attachment. Creator preview may use an owner-authorised draft context separately. Guard against late responses after close, navigation, account changes or a second opening.
+Working context must verify the actor's adopted main version and effective deck membership. Canonical/public preview must verify the exact immutable public main version displayed, not substitute the root's latest version or the deck's original publication pin. An arbitrary client-supplied list of IDs is not attachment authority. Read main context and info publications in one transaction/session. No new Creator-draft consultation endpoint is required. Guard late responses after close, navigation, account changes or a second opening.
 
-No eager fetch of every media asset, persistent content cache or real-time subscription is needed. An opening failure shows a bounded retry/error state and leaves the underlying step paused and mounted; it must not silently omit unavailable attachments or show stale content as if refreshed.
+No eager media fetching, persistent content cache or real-time subscription is needed. Preserve known ordered slots with safe unavailable placeholders, not silent omissions. Whole-request failure uses the discreet error outside the main card, not a Retry control. Pending/error dismissal is the unresolved question above. The underlying step remains paused and mounted; do not present old content as refreshed.
 
 ## 3. Library architecture and implementation cost
 
-**Decision: implement the actual Decks/Info Cards Library in v1.** The earlier cost comparison found its incremental cost reasonable: published queries, visibility filtering, owner editor routes and attribution are already required. Additional work is the tab wrapper, static chronological grid, pagination and navigation/accessibility states. There is no temporary published-item selector phase. Search support remains a backend capability for the later attachment picker, not a Library control.
+**Decision: implement the actual Decks/Info Cards Library in v1.** The earlier comparison found its incremental cost reasonable: published queries, visibility filtering, owner routes and attribution are already required. Additional work is the tab wrapper, static grid, pagination and navigation/accessibility states. There is no temporary selector phase. Search remains an existing backend capability, not a Library or attachment-picker control; Phase 4 can consume catalogue pages without a search parameter.
 
 Most complexity is in permissions, editor persistence and derived series discovery. A static grid does not need the existing animated deck-detail state machine, adoption manifests or membership actions. This is a source-based relative estimate, not a time quote.
 
@@ -146,7 +155,7 @@ Most complexity is in permissions, editor persistence and derived series discove
 | `GET /api/library/info-cards` | Published catalogue, bounded search/filter/offset pagination, server visibility filtering. Reusable query core for attachment results. |
 | `/api/info-cards`, `/api/info-cards/[id]` and publish action | Owner create/read-draft/save/publish/delete; explicit revision preconditions. Public catalogue reads never return draft fields. |
 | `/api/info-card-series` | Authenticated eligible-series search and creator-scoped get-or-create; policy in section 4. |
-| Main-card consultation endpoint | Proposed `GET /api/card-templates/[id]/info-cards` with validated context/version; snapshot response, not a client-authorised ID batch. |
+| Main-card consultation endpoint | Implemented `GET /api/card-templates/[id]/info-cards` with validated context/version; snapshot response, not a client-authorised ID batch. |
 | Info media endpoint | `/api/info-cards/[id]/media`; publication/owner-draft context, exact stored asset match, authenticated delivery. Owner draft video processing uses `/api/info-cards/[id]/media/status?revision=N`. |
 
 Choose one thin tab wrapper at the Library collection level. Do not mount the deck navigation controller while the info panel is active. Retain existing deck deep links and refresh behaviour. Account switching clears private lists, searches and previews; session-aware no-store responses prevent cross-viewer cache reuse.
@@ -163,7 +172,7 @@ Use the approved face-up `InfoCardFace`, no extra opening interaction. Show seco
 
 Creation is explicit, not a request on each keystroke. The actor supplies a title, never an arbitrary series creator ID. If that actor already has the normalised title, return their existing ID. Concurrent creations by the same actor use the unique-index duplicate-key/re-read pattern; creations by different actors produce distinct IDs. A match belonging to another creator is selectable only through eligible search results and is never substituted automatically for Create.
 
-Display `Series title (username)` in Creator dropdowns and attachment metadata. Library instead uses `Series title (series by username)` and separately `Card by username` to distinguish series creator from card owner. Resolve usernames through existing attribution helpers and fallback; changing/deleting a username does not change identity. On the actual face retain only the series title, revealing its creator through the existing tooltip. Do not change Phase 1 markup or styling.
+Display `Series title (username)` in the Info Card Creator series selector. Library uses `Series title (series by username)` and separately `Card by username` to distinguish creators. The approved main-card attachment dropdown is an exception: My Cards shows series name alone; Other Cards shows `Series name · by username`, identifying the card owner. Resolve usernames through existing attribution helpers/fallback; username changes do not change identity. On the actual face retain only the series title, revealing its creator through the existing tooltip. Do not redesign Phase 1 markup/styling.
 
 ### 4.2 Derived discovery and retained selections
 
@@ -228,13 +237,13 @@ This is not a second deck-derived traversal. A fresh query and direct owner edit
 
 ### 5.3 Main-card header attachments
 
-Extend the existing card-title modal with a searchable published-info dropdown showing **info title, series and info-card creator username**. Show series as `Series title (series-creator username)` in secondary metadata; series creator and card owner can differ. Eligible results are public published info cards plus the actor's own private published info cards. No inline info creation and no draft attachment option.
+Extend the existing card-title modal with **one non-searchable dropdown**. My Cards contains eligible owned published cards; a divider precedes Other Cards, containing other creators' public published cards. Each option has a medium-weight title on its first line and smaller muted metadata on its second: series name for My Cards, `Series name · by username` for Other Cards. This username identifies the info-card owner, not the series creator. Use comfortable padding and unobtrusive group labels. No search/autocomplete, thumbnails, previews, inline creation, sorting/filter controls or separate management screen. Foreign private cards and unpublished drafts are ineligible.
 
-Selected IDs are ordered. Provide explicit Remove attachment and Move up/down controls, with optional drag reordering only if it adds little complexity. Prevent duplicate IDs on the same main card; reuse across different main cards remains allowed. Save title and attachment edits as one normal main-card draft update; cancel discards modal-local edits. Public-main publication, not merely picker UI, enforces the private-attachment restriction. A draft may hold an own-private attachment while the creator resolves that restriction.
+Selected IDs are ordered. Retain the agreed removal/reordering inside this modal; no additional drag feature is needed. Prevent duplicate IDs on one main card; reuse across main cards remains allowed. Save title and attachments as one normal main-card draft update; Cancel discards modal-local edits. Public publication, not merely picker UI, enforces the private-attachment restriction; a draft may hold an own-private attachment meanwhile. Retain selected IDs independently of catalogue loading/failure; never silently detach them.
 
 Audit `creatorBoardState.ts`, `cardArchitectureAdapter.ts`, `privateGraph`, presentation/read DTOs, strict content validators, fork/copy construction and main publication hashing. Every normalise/copy/edit path must preserve the optional field. Old content defaults to an empty list without rewriting immutable history. Existing main-card fork ownership rules remain unchanged; do not bypass them because only attachments changed.
 
-“Remove attachment” never invokes info-card deletion. Reusable deletion is a separate owner action with reference feedback and confirmation, subject to section 7.
+“Remove attachment” never invokes deletion. Backend deletion remains protected under section 7; deletion controls, confirmation and reference-feedback UI are deferred to DELETE-1, not delivered in Phase 4.
 
 ## 6. UX and interaction implementation
 
@@ -262,7 +271,7 @@ Use a small consultation owner for the immutable open snapshot, playback suspens
 - Settle over the lower navigation region, allowing the lower video/activity to be covered while its upper context remains visible. Keep the pouch separately reachable above the stack hit-blocking layer.
 - Use the top card and two or three subtle backing layers, not every hidden card. Down sends top to bottom; up brings bottom to top; wrap modulo attachment count. With one card, consume swipes without artificial movement to a duplicate card.
 - Reset to creator order on every new opening. Media close preserves the current top card. Cancelled drags settle back; rapid/reversing swipes must not duplicate or lose cards. Lock or coalesce transitions explicitly.
-- No stack-position indicator, including an automatically injected carousel counter. Provide keyboard Up/Down and assistive labels without a visible progress UI; announce the active title, not an invented index.
+- No position indicator on an info-card face, including an injected carousel counter. Preserve the already-implemented open-pouch positional number and closed-pouch attachment count. Provide keyboard Up/Down and existing assistive labels without inventing another visible index.
 - Respect reduced-motion preferences with minimal displacement while preserving ordering and clear open/close state. On viewport/orientation changes, recalculate settled geometry without treating the new size as an opening morph or resetting active content.
 
 ### 6.3 Real Step View integration and isolation
@@ -332,7 +341,7 @@ Concrete failure sequence: an owned main draft references info X; the creator de
 
 **Chosen approach: defer a new detached-main-card recovery interface; retain safe deletion refusal and clear feedback.** Existing `GET/PATCH /api/card-templates/[cardTemplateId]` can read/save an owned main draft directly, but `/creator/edit/[deckTemplateId]` loads a deck-based `creatorSessionDTO`. The current title editor is local to `CreatorDragLab`; there is no existing independent recovery page to link. Building the previously proposed standalone attachment route would add editor extraction, routing, navigation/recovery and permission tests for this rare case. It is not necessary to prove the prototype or maintain data integrity.
 
-Use the deletion response to distinguish draft blockers from historical blockers. Display owned reference titles/IDs where authorised and a clear message that detaching from a deck does not remove all saved references. Do not link to a nonexistent editor or imply the user can currently recover every draft through My Drafts. Other creators' private blockers receive a generic explanation without titles, deck names or private counts. The normal editor can resolve reachable draft-only blockers; historical blockers cannot be removed by editing the current draft.
+Retain the backend's safe blocker categories; no reference-feedback UI is added in Phase 4. Future deletion UX must distinguish draft/history blockers without exposing other creators' titles, deck names or private counts. Do not link to a nonexistent editor or imply every detached draft is recoverable through My Drafts. The normal editor can resolve reachable draft-only blockers; editing the current draft cannot remove historical references.
 
 **Remaining limitation:** some detached draft-only references can make an otherwise unused info card undeletable through the existing UI. Keep the draft/info records intact; never silently detach/discard them or bypass the guard. Direct owner APIs remain available for a future narrow recovery implementation, but manual database editing is not a product workflow. Backlog **DRAFT-1** (section 13) specifies the eventual improvement. This is a deliberate scope decision under the user's discretion, not an outstanding approval request. Independent My Drafts access for **all info-card drafts** remains mandatory in Phase 3.
 
@@ -340,11 +349,25 @@ Use the deletion response to distinguish draft blockers from historical blockers
 
 Extend upload targets with an independent info-card owner scope; validate ownership/existence on the server, namespace R2 keys by info identity/owner, and verify Stream asset provenance/readiness before publication. Reuse provider upload and status code. Do not invent a fake deck ID or accept client-supplied arbitrary media URLs as proof of ownership.
 
-Published media access verifies exact stored media in the requested info publication and its immutable visibility. Owner draft preview verifies the owner and current draft reference. Keep the consulted publication identity while nested media opens, so republishing does not invalidate that consultation's media. Signed Stream URLs can expire; renewal rechecks the same publication and actor rather than switching to latest content. R2 proxy delivery and all listing DTOs remain private/no-store where viewer-specific.
+Published media access verifies exact stored media in the requested info publication and its immutable visibility. Owner draft preview verifies the owner/current draft reference. Keep the consulted publication identity while nested media opens. Any fresh grant must recheck the same publication and actor, never switch to latest content. This does **not** require automatic renewal. R2 proxy delivery and listing DTOs remain private/no-store where viewer-specific.
 
 Historical backend records do not imply anonymous private-media URLs are safe. Verify bucket/provider delivery configuration at implementation time: an ACL in an API cannot protect a directly public storage object. Reuse the existing protected delivery pattern and fail closed for unrecognised assets. Tests must include private-era media after public promotion, forged IDs, another creator's draft and expired/session-changed grants.
 
 **Phase 2 implementation:** a signed upload proof binds the owner, stable info ID, creation identity and allocated asset. R2 uploads use signed `If-None-Match: *` to prevent replacing an already-published object. Stream readiness checks require the issuing creator and signed-only playback. A small immutable allocation registry prevents older broad media routes, exact main-card playback and personal downloads/status from accepting an info asset through a forged legacy reference. Registry records survive info deletion; this is provenance protection, not a reverse attachment index. Provider operations remain outside Mongo transaction callbacks. New info upload/publication-with-media/delivery fail closed unless protected delivery and the explicit provider-verification deployment gate are enabled. Real provider configuration remains unverified; automated stubs are not evidence of private-bucket delivery.
+
+#### Existing media preparation: confirmed implementation, 24 October
+
+Evidence: [system behaviour](../../system-behaviour.md), `src/lib/cardPlaybackGrants.ts`, `deckVideoPreparation.ts`, `cardVideoThumbnails.ts`, `src/components/media/DeckVideoPreparation.tsx`, `CloudflareHlsVideoPlayer.tsx`, `src/lib/cards/protectedMedia.ts`, and [the original delivery trade-off](../../phase-8-preparation.md).
+
+- **Lifetime:** `streamPlaybackGrant` issues a **one-hour** Stream bearer token. `PLAYBACK_GRANT_REUSE_MS` is **ten minutes**, an in-memory authorisation reuse window, not the token's expiry. Reuse is capped at token expiry minus 30 seconds; `prepare` refreshes a cached grant when its reuse window is within 60 seconds of ending.
+- **Batching:** `prepare` deduplicates assets and runs independent grant requests in parallel with `Promise.allSettled`; it is not a single batch HTTP endpoint. On focus, `FocusedCardView` prepares Intro and all three step-video grants/thumbnails. The deck-level manager prepares a bounded seven-card Intro window, with at most two low-priority neighbour jobs after active-image readiness. It does not prepare every step of every deck card or mount spare players.
+- **Renewal:** event-driven on preparation/focus, step navigation and visible-tab return, not a periodic idle scheduler. Expired cache entries trigger a new request on the next read. Background refresh does **not** replace the active player's manifest or disturb its playhead. This is not seamless playback-token renewal: the player resolves a manifest on load; ordinary play after a pause does not itself reauthorise an expired source. Reloading a source is not proven to preserve its position.
+- **Images:** Stream poster thumbnails share the video grant and decoded-image preparation. Ordinary R2 images instead use the authenticated protected proxy; they do not use the ten-minute Stream grant cache.
+- **Long pause:** after ten minutes an already-loaded video's one-hour URL can still be valid. After token expiry, buffered playback might work but subsequent provider requests are not guaranteed; automatic recovery of indefinitely paused playback is not implemented. Reopening the media obtains a fresh grant. Current Stream upload maximum is 150 seconds (`cloudflareStream.ts`), far shorter than a freshly minted token's lifetime. Live provider behaviour remains an operational verification gate, not established by code inspection.
+
+**Implemented Phase 4 approach:** reuse `InfoCardRemoteMediaViewer.tsx`, `InfoCardMediaViewer.tsx` and the common HLS player. The remote adapter obtains a fresh grant for its actor and **exact info publication version** on media opening; closing/reopening the nested viewer retains that version and gets fresh authorisation. R2 reads use the same exact-context endpoint. Preserve the card when delivery fails; use the existing media viewer's failure handling. No new media controls.
+
+The ordinary grant reader is hardwired to main-card/version/mode authorisation; the deck preparation manager additionally assumes Intro thumbnails. Passing info media through fake main context would be incorrect and is blocked by existing asset provenance checks. A small injected-request adapter could reuse grant caching if measured repeated-view latency later warrants it, but the existing info viewer already supplies the necessary security adapter. **No new cache, batch manager, scheduler or automatic midstream renewal belongs in Phase 4.** The earlier readiness concern is narrowed to documenting the existing long-pause limitation and checking exact-publication fresh grants. Any future renewal must retain that actor/publication, not resolve latest content.
 
 ## 8. Phased implementation and acceptance checkpoints
 
@@ -399,20 +422,93 @@ Implementation checkpoints: (1) domain/indexes and per-creator series uniqueness
 - **Objective:** complete create/edit/publish workflows, independent My Drafts, static Library and real single-item media upload/preview.
 - **Files:** Creator header and `CreatorDraftsModal.tsx`, new info editor/routes, `LibraryShell.tsx` collection chrome or thin wrapper, `library/page.tsx`, new grid/query UI, upload target validation/routes and info media delivery.
 - **Dependencies:** Phase 2 APIs and accepted preview/validation.
-- **Validation:** new/unattached draft reload; dirty published snapshot separation; creation-only selector including autosave/reload; no implicit publishing on switch; approved hybrid collection returns, unpublished-item leave warnings and no working-entry writes; unchanged My Decks recency; latest-publication Library ordering before pagination and deterministic ties; first-visible-frame order after delayed publication/navigation, no stale read/cache override, publication-only expiring highlight with no scrolling; plain collection-top returns for draft-only edits; removed Show newest/reveal contracts; distinct series/card attribution; no Library search/create controls; own/other dropdown ordering, creation and retained hidden selection; accessible prerequisites preserving incomplete body/media; contextual validation; media/session regressions and normal mobile/keyboard operation.
+- **Validation:** new/unattached draft reload; dirty published snapshot separation; creation-only selector including autosave/reload; no implicit publishing on switch; approved hybrid collection returns, unpublished-item leave warnings and no working-entry writes; unchanged My Decks recency; latest-publication Library ordering before pagination and deterministic ties; ordinary SPA navigation/loading with account isolation, publication-only expiring highlight without scrolling (perfect first-frame order was explicitly withdrawn); plain collection-top returns for draft-only edits; removed Show newest/reveal contracts; distinct series/card attribution; no Library search/create controls; own/other series dropdown ordering, creation and retained hidden selection; accessible prerequisites preserving incomplete body/media; contextual validation; media/session regressions and normal mobile/keyboard operation.
 - **Done when:** two creators can contribute to one series without edit-right leakage; all required drafts are recoverable; Library Decks behaviour is unchanged; real media and understandable publication feedback work.
 
 Implementation checkpoints are **3A editor/persistence → 3B series/publication → 3C My Drafts/Library → 3D media → 3E combined acceptance**. Check each before proceeding. The local controller journals submitted commands, serialises captured save retries and recovers publications by consumed revision; no historical-publication UI/API is added. Local conflicts retain text and offer an explicitly confirmed reload of saved content. Native Back drains an outstanding actor-bound save. Upload cancellation retains the previous media; processing status is exact-owner-draft scoped. Viewer adapters preserve the consulted publication and default Phase 1 behaviour. See [Phase 3 handoff](phase-3/README.md) for evidence and operational limitations.
 
 Full media acceptance remains gated on actual Cloudflare protection/CORS verification; mocked provider contracts are not live delivery evidence. Install indexes explicitly in the intended deployed database before exposing these routes. The disposable review runner creates its own indexes and test users; `--dev --lan --info-cards` serves the authenticated Next app on port 4181, with only the actual review hostnames allowed by Next's development-origin check. It is separate from the Phase 1 fixture on 4180.
 
-### Phase 4 — Main attachments, guarded deletion and live consultation
+### Phase 4 — Main attachments and production consultation
 
-- **Objective:** connect header picker/order, existing main publishing/adoption and the prototype's live snapshot reader. Deliver reference-safe deletion with honest blocker feedback; detached recovery UI is deferred.
-- **Files:** main content model/domain, Creator title modal/board adapters, repository create/save/fork/copy/publish paths, main read/presentation DTOs, new reference query/deletion feedback and Step View consultation endpoint/controller.
-- **Dependencies:** Phases 2–3; all guard pathways and indexes ready **before enabling attachments**. Do not ship an interim race-prone attachment feature.
-- **Validation:** round-trip field preservation; adopted-old-main versus latest-info matrix; public-main/private-info rejection through direct API and composite deck publish; reachable/detached draft and historical references; delete-vs-attach race both orders; stale editor restore; concurrent publication during open consultation including nested old media; next opening refresh; remove attachment does not delete info; unreferenced public deletion succeeds and hidden blockers reveal no private metadata.
-- **Done when:** tests prove the two versioning timelines, concurrency invariants and clear deletion feedback, including the documented detached-draft limitation. No historical publication, saved draft or personal progress data is silently discarded or rewritten.
+**Scope:** connect the approved title-modal attachment UI, ordinary main publication/adoption and the completed pouch. Preserve Phase 1 geometry/motion/positional numbering and Phase 3 SPA navigation. No deletion UI, detached-draft recovery UI, production content migration or new permission scheduler. The following checkpoint requirements are retained; the [Phase 4 handoff](phase-4/README.md) records their implementation, tests and deployment limitations.
+
+#### 4A — Attachment persistence, every writer and reference safety
+
+- Add optional ordered `infoCardIds` to `CardContent` and its strict validator. Reuse `infoReferences`/`sameInfoReferences` in `src/lib/infoCards/domain.ts`: absent and `[]` are semantically equal; actual ordering is significant. Wire this equality into main dirty/publication/fork/recovery comparisons, including generic `sameContent`/`isDeepStrictEqual` call sites. Do not normalise by rewriting historical publications or ignore unrelated empty fields.
+- Audit **all canonical content writers** in `src/lib/cards/repository.ts`, not just Creator Save:
+
+| Writer/path | Required treatment |
+| --- | --- |
+| `createPrivateGraph`, `createCardDraft` | Validate/guard complete incoming references; retain exact creation-retry semantics. |
+| `saveCardDraft` | Revision precondition and same-transaction reference/access guard; private attachment eligibility is permitted in a draft, even with public main visibility intent. |
+| `cardForkInSession` via card fork and combined deck fork | Preserve inherited references and attachment-only edits, ownership/fork rules and transaction guards. |
+| `createDeckFork.newCards`, `createAndAttachCard` | Currently constrained to exact/default empty content; preserve this constraint. If full-content input is ever enabled, it must use the guarded path first. |
+| `publishCard` immutable version insert | Check actual publication visibility against attached info publications before inserting. Public main publication cannot include private info. Preserve reference history. |
+| `moveConstructionStep` | Two cloned main draft writes; retain each main card's attachments, not move them with its step. Since references are unchanged this need not add redundant guard writes; test the invariant. |
+
+- Audit reference-only paths too: `copyOwnedCard` retains the same main ID, not copied info content; `saveDeckDraft` and `publishDeckInSession` pin already-published main versions; adoption changes personal version selection. Creator publish-and-leave publishes owned main drafts then the deck in separate operations, not an atomic graph publication. Keep its recovery behaviour. Private forking preserves attachments only when the actor can legitimately use them; public-source attachments are already required to be public. No implicit info publication/promotion.
+- Reuse `guardReferences` with the **existing main transaction session**, not nested `withReferences` transactions. Gather affected info IDs across composite writes, sort guards before main/deck root guards, preserve stored creator order. Empty-reference paths need no info locks. Ensure required index readiness for nonempty reference writes, not only info APIs. The info `referenceRevision` remains separate from authoring revisions.
+- Preserve the field through Creator `creatorBoardState.ts` column/editing state and both board conversions, `cardArchitectureAdapter.ts` (`creatorBoard`/`privateGraph`), coordinator `cardContent`, `forks.ts`, working `readModels.ts`, canonical `libraryProjection.ts`, and `components/decks/types.ts`/`presentation.ts` into the actual `FocusedCardView`. Explicit projections currently drop unknown fields; a spread in one adapter is insufficient. Preserve intro, steps, dates, media and personal progress.
+- **Acceptance:** round-trip every writer/projection; attachment-only dirty/fork/publish; absent/empty no-op; title-only edits preserve attachments; move-step/copy/adoption retain correct lists; strict public/private checks through direct and composite workflows; retained draft/history deletion blockers and deterministic attach/delete races in both orders. Reuse the disposable replica set and existing transaction helper; no provider calls in retriable callbacks.
+
+#### 4B — Approved attachment dropdown inside the existing modal
+
+- **Approved follow-up:** derive public-only new-selection eligibility from either lane's permanent published-public state or desired public visibility. Foreign source roots are not the resulting fork's visibility. Filter the existing authorised catalogue without changing the dropdown; retain selected IDs and saveability, showing an existing-style contextual message naming only authorised private attachments. Reuse Creator publication-error presentation for `PRIVATE_INFO_BLOCKS_PUBLICATION` across direct Card/Deck and publish-and-leave paths. Do not change backend guards or block Deck-only publication of an older valid main publication.
+
+- Reuse `CreatorEditModal`'s title Save/Cancel boundary and existing fork confirmations; attachments remain local until Save and autosave through the normal main lane. No changes to Info Card authoring or Library UI.
+- **Implemented control:** `InfoSeriesSelector` and Creator visibility/mode controls use classic native selects. Native `<option>` rendering, especially iPhone pickers, cannot reliably express the required medium title plus smaller muted second line. No existing rich grouped listbox was found. `InfoCardAttachments` therefore uses one small local, non-editable button-triggered listbox with labelled My Cards/Other Cards groups and one scrollable options area, not a generic dropdown framework. Reuse `DeckMenu`'s outside/Escape/focus-restoration conventions, **not its action-menu role**. Support touch, arrow/Home/End navigation, Enter/Space selection, Escape dismissal, Tab, selected/disabled states, labelled groups and focus restoration. No search input/autocomplete or extra panel/control. Test within the existing non-native title modal; its current presentation wrapper is not evidence of a complete focus trap.
+- **Implemented pagination approach:** consume existing authorised `GET /api/library/info-cards?offset=N&limit=50` pages without a search parameter, following `nextOffset` until complete, as the current series selector already does. Deduplicate by ID and keep server owner-first/latest-publication order within the two groups; ordinary dropdown scrolling, no Load more/search/filter UI. At current startup scale this is simpler than another endpoint or pagination interaction. It fetches catalogue DTOs, not media assets. Offset pages can shift during concurrent publication; this is a best-effort picker, with eligibility rechecked atomically on Save/publication, not a new cross-request snapshot system.
+- Retain modal-selected IDs/metadata independently of catalogue pages. Existing exact-publication reads can hydrate authorised labels; a failed lookup must not clear the stored reference or disclose protected metadata. Catalogue refresh cannot reorder or discard the selected list. Final server validation remains authoritative. No new selected-item recovery controls are proposed; unresolved visible errors should use existing modal feedback.
+- **Acceptance:** two-line hierarchy and correct owner attribution; grouped keyboard/touch selection; all pages consumed; selected references retained without catalogue membership; duplicate prevention, remove/reorder, Save/Cancel, foreign fork flow and stale access changes. Chromium accessibility/focus assertions plus limited actual-phone touch/VoiceOver judgement; no test can establish screen-reader speech solely from ARIA markup.
+
+#### 4C — Main-context snapshots and the existing consultation lifecycle
+
+**Implemented backend contract:** `GET /api/card-templates/[id]/info-cards`, authenticated and no-store, with `mode`, expected/displayed main version and working deck context. Do not accept a client list of info IDs as attachment authority.
+
+- Working mode: validate actor-owned deck/card membership and effective composition; select the main version adopted in `cardsData`, not merely the deck's original main-version pin. `CardRepository.workingCard` already performs these checks with a session; extract/reuse its narrow context logic rather than add assessment behaviour to consultation. A stale expected version fails explicitly, not a silent substitution underneath an older displayed main card.
+- Canonical mode: verify access to the exact immutable public main version shown by `libraryReadModels`/`CanonicalCardPresentation.version`. Library preview currently selects latest public main versions, which can differ from `cardVersionAtPublish` stored in the deck. Do not read attachments from a different root/latest/deck-pin version. An older still-displayed authorised public main version remains the consultation source.
+- Obtain authorised main content and info latest publications in **one read-only Mongo transaction/session**. Exported resolvers that currently read without a session are not adequate merely because a subsequent info query starts a transaction. Existing snapshot transaction infrastructure suffices; no persisted consultation entity is required.
+
+**Implemented response contract:**
+
+```ts
+{
+  mainCardId: string,
+  mainCardVersion: number,
+  entries: Array<
+    | { status: "available"; info: PublishedInfo }
+    | { status: "unavailable" }
+  >
+}
+```
+
+`PublishedInfo` includes exact info ID/version/content/media/authorised attribution. Array positions exactly match the main version's ordered IDs; unavailable entries carry **no ID, title, series, owner or diagnostic reason**. Client keys can use main identity/version/position. Count includes all entries; a known list containing only unavailable entries still produces a pack. No references means no pouch/request. Invalid main context/auth or database/system failures are whole-request failures, not fake unavailable entries.
+
+**Smallest partial-resolution change:** adapt `src/lib/infoCards/queries.ts`'s `publishedSnapshot` aggregation/join/decoration core. Its existing `rows.length === ordered.length` check makes it all-or-nothing. Add a positional read path over that same core; keep the strict wrapper for existing single-publication consumers and their API/error semantics. Query once in the supplied session, filter ACL before attribution, validate each joined publication's identity/version/visibility, series and renderable content using existing domain/capacity primitives, then map onto the original ID order. Missing/inaccessible or expected malformed row data yields a neutral slot. Do not fall back to older publications/drafts. Catch only expected per-item validation failures; DB, auth and unexpected programming failures remain request failures. No provider readiness calls in this read transaction. Real image/video delivery failure after resolution is handled inside the existing media viewer, not converted into a lost card. Strict writer guards remain unchanged.
+
+**Implemented lifecycle:** extend `FocusedCardView`'s current consultation owner with pending/ready/failed states; immediately apply its existing suspension and input isolation even before cards are ready. Reuse the existing transparent consultation layer/dismiss surface rather than add an overlay. Do not mount `InfoCardPhysicalStack` with an empty collection; mount ready entries only, with a neutral same-geometry placeholder renderer. Retain the existing animations, selected position, nested-media freeze, focus rules and underlying mounted Step View/player/activity. Keep the closed pouch appearance in pending/failed states. Existing pouch/background/Escape dismissal is approved in both states.
+
+**Implemented status placement:** `StepView.module.css` anchors the pouch at `left:0; bottom:0` in the existing footer; the surface and consultation alignment clip overflow. Status is a sibling of the clipped alignment in the **existing** consultation layer, just outside the main-card bounds near its lower-left corner. Actual measured bottom clearance chooses text below the card, or in the left gutter for short landscape. Controlled browser tests cover 390×844 portrait and 844/932×390 landscape bounds; the Phase 4 handoff records evidence and device limitations. Historical Phase 1A measurements are not proof of all viewports. No card dimension changes or status-on-placeholder treatment.
+
+Start a one-second timer only for a still-pending request; success immediately clears status and starts opening, without an artificial wait. Whole-request failure uses the approved short error in the same area. Abort and invalidate responses/timers on actor/main/step change, unmount, cancellation or genuine close/reopen. Pin all response entries through browsing and nested media. A reversal of an unfinished return remains the existing consultation; only a genuinely new opening fetches latest/reset-first. Keep video paused after dismissal and discard stale results; never reset/remount or automatically resume it.
+
+- **Acceptance:** adopted-main/actual-canonical version matrix; actor/context rejection and stale versions; exact ordered partial results including all-unavailable; corruption versus infrastructure failure; no metadata leaks; concurrent republication freezes successes and unavailable slots; next opening refreshes. Test fast/999ms/over-one-second loading, error, approved cancellation, late responses, account/step changes, unchanged video position and activity state, geometry/motion and positional numbering. Cancellation approval is recorded above.
+
+#### 4D — Exact-publication media and permission integration
+
+- Reuse the existing remote info-media adapter/player and delivery endpoint (§7.5), passing snapshot info ID/version and current actor. Closing nested media returns to the same slot. Fresh media grants must use that exact publication even after republication; private-era records remain private. Actor changes invalidate requests and close the consultation.
+- No deck thumbnail preparation for info faces, no new grant cache/scheduler and no automatic midstream renewal. Document the existing one-hour long-pause limitation; reopening nested media refreshes its grant without fetching newer content. Keep media delivery failure separate from card resolution; do not remove/reorder slots.
+- Preserve legacy-route provenance protections and both deployment gates (`NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA` and `INFO_CARDS_PRIVATE_MEDIA_VERIFIED`). Do not treat a configured flag or stubbed provider as live verification.
+- **Acceptance:** exact-publication image/Stream requests, media reopening after republication, actor/private-era denial, legacy forged access, stale results and delivery errors retaining card/position. Test fresh grants against expired ones with existing contracts, not a new timer service. Live private-media delivery/CORS acceptance remains blocked until operator verification; text-only work and mocked contract tests can proceed.
+
+#### 4E — Combined regression, deployment gates and handoff
+
+- Real authenticated Next application and disposable replica-set tests, not only the Phase 1 fixture: full Creator add/remove/reorder/publish/adopt/fork, existing absent-field compatibility, stale editor recovery, all canonical writers and deterministic attach/delete races/transaction rollback. Deletion tests exercise existing backend APIs; **no deletion UI**.
+- Extend real-component browser coverage for loading, partial slots, circular order/numbering, snapshot consistency during republication, nested media, video play/pending-play cancellation, activity input/scroll/mount preservation and gesture/focus isolation through transitions. Re-run relevant Creator, Library and My Decks regressions without changing their ordering/navigation. Automated deterministic workflows do not need manual repetition for acceptance.
+- Limited actual-phone judgement: status placement, physical opening/closing/browsing, touch targets and screen-reader behaviour. Use Chromium automation; WebKit only where supported, with unavailable coverage reported. No virtual-iPhone infrastructure or browser repair programme.
+- Before production enablement, explicitly deploy/inspect required indexes in the application database (unique roots/publications/series/media identities **and main draft/history reference indexes**), not just the disposable database. `assertIndexesReady(true)` now also verifies main draft/history reference indexes before nonempty attachment writes; disposable readiness is not evidence of deployed production setup. Do not deploy indexes to a live database without authorisation.
+- **Done when:** two independent versioning timelines, privacy and concurrency invariants, approved partial/loading behaviour and unchanged Phase 1 interactions are demonstrated; necessary pending-dismissal approval is recorded; provider/index gates are verified or explicitly block the affected production acceptance. No saved draft, immutable history or personal progress is silently discarded/rewritten. Handoff records actual tests, manual gaps and operational evidence.
 
 ### Phase 5 — Release hardening and acceptance
 
@@ -470,7 +566,7 @@ Use the exposed effort names where possible: Medium, High, or `xhigh`/Extra High
 | 1B physical stack | Sol 6.1 / High | Stateful animation and cancellation need careful coding/tests; the scope is local. Use Astra High only for persistent gesture/state-machine ambiguity. | A small focused review of wrap/cancellation tests, not a duplicate implementation. |
 | 2 domain/security foundations | Astra / High | Ownership, snapshot semantics, historical visibility and concurrent reference writes benefit from deliberate architectural reasoning. Extra High for the guard protocol if required, not every endpoint. | Yes: independent review of ACL matrix, transaction interleavings and draft discovery, ideally Sol 6.1 High. |
 | 3 Creator/Library/media | Sol 6.1 / High | Mostly concrete repository-guided coding, bounded UI state and tests. Astra adds material value only where upload permissions or recovery contracts remain ambiguous. | Focused permission/media review; no need to repeat the complete Library build. |
-| 4 attachments/deletion/live reads | Astra / High | Many existing create/fork/publish paths must preserve references and lock ordering; mistakes can leak data or corrupt history. Targeted Extra High is justified for concurrency analysis. | Yes: a separate reviewer checks every reference-producing path and races, not just UI success. |
+| 4 attachments/reference guards/live reads | Sol 6.1 / High (selected for implementation) | Existing transaction/reference primitives, a complete writer inventory and deterministic race/snapshot tests make this bounded integration suitable without a model escalation. Deletion UI is excluded. | Focused writer/security review and race tests; no duplicate implementation or automatic model escalation. |
 | 5 hardening | Sol 6.1 / High | Reproduction, regression triage and evidence collection dominate. Medium is sufficient for straightforward test additions; Astra High for unexplained lifecycle/security failures. | Narrow final security/concurrency review; user performs/approves device acceptance. |
 
 Higher capability does not replace disposable-database concurrency tests or phone validation. Avoid automatic Max/Pro, multiple full independent implementations, or endless diagnostic reasoning. A cheaper available model can handle isolated documentation/test-data chores, but this plan does not assume an unverified capability/availability ranking for those models. Independent reviews are proposed checkpoints, not agents launched or costs incurred by this planning task.
@@ -500,25 +596,27 @@ Higher capability does not replace disposable-database concurrency tests or phon
 | Public deletion | Owner can delete an unreferenced public record; public visibility remains permanent while it exists. Historical/main-draft refs still block. |
 | Capacity/accessibility | Measure normal content/mobile envelope first, keep ordinary faces complete and fixed; broader extreme-size accessibility work is backlog, with zoom preserved. |
 | Backend publications | Immutable retention approved; no user-facing history or adoption. |
-| Prototype | Phases 1A–1C completed; Phase 2 committed and Phase 3 authorised. Automated Phase 1 regressions remain green. |
+| Prototype | Phases 1–3 implemented; Phase 4 integration evidence and limitations are recorded in its handoff. |
+| Phase 4 loading/partial results | Visually closed pouch until ready, message after one second, ordered neutral unavailable slots, no extra controls. Pouch/background/Escape dismissal during pending/errors is approved. |
+| Phase 4 deletion/media | Deletion UI deferred; backend guards unchanged. Reuse exact-publication media adapter; no new automatic renewal system. |
 
 **No architectural obstacle requires 1B before 1C.** Card dimensions/capacity have 1A evidence; motion tuning remains a 1B output. Phone evidence requires access to the actual device; absent coverage must be reported. WebKit availability does not block progress.
 
 ## 12. Functional specification v0.3 reconciliation
 
-The companion specification was updated during the earlier planning task, not during 1C. The following table records that reconciliation; the subsequent visual overrides noted at the top of this document remain authoritative:
+The companion specification records the product baseline, Phase 3 corrections and the explicitly approved Phase 4 decisions. This table is reconciled with its current section numbers:
 
 | Specification area | Reconciled behaviour |
 | --- | --- |
-| §§2, 4.4 series | Stable creator-associated identity, per-creator duplicate prevention, independent contributions and attributed selectors. |
-| §4.4 discovery | Derived current-public membership, hidden empty/private-only foreign series, no historical/draft visibility leakage; retained owner-card context. |
-| §4.3 drafts | All owner info drafts independently accessible; published-dirty snapshot separation and clean Library access. |
-| §6 Library (Phase 3 UX correction) | Real static Decks/Info Cards Library, authorised published cards only, own-first chronological pagination, no series groups/search/create controls, distinct per-card attribution and owner editing. |
-| §5 attachments | Published-only title/series/card-owner picker, attributed series metadata, remove/reorder, normal main publishing/adoption. |
-| §§3.1, 8 face | One bold body-sized series/title line; series creator tooltip; no separate INFO label, index/dots, thumbnail, scroll or truncation; measured capacity. |
-| §6 publication/deletion | Permanent public visibility, owner deletion when unreferenced, all main draft/history blockers, immutable backend publications and stable open consultations. |
-| §§7–10 interactions | Actual footer placement, symmetric controls, constant card dimensions, circular movement, isolation, pause/state preservation and nested viewer return. |
-| §§11, 13 scope | Prototype first; wider main-draft recovery/accessibility deferred, pragmatic Chromium/WebKit/actual-phone strategy, separate coding authorisation. |
+| §§2–3 series | Stable creator-associated identity, per-creator duplicate prevention, independent contributions and attributed series selection. |
+| §3.2 discovery | Current-public membership only; hidden empty/private-only foreign series, retained authorised selection. |
+| §5.2 drafts | All owner info drafts independently accessible; published-dirty separation and clean Library access. |
+| §§5.5–6 Library | Static catalogue; latest-publication pagination, own-first info grouping, no series headings/search/create controls; ordinary SPA returns. |
+| §7 attachments | Non-searchable My Cards/Other Cards dropdown, approved two-line metadata with card-owner attribution for others; remove/reorder local until Save; normal main publishing/adoption. |
+| §§3.3/4.2 face | Secondary series · primary title on one body-sized line; series tooltip; no face index/dots, thumbnail, scroll or truncation. Existing open-pouch positional number is distinct. |
+| §8 publication/deletion | Stable open snapshots and ordered unavailable positions; all draft/history blockers; deletion UI deferred, backend rules unchanged. |
+| §§9–11 interactions | Existing geometry/motion/isolation/state/media return; visually closed loading with delayed discreet status and whole-request error outside the main card. Pending/error dismissal unresolved. |
+| §§12–13 scope | Wider recovery/accessibility and coordinated deletion UX deferred; separate coding authorisation. |
 
 The original reconciliation predated the 1A reference-image correction. The approved images now govern composition, subject to later written overrides including the taller card and header hierarchy. Phase 1C preserves the corrected 1A presentation.
 
@@ -532,6 +630,13 @@ These tasks are recommendations for later scheduling, not additions to Phase 1 o
 - **Why safe to defer:** drafts and references remain intact; deletion fails safely with accurate feedback. This rare usability limitation does not compromise publication integrity or info-draft access.
 - **Acceptance criteria:** discover owned detached main drafts independently of deck membership; provide the smallest owner-only open/recover path after evaluating extraction of the existing title editor; preserve all unrelated steps/media/draft fields and revision preconditions; no automatic detach/discard/delete; cannot expose foreign private drafts; removing a draft-only attachment can clear that blocker, while historical references still block; reload and stale-tab cases tested. Reuse an ordinary deck editor link only when it genuinely reaches that draft.
 - **Priority:** P2; schedule earlier if actual users encounter blocked deletion. No new route is included in the present implementation phases.
+
+### DELETE-1 — Design coordinated content deletion controls
+
+- **Problem:** Decks, main cards and Info Cards do not yet have a consistent deletion experience. Adding an isolated Info Card Delete control in Phase 4 would pre-empt that design.
+- **Why safe to defer:** attachment removal is distinct and remains available; backend ownership, retained-draft/history guards and attach/delete concurrency protection continue to enforce safety without a UI.
+- **Acceptance criteria:** agree a consistent owner-only deletion experience across content types before implementation; clearly distinguish detach/delete and recoverable drafts versus immutable-history blockers; never expose other creators' private metadata; retain publication/permanence rules, no silent draft deletion and tested concurrent reference protection. Any recovery link must reach a real authorised editor. No Delete button is included in Phase 4.
+- **Priority:** P2, coordinated future design; not a Phase 4 acceptance dependency.
 
 ### A11Y-1 — Main and info card readability under enlarged text and constrained screens
 
@@ -558,7 +663,7 @@ These tasks are recommendations for later scheduling, not additions to Phase 1 o
 
 ## 14. Precise first implementation task
 
-Historical 1A task retained below; it has since been implemented and visually refined. The currently authorised checkpoint is **Phase 3**, with its dependencies and acceptance criteria in section 8. No prototype styling redesign is included.
+Historical 1A task retained below; it has since been implemented and visually refined. The current task authorises **Phase 4 checkpoints 4A–4E**, now recorded in the Phase 4 handoff. No prototype styling redesign, live index/provider deployment, commit or Phase 5 implementation is included.
 
 **Recommended task:** “Info Cards Phase 1A — actual Step View footer geometry and static info-card capacity fixture.” Preferred model: **Sol 6.1, High thinking effort**, consistent with section 10. Geometry, scoped styling and meaningful browser measurement are a bounded coding task; device evidence matters more than escalating model effort. No independent second implementation is warranted for this checkpoint.
 

@@ -2,7 +2,7 @@
 
 **Product:** Switchplay / Puckle  
 **Version:** 0.3 — revised product specification  
-**Date:** 22 October 2026; agreed Phase 3 UX corrections incorporated 23 October 2026
+**Date:** 22 October 2026; agreed Phase 3 UX corrections incorporated 23 October 2026; Phase 4 product decisions reconciled 24 October 2026
 **Status:** Product-design baseline for the approved prototype-first programme; this document does **not** itself authorise application-code changes or later implementation phases.  
 **Supersedes:** Functional specification v0.2 (21 October 2026).  
 **Companion document:** `docs/engineering/features/info-cards/info-cards-engineering-plan.md` (technical recommendations and implementation checkpoints).
@@ -72,6 +72,8 @@ The dropdown includes an option to create a new series, using a small inline inp
 
 **Exception:** on the compact **info-card face**, show only the series name followed by that info card's title. Tapping the series name reveals its originating creator username in a small tooltip/popover; on desktop, hover also reveals it. The tooltip must be accessible without hover alone, and must not interfere with browsing the cards.
 
+The main-card attachment dropdown has its own approved compact attribution layout (§7): series name alone for My Cards; series name and **info-card owner's** username for Other Cards. It does not repeat the series creator's username.
+
 ## 4. Info-card content and minimalist presentation
 
 Each info card conceptually contains:
@@ -92,11 +94,11 @@ The body should communicate a useful point without opening media. In a future ma
 
 The info card is a **fixed-size, landscape-oriented** reference card, smaller than a main card and with no internal scrolling.
 
-- **One compact top-left header line:** **series name followed by info-card title**, bold, at approximately body-text size. No oversized title treatment.
+- **One compact top-left header line:** secondary series name, a discreet separator, then the visually primary, stronger-weight info-card title, at approximately body-text size. No oversized title treatment or second header row.
 - A modestly greater gap **after the header** than between ordinary lines of content.
 - The great majority of the card's area is reserved for the explanation.
 - Target roughly **five normal-text lines spread across two paragraphs**, or the future three taller maths lines.
-- **No separate INFO identifier, info-card position number (`1/5`), dots, progress markers or other index** anywhere on the info-card stack. The **closed pouch's count** and the **underlying Step View index** are different controls and remain permitted.
+- **No separate INFO identifier, info-card position number (`1/5`), dots, progress markers or other index on the info-card faces.** The **closed pouch's attachment count**, **open pouch's positional number** and **underlying Step View index** are separate, already-approved controls and remain unchanged.
 - A single compact, comfortably tappable **media control along the bottom**, only if media exists. It should consume minimal vertical room. **No thumbnail.**
 - Only the dedicated media control opens the media viewer. Tapping body text does not.
 
@@ -193,14 +195,20 @@ Series labels in the Library derive only from authorised published cards; no emp
 
 Attachments are managed in Creator mode, **inside the existing main-card header/title-editing modal**.
 
-The creator can:
+Use **one straightforward dropdown, without search or autocomplete**, with two sections:
 
-1. Search and select **published** info cards only.
-2. See each search result's **info-card title, series (with series creator username) and info-card creator username**, in a compact readable presentation.
-3. Attach multiple eligible info cards, remove attachments and reorder the selected list.
-4. Save the title and attachment edits into the normal **main-card draft**, then publish through existing main-card publishing/versioning/adoption.
+- **My Cards:** eligible published info cards owned by the current user. Each option has its title on the first line in medium weight and its series name on a smaller, muted second line.
+- A visual divider, then **Other Cards:** eligible public published info cards owned by others. Each option has its title on the first line and `Series name · by username` on the smaller, muted second line. The username identifies the **info-card owner**, not the series creator.
+
+Use comfortable option spacing and padding, unobtrusive section labels and existing Creator styling. Do not cram all metadata into a single line. No search box, thumbnails, previews, extra sorting/filtering controls, inline creation, multiple panels or separate attachment-management screen.
+
+The creator can select multiple eligible info cards, remove attachments and reorder the selected list. Title and attachment changes remain local to the modal until **Save**; cancelling discards those local changes. Save writes the normal **main-card draft**, followed by existing main-card publishing/versioning/adoption, not implicit publication.
 
 Eligible info cards are published public cards from any creator and the signed-in creator's own **published private** cards. Another creator's private info cards and all unpublished info-card drafts are ineligible. The selection UI must not expose draft content.
+
+**New-selection publication context:** offer privately published info cards only when both the Deck and main card are effectively private. If either is already published publicly or currently intended for public publication, offer public publications only. Use the resulting editing/copy context, not the visibility of its original source. Changing visibility updates the available options without adding controls or changing the dropdown design.
+
+Previously selected private attachments remain visible, removable and saveable when the context becomes public. Explain the incompatibility in the existing attachment area once authorised metadata identifies it; do not silently detach, discard drafts or promote info cards. Returning to legally permitted private intent restores private options. Public-publication failures use actionable language rather than internal error codes; server publication restrictions remain authoritative.
 
 **Removing an attachment is not deleting the underlying info card.** Actual info-card deletion is a separate owner action subject to reference restrictions.
 
@@ -218,6 +226,8 @@ An info-card ID occurs at most once in a given main-card attachment list; reuse 
 
 Creators should preserve the basic meaning of an info card when updating it; substantial changes should generally be a new info card. This is guidance, not a new approval workflow.
 
+**Partial availability:** preserve every position in the authorised main-card attachment list, in its original order. If an individual info card is missing, inaccessible or cannot safely be resolved, display an info-card-sized placeholder saying **This Info Card is unavailable.** Do not reveal its title, series, owner, content or reason for unavailability. Attachment count, circular navigation and the open pouch's positional numbering still include that position. Successfully resolved publications and unavailable positions stay fixed for that consultation; closing and genuinely reopening obtains a fresh snapshot. A failure of the entire request before a usable authorised attachment list is established follows §10.1's general failure behaviour instead. If a resolved card's image/video delivery fails, retain the card and handle the media failure separately.
+
 ### 8.2 Visibility and permissions
 
 - Public published info cards are readable in authorised contexts and selectable by other creators.
@@ -233,7 +243,9 @@ Creators should preserve the basic meaning of an info card when updating it; sub
 - An info card **cannot be deleted while referenced** by any retained main-card draft (including a detached draft) or any retained historical published main-card version.
 - Removing the attachment from the *latest* main-card version may therefore **not** make the info card deletable: an older retained version can still reference it.
 - The owner **may delete an otherwise unreferenced info card**, including a public one. Permanent public visibility does not imply permanent retention of an unreferenced info card.
-- The UI should explain a blocked deletion without disclosing other creators' private card information.
+- Any future deletion UI must explain a blocked deletion without disclosing other creators' private card information.
+
+**Deletion controls are deferred beyond Phase 4**, pending a coordinated deletion experience for Decks, main cards and Info Cards. Do not add Delete to the Info Card editor or Library in Phase 4. Existing backend deletion permission, reference protections and concurrency requirements remain mandatory and unchanged.
 
 **Detached-main-draft edge case:** Some existing detached main-card drafts may be absent from the deck-led My Drafts interface while still retaining info-card references. This is separate from the mandatory independent discovery of **info-card** drafts in §5.2. The engineering plan should choose the simplest safe approach (small permitted recovery mechanism, or an explicit limitation with a backlog task). Do not weaken deletion protection, delete drafts silently or impose an elaborate new workflow as a product requirement.
 
@@ -257,6 +269,10 @@ The closed pouch:
 
 ### 10.1 Emerging bundle and resting position
 
+**Publication loading:** on pouch activation, immediately pause the underlying video and isolate Step View interactions, keeping the underlying view mounted and the pouch **visually closed until content is ready**. If loading completes within one second, show no loading message. Only after loading continues beyond one second, show a small, discreet **Loading Info Cards…** message near the bottom of the screen, close to the pouch, outside the info cards and without obscuring the main card. Remove it when ready, then begin the existing opening animation immediately; do not impose a minimum loading delay.
+
+If the complete request fails, show a short error in the same general area. Retry by closing and reopening, not with a Retry button. No spinner, loading card, new overlay or additional control. **Approved cancellation:** tapping the pouch again, tapping the exposed background or pressing Escape cancels loading/dismisses a whole-request error wherever those actions already close consultation. Cancel pending requests where possible, ignore late responses, restore appropriate focus and leave the underlying video paused. Reopening makes a fresh request. No additional cancellation control.
+
 Tapping the pouch pulls a **fixed-size bundle** diagonally upward and right from the actual pouch, with restrained rotation. The stack settles horizontally **over the lower navigation area**, remains visually connected to the pouch, and temporarily obscures Previous/Next and potentially the lower video/activity. The upper part of the underlying paused Step View remains visible as context; it need not be fully visible.
 
 - Move the bundle together when opening and closing.
@@ -276,13 +292,13 @@ Info cards form an **ordered circular stack**. For A, B, C, D, E initially:
 
 The gesture must convey physical rearrangement; the implementation need not animate every hidden card if the visible behaviour is faithful.
 
-**No info-card position indicator of any kind.** No `1/5`, dots, page numbers or progress controls. Only the closed pouch's attachment count is displayed.
+**No position indicator on an info-card face:** no `1/5`, dots, page numbers or progress controls on the cards. Preserve the implemented open-pouch positional number and closed-pouch attachment count.
 
 ### 10.3 Isolation and closing
 
 While the stack is open, underlying deck/card/Step View gestures and controls, video interactions and competing keyboard actions are unavailable. Swipes on the info cards affect only the circular stack.
 
-Close by **tapping the pouch** or **tapping the exposed background above/outside the cards**. Tapping an info-card face must **not** close the stack, nor should a closing tap accidentally activate the underlying video/activity.
+Close the open stack using its dedicated discreet **X**, **tapping the pouch** or **tapping the exposed background above/outside the cards**. The consultation X is distinct from the Step View X. Tapping an info-card face must **not** close the stack, nor should a closing tap accidentally activate the underlying video/activity. Pending-load/failure dismissal uses the existing pouch/background/Escape actions in §10.1 without a new control.
 
 Closing returns the bundle to the pouch, restores the Step View interactions and resets the collection to the creator's attachment order. **Every new opening starts at the first info card**, not the one last read.
 
@@ -308,7 +324,7 @@ Independent owned info cards; collaborative series; creator-mode editor; indepen
 
 ### 12.2 Deferred or excluded
 
-Info-card-only revision decks; mathematical equation rendering/rich text; AI selection or generated/composite info cards; progress/schedule/confidence state; directly deck- or step-attached info; multiple media items; elaborate series management and animated Library collections; session-plan cards; follower-added notes on the main-card back.
+Info-card-only revision decks; mathematical equation rendering/rich text; AI selection or generated/composite info cards; progress/schedule/confidence state; directly deck- or step-attached info; multiple media items; elaborate series management and animated Library collections; session-plan cards; follower-added notes on the main-card back. Info Card deletion UI is deferred beyond Phase 4 to a coordinated content-deletion design; backend safeguards are not deferred.
 
 Broader text-enlargement/very-small-screen accessibility and detached-main-card draft recovery enhancements may be captured in the engineering backlog after the simplest safe baseline is selected. They must not be claimed complete without verification.
 
@@ -322,10 +338,10 @@ Broader text-enlargement/very-small-screen accessibility and detached-main-card 
 6. Every saved unpublished or outstanding published info draft is discoverable in My Drafts **regardless of attachments or decks**.
 7. A clean published info card is accessible for owner editing from the Library; a dirty published card shows its published snapshot there while its draft remains in My Drafts.
 8. Library Decks retains latest-publication ordering; Info Cards shows published own cards first then others' public cards by latest successful publication across pagination, with deterministic ties. Both tabs meet §5.5's normal application-navigation/confirmed-publication highlight requirements, without targeted reveal or automatic scrolling. No series grouping, search/create controls, draft/private leakage or extra opening interaction. Series and card creator attribution are distinct; card attribution sits immediately beneath the face.
-9. The main-card header modal searches **published only** info cards by title, series/series creator and info-card creator; allows ordered attachment and removal without deleting the info content.
+9. The main-card header modal offers one **non-searchable**, published-only dropdown: My Cards then Other Cards, with the two-line title/series/card-owner attribution in §7. It supports ordered attachment/removal, commits only on Save, and never deletes the underlying info card.
 10. Publishing attachments follows normal main-card versions/adoption; republishing info content updates the next consultation without changing a main-card version.
 11. Public main-card publication rejects private info attachments at the server; direct routes and media enforce access independently of the UI.
-12. A referenced info card cannot be deleted if any retained main-card draft or historical version refers to it; an unreferenced public info card may be deleted by its owner.
+12. Backend deletion refuses any retained main-card draft or historical reference; an unreferenced public info card may be deleted by its owner. Phase 4 adds no deletion UI.
 13. Preview and publication validation disclose overflow without clipping, scrolling, discarding the draft or silently shrinking text.
 
 Creator acceptance also includes §5.4: empty initial title; series/title prerequisites with accessible feedback; preserved incomplete content/recovery; minimal contextual header/status/validation.
@@ -343,6 +359,8 @@ Creator acceptance also includes §5.4: empty initial title; series/title prereq
 22. Opening pauses video without resetting or later auto-resuming it; interactive activity state and mounted identity survive opening and closing.
 23. Dedicated media control opens one image/video viewer; closing it returns to the same info card and leaves the stack open.
 24. The layout is evaluated on representative small and normal mobile viewports and on an actual phone; exceptional accessibility limitations are explicitly documented rather than hidden.
+25. Loading immediately pauses/isolates the mounted step, leaves the pouch visually closed until ready, shows the discreet message only after one second and removes it before opening. Whole-request errors use the same area without extra controls; existing pouch/background/Escape cancellation ignores late responses and never resumes video.
+26. A known attachment list retains every ordered position, including safe unavailable placeholders, without protected metadata. Media failure does not remove an otherwise available card. Consultation snapshots remain fixed until a genuinely new opening.
 
 ### 12.5 Prototype-first checkpoints
 

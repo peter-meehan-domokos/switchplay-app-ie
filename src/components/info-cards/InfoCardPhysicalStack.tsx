@@ -4,8 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type R
 import { motion, useAnimate, useMotionValue, useReducedMotion, useTransform, type AnimationSequence } from "motion/react";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import InfoCardFace from "./InfoCardFace";
-import type { InfoCardConsultationCard } from "./InfoCardConsultation";
-import type { InfoCardMedia } from "./InfoCardMediaViewer";
+import type { InfoCardConsultationCard, AvailableConsultationCard } from "./InfoCardConsultation";
+import faceStyles from "./InfoCardFace.module.css";
 import stepStyles from "@/components/decks/StepView.module.css";
 import styles from "./InfoCardPhysicalStack.module.css";
 
@@ -25,7 +25,7 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
   onRequestClose: () => void;
   onExited: () => void;
   onBusyChange: (busy: boolean) => void;
-  onOpenMedia: (media: InfoCardMedia) => void;
+  onOpenMedia: (card: AvailableConsultationCard) => void;
   onPositionChange: (position: number) => void;
 }) {
   const [scope, animate] = useAnimate<HTMLElement>();
@@ -115,7 +115,7 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
     // Retarget a return if resizing moves the real pouch; never resize the pack.
   }, [animate, closing, reduced, scope, packX, packY, packRotation, opacity, dragY, pouch, returnGeometry]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!turn || closing) return;
     const pack = scope.current!;
     const current = pack.querySelector<HTMLElement>('[data-info-card-current="true"]')!;
@@ -137,19 +137,25 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
       const y = position === 0 ? -6 : -3;
       sequence.push([backing, { y: [y, y + 1.5, y] }, { at: 0, duration: duration * 2, ease: "easeInOut" }]);
     });
-    const control = animate(sequence);
-    turnAnimation.current = control;
-    void control.then(() => {
+    // A newly revealed Motion layer replays its effects in Next's development
+    // Strict Mode. Start after that replay, so its cleanup cannot cancel this
+    // imperative turn and leave selection locked. Timing/keyframes are unchanged.
+    queueMicrotask(() => {
       if (!active) return;
-      dragY.set(0);
-      setIndex(turn.to);
-      callbacks.current.onPositionChange(turn.to + 1);
-      setTurn(null);
-      setPhase("open");
-      busy.current = false;
-      callbacks.current.onBusyChange(false);
+      const control = animate(sequence);
+      turnAnimation.current = control;
+      void control.then(() => {
+        if (!active) return;
+        dragY.set(0);
+        setIndex(turn.to);
+        callbacks.current.onPositionChange(turn.to + 1);
+        setTurn(null);
+        setPhase("open");
+        busy.current = false;
+        callbacks.current.onBusyChange(false);
+      });
     });
-    return () => { active = false; control.stop(); };
+    return () => { active = false; turnAnimation.current?.stop(); };
   }, [animate, closing, reduced, scope, turn, dragY]);
 
   function browse(direction: -1 | 1) {
@@ -241,11 +247,13 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
           data-info-card-current={current} aria-hidden={!current || undefined} inert={!current}
           initial={current ? false : { x: turn?.direction === -1 ? 8 : -2, y: turn?.direction === -1 ? (reduced ? 12 : turn.height * 0.72) : -6, rotate: turn?.direction === -1 ? (reduced ? 0 : 3) : -0.35 }}
           style={current ? { zIndex: 3, y: dragY, rotate: dragRotation } : { zIndex: 2 }}>
-          <InfoCardFace card={{ ...card, mediaKind: card.media?.mediaType }} onOpenMedia={card.media ? () => { if (!busy.current && !closing && !blocked) onOpenMedia(card.media!); } : undefined} />
+          {card.unavailable ? <article className={`${faceStyles.face} ${styles.unavailable}`} data-info-card-unavailable="">
+            <p>This Info Card is unavailable.</p>
+          </article> : <InfoCardFace card={{ ...card, mediaKind: card.media?.mediaType }} onOpenMedia={card.media ? () => { if (!busy.current && !closing && !blocked) onOpenMedia(card); } : undefined} />}
         </motion.div>;
       })}
     </div>
     <button ref={closeRef} className={`${stepStyles.consultationClose} ${styles.close}`} data-info-stack-close="" type="button" aria-label="Close information card stack" onClick={onRequestClose}>×</button>
-    <span className={styles.announcement} role="status" aria-live="polite">{cards[index].title}</span>
+    <span className={styles.announcement} role="status" aria-live="polite">{cards[index].unavailable ? "This Info Card is unavailable." : cards[index].title}</span>
   </motion.section>;
 }

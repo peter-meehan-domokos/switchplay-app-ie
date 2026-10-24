@@ -49,6 +49,7 @@ export type CardTemplateSignal = {
 };
 
 export type CardTemplate = {
+  infoCardIds?: string[];
   cardId: string;
   label: string;
   suggestedTargetDate: string;
@@ -167,6 +168,7 @@ export type WeeklyCard = {
   }[];
   cardTemplateId?: string;
   adoptedVersion?: number;
+  infoCardIds?: string[];
   templateOwnerUserId?: string;
   dataOwnerUserId?: string;
   permissions?: import("@/lib/cards/model").Capabilities;

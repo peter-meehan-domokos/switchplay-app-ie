@@ -20,7 +20,7 @@ async function setup(page:Page, ownedDeck=false){
 async function title(page:Page,id:string,value:string){
   await page.locator(`[data-card-template-id="${id}"] .creator-card-title-button`).click();
   const modal=page.getByRole("dialog",{name:"Edit Card title",exact:true});
-  await page.locator(".creator-modal textarea").fill(value);
+  await page.locator(".creator-modal").getByRole("textbox").fill(value);
   await page.locator(".creator-modal").getByRole("button",{name:"Save",exact:true}).click();
   void modal;
 }

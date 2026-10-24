@@ -6,8 +6,8 @@ import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { CreatorRequestError } from "../creator/creatorRequest";
 import InfoCardMediaViewer from "./InfoCardMediaViewer";
 
-export default function InfoCardRemoteMediaViewer({ media, context, actor, onClose }: {
-  media: InfoMedia; context: MediaContext; actor: string; onClose: () => void;
+export default function InfoCardRemoteMediaViewer({ media, context, actor, onClose, returnFocus }: {
+  media: InfoMedia; context: MediaContext; actor: string; onClose: () => void; returnFocus?: HTMLElement;
 }) {
   const query = context.kind === "draft" ? `revision=${context.revision}` : `version=${context.version}`;
   const url = `/api/info-cards/${encodeURIComponent(context.infoCardId)}/media?${query}`;
@@ -19,5 +19,5 @@ export default function InfoCardRemoteMediaViewer({ media, context, actor, onClo
       || !Number.isFinite(value.expiresAt) || value.expiresAt <= Date.now()) throw new Error("Invalid info media grant");
     return value as PlaybackGrant;
   }, [url, actor]);
-  return <InfoCardMediaViewer media={media} imageSrc={url} resolvePlayback={resolve} onClose={onClose} />;
+  return <InfoCardMediaViewer media={media} imageSrc={url} resolvePlayback={resolve} onClose={onClose} returnFocus={returnFocus} />;
 }
