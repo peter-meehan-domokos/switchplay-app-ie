@@ -215,7 +215,19 @@ test("Library media uses the selected publication and only its dedicated control
   const me = (await (await page.request.get("/api/auth/me")).json()).user;
   const card = { infoCardId: "fixture-publication", version: 7, ownerUserId: me.id, creatorUsername: me.username, visibility: "private", series: { seriesId: "s", title: "Basics", createdByUserId: me.id, creatorUsername: me.username }, content: {
     title: "Signs", body: "Keep signs attached.", seriesId: "s", mediaItem: { id: "image", provider: "cloudflare-r2", mediaType: "image", assetId: "image", src: "https://private.invalid/image.png", description: "Image" } } };
-  await page.route("**/api/library/info-cards?*", route => route.fulfill({ json: { items: [card], nextOffset: null } }));
+  // Use the ordinary authorised catalogue read with a stored publication;
+  // only provider delivery below is mocked.
+  // This bypasses upload verification in test data, not in application code.
+  expect(process.env.MONGODB_DB).toMatch(/^switchplay_phase2_browser_/);
+  const client = await new MongoClient(process.env.MONGODB_URI!).connect();
+  try {
+    const repo = new InfoCardRepository(client.db(process.env.MONGODB_DB), client);
+    await repo.create(me.id, card.infoCardId);
+    await repo.save(me.id, card.infoCardId, 0, { ...card.content, seriesId: "demo-series-owner", mediaItem: null }, "private");
+    await repo.publish(me.id, card.infoCardId, 1);
+    await repo.versions().updateOne({ infoCardId: card.infoCardId, version: 1 }, { $set: { version: card.version, "content.mediaItem": card.content.mediaItem } });
+    await repo.roots().updateOne({ infoCardId: card.infoCardId }, { $set: { latestVersion: card.version } });
+  } finally { await client.close(); }
   let query = "";
   await page.route("**/api/info-cards/fixture-publication/media?*", route => { query = route.request().url(); return route.fulfill({ contentType: "image/png", body: pixel }); });
   await page.goto("/library?tab=info-cards");
@@ -317,10 +329,10 @@ test("new-item context survives autosave/reload; Library edit returns to Info Ca
   await expect(page).toHaveURL(new RegExp(`/creator/info-cards/${id}$`));
   await page.reload(); await expect(page.getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Edit Info Card", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Library", exact: true }).click(); await expect(page).toHaveURL(/\/library\?tab=info-cards$/);
+  await page.getByRole("button", { name: "Library", exact: true }).click(); await expect(page).toHaveURL("/library?tab=info-cards");
 });
 
-test("My Drafts edits preserve the originating drafts context across reloads", async ({ page }) => {
+test("My Drafts Info Card edits return to Library, with an explicit unpublished warning", async ({ page }) => {
   await login(page); const id = await create(page);
   const title = `Draft ${randomUUID().slice(0, 5)}`;
   await page.getByRole("textbox", { name: "Title", exact: true }).fill(title);
@@ -330,12 +342,19 @@ test("My Drafts edits preserve the originating drafts context across reloads", a
   await page.getByRole("dialog", { name: "My Drafts" }).getByRole("button", { name: `${title} · Info Card`, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/creator/info-cards/${id}\\?draftOrigin=`));
   await expect(page.getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
-  await page.reload(); await page.getByRole("button", { name: "Back to My Drafts", exact: true }).click();
-  await expect(page).toHaveURL(/\/creator\/new\?drafts=1$/);
-  await expect(page.getByRole("dialog", { name: "My Drafts", exact: true })).toBeVisible();
+  await page.reload(); await expect(page.getByRole("button", { name: "Back to My Drafts", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "My Drafts", exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  const leave = page.getByRole("dialog", { name: "Leave Info Card Creator?", exact: true });
+  await expect(leave).toContainText("saved in My Drafts"); await leave.getByRole("button", { name: "Stay in Creator", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Title", exact: true })).toHaveValue(title);
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await leave.getByRole("button", { name: "Leave without publishing", exact: true }).click();
+  await expect(page).toHaveURL(/\/library\?tab=info-cards$/);
+  await expect(page.locator(`[data-info-id="${id}"]`)).toHaveCount(0);
 });
 
-test("Library preserves owner-first original-creation ordering across its real pagination", async ({ page }) => {
+test("Library preserves owner-first latest-publication ordering across its real pagination", async ({ page }) => {
   await login(page);
   expect(process.env.MONGODB_DB).toMatch(/^switchplay_phase2_browser_/);
   const client = await new MongoClient(process.env.MONGODB_URI!).connect();
@@ -353,7 +372,9 @@ test("Library preserves owner-first original-creation ordering across its real p
       await repo.roots().updateOne({ infoCardId: id }, { $set: { createdAt: new Date(Date.UTC(2025, 0, i % 9 + 1)) } });
     }
     const roots = await repo.roots().find({ latestVersion: { $gt: 0 }, $or: [{ ownerUserId: own }, { visibility: "public" }] }).toArray();
-    const expected = roots.sort((a, b) => Number(b.ownerUserId === own) - Number(a.ownerUserId === own) || b.createdAt.getTime() - a.createdAt.getTime() || a.infoCardId.localeCompare(b.infoCardId)).map(root => root.infoCardId);
+    const publications = await repo.versions().find({ $or: roots.map(root => ({ infoCardId: root.infoCardId, version: root.latestVersion })) }).toArray();
+    const time = (id: string) => publications.find(item => item.infoCardId === id)!.publishedAt.getTime();
+    const expected = roots.sort((a, b) => Number(b.ownerUserId === own) - Number(a.ownerUserId === own) || time(b.infoCardId) - time(a.infoCardId) || a.infoCardId.localeCompare(b.infoCardId)).map(root => root.infoCardId);
     await page.goto("/library?tab=info-cards"); await expect(page.locator("[data-info-id]")).toHaveCount(30);
     while (await page.getByRole("button", { name: "More Info Cards", exact: true }).count()) {
       const oldCount = await page.locator("[data-info-id]").count();

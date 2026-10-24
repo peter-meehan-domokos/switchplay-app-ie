@@ -75,10 +75,10 @@ export async function infoCatalogue(repo: InfoCardRepository, actor: string, que
       from: "users", let: { id: `$${field}` }, pipeline: [{ $match: { $expr: { $eq: [{ $toString: "$_id" }, "$$id"] } } }, { $project: { _id: 0, username: 1 } }], as: name,
     } });
     if (search) pipeline.push({ $match: { $or: ["publication.content.title", "series.title", "creator.username", "seriesCreator.username"].map(field => ({ [field]: { $regex: literal(search), $options: "i" } })) } });
-    // Original creation time, not publication/update time. Apply the complete
-    // ownership/order key before pagination so the boundary may cross owners.
+    // Latest successful immutable publication, never draft/root modification or
+    // creation time. The full ownership/order key precedes pagination.
     pipeline.push({ $set: { own: { $cond: [{ $eq: ["$ownerUserId", actor] }, 0, 1] } } },
-      { $sort: { own: 1, createdAt: -1, infoCardId: 1 } }, { $skip: offset }, { $limit: limit + 1 });
+      { $sort: { own: 1, "publication.publishedAt": -1, infoCardId: 1 } }, { $skip: offset }, { $limit: limit + 1 });
     const rows = await repo.roots().aggregate<Joined>(pipeline, { session }).toArray();
     return { items: await decorate(repo, rows.slice(0, limit), session), nextOffset: rows.length > limit ? offset + limit : null };
   });

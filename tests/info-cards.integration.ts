@@ -144,10 +144,9 @@ test("collaboration preserves ownership; discovery uses current public membershi
   assert.equal((await discoverSeries(repo, "carol")).items.length, 0);
 });
 
-test("catalogue orders all own cards first then others by original creation date across page boundaries", async () => {
+test("catalogue orders own cards then other public cards by latest publication across page boundaries", async () => {
   const repo = await setup();
-  // Intentionally interleave owners and publication/series order. Creation
-  // times are deterministic fixtures, not a client-controlled API parameter.
+  // Deliberately disagree with root creation/update times and interleave owners.
   const fixtures = [
     { id: "foreign-new", owner: "bob", time: 9, visibility: "public" },
     { id: "own-old", owner: "alice", time: 1, visibility: "public" },
@@ -158,17 +157,20 @@ test("catalogue orders all own cards first then others by original creation date
   ] as const;
   for (const item of fixtures) {
     await publish(repo, item.id, item.owner, item.visibility, `series-${item.owner}`);
-    await repo.roots().updateOne({ infoCardId: item.id }, { $set: { createdAt: new Date(2026, 0, item.time) } });
+    await repo.roots().updateOne({ infoCardId: item.id }, { $set: { createdAt: new Date(2026, 0, 20 - item.time) } });
+    await repo.versions().updateOne({ infoCardId: item.id, version: 1 }, { $set: { publishedAt: new Date(2026, 0, item.time) } });
   }
-  // Republishing the oldest own card must not promote it.
+  const before = await infoCatalogue(repo, "alice");
+  assert.deepEqual(before.items.map(item => item.infoCardId), ["own-new", "own-tie", "own-old", "foreign-new", "foreign-old"]);
   await repo.save("alice", "own-old", 2, content("series-alice", "Republished"), "public");
+  assert.deepEqual(await infoCatalogue(repo, "alice"), before); // Draft saves never promote.
   await repo.publish("alice", "own-old", 3);
   const ids: string[] = []; let offset: number | null = 0;
   do {
     const result = await infoCatalogue(repo, "alice", { limit: 2, offset });
     ids.push(...result.items.map(item => item.infoCardId)); offset = result.nextOffset;
   } while (offset !== null);
-  assert.deepEqual(ids, ["own-new", "own-tie", "own-old", "foreign-new", "foreign-old"]);
+  assert.deepEqual(ids, ["own-old", "own-new", "own-tie", "foreign-new", "foreign-old"]);
 });
 
 test("public visibility is permanent, but unreferenced public deletion is permitted", async () => {

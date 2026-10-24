@@ -22,11 +22,31 @@ export function infoEditorHref(id: string, saved: boolean, navigation: CreatorNa
   if (navigation.draftOrigin) query.set("draftOrigin", navigation.draftOrigin);
   return `/creator/info-cards/${saved ? encodeURIComponent(id) : "new"}${query.size ? `?${query}` : ""}`;
 }
-export function draftsReturnTarget(origin: string) {
-  const url = new URL(origin, "http://creator.local"); url.searchParams.set("drafts", "1");
-  return { label: "Back to My Drafts" as const, href: url.pathname + url.search };
-}
 export function currentDraftOrigin(location: { pathname: string; search: string }) {
   const query = new URLSearchParams(location.search);
   return safeDraftOrigin(query.get("draftOrigin") ?? undefined) ?? safeDraftOrigin(location.pathname + location.search) ?? "/creator/new";
+}
+
+export function deckCollectionTarget(input: { creating: boolean; visibility: "private" | "public"; origin?: "library" | "my-decks";
+  copied: boolean; id: string; reveal?: boolean; publicationVersion?: number | null }) {
+  const library = input.copied && input.visibility === "private" ? false
+    : input.creating ? input.visibility === "public" : input.origin ? input.origin === "library" : input.visibility === "public";
+  return { label: library ? "Library" as const : "My Decks" as const,
+    href: library ? `/library${input.publicationVersion ? `?${new URLSearchParams({ published: input.id })}` : ""}`
+      : `/decks${input.reveal === false ? "" : `?${new URLSearchParams({ reveal: input.id })}`}` };
+}
+export function infoCollectionTarget(id: string, publicationVersion?: number | null) {
+  return { label: "Library", href: `/library?${new URLSearchParams({ tab: "info-cards", ...(publicationVersion ? { published: id } : {}) })}` };
+}
+
+export function deckReturnOrigin(query: CreatorSearch, id: string): "library" | "my-decks" | undefined {
+  let target = first(query.returnTo);
+  if (!target) {
+    const origin = safeDraftOrigin(first(query.draftOrigin));
+    if (origin) {
+      const url = new URL(origin, "http://creator.local");
+      if (url.pathname === `/creator/edit/${encodeURIComponent(id)}`) target = url.searchParams.get("returnTo") ?? undefined;
+    }
+  }
+  return target === "library" ? "library" : target === "deck" ? "my-decks" : undefined;
 }

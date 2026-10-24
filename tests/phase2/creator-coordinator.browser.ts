@@ -48,7 +48,7 @@ test("untouched Create makes no writes; rapid Add and immediate Card edit retain
   await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save Draft", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Decks", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  await page.locator(".creator-back-link").click(); await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/);
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
   expect(await db().collection("deckTemplates").countDocuments()).toBe(count);
   await page.goto("/creator/new");
@@ -119,11 +119,36 @@ test("authorized intro upload keeps its original Card after renumbering and afte
   await expect.poll(() => started).toBe(true);
   await remove(page, a); await expect(card(page, b).locator(".creator-card-label-button")).toHaveText("Card 1");
   await remove(page, b);
-  await page.getByRole("link", { name: "Decks", exact: true }).click();
-  await expect(page).toHaveURL(/\/decks$/); pause.resolve();
+  await page.locator(".creator-back-link").click();
+  await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); pause.resolve();
   await expect.poll(async () => (await cardRoot(b))?.draft.intro.mediaItem?.description).toBe("stable-target.mp4");
   expect((await cardRoot(a))!.draft.intro.mediaItem).toBeNull();
   await expect(page.locator(".creator-entity-save-error")).toHaveCount(0);
+});
+
+for (const operation of ["upload", "save"] as const) test(`detached ${operation} finishes after a Library SPA return`, async ({ page }) => {
+  await open(page); const id = await add(page), pause = gate(); let started = false;
+  // Public intent gives this newly created Deck a Library return destination;
+  // neither the Deck nor this independent Card needs implicit publication.
+  await page.getByRole("combobox", { name: "Deck publication visibility" }).selectOption("public");
+  const documentTime = await page.evaluate(() => performance.timeOrigin);
+  if (operation === "upload") {
+    await page.route(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN!}/upload`, async route => { started = true; await pause.promise; await route.continue(); });
+    await card(page, id).locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({ name: "detached-library.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
+  } else {
+    await page.route(`**/api/card-templates/${id}`, async route => {
+      if (route.request().method() === "PATCH") { started = true; await pause.promise; }
+      await route.continue();
+    });
+    await editStep(page, id, "Detached work survives Library return");
+  }
+  await expect.poll(() => started).toBe(true); await remove(page, id);
+  await page.locator(".creator-back-link").click();
+  await page.getByRole("button", { name: "Leave without publishing", exact: true }).click();
+  await expect(page).toHaveURL("/library"); expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentTime);
+  pause.resolve();
+  await expect.poll(async () => operation === "upload" ? (await cardRoot(id))?.draft.intro.mediaItem?.description : (await cardRoot(id))?.draft.steps[0].description)
+    .toBe(operation === "upload" ? "detached-library.mp4" : "Detached work survives Library return");
 });
 
 test("exhausted autosave failure exposes only its Card Retry Save, and retry saves latest content", async ({ page }) => {
@@ -170,7 +195,7 @@ for (const width of [375, 390]) {
       failing = false; await retry.click(); await expect(page.locator(".creator-entity-save-error")).toHaveCount(0);
       await expect.poll(async () => (await cardRoot(a))?.draft.intro.title).toBe("Mobile retry check");
       await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
-      await page.getByRole("link", { name: "Decks", exact: true }).click();
+      await page.locator(".creator-back-link").click();
       const leave = page.getByRole("dialog", { name: "Leave Creator confirmation" }); await expect(leave).toBeVisible();
       const leaveBox = await leave.boundingBox(); expect(leaveBox!.x).toBeCloseTo(16); expect(width - leaveBox!.x - leaveBox!.width).toBeCloseTo(16);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
@@ -194,13 +219,13 @@ test("Publish and leave retains successful versions and retries only remaining p
   });
   const leave = page.getByRole("button", { name: "Publish and leave", exact: true });
   await expect(leave).toHaveCount(0);
-  await page.getByRole("link", { name: "Decks", exact: true }).click();
+  await page.locator(".creator-back-link").click();
   await leave.click();
   await expect(page.getByText(/SIMULATED_CARD_FAILURE/)).toBeVisible(); expect((await cardRoot(a))!.latestVersion).toBe(1); expect((await cardRoot(b))!.latestVersion).toBe(0);
   await expect(leave).toHaveCount(0);
-  failCard = false; await page.getByRole("link", { name: "Decks", exact: true }).click(); await leave.click();
+  failCard = false; await page.locator(".creator-back-link").click(); await leave.click();
   await expect(page.getByText(/SIMULATED_DECK_FAILURE/)).toBeVisible(); expect((await cardRoot(b))!.latestVersion).toBe(1);
-  failDeck = false; await page.getByRole("link", { name: "Decks", exact: true }).click(); await leave.click(); await expect(page).toHaveURL(/\/decks$/);
+  failDeck = false; await page.locator(".creator-back-link").click(); await leave.click(); await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/);
   expect(await db().collection("cardTemplateVersions").countDocuments({ cardTemplateId: { $in: [a, b] } })).toBe(2);
 });
 

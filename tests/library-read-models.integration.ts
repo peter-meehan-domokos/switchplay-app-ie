@@ -33,6 +33,24 @@ function available(entry: LibraryEntry) {
   return entry;
 }
 
+test("normal Library pages preserve publication ordering, bound pages and exclude private content", async () => {
+  const repo = await setup();
+  const ids = [];
+  for (let i = 0; i < 5; i++) {
+    const id = await deck(repo); ids.push(id);
+    await repo.deckVersions().updateOne({ deckTemplateId: id, version: 1 }, { $set: { publishedAt: new Date(2026, 0, i + 1) } });
+  }
+  const hidden = await deck(repo, [], "bob", "private");
+  const normal = await libraryCollection(repo, "bob", { limit: 2 });
+  assert.deepEqual(normal.entries.map(item => item.deckTemplateId), [ids[4], ids[3]]);
+  const next = await libraryCollection(repo, "bob", { limit: 2, cursor: normal.nextCursor! });
+  assert.deepEqual(next.entries.map(item => item.deckTemplateId), [ids[2], ids[1]]);
+  const last = await libraryCollection(repo, "bob", { limit: 2, cursor: next.nextCursor! });
+  assert.deepEqual(last.entries.map(item => item.deckTemplateId), [ids[0]]);
+  assert.equal(last.nextCursor, null);
+  assert.equal([...normal.entries, ...next.entries, ...last.entries].some(item => item.deckTemplateId === hidden), false);
+});
+
 test("Library owner Edit eligibility is independent of membership and preserves canonical/personal records", async () => {
   const repo = await setup(), x = await card(repo), d = await deck(repo, [x]), empty = await deck(repo);
   const before = await repo.users().find({}).toArray();

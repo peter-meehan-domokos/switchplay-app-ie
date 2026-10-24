@@ -23,6 +23,7 @@ export class InfoCardEditorController {
   running: Promise<void> | null = null;
   publishing = false;
   pendingPublication: number | undefined;
+  confirmedPublicationVersion: number | null = null;
   private pendingSave: SaveCommand | undefined;
   private mediaProof: string | undefined;
   private listeners = new Set<() => void>();
@@ -133,11 +134,12 @@ export class InfoCardEditorController {
     try {
       if (this.pendingPublication === undefined) { await this.flush(); await this.ensureCreated(); }
       this.pendingPublication ??= this.ack!.root.revision; this.journal();
-      await this.request<InfoPublication>(`${this.url}/publish`, "POST", { revision: this.pendingPublication });
+      const receipt = await this.request<InfoPublication>(`${this.url}/publish`, "POST", { revision: this.pendingPublication });
       // Receipt retry is safe even if another tab has made newer edits. Always
       // read the editor separately instead of synthesising current state from it.
       const remote = await this.request<InfoEditorDTO>(this.url);
       this.ack = remote; this.desired = clone(remote.root.draft ?? remote.publication!.content); this.visibility = remote.root.draftVisibility;
+      this.confirmedPublicationVersion = receipt.version;
       this.pendingPublication = undefined; this.errorOperation = null; this.journal();
     } catch (error) {
       if (!uncertain(error)) { this.pendingPublication = undefined; this.journal(); }

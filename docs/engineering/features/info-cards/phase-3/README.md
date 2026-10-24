@@ -20,9 +20,9 @@ Branch: `feat/info-cards`. Scope: Creator/Library UI, agreed manual-review UX co
 ### 3C — My Drafts and Library
 
 - Typed Deck/Info Card draft entries, direct owner info queries traversing all pages, independent destinations and source-specific failures. Info service/index failure does not hide existing Deck drafts.
-- `/library` retains the Deck shell and its navigation; `/library?tab=info-cards` mounts one face-up chronological grid. The backend orders **all own published cards first**, then other public cards, by original root creation date descending with stable ID tie-breaks **before pagination**. Publication/update times and series do not affect order. Dirty drafts never replace published content; only owners receive Edit. No Library search/create controls or series headings.
+- `/library` retains the Deck shell and latest-publication ordering without owner priority; `/library?tab=info-cards` mounts one face-up chronological grid. The backend orders **all own published cards first**, then other public cards, by latest successful immutable publication timestamp descending with stable ID tie-breaks **before pagination**. Draft/root update/creation times and series do not affect order. Dirty drafts never replace published content; only owners receive Edit. No Library search/create controls or series headings.
 - Each face has secondary `Series (series by username)` above and `Card by username` immediately beneath with a 5px gap; privacy/Edit controls follow. The approved face and tooltip remain unchanged.
-- Bounded pagination, duplicate suppression and actor-bound stale-response handling remain. Library editing returns to its Info Cards tab; My Drafts editing returns to its originating editor/dialog through a bounded internal navigation context, preserved on reload. Existing Deck return links remain unchanged. Account changes hide the old editor; session failures clear private Library content/media.
+- Bounded pagination, duplicate suppression and actor-bound stale-response handling remain. Info Cards always return to their Library tab. Decks use approved hybrid collection destinations, while retaining URL context for copying/version selection and reload. My Drafts remains a separate workflow. Account changes hide the old editor; session failures clear private Library content/media.
 
 ### Agreed editor simplification and prerequisites
 
@@ -51,7 +51,7 @@ Branch: `feat/info-cards`. Scope: Creator/Library UI, agreed manual-review UX co
 - `scripts/test-phase2.ts`: disposable info indexes/demo users/content, explicit LAN option and live dev logs. `next.config.ts`: test-runner-only development origin allowance for loopback and detected review IPs.
 - New editor/drafts/upload unit tests and real-app `tests/phase2/info-cards-authoring.browser.ts`; extended Info Cards API integration coverage.
 
-### Exact changed-file manifest
+### Earlier Phase 3 implementation changed-file manifest
 
 - `docs/design/features/info-cards/info-cards-functional-spec.md`
 - `docs/engineering/features/info-cards/info-cards-engineering-plan.md`
@@ -107,6 +107,102 @@ Branch: `feat/info-cards`. Scope: Creator/Library UI, agreed manual-review UX co
 
 ## Verification
 
+### Latest correction — restore ordinary SPA Library returns (24 October 2026)
+
+The approved full-document approach and perfect-first-visible-frame requirement below are **superseded**. Both Creator return handlers now use ordinary Next `router.push`. No replacement freshness guarantee, cache layer, optimistic sorting, loading overlay, artificial delay or persistence barrier was introduced. The functional specification §5.5/§12.3 and engineering plan §1/§5.1 have only the corresponding superseded clauses corrected.
+
+Removed specifically:
+
+- Library-only `window.location.assign` branches in `CreatorDragLab.tsx` and `InfoCardEditor.tsx`.
+- Info Cards' reload-oriented server first-page query/`initialPage` prop and state seeding. Its established authenticated client catalogue read and **Loading Info Cards…** message are restored.
+- Persisted-history `pageshow` reload guards in the Info panel and Deck Library navigation hook; these use ordinary existing refresh handling again. Explicit user-requested error/conflict reload buttons are unrelated and remain.
+
+Preserved: server-side latest-successful-publication ordering before pagination (owner-first only for Info Cards), deterministic ties, hybrid Creator destinations, authoritative publication confirmation/recovery, publication-only expiring highlight without Library scrolling, ordinary pagination, account/lifetime/sequence checks and existing save/upload/leave safeguards. No targeted reveal or Show newest returned. **My Decks sorting, working-entry and discovery behaviour are unchanged.** Existing detached Card work is allowed to finish after SPA unmount, not made into a new navigation barrier.
+
+#### Network observations — no visual-loading workaround implemented
+
+`tests/phase2/creator-library-network.browser.ts` exercises the actual authenticated Next application and disposable replica set at **390×844**. Each case enters Creator through real application links: Create menu for new items; Library Edit (Deck detail/menu where applicable) for existing items. Browser document identity is checked on entry and return. All 18 cases sample visible collection IDs/positions, highlight, scroll and loading state every animation frame, independently compare with the ordinary authorised server catalogue, and capture initiation, 250/1000/2000/4000ms, an additional 6000ms slow-network frame, and final state. Perfect first paint is **not** an assertion or an implementation guarantee.
+
+Profiles: unthrottled local development; CDP **400ms latency, 1.6 Mbit/s download, 0.75 Mbit/s upload**; and an additional **1500ms** delay on the Deck Library RSC response or Info catalogue response. The editing session is warm before throttling, including existing routing/prefetch behaviour; this is not a cold-download benchmark or a claim about physical Safari. Timings below run from the recorded initiation capture, including screenshot/click dispatch overhead; they are indicative single-run observations, not production performance limits.
+
+| Library / action | Normal: populated (ms) | Slow mobile (ms) | Delayed data (ms) |
+| --- | ---: | ---: | ---: |
+| Decks / new publication | 434 | 536 | 1953 |
+| Decks / republication | 425 | 552 | 1942 |
+| Decks / draft-only return | 499 | 1346 | 2012 |
+| Info Cards / new publication | 236 | 1855 | 1759 |
+| Info Cards / republication | 222 | 1818 | 1757 |
+| Info Cards / draft-only return | 282 | 3141 | 1799 |
+
+Across **18/18** cases: first populated order matched the server catalogue, no later order changes or target-position jumps, no blank sampled frames, no document-navigation requests, same `performance.timeOrigin`, and collection scroll remained zero. Publication returns highlighted the correct item; draft-only returns did not. These observations do not establish that stale content is impossible in all cache/network conditions.
+
+Existing loading is visible, not hidden: normal Deck cases show **Loading Library…** for about 0.3s; delayed Deck cases retain Creator until about 1.6–1.7s then show that same loading boundary for about 0.3s. Warm slow-mobile Deck cases retained Creator until the collection arrived, without a separate sampled loading frame. Info cases show the Library heading/tabs plus **Loading Info Cards…**: about 0.09–0.10s normally, 1.29–1.37s on the slow profile, and about 1.61s with delayed data. Info's ordinary actor-scoped transport checks authentication before and after the catalogue request, explaining additional latency sensitivity; no security check was removed to improve timing. Draft-only slow returns also include the existing pending-autosave/leave-confirmation work.
+
+Evidence is preserved locally (ignored, not committed) under `phase2-test-results/spa-network-review/`: 18 directories with `observations.json` containing all frame samples and the screenshot sequence. Representative sequences:
+
+- Deck republication, normal: `creator-library-network.br-a5b79-eator-to-Library-navigation/` (`frame-250.png` shows existing loading; `frame-1000.png` shows correct highlighted first item).
+- Info republication, slow: `creator-library-network.br-f1881-eator-to-Library-navigation/` (`frame-1000.png` shows existing loading; `frame-2000.png` shows correct highlighted first item).
+- Info draft-only, slow: `creator-library-network.br-ef4dc-eator-to-Library-navigation/` shows the longer save/return interval, then unchanged publication order without highlight.
+
+An additional direct-editor-entry baseline also passed 18/18, preserved separately in `phase2-test-results/spa-direct-entry-baseline/`; do not substitute its timings for the real-link results above.
+
+#### Regression coverage and scope
+
+- Dedicated browser regressions hold a detached upload and a detached autosave, remove the Card, navigate to Library by SPA, then release the request and verify the saved Card metadata/content. Both passed without a new wait barrier. Existing attached-upload/save failures, publication failure/retry and hybrid destination tests remain.
+- The asynchronous stale-read fixture now holds **only its old pre-navigation request**; holding every request accidentally blocked the restored Info mount read. The initial combined run completed **109 passed / 1 failed** (including all 18 network observations); that failure was the interception error, not evidence of application stale ordering. After correcting only the fixture, the full six-file Creator/Library regression suite passed **92/92 in one uninterrupted run (4.3 minutes)**, including that case and the selected-publication media fixture. Together with the 18/18 saved network observations, all 110 distinct scenarios passed; this is not represented as a single uninterrupted 110-pass run.
+- **72/72 unit tests** passed: navigation/recency, editor/errors/capacity, coordinator/recovery and Library read models. **42/42 database integration tests** passed: publication ordering/ties/pagination, draft-only non-promotion, ownership, transaction/deletion and private-media boundaries. The existing Mongo shutdown fallback warning did not fail an assertion.
+- TypeScript no-emit and scoped ESLint passed. No Phase 4, Phase 1 visual/interaction change, publication/security-policy change or commit. Real iPhone Safari, cold production navigation, live Cloudflare verification and deployed index checks are not claimed as covered.
+
+Reproduce network observations with `node --import tsx scripts/test-phase2.ts --info-cards creator-library-network.browser.ts --reporter=line`. Reproduce the combined regressions with `node --import tsx scripts/test-phase2.ts --info-cards creator-collection-navigation.browser.ts creator-drafts.browser.ts creator-visibility.browser.ts creator-coordinator.browser.ts library-ui.browser.ts info-cards-authoring.browser.ts --reporter=line`. Each runner owns its disposable server/database; run them sequentially. The curated local evidence index is `phase2-test-results/spa-network-review/README.md`; generated artifacts are not committed. Relative documentation/evidence links (43) and diff whitespace checks passed.
+
+Changed in this reversal: `src/components/creator/CreatorDragLab.tsx`; `src/components/info-cards/InfoCardEditor.tsx`; `src/app/library/page.tsx`; `src/components/library/InfoCardsLibrary.tsx`, `useLibraryNavigation.ts`; `tests/phase2/creator-collection-navigation.browser.ts`, `creator-coordinator.browser.ts`, new `creator-library-network.browser.ts`; the media fixture's obsolete SSR-only comment in `info-cards-authoring.browser.ts`; and these narrowly reconciled documentation clauses. Other existing uncommitted Phase 3/navigation changes were preserved.
+
+**Discussion only:** no ordering defect was established by these samples, so no further ordering intervention is recommended now. The existing loading-message transition is observable, especially on slow Info reads; any future decision to change it requires separate approval. Broader cold-cache/production-build measurements could be collected if needed, without assuming a new architecture is necessary. Safari and arbitrary network/cache conditions remain limits of this Chromium/local-development evidence.
+
+### Earlier correction — publication ordering and authoritative Library returns (superseded navigation approach)
+
+- Both Library tabs sort by latest successful publication before normal pagination. Info Cards retains owner-first priority and ID ties; Decks retains its existing timestamp/cursor order without owner priority. Draft saves/opening content do not promote items. My Decks max(creation, opening) sorting and working-entry/discovery behaviour remain unchanged.
+- Creator completes existing saves/uploads/recovery and uses a fresh document navigation **only for Library collection returns**. The authenticated server page queries the authoritative ordinary first page before either tab renders tiles. Info receives that page as initial React state, without a competing mount-time catalogue read. Old document responses and prefetched RSC/mounted pages cannot replace it; actor/sequence guards and persisted-history reload protect session boundaries. This is the chosen simple technical cache boundary, not a new navigation framework or loading design.
+- Minimal controller/lane `confirmedPublicationVersion` metadata is set only by a successful server acknowledgement or verified recovery receipt. Existing published roots, draft saves, failed/rejected/uncertain requests do not set it. Confirmed returns add `published=<actual resulting ID>` for the existing brief outline; other Library returns use the plain tab URL. No automatic Library scrolling, promotion or extra controls. Existing My Decks highlighting/scrolling remains opt-in and unchanged.
+- Removed Library reveal API/query contracts, seek/anchor window code, `revealedId` client bookkeeping and both Show newest controls. Keep the shared `CollectionReturnHighlight` because ordinary highlighting and My Decks still consume it; scrolling is explicit for My Decks only. Unpublished Stay/Leave, hybrid Deck origins, private-copy identity, capacity/authoring, Phase 1, publishing/security and media gates are preserved. No Phase 4 or commit.
+- **10 passed:** focused authenticated Chromium navigation scenarios, including held publication acknowledgement, an initial rejected publication/retry, held authoritative destination document, an old in-flight Library read released after return, every observed rendered-frame order, highlight expiry without scrolling, unchanged draft-only order/top, account switching after publication and rejected obsolete reveal API parameters. The initial harness incorrectly queried the DOM while deliberately holding its next document; the corrected test inspects the uncommitted frame URL instead. Failing/interrupted debug runs are not counted as passes.
+- **All 90 browser scenarios verified across runs:** the combined authenticated Creator/Library run completed **89 passed / 1 failed**. Its remaining media-viewer fixture still assumed a browser-side initial catalogue fetch, which no longer exists. It was changed to seed a stored publication in the disposable database and exercise the actual server-rendered catalogue; only image delivery is mocked. The corrected case then **passed in isolation (1/1)**. There is no unresolved failing case, but this is **not** represented as one uninterrupted 90-pass run. The application source did not change between the combined run and this test-fixture correction. Existing autosave, uploads, publishing retries, visibility, draft recovery, hybrid navigation, pagination, keyboard/mobile layout and My Decks regressions passed.
+- **72 passed:** focused navigation/recency, editor/error/capacity, coordinator/recovery and Library read-model unit tests. Receipt metadata assertions cover no receipt from a clean existing publication, uncertain/lost responses, explicit retry and verified recovery; mismatched immutable receipts remain conflicts without highlighting.
+- **42 passed:** disposable-replica-set Library/Info Cards integration tests. Coverage includes server publication timestamps versus conflicting root creation/update times, owner-first Info grouping, deterministic tied page boundaries, draft saves leaving order/content unchanged, republication promotion, and existing ownership, transactions, deletion and private-media boundaries. Existing Mongo shutdown fallback warning is not an assertion failure.
+- TypeScript no-emit and scoped ESLint passed, with no outstanding lint warning. Deterministic ordering/navigation does not require phone re-acceptance; only visual judgement of the existing highlight or perceived full-document transition is human-only. No live Safari/provider pass is inferred; existing Cloudflare protection/index deployment gates remain unchanged.
+
+Complete file summary for this correction (earlier uncommitted navigation changes are retained, not replaced wholesale):
+
+- `src/lib/infoCards/queries.ts`: latest immutable-publication sort; remove Info reveal window.
+- `src/lib/cards/libraryReadModels.ts`, `src/lib/infoCards/http.ts`, `src/app/api/library/decks/route.ts`, `src/app/api/library/info-cards/route.ts`: remove the earlier Library reveal query/window additions, restoring ordinary authorised pagination contracts. Some of these files consequently have no diff against the last commit.
+- `src/app/library/page.tsx`: authenticated authoritative server first pages for both tabs; scope Deck publication highlight to the current owner and an already-public rendered row.
+- `src/components/creator/creatorNavigation.ts`, `CreatorDragLab.tsx`, `creatorPersistenceCoordinator.ts`: unchanged hybrid destination policy; confirmed-publication metadata and fresh Library return.
+- `src/components/info-cards/InfoCardEditor.tsx`, `infoCardEditorController.ts`: confirmed-publication receipt, fresh Library return and preserved unpublished leave/save/upload/retry safeguards.
+- `src/components/library/InfoCardsLibrary.tsx`, `LibraryShell.tsx`, `useLibraryNavigation.ts`, `CollectionReturnHighlight.tsx`: authoritative initial state, no competing Info mount read, no seek/Show newest, publication-only non-scrolling outline, ordinary pagination and persisted-history/session protections.
+- `src/components/layout/AppShell.tsx`: explicit opt-in to existing My Decks scroll/highlight; no My Decks ordering or working-entry implementation change.
+- `tests/creator-navigation.test.ts`, `creator-coordinator.test.ts`, `info-card-editor.test.ts`, `info-cards.integration.ts`, `library-read-models.integration.ts`; `tests/phase2/creator-collection-navigation.browser.ts`, `creator-visibility.browser.ts`, `info-cards-authoring.browser.ts`, `library-ui.browser.ts`: new ordering/receipt/asynchronous return coverage and corrected regression expectations. The existing My Decks recency test is unchanged and rerun.
+- Functional specification §5.5/§6/§12.3, engineering plan Phase 3 correction/Library/navigation/validation sections, and this handoff. Historical results below describe earlier requirements and are not current ordering acceptance.
+
+### Earlier Creator collection-navigation correction (Library discovery superseded above)
+
+- New Deck private/public intent routes immediately to My Decks/Library. Existing owned Decks retain their collection origin; direct/draft routes use a valid same-item origin or visibility fallback. An actual private Library-origin copy uses its resulting ID in My Decks; unchanged foreign sources are not treated as private copies. Info Cards always return to Library → Info Cards. No Back to My Drafts destination remains in Creator.
+- Returns show collections, never automatically opening a working Deck. Destinations are re-evaluated after saves/publication/copying; ownership/fork/version URL context and save/upload/recovery barriers are preserved. Deck leave confirmations explain relevant unpublished-item absence. Info Cards have Stay/Leave without publishing confirmation for saved unpublished items. Nothing publishes implicitly.
+- My Decks uses unified max(membership creation, last-opened) recency with deterministic ties. Library sorts are unchanged. Authenticated validated reveal queries return bounded, correctly ordered target windows without fetching all earlier pages; hidden/unknown targets fall back to normal collections. Show newest resets the window. A one-time scroll/subtle expiring outline marks the item; no membership/working-entry write occurs.
+- Changed implementation: Creator navigation helpers/routes/components and leave confirmation; Info editor return/confirmation; My Decks ordering/heading; DeckTile item marker; Library collection page/shells/refresh, info/deck read queries and API parsing; new `CollectionReturnHighlight.tsx`. Tests cover helper/recency units, repository window/ACL checks, new `creator-collection-navigation.browser.ts` and updated affected regression expectations. No authoring/capacity or publishing/security policy changes. No commit or Phase 4 work.
+- **85 passed (4.1 minutes):** final uninterrupted combined authenticated Chromium run of `creator-collection-navigation`, `creator-drafts`, `creator-visibility`, `creator-coordinator`, `library-ui` and `info-cards-authoring`. Covers new private/public-intent destinations, sticky origins/reload, actual private-copy identity, no working-entry writes, My Decks recency, old-item reveal/highlight/expiry/reset, authorised fallback, unpublished warnings/Stay/Leave, pending uploads, failed/conflicted saves, partial publication recovery, and existing authoring/capacity/Library regressions. Earlier assertions expecting old labels or an automatically reopened Deck were updated; an explicit tile-open assertion was scoped to the main open action rather than matching both the tile and mini-card controls. No failing assertion remains in the final run.
+- **72 passed:** focused navigation/recency, editor/error/capacity, coordinator/recovery and Library read-model unit tests. **42 passed:** disposable-replica-set Library/Info Cards integration tests, including seek-window continuation, unchanged chronology and identical normal fallback for private/unknown targets. Mongo's existing shutdown fallback warning did not fail an assertion.
+- TypeScript no-emit, scoped ESLint, diff whitespace and all **28** relative documentation links passed. The existing full-unit CSS-loader limitation and live provider/device checks were not treated as passes. Phase 1 components/animation styles were untouched; this run targets Creator/Library behaviour rather than rerunning the entire Phase 1 programme.
+- Authenticated Chromium verified login **200** at desktop **http://127.0.0.1:4181/creator/new** and LAN **http://192.168.1.38:4181/creator/new**, with the new **My Decks** return label. On both hosts, opening the existing published owner Info Card and clicking Library reached `/library?tab=info-cards&reveal=demo-owner-public`, scrolled/highlighted its face and produced **no page errors**. Screenshots: ignored `phase2-test-results/phase3-review/navigation-desktop-390.png` and `navigation-lan-390.png`. This is the actual Next application/disposable database, not port 4180; physical iPhone Safari acceptance remains manual.
+- Existing review runner **41840** remains running, with its disposable data preserved. Login **phase2 / local-test-only** (alternate **other / local-test-only**). Open **http://192.168.1.38:4181/library?tab=info-cards** on the same trusted Wi-Fi. Stop this instance with `kill -TERM 41840`; start from the repository root with `node --import tsx scripts/test-phase2.ts --dev --lan --info-cards`. Restarting creates fresh disposable data and a new PID; Ctrl+C stops a terminal-started instance. Cloudflare protection verification and deployed application indexes remain the existing operational gates.
+
+Changed-file manifest for this navigation correction (the earlier Phase 3 manifest above is historical):
+
+- Navigation: `src/app/creator/edit/[deckTemplateId]/page.tsx`; `src/components/creator/CreatorDragLab.tsx`, `CreatorLeaveConfirmation.tsx`, `creatorNavigation.ts`; `src/components/info-cards/InfoCardEditor.tsx`.
+- Collection rendering/discovery: `src/app/library/page.tsx`; `src/components/layout/AppShell.tsx`; `src/components/decks/DeckTile.tsx`, `myDecksLayout.ts`; `src/components/library/CollectionReturnHighlight.tsx` (new), `InfoCardsLibrary.tsx`, `LibraryShell.tsx`, `useLibraryNavigation.ts`.
+- Authorised collection reads: `src/app/api/library/decks/route.ts`, `src/app/api/library/info-cards/route.ts`; `src/lib/cards/libraryReadModels.ts`; `src/lib/infoCards/http.ts`, `queries.ts`.
+- Tests: `tests/creator-navigation.test.ts`, `my-decks-recency.test.ts` (new), `info-cards.integration.ts`, `library-read-models.integration.ts`; `tests/phase2/creator-collection-navigation.browser.ts` (new), `creator-coordinator.browser.ts`, `creator-drafts.browser.ts`, `creator-visibility.browser.ts`, `info-cards-authoring.browser.ts`, `library-ui.browser.ts`.
+- Documentation: functional specification §5.3/§5.5/§12.3, engineering plan §5.1/Phase 3 validation and this handoff. No publishing writes, ownership rules, content-capacity logic, Phase 1 components or styles changed.
+
 ### Series-first Title entry correction
 
 - Authoring sequence is Series → Title → Explanation/media. Title uses the existing focusable read-only prerequisite pattern, muted editor control styling and accessible feedback: **Choose or create a series first.** It unlocks only when the desired series ID matches the selected series metadata; a create option, typed series name, pending request or failed creation is insufficient.
@@ -138,7 +234,7 @@ Branch: `feat/info-cards`. Scope: Creator/Library UI, agreed manual-review UX co
 - Authenticated browser checks at both **127.0.0.1:4181** and **192.168.1.38:4181** returned login **200**, loaded the actual corrected application, survived editor reload and returned to Library's Info Cards tab with **no page errors**. Existing review runner PID **41840** and disposable review data are preserved; no server restart or data reset was needed. This is LAN/browser verification, not physical iPhone acceptance.
 - Main Create → Info Card and blank-title prerequisites were also checked over LAN. A Chromium touchscreen-coordinate tap on the focusable read-only Explanation produced the exact prerequisite message. `Locator.tap` refuses controls marked `aria-disabled`; the initial actionability timeout was therefore replaced with real touch coordinates, without removing the control's availability semantics. This is emulated touch evidence, not Safari/VoiceOver acceptance.
 
-Manual checklist: main menu Create → switch Deck/Info Card; blank title and prerequisite feedback by touch/keyboard; series groups and inline creation; autosave/reload; private/public confirmation; Library chronological cards and distinct creators; Library Edit → return to Info Cards; My Drafts Edit → Back to My Drafts (including reload); existing Deck edit has no selector and retains its return context. Media add/replace still fails closed until provider verification. No extra search, filters, management screens or Phase 4 controls were introduced.
+Current manual checklist: main menu Create → switch Deck/Info Card; blank title and prerequisite feedback by touch/keyboard; series groups and inline creation; autosave/reload; private/public confirmation; Library publication-ordered cards and distinct creators; every Info Card entry point → Library → Info Cards; new Deck private/public intent → My Decks/Library; existing Deck → originating collection, including reload; private Library copy → My Decks under the resulting ID. Check unpublished-item Stay/Leave and no automatically opened working Deck. Library highlights only confirmed publications without scrolling; no Show newest remains. My Drafts stays separate. Existing Deck editing has no creation selector. Media add/replace still fails closed until provider verification. Deterministic return/ordering acceptance is automated; device/visual judgement and real provider delivery remain separate. No search, filters, management screens or Phase 4 controls were introduced.
 
 ### Earlier Phase 3 baseline (before these corrections)
 
@@ -156,14 +252,15 @@ Reproduce combined acceptance:
 
 ```sh
 node --import tsx scripts/test-phase2.ts --info-cards \
-  info-cards-authoring.browser.ts creator-drafts.browser.ts library-ui.browser.ts \
+  creator-collection-navigation.browser.ts info-cards-authoring.browser.ts creator-drafts.browser.ts library-ui.browser.ts \
   creator-visibility.browser.ts creator-coordinator.browser.ts --reporter=line
 npx playwright test -c playwright.info-cards-integration.config.ts
 node --import tsx --test tests/info-card-editor.test.ts tests/info-card-drafts.test.ts \
-  tests/info-card-upload.test.ts tests/creator-navigation.test.ts tests/creator-coordinator.test.ts \
+  tests/info-card-upload.test.ts tests/creator-navigation.test.ts tests/my-decks-recency.test.ts tests/creator-coordinator.test.ts \
   tests/creator-recovery.test.ts tests/creator-visibility.test.ts tests/library-ui.test.ts
 node --import tsx --test tests/info-cards-api.integration.ts
 node --import tsx --test tests/info-cards.integration.ts
+node --import tsx --test tests/library-read-models.integration.ts
 ```
 
 ## Actual application review

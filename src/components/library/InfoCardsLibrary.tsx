@@ -10,9 +10,10 @@ import type { PublishedInfo } from "@/lib/infoCards/model";
 import LibraryTabs from "./LibraryTabs";
 import styles from "./InfoCardsLibrary.module.css";
 import InfoCardRemoteMediaViewer from "../info-cards/InfoCardRemoteMediaViewer";
+import CollectionReturnHighlight from "./CollectionReturnHighlight";
 
 type Page = { items: PublishedInfo[]; nextOffset: number | null };
-export default function InfoCardsLibrary({ actor, username }: { actor: string; username: string }) {
+export default function InfoCardsLibrary({ actor, username, publishedId }: { actor: string; username: string; publishedId?: string }) {
   const active = useRef(true), sequence = useRef(0);
   const [lifetime] = useState(() => new CreatorActorLifetime());
   const [request] = useState(() => actorCreatorTransport(actor, () => lifetime.isActive()));
@@ -41,10 +42,11 @@ export default function InfoCardsLibrary({ actor, username }: { actor: string; u
     <OverviewMenu username={username} userId={actor} />
     <header className="overview-header"><p className="eyebrow">{username}</p><h1>Library</h1></header>
     <LibraryTabs active="info-cards" />
+    <CollectionReturnHighlight id={publishedId ?? null} ready={items.some(item => item.infoCardId === publishedId && item.ownerUserId === actor)} />
     {error && <p role="alert">{error} <button type="button" onClick={() => void read()}>Retry Library</button></p>}
     {loading && <p role="status">Loading Info Cards…</p>}
     {!loading && !error && !items.length && <p>No published Info Cards found.</p>}
-    <div className={styles.grid}>{items.map(card => <div key={card.infoCardId} className={styles.item} data-info-id={card.infoCardId}>
+    <div className={styles.grid}>{items.map(card => <div key={card.infoCardId} className={styles.item} data-info-id={card.infoCardId} data-collection-item-id={card.infoCardId}>
         <p className={styles.series}>{card.series.title} (series by {card.series.creatorUsername})</p>
         <InfoCardFace card={{ title: card.content.title, body: card.content.body, seriesTitle: card.series.title, seriesCreatorUsername: card.series.creatorUsername, mediaKind: card.content.mediaItem?.mediaType }}
           onOpenMedia={card.content.mediaItem ? () => setMediaCard(card) : undefined} />

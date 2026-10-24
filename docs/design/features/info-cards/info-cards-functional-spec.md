@@ -132,7 +132,7 @@ Failed saves, uploads, mode changes and publishing must not silently abandon or 
 
 An owner can open their published info card from the **Info Cards Library** and enter Info Card Creator mode to edit it. Do not add a temporary “Open existing…” selector as the expected v1 route.
 
-Return navigation preserves the editing entry point, including across reloads: Library → Edit → Library's Info Cards tab; My Drafts → Edit → the originating drafts context. Existing Deck editing keeps its appropriate originating context. Opening a clean published info card for editing must not create an outstanding draft.
+Info Card Creator's top-right return destination is always **Library → Info Cards**, for private/public, new/existing and draft-origin editing. My Drafts remains a separate workflow control, not a second return destination. Opening a clean published info card for editing must not create an outstanding draft.
 
 ### 5.4 Editor structure and contextual feedback
 
@@ -147,6 +147,19 @@ Series selection and a non-empty title are prerequisites for explanation entry a
 This is UI sequencing, not a new backend completeness rule. Incomplete drafts continue to save and recover. Existing titles, explanation and media remain intact when a prerequisite is missing. A legacy draft's stored title is displayed read-only until a series is selected. Changing series preserves all content and may immediately expose title overflow; never erase, truncate or shrink stored content to enforce sequencing or capacity.
 
 Missing-field feedback appears by relevant controls when needed. Capacity errors appear immediately beneath Title and Explanation as the creator types, updating for series changes and media addition/removal. The title error concerns the combined series/title header; the explanation error concerns the available body space. Associate errors accessibly with the relevant field. When either exceeds capacity, keep the explicit unavailable-preview state without repeating generic capacity advice. Oversized drafts remain saveable with their full content; server-side capacity validation still prevents publication. Other publication/persistence errors remain visible and actionable near Publish or the relevant field. There is no large permanent requirements/explanation block below the preview. Do not shrink, clip, truncate or silently discard invalid content.
+
+### 5.5 Creator collection returns and item discovery
+
+- New private Deck: **My Decks** collection. New public-intent Deck: **Library → Decks**. The destination updates immediately with visibility intent, including after autosave/reload.
+- Existing owned Deck: retain its originating collection, independent of subsequent visibility changes. Without a valid collection origin, use the visibility-based fallback. A draft origin must belong to the edited item, not another Deck.
+- A private owned copy created from a Library Deck returns to **My Decks**, using its actual resulting identity. Preserve copying/version-selection context; do not mistake an unmodified foreign source for an already-created private copy.
+- Info Cards always return to **Library → Info Cards**. My Drafts remains a separate control, not a default return destination.
+- Return to collections, not automatically reopened working Decks. Label the personal collection **My Decks** and the public collection **Library**; retain the Library's **Decks** tab label.
+- Finish saves/uploads before navigation. Failures and uncertain publication keep the editor available. Never implicitly publish. For an unpublished saved item, explain that it remains in My Drafts and is absent from the destination until published; offer staying or deliberately leaving. Published items with draft changes retain their published collection representation.
+- My Decks uses the later of personal membership creation or last opening, newest first, with deterministic ID ties. This is separate from Library publication ordering and remains unchanged.
+- Both Library tabs use the latest successful publication timestamp, newest first, with deterministic ties and ordering applied before pagination. Decks has no owner-first grouping; Info Cards retains own cards first, then other creators' public cards. Draft saves and opening content never promote Library items; unpublished content remains excluded.
+- Creator → Library returns start at the ordinary collection top using normal application navigation and loading behaviour. After confirmed successful publication, briefly highlight the resulting published item. Keep authoritative server publication ordering, publication confirmation/retry, existing save/upload safeguards and account isolation; do not treat an uncertain publication as success. The earlier perfect-first-visible-frame requirement is withdrawn: observe ordinary loading and ordering transitions before deciding whether further intervention is necessary.
+- Returning without successful publication shows the current published order, without automatic scrolling, item promotion or highlighting. Remove Library targeted-reveal windows and **Show newest**, without replacement controls or changes to normal pagination. Existing My Decks return/discovery and working-entry behaviour remain unchanged.
 
 ## 6. Info Cards Library
 
@@ -163,10 +176,10 @@ The Info Cards tab shows:
 
 Cards appear face-up in **one simple chronological grid**, without series headings or a separate opening interaction:
 
-1. All published info cards owned by the current user, newest original creation date first.
-2. All other public published info cards, newest original creation date first.
+1. All published info cards owned by the current user, latest successful publication first.
+2. All other public published info cards, latest successful publication first.
 
-Publication/update dates do not affect this order; series do not affect it. The complete order remains correct across pagination, rather than sorting fetched pages independently.
+A successful republication moves a card to the top of its group. Use its latest immutable publication timestamp, not draft modification or original creation dates; series do not affect ordering. The complete order remains correct across pagination, rather than sorting fetched pages independently. Decks retains latest-publication ordering without owner-first grouping. Shared return/render/highlight requirements are in §5.5.
 
 Each card has secondary series attribution, e.g. `Basics (series by other)`, and **Card by phase2** immediately beneath the face with a small gap. Use actual names/usernames and clearly distinguish the two creators without redundant series-creator labels. The compact face itself remains unchanged, with its creator-attribution tooltip rather than a permanent username.
 
@@ -301,14 +314,14 @@ Broader text-enlargement/very-small-screen accessibility and detached-main-card 
 
 ### 12.3 Creator and publication acceptance
 
-1. Main Create opens a new-item session with the Deck/Info Card selector; existing-item edits have no selector. Mode changes preserve saved work without publishing; return navigation preserves Library, drafts and existing Deck origins across reloads.
+1. Main Create opens a new-item session with the Deck/Info Card selector; existing-item edits have no selector. Mode changes preserve saved work without publishing; collection return navigation follows §5.5 through reloads.
 2. Creating a series assigns stable identity; selecting an eligible series created by someone else does not confer rights over that creator's cards.
 3. Two creators may use identical series titles with distinct IDs; one creator cannot create their own normalised duplicate.
 4. One series dropdown shows own series first, a divider, other discoverable series alphabetically, and explicit new-series creation with automatic selection. Options show series creator usernames; retained authorised selections survive discovery loss.
 5. Private-only/empty series are not discoverable to others; a series with a public published member becomes discoverable without exposing its private members.
 6. Every saved unpublished or outstanding published info draft is discoverable in My Drafts **regardless of attachments or decks**.
 7. A clean published info card is accessible for owner editing from the Library; a dirty published card shows its published snapshot there while its draft remains in My Drafts.
-8. Library Decks stays unchanged; Info Cards shows published own cards first then others' public cards by original creation date across pagination, without series grouping, search/create controls, draft/private leakage or an extra opening interaction. Series and card creator attribution are distinct; card attribution sits immediately beneath the face.
+8. Library Decks retains latest-publication ordering; Info Cards shows published own cards first then others' public cards by latest successful publication across pagination, with deterministic ties. Both tabs meet §5.5's normal application-navigation/confirmed-publication highlight requirements, without targeted reveal or automatic scrolling. No series grouping, search/create controls, draft/private leakage or extra opening interaction. Series and card creator attribution are distinct; card attribution sits immediately beneath the face.
 9. The main-card header modal searches **published only** info cards by title, series/series creator and info-card creator; allows ordered attachment and removal without deleting the info content.
 10. Publishing attachments follows normal main-card versions/adoption; republishing info content updates the next consultation without changing a main-card version.
 11. Public main-card publication rejects private info attachments at the server; direct routes and media enforce access independently of the UI.

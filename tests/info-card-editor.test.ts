@@ -43,6 +43,7 @@ test("clean published editor does not save or create a spurious draft", async ()
   f.dto = { ...f.dto, publication: { infoCardId: "a", version: 1, content: { ...EMPTY_INFO_DRAFT, title: "Signs", body: "Keep signs.", seriesId: "s" }, visibility: "private", sourceRevision: 0, publishedAt: new Date(), publishedByUserId: "alice" } };
   const editor = new InfoCardEditorController("a", "alice", structuredClone(f.dto), f.request);
   await editor.flush(); assert.equal(editor.dirty, false); assert.equal(editor.outstanding, false); assert.equal(f.calls.length, 0);
+  assert.equal(editor.confirmedPublicationVersion, null);
 });
 test("incomplete drafts autosave independently and lost save/create responses retry stable commands", async () => {
   const f = fixture(), editor = new InfoCardEditorController("a", "alice", null, f.request);
@@ -60,8 +61,10 @@ test("lost publication uses the consumed revision receipt, without a history rea
   const f = fixture(), editor = new InfoCardEditorController("a", "alice", null, f.request);
   editor.edit({ title: "Signs", body: "Keep signs.", seriesId: "s", mediaItem: null }); await editor.flush();
   f.losePublish(); await assert.rejects(editor.publish()); assert.notEqual(editor.pendingPublication, undefined);
+  assert.equal(editor.confirmedPublicationVersion, null);
   editor.edit({ ...editor.desired, title: "Must stay locked" }); assert.equal(editor.desired.title, "Signs");
   await editor.retry(); assert.equal(f.root.latestVersion, 1); assert.equal(editor.pendingPublication, undefined); assert.equal(editor.outstanding, false); editor.stopTimer();
+  assert.equal(editor.confirmedPublicationVersion, 1);
 });
 test("submitted save recovers after reload without discarding a committed command", async () => {
   const f = fixture(), values = new Map<string, string>(), storage = { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => { values.set(k, v); }, removeItem: (k: string) => { values.delete(k); } };
@@ -108,4 +111,5 @@ test("reload of uncertain publication exposes recovery and reuses its receipt", 
   const resumed = new InfoCardEditorController("a", "alice", structuredClone(f.dto), f.request); resumed.configureRecovery(storage);
   assert(resumed.error); assert.notEqual(resumed.pendingPublication, undefined); await resumed.retry();
   assert.equal(f.root.latestVersion, 1); assert.equal(values.size, 0); editor.stopTimer(); resumed.stopTimer();
+  assert.equal(resumed.confirmedPublicationVersion, 1);
 });

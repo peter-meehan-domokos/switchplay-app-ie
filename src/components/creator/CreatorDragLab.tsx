@@ -22,7 +22,7 @@ import CreatorDraftsModal from "./CreatorDraftsModal";
 import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
 import CreatorModeSelector from "./CreatorModeSelector";
-import { currentDraftOrigin, type CreatorNavigation } from "./creatorNavigation";
+import { currentDraftOrigin, deckCollectionTarget, type CreatorNavigation } from "./creatorNavigation";
 import { clientId } from "@/lib/clientId";
 import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "./creatorDraftEntries";
 import CreatorPublishControl from "./CreatorPublishControl";
@@ -34,7 +34,6 @@ import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { restoreCreatorDeckTitle } from "@/lib/cards/creatorDefaults";
 import { useRouter } from "next/navigation";
-import { readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
@@ -940,7 +939,7 @@ function BoardCell({
 type CreatorDragLabProps = {
   canPreviewOutput: boolean;
   creatorReturnTarget?: {
-    label: "Deck" | "Decks" | "Back to My Drafts";
+    label: "Library" | "My Decks";
     href: string;
   };
   initialBoard: BoardState;
@@ -1017,7 +1016,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const canDeleteActiveCard = editSession?.target.type === "card-title";
   const editingCardId = editSession?.target.type === "card-title" ? editSession.target.cardTemplateId : null;
-  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
+  function collectionDestination() {
+    return deckCollectionTarget({ creating: navigation?.creating ?? mode === "new", visibility: !persistence.deck.ack && initialSession?.deck.kind === "foreign" ? "public" : persistence.deck.desiredVisibility,
+      origin: creatorReturnTarget ? creatorReturnTarget.href === "/library" ? "library" : "my-decks" : undefined,
+      copied: !!persistence.deck.ack?.root.forkedFrom, id: persistence.deckTemplateId,
+      publicationVersion: persistence.deck.confirmedPublicationVersion,
+      reveal: !!persistence.deck.ack?.root.latestVersion || initialSession?.deck.kind === "foreign" && !persistence.deck.ack });
+  }
+  const resolvedCreatorReturnTarget = collectionDestination();
   const deckIntroductionUploadTarget = useMemo(() => ({
     scope: "deck-introduction" as const,
     deckTemplateId: persistence.deckTemplateId,
@@ -1152,7 +1158,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     persistence.setCardVisibility(id, visibility);
   }
   function navigateToReturnTarget() {
-    router.push(resolvedCreatorReturnTarget.href);
+    router.push(collectionDestination().href);
   }
 
   async function openDrafts() {
@@ -1244,9 +1250,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       try {
         await prepareForNavigation();
         if (persistence.hasWork()) throw new Error("NEW_OUTSTANDING_WORK");
-        const personalDestination = persistence.publishedPersonalDeckHref();
-        router.push(personalDestination ? withProgressReturn(personalDestination,
-          readProgressReturn(new URL(resolvedCreatorReturnTarget.href, window.location.origin).searchParams)) : resolvedCreatorReturnTarget.href);
+        navigateToReturnTarget();
       } catch {
         navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
         setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");
@@ -1762,6 +1766,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {persistence.recovering ? <p role="status">Recovering your submitted edit…</p> : null}
       {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
       {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
+        destinationUnavailable={persistence.deck.ack?.root.latestVersion === 0 || resolvedCreatorReturnTarget.label === "Library" && persistence.deck.ack?.root.visibility !== "public"}
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
       {publicConfirmation ? <CreatorPublicConfirmation review={publicConfirmation.review}
         onCancel={() => closePublicConfirmation(false)} onConfirm={() => closePublicConfirmation(true)} /> : null}

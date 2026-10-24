@@ -68,7 +68,7 @@ test("My Drafts is authenticated/read-only; untouched sessions stay absent and p
   await popup(page).getByRole("button", { name: before!.draft.title, exact: true }).click(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
 });
 
-test("My Decks puts never-opened memberships first by personal creation time, then recently opened", async ({ page }) => {
+test("My Decks unifies personal creation/open recency", async ({ page }) => {
   const prefix = `Ordering ${randomUUID()}`, repo = new CardRepository(db(), client);
   const rows = [
     { title: `${prefix} old unopened`, createdAt: "2025-01-01", openedAt: null },
@@ -87,7 +87,7 @@ test("My Decks puts never-opened memberships first by personal creation time, th
   await open(page); await page.goto("/decks");
   await expect(page.getByRole("button", { name: new RegExp(`^Open ${prefix}`) })).toHaveCount(4);
   const labels = await page.getByRole("button", { name: new RegExp(`^Open ${prefix}`) }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
-  expect(labels).toEqual([rows[2], rows[0], rows[1], rows[3]].map((row) => `Open ${row.title}`));
+  expect(labels).toEqual([rows[3], rows[1], rows[2], rows[0]].map((row) => `Open ${row.title}`));
 });
 
 test("switching waits for the latest save and gives each Deck a fresh board/coordinator", async ({ page }) => {
@@ -102,7 +102,7 @@ test("switching waits for the latest save and gives each Deck a fresh board/coor
   await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   pause.resolve(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}(?:[?]|$)`));
   await expect(page.getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Back to My Drafts", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "My Decks", exact: true })).toBeVisible();
   await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toContainText(other.title);
   await page.getByRole("button", { name: "My Drafts", exact: true }).click();
@@ -155,7 +155,7 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
   await expect.poll(async () => (await root(id))?.latestVersion).toBe(1);
   await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveText("Published");
-  await page.getByRole("link", { name: "Decks", exact: true }).click(); await page.getByRole("button", { name: `Open ${name}`, exact: true }).click();
+  await page.locator(".creator-back-link").click(); await page.getByRole("button", { name: `Open ${name}`, exact: true }).click();
   await expect(page.locator(".deck-detail h1")).toHaveText(name); await expect(page.locator(".detail-progress")).toBeEmpty();
   await expect(page.locator(".detail-confidence, .deck-scene-frame, .deck-card, .focused-card-layer")).toHaveCount(0);
   const user = await db().collection("users").findOne({ _id: actor() });
@@ -176,7 +176,9 @@ test("zero-Card working Deck publishes, reloads, archives/restores and keeps its
   await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toBeEnabled(); await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
   await expect.poll(async () => (await root(id))?.latestVersion).toBe(2);
   await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveText("Published");
-  await page.getByRole("link", { name: "Deck", exact: true }).click(); await expect(page.locator(".deck-detail h1")).toHaveText(name);
+  await page.locator(".creator-back-link").click(); await expect(page.getByRole("heading", { name: "My Decks", exact: true })).toBeVisible();
+  await expect(page.locator(".deck-card")).toHaveCount(0);
+  await page.locator(".deck-tile-open-action").and(page.getByRole("button", { name: `Open ${name}`, exact: true })).click();
   await expect(page.locator(".deck-card")).toHaveCount(1);
   expect((await page.request.post("/api/decks-data", { data: { deckTemplateId: id, localDate: "2028-01-01" } })).ok()).toBe(true);
   const reopened = await db().collection("users").findOne({ _id: actor() });
@@ -216,7 +218,7 @@ for (const succeeds of [true, false]) test(`return waits for attached upload/sav
     if (succeeds) await route.continue(); else await route.fulfill({ status: 500, body: "Fixture upload failure" });
   });
   await column(page, cardId).locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({ name: "leave.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
-  await expect.poll(() => started).toBe(true); await page.getByRole("link", { name: "Decks", exact: true }).click();
+  await expect.poll(() => started).toBe(true); await page.locator(".creator-back-link").click();
   await expect(page.locator(".creator-navigation-status")).toContainText("Finishing saves and uploads");
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   pause.resolve();
@@ -224,7 +226,7 @@ for (const succeeds of [true, false]) test(`return waits for attached upload/sav
     await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toBeVisible();
     expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("leave.mp4");
     await page.getByRole("button", { name: "Leave without publishing", exact: true }).click();
-    await expect(page).toHaveURL(/\/decks$/); expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("leave.mp4");
+    await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("leave.mp4");
   } else {
     await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();
@@ -238,7 +240,7 @@ for (const status of [400, 409]) test(`normal leave retains failed/conflicted lo
     if (route.request().method() === "PATCH") await route.fulfill({ status, json: { code: status === 409 ? "STALE_REVISION" : "INVALID_CONTENT" } }); else await route.continue();
   });
   await editStep(page, cardId, "Do not lose this"); await expect(page.locator(".creator-entity-save-error")).toBeVisible();
-  await page.getByRole("link", { name: "Decks", exact: true }).click();
+  await page.locator(".creator-back-link").click();
   await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
@@ -253,14 +255,14 @@ test("saved unpublished work offers publication only on return; Cancel and leave
   await expect.poll(async () => (await root(id))?.draft.introduction?.video.assetId.startsWith("fixture-")).toBe(true);
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
-  const back = page.getByRole("link", { name: "Decks", exact: true });
+  const back = page.locator(".creator-back-link");
   await back.click(); const leave = page.getByRole("dialog", { name: "Leave Creator confirmation" });
   await expect(leave).toBeVisible(); await expect(leave.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
   await leave.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(leave).toHaveCount(0); await expect(back).toBeFocused(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
   await back.click(); await page.keyboard.press("Escape"); await expect(leave).toHaveCount(0); await expect(back).toBeFocused();
-  await back.click(); await leave.getByRole("button", { name: "Leave without publishing", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  await back.click(); await leave.getByRole("button", { name: "Leave without publishing", exact: true }).click(); await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/);
   await expect(page.getByRole("button", { name: "Save drafts and leave" })).toHaveCount(0); expect((await root(id))!.latestVersion).toBe(0);
 });
 
@@ -272,13 +274,13 @@ test("clean published work returns without a prompt; Card-only changes trigger t
   await expect(publishCard).toBeEnabled(); await publishCard.click(); await expect(publishCard).toHaveText("Published");
   const publishDeck = page.getByRole("button", { name: "Publish Deck", exact: true });
   await expect(publishDeck).toBeEnabled(); await publishDeck.click(); await expect(publishDeck).toHaveText("Published");
-  await page.getByRole("link", { name: "Decks", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  await page.locator(".creator-back-link").click(); await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/);
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
   await page.goto(`/creator/edit/${id}`); await editStep(page, cardId, "Only the Card changed");
   await expect(publishCard).toHaveText("Publish"); await expect(publishDeck).toHaveText("Published");
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Decks", exact: true }).click();
+  await page.locator(".creator-back-link").click();
   const leave = page.getByRole("dialog", { name: "Leave Creator confirmation" }); await expect(leave).toBeVisible();
-  await leave.getByRole("button", { name: "Publish and leave", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  await leave.getByRole("button", { name: "Publish and leave", exact: true }).click(); await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/);
   expect((await root(id))!.latestVersion).toBe(1); expect((await cardRoot(cardId))!.latestVersion).toBe(2);
 });

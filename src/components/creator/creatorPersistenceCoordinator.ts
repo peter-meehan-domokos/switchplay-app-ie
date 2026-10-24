@@ -50,6 +50,9 @@ export class EntityLane<C, A extends Ack<C>> {
   creationPending = false;
   uncertainSaves: { content: C; visibility: Visibility; generation: number; before: A }[] = [];
   uncertainPublication: { before: A; generation: number; note?: string } | null = null;
+  // UI return metadata only: existing publications/draft saves are not receipts
+  // for a publication made and authoritatively confirmed in this edit session.
+  confirmedPublicationVersion: number | null = null;
   tasks: (() => Promise<void>)[] = [];
   private unlocked: (() => void)[] = [];
   constructor(content: C, ack: A | null, readonly changed: () => void,
@@ -144,6 +147,7 @@ export class EntityLane<C, A extends Ack<C>> {
       const receipt = await this.readPublished(before.root.latestVersion + 1);
       if (receipt.version !== before.root.latestVersion + 1 || receipt.publishedByUserId !== before.root.ownerUserId || !sameContent(receipt.content, before.content) || receipt.updateNote !== pending.note
         || before.root.visibility && (receipt.visibility ?? remote.root.visibility) !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
+      this.confirmedPublicationVersion = receipt.version;
       this.accept(remote, pending.generation);
     }
     else if (remote.root.revision !== before.root.revision || !sameContent(remote.content, before.content) || intent(remote.root) !== intent(before.root)) throw conflict();
@@ -631,6 +635,7 @@ export class CreatorPersistenceCoordinator {
       const result = await publish();
       if (result.root.latestVersion !== before.root.latestVersion + 1 || result.root.revision !== before.root.revision + 1 || !sameContent(result.publishedContent, before.content)
         || before.root.visibility && result.root.visibility !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
+      lane.confirmedPublicationVersion = result.root.latestVersion;
       lane.uncertainPublication = null; return result;
     } catch (error) {
       const kind = failure(error).kind;

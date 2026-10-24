@@ -18,7 +18,7 @@ import { uploadInfoCardMedia } from "./infoCardUpload";
 import { useInfoVideoStatus } from "./useInfoVideoStatus";
 import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
 import type { InfoMedia, MediaContext } from "@/lib/infoCards/model";
-import { currentDraftOrigin, draftsReturnTarget, infoEditorHref, type CreatorNavigation } from "../creator/creatorNavigation";
+import { currentDraftOrigin, infoCollectionTarget, infoEditorHref, type CreatorNavigation } from "../creator/creatorNavigation";
 const subscribeHydration = () => () => {};
 
 export default function InfoCardEditor({ id, actor, username, initial, navigation }: { id: string; actor: string; username: string; initial: InfoEditorDTO | null; navigation: CreatorNavigation }) {
@@ -32,6 +32,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const [sessionChanged, setSessionChanged] = useState(false);
   const [series, setSeries] = useState<SeriesOption | null>(initial?.selectedSeries ?? null);
   const [confirmPublic, setConfirmPublic] = useState(false);
+  const [leaveDestination, setLeaveDestination] = useState<string | null>(null);
   const [showRequired, setShowRequired] = useState(false), [prerequisiteFeedback, setPrerequisiteFeedback] = useState(false);
   const [titlePrerequisiteFeedback, setTitlePrerequisiteFeedback] = useState(false);
   const [drafts, setDrafts] = useState<CreatorDraftEntry[] | null>(null);
@@ -88,13 +89,17 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const bodyCapacityIssue = capacity.fieldIssues.find(issue => issue.field === "body");
   const previewOverflow = capacity.fieldIssues.length > 0;
   const titleRequired = showRequired && !content.title.trim();
-  const locked = !hydrated || navigating || confirmPublic || controller.publishing || controller.pendingPublication !== undefined;
+  const locked = !hydrated || navigating || confirmPublic || leaveDestination !== null || controller.publishing || controller.pendingPublication !== undefined;
   const ready = hasSelectedSeries && !!content.title.trim();
   const bodyRequired = showRequired && ready && !content.body.trim();
-  const returnTarget = navigation.draftOrigin ? draftsReturnTarget(navigation.draftOrigin) : { label: "Library", href: "/library?tab=info-cards" };
-  async function navigate(href: string) {
+  const returnTarget = infoCollectionTarget(id, controller.confirmedPublicationVersion);
+  async function navigate(href: string, collectionReturn = false, confirmed = false) {
     setNavigating(true); setMessage("");
-    try { await upload.current?.task; if (uploadFailure.current) throw new Error("Upload incomplete"); await controller.flush(); router.push(href); }
+    try {
+      await upload.current?.task; if (uploadFailure.current) throw new Error("Upload incomplete"); await controller.flush();
+      if (collectionReturn && !confirmed && controller.ack?.root.latestVersion === 0) { setNavigating(false); setLeaveDestination(href); return; }
+      router.push(collectionReturn ? infoCollectionTarget(id, controller.confirmedPublicationVersion).href : href);
+    }
     catch { setNavigating(false); setMessage("Current work could not be saved. Resolve the error before leaving."); }
   }
   async function publish() {
@@ -173,7 +178,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
           onChange={value => controller.edit(content, value)} />
         <button type="button" ref={publishTrigger} disabled={locked || !controller.outstanding} onClick={() => void publish()}>
           {controller.publishing ? "Publishing…" : controller.ack?.publication && !controller.outstanding ? "Published" : "Publish"}</button>
-        <button type="button" ref={libraryTrigger} disabled={locked} onClick={() => void navigate(returnTarget.href)}>{returnTarget.label}</button>
+        <button type="button" ref={libraryTrigger} disabled={locked} onClick={() => void navigate(returnTarget.href, true)}>{returnTarget.label}</button>
       </div>
     </header>
     {message && <p className={styles.message} role="status">{message}</p>}
@@ -222,6 +227,11 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
             onOpenMedia={content.mediaItem && !uploading ? () => void openMedia() : undefined} /></div>}
       </section>
     </div>
+    {leaveDestination && <LibraryDialog title="Leave Info Card Creator?" isolateInteractions onCancel={() => { setLeaveDestination(null); requestAnimationFrame(() => libraryTrigger.current?.focus()); }}>
+      <p>This Info Card is saved in My Drafts and will not appear in Library until published.</p>
+      <button type="button" onClick={() => { setLeaveDestination(null); requestAnimationFrame(() => libraryTrigger.current?.focus()); }}>Stay in Creator</button>
+      <button type="button" onClick={() => { const href = leaveDestination; setLeaveDestination(null); void navigate(href, true, true); }}>Leave without publishing</button>
+    </LibraryDialog>}
     {confirmPublic && <LibraryDialog title="Publish Info Card publicly?" isolateInteractions onCancel={cancelPublicConfirmation}>
       <p>Public content is available to other users and cannot be made private again.</p>
       <button type="button" onClick={cancelPublicConfirmation}>Cancel</button>
