@@ -1,0 +1,13 @@
+.display {
+  margin-block: var(--maths-display-gap, 0.6em);
+  padding-inline-start: var(--maths-display-indent, 1em);
+}
+
+.display :global(.katex-display) { margin: 0; text-align: left; }
+.display :global(.katex-display > .katex) { text-align: left; }
+.display :global(.katex) { font-size: var(--maths-scale, 1em); }
+
+.inline { display: inline-block; white-space: nowrap; vertical-align: baseline; }
+.inline :global(.katex) { font-size: var(--maths-scale, 1em); white-space: nowrap; }
+.failure { display: block; white-space: pre-wrap; }
+.failure > span { display: block; }
