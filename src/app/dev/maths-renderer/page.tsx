@@ -4,19 +4,24 @@ import MathsExpression from "@/components/maths-renderer/MathsExpression";
 import { alignmentFixtures, presentationFixtures } from "./fixtures";
 import styles from "./page.module.css";
 import CapacityFixtures from "./CapacityFixtures";
+import PresentationFixtures from "./PresentationFixtures";
+import LifecycleFixture from "./LifecycleFixture";
 
 export const metadata = { title: "Maths Renderer · Standalone Review" };
 
 export default function MathsRendererDevelopmentPage() {
   if (process.env.NODE_ENV !== "development") notFound();
 
-  return <main className={styles.page} data-maths-stage="1">
+  return <main className={styles.page} data-maths-stage="1" data-maths-review-stage="4">
     <header className={styles.heading}>
       <p>Standalone mathematical content renderer</p>
-      <h1>Stage 1 · Alignment review</h1>
-      <p>Compare two-sided working and both leading-equals candidates. All typography, spacing and indentation below are provisional.</p>
-      <p>The original alignment cases are followed by mixed-content and capacity tests. Wide expressions remain intact and visible.</p>
+      <h1>Stage 4 · Presentation review</h1>
+      <p>Review appearance and readability. All numerical typography, spacing and indentation settings below are provisional.</p>
+      <p><a href="#balanced">Recommended Balanced</a> · <a href="#larger-maths">Larger maths</a> · <a href="#more-space">More display space</a></p>
     </header>
+    <PresentationFixtures />
+    <details className={styles.regressionFixtures} data-regression-fixtures="">
+      <summary>Earlier alignment, capacity and error-handling fixtures</summary>
     {presentationFixtures.map(presentation => <section key={presentation.id} className={styles.group} data-presentation={presentation.id}>
       <h2>{presentation.title}</h2>
       {alignmentFixtures.map(fixture => <article key={fixture.id} className={styles.sample}
@@ -37,5 +42,7 @@ export default function MathsRendererDevelopmentPage() {
       </article>)}
     </section>)}
     <CapacityFixtures />
+    <LifecycleFixture />
+    </details>
   </main>;
 }

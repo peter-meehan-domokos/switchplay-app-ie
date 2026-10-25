@@ -1,7 +1,6 @@
 import { MeasurementError } from "./measureLayout";
 
-export async function ensureFonts(root: HTMLElement, signal: AbortSignal) {
-  if (!document.fonts) throw new MeasurementError("FONT_API_UNAVAILABLE", "Browser font readiness cannot be verified.");
+function fontRequests(root: HTMLElement) {
   const requests = new Map<string, { font: string; text: string; family: string }>();
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
@@ -15,6 +14,25 @@ export async function ensureFonts(root: HTMLElement, signal: AbortSignal) {
     if (existing) existing.text += text.textContent;
     else requests.set(key, { font, family: style.fontFamily, text: text.textContent });
   }
+  return requests;
+}
+
+const familyNames = (family: string) => (family.match(/"[^"]*"|'[^']*'|[^,]+/g) ?? []).map(name => name.trim().replace(/^["']|["']$/g, ""));
+
+// A document font event may belong to another instance or unrelated UI.
+export function fontChangeAffects(root: HTMLElement, event: Event) {
+  const requests = fontRequests(root);
+  const faces = (event as FontFaceSetLoadEvent).fontfaces ?? [];
+  if (faces.length) {
+    const families = new Set([...requests.values()].flatMap(request => familyNames(request.family)));
+    return faces.some(face => families.has(face.family.replace(/^["']|["']$/g, "")));
+  }
+  return [...requests.values()].some(({ font, text }) => !document.fonts.check(font, text));
+}
+
+export async function ensureFonts(root: HTMLElement, signal: AbortSignal) {
+  if (!document.fonts) throw new MeasurementError("FONT_API_UNAVAILABLE", "Browser font readiness cannot be verified.");
+  const requests = fontRequests(root);
   // A missing scoped engine stylesheet otherwise looks like a successful
   // system-font load. Demand its actual font declaration when maths is present.
   const math = root.querySelector<HTMLElement>(".katex");
@@ -26,7 +44,7 @@ export async function ensureFonts(root: HTMLElement, signal: AbortSignal) {
       (async () => {
         await Promise.all([...requests.values()].map(async ({ font, text, family }) => {
           const faces = await document.fonts.load(font, text);
-          const names = (family.match(/"[^"]*"|'[^']*'|[^,]+/g) ?? []).map(name => name.trim().replace(/^["']|["']$/g, ""));
+          const names = familyNames(family);
           const declared = [...document.fonts].filter(face => names.includes(face.family.replace(/^["']|["']$/g, "")));
           // WebKit can resolve load() with [] for an already-failed declared
           // face while check() accepts the fallback. That is not font readiness.

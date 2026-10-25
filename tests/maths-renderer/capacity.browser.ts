@@ -17,6 +17,7 @@ async function ready(page: Page, id: string) {
 async function open(page: Page) {
   await page.goto("/dev/maths-renderer");
   await page.waitForFunction(() => !!window.mathsFixtures?.mixed);
+  await page.locator("[data-regression-fixtures]").evaluate(element => { (element as HTMLDetailsElement).open = true; });
 }
 async function update(page: Page, id: string, patch: Record<string, unknown>) {
   const previous = await read(page, id);
@@ -193,6 +194,7 @@ test("font loading remains pending, source changes discard stale work, and relea
   try {
     await page.goto("/dev/maths-renderer", { waitUntil: "domcontentloaded" });
     await page.waitForFunction(() => !!window.mathsFixtures?.mixed);
+    await page.locator("[data-regression-fixtures]").evaluate(element => { (element as HTMLDetailsElement).open = true; });
     await expect.poll(() => intercepted).toBeGreaterThan(0);
     await expect.poll(async () => (await read(page, "mixed"))?.status).toBe("pending");
     await update(page, "mixed", { content: String.raw`New $\mathbb{R}+\sqrt{y}$ only.`, width: 500, height: 180 });
@@ -207,7 +209,7 @@ test("font loading remains pending, source changes discard stale work, and relea
 test("failed mathematical fonts never produce a ready fit", async ({ page }) => {
   await page.route(/KaTeX.*\.(?:woff2?|ttf)(?:\?|$)/, route => route.abort());
   await open(page);
-  await expect.poll(async () => (await read(page, "mixed"))?.status).toBe("measurement-unavailable");
+  await expect.poll(async () => (await read(page, "mixed"))?.diagnostics.some(d => d.code === "FONT_LOAD_FAILED")).toBe(true);
   const result = await read(page, "mixed");
   expect("fits" in result).toBe(false); expect(result.diagnostics.some(d => d.code === "FONT_LOAD_FAILED")).toBe(true);
   expect(await page.evaluate(() => window.mathsFixtures!.mixed.history.some(item => item.result.status === "ready"))).toBe(false);
@@ -303,6 +305,7 @@ test("font timeout is unavailable, never fit, and successful completion can reco
 });
 
 test("an active ancestor transform animation cannot retain an earlier fit", async ({ page }) => {
+  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
   await open(page); await ready(page, "mixed");
   await sample(page, "mixed").locator("[data-capacity-host]").evaluate(host => {
     (host as HTMLElement).style.transition = "transform .2s linear";
@@ -311,4 +314,5 @@ test("an active ancestor transform animation cannot retain an earlier fit", asyn
   await expect.poll(async () => (await read(page, "mixed")).status).toBe("measurement-unavailable");
   await sample(page, "mixed").locator("[data-capacity-host]").evaluate(host => { (host as HTMLElement).style.transform = "none"; });
   expect((await ready(page, "mixed")).fits).toBe(true);
+  expect(errors).toEqual([]);
 });

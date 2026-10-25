@@ -1,10 +1,10 @@
 # Mathematical Content Renderer — Engineering Plan
 
-**Status: Approved plan — Stages 0–3 implemented. Empty-expression decision resolved and verified. Await review and explicit authorisation before Stage 4.**
+**Status: Approved plan — Stages 0–4 implementation complete. Stage 4 awaits user visual review; numerical styling remains provisional. Stage 5 is not authorised.**
 
 **Date:** 25 October 2026
 
-**Authorisation:** The user approved Stages 0–1, then explicitly authorised Stages 2 and 3 together, including their automated tests and necessary standalone fixtures. No approval is needed between Stages 2 and 3. Stages 4–5 and Info Card integration remain unauthorised. Sections 14–15 record implementation evidence.
+**Authorisation:** The user approved Stages 0–3 and subsequently explicitly authorised **Stage 4 — Presentation and Lifecycle Completion**, including cross-browser/accessibility checks, relevant Info Card regressions and the existing iPhone review setup. **Stage 5 and Info Card integration remain unauthorised.** Sections 14–16 record implementation evidence. The latest conversation supersedes the earlier stage-authorisation wording retained in historical records.
 
 **Working context:** Existing `feat/math-renderer` branch and shared working directory. Do not create another branch or Git worktree.
 
@@ -281,7 +281,7 @@ New renderer-specific browser configuration should exercise the actual Next.js r
 
 ## 9. Reviewable implementation stages
 
-The user authorised Stages 0 and 1 only; both are implemented and recorded in section 14. **Stages 2–5 remain unstarted and unauthorised.** Approval covers named stages; do not infer that a request for evidence authorises later scope.
+Stages 0–3 are complete. The user's latest instruction explicitly authorises Stage 4 only. **Stage 5 remains unstarted and unauthorised.** Approval covers named stages; neither a request for visual evidence nor the overlapping regression checks authorises Stage 5 or consumer integration.
 
 | Stage | Dependencies and work | Acceptance / checkpoint |
 | --- | --- | --- |
@@ -289,8 +289,8 @@ The user authorised Stages 0 and 1 only; both are implemented and recorded in se
 | 1. Early alignment feasibility — implemented; awaiting review | Install the approved pinned KaTeX dependency; add minimal new standalone adapter, development route, fixed A/B fixtures and browser tests. Use clearly provisional styling. | Both layouts and B candidates pass browser alignment checks. Screenshots and metrics recorded in section 14; user visual review remains pending. If later evidence shows a mandatory layout cannot be faithful, stop and report. No alternative layout without approval. |
 | 2. Early measurement feasibility — implemented | Common constraint resolver, natural-height layer and measurement/readiness lifecycle. Plain prose, inline maths, aligned working and deliberate width/height failures. Depends on stage 1. | Equivalent explicit/container budgets agree. Independent overflow, fonts/failure/timeout, resize, freshness and supported-transform browser tests pass; see section 15. |
 | 3. Complete parsing and diagnostics — implemented | Source scanner, escaped dollars, paragraphs, currency, original offsets and exact fallback, including unmatched-opener-to-end recovery. Integrated with the same measurement pipeline. Authorised together with Stage 2, without an intermediate stop. | Parser/unit and browser tests pass; invalid results cannot declare fit. The user confirmed empty/whitespace-only mathematics follows KaTeX acceptance; focused unit and browser tests verify this without changing unmatched-delimiter recovery. |
-| 4. Presentation and lifecycle completion | Expand fixed size/typography fixtures, accessibility checks, resize/font failures, multiple instances, cleanup and cross-browser verification. | No collisions or prohibited wrapping/remediation. Submit provisional scale, spacing and indentation examples for user visual approval; do not label them final beforehand. |
-| 5. Standalone acceptance and regression | Run the approved standalone and existing regression checks; verify production route guard, stylesheet isolation and changed-file scope. | Record fresh results, unresolved limitations and visual approval. Standalone acceptance can complete without publication integration. Any consumer integration requires a separate plan and authorisation. |
+| 4. Presentation and lifecycle completion — implemented; awaiting visual review | Expanded fixed size/typography fixtures, accessibility checks, observer/font/host lifecycle, strict remounting, callback independence and cross-browser verification. | Both exact layouts and the approximately 25% row-spacing adjustment are preserved. Numerical settings await visual approval. Section 16 records passing tests, evidence and review limits. |
+| 5. Standalone acceptance and regression — not started or authorised | After separate authorisation: standalone acceptance, production route guard/build verification and final visual acceptance. Stage 4 already runs its explicitly requested regression checks. | No Stage 5 work inferred from Stage 4 tests. Any consumer integration requires a separate plan and authorisation. |
 
 Stages 1 and 2 are intentionally foundational. Do not implement the complete feature first and postpone alignment or measurement proof until final testing. Review evidence at those checkpoints; a failed mandatory criterion blocks dependent work.
 
@@ -391,12 +391,12 @@ A future integration plan must preserve plain-text meaning, saving, immutability
 1. **Plan review — complete:** the user approved the plan with the mathematical-vocabulary and transform clarifications in section 1.1.
 2. **Stages 0–1 authorisation — granted and work implemented:** manifests/lockfile, isolated alignment files, fixtures/tests, documentation evidence and iPhone review setup were authorised. No permission for later stages is implied.
 3. **Stages 2–3 authorisation — granted:** implemented together under the user's later instruction. Alignment requirements remain unchanged; section 15 records fresh regression evidence.
-4. **Current checkpoint — Stages 2–3 review:** present measurement, parser, diagnostics, alignment and regression evidence, including supported limits and any remaining decision. Stop before Stage 4.
-5. **Visual approval:** present provisional numerical styles on the independent page and obtain approval before calling them product defaults or accepting visual baselines.
+4. **Stage 4 authorisation — granted:** complete standalone presentation, lifecycle, automated accessibility/browser verification and the requested regression checks. No production-build/Stage 5 acceptance work or consumer integration.
+5. **Current checkpoint — Stage 4 visual approval:** present recommended provisional settings and alternatives on the working independent page. Obtain visual approval and explicit Stage 5 authorisation before further work; screenshots are evidence, not approved baselines.
 6. **Standalone acceptance:** report fresh test results, regression checks, remaining limitations and changed-file scope. User acceptance does not authorise consumer integration.
 7. **Separate future integration:** only a separately requested/reviewed integration plan and explicit authorisation may touch Info Card functionality or publication-capacity validation.
 
-**Stop after Stage 3. Stages 4–5 remain unauthorised and have not begun.**
+**Stop after Stage 4. Stage 5 remains unauthorised and has not begun.**
 
 ## 14. Stage 0 and Stage 1 implementation record — 25 October 2026
 
@@ -575,3 +575,88 @@ The previous port-4181 review server was no longer listening when the focused br
 Restored the previously authorised `scripts/test-phase2.ts --dev --lan --info-cards` review setup on unused port 4181, with its own `.next-phase2` build output and newly created disposable database. No other process was stopped or restarted, no source/configuration changed, and no existing review or application database was modified. The focused tests pass on this restored setup. The review server is left running at **http://192.168.1.38:4181/dev/maths-renderer**. Mobile WebKit verified that exact URL after restoration: HTTP 200, correct Maths Renderer title, working client fixture API, all 18 alignment cases, all eleven mixed-content cases and no page errors. See `empty-regions.json` for the focused test results.
 
 **Stages 2 and 3 are complete for their approved scope. Stages 4–5 and consumer integration remain unauthorised and have not begun.**
+
+## 16. Stage 4 — presentation and lifecycle implementation record
+
+**Authority:** the user's subsequent Stage 4 authorisation supersedes the historical stop gates in section 15. Work is confined to the standalone renderer, its development fixtures/tests and this record. **Stage 5 has not begun.** Numerical styling remains provisional pending the user's visual review.
+
+### 16.1 Changed files and isolation
+
+| Renderer-owned file | Stage 4 change |
+| --- | --- |
+| `src/components/maths-renderer/MathsRenderer.tsx` | Flow-preserving display wrappers and provisional inline font-metric clearance, scaled with mathematics. Public props and result types are unchanged. |
+| `src/components/maths-renderer/MathsRenderer.module.css` | Noncollapsing display gaps, one gap between adjacent displays, and inline mathematical clearance. Prose-only line height remains consumer-controlled. |
+| `src/components/maths-renderer/typesetMath.ts` | Preserve KaTeX MathML and raw TeX annotation, marking only the annotation metadata `aria-hidden` to avoid a duplicate raw-TeX representation in WebKit accessibility output. The semantic presentation branch remains accessible. |
+| `src/components/maths-renderer/fontReadiness.ts` | Reuse the actual rendered-font requests to filter unrelated document font events; cancel superseded font waits without promoting fallback to a ready fit. |
+| `src/components/maths-renderer/useMeasurement.ts` | Rebind observers on host/ref/ancestor changes; handle detach/reinsert and native disclosures; suppress unchanged initial resize deliveries and duplicate semantic callbacks; clean up per-instance work. React-commit checks compare host identities rather than animated computed styles, preventing a transform-driven update loop. |
+| `src/components/maths-renderer/measureLayout.ts` | Detect closed disclosures; distinguish painted prose fragments from nonpainting hanging whitespace. Engine-aware mathematical bounds and the strict capacity tolerance remain intact. |
+| `src/app/dev/maths-renderer/page.tsx`, `page.module.css` | Stage 4 review at the existing route, with responsive ordinary hosts; retain earlier fixed-width regression fixtures in an expandable development-only section. Existing production guard unchanged. |
+| New `src/app/dev/maths-renderer/presentationSamples.ts`, `PresentationFixtures.tsx` | Fixed source, nine presentation/size combinations, source/settings/result inspection outside measured hosts. The case-distinct names avoid a filename collision on case-insensitive filesystems. |
+| New `src/app/dev/maths-renderer/LifecycleFixture.tsx` | Independent full StrictMode development root and test-only lifecycle controls, confined to the guarded page. The renderer itself gains no test or editing API. |
+| New `tests/maths-renderer/lifecycle.browser.ts`, `presentation.browser.ts` | Browser geometry, lifecycle, callback, accessibility and responsive presentation checks. |
+| Existing renderer-owned `alignment.browser.ts`, `capacity.browser.ts`, `parsing.test.ts`, `isolation.test.ts` | Await hydration before opening development fixtures; retain earlier requirements and add accessibility/transform-loop regression assertions. Import allowance for `react-dom/client` applies only to the development fixture. |
+| New `tests/maths-renderer/evidence/stage4/` | Separate screenshots and machine-readable verification; historical evidence is retained unchanged. |
+| This engineering plan | Stage 4 authority, progress, findings and review boundary. The design specification is unchanged. |
+
+No dependency/lockfile, global stylesheet, application layout, Info Card component/model/test, persistence, publication, consultation or capacity-estimator changes. No branch/worktree or server replacement. KaTeX remains pinned to **0.19.1**. No source convention is rewritten and no mathematical command exclusions were introduced.
+
+### 16.2 Provisional presentation for visual review
+
+Recommended **Balanced** fixture settings, all awaiting visual approval:
+
+| Setting | Provisional value |
+| --- | --- |
+| Prose size and family | 14px Arial, 18px Arial and 22px Georgia examples; fixture choices only. |
+| Prose line height / weight | 1.5 / 400. |
+| Mathematical scale | 1em relative to surrounding prose. |
+| Paragraph separation | 0.8em. |
+| Whole-display indentation | 1em. |
+| Prose-to-display / display-to-prose gap | 0.6em; adjacent mathematical displays share one such gap. |
+| Inline mathematical clearance | 0.25 mathematical em above/below the inline layout box. This reserves font-metric space without changing prose-only line spacing or the mathematical alignment. |
+| Working-row spacing | Existing `\arraystretch = 1.3125`, unchanged: ordinary aligned row pitch is 1.875em versus 1.5em, approximately 25% larger. Tall rows still expand naturally. |
+
+Two fixed alternatives isolate questions of appearance: **Larger mathematics** changes the mathematical scale to 1.1em; **More display space** changes the indentation to 1.5em and display gaps to 0.8em. These are comparison fixtures, not renderer modes or approved product defaults. Every actual consumer still supplies its own dimensions and presentation values.
+
+The 280/460/700px review-host widths include 12px padding and 1px borders; actual capacity uses their content boxes and adapts to a narrower viewport. They are test data, not renderer limits. All hosts have natural, unbounded height for presentation review; earlier fixtures retain bounded-height and deliberately oversized cases. Overflow stays visible and is reported without automatic remediation.
+
+### 16.3 Lifecycle, measurement and accessibility findings
+
+- Root and current constraint-host dimensions are observed independently. A stable ref may change target after a React commit; observers rebind to the replacement target. Ancestor identity changes rebind mutation/animation listeners. Only direct ancestors are observed; there is no document-wide subtree observer or geometric transformation engine.
+- Hidden, detached and closed-disclosure content cannot retain an earlier fit. Returning to usable layout triggers fresh measurement. A missing ResizeObserver reports `measurement-unavailable` rather than crashing or declaring fit.
+- Required-font loading, failure, timeout and recovery use the same measurement pipeline. Events for an unrelated font family do not reset otherwise-ready instances. Per-attempt cancellation and generation checks discard superseded work.
+- Identical resize deliveries, equivalent consumer objects, callback identity changes and paint-only changes do not repeatedly notify consumers. Notifications describe semantic state changes rather than every pending generation. Full StrictMode mounting and repeated unmount/remount exercise cleanup and exclude late callbacks.
+- A WebKit transform test exposed a feedback loop when each React commit reread an evolving animated transform and synchronously invalidated state. Commit checks now inspect only host/connection identities. Normal mutation/resize/animation events still invalidate layout. Repeated WebKit tests verify unavailable during the unsupported transition and recovery after completion, with no page errors.
+- Inline boxes remain indivisible and baseline aligned; additional local padding accommodates mathematical font metrics. Fractions/radicals use natural height. Display gaps use padding to avoid margin collapse. No clipping, maximum height, shrinking, truncation, scrolling or automatic internal mathematical breaks were added.
+- Mobile WebKit returns an extra zero-width caret rectangle at a wrapped word's old line boundary, sometimes past hanging trailing whitespace. It paints no part of the word. Prose measurement excludes that zero-width fragment while retaining all positive-width word fragments at their actual positions. A mobile browser regression exercises this case without trimming source or relaxing the 0.01px capacity tolerance. Deliberate mathematical spacing and overhanging mathematical descendants remain measured.
+- Prose remains HTML paragraphs in reading order, interleaved with KaTeX `htmlAndMathml`. Visual HTML is accessibility-hidden. The MathML presentation branch remains exposed once per expression; only secondary TeX annotation metadata is marked hidden. WebKit's automated accessibility representation previously included that annotation as duplicate raw notation. The adjustment retains source metadata and structured MathML without a custom spoken label or alternative mathematical layout. MathML's primary-expression/annotation distinction is documented in [W3C MathML Core, Semantics and Presentation](https://www.w3.org/TR/mathml-core/#semantics-and-presentation).
+
+### 16.4 Verification record
+
+| Check | Stage 4 result |
+| --- | --- |
+| Standalone unit/isolation suite | **16 passed**, including parser/source recovery/security and accessible metadata retention. |
+| Maths browser suite | **96 passed**: 32 each in Chromium, Firefox and WebKit; no failures, skips or flaky results. Includes all existing Stage 1–3 checks and the new Stage 4/mobile regressions. |
+| Repeated WebKit transform recovery | **3 passed** after correcting the commit-driven update loop. |
+| Existing application unit suite | **420 passed**, matching the clean preflight baseline. |
+| Existing Info Card database integration | **26 passed**, using a disposable MongoDB replica set. |
+| Existing Info Card capacity browser suite | **5 passed** on its isolated fixture server. |
+| Existing Info Card consultation/layout browser suite | **19 passed** on its isolated fixture server. |
+| Existing real Info Card authoring and consultation browser flows | **36 passed**, using their own disposable Phase 2 setup and build output. |
+| Scoped ESLint / TypeScript | Passed, with `--noEmit --incremental false`; no shared generated-type or build-output changes. |
+| Wi-Fi review page | HTTP 200 and correct rendered Stage 4 page in mobile WebKit and desktop Chromium; all nine examples ready/fitting, no page/asset/request errors. |
+
+The browser suite preserves Stage 1 alignment geometry and Stage 2–3 capacity/diagnostic checks. New Stage 4 tests verify nine size/presentation combinations, tall inline/display clearance, indentation/gaps, ordinary working-row pitch against a 1.0 array-stretch baseline, accessible reading order, mobile/desktop layout, nonpainting mobile caret fragments, stable-ref replacement, detachment/reparenting, hidden/disclosure recovery, unrelated font/paint changes, semantic callback deduplication, full StrictMode effect replay, repeated remount cleanup and unavailable results without ResizeObserver.
+
+All measurements use actual browser geometry. Column/clearance comparisons retain the documented 0.5 CSS px tolerance for independently read rectangles; capacity retains its separate strict 0.01px arithmetic tolerance. No alignment acceptance rule was weakened. Both B source candidates remain authored and tested independently; the precise common-expression column and separate leading-equals column are preserved.
+
+Screenshots in `tests/maths-renderer/evidence/stage4/` show the actual LAN review page and rendered hosts: `iphone-webkit-review.png`, `iphone-webkit-balanced.png`, `iphone-webkit-larger-maths.png`, `iphone-webkit-more-space.png`, corresponding desktop images, and desktop small/large Balanced examples. `review-verification.json` records actual page responses, capacities, asset/font status and successful settling after screenshot capture. `browser-tests.json` records all 96 final passing browser checks; `geometry.json` retains independent column/bounds/clearance measurements, the 25% row-pitch comparison and mobile fragment evidence; `accessibility.json` retains the reading-order/native accessibility snapshots. `regression-checks.json` records the scoped and protected application checks. Screenshots are review evidence, not approved visual baselines.
+
+### 16.5 Review boundary and limitations
+
+The same existing review server and Wi-Fi setup are retained at **http://192.168.1.38:4181/dev/maths-renderer**. The exact LAN URL returned HTTP 200 with the Stage 4 heading and all nine current review examples ready/fitting in iPhone WebKit (390px viewport) and desktop Chromium (1100px viewport). Page width equals viewport width, with no page errors, failed requests or HTTP asset errors. See `review-verification.json`; this verifies the page itself, not merely the listening process. No other session's server is stopped or restarted; Info Card regressions use isolated fixtures/disposable databases.
+
+Browser layout boxes are the capacity authority, not exact painted glyph outlines or a cross-platform promise of identical font metrics. Complex transforms continue to return unavailable. Arbitrary external overrides of renderer descendants remain outside the reliable styling contract.
+
+Automated MathML/ARIA checks do not establish how every screen reader audibly presents mathematical structures. No physical iPhone or audible VoiceOver/NVDA acceptance is claimed. Mobile WebKit verifies the actual LAN page; the user is asked only to judge appearance and readability. Production-build/route-guard acceptance is deliberately left for separately authorised Stage 5.
+
+**Stop after Stage 4. Await numerical styling/visual approval and explicit Stage 5 authorisation. Info Card integration remains outside this implementation.**

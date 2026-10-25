@@ -18,7 +18,8 @@ test("renderer and development fixtures import only their own modules, React, Ka
     for (const file of readdirSync(directory).filter(name => /\.tsx?$/.test(name))) {
       const source = readFileSync(join(directory, file), "utf8");
       for (const [, dependency] of source.matchAll(/(?:from\s+|import\s+)["']([^"']+)["']/g)) {
-        assert(dependency.startsWith("./") || ["react", "katex", "next/navigation", "@/components/maths-renderer/MathsExpression", "@/components/maths-renderer/MathsRenderer", "@/components/maths-renderer/types"].includes(dependency), `${file}: ${dependency}`);
+        assert(dependency.startsWith("./") || ["react", "katex", "next/navigation", "@/components/maths-renderer/MathsExpression", "@/components/maths-renderer/MathsRenderer", "@/components/maths-renderer/types"].includes(dependency)
+          || (directory === "src/app/dev/maths-renderer" && dependency === "react-dom/client"), `${file}: ${dependency}`);
       }
     }
   }

@@ -10,6 +10,9 @@ function scaleOf(element: HTMLElement) {
   let x = 1, y = 1;
   for (let node: HTMLElement | null = element; node; node = node.parentElement) {
     const style = getComputedStyle(node);
+    if (node instanceof HTMLDetailsElement && !node.open && !node.querySelector(":scope > summary")?.contains(element)) {
+      throw new MeasurementError("HIDDEN_CONTENT", "Content is inside a closed disclosure.");
+    }
     const movingTransform = node.getAnimations().some(animation => {
       if (animation.playState !== "running" || !(animation.effect instanceof KeyframeEffect)) return false;
       return animation.effect.getKeyframes().some(frame => ["transform", "scale", "rotate", "translate", "perspective"].some(property => property in frame));
@@ -78,8 +81,22 @@ export function measureLayout(root: HTMLElement, constraints: MathsConstraints):
     const text = walker.currentNode;
     const parent = text.parentElement;
     if (!parent || !text.textContent || parent.closest(".katex-mathml, .pstrut, .vlist-s")) continue;
-    const range = document.createRange(); range.selectNodeContents(text);
-    for (const rect of range.getClientRects()) include(rect, parent);
+    const range = document.createRange();
+    if (parent.closest(".katex-html")) {
+      range.selectNodeContents(text);
+      for (const rect of range.getClientRects()) include(rect, parent);
+    } else {
+      // pre-wrap preserves source spaces but lets line-ending spaces hang
+      // beyond the wrapping box without painting. Measure the actual words at
+      // their browser positions; indentation/inter-word spacing still affects
+      // those positions. Never trim or rewrite the rendered source.
+      for (const match of text.textContent.matchAll(/\S+/g)) {
+        range.setStart(text, match.index); range.setEnd(text, match.index + match[0].length);
+        // WebKit may also return a zero-width caret on the preceding line,
+        // beyond its hanging trailing space. It paints no part of this word.
+        for (const rect of range.getClientRects()) if (rect.width > 0) include(rect, parent);
+      }
+    }
   }
   for (const element of root.querySelectorAll<HTMLElement>("[data-maths-expression='inline']")) include(element.getBoundingClientRect(), element);
   for (const element of root.querySelectorAll<HTMLElement>(".katex-html *")) {

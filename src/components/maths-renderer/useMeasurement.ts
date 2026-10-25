@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { ensureFonts } from "./fontReadiness";
+import { ensureFonts, fontChangeAffects } from "./fontReadiness";
 import { measureLayout, MeasurementError } from "./measureLayout";
 import type { MathsConstraints, MathsDiagnostic, MathsResult } from "./types";
 
@@ -9,30 +9,34 @@ export function useMeasurement(rootRef: RefObject<HTMLDivElement | null>, constr
   const generation = useRef(0);
   const [state, setState] = useState<{ key: object; result: MathsResult } | null>(null);
   const callback = useRef(onResult);
+  const refresh = useRef<(() => void) | null>(null);
+  const notified = useRef<{ key: object; signature: string } | null>(null);
   useLayoutEffect(() => { callback.current = onResult; });
 
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
     let cancelled = false, scheduled = 0;
-    const abort = new AbortController();
-    let fonts: Promise<void> | null = null, waitingFonts = false;
+    let fonts: { promise: Promise<void>; abort: AbortController; waiting: boolean } | null = null;
     const frames = new Map<number, () => void>();
     function frame() { return new Promise<void>(resolve => { const id = requestAnimationFrame(() => { frames.delete(id); resolve(); }); frames.set(id, resolve); }); }
-    function publish(result: MathsResult) { if (!cancelled) setState({ key: inputKey, result }); }
+    function publish(result: MathsResult) {
+      if (cancelled) return;
+      setState(previous => previous?.key === inputKey && JSON.stringify(previous.result) === JSON.stringify(result) ? previous : { key: inputKey, result });
+    }
+    function forgetFonts() { fonts?.abort.abort(); fonts = null; }
     async function read(current: number) {
       const live = () => !cancelled && current === generation.current;
       try {
         if (configurationError) throw new MeasurementError("INVALID_PRESENTATION", "Presentation values must be finite, with positive type sizes and nonnegative spacing.");
-        // Resolve visibility/configuration before waiting on fonts. Hidden
-        // content must not inherit an older successful measurement.
         measureLayout(root!, constraints);
         if (invalid) { publish({ status: "invalid-input", generation: current, diagnostics }); return; }
         if (!fonts) {
-          waitingFonts = true;
-          fonts = ensureFonts(root!, abort.signal).finally(() => { waitingFonts = false; });
+          const check = { abort: new AbortController(), waiting: true, promise: Promise.resolve() };
+          check.promise = ensureFonts(root!, check.abort.signal).finally(() => { check.waiting = false; });
+          fonts = check;
         }
-        await fonts;
+        await fonts.promise;
         if (!live()) return;
         let previous = "";
         for (let attempts = 0; attempts < 8; attempts++) {
@@ -56,39 +60,78 @@ export function useMeasurement(rootRef: RefObject<HTMLDivElement | null>, constr
     }
     function invalidate() {
       const current = ++generation.current;
-      if (scheduled) cancelAnimationFrame(scheduled);
+      cancelAnimationFrame(scheduled);
       publish({ status: invalid ? "invalid-input" : "pending", generation: current, diagnostics });
       scheduled = requestAnimationFrame(() => { scheduled = 0; void read(current); });
     }
-    const observer = new ResizeObserver(invalidate);
-    observer.observe(root);
-    const host = constraints.kind === "container" ? constraints.elementRef.current : root.parentElement;
-    if (host && host !== root) observer.observe(host);
-    // Transforms and visibility changes do not necessarily resize a box. Watch
-    // this instance's ancestor chain only, not application-wide mutations.
-    const ancestors: HTMLElement[] = [];
-    for (let ancestor: HTMLElement | null = root; ancestor; ancestor = ancestor.parentElement) {
-      ancestors.push(ancestor);
+    if (typeof ResizeObserver !== "function") {
+      publish({ status: "measurement-unavailable", reason: "RESIZE_OBSERVER_UNAVAILABLE", generation: ++generation.current,
+        diagnostics: [...diagnostics, { code: "RESIZE_OBSERVER_UNAVAILABLE", severity: "error", message: "This browser cannot observe layout changes reliably." }] });
+      return;
     }
-    function environment() { return JSON.stringify(ancestors.map(element => { const s = getComputedStyle(element); return [s.display, s.visibility, s.contentVisibility, s.transform, s.scale, s.rotate, s.perspective, s.zoom, s.font, s.lineHeight, s.letterSpacing, s.wordSpacing, s.direction, s.writingMode, s.textTransform]; })); }
-    let previousEnvironment = environment();
-    function environmentChanged() {
-      const next = environment();
-      if (next !== previousEnvironment) { previousEnvironment = next; fonts = null; invalidate(); }
-    }
-    const attributes = new MutationObserver(environmentChanged);
-    for (const ancestor of ancestors) attributes.observe(ancestor, { attributes: true, attributeFilter: ["style", "class", "hidden"] });
+
+    let ancestors: HTMLElement[] = [], host: HTMLElement | null = null, connected = root.isConnected, previousEnvironment = "";
+    const sizes = new Map<Element, string>();
     const animationEvents = ["transitionrun", "transitionend", "transitioncancel", "animationstart", "animationend", "animationcancel"];
     function animationEvent(event: Event) { if (event.target === event.currentTarget) invalidate(); }
-    for (const ancestor of ancestors) for (const event of animationEvents) ancestor.addEventListener(event, animationEvent);
-    function fontEvent() { if (!waitingFonts) { fonts = null; invalidate(); } }
+    const observer = new ResizeObserver(entries => {
+      let changed = syncEnvironment();
+      for (const entry of entries) {
+        const size = `${entry.contentRect.width},${entry.contentRect.height}`;
+        if (sizes.has(entry.target) && sizes.get(entry.target) !== size) changed = true;
+        sizes.set(entry.target, size);
+      }
+      // Initial reads already await two frames. The first delivery establishes
+      // a baseline; identical deliveries must not cause measurement loops.
+      if (changed) invalidate();
+    });
+    const attributes = new MutationObserver(() => { if (syncEnvironment()) invalidate(); });
+    function environment() {
+      return JSON.stringify(ancestors.map(element => {
+        const s = getComputedStyle(element);
+        return [element.getAttribute("open"), s.display, s.visibility, s.contentVisibility, s.transform, s.scale, s.rotate, s.perspective, s.zoom, s.font, s.lineHeight, s.letterSpacing, s.wordSpacing, s.direction, s.writingMode, s.textTransform];
+      }));
+    }
+    function syncEnvironment() {
+      const nextAncestors: HTMLElement[] = [];
+      for (let element: HTMLElement | null = root!; element; element = element.parentElement) nextAncestors.push(element);
+      const nextHost = constraints.kind === "container" ? constraints.elementRef.current : root!.parentElement;
+      const moved = nextHost !== host || connected !== root!.isConnected || ancestors.length !== nextAncestors.length || ancestors.some((element, i) => element !== nextAncestors[i]);
+      if (moved) {
+        observer.disconnect(); attributes.disconnect(); sizes.clear();
+        for (const ancestor of ancestors) for (const event of animationEvents) ancestor.removeEventListener(event, animationEvent);
+        ancestors = nextAncestors; host = nextHost; connected = root!.isConnected;
+        observer.observe(root!);
+        if (host && host !== root) observer.observe(host);
+        for (const ancestor of ancestors) {
+          // Observe direct ancestor changes, never an application-wide subtree.
+          attributes.observe(ancestor, { attributes: true, childList: true, attributeFilter: ["style", "class", "hidden", "open"] });
+          for (const event of animationEvents) ancestor.addEventListener(event, animationEvent);
+        }
+      }
+      const next = environment();
+      if (moved || next !== previousEnvironment) { previousEnvironment = next; forgetFonts(); return true; }
+      return false;
+    }
+    function refreshEnvironment() { if (syncEnvironment()) invalidate(); }
+    function fontEvent(event: Event) {
+      if (!fonts?.waiting && fontChangeAffects(root!, event)) { forgetFonts(); invalidate(); }
+    }
+    syncEnvironment();
+    // A React commit can replace a stable ref's target without a DOM mutation.
+    // Check identities here, not animated computed styles: reading a different
+    // transform matrix on each state commit could itself trigger another commit.
+    refresh.current = () => {
+      const nextHost = constraints.kind === "container" ? constraints.elementRef.current : root.parentElement;
+      if (nextHost !== host || root.isConnected !== connected || root.parentElement !== ancestors[1]) refreshEnvironment();
+    };
     document.fonts?.addEventListener("loading", fontEvent);
     document.fonts?.addEventListener("loadingdone", fontEvent);
     document.fonts?.addEventListener("loadingerror", fontEvent);
-    window.addEventListener("resize", environmentChanged);
+    window.addEventListener("resize", refreshEnvironment);
     invalidate();
     return () => {
-      cancelled = true; abort.abort(); observer.disconnect(); attributes.disconnect();
+      cancelled = true; refresh.current = null; forgetFonts(); observer.disconnect(); attributes.disconnect();
       for (const ancestor of ancestors) for (const event of animationEvents) ancestor.removeEventListener(event, animationEvent);
       cancelAnimationFrame(scheduled);
       for (const [id, resolve] of frames) { cancelAnimationFrame(id); resolve(); }
@@ -96,13 +139,21 @@ export function useMeasurement(rootRef: RefObject<HTMLDivElement | null>, constr
       document.fonts?.removeEventListener("loading", fontEvent);
       document.fonts?.removeEventListener("loadingdone", fontEvent);
       document.fonts?.removeEventListener("loadingerror", fontEvent);
-      window.removeEventListener("resize", environmentChanged);
+      window.removeEventListener("resize", refreshEnvironment);
     };
   }, [rootRef, constraints, inputKey, diagnostics, invalid, configurationError]);
 
-  // A prop change is pending immediately; an old ready result is never exposed
-  // during the render before observers/effects can invalidate their work.
+  // A stable RefObject can point at a replacement host after a React commit.
+  useLayoutEffect(() => { refresh.current?.(); });
   const result = useMemo<MathsResult>(() => state?.key === inputKey ? state.result : { status: invalid ? "invalid-input" : "pending", generation: (state?.result.generation ?? -1) + 1, diagnostics }, [state, inputKey, invalid, diagnostics]);
-  useEffect(() => { callback.current?.(result); }, [result]);
+  useEffect(() => {
+    if (!callback.current) return;
+    // Generations guard asynchronous reads. Notify a consumer once per semantic
+    // state, rather than once per coalesced pending generation.
+    const signature = JSON.stringify({ ...result, generation: undefined });
+    if (notified.current?.key === inputKey && notified.current.signature === signature) return;
+    notified.current = { key: inputKey, signature };
+    callback.current(result);
+  });
   return result;
 }

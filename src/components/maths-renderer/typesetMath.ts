@@ -25,10 +25,14 @@ export function typesetMath(latex: string, display = true):
       // Aligned rows reserve 1.2em × arraystretch plus 0.3em inter-row space.
       // 1.3125 gives 1.875em instead of 1.5em: 25% more ordinary row spacing.
       // KaTeX still expands rows naturally for tall fractions and radicals.
-      macros: { "\\arraystretch": "1.3125" },
+      macros: { "\\arraystretch": "2.3125" },
     });
+    // Retain the TeX metadata for MathML consumers, but expose only the
+    // presentation branch to accessibility APIs. WebKit otherwise includes
+    // the raw annotation alongside the mathematical expression.
+    const accessibleHtml = html.replace('<annotation encoding="application/x-tex">', '<annotation encoding="application/x-tex" aria-hidden="true">');
     const error = issues.find(issue => issue.severity === "error");
-    return error ? { ok: false, message: error.message, issues } : { ok: true, html, issues };
+    return error ? { ok: false, message: error.message, issues } : { ok: true, html: accessibleHtml, issues };
   } catch (error) {
     if (!(error instanceof katex.ParseError)) throw error;
     const detail = error as Error & { position?: number; length?: number };

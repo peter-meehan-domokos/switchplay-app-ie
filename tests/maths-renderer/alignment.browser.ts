@@ -70,6 +70,8 @@ async function readAlignment(sample: Locator) {
 async function loadReview(page: import("@playwright/test").Page) {
   await page.goto("/dev/maths-renderer");
   await expect(page.locator("[data-maths-stage='1']")).toBeVisible();
+  await page.waitForFunction(() => !!window.mathsFixtures?.mixed);
+  await page.locator("[data-regression-fixtures]").evaluate(element => { (element as HTMLDetailsElement).open = true; });
   await page.evaluate(async () => {
     await document.fonts.ready;
     const faces = [...document.fonts].filter(face => face.family.startsWith("KaTeX") && face.status !== "unloaded");

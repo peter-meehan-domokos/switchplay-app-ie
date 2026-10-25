@@ -84,6 +84,15 @@ test("math rows, normal vocabulary and macros stay intact without state leaking 
   assert.deepEqual([...prepared.mathematics.values()].map(result => result.ok), [true, true, false]);
 });
 
+test("accessible MathML retains source metadata without announcing it alongside presentation", () => {
+  const prepared = prepareContent(String.raw`$\frac{x^2+1}{\sqrt{x+2}}$`);
+  const result = [...prepared.mathematics.values()][0];
+  assert(result.ok);
+  assert.match(result.html, /<math[^>]*><semantics><mrow>/);
+  assert.match(result.html, /<annotation encoding="application\/x-tex" aria-hidden="true">\\frac\{x\^2\+1\}\{\\sqrt\{x\+2\}\}<\/annotation>/);
+  assert.match(result.html, /class="katex-html" aria-hidden="true"/);
+});
+
 test("mixed delimiter runs use the agreed longest opener and never infer repairs", () => {
   const unfinishedDisplay = parseContent("$$x$");
   assert.deepEqual(unfinishedDisplay.diagnostics[0].source, { start: 0, end: 4 });
