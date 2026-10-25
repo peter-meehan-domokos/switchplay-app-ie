@@ -1,0 +1,19 @@
+.content {
+  display: flow-root;
+  box-sizing: content-box;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.paragraph { margin: 0; white-space: pre-wrap; }
+.paragraph + .paragraph { margin-block-start: var(--maths-paragraph-gap); }
+.display { display: block; margin-block: var(--maths-display-gap); padding-inline-start: var(--maths-display-indent); }
+.display :global(.katex-display) { margin: 0; text-align: left; }
+.display :global(.katex-display > .katex) { text-align: left; }
+.content :global(.katex) { font-size: var(--maths-scale); }
+.inline { display: inline-block; white-space: nowrap; vertical-align: baseline; }
+.inline :global(.katex) { white-space: nowrap; }
+.fallback { white-space: pre-wrap; }

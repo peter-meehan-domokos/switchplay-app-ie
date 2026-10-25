@@ -11,6 +11,7 @@ export default defineConfig({
   use: { baseURL: process.env.MATHS_REVIEW_BASE_URL ?? "http://127.0.0.1:4181", viewport: { width: 1100, height: 900 } },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     { name: "webkit", use: { ...devices["Desktop Safari"] } },
   ],
 });

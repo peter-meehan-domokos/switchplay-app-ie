@@ -1,10 +1,10 @@
 # Mathematical Content Renderer — Engineering Plan
 
-**Status: Approved plan — Stages 0 and 1 implemented; awaiting Stage 1 review. Stages 2–5 are not authorised.**
+**Status: Approved plan — Stages 0–3 implemented. Empty-expression decision resolved and verified. Await review and explicit authorisation before Stage 4.**
 
 **Date:** 25 October 2026
 
-**Authorisation:** The user explicitly approved Stages 0 and 1, including the pinned KaTeX dependency, isolated alignment implementation/tests and iPhone Wi-Fi review setup. This does not authorise Stage 2 or later stages. Section 14 records implementation evidence.
+**Authorisation:** The user approved Stages 0–1, then explicitly authorised Stages 2 and 3 together, including their automated tests and necessary standalone fixtures. No approval is needed between Stages 2 and 3. Stages 4–5 and Info Card integration remain unauthorised. Sections 14–15 record implementation evidence.
 
 **Working context:** Existing `feat/math-renderer` branch and shared working directory. Do not create another branch or Git worktree.
 
@@ -36,10 +36,12 @@ The design document still describes technical investigation as pending and leave
 | Invalid maths | Emit a diagnostic and display the original unformatted expression, including its original `$` or `$$` delimiters. Do not repair it. |
 | Unmatched delimiters | Emit a diagnostic and display the unmatched opener and all remaining source literally. Later maths in that remainder stays unformatted until the source is corrected. |
 | Paragraph separators | Any run of blank separator lines creates one paragraph gap. Preserve deliberate single prose newlines. |
+| Empty mathematical regions | Accept empty/whitespace-only mathematics as KaTeX does, without invalid-input diagnostics or literal fallback. Existing delimiter recognition and unmatched-opener recovery remain unchanged. |
 | Mathematical wrapping | Inline expressions stay intact and may move as units within prose. No automatic internal breaks; explicit working rows remain. |
 | Scope | Browser-only standalone development first. No publication workers, services, attestations, persistence changes or consumer integration. |
 | Mathematical vocabulary | Pass normal KaTeX mathematics through without an arbitrary command allowlist. Investigate individual rendering/measurement problems; obtain approval before excluding otherwise supported functionality. Unsafe resources/commands remain protected. |
-| Complex transforms | Future measurement prioritises ordinary layouts, translation and positive axis scaling. Rotation, skew and perspective may report measurement unavailable; no general transformation engine or approximate fit claims. This direction does not authorise Stage 2. |
+| Complex transforms | Measurement prioritises ordinary layouts, translation and positive axis scaling. Rotation, skew and perspective may report measurement unavailable; no general transformation engine or approximate fit claims. Stage 2 is now explicitly authorised. |
+| Working-row spacing | The user subsequently requested approximately 25% more vertical space between mathematical working rows, without changes to prose or other styling. Keep the Stage 1 `arraystretch` adjustment; do not reapply it during Stages 2–3. |
 
 The two precise alignment layouts are fixed requirements. At planning time their candidate KaTeX sources were unverified. Stage 1 now provides browser geometry and visual evidence for both layouts and both B candidates; see section 14. A successful parse alone is still not acceptance evidence.
 
@@ -155,7 +157,7 @@ CRLF and lone-CR treatment is a **recommended technical normalisation** to logic
 
 Only `$` and `$$` are external mathematical delimiters. Do not add `\(...\)`, `\[...\]`, Markdown fences, bold, lists or HTML interpretation. Literal Markdown characters remain prose; the scanner still applies the agreed dollar syntax wherever it appears. A future prose parser could replace the private prose-processing step, but no Markdown dependency, plugin layer or future API is needed now.
 
-**Agreed unmatched delimiter recovery:** issue a source-positioned diagnostic and display the unmatched opener and all remaining source literally, preserving earlier complete regions. Later maths in that remainder stays unformatted until the source is corrected. Do not synthesize a closer, infer a different delimiter, resume parsing at later paragraph/display boundaries or reinterpret malformed material to make it valid. Test mixed delimiter runs and ambiguous sequences against this recovery rule. Empty mathematical regions and unusual dollar runs still need explicit documented grammar expectations rather than silent repair.
+**Agreed unmatched delimiter recovery:** issue a source-positioned diagnostic and display the unmatched opener and all remaining source literally, preserving earlier complete regions. Later maths in that remainder stays unformatted until the source is corrected. Do not synthesize a closer, infer a different delimiter, resume parsing at later paragraph/display boundaries or reinterpret malformed material to make it valid. Test mixed delimiter runs against this recovery rule. **Subsequently agreed:** accept empty and whitespace-only mathematical regions as KaTeX does. `$$$$` is a complete empty display region and `$ $` is a complete whitespace-only inline region; neither produces an invalid-input diagnostic or fallback. Longest-opener recognition is unchanged: `$$` alone remains an unmatched display opener, rather than being reinterpreted as empty inline mathematics.
 
 ### 5.2 Mandatory alignment candidates and acceptance
 
@@ -249,7 +251,7 @@ No font failure, elapsed timeout or cached older fit may be promoted to a ready 
 
 **Recommended initial transform support:** capacity is in local CSS layout pixels. Test translated and positively axis-scaled ancestors, including nested scale, using a consistent conversion between visual rectangles and local content-box coordinates. Account for padding/borders and independent x/y scales; do not compare transformed coordinates directly to untransformed budgets.
 
-Rotated, skewed, perspective or degenerate transforms must not trigger a general geometric transformation project. Do not assume axis-aligned bounding rectangles can be divided by one scale. The user approved measurement unavailable with a reason where reliable measurement is unsupported; stage 2 must document actual support. Never silently treat an approximate or unreliable result as fit. Stage 2 remains unauthorised.
+Rotated, skewed, perspective or degenerate transforms must not trigger a general geometric transformation project. Do not assume axis-aligned bounding rectangles can be divided by one scale. The user approved measurement unavailable with a reason where reliable measurement is unsupported; section 15 documents the tested support. Never silently treat an approximate or unreliable result as fit.
 
 Hidden/detached hosts or unresolved finite widths produce measurement unavailable, then remeasure when they become usable. A visible zero-height budget is valid: nonempty measured content can overflow it. An explicitly unbounded height is different from an unknown height. Ancestor transforms do not themselves trigger ResizeObserver; test how measurements remain valid under supported transforms and how unsupported-transform changes are detected. Any needed transform invalidation must stay inside the renderer and avoid an application-wide mutation framework.
 
@@ -285,8 +287,8 @@ The user authorised Stages 0 and 1 only; both are implemented and recorded in se
 | --- | --- | --- |
 | 0. Approval and shared-directory preflight — implemented | Review this plan, unresolved items and existing-file exceptions. Inspect current working changes and relevant installed Next.js docs. | Authorisation, baseline, manifests and server identity checked; section 14 records results. |
 | 1. Early alignment feasibility — implemented; awaiting review | Install the approved pinned KaTeX dependency; add minimal new standalone adapter, development route, fixed A/B fixtures and browser tests. Use clearly provisional styling. | Both layouts and B candidates pass browser alignment checks. Screenshots and metrics recorded in section 14; user visual review remains pending. If later evidence shows a mandatory layout cannot be faithful, stop and report. No alternative layout without approval. |
-| 2. Early measurement feasibility | Add the common constraint resolver, natural-height layer and minimal measurement/readiness lifecycle. Use plain prose, inline maths, aligned working and deliberate width/height failures. Depends on stage 1. | Explicit and container inputs agree for equivalent budgets. Detect each overflow axis; no false ready before fonts, stale results or hidden-host fit. Demonstrate supported transformed ancestors. Review evidence and any limitations before expansion. |
-| 3. Complete parsing and diagnostics | Complete source grammar, escaped dollars, paragraphs, currency, source ranges and original-input fallback, including the agreed unmatched-opener-to-end recovery. Integrate with the demonstrated pipeline. Depends on stages 1–2 and review of remaining grammar edge cases. | Parser/unit tests pass; exact fallback includes delimiters; an unmatched opener makes the entire remainder literal; invalid results cannot declare fit; earlier complete regions remain readable; no Markdown processing or silent repair. |
+| 2. Early measurement feasibility — implemented | Common constraint resolver, natural-height layer and measurement/readiness lifecycle. Plain prose, inline maths, aligned working and deliberate width/height failures. Depends on stage 1. | Equivalent explicit/container budgets agree. Independent overflow, fonts/failure/timeout, resize, freshness and supported-transform browser tests pass; see section 15. |
+| 3. Complete parsing and diagnostics — implemented | Source scanner, escaped dollars, paragraphs, currency, original offsets and exact fallback, including unmatched-opener-to-end recovery. Integrated with the same measurement pipeline. Authorised together with Stage 2, without an intermediate stop. | Parser/unit and browser tests pass; invalid results cannot declare fit. The user confirmed empty/whitespace-only mathematics follows KaTeX acceptance; focused unit and browser tests verify this without changing unmatched-delimiter recovery. |
 | 4. Presentation and lifecycle completion | Expand fixed size/typography fixtures, accessibility checks, resize/font failures, multiple instances, cleanup and cross-browser verification. | No collisions or prohibited wrapping/remediation. Submit provisional scale, spacing and indentation examples for user visual approval; do not label them final beforehand. |
 | 5. Standalone acceptance and regression | Run the approved standalone and existing regression checks; verify production route guard, stylesheet isolation and changed-file scope. | Record fresh results, unresolved limitations and visual approval. Standalone acceptance can complete without publication integration. Any consumer integration requires a separate plan and authorisation. |
 
@@ -345,7 +347,7 @@ These suites must continue using their existing implementations during this phas
 | New renderer | Files under `src/components/maths-renderer/` only. |
 | New development page | Files under `src/app/dev/maths-renderer/` only. |
 | New tests/config | `tests/maths-renderer/` and `playwright.maths-renderer.config.ts`. |
-| Existing-file exceptions | **Only `package.json` and `package-lock.json`**, for the selected KaTeX dependency and its required resolved metadata, subject to explicit implementation approval. Verify bundled types for that release before adding any type package. |
+| Existing-file exceptions | Outside renderer-owned files, **only `package.json` and `package-lock.json`** for the approved dependency installation. No further manifest changes in Stages 2–3. Existing Stage 1 renderer/dev/test files and their own Playwright configuration may be extended within the explicitly authorised scope. |
 | Existing route/config/style files | No edits expected to `next.config.ts`, root layout, global CSS, TypeScript config, existing Playwright configs/server or package scripts. Report any newly demonstrated requirement before editing. |
 | Existing Info Card/application files | No edits. No extraction, reuse or refactoring. |
 
@@ -369,14 +371,14 @@ Dependency installation must preserve unrelated manifest changes and avoid broad
 | Font fallback or unknown glyph metrics | Required-face checks and currency fixtures; no ready fit on failed required assets. Browser-specific prose fallback remains a documented platform limit. |
 | Unusual layout commands | Normal KaTeX vocabulary remains supported in principle; no command allowlist may be introduced to simplify later measurement. Investigate individual problems and obtain approval before excluding otherwise supported maths. No silent size capping. |
 | Transform complexity | Translation/positive axis scaling are the approved priorities for future stage 2. Complex transforms may report measurement unavailable; do not build a general geometry engine or claim approximate fit. |
-| Delimiter grammar / empty regions | Unmatched-opener-to-end literal recovery is agreed in section 5.1. Confirm remaining ambiguous dollar-run/empty-expression grammar expectations without changing that recovery rule. |
+| Delimiter grammar / empty regions | Resolved for v1: longest unescaped opener, matching closer, literal unmatched-opener-to-end recovery, and KaTeX acceptance of complete empty/whitespace-only regions. Focused tests preserve the distinction between empty display mathematics and an unmatched display opener. |
 | Ordinary prose whitespace beyond newlines | Single breaks and collapsed separator runs are agreed. Repeated spaces, tabs, edge blank lines and unbreakable prose-token policy must not acquire new normalisation/forced breaking without review where behaviour is ambiguous. |
 | Exact styling and legibility | Provisional fixtures only until visual approval. There is no final numerical indent, gap, mathematical scale or minimum font size in this plan. |
 | Accessibility targets | Recommend HTML plus MathML and screen-reader checks. Confirm specific target combinations during acceptance; no expression-menu UX is introduced. |
 | Global engine stylesheet effects | Audit selected stylesheet and verify neighbouring content/navigation. Scope unrelated rules in new files or report an exception. |
 | Concurrent repository work | Scope mutations, coordinate manifests and avoid competing build output. No branch/worktree change. |
 
-The paragraph, exact-source fallback and unmatched-delimiter recovery decisions are recorded in section 1.1. Stage 1 does not exercise the remaining mixed-content grammar/whitespace edge cases; review them before their later dependent parser behaviour is implemented. Exact visual values wait for user inspection of the Stage 1 page. Technical platform limits must be reported with evidence rather than converted into new UX.
+The paragraph, exact-source fallback, unmatched-delimiter recovery and empty-region decisions are recorded in section 1.1 and verified by the Stage 3 tests in section 15. Exact visual values still require user approval. Technical platform limits must be reported with evidence rather than converted into new UX.
 
 ### 12.1 Future integration considerations — not implementation work
 
@@ -388,13 +390,13 @@ A future integration plan must preserve plain-text meaning, saving, immutability
 
 1. **Plan review — complete:** the user approved the plan with the mathematical-vocabulary and transform clarifications in section 1.1.
 2. **Stages 0–1 authorisation — granted and work implemented:** manifests/lockfile, isolated alignment files, fixtures/tests, documentation evidence and iPhone review setup were authorised. No permission for later stages is implied.
-3. **Current checkpoint — early alignment review:** inspect the live page and section 14 evidence. A mandatory alignment failure stops dependent work and requires user review, not a substitute layout. Obtain explicit authorisation before Stage 2.
-4. **Early measurement review:** present stage 2 readiness/overflow/staleness/transform evidence and supported limits before broader completion. Report failed reliability criteria immediately.
+3. **Stages 2–3 authorisation — granted:** implemented together under the user's later instruction. Alignment requirements remain unchanged; section 15 records fresh regression evidence.
+4. **Current checkpoint — Stages 2–3 review:** present measurement, parser, diagnostics, alignment and regression evidence, including supported limits and any remaining decision. Stop before Stage 4.
 5. **Visual approval:** present provisional numerical styles on the independent page and obtain approval before calling them product defaults or accepting visual baselines.
 6. **Standalone acceptance:** report fresh test results, regression checks, remaining limitations and changed-file scope. User acceptance does not authorise consumer integration.
 7. **Separate future integration:** only a separately requested/reviewed integration plan and explicit authorisation may touch Info Card functionality or publication-capacity validation.
 
-**Stop after Stage 1. Stages 2–5 remain unauthorised and have not begun.**
+**Stop after Stage 3. Stages 4–5 remain unauthorised and have not begun.**
 
 ## 14. Stage 0 and Stage 1 implementation record — 25 October 2026
 
@@ -473,4 +475,103 @@ Actual iPhone hardware visual review is pending the user's inspection; desktop W
 
 ### 14.5 Review boundary
 
-Both required alignment layouts are technically demonstrated under the tested conditions; no KaTeX layout blocker was found. User visual approval, selection of a preferred B authoring example and approval of any final numerical styles remain pending. No full mathematical parser, reliable-capacity API or production measurement pipeline exists yet. **Stages 2–5 have not begun. Await Stage 1 review and explicit Stage 2 authorisation.**
+At the Stage 1 checkpoint, both required alignment layouts were technically demonstrated under the tested conditions and no KaTeX layout blocker was found. Final numerical styling and a preferred B authoring example were not selected. Stages 2–3 were subsequently authorised together; their implementation is recorded below. The historical Stage 1 evidence above is retained.
+
+## 15. Stages 2–3 implementation record — 25 October 2026
+
+### 15.1 Scope and files
+
+Preflight: existing `feat/math-renderer` branch, clean working tree at `56072e3`; no branch/worktree/reset/stash/commit operations. Rechecked relevant installed Next.js Client Component and scoped-CSS documentation. Baseline existing unit suite: 420 passed. KaTeX remains pinned at **0.19.1**; no package manifest, lockfile or application dependency changes in this cycle.
+
+New renderer-owned modules:
+
+| File under `src/components/maths-renderer/` | Responsibility |
+| --- | --- |
+| `MathsRenderer.tsx`, `MathsRenderer.module.css` | Public mixed-content Client Component and scoped natural-flow presentation. No editing, publication, consumer models or overflow remediation. |
+| `types.ts` | Public content/constraints/presentation/result/diagnostic contract. |
+| `parseContent.ts` | Private deterministic dollar-delimiter scanner, original ranges, prose blocks and literal recovery. |
+| `prepareContent.ts` | Private typesetting/diagnostic preparation; maps engine offsets to original source offsets. |
+| `measureLayout.ts` | Shared explicit/container constraint resolution, actual extents and independent overflow axes. |
+| `fontReadiness.ts` | Required face loading/checks, failure and timeout detection, cancellation. |
+| `useMeasurement.ts` | Instance generations, coalesced reads, stable-layout checks, resize/font/ancestor invalidation and cleanup. |
+
+Existing renderer-owned `typesetMath.ts` now returns structured issues while preserving fresh macros, the earlier working-row spacing adjustment and normal KaTeX vocabulary. Unsafe HTML/resource commands produce errors and literal fallback, rather than an apparently successful blocked-command rendering.
+
+Development-only files: new `src/app/dev/maths-renderer/CapacityFixtures.tsx`; update the existing renderer-owned `page.tsx` and `page.module.css` to append fixed mixed-content/capacity cases and diagnostics. The original 18 Stage 1 cases remain intact. No new creator controls or product interface. Fixture-only update/history hooks are reachable solely through this guarded development page.
+
+Tests: new `tests/maths-renderer/parsing.test.ts` and `capacity.browser.ts`; extend the renderer-owned import-isolation allowlist in `isolation.test.ts`. Add Firefox to `playwright.maths-renderer.config.ts`; its Playwright browser binary was installed in the local browser cache without changing project dependencies. Evidence is stored separately under `tests/maths-renderer/evidence/stages2-3/`. No existing Info Card source, test, model, estimator, saving, publishing or consultation file changes.
+
+### 15.2 Implemented contract and parsing
+
+`MathsRenderer` accepts `content`, `constraints`, `presentation`, and optional `onResult`. Presentation values are explicit consumer choices; fixture values remain provisional, not product defaults. Explicit constraints use positive `widthPx` and nonnegative or null `heightPx`. Container constraints reference a dedicated containing element and declare bounded/unbounded height. The consumer must independently establish a bounded host's height. Padding and borders are excluded from its content-box budget, including `border-box` hosts.
+
+Every result includes an instance-local generation and diagnostics. Only `ready` results contain `fits` and layout. Layout includes available dimensions, occupied bounds relative to the content origin, width/height, separate `overflowX`/`overflowY` and excess on each side. `pending`, `invalid-input` and `measurement-unavailable` never declare fit. Source/configuration changes immediately hide a previous ready result; stale asynchronous reads cannot publish.
+
+Parsing uses unescaped `$$` before `$` for openers, then the matching delimiter without nesting or inferred repairs. Backslash parity determines escaping. Mathematical content and explicit working rows pass unchanged to KaTeX. Prose logical newlines normalise CRLF/lone CR without changing original source offsets. Single breaks remain; blank-line runs create one paragraph separation. Display boundaries create blocks without additional empty prose rows. Repeated ordinary spaces/tabs are retained. No Markdown, HTML interpretation, new external delimiters, mathematical rewriting or algebraic inference.
+
+Invalid expressions display their exact original source, including delimiters, as React text. An unmatched opener consumes the entire remaining source literally; earlier valid regions remain rendered. Diagnostic offsets are original JavaScript code units with exclusive ends, including across CRLF and surrogate pairs. Resource/HTML commands are untrusted; there is no mathematical command allowlist.
+
+**Resolved edge case:** the user confirmed that empty/whitespace-only mathematical regions (`$$$$`, `$ $`) should be accepted as KaTeX does. The existing renderer already behaves accordingly; no source, styling or measurement changes were needed. Focused tests now verify successful preparation, preserved source segments/ranges, no error diagnostics or fallback, no visible mathematical expression, finite browser capacity results, and preservation of surrounding prose. Empty regions retain ordinary KaTeX/renderer layout behaviour; no special spacing-collapse rule was added. An unmatched `$$` opener still produces the agreed diagnostic and literal remainder. This closes the remaining Stage 3 decision.
+
+### 15.3 Measurement evidence and technical choices
+
+- One collector serves both constraint modes. Root natural flow height includes authored block spacing; text-fragment ranges, intrinsic `.katex-base` boxes, intact inline boxes and visible rules/SVG extents provide occupied bounds. The constraint-sized root width is not substituted for content width.
+- Descendants beyond ordinary boxes are included: the `\smash`/`\llap` fixture reports negative left overflow and vertical overflow. Intentional spacing such as `\kern{30em}` remains measurable. Hidden MathML, positioning struts and newline helper boxes are excluded. Radical construction SVGs are intersected with KaTeX's own clipping boxes, avoiding a false 400em width. The renderer itself introduces no clipping or scroll container.
+- Geometry uses local CSS pixels. Nested translation and positive nonuniform x/y scaling are verified. Rotation, skew, perspective and nonpositive/degenerate scaling return unavailable. Active ancestor transform animations return unavailable until completion; transition/animation events invalidate prior results and allow recovery. A wrapping-width mismatch also returns unavailable. No general transformation engine was built.
+- Capacity comparisons allow only 0.01 CSS px for floating-point/subpixel noise; the 0.5 CSS px tolerance in independent geometry comparisons is not a fit allowance. A width 0.1px below an intact expression's measured requirement reports overflow; 0.1px above it fits.
+- Load/check only fonts actually requested by current rendered text. Verify declared failures in addition to `FontFaceSet.load()`/`check()`: WebKit can otherwise accept fallback after a declared face fails. Do not wait for unrelated instances' fonts. A 10-second required-font timeout returns unavailable, never fit; a later successful load can recover.
+- Require two identical consecutive frame measurements after required fonts. At most eight frame reads per attempt; unstable layout reports unavailable. Coalesced `ResizeObserver` callbacks handle root/host geometry; font events and ancestor style/class/hidden changes invalidate relevant state. Attribute checks compare the relevant computed environment, so unrelated development diagnostics positioning cannot create a feedback loop.
+- Pending font waits, animation frames, observers and callbacks are cancelled/discarded on source/configuration change or unmount. Multiple instances retain independent macro, measurement and result state.
+
+### 15.4 Automated verification
+
+Recorded results for the agreed requirements, including the subsequently confirmed empty-region policy:
+
+| Check | Result |
+| --- | --- |
+| Standalone unit/isolation tests | **15 passed** after the empty-region clarification. Includes original-source offsets, delimiter runs, empty/whitespace-only regions, escaping, paragraphs, fallback, security and isolation. |
+| Maths browser suite | **57 passed**: 15 Stage 1 alignment checks and 42 Stage 2–3 checks, Chromium/Firefox/WebKit. |
+| Empty-region follow-up | **3 passed**, one focused test per browser, covering empty display/whitespace-only inline and display regions plus surrounding prose. This extends the prior 57-test suite without changing renderer source. |
+| Targeted checks after fixture stability/event cleanup | **9 passed**: actual bounds, internal inline nonbreaking geometry and ancestor transform-animation recovery in all three engines. |
+| Final environment-change checks | **12 passed**: actual bounds, container resizing, translation/scaling and transform-animation recovery in all three engines. Viewport events only invalidate changed environments; root/host dimensions remain observed directly. |
+| Existing application unit suite | **420 passed**, matching preflight. |
+| Existing `tests/info-cards.integration.ts` | **26 passed**, using its own disposable MongoDB replica set. Includes save/publication immutability/capacity/consultation checks. |
+| Existing Info Card capacity browser suite | **5 passed**, isolated fixture port 4179. |
+| Scoped ESLint and TypeScript `--noEmit --incremental false` | Passed; no shared type-generation/build-output mutation. |
+
+The Stage 2–3 browser tests cover explicit and observed content-box budgets, independent/both overflow axes, natural occupied height, nested fractions/radicals, left overhang, authored prose/paragraph spacing, atomic inline wrapping (including the engine's internal fragments), typography/content changes, rapid supersession, hidden recovery, invalid numerical configuration, invalid-source fallback, supported/unsupported/animated transforms, delayed/failed fonts, post-ready font changes, timeout/recovery, independent instances and cancellation. Both B candidates and A are also exercised through the public mixed-content component, with common expression/equals-column anchors and indentation; the original row-clearance tests remain passing. The prior approximately 25% working-row spacing remains unchanged.
+
+Inspectable evidence in `tests/maths-renderer/evidence/stages2-3/`:
+
+- `browser-tests.json`: compact full 57-test result, with no failures, skips or flaky results.
+- `fixture-verification.json`: final targeted check results.
+- `environment-verification.json`: the final twelve environment-change checks after avoiding unnecessary viewport-only invalidation.
+- `empty-regions.json`: focused Chromium/Firefox/WebKit results for the approved empty-region behaviour.
+- `capacity-results.json`: all eleven fixed cases in desktop Chromium and mobile WebKit; includes independent axes, exact budgets, diagnostics and generations.
+- `chromium-mixed.png`, `chromium-wide.png`, `chromium-currency.png`, `iphone-webkit-inline.png`: actual source fixtures/output. Detailed diagnostics are collapsed for stable inspection, with a visible status and expandable JSON outside each measured host. Pending results retain the last measured surrounding development-page space; this affects only the fixture page, not renderer capacity/layout.
+
+For example, Chromium reports the mixed fixture at approximately **254.16 × 189.66px** within a **360 × 330px** budget, identically through both constraint modes. The wide fixture occupies approximately **510.39px** against **160px** available width and reports horizontal overflow alone. The height-only fixture retains approximately **189.66px** natural occupied height against **35px**, reporting vertical overflow alone. The complete browser records retain platform differences rather than asserting identical text metrics across engines.
+
+### 15.5 Review environment, limits and next boundary
+
+During the initial Stages 2–3 verification, the established Info Cards LAN review setup served **http://192.168.1.38:4181/dev/maths-renderer**. That exact URL was verified in Chromium and mobile WebKit: HTTP 200, all 18 alignment examples, all eleven mixed-content cases, and no page errors. No server was stopped, restarted or replaced and no review database was modified by the maths tests. Existing Info Card integration tests used their own disposable database; capacity browser regression tests used their own fixture server. Server availability at the subsequent empty-region follow-up is recorded in section 15.6 rather than assuming this historical LAN endpoint is still running.
+
+Bounds describe actual browser layout boxes, not exact painted glyph outlines. Browser/system font fallback varies by platform. Mathematical `\text{€}` renders using text fallback and returns KaTeX's Unicode/unknown-metric warnings; those warnings remain visible in diagnostics and actual browser geometry is measured. Dollar/pound forms are supported without aliases. This is not a guarantee of identical glyph outlines across operating systems.
+
+Complex transforms report unavailable as approved. Consumers must provide a dedicated, stable host and establish bounded height independently; arbitrary external descendant CSS overrides are outside the reliable styling contract. Hidden hosts and zero/unresolved widths cannot declare fit; zero available height is valid and reports vertical overflow for nonempty content. An explicitly unbounded height is not treated as an unknown budget.
+
+Numerical visual styling is still provisional. No human visual approval, physical iPhone run, production-build acceptance or screen-reader acceptance is claimed by automated desktop browser tests. None of this work integrates Info Cards or makes browser capacity authoritative for publication. **Stages 4–5 have not begun. Stop for Stages 2–3 review and explicit Stage 4 authorisation.**
+
+### 15.6 Empty-region clarification and Stage 3 closure
+
+The user answered **“Accept empty mathematics as KaTeX does.”** This resolves the only outstanding Stage 3 decision. The existing parser/typesetter already implements that behaviour; this follow-up changes only renderer-owned tests, this plan and test evidence. No renderer source, styling, dependency, development route or Info Card changes were needed.
+
+- `parsing.test.ts`: verifies complete empty/whitespace-only inline and display regions are valid with no diagnostics, retaining exact raw source and original ranges. Incomplete display openers remain invalid under the agreed longest-opener grammar.
+- `capacity.browser.ts`: verifies no fallback or visible mathematical expression, reliable finite ready results, and preservation of surrounding prose in Chromium, Firefox and WebKit. No extra spacing-collapse behaviour is introduced.
+- Unit/isolation suite: **15 passed**. Focused browser suite: **3 passed**. Scoped ESLint, TypeScript without emission/incremental output, and diff checks passed.
+
+The previous port-4181 review server was no longer listening when the focused browser checks began; the first attempt could not connect. Read-only inspection identified the existing Next.js 16.2.6 server on port 3000 in this same working directory. Although its actual `/dev/maths-renderer` response was HTTP 200 with the correct title and markup, the browser did not initialise the client fixture API, so it could not run these checks. That server was left untouched.
+
+Restored the previously authorised `scripts/test-phase2.ts --dev --lan --info-cards` review setup on unused port 4181, with its own `.next-phase2` build output and newly created disposable database. No other process was stopped or restarted, no source/configuration changed, and no existing review or application database was modified. The focused tests pass on this restored setup. The review server is left running at **http://192.168.1.38:4181/dev/maths-renderer**. Mobile WebKit verified that exact URL after restoration: HTTP 200, correct Maths Renderer title, working client fixture API, all 18 alignment cases, all eleven mixed-content cases and no page errors. See `empty-regions.json` for the focused test results.
+
+**Stages 2 and 3 are complete for their approved scope. Stages 4–5 and consumer integration remain unauthorised and have not begun.**

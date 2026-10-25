@@ -1,0 +1,27 @@
+{
+  "stats": {
+    "startTime": "2026-10-25T19:43:09.674Z",
+    "duration": 14777.642,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "empty mathematical regions are accepted without fallback or diagnostics",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "empty mathematical regions are accepted without fallback or diagnostics",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "empty mathematical regions are accepted without fallback or diagnostics",
+      "project": "webkit",
+      "status": "passed"
+    }
+  ]
+}

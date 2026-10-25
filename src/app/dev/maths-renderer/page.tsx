@@ -3,8 +3,9 @@ import type { CSSProperties } from "react";
 import MathsExpression from "@/components/maths-renderer/MathsExpression";
 import { alignmentFixtures, presentationFixtures } from "./fixtures";
 import styles from "./page.module.css";
+import CapacityFixtures from "./CapacityFixtures";
 
-export const metadata = { title: "Maths Renderer · Stage 1 Review" };
+export const metadata = { title: "Maths Renderer · Standalone Review" };
 
 export default function MathsRendererDevelopmentPage() {
   if (process.env.NODE_ENV !== "development") notFound();
@@ -14,7 +15,7 @@ export default function MathsRendererDevelopmentPage() {
       <p>Standalone mathematical content renderer</p>
       <h1>Stage 1 · Alignment review</h1>
       <p>Compare two-sided working and both leading-equals candidates. All typography, spacing and indentation below are provisional.</p>
-      <p>No capacity assessment is implemented at this stage. Wide expressions remain intact and visible.</p>
+      <p>The original alignment cases are followed by mixed-content and capacity tests. Wide expressions remain intact and visible.</p>
     </header>
     {presentationFixtures.map(presentation => <section key={presentation.id} className={styles.group} data-presentation={presentation.id}>
       <h2>{presentation.title}</h2>
@@ -35,5 +36,6 @@ export default function MathsRendererDevelopmentPage() {
         </details>
       </article>)}
     </section>)}
+    <CapacityFixtures />
   </main>;
 }
