@@ -94,7 +94,7 @@ test("presentation settings preserve alignment, row clearance, scale, indentatio
   await info.attach("presentation-geometry", { body: JSON.stringify(evidence, null, 2), contentType: "application/json" });
 });
 
-test("working-row pitch retains the approved 25 percent increase", async ({ page }, info) => {
+test("working-row pitch retains the approved arraystretch of 2.3125", async ({ page }, info) => {
   await open(page);
   const source = String.raw`\begin{aligned}x&=1\\xy&=2\\xyz&=3\end{aligned}`;
   const adjusted = typesetMath(source), baseline = typesetMath(`\\def\\arraystretch{1}${source}`);
@@ -108,7 +108,9 @@ test("working-row pitch retains the approved 25 percent increase", async ({ page
     };
     return { adjusted: read(adjusted), baseline: read(baseline) };
   }, { adjusted: adjusted.html, baseline: baseline.html });
-  for (let i = 0; i < pitches.adjusted.length; i++) expect(Math.abs(pitches.adjusted[i] / pitches.baseline[i] - 1.25)).toBeLessThan(0.005);
+  // (1.2 * 2.3125 + 0.3) / (1.2 + 0.3) = 2.05. The user's
+  // Stage 5 clarification accepts this value over the earlier +25% setting.
+  for (let i = 0; i < pitches.adjusted.length; i++) expect(Math.abs(pitches.adjusted[i] / pitches.baseline[i] - 2.05)).toBeLessThan(0.005);
   await info.attach("working-row-pitch", { body: JSON.stringify(pitches), contentType: "application/json" });
 });
 

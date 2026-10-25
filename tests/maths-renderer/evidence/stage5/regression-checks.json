@@ -1,0 +1,62 @@
+{
+  "stage": 5,
+  "recordedAt": "2026-10-25T23:12:21.496Z",
+  "checks": [
+    {
+      "name": "Renderer units and import/CSS isolation",
+      "passed": 17,
+      "failed": 0,
+      "command": "node --import tsx --test tests/maths-renderer/*.test.ts"
+    },
+    {
+      "name": "Application units",
+      "passed": 420,
+      "failed": 0,
+      "command": "npm run test:unit"
+    },
+    {
+      "name": "Existing Info Card database integration",
+      "passed": 26,
+      "failed": 0,
+      "command": "node --import tsx --test tests/info-cards.integration.ts",
+      "isolation": "Disposable MongoDB replica set"
+    },
+    {
+      "name": "Existing Info Card capacity browser tests",
+      "passed": 5,
+      "failed": 0,
+      "command": "npx playwright test -c playwright.info-cards-capacity.config.ts"
+    },
+    {
+      "name": "Existing Info Card consultation/layout browser tests",
+      "passed": 19,
+      "failed": 0,
+      "command": "SWITCHPLAY_FIXTURE_PORT=4192 npx playwright test -c playwright.info-cards-integration.config.ts tests/browser/info-cards-integration.browser.ts"
+    },
+    {
+      "name": "Existing real Info Card authoring/consultation browser flows",
+      "passed": 36,
+      "failed": 0,
+      "command": "node --import tsx scripts/test-phase2.ts --info-cards tests/phase2/info-cards-authoring.browser.ts tests/phase2/info-card-consultation.browser.ts --output=/tmp/maths-stage5-info-phase2-results --reporter=line",
+      "isolation": "Separate test output, loopback server and disposable database"
+    },
+    {
+      "name": "Scoped ESLint",
+      "status": "passed",
+      "command": "npx eslint src/components/maths-renderer src/app/dev/maths-renderer tests/maths-renderer playwright.maths-renderer.config.ts"
+    },
+    {
+      "name": "TypeScript",
+      "status": "passed",
+      "command": "npx tsc --noEmit --incremental false"
+    },
+    {
+      "name": "Production build/guard/assets/spacing",
+      "status": "passed",
+      "command": "node --import tsx tests/maths-renderer/production-acceptance.mts",
+      "evidence": "production-acceptance.json"
+    }
+  ],
+  "manualAccessibilityTested": false,
+  "physicalIPhoneTested": false
+}

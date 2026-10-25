@@ -71,7 +71,7 @@ function CapacityCase({ fixture }: { fixture: typeof fixtures[number] }) {
 export default function CapacityFixtures() {
   return <section className={styles.group} data-capacity-fixtures="">
     <h2>Stages 2–3 · Mixed content and actual capacity</h2>
-    <p>Fixed testing scenarios. Overflow remains visible; measurements and source are outside each content host. Styling is provisional.</p>
+    <p>Fixed testing scenarios using the approved Balanced base styling and representative typography. Overflow remains visible; measurements and source are outside each content host.</p>
     {fixtures.map(fixture => <CapacityCase key={fixture.id} fixture={fixture} />)}
   </section>;
 }

@@ -1,0 +1,1667 @@
+[
+  {
+    "project": "chromium",
+    "test": "prose/math accessibility order exposes one MathML alternative per expression",
+    "name": "accessible-reading-order",
+    "data": "- paragraph:\n  - text: First, solve\n  - math: 3 x = 12\n  - text: . An inline fraction\n  - math: x 2 + 1 x + 2\n  - text: stays with the surrounding prose.\n- math: 3 x = 12 x = 12 3 x = 4\n- paragraph: Therefore,\n- math: x 2 + 5 x + 6 x + 2 = x ( x + 2 ) + 3 ( x + 2 ) x + 2 = ( x + 2 ) ( x + 3 ) x + 2\n- paragraph:\n  - text: Finally, a tall inline expression\n  - math: 1 + x 2 + 1 y + 2 a 3 + b c 2\n  - text: receives its own vertical space. The next authored line remains separate.\n- paragraph: This is a new paragraph. The mathematical working keeps its authored rows."
+  },
+  {
+    "project": "chromium",
+    "test": "prose/math accessibility order exposes one MathML alternative per expression",
+    "name": "native-accessibility-tree",
+    "data": [
+      {
+        "role": "MathMLMath",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTable",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "12",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "12",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "12",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "12",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "4",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "4",
+        "ignored": false
+      },
+      {
+        "role": "MathMLMath",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTable",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSup",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "5",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "5",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "6",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "6",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSquareRoot",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSquareRoot",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLTableCell",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "(",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": ")",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSquareRoot",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLMath",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "1",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "1",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSquareRoot",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSup",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "1",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "1",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑦",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑦",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSup",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑎",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑎",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑏",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑏",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSup",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑐",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑐",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLMath",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "3",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "=",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "12",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "12",
+        "ignored": false
+      },
+      {
+        "role": "MathMLMath",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLFraction",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSup",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "1",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "1",
+        "ignored": false
+      },
+      {
+        "role": "MathMLSquareRoot",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLRow",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "MathMLIdentifier",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "𝑥",
+        "ignored": false
+      },
+      {
+        "role": "MathMLOperator",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "+",
+        "ignored": false
+      },
+      {
+        "role": "MathMLNumber",
+        "name": "",
+        "ignored": false
+      },
+      {
+        "role": "StaticText",
+        "name": "2",
+        "ignored": false
+      },
+      {
+        "role": "InlineTextBox",
+        "name": "2",
+        "ignored": false
+      }
+    ]
+  },
+  {
+    "project": "firefox",
+    "test": "prose/math accessibility order exposes one MathML alternative per expression",
+    "name": "accessible-reading-order",
+    "data": "- paragraph:\n  - text: First, solve\n  - math: 3x=12\n  - text: . An inline fraction\n  - math: x2+1x+2\n  - text: stays with the surrounding prose.\n- math: 3x =12 x =123 x =4\n- paragraph: Therefore,\n- math: x2+5x+6x+2 = x(x+2)+3(x+2)x+2 = (x+2)(x+3)x+2\n- paragraph:\n  - text: Finally, a tall inline expression\n  - math: 1+x2+1y+2a3+bc2\n  - text: receives its own vertical space. The next authored line remains separate.\n- paragraph: This is a new paragraph. The mathematical working keeps its authored rows."
+  },
+  {
+    "project": "webkit",
+    "test": "prose/math accessibility order exposes one MathML alternative per expression",
+    "name": "accessible-reading-order",
+    "data": "- paragraph:\n  - text: First, solve\n  - math: 3 x = 12\n  - text: . An inline fraction\n  - math: x 2 + 1 x + 2\n  - text: stays with the surrounding prose.\n- math: 3 x = 12 x = 12 3 x = 4\n- paragraph: Therefore,\n- math: x 2 + 5 x + 6 x + 2 = x ( x + 2 ) + 3 ( x + 2 ) x + 2 = ( x + 2 ) ( x + 3 ) x + 2\n- paragraph:\n  - text: Finally, a tall inline expression\n  - math: 1 + x 2 + 1 y + 2 a 3 + b c 2\n  - text: receives its own vertical space. The next authored line remains separate.\n- paragraph: This is a new paragraph. The mathematical working keeps its authored rows."
+  }
+]

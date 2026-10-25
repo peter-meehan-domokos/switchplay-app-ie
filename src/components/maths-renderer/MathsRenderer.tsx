@@ -40,7 +40,7 @@ export default function MathsRenderer({ content, constraints, presentation, onRe
     fontFamily: presentation.fontFamily, fontSize: presentation.fontSizePx, fontWeight: presentation.fontWeight ?? 400, lineHeight: presentation.lineHeight,
     "--maths-scale": `${presentation.mathScale}em`, "--maths-paragraph-gap": `${presentation.paragraphGapEm}em`,
     "--maths-display-indent": `${presentation.displayIndentEm}em`, "--maths-display-gap": `${presentation.displayGapEm}em`,
-    // Provisional font-metric clearance, local to mathematical inline boxes.
+    // Approved font-metric clearance, local to mathematical inline boxes.
     "--maths-inline-clearance": `${presentation.mathScale * 0.25}em`,
   } as CSSProperties;
   return <div ref={root} className={styles.content} style={style} data-maths-renderer="" data-maths-status={result.status}>

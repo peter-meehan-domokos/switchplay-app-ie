@@ -16,8 +16,8 @@ export default function MathsRendererDevelopmentPage() {
     <header className={styles.heading}>
       <p>Standalone mathematical content renderer</p>
       <h1>Stage 4 · Presentation review</h1>
-      <p>Review appearance and readability. All numerical typography, spacing and indentation settings below are provisional.</p>
-      <p><a href="#balanced">Recommended Balanced</a> · <a href="#larger-maths">Larger maths</a> · <a href="#more-space">More display space</a></p>
+      <p>Balanced mathematical styling has been visually approved. Other examples remain comparisons; container sizes and prose fonts are test scenarios.</p>
+      <p><a href="#balanced">Approved Balanced</a> · <a href="#larger-maths">Larger maths</a> · <a href="#more-space">More display space</a></p>
     </header>
     <PresentationFixtures />
     <details className={styles.regressionFixtures} data-regression-fixtures="">

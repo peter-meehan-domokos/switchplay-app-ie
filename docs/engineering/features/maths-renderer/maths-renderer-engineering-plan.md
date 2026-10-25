@@ -1,10 +1,10 @@
 # Mathematical Content Renderer — Engineering Plan
 
-**Status: Approved plan — Stages 0–4 implementation complete. Stage 4 awaits user visual review; numerical styling remains provisional. Stage 5 is not authorised.**
+**Status: Standalone Stage 5 acceptance passed. Stages 0–5 are complete; Balanced styling and current 2.3125 row spacing are approved. Info Card integration is not authorised.**
 
 **Date:** 25 October 2026
 
-**Authorisation:** The user approved Stages 0–3 and subsequently explicitly authorised **Stage 4 — Presentation and Lifecycle Completion**, including cross-browser/accessibility checks, relevant Info Card regressions and the existing iPhone review setup. **Stage 5 and Info Card integration remain unauthorised.** Sections 14–16 record implementation evidence. The latest conversation supersedes the earlier stage-authorisation wording retained in historical records.
+**Authorisation:** The user approved Stage 4 visually and authorised **Stage 5 — Standalone Acceptance and Regression Verification** under this plan. Balanced styling is accepted. The user separately confirmed **“Keep current 2.3125 spacing”**, resolving the discrepancy with the earlier +25% wording. **Info Card integration remains unauthorised.** Sections 14–16 are historical implementation records; section 17 records current acceptance. The latest conversation supersedes earlier stage-authorisation/provisional wording retained in those records.
 
 **Working context:** Existing `feat/math-renderer` branch and shared working directory. Do not create another branch or Git worktree.
 
@@ -16,7 +16,7 @@ Authority, in order:
 
 1. The user's explicit subsequent decisions in this conversation, particularly the engineering-plan authorisation and the clarification answers recorded below.
 2. The complete [product and interaction specification](../../../design/features/maths-renderer/maths-renderer-spec.md).
-3. This plan's engineering recommendations, within the explicitly approved stages. Provisional visual settings still require user approval.
+3. This plan's engineering recommendations, within the explicitly approved stages. Balanced visual settings and the current row spacing are now approved; alternative fixtures do not establish additional defaults.
 
 Labels used in this plan:
 
@@ -41,7 +41,8 @@ The design document still describes technical investigation as pending and leave
 | Scope | Browser-only standalone development first. No publication workers, services, attestations, persistence changes or consumer integration. |
 | Mathematical vocabulary | Pass normal KaTeX mathematics through without an arbitrary command allowlist. Investigate individual rendering/measurement problems; obtain approval before excluding otherwise supported functionality. Unsafe resources/commands remain protected. |
 | Complex transforms | Measurement prioritises ordinary layouts, translation and positive axis scaling. Rotation, skew and perspective may report measurement unavailable; no general transformation engine or approximate fit claims. Stage 2 is now explicitly authorised. |
-| Working-row spacing | The user subsequently requested approximately 25% more vertical space between mathematical working rows, without changes to prose or other styling. Keep the Stage 1 `arraystretch` adjustment; do not reapply it during Stages 2–3. |
+| Working-row spacing | The earlier approximately +25% setting was `arraystretch = 1.3125`. The user subsequently adjusted it to `2.3125` and explicitly selected **“Keep current 2.3125 spacing”** at Stage 5. Preserve that approved value, without fraction-dependent rules or changes to prose. Ordinary row pitch is 3.075em, about 2.05× the engine baseline; do not describe the current value as +25%. |
+| Accepted Balanced styling | Mathematical scale 1× prose, display indent 1em, display gaps 0.6em, paragraph gaps 0.8em, and local inline clearance 0.25 mathematical em. Consumer-supplied typography/constraints remain explicit; fixture prose sizes/families are not universal defaults. |
 
 The two precise alignment layouts are fixed requirements. At planning time their candidate KaTeX sources were unverified. Stage 1 now provides browser geometry and visual evidence for both layouts and both B candidates; see section 14. A successful parse alone is still not acceptance evidence.
 
@@ -117,7 +118,7 @@ Both modes resolve to the same local CSS-pixel width and optional height budget 
 
 Presentation settings: prose font family, size, weight and line height; mathematical scale relative to prose; paragraph gap; display indentation and surrounding gaps. Keep geometry-affecting typography explicit so prop changes invalidate measurement. Ordinary styling such as colour can inherit. Unrestricted descendant CSS overrides are not a supported reliable measurement contract.
 
-Exact defaults and numerical ranges remain **provisional**. Within-working row spacing is typesetter-owned; establish it with standard supported TeX/layout facilities after early verification, not arbitrary CSS changes to KaTeX positioning internals. Do not promise a public row-spacing knob before that approach is demonstrated.
+The accepted default visual profile is **Balanced**, as recorded in section 1.1 and section 17. Consumer typography and constraints remain explicit under the existing API. Within-working row spacing is typesetter-owned, using the approved standard `arraystretch` macro; no new public spacing knob or KaTeX positioning overrides are introduced.
 
 ### 4.2 Results
 
@@ -218,7 +219,7 @@ Display maths occupies its own block, with a consistent consumer-configurable in
 
 Use explicit paragraph/display spacing rules that avoid margin collapse and duplicated gaps. Prevent display delimiters on separate source lines from introducing unwanted extra blank rows. Internal working-row spacing must be consistent and give fractions sufficient clearance; validate engine defaults before proposing adjustments.
 
-**Provisional presentation review:** show a small set of relative mathematical scales, indents and modest gap options on fixed development fixtures. Numerical values are experimental settings until approved. Consumer typography controls scale; no fixed card font, maximum number of equations or minimum card-sized area belongs in the renderer. Obtain user approval of appearance before declaring visual acceptance.
+**Presentation review — complete:** the user visually approved Balanced and the current `arraystretch = 2.3125` setting. Other fixed comparisons remain alternatives. Consumer typography controls scale; no fixed card font, maximum number of equations or minimum card-sized area belongs in the renderer. Stage 5 preserves approved appearance while checking technical acceptance.
 
 Application rules belong in CSS Modules/scoped selectors. Audit the selected KaTeX stylesheet for unrelated document-wide selectors/counters before importing it. Scope any such rules within new renderer-owned styling, preserving version provenance/licensing, or report the need for an exception. Bundled font-face registration is inherently document-wide; do not modify existing global CSS or allow engine CSS to alter unrelated application layout. Verify asset URLs and fonts through Next.js in development and production builds.
 
@@ -281,16 +282,16 @@ New renderer-specific browser configuration should exercise the actual Next.js r
 
 ## 9. Reviewable implementation stages
 
-Stages 0–3 are complete. The user's latest instruction explicitly authorises Stage 4 only. **Stage 5 remains unstarted and unauthorised.** Approval covers named stages; neither a request for visual evidence nor the overlapping regression checks authorises Stage 5 or consumer integration.
+Stages 0–4 are complete and Stage 4 is visually approved. The user's latest instruction explicitly authorises **Stage 5 standalone acceptance only**. Consumer integration remains separately gated.
 
 | Stage | Dependencies and work | Acceptance / checkpoint |
 | --- | --- | --- |
 | 0. Approval and shared-directory preflight — implemented | Review this plan, unresolved items and existing-file exceptions. Inspect current working changes and relevant installed Next.js docs. | Authorisation, baseline, manifests and server identity checked; section 14 records results. |
-| 1. Early alignment feasibility — implemented; awaiting review | Install the approved pinned KaTeX dependency; add minimal new standalone adapter, development route, fixed A/B fixtures and browser tests. Use clearly provisional styling. | Both layouts and B candidates pass browser alignment checks. Screenshots and metrics recorded in section 14; user visual review remains pending. If later evidence shows a mandatory layout cannot be faithful, stop and report. No alternative layout without approval. |
+| 1. Early alignment feasibility — complete | Install the approved pinned KaTeX dependency; add minimal new standalone adapter, development route, fixed A/B fixtures and browser tests. | Both layouts and B candidates pass browser alignment checks. Section 14 retains the early evidence; Stage 4 visual review is approved. If later evidence shows a mandatory layout cannot be faithful, stop and report. No alternative layout without approval. |
 | 2. Early measurement feasibility — implemented | Common constraint resolver, natural-height layer and measurement/readiness lifecycle. Plain prose, inline maths, aligned working and deliberate width/height failures. Depends on stage 1. | Equivalent explicit/container budgets agree. Independent overflow, fonts/failure/timeout, resize, freshness and supported-transform browser tests pass; see section 15. |
 | 3. Complete parsing and diagnostics — implemented | Source scanner, escaped dollars, paragraphs, currency, original offsets and exact fallback, including unmatched-opener-to-end recovery. Integrated with the same measurement pipeline. Authorised together with Stage 2, without an intermediate stop. | Parser/unit and browser tests pass; invalid results cannot declare fit. The user confirmed empty/whitespace-only mathematics follows KaTeX acceptance; focused unit and browser tests verify this without changing unmatched-delimiter recovery. |
-| 4. Presentation and lifecycle completion — implemented; awaiting visual review | Expanded fixed size/typography fixtures, accessibility checks, observer/font/host lifecycle, strict remounting, callback independence and cross-browser verification. | Both exact layouts and the approximately 25% row-spacing adjustment are preserved. Numerical settings await visual approval. Section 16 records passing tests, evidence and review limits. |
-| 5. Standalone acceptance and regression — not started or authorised | After separate authorisation: standalone acceptance, production route guard/build verification and final visual acceptance. Stage 4 already runs its explicitly requested regression checks. | No Stage 5 work inferred from Stage 4 tests. Any consumer integration requires a separate plan and authorisation. |
+| 4. Presentation and lifecycle completion — complete and visually approved | Expanded fixed size/typography fixtures, accessibility checks, observer/font/host lifecycle, strict remounting, callback independence and cross-browser verification. | Both exact layouts preserved. Balanced and the user's subsequently adjusted row spacing are approved. Section 16 retains the historical Stage 4 verification record. |
+| 5. Standalone acceptance and regression — passed | Acceptance against the specification, fresh protected regression suites, production route guard/build and scoped assets, approved presentation verification, evidence and limitations. | Sections 8–11 verified; section 17 records results and remaining platform limits. No integration, publication validation or new product work. Stop after Stage 5. |
 
 Stages 1 and 2 are intentionally foundational. Do not implement the complete feature first and postpone alignment or measurement proof until final testing. Review evidence at those checkpoints; a failed mandatory criterion blocks dependent work.
 
@@ -365,7 +366,7 @@ Dependency installation must preserve unrelated manifest changes and avoid broad
 
 | Risk/question | Treatment and decision boundary |
 | --- | --- |
-| Alignment fidelity | Stage 1 verified both layouts and B candidates across the recorded configurations. User visual review remains pending. Stop if a required layout fails in further evidence; never weaken the requirement. |
+| Alignment fidelity | Both layouts and B candidates pass current three-browser geometry checks; Stage 4 visual review is approved. Stop if a required layout fails in future evidence; never weaken the requirement. |
 | Candidate B differs from illustrative spec syntax | Test both sources unchanged; propose a verified authoring example for review. Never auto-convert source or substitute a layout. |
 | Bounds miss descendants or count engine helpers | Stage 2 compares measured extents with browser evidence for nested/tall/overflowing content before full rollout. |
 | Font fallback or unknown glyph metrics | Required-face checks and currency fixtures; no ready fit on failed required assets. Browser-specific prose fallback remains a documented platform limit. |
@@ -373,12 +374,12 @@ Dependency installation must preserve unrelated manifest changes and avoid broad
 | Transform complexity | Translation/positive axis scaling are the approved priorities for future stage 2. Complex transforms may report measurement unavailable; do not build a general geometry engine or claim approximate fit. |
 | Delimiter grammar / empty regions | Resolved for v1: longest unescaped opener, matching closer, literal unmatched-opener-to-end recovery, and KaTeX acceptance of complete empty/whitespace-only regions. Focused tests preserve the distinction between empty display mathematics and an unmatched display opener. |
 | Ordinary prose whitespace beyond newlines | Single breaks and collapsed separator runs are agreed. Repeated spaces, tabs, edge blank lines and unbreakable prose-token policy must not acquire new normalisation/forced breaking without review where behaviour is ambiguous. |
-| Exact styling and legibility | Provisional fixtures only until visual approval. There is no final numerical indent, gap, mathematical scale or minimum font size in this plan. |
-| Accessibility targets | Recommend HTML plus MathML and screen-reader checks. Confirm specific target combinations during acceptance; no expression-menu UX is introduced. |
+| Exact styling and legibility | Balanced settings and current 2.3125 row spacing are approved; see sections 1.1 and 17. No universal consumer font size or minimum font size is imposed. Reopen appearance only for a substantive defect. |
+| Accessibility targets | HTML/MathML, reading order and automated accessibility checks pass across the recorded browsers. Physical VoiceOver/NVDA verification was not performed and is not implied. No new accessibility UX or spoken labels are introduced. |
 | Global engine stylesheet effects | Audit selected stylesheet and verify neighbouring content/navigation. Scope unrelated rules in new files or report an exception. |
 | Concurrent repository work | Scope mutations, coordinate manifests and avoid competing build output. No branch/worktree change. |
 
-The paragraph, exact-source fallback, unmatched-delimiter recovery and empty-region decisions are recorded in section 1.1 and verified by the Stage 3 tests in section 15. Exact visual values still require user approval. Technical platform limits must be reported with evidence rather than converted into new UX.
+The paragraph, exact-source fallback, unmatched-delimiter recovery and empty-region decisions are recorded in section 1.1 and verified by the Stage 3 tests in section 15. Approved visual values and the final spacing clarification are recorded in section 17. Technical platform limits are reported with evidence rather than converted into new UX.
 
 ### 12.1 Future integration considerations — not implementation work
 
@@ -392,11 +393,11 @@ A future integration plan must preserve plain-text meaning, saving, immutability
 2. **Stages 0–1 authorisation — granted and work implemented:** manifests/lockfile, isolated alignment files, fixtures/tests, documentation evidence and iPhone review setup were authorised. No permission for later stages is implied.
 3. **Stages 2–3 authorisation — granted:** implemented together under the user's later instruction. Alignment requirements remain unchanged; section 15 records fresh regression evidence.
 4. **Stage 4 authorisation — granted:** complete standalone presentation, lifecycle, automated accessibility/browser verification and the requested regression checks. No production-build/Stage 5 acceptance work or consumer integration.
-5. **Current checkpoint — Stage 4 visual approval:** present recommended provisional settings and alternatives on the working independent page. Obtain visual approval and explicit Stage 5 authorisation before further work; screenshots are evidence, not approved baselines.
-6. **Standalone acceptance:** report fresh test results, regression checks, remaining limitations and changed-file scope. User acceptance does not authorise consumer integration.
+5. **Stage 4 visual approval — granted:** Balanced styling and current 2.3125 row spacing are approved. Existing screenshots remain supporting evidence, not automatically generated visual-regression baselines.
+6. **Stage 5 standalone acceptance — passed:** section 17 records fresh tests, production guard/assets, remaining limitations and complete changed-file scope. Stop after this stage. User acceptance does not authorise consumer integration.
 7. **Separate future integration:** only a separately requested/reviewed integration plan and explicit authorisation may touch Info Card functionality or publication-capacity validation.
 
-**Stop after Stage 4. Stage 5 remains unauthorised and has not begun.**
+**Stop after Stage 5. Consumer integration requires separate explicit authorisation.**
 
 ## 14. Stage 0 and Stage 1 implementation record — 25 October 2026
 
@@ -660,3 +661,132 @@ Browser layout boxes are the capacity authority, not exact painted glyph outline
 Automated MathML/ARIA checks do not establish how every screen reader audibly presents mathematical structures. No physical iPhone or audible VoiceOver/NVDA acceptance is claimed. Mobile WebKit verifies the actual LAN page; the user is asked only to judge appearance and readability. Production-build/route-guard acceptance is deliberately left for separately authorised Stage 5.
 
 **Stop after Stage 4. Await numerical styling/visual approval and explicit Stage 5 authorisation. Info Card integration remains outside this implementation.**
+
+## 17. Stage 5 — standalone acceptance and regression verification
+
+**Authority:** Stage 4 visual review and Balanced styling are approved. The user explicitly authorised this final standalone acceptance stage, including fixes for demonstrated implementation defects. This supersedes the historical stop gates above. **No Info Card integration or publication-capacity work is included.**
+
+Preflight: clean existing `feat/math-renderer` working directory at `323123f`. Existing Next.js servers on ports 3000 and 4181 were identified and preserved; no branch/worktree/reset/stash/commit operations. The specification, this plan and the relevant installed Next.js CSS, Client Component, production-build and `notFound()` documentation were reviewed. Current KaTeX remains pinned to 0.19.1; manifests and lockfiles are unchanged.
+
+### 17.1 Accepted presentation and resolved spacing discrepancy
+
+**Accepted default: Balanced.** Mathematical size 1× prose, display indentation 1em, display gaps 0.6em, paragraph separation 0.8em, and local inline clearance of 0.25 mathematical em on each side. These are accepted settings, not new optional renderer modes. The existing API still requires explicit consumer presentation/constraints; the demonstration's 14/18/22px prose sizes, Arial/Georgia families and container widths are test scenarios, not universal defaults.
+
+The user's opening Stage 5 instruction mentioned preserving the earlier +25% spacing, but the actual visually reviewed code had subsequently been adjusted to `arraystretch = 2.3125`. Clarification was requested before changing it. The user selected **“Keep current 2.3125 spacing.”** That is the accepted setting; it is retained unchanged. Ordinary row pitch is approximately `(1.2 × 2.3125 + 0.3)em = 3.075em`, or 2.05× the original 1.5em pitch. Tall expressions can expand rows naturally. The earlier 1.3125/+25% description remains historical only. Comments, the development page and the geometric acceptance expectation now accurately describe the user's decision. No automatic fraction detection, source rewriting or per-row spacing rule was added.
+
+### 17.2 Acceptance against the specification
+
+The implementation was read against specification sections 2–8 and the agreed subsequent decisions, rather than using passing tests as the definition of the contract.
+
+| Requirement | Implementation review and acceptance coverage |
+| --- | --- |
+| Mixed prose and mathematical delimiters | `parseContent.ts` scans unescaped `$$` before `$`, retains original segments/ranges and passes mathematical contents unchanged. Parser units plus the exact inline/mixed specification examples in `acceptance.browser.ts`. |
+| Escaping, currencies, literal prose | Backslash parity handles `\$`; prose € and £ remain literal. Dollar/pound/euro mathematical representations are typeset; euro unknown-metric warnings are retained. Literal HTML/Markdown is React text, never interpreted. Unit and browser assertions inspect actual DOM/source, including malicious-looking literal markup. |
+| Invalid and unmatched mathematics | KaTeX failures retain exact source including delimiters. Unmatched opener consumes the literal remainder, preserving earlier valid maths. Original code-unit offsets are retained across CRLF/surrogate pairs. Invalid results never expose fit; coexisting hidden/layout errors retain their diagnostics. |
+| Authored line and paragraph structure | Single prose newlines remain in `pre-wrap`; repeated blank separators produce one paragraph gap. Mathematical rows remain within their authored environments. Exact before/equation/Therefore/equation ordering, paragraph geometry and adjacent-display gaps are exercised. |
+| Alignment A | Browser column anchors verify equal relation positions, right-aligned left expressions, common right starts and consistent relation gaps across varying fonts, widths and expression lengths. |
+| Alignment B | Both unchanged authored candidates verify a shared expression column, a separate preceding equals column and an initial expression without a visible equals sign. Whole-block indentation is measured independently. |
+| Approved typography and row clearance | Balanced values and accepted 2.3125 row stretch are preserved. Geometry tests cover fractions, nested radicals, superscripts, row clearance and tall inline neighbours. Production tests independently check mathematical size, indentation and each approved gap. |
+| Natural sizing and intact mathematics | Natural root height and visible overflow remain; no clipping, max height, transform shrink, scroll container, truncation or mathematical line-wrap remediation. Long inline and display expressions exceed narrow budgets intact. A new display acceptance case checks intrinsic equation width and the number of authored working rows. |
+| Capacity contract | Both explicit and dedicated-host content-box constraints use one actual-bounds collector. Independent x/y and combined overflow, borders/padding, subpixel boundaries, zero height, unbounded height and intentional overhang/spacing are verified. No character estimator is used. |
+| Result readiness | The discriminated result union reserves fit/layout fields for `ready`; pending, invalid input and unavailable results cannot declare fit. Required fonts and two stable frame reads precede ready results. |
+| Font and lifecycle handling | Actual required fonts, delayed/error/timeout/recovery, cancellation, scoped invalidation and source supersession are verified. Empty mathematical regions remain valid under the agreed KaTeX policy. |
+| Resizing, freshness and transforms | Generation checks reject stale reads. Root/current host resizing, ref retargeting, hidden/disclosure recovery, detachment/reparenting, positive scale/translation and unavailable unsupported transforms are exercised. No general transformation engine. |
+| Multiple independent instances | Per-expression macro state and per-instance observers/results remain isolated. Equivalent rerenders, callback identity, unrelated fonts/paint, StrictMode replay and repeated remount cleanup are checked. |
+| Accessibility | HTML prose order and one exposed MathML presentation branch per expression; visual HTML and secondary raw-TeX metadata are accessibility-hidden. Automated reading-order/DOM checks across three engines and Chromium native accessibility-tree evidence; no invented spoken labels. |
+| Isolation and reuse | Public component depends only on renderer-local modules, React, KaTeX and browser APIs. A new complete local import-graph check rejects relative/alias escapes. Scoped CSS is compared with the pinned upstream source, and neighbouring prose/engine-like class names are compared before/after loading renderer styles. |
+| Production safety | The actual review page's existing server `notFound()` guard executes before fixtures. A full application production snapshot is built separately and tested for HTML and RSC 404 responses, absent fixture markup/hooks, and actual compiled renderer assets/presentation. See section 17.4. |
+
+Missing acceptance coverage identified and added: literal specification examples through the browser, visible prose/currency/literal-markup checks, long display working with simultaneously insufficient width/height, neighbouring-style isolation, complete local dependency traversal, actual production HTML/RSC guard execution and compiled CSS/font/presentation checks. Existing alignment, capacity, parser and lifecycle assertions remain in force.
+
+### 17.3 Defects found and fixes
+
+1. **Production font resolution:** the relocated scoped stylesheet used `url(katex/dist/fonts/...)`. Development Turbopack resolved it, but a real Webpack production build attempted a nonexistent stylesheet-relative `./katex/...` path. Use standard relative URLs to the installed package (`../../../node_modules/katex/dist/fonts/...`). No fonts, vendor declarations, selectors, dependency versions or global styles were substituted. The pinned-upstream provenance test checks the corrected path transformation. The failing build evidence is retained in `production-font-resolution-before.log`.
+2. **Production CSS ordering:** the vendor's scoped selectors could tie the renderer override's specificity, allowing a production chunk order to restore KaTeX's default 1.21em scale. A production browser measured 21.78px maths against 18px prose instead of the approved 1× ratio. Renderer-owned overrides now outrank the vendor selectors regardless of stylesheet order, including display margins/alignment. The same precedence correction covers the earlier standalone expression primitive. No numeric styling values changed. Production browser assertions retain exact approved sizes/gaps; the full suite's independent column checks remain unchanged.
+3. **Stale acceptance descriptions:** comments/fixture labels and a +25% test expectation described an earlier spacing value. They now reflect the user's explicit current 2.3125 approval. This is an approved requirement clarification, not weakening a failed requirement.
+
+New test helpers also required corrections: intrinsic table width must be measured instead of the constraint-sized `.katex-html` wrapper; an empty positioning span is not an authored equation row; and a local function inside a `tsx`-serialized browser callback must not depend on an unavailable helper. These were test-harness issues. Expected overflow, three authored rows, font sizes, spacing and production 404 requirements were retained. Their corrected checks must pass before acceptance is recorded complete.
+
+### 17.4 Production build and guard method
+
+`node --import tsx tests/maths-renderer/production-acceptance.mts` uses an ordinary temporary filesystem copy of current application source/public/configuration. It does not create a Git checkout/worktree, copy repository environment files, install dependencies, alter application configuration or share either development server's output. Installed dependencies are copied with filesystem cloning where available: default Turbopack rejects an out-of-root dependency symlink, an isolation-harness limitation encountered during investigation. The final check uses the project's normal `next build` production bundler; Webpack separately demonstrated the font-path defect and compiled successfully with the fix.
+
+A tiny ordinary consumer is created **only inside the temporary copy**, under the real application root layout, to verify production CSS ordering, local fonts, hydration, MathML and approved geometry. It is served on an automatically allocated **loopback-only** port. It is never added to the repository application or deployed. The unchanged real `/dev/maths-renderer` route is checked via HTML, RSC and browser navigation for HTTP 404, no fixture content and no `window.mathsFixtures`/`window.mathsLifecycle` hooks. Local browser-only analytics stubbing avoids unrelated hosting analytics requests. The temporary server is stopped and the final temporary directory removed after verification; existing servers remain running.
+
+The route guard makes fixtures unreachable through the production page. It does **not** promise that a route manifest, source reference or unused compiled chunk is physically absent. No extra routing architecture or production fixture endpoint is introduced. Public browser capacity is not made authoritative for any server operation.
+
+### 17.5 Verification and evidence
+
+**Standalone acceptance passed.** No unresolved renderer defects or product decisions remain within the approved scope.
+
+| Check | Result |
+| --- | --- |
+| Renderer units and isolation | **17 passed**: parser/source/error/security checks, pinned stylesheet provenance and complete local import ownership. |
+| Maths browser acceptance | **105 unique cases verified**, 35 each in Chromium/Firefox/WebKit. The final full run had **102 passed / 3 failed** because the newly added row-count helper included an empty KaTeX positioning span. After correcting that helper, the complete nine-case acceptance file passed **9/9** across the three browsers, superseding all three helper failures. No renderer/expectation change was made for those row-count failures. No unresolved failures, skips or flaky cases. |
+| Production build | Default **Next.js 16.2.6 Turbopack production build passed** on the isolated full-application snapshot. Webpack also compiled the corrected relative font paths during the defect investigation. |
+| Production guards and actual renderer | **Passed in Chromium, Firefox and WebKit**: HTML/RSC 404, no fixture content/hooks, required local fonts, correct 18px mathematical size against 18px prose, 1em indent, 0.6em display gaps, 0.8em paragraph gap, 0.25em inline clearance, MathML and reliable fit. No page errors or failed production static assets. |
+| Existing application units | **420 passed**. |
+| Existing Info Card database integration | **26 passed**, disposable replica set. |
+| Existing Info Card capacity browsers | **5 passed**, isolated fixture port 4179. |
+| Existing Info Card consultation/layout browsers | **19 passed**, isolated fixture port 4192. |
+| Existing real Info Card authoring/consultation | **36 passed**, existing Phase 2 disposable runner and separate `.next-phase2-test` output. |
+| Scoped ESLint / TypeScript | Passed. TypeScript used `--noEmit --incremental false`; no shared type generation/build changes. |
+| Scope/production isolation | Passed. No Info Card/application/global CSS/configuration/manifest edits; production test consumer exists only in the temporary snapshot and its server is stopped afterwards. Existing review servers remain unchanged. |
+
+Evidence is under `tests/maths-renderer/evidence/stage5/`:
+
+- `browser-tests.json`: all 105 effective case results, raw full-run counts, resolved helper errors and the independent 9/9 corrected rerun. This explicitly preserves the distinction between one clean full run and acceptance established through a focused rerun.
+- `geometry.json`: actual alignment, size/gap/clearance, capacity, approved row-pitch and long-display measurements. `accessibility.json`: reading-order snapshots and Chromium native accessibility evidence.
+- `production-acceptance.json`, `production-build.log`, `production-server.log`: full production build, guard, browser font/presentation and shutdown evidence. The temporary directory is removed after the successful verification.
+- `production-font-resolution-before.log`, `production-presentation-before.log`: the demonstrated production failures before their fixes.
+- `production-chromium.png`, `production-firefox.png`, `production-webkit.png`: current production-probe rendering; fixed test content and actual application root styling, not new product designs.
+- `chromium-a-tall.png`, `chromium-b-columns-tall.png`, `chromium-b-phantom-tall.png`, and corresponding `webkit-` images: both exact layouts and both B candidates with current accepted row spacing. Earlier stage evidence is untouched.
+- `regression-checks.json`: commands, counts and isolation of the existing checks. `change-manifest.json`: complete Stage 5 changed-file list relative to the clean `323123f` preflight, including all evidence files.
+
+### 17.6 Limitations and next boundary
+
+**Automated accessibility checks are not equivalent to physical VoiceOver or NVDA verification. No manual screen-reader testing was performed or is claimed.** The user has already approved Stage 4 appearance; no repeat manual visual review is requested. Automated mobile WebKit is not physical iPhone hardware testing.
+
+Geometry describes browser layout boxes, not exact painted glyph outlines or identical font metrics on every operating system. Unknown euro metrics remain diagnostics. Complex transforms and unavailable/failed fonts cannot declare fit. Arbitrary external descendant CSS overrides remain outside the agreed reliable styling contract. Consumers must supply constraints and establish bounded container height independently.
+
+Standalone use remains independent of publication, saving and persistence. Browser measurements cannot simply be trusted for future server publication validation. No Info Card integration, legacy migration, server-side validation/measurement service, editor, Markdown or future-consumer implementation was undertaken.
+
+**Stop after Stage 5. Any next phase, including Info Card integration, requires separate explicit authorisation.**
+
+### 17.7 Complete Stage 5 changed-file list
+
+Paths are relative to the repository root and the clean `323123f` Stage 5 preflight. Historical evidence, dependency manifests, application configuration/global styles and all Info Card files are unchanged. The machine-readable manifest includes content hashes (excluding its own self-hash).
+
+- `docs/engineering/features/maths-renderer/maths-renderer-engineering-plan.md`
+- `src/app/dev/maths-renderer/CapacityFixtures.tsx`
+- `src/app/dev/maths-renderer/PresentationFixtures.tsx`
+- `src/app/dev/maths-renderer/page.tsx`
+- `src/app/dev/maths-renderer/presentationSamples.ts`
+- `src/components/maths-renderer/MathsExpression.module.css`
+- `src/components/maths-renderer/MathsRenderer.module.css`
+- `src/components/maths-renderer/MathsRenderer.tsx`
+- `src/components/maths-renderer/katex.scoped.css`
+- `src/components/maths-renderer/typesetMath.ts`
+- `tests/maths-renderer/acceptance.browser.ts`
+- `tests/maths-renderer/evidence/stage5/accessibility.json`
+- `tests/maths-renderer/evidence/stage5/browser-tests.json`
+- `tests/maths-renderer/evidence/stage5/change-manifest.json`
+- `tests/maths-renderer/evidence/stage5/chromium-a-tall.png`
+- `tests/maths-renderer/evidence/stage5/chromium-b-columns-tall.png`
+- `tests/maths-renderer/evidence/stage5/chromium-b-phantom-tall.png`
+- `tests/maths-renderer/evidence/stage5/geometry.json`
+- `tests/maths-renderer/evidence/stage5/production-acceptance.json`
+- `tests/maths-renderer/evidence/stage5/production-build.log`
+- `tests/maths-renderer/evidence/stage5/production-chromium.png`
+- `tests/maths-renderer/evidence/stage5/production-firefox.png`
+- `tests/maths-renderer/evidence/stage5/production-font-resolution-before.log`
+- `tests/maths-renderer/evidence/stage5/production-presentation-before.log`
+- `tests/maths-renderer/evidence/stage5/production-server.log`
+- `tests/maths-renderer/evidence/stage5/production-webkit.png`
+- `tests/maths-renderer/evidence/stage5/regression-checks.json`
+- `tests/maths-renderer/evidence/stage5/webkit-a-tall.png`
+- `tests/maths-renderer/evidence/stage5/webkit-b-columns-tall.png`
+- `tests/maths-renderer/evidence/stage5/webkit-b-phantom-tall.png`
+- `tests/maths-renderer/isolation.test.ts`
+- `tests/maths-renderer/presentation.browser.ts`
+- `tests/maths-renderer/production-acceptance.mts`

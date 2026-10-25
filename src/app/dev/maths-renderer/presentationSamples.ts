@@ -1,12 +1,12 @@
 import type { MathsPresentation } from "@/components/maths-renderer/types";
 
-// Review candidates only: consumers still supply every presentation value.
+// Balanced is approved; alternatives remain comparisons. Consumers supply typography.
 export const recommendedPresentation: MathsPresentation = {
   fontFamily: "Arial, sans-serif", fontSizePx: 18, fontWeight: 400, lineHeight: 1.5,
   mathScale: 1, paragraphGapEm: 0.8, displayIndentEm: 1, displayGapEm: 0.6,
 };
 export const reviewSettings = [
-  { id: "balanced", title: "Balanced · recommended, provisional", description: "Maths at 1× prose size; 1em display indent; 0.6em display gaps.", changes: {} },
+  { id: "balanced", title: "Balanced · approved", description: "Maths at 1× prose size; 1em display indent; 0.6em display gaps.", changes: {} },
   { id: "larger-maths", title: "Larger mathematics · alternative", description: "Maths at 1.1× prose size. All prose and spacing settings match Balanced.", changes: { mathScale: 1.1 } },
   { id: "more-space", title: "More display space · alternative", description: "A 1.5em display indent and 0.8em display gaps. Maths and prose sizes match Balanced.", changes: { displayIndentEm: 1.5, displayGapEm: 0.8 } },
 ] as const;

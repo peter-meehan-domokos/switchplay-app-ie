@@ -13,9 +13,10 @@
 .displayBlock { display: flow-root; padding-block: var(--maths-display-gap); }
 .displayBlock + .displayBlock { padding-block-start: 0; }
 .display { display: block; padding-inline-start: var(--maths-display-indent); }
-.display :global(.katex-display) { margin: 0; text-align: left; }
-.display :global(.katex-display > .katex) { text-align: left; }
-.content :global(.katex) { font-size: var(--maths-scale); }
+/* Outrank the scoped vendor selectors regardless of production chunk order. */
+.content .display :global(.katex-display) { margin: 0; text-align: left; }
+.content .display :global(.katex-display > .katex) { text-align: left; }
+.content :global(.switchplay-maths-katex .katex) { font-size: var(--maths-scale); }
 .inline { display: inline-block; white-space: nowrap; vertical-align: baseline; padding-block: var(--maths-inline-clearance); }
-.inline :global(.katex) { white-space: nowrap; }
+.content .inline :global(.katex) { white-space: nowrap; }
 .fallback { white-space: pre-wrap; }

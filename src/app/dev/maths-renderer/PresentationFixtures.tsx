@@ -17,7 +17,7 @@ function ReviewCase({ setting, size }: { setting: typeof reviewSettings[number];
         constraints={{ kind: "container", elementRef: host, height: "unbounded" }} onResult={setResult} />
     </div>
     <p className={styles.reviewStatus}>{result?.status === "ready" ? `Ready: ${result.fits ? "fits" : "overflow"}` : result?.status ?? "pending"}</p>
-    <details className={styles.source}><summary>Source, provisional settings and diagnostics</summary>
+    <details className={styles.source}><summary>Source, presentation settings and diagnostics</summary>
       <pre>{reviewContent}</pre><pre>{JSON.stringify(presentation, null, 2)}</pre>
       <pre data-review-result="">{JSON.stringify(result, null, 2)}</pre>
     </details>
@@ -26,8 +26,8 @@ function ReviewCase({ setting, size }: { setting: typeof reviewSettings[number];
 
 export default function PresentationFixtures() {
   return <section id="presentation-review" className={styles.group} data-presentation-review="">
-    <h2>Provisional presentation comparisons</h2>
-    <p>Each option uses the same source and both alignment layouts. Working-row spacing retains the approved approximately 25% increase. All options include provisional 0.25em clearance above and below inline maths. Containers respond to the page width; expressions remain intact and any overflow is reported.</p>
+    <h2>Approved Balanced presentation and comparison examples</h2>
+    <p>Each option uses the same source and both alignment layouts. Working-row spacing retains the approved arraystretch value of 2.3125. All options include approved 0.25em clearance above and below inline maths. Containers respond to the page width; expressions remain intact and any overflow is reported.</p>
     {reviewSettings.map(setting => <section className={styles.reviewSetting} id={setting.id} key={setting.id} data-review-setting={setting.id}>
       <h2>{setting.title}</h2><p>{setting.description}</p>
       {reviewSizes.map(size => <ReviewCase key={size.id} setting={setting} size={size} />)}

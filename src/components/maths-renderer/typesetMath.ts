@@ -23,7 +23,8 @@ export function typesetMath(latex: string, display = true):
         return "ignore";
       },
       // Aligned rows reserve 1.2em × arraystretch plus 0.3em inter-row space.
-      // 1.3125 gives 1.875em instead of 1.5em: 25% more ordinary row spacing.
+      // The user visually approved 2.3125: 3.075em ordinary row pitch.
+      // This supersedes the earlier 1.3125 (+25%) setting.
       // KaTeX still expands rows naturally for tall fractions and radicals.
       macros: { "\\arraystretch": "2.3125" },
     });
