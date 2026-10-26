@@ -1,7 +1,7 @@
 # Great Maths Visuals
 ## Design Principles and Quality Standards
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Suggested filename:** `great-maths-visuals.md`  
 **Purpose:** Define what makes an interactive mathematical visual educationally effective, mathematically sound, intuitive, accessible and worth building.
 
@@ -118,6 +118,16 @@ The connection must be perceivable without substantial mental reconstruction.
 In our first sparkline, the graph and factorised expression were both correct, but numerical root labels were initially absent. Adding those labels made the intended root–factor connection considerably clearer.
 
 **Quality standard:** Essential correspondence between representations should be explicit enough to recognise quickly.
+
+### Sequence representations deliberately
+
+Connecting representations means deciding not only which students encounter, but **when** they encounter them.
+
+An activity might progress from concrete manipulation to geometric observation, numerical evidence, algebraic relationships and formal notation. The sequence must follow the mathematical insight being developed, not a compulsory concrete-to-abstract template.
+
+Introducing a formal rule too early may replace the intended discovery with a procedure to follow. Introducing it too late may leave the purpose of earlier explorations unclear. Where possible, formal notation should express, connect or generalise something the student has already begun to understand.
+
+If visual or numerical evidence suggests an exact relationship, distinguish that observation from the reasoning needed to establish it. Showing several agreeing representations does not, on its own, establish a proof.
 
 ## 2.3 Distinguish variables from invariants
 
@@ -280,6 +290,8 @@ This is an established starting pattern, **not a compulsory template**.
 
 Some concepts need fewer stages; others need different forms of investigation.
 
+The choice of **first example**, its initial mathematical state and the order of subsequent examples are teaching decisions. They should make the intended progression understandable rather than follow an incidental implementation order. A returning student may need to see their earlier exploration state instead of the original starting example.
+
 ## 4.2 A growing pedagogical stage bank
 
 Potential additional stages include:
@@ -324,6 +336,8 @@ For example, \(-3\) corresponds to the factor \((x+3)\) because substituting \(-
 
 The explanation should connect to what the student has just manipulated, predicted or observed.
 
+Where useful, explicitly relate a numerical result to the geometric evidence visible in the graph or construction. Do not assume students will notice that correspondence merely because the representations appear together. Keep clear the difference between what a diagram suggests, what numerical estimates support and what mathematical reasoning establishes exactly.
+
 ## 4.5 Include opportunities for retrieval and transfer
 
 Following an explanation is not the same as understanding it independently.
@@ -335,6 +349,8 @@ For example, after investigating the factor corresponding to a given root, stude
 This reversal helps test the relationship rather than the ability to repeat a memorised interaction.
 
 The challenge should remain focused and proportionate to the learning objective.
+
+As difficulty increases, new challenges should normally extend or combine reasoning established earlier in the activity. Avoid demanding an unexplained technique merely because its individual ingredients have appeared on previous screens.
 
 ## 4.6 Completion must be clear
 
@@ -348,6 +364,37 @@ A final stage should:
 - Clearly label any available next action.
 
 Prefer unmistakable status language such as **Finished** rather than ambiguous wording that could sound like an instruction.
+
+## 4.7 Preserve mathematical continuity between stages
+
+A sequence of individually effective visuals does not necessarily create a coherent learning experience. Each stage should build on understanding established earlier and prepare students for the reasoning needed next.
+
+For every transition, ask:
+
+1. What mathematical understanding has the student just developed?
+2. What does the next stage assume they already understand?
+3. Has the essential connection between those ideas been made explicit?
+4. Would a concise observation, explanation, expression or interaction make that connection clearer?
+
+Resolve missing connections without automatically adding another stage. The aim is a continuous mathematical argument rather than a collection of related demonstrations.
+
+**Example:** After identifying the vertical strip height between curves as \(h(x)=3x-x^2\), the next representation should show that expression inside the area integral, \(\int_a^b(3x-x^2)\,dx\), rather than asking the student to infer the substitution from the generic symbol \(h(x)\).
+
+**Quality standard:** Students should be able to follow the mathematical reasoning from stage to stage without having to reconstruct essential connections that the activity was intended to teach.
+
+## 4.8 Organise multiple explorations within a stage
+
+When a stage contains several distinct mathematical explorations, its interface should make their relationship and suggested sequence apparent.
+
+Clearly named subsections arranged in a meaningful order can communicate progression without a separate layer of instructions, completion indicators or compulsory unlocking. Where appropriate, students should be free to compare and revisit them in any order.
+
+The instruction for the selected subsection should direct attention to its immediate mathematical action or observation. Avoid repeating navigation instructions when the structure itself already makes the next opportunity clear.
+
+Subsections should represent meaningful differences in mathematical focus or activity, not merely several controls used together in one task.
+
+**Example:** An area investigation may move from \(y=x\) to \(y=x^2\) and then to a subsection that consolidates the general integration rule. This is one possible organisation, not a requirement to add subsection buttons to every activity.
+
+**Quality standard:** Students should understand how the explorations relate and how to continue, without being forced through an arbitrary sequence.
 
 ---
 
@@ -377,6 +424,8 @@ Clear instructions do not weaken mathematical rigour.
 
 They allow students to concentrate on the concept being taught.
 
+Distinguish the roles of student-facing text. An **instruction** directs an action or an observation; an **explanation** establishes why something happens; a **conclusion** consolidates or connects what has been learnt. The opening instruction should normally tell the student what to do or notice, without forcing explanations and conclusions to sound like commands.
+
 ## 5.2 Distinguish mathematical vocabulary from interface language
 
 Correct mathematical terms such as *root*, *factor*, *gradient*, *derivative* and *integral* should be used accurately and explained when necessary.
@@ -402,6 +451,8 @@ Every visible control should have an understandable purpose.
 Avoid competing primary actions, unexplained icons and elements that appear interactive but are not.
 
 If progression is unavailable, the student should be able to understand what needs to happen first.
+
+Use short, context-sensitive prompts when the intended next exploration might otherwise be missed. Prefer clarifying an existing instruction or interface structure to introducing a separate guidance system. A next-step sentence is not necessary after every exploration; it should not compete with the mathematical conclusion.
 
 ## 5.4 Minimise unnecessary cognitive load
 
@@ -448,6 +499,14 @@ The central mathematical visual, instruction and primary interaction must remain
 Do not rely on hovering to reveal essential information.
 
 Support appropriately sized touch targets, smaller screens and enlarged text.
+
+### Allocate space according to mathematical importance
+
+On a constrained screen, allocate space to the graph or construction, primary interaction, essential notation and instructions according to their contribution to understanding.
+
+Before shrinking a graph, reducing mathematical typography, removing necessary content or introducing scrolling, examine how the available space is distributed. Whitespace can improve clarity, but unused space should not force important mathematics into unnecessarily cramped areas elsewhere.
+
+Different states may need different allocations, especially when assistance, feedback or a worked solution appears. Evaluate the actual learner-facing states at representative phone sizes, not only the initial layout.
 
 ## 6.2 Establish visual hierarchy
 
@@ -531,6 +590,8 @@ Assistance should explain enough to support progress without unnecessarily remov
 
 Avoid extra steps simply to unlock an interaction after viewing an explanation.
 
+Hints should, where possible, reactivate mathematical ideas, methods and terminology already encountered in the activity. Avoid introducing a new unexplained procedure or technical term at the point when the student is asking for help. Assistance should support the next reasoning step without unnecessarily completing the assessed task.
+
 ## 7.4 Assessment should measure the intended mathematics
 
 A student should not be marked incorrect because an instruction was ambiguous or a control was difficult to operate.
@@ -556,6 +617,16 @@ Stronger evidence of understanding may come from:
 - A conventional examination-style application.
 
 The activity should avoid making unsupported claims about mastery.
+
+## 7.6 Worked solutions should expose the intended reasoning
+
+When an activity provides a worked solution, show the mathematical steps necessary to understand how its answer follows.
+
+The appropriate detail depends on the learning objective. Routine arithmetic need not always be expanded, but steps that express the central mathematical reasoning should not be omitted. Present successive expressions as a clear, connected calculation rather than a collection of disconnected results.
+
+**Example:** After a student has explored definite integration, a final worked calculation may need to show the integral, the integrated expression evaluated between its boundaries, the substitution of both boundary values and the final subtraction. Jumping straight from the integral to its numerical answer hides the method the activity was designed to teach.
+
+A worked solution should help the student recognise which earlier discoveries were applied, how they were combined and why the result follows. It should not introduce unexplained new mathematics at completion.
 
 ---
 
@@ -672,9 +743,9 @@ The following are the principal criteria for reviewing an activity.
 | Correctness | All relevant mathematical states and explanations are valid |
 | Representations | Important relationships between representations are apparent |
 | Interaction | Principal actions reveal or investigate meaningful mathematics |
-| Learning journey | Every stage contributes to understanding or application |
+| Learning journey | Every stage contributes to understanding or application, and essential connections between stages are clear |
 | Instructions | A first-time student can understand what to do |
-| Feedback | Mistakes and requests for help lead naturally towards learning |
+| Feedback | Mistakes and requests for help lead naturally towards learning; worked solutions show the reasoning needed for the task |
 | Transfer | Students can demonstrate the insight in a fresh situation |
 | Visual clarity | The mathematics remains legible and prominent, including on phones |
 | Accessibility | Essential actions and information are accessible through suitable alternatives |
@@ -736,7 +807,7 @@ Useful evidence may come from real learner observations, teacher feedback, stude
 
 1. **Understanding before demonstration.** The purpose is mathematical insight rather than animation.
 
-2. **Relationships before representations.** Multiple representations matter when their connections are clear.
+2. **Relationships before representations.** Multiple representations matter when their connections are clear and introduced at useful moments.
 
 3. **Meaningful interaction before unrestricted exploration.** Manipulation should reveal mathematics.
 
@@ -752,7 +823,7 @@ Useful evidence may come from real learner observations, teacher feedback, stude
 
 9. **Meaningful learning evidence before interaction counts.** Record mathematical decisions, not merely activity volume.
 
-10. **Reusable principles without rigid teaching templates.** Each mathematical concept should shape its own learning journey.
+10. **Reusable principles without rigid teaching templates.** Each mathematical concept should shape its own connected learning journey.
 
 ---
 

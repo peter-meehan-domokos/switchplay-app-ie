@@ -1,7 +1,7 @@
 # AI Support Guide for Mathematical Visuals
 ## Designing Excellent Learning Experiences with Increasing AI Autonomy
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Suggested filename:** `ai-support-guide.md`  
 **Purpose:** Define how AI assistants should design, coordinate, evaluate and improve interactive mathematical learning experiences, minimising unnecessary human involvement while maintaining educational quality.
 
@@ -23,11 +23,11 @@ AI should take responsibility for proposing, developing, critically evaluating a
 
 The human reviewer should concentrate on mathematical understanding, educational quality, product vision and consequential decisions.
 
-**The governing principle is: AI should complete all reasonably autonomous work before requesting human attention.**
+**The governing principle is: AI should complete all work within its current authority before requesting human attention.**
 
-This does not mean important learning decisions can be changed without approval.
+Before the first collaborative review, AI has full responsibility for educational design within the original project brief. Once human collaboration establishes decisions, subsequent independent work proceeds under an explicit autonomy contract specifying what AI may change and what remains protected.
 
-It means that human involvement must be purposeful, well prepared and proportionate to the significance of the decision.
+Human involvement must be purposeful, well prepared and proportionate to the significance of the decision. The aim is to expand effective AI autonomy, not to turn every improvement into a permission request.
 
 ## 1.1 What success looks like
 
@@ -47,7 +47,9 @@ Successful autonomy means fewer avoidable questions, corrections and redesigns�
 
 # 2. Standard Operating Sequence
 
-The default process has six phases and two principal human approval points.
+The default process has six **workflow phases** and two principal human approval points. Workflow phases describe the work; **authority modes** (autonomous or collaborative) describe who may make educational decisions. These are related but not interchangeable.
+
+The initial Discover and Design work is autonomous: AI owns educational design within the original brief. Approval A is ordinarily the first collaborative review. Later autonomous work is governed by an explicit contract established when leaving collaboration.
 
 | Phase | Primary responsibility | Required outcome |
 |---|---|---|
@@ -62,7 +64,7 @@ The default process has six phases and two principal human approval points.
 
 The sequence is a decision framework, not a rigid timetable.
 
-Straightforward activities may combine phases. Complex or unfamiliar activities may justify additional review.
+Straightforward activities may combine phases. Complex or unfamiliar activities may justify additional review. A new human review does not automatically make every detail of the experience human-controlled; the resulting agreements and subsequent autonomy contract determine what is protected.
 
 ## 2.1 Two principal approval points
 
@@ -79,6 +81,8 @@ The human understands and approves:
 **Approval B — Working experience**
 
 The human interacts with the completed activity and judges its clarity, educational value and readiness.
+
+A collaborative review should conclude by recording consequential agreements and identifying whether the next work is collaborative or autonomous. If autonomy resumes, establish its scope before handoff; do not assume either unrestricted autonomy or universal protection of every previously visible detail.
 
 ## 2.2 Extra reviews require justification
 
@@ -102,6 +106,32 @@ The human should receive the information needed to understand the recommendation
 
 Prefer concise, decision-ready outputs over exhaustive process reports.
 
+## 2.4 Autonomous and collaborative authority modes
+
+**Autonomous:** AI owns the assigned outcome and may investigate, design, evaluate and revise decisions within its authority. Before the first collaborative review, the original project brief and standing quality guides define that authority; no separate autonomy contract is needed. AI should not ask permission for ordinary educational decisions in this initial phase.
+
+**Collaborative:** Human and AI actively evaluate and agree consequential decisions. AI should bring reasoned proposals and alternatives, but a proposal does not become a joint agreement simply because AI recommends or repeats it.
+
+**Subsequent autonomous:** After collaboration, AI may again receive broad or narrow authority. The previously agreed design is protected only where the new autonomy contract says it is; the human may explicitly delegate authority to revisit earlier choices.
+
+The current mode should be identifiable. A handoff, conversation ending, or another agent taking over does not by itself transfer decision authority.
+
+## 2.5 Establish an autonomy contract when collaboration ends
+
+**Every transition from collaborative work to a new autonomous phase must establish an explicit autonomy contract** that specifies:
+
+1. **Objective:** The outcome AI must deliver.
+2. **Autonomous authority:** Which educational, interaction, presentation and other decisions AI can make or revise independently.
+3. **Protected decisions:** Which existing agreements cannot be changed without further discussion.
+4. **Escalation conditions:** Which conflicts, discoveries or proposed deviations require renewed collaboration.
+5. **Completion criteria:** What must be delivered or verified before the next review.
+
+The contract references the living experience specification and consequential entries in the decision log (Section 13). It may be a concise section of the current brief or handoff; it does not need a third permanent document. When authority is unchanged, the contract can explicitly carry forward an earlier one rather than being rewritten in full.
+
+Once the contract is established, AI should work independently within it. If a consequential decision falls outside or ambiguously across its boundaries, AI should surface the issue rather than silently treating itself as authorised. Do not turn the contract itself into an unnecessary extra approval meeting.
+
+**Phase-transition rule:** Complete the assigned work autonomously, or collaborate on the decision at hand, without assuming authority to start a different phase. When changing from collaborative to autonomous work, clarify the contract first.
+
 ---
 
 # 3. Roles and Decision Authority
@@ -110,7 +140,7 @@ Three roles contribute to the process.
 
 ## 3.1 Design AI
 
-The design AI owns the educational experience.
+The design AI leads the educational experience within its current authority mode and autonomy contract, if any.
 
 Responsibilities include:
 
@@ -129,7 +159,7 @@ Its work is judged against *Great Maths Visuals*.
 
 ## 3.2 Development AI
 
-The development AI, currently Codex, owns technical realisation of the approved experience.
+The development AI, currently Codex, owns technical realisation within its assigned scope. It may also hold expressly delegated educational-design authority during an autonomous phase; technical ownership alone does not grant that authority.
 
 Responsibilities include:
 
@@ -149,9 +179,9 @@ The development AI should also proactively identify educational and UX problems.
 
 ## 3.3 Human reviewer
 
-The human owns consequential educational and product decisions.
+The human determines the original project objective and the allocation of decision authority. During collaborative phases the human shares in consequential educational and product decisions; during autonomous phases AI makes decisions within its delegated scope.
 
-Their attention should focus on:
+Human attention should focus on:
 
 - The value of the chosen mathematical insight.
 - Whether the central interaction communicates it.
@@ -163,73 +193,65 @@ The human should not normally have to reconstruct undocumented interface behavio
 
 ## 3.4 Autonomous decisions
 
-AI should normally make and verify decisions independently when they are low-risk, reversible and consistent with approved requirements.
+**Autonomy is phase- and contract-dependent, not a fixed list of small changes.**
 
-Examples:
+During the **initial autonomous design phase**, AI may decide and revise the central insight, interaction, learning journey, examples, language and presentation within the original objective and the standards in *Great Maths Visuals*. AI should resolve genuine design choices independently and critically evaluate its own work before the first human review.
 
-- Correcting a clearly ambiguous instruction without changing its intended mathematical meaning.
-- Making established labels consistent.
-- Removing an obviously redundant explanatory sentence.
-- Adjusting secondary presentation to improve readability.
-- Choosing conventional placement for supporting interface elements.
-- Resolving routine implementation details using established engineering standards.
+During **later autonomous phases**, AI may make any decision explicitly delegated by the autonomy contract, whether substantial or routine. Other consequential decisions remain protected. AI should be ambitious in identifying and investigating possible improvements even when it cannot implement them without further agreement.
 
-**AI autonomy is bounded by the approved learning experience, not by an exhaustive list of permissible minor changes.**
+Examples of routine decisions that are normally autonomous *when consistent with the current contract* include:
+
+- Correcting an unambiguous typographical error.
+- Making established labels consistent without changing their educational meaning.
+- Adjusting secondary presentation to improve readability within agreed visual constraints.
+- Choosing conventional placement for supporting elements where placement has not been protected.
+- Resolving routine technical matters under the Engineering Guide.
+
+Once wording or behaviour has been collaboratively agreed and protected, AI must not silently rewrite it merely because another phrasing seems shorter or more consistent. Removing a supposedly redundant explanation can change the teaching and should be proposed when outside delegated authority.
 
 ## 3.5 Decisions requiring human confirmation
 
-Request approval for changes that materially affect:
+During **collaborative work**, consequential proposals should be discussed and agreed. During a **subsequent autonomous phase**, human confirmation is required only when a proposed change exceeds or conflicts with the autonomy contract, or meets an agreed escalation condition.
 
-- The central mathematical insight.
-- The main interaction or discovery.
-- The learning journey.
-- The type or timing of assessment.
-- Whether or when answers are revealed.
-- The amount or nature of educational assistance.
-- A significant new student-facing control or mode.
-- A consequential accessibility or usability trade-off.
+Potentially consequential areas include:
 
-Examples:
+- The central mathematical insight or main discovery.
+- The stage sequence and its mathematical dependencies.
+- Established student-facing explanations and instructions.
+- Starting states and significant interaction behaviour.
+- The type or timing of assessment, feedback, assistance or answer reveal.
+- Significant new student-facing controls or modes.
+- Consequential accessibility and usability trade-offs.
 
-Changing the colour of an existing button is normally autonomous.
-
-Adding another learning stage requires approval unless it is already within the agreed design.
-
-Changing incorrect-answer feedback from immediate to delayed requires approval.
-
-Adding a separate confirmation action that interrupts a familiar interaction requires approval.
+These are **not permanently human-controlled categories**. For example, AI may independently redesign a stage when expressly delegated that authority; it must not insert an unapproved stage while contracted only to implement a protected learning journey.
 
 ## 3.6 Mandatory escalation
 
-Stop the affected decision and ask for guidance when:
+Stop the affected decision and seek guidance when:
 
-- The mathematical interpretation is materially uncertain.
-- Approved requirements conflict.
-- A proposed solution changes the learning objective.
+- Mathematical interpretation is materially uncertain and cannot be validated responsibly within the assigned scope.
+- Protected requirements conflict or the authoritative sources disagree about a consequential decision.
+- A desired change lies outside delegated autonomy, including changes to protected learning objectives or student-facing behaviour.
 - A serious accessibility or safety requirement cannot be met within the agreed scope.
-- Several materially different educational approaches remain plausible and none is clearly preferable.
-- A significant product decision cannot be resolved using existing standards.
+- A consequential product decision has not been delegated and cannot be resolved from existing agreements.
+- The autonomy contract does not clearly allocate authority for an important choice.
 
-Unrelated approved work may continue when safe.
+Multiple plausible educational approaches **within an autonomous design mandate** are a reason for AI to evaluate and decide, not automatically a reason to ask the human. Unrelated work within authority may continue safely.
 
 ## 3.7 The question filter
 
-Before asking the human, the AI must determine:
+Before asking the human, AI must determine:
 
-1. Is the answer already contained in the approved specification or companion guides?
-2. Can reliable mathematical reasoning or established design principles settle it?
-3. Can the issue be resolved independently without meaningful risk?
-4. Would a wrong choice materially change the experience or cause significant rework?
+1. Which authority mode is active, and what does the autonomy contract permit or protect?
+2. Is the answer already in the current living specification, decision log, brief or companion guides?
+3. Can reliable mathematical reasoning, learner-centred evaluation or established design standards settle the choice within the current authority?
+4. Is the issue a genuine conflict or an unapproved change, or merely an ordinary decision AI has been asked to own?
 
-If the question is routine, resolve it.
-
-If approval is needed, present:
+If the choice is delegated, decide and verify it. If it requires collaboration, present:
 
 **Decision required → recommendation → reasoning → meaningful alternatives.**
 
-Group related decisions into one review where possible.
-
-Do not turn uncertainty about ordinary implementation details into unnecessary product questions.
+Group related decisions into one review where possible. Do not turn uncertainty about routine work into unnecessary permission requests.
 
 ---
 
@@ -300,8 +322,11 @@ Maintain a clear distinction between:
 - Candidate approaches.
 - Autonomous design decisions.
 - Unresolved questions.
+- Protected decisions under the current autonomy contract.
 
-A suggestion or example must not silently become a fixed requirement.
+A suggestion or example must not silently become a fixed requirement. Equally, a decision made legitimately during an autonomous phase is part of that phase's work: it need not be retroactively approved to count as a design decision. Collaborative review and the subsequent contract determine which decisions become protected.
+
+When a later proposal conflicts with a current decision, trace its origin and authority rather than assuming that a repeated AI recommendation, a mockup or a draft plan has established approval.
 
 ---
 
@@ -532,6 +557,9 @@ At minimum, consider:
 - Resuming the activity after assistance.
 - Restarting the activity.
 - Alternative interaction methods.
+- Revisiting an earlier stage or subsection after exploration.
+
+Specify the difference between **fresh-entry defaults** and **returning-state behaviour**. An initial example may be chosen to establish a natural progression, while a returning learner may need their previous choices, answers or exploration settings restored. These are distinct educational decisions; the Engineering Guide governs their technical realisation.
 
 Resolve confusing transitions before substantial development.
 
@@ -557,7 +585,7 @@ For approval A, provide:
 
 Use concrete mathematical examples.
 
-Where screen arrangement is important to comprehension, provide simple sketches or mockups.
+Where screen arrangement is important to comprehension, provide simple sketches or mockups. Treat these as exploratory design evidence: incidental styling, labels, controls or layout details in generated imagery are **not approved requirements** unless explicitly adopted. Identify which aspects the review is intended to decide.
 
 The reviewer should be able to understand the experience without inspecting code.
 
@@ -580,6 +608,8 @@ Ask:
 
 Resolve identifiable problems before asking for approval.
 
+Rehearse the educationally significant **states and transitions**, not just the first screen of each stage: for example, after a prediction, while a different graph is selected, after a hint, after an incorrect Check, and on completion. Ask whether the visible mathematics, instruction and next action still make sense to a student with no knowledge of the specification.
+
 ## 8.3 Approval A is about experience, not implementation
 
 The human approves the learning objective, mathematical relationship and student journey.
@@ -592,7 +622,7 @@ Before development begins, the AI must ensure that every significant mathematica
 
 # 9. Development and Agent Handoff
 
-After approval A, the development AI takes responsibility for constructing the experience.
+After approval A, the development AI takes responsibility for constructing the experience within the agreed autonomy contract. The contract may delegate additional design responsibility, but that must be explicit; implementation responsibility alone does not grant permission to change protected educational requirements.
 
 This guide specifies what must be communicated and verified, not the programming methods used.
 
@@ -610,8 +640,9 @@ The development AI should receive:
 - Assessment and assistance rules.
 - Educationally meaningful learning evidence.
 - Agreed constraints and deferred issues.
+- The current living specification, consequential decision-log entries and autonomy contract.
 
-These together form the **approved experience specification**.
+These together form the **authoritative educational handoff**. The contract states what the development AI may revise autonomously; the specification states the current intended student experience. No separate implementation-plan proposal may silently expand the contract.
 
 ## 9.2 Initial development review
 
@@ -625,9 +656,11 @@ The development AI should inspect the specification for:
 - Accessibility problems.
 - Requirements that cannot be delivered without changing the approved experience.
 
-Routine issues should be resolved independently.
+Routine issues within the contract should be resolved independently.
 
-Consequential educational changes must be escalated with a recommendation.
+For consequential changes or apparent contradictions, check **requirement provenance** before implementation: did the requirement come from the current brief, an approved collaborative decision, an autonomous decision within delegated authority, the living specification, or an unresolved AI proposal? Apply this check to suggestions from both design and development AI.
+
+A proposal in an earlier assistant message, mockup, draft plan or review report does not become binding merely by repetition. If a change exceeds delegated authority or conflicts with protected behaviour, explain the conflict and recommend a resolution rather than silently implementing it.
 
 ## 9.3 Prototype the mathematical core
 
@@ -660,13 +693,13 @@ An additional human review is warranted only where the interaction introduces a 
 
 ## 9.5 Build the full experience
 
-After validating the core interaction, implement the approved learning journey.
+After validating the core interaction, build the intended learning journey within the current contract.
 
-Do not silently introduce new stages, controls or assessment rules.
+Do not silently introduce stages, controls, educational wording changes or assessment rules that exceed delegated authority. Conversely, exercise genuinely delegated design autonomy without unnecessary requests for approval.
 
-Technical decisions belong to the development AI and the Engineering Guide.
+Technical implementation decisions belong to the development AI and the Engineering Guide. Student-experience decisions follow the authority model in Sections 2 and 3.
 
-Meaningful changes to the student experience follow the decision policy in Section 3.
+Before substantial implementation or a new autonomous handoff, perform the consistency check in Section 13.
 
 ---
 
@@ -702,6 +735,9 @@ Inspect the actual experience through:
 4. Assistance followed by another attempt.
 5. Restart or repetition.
 6. Relevant accessible alternatives.
+7. Changes of mathematical example, subsection and return to earlier work.
+
+Inspect the **actual rendered** states that carry important mathematical information, not just the opening screens. Use representative portrait-phone sizes, including hint and finished-answer views. Choose states according to educational significance rather than imposing an exhaustive screenshot checklist.
 
 Check for:
 
@@ -776,6 +812,8 @@ For example:
 
 An incorrect Check indicates that the submitted mathematical answer did not match the expected result.
 
+Displaying an example or a rule records **exposure**, not proof that the student noticed, explored or understood it. Selecting a graph records a **choice**, not necessarily meaningful investigation of it. An intentional prediction, committed calculation or submitted Check can provide stronger, though still limited, evidence of attempted reasoning.
+
 A request for assistance indicates that additional support was used.
 
 A successful attempt without assistance provides a different kind of evidence from assisted success.
@@ -843,18 +881,21 @@ Distinguish:
 
 Avoid overwhelming the reviewer with test counts when those counts do not answer the educational question.
 
-## 12.4 Do not reopen settled decisions without cause
+## 12.4 Respect settled decisions and delegated authority
 
-Previously approved behaviour should remain stable unless:
+During collaborative work, previously agreed decisions should remain stable unless a contradiction, important new evidence, consequential implementation limitation or explicit request justifies revisiting them.
 
-- A contradiction is discovered.
-- New evidence identifies a serious weakness.
-- Implementation exposes a consequential limitation.
-- The human explicitly requests a change.
+During autonomous work, follow the current contract: protected decisions remain stable unless the contract permits revisiting them or a new agreement is reached; delegated decisions may be reconsidered without repeated approval.
 
-Explain why a settled decision is being revisited.
+When a learner-facing problem is identified in protected behaviour, explain it and propose the **smallest effective correction** before suggesting broader redesign. The smallest correction is the least unnecessary change to the student's experience, not necessarily the fewest lines of code.
 
-Routine refinements do not require repeated approval.
+Explain why a protected decision is being revisited. Do not rewrite settled student-facing copy merely for stylistic uniformity.
+
+## 12.5 Respect the requested workflow phase
+
+Finish the currently assigned task thoroughly, but do not assume that discussing a design authorises drafting a new implementation prompt, starting development or moving into another phase. A recommendation to proceed is not itself agreement to proceed.
+
+Likewise, in an authorised autonomous phase, do not interrupt ordinary decisions with repeated approval requests. Use the phase-transition rule and autonomy contract in Section 2.
 
 ---
 
@@ -862,49 +903,74 @@ Routine refinements do not require repeated approval.
 
 Long AI conversations may be compacted, restarted or transferred between agents.
 
-The approved student experience must therefore exist independently of conversation history.
+The current student experience must therefore exist independently of conversation history. **Maintain one living experience specification, one lightweight decision log and an explicit autonomy contract whenever responsibility returns to AI after collaboration.** These have different purposes, and none should become a competing version of another.
 
-## 13.1 Required content
+## 13.1 One living experience specification
 
-Each activity should have a concise, durable experience specification containing:
+Each activity should have **one authoritative, current** experience specification containing:
 
 - Activity identity and intended learner.
 - Central mathematical insight.
 - Mathematical assumptions and important cases.
-- Approved central interaction.
+- Current authoritative central interaction.
 - Current stage sequence and experience map.
 - Exact student-facing wording.
 - Significant assessment and assistance decisions.
 - Meaningful learning evidence.
-- Explicitly approved product decisions.
+- Current authoritative educational and product decisions, whether agreed collaboratively or made within delegated autonomy.
 - Outstanding questions and deferred limitations.
-- Important revisions and their reasons.
+- Important current revisions and remaining limitations.
+
+The specification describes **what the student should currently experience**; it is not a transcript or an ever-growing stack of amendments. After relevant decisions are made in collaboration, incorporate approved changes into the corresponding sections at natural checkpoints. Before the next substantial implementation handoff, the specification must reflect all applicable current decisions.
 
 The detailed format and storage arrangements belong to the development workflow and Engineering Guide.
 
-## 13.2 Maintain a clear decision status
+## 13.2 Maintain a lightweight decision log
+
+Keep a concise record of consequential educational and product decisions that may otherwise be difficult to interpret later. For each, record:
+
+- **Decision:** What was decided.
+- **Reason:** Why it was preferred, including any important trade-off.
+- **Status:** Whether it is current, deferred or superseded.
+- **Supersession:** Which earlier decision it replaces, where applicable.
+
+The decision log records **why important choices were made**, while the living specification records **what is now required**. Do not log every punctuation adjustment or routine implementation choice. Do not force the reader to reconcile competing instructions spread across the log and specification.
+
+## 13.3 Maintain decision and authority status
 
 Distinguish explicitly between:
 
-**Approved:** A decision that should govern the current experience.
+**Approved:** Agreed in collaboration or otherwise authoritative under the current brief or contract.
 
-**Proposed:** An option awaiting a decision.
+**Autonomously decided:** Chosen legitimately by AI within its assigned authority; it does not require retrospective human sign-off merely to be a design decision.
+
+**Proposed:** An option awaiting a decision by the actor currently holding authority.
+
+**Protected:** A current decision the next autonomous phase may not change without renewed collaboration.
 
 **Deferred:** A known requirement or issue postponed with explicit acknowledgement.
 
 **Superseded:** A previous decision that has been replaced.
 
-Do not silently treat tentative ideas as approved requirements.
+A decision may be both approved and protected, or autonomously decided and later protected following review. Status should be interpreted against the current phase and autonomy contract. **A suggestion, mockup detail or implementation-plan idea must not silently become an authorised requirement.**
 
-## 13.3 Keep documentation proportional
+## 13.4 Consistency and authority check before handoff
 
-The specification should make the experience reproducible and understandable.
+Before substantial implementation work or a new autonomous phase after collaboration, verify:
 
-It should not become a transcript of every conversation or a catalogue of discarded implementation ideas.
+1. The living specification reflects all applicable current decisions and exact agreed student-facing wording.
+2. Superseded requirements have been replaced or clearly marked, rather than remaining as competing instructions.
+3. The decision log preserves the rationale for consequential choices without overruling the specification.
+4. Proposed changes have not been mistaken for decisions; their provenance and approval status are clear.
+5. The autonomy contract identifies the new objective, delegated and protected decisions, escalation conditions and completion criteria, and does not contradict the specification or log.
 
-Preserve decisions that affect student experience, mathematical meaning or important constraints.
+If the source documents conflict about a consequential learner-facing requirement, investigate the origin of the discrepancy and resolve it within current authority or escalate. Do not assume a regression cause or silently choose whichever wording appears latest.
 
-Avoid duplicating programming documentation from the Engineering Guide.
+## 13.5 Keep documentation proportional
+
+The specification should make the experience reproducible and understandable, not become a transcript of every conversation or a catalogue of discarded ideas.
+
+The log and contract can be short and may live inside existing project documents. Consolidate amendments at natural checkpoints, not after every conversational sentence. Avoid duplicate authoritative specifications and keep implementation details in the Engineering Guide.
 
 ---
 
@@ -923,7 +989,7 @@ For a substantive exception, identify:
 - Who or what is affected.
 - Whether it blocks the intended milestone.
 - The proposed resolution or reason for deferral.
-- Whether the human approved deferral.
+- Whether the deferral was authorised within the current phase and contract or explicitly agreed in collaboration.
 
 ## 14.2 Respect the distinction between milestone acceptance and full readiness
 
@@ -937,7 +1003,7 @@ A deferred requirement remains open until resolved and verified.
 
 ## 14.3 Avoid repeatedly escalating acknowledged limitations
 
-Once a limitation has been recorded and its deferral approved, it should not trigger the same question at every checkpoint.
+Once a limitation and its deferral have been recorded and authorised under the current authority model, they should not trigger the same question at every checkpoint.
 
 Reopen it when:
 
@@ -963,6 +1029,8 @@ Consider:
 - Which approval requests were unnecessary?
 - Which design patterns proved reusable?
 - Which new problems were specific to the mathematical topic?
+- Did the transitions between collaborative and autonomous work grant enough authority while protecting agreed decisions?
+- Did proposed requirements acquire authority without a clear source or agreement?
 
 Prefer a small number of consequential findings over a lengthy account of routine implementation details.
 
@@ -989,12 +1057,13 @@ Do not introduce stage names merely to make the framework appear comprehensive.
 Useful indicators include:
 
 - Substantial design changes after implementation.
-- Human interventions required.
+- Human interventions required, and whether they were well timed and necessary.
 - Unnecessary questions asked.
 - Time needed for the reviewer to understand the activity.
 - Rework caused by ambiguous requirements.
 - Important usability defects discovered late.
 - Reuse of established patterns.
+- Rework from unclear or contradictory autonomy contracts and outdated specifications.
 
 These measures should improve the process, not become targets that encourage agents to conceal problems or avoid necessary escalation.
 
@@ -1002,16 +1071,19 @@ These measures should improve the process, not become targets that encourage age
 
 The current operating sequence should be treated as an initial standard.
 
-After developing the second visual, review:
+Following the second visual, the Integration experience highlighted the importance of connected mathematical reasoning, significant rendered states, reliable decision preservation and authority transfers between phases.
 
-- Whether the experience map prevented confusion.
-- Whether two major approvals were appropriate.
-- Whether AI autonomy was sufficient.
-- Whether the prototype was reviewed at the right time.
-- Whether educational issues were detected before final human testing.
+Continue to review:
+
+- Whether the experience map and its stage-to-stage dependencies prevented confusion.
+- Whether the principal collaborative reviews occurred at the right time.
+- Whether AI had sufficient authority before the first review and under each subsequent contract.
+- Whether the prototype and rendered learner states were reviewed appropriately.
+- Whether educational problems were detected before final human testing.
+- Whether the living specification, decision log and contract remained consistent.
 - Whether the three guides remained distinct and useful.
 
-Refine the process based on those observations.
+Refine the process based on observed outcomes, not assumed educational effectiveness.
 
 ---
 
@@ -1021,37 +1093,45 @@ When using this guide, follow these rules:
 
 1. **Begin with the mathematical insight**, not the interface.
 
-2. **Recommend a strong concept**, rather than presenting unfiltered possibilities.
+2. **Own the initial autonomous design phase** within the original brief; do not seek routine human permissions.
 
-3. **Validate the mathematics** before finalising the student experience.
+3. **Recommend and select a strong concept**, rather than presenting unfiltered possibilities.
 
-4. **Produce an experience map** with actual student-facing wording and explicit progression.
+4. **Validate the mathematics** before finalising the student experience.
 
-5. **Account for every control** and remove unnecessary interaction steps.
+5. **Produce an experience map** with exact student-facing wording, coherent progression and significant returning states.
 
-6. **Rehearse incorrect, assisted and restarted journeys** before approving the design.
+6. **Account for every control** and remove unnecessary interaction steps.
 
-7. **Make routine decisions autonomously** within the approved requirements.
+7. **Rehearse significant learner states**, including incorrect, assisted, returning and finished journeys.
 
-8. **Escalate consequential changes with recommendations**, not open-ended questions.
+8. **Make decisions according to the current phase and autonomy contract**, not a universal list of prohibited changes.
 
-9. **Make the experience understandable before building it**.
+9. **Agree an explicit contract when collaboration returns to autonomy**, identifying delegated and protected decisions.
 
-10. **Prototype and validate the central mathematical interaction** before expanding it.
+10. **Escalate only matters beyond authority or requiring genuine collaboration**, with recommendations rather than open-ended questions.
 
-11. **Perform a cold-start review** before requesting final human evaluation.
+11. **Make the experience understandable before building it**.
 
-12. **Assess quality against Great Maths Visuals**, without reproducing its entire contents.
+12. **Prototype and validate the central mathematical interaction** before expanding it.
 
-13. **Distinguish verified facts from assumptions and educational predictions**.
+13. **Review rendered mathematical states on mobile** before requesting final human judgment.
 
-14. **Preserve approved decisions outside conversation history**.
+14. **Assess quality against Great Maths Visuals**, without reproducing its full checklist.
 
-15. **Maintain the boundary between educational design and technical implementation**.
+15. **Distinguish verified facts from assumptions and educational predictions**.
 
-16. **Record known limitations and explicit deferrals** rather than quietly treating them as resolved.
+16. **Maintain one living experience specification and a lightweight decision log**, with a consistency check before handoff.
 
-17. **Learn from each completed activity** and refine the relevant guide.
+17. **Trace consequential requirements to their actual source**, including suggestions from design AI.
+
+18. **Preserve the separation between educational authority and technical ownership**.
+
+19. **Respect the requested phase**; do not turn discussion into unsolicited implementation.
+
+20. **Record known limitations and explicit deferrals** rather than quietly treating them as resolved.
+
+21. **Learn from each completed activity** and refine the relevant guide.
 
 ---
 
@@ -1059,8 +1139,8 @@ When using this guide, follow these rules:
 
 **The ideal AI-supported process makes the human reviewer an educational decision-maker, not an interface detective, routine tester or technical project manager.**
 
-AI should take responsibility for developing the mathematical concept, proposing an understandable learning experience, anticipating problems, resolving routine decisions and critically evaluating its own work.
+AI should fully own the initial educational design within the brief, critically evaluate its work and arrive at the first collaborative review with a coherent experience rather than a queue of routine questions.
 
-Human involvement should concentrate on consequential educational decisions and final judgment of the learning experience.
+Human collaboration establishes consequential agreements. When the work returns to AI, a clear autonomy contract should give it enough authority to progress independently while preserving only the decisions that remain protected.
 
-**The goal is not to eliminate human judgment. It is to ensure that human judgment is spent where it contributes the greatest value.**
+**The goal is not to minimise autonomy or eliminate human judgment. It is to transfer responsibility deliberately so AI initiative and human educational judgment each contribute where they have the greatest value.**
