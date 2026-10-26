@@ -7,18 +7,18 @@ import { recommendedPresentation } from "./presentationSamples";
 import styles from "./explanationReview.module.css";
 
 export const explanationReviews = [
-  { title: "Function composition", content: String.raw`$$
-(g\circ f)(x)\quad\text{or}\quad g(f(x))
-\quad\text{means apply }f\text{ then }g
-$$
+{
+  title: "Function composition",
+  content: String.raw`$(g\circ f)(x)\quad\text{or}\quad g(f(x))\quad\text{means apply }f\text{ then }g$
 
+Example
 $$
 f(x)=2x+1,\quad g(x)=5x
 $$
-
 $$
 g(f(x))=5(2x+1)
-$$` },
+$$`
+},
   { title: "Multiplying all terms", content: String.raw`You must multiply ALL terms.
 
 $$
