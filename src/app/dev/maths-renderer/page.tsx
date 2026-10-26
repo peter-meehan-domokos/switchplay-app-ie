@@ -6,6 +6,7 @@ import styles from "./page.module.css";
 import CapacityFixtures from "./CapacityFixtures";
 import PresentationFixtures from "./PresentationFixtures";
 import LifecycleFixture from "./LifecycleFixture";
+import ExplanationReviewFixtures from "./ExplanationReviewFixtures";
 
 export const metadata = { title: "Maths Renderer · Standalone Review" };
 
@@ -19,6 +20,7 @@ export default function MathsRendererDevelopmentPage() {
       <p>Balanced mathematical styling has been visually approved. Other examples remain comparisons; container sizes and prose fonts are test scenarios.</p>
       <p><a href="#balanced">Approved Balanced</a> · <a href="#larger-maths">Larger maths</a> · <a href="#more-space">More display space</a></p>
     </header>
+    <ExplanationReviewFixtures />
     <PresentationFixtures />
     <details className={styles.regressionFixtures} data-regression-fixtures="">
       <summary>Earlier alignment, capacity and error-handling fixtures</summary>

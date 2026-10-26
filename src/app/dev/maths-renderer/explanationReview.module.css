@@ -1,0 +1,33 @@
+.section { margin-block: 32px; max-width: 730px; }
+.section h2 { font-size: 21px; margin-bottom: 16px; }
+.sample { margin-block: 28px; }
+.sample > h3 { font-size: 17px; margin-bottom: 12px; }
+/* Geometry mirrored only for this review from InfoCardFace.module.css and
+   InfoCardEditor.module.css. No production component/styles are imported. */
+.frame {
+  transform-origin: left top;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  width: 240px;
+  height: 157px;
+  padding: 12px;
+  border: 1px solid rgba(179, 195, 217, 0.25);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #303947, #252d39);
+  color: #c9d0da;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5px;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: left;
+}
+.header { visibility: hidden; min-width: 0; margin: 0 0 9px; font: inherit; font-weight: 400; white-space: nowrap; }
+.series { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 8.8px; font-weight: 400; }
+.title { font-weight: 700; }
+.viewport { min-height: 0; padding: 0; border: 0; overflow: auto; }
+.budget { width: 100%; height: 100%; padding: 0; border: 0; }
+.status { margin-block: 12px 8px; font-size: 13px; }
+.sample summary { cursor: pointer; font-size: 13px; }
+.sample pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; margin-block: 8px; }
