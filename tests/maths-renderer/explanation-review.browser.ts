@@ -27,10 +27,16 @@ test("five authored explanations match the actual text-only Info Card at mobile 
     await page.goto("/dev/maths-renderer#five-explanations");
     const boxes = page.locator("[data-explanation-review]");
     await expect(boxes).toHaveCount(5);
+    await page.evaluate(async () => { await document.fonts.ready; });
     for (let i = 0; i < 5; i++) {
       const box = boxes.nth(i);
-      await expect.poll(async () => JSON.parse((await box.locator("[data-explanation-result]").textContent()) ?? "null")?.status).toBe("ready");
-      const result: MathsResult = JSON.parse((await box.locator("[data-explanation-result]").textContent()) ?? "null");
+      let result: MathsResult | undefined;
+      await expect.poll(async () => {
+        const next = JSON.parse((await box.locator("[data-explanation-result]").textContent()) ?? "null");
+        if (next?.status === "ready") result = next;
+        return next?.status;
+      }).toBe("ready");
+      if (!result) throw new Error("Expected a ready renderer result");
       expect(result.diagnostics).toEqual([]);
       if (result.status !== "ready") throw new Error("Expected reliable measurement");
       const geometry = await box.evaluate(node => {
@@ -55,10 +61,10 @@ test("five authored explanations match the actual text-only Info Card at mobile 
       await expect(box.locator(".katex-error")).toHaveCount(0);
       await expect(box.locator("math")).toHaveCount([3, 1, 4, 4, 1][i]);
       if (i === 0) {
-        await expect(box.locator("[data-maths-paragraph]")).toHaveCount(0);
-        await expect(box.locator("[data-maths-expression='inline']")).toHaveCount(0);
-        await expect(box.locator("math annotation").first()).toHaveText(String.raw`(g\circ f)(x)\quad\text{or}\quad g(f(x))
-\quad\text{means apply }f\text{ then }g`);
+        await expect(box.locator("[data-maths-paragraph]")).toHaveCount(2);
+        await expect(box.locator("[data-maths-paragraph]").nth(1)).toHaveText("Example");
+        await expect(box.locator("[data-maths-expression='inline']")).toHaveCount(1);
+        await expect(box.locator("math annotation").first()).toHaveText(String.raw`(g\circ f)(x)\quad\text{or}\quad g(f(x))\quad\text{means apply }f\text{ then }g`);
         await expect(box.locator("math annotation").nth(1)).toHaveText(String.raw`f(x)=2x+1,\quad g(x)=5x`);
         await expect(box.locator("math annotation").nth(2)).toHaveText("g(f(x))=5(2x+1)");
       }

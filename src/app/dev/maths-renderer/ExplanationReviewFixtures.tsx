@@ -60,7 +60,7 @@ function ExplanationBox({ index, scale }: { index: number; scale: number }) {
   const [result, setResult] = useState<MathsResult | null>(null);
   return <article className={styles.sample} data-explanation-review={index + 1}>
     <h3>{index + 1}. {sample.title}</h3>
-    <div style={{ width: 240 * scale, height: 157 * scale }}>
+    <div style={{ width: 240 * scale, height: 204 * scale }}>
       <div className={styles.frame} data-explanation-frame="" style={{ transform: `scale(${scale})` }}>
         {/* Reserve the real header line box without putting review labels in the body. */}
         <h3 className={styles.header} aria-hidden="true"><span><button tabIndex={-1} className={styles.series}>Series</button></span>{" · "}<span className={styles.title}>Title</span></h3>
@@ -101,7 +101,7 @@ export default function ExplanationReviewFixtures() {
   }, []);
   return <section id="five-explanations" className={styles.section} data-five-explanations="">
     <h2>Five explanations · exact Info Card explanation space</h2>
-    <p>Text-only cards, without a media row: 240 × 157px outer frame, 1px border, 12px padding and the real header reservation, in local CSS pixels. The whole frame follows the real card’s viewport scaling. Each inner explanation viewport has no padding or border. Card prose typography (9.5px Arial, line height 1.25) with approved Balanced maths styling. Scroll each explanation independently; measurements describe the complete content before the whole-card transform.</p>
+    <p>Text-only cards, without a media row: 240 × 204px outer frame, 1px border, 12px padding and the real header reservation, in local CSS pixels. The whole frame follows the real card’s viewport scaling. Each inner explanation viewport has no padding or border. Card prose typography (9.5px Arial, line height 1.25) with approved Balanced maths styling. Scroll each explanation independently; measurements describe the complete content before the whole-card transform.</p>
     {explanationReviews.map((sample, index) => <ExplanationBox index={index} scale={scale} key={sample.title} />)}
   </section>;
 }

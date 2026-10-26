@@ -113,3 +113,24 @@ test("reload of uncertain publication exposes recovery and reuses its receipt", 
   assert.equal(f.root.latestVersion, 1); assert.equal(values.size, 0); editor.stopTimer(); resumed.stopTimer();
   assert.equal(resumed.confirmedPublicationVersion, 1);
 });
+
+test("new maths cards retain the source and format without making an untouched editor dirty", async () => {
+  const f = fixture(); const editor = new InfoCardEditorController("a", "alice", null, f.request, true);
+  await editor.flush(); assert.equal(f.calls.length, 0);
+  const source = String.raw`Price \$5. $x=\frac{1}{2}$`;
+  editor.edit({ ...EMPTY_INFO_DRAFT, body: source }); await editor.flush();
+  assert.equal(f.root.draft?.body, source); assert.equal(f.root.draft?.bodyFormat, "latex-v1"); editor.stopTimer();
+  const legacy = new InfoCardEditorController("a", "alice", structuredClone(fixture().dto), fixture().request, false);
+  legacy.edit({ ...EMPTY_INFO_DRAFT, body: "$5 and $10" }); assert.equal(legacy.desired.bodyFormat, undefined); legacy.stopTimer();
+});
+
+test("definitive unavailable measurement unlocks editing; uncertain publication still uses receipt recovery", async () => {
+  const f = fixture(); const request: CreatorTransport = async <T>(url: string, method = "GET", data?: unknown) => {
+    if (url.endsWith("/publish")) throw new CreatorRequestError(503, "INFO_MATHS_UNAVAILABLE", { publicationNotCommitted: true });
+    return f.request<T>(url, method, data);
+  };
+  const editor = new InfoCardEditorController("a", "alice", null, request, true);
+  editor.edit({ ...EMPTY_INFO_DRAFT, title: "Maths", body: "$x$", seriesId: "s" });
+  await assert.rejects(editor.publish()); assert.equal(editor.pendingPublication, undefined);
+  editor.edit({ ...editor.desired, body: "$y$" }); await editor.flush(); assert.equal(f.root.draft?.body, "$y$"); editor.stopTimer();
+});

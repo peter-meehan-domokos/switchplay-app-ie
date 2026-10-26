@@ -48,7 +48,7 @@ export default function InfoCardsLibrary({ actor, username, publishedId }: { act
     {!loading && !error && !items.length && <p>No published Info Cards found.</p>}
     <div className={styles.grid}>{items.map(card => <div key={card.infoCardId} className={styles.item} data-info-id={card.infoCardId} data-collection-item-id={card.infoCardId}>
         <p className={styles.series}>{card.series.title} (series by {card.series.creatorUsername})</p>
-        <InfoCardFace card={{ title: card.content.title, body: card.content.body, seriesTitle: card.series.title, seriesCreatorUsername: card.series.creatorUsername, mediaKind: card.content.mediaItem?.mediaType }}
+        <InfoCardFace card={{ title: card.content.title, body: card.content.body, bodyFormat: card.content.bodyFormat, seriesTitle: card.series.title, seriesCreatorUsername: card.series.creatorUsername, mediaKind: card.content.mediaItem?.mediaType }}
           onOpenMedia={card.content.mediaItem ? () => setMediaCard(card) : undefined} />
         <p className={styles.attribution}>Card by {card.creatorUsername}</p>
         <div className={styles.metadata}>{card.visibility === "private" && <span>Private</span>}

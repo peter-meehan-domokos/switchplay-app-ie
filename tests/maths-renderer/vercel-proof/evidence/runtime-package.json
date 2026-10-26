@@ -1,0 +1,65 @@
+{
+  "chromiumPackage": "153.0.0",
+  "engine": {
+    "node": "^22.17.0 || >=24.0.0"
+  },
+  "driver": "1.63.0",
+  "driverBrowser": {
+    "name": "chromium",
+    "revision": "1243",
+    "installByDefault": true,
+    "browserVersion": "153.0.8010.12",
+    "title": "Chrome for Testing"
+  },
+  "expectedLinuxBrowser": "153.0.8010.0",
+  "localBrowser": "153.0.8010.12",
+  "assets": [
+    {
+      "name": "al2023.tar.br",
+      "bytes": 1208350,
+      "sha256": "a166168dd3e3e9d8743689fff543c5cadb3025c1816c6a154c90dc68a59edd0a"
+    },
+    {
+      "name": "chromium.br",
+      "bytes": 67016039,
+      "sha256": "38e1e1649db20fa4ea644bf5987688ce81a4c9eb10e7eae8380b74fc0d699fea"
+    },
+    {
+      "name": "fonts.tar.br",
+      "bytes": 183738,
+      "sha256": "c1307fe5cd607092f0426742b4ab93755eec9a9b7752e47c56408c2bcf3e515b"
+    },
+    {
+      "name": "swiftshader.tar.br",
+      "bytes": 1637479,
+      "sha256": "b680e40a33235ecc6ad4c6897a168b70ce5164f0d62d2a64d675320d51614631"
+    }
+  ],
+  "routeTrace": {
+    "count": 263,
+    "bytes": 88379426,
+    "includes": [
+      "../../../../../node_modules/@sparticuz/chromium/bin/al2023.tar.br",
+      "../../../../../node_modules/@sparticuz/chromium/bin/chromium.br",
+      "../../../../../node_modules/@sparticuz/chromium/bin/fonts.tar.br",
+      "../../../../../node_modules/@sparticuz/chromium/bin/swiftshader.tar.br",
+      "../../../../../public/fonts/Liberation-LICENSE.txt",
+      "../../../../../public/fonts/LiberationSans-Bold.ttf",
+      "../../../../../public/fonts/LiberationSans-BoldItalic.ttf",
+      "../../../../../public/fonts/LiberationSans-Italic.ttf",
+      "../../../../../public/fonts/LiberationSans-Regular.ttf",
+      "../../../../../public/fonts/LiberationSerif-Bold.ttf",
+      "../../../../../public/fonts/LiberationSerif-BoldItalic.ttf",
+      "../../../../../public/fonts/LiberationSerif-Italic.ttf",
+      "../../../../../public/fonts/LiberationSerif-Regular.ttf"
+    ],
+    "note": "Next trace, not a Vercel function artifact"
+  },
+  "linuxLaunchVerified": true,
+  "releaseNotesBrowser": "153.0.8010.36",
+  "actualLinuxBrowser": "153.0.8010.0",
+  "executableSha256": "53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0",
+  "actualLinuxRevision": "86cee6df69e0463a839c0cc8435c9d4c259434d3",
+  "vercelPackagingAndExecutionVerified": true,
+  "vercelArtifactByteSize": "not exposed by inspected deployment API"
+}

@@ -50,3 +50,9 @@ next-env.d.ts
 out
 .next
 node_modules
+
+# Local maths verification/deployment transcripts; summaries and fixtures stay tracked.
+/tests/info-maths/evidence/*.log
+/tests/maths-fonts/evidence/*.log
+/tests/maths-renderer/evidence/trusted-proof/*.log
+/tests/maths-renderer/vercel-proof/evidence/*.log

@@ -11,7 +11,7 @@
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr);
   width: 240px;
-  height: 157px;
+  height: 204px;
   padding: 12px;
   border: 1px solid rgba(179, 195, 217, 0.25);
   border-radius: 12px;

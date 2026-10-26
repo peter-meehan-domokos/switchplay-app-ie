@@ -81,7 +81,7 @@ test("incomplete/overflow publication and conflicted save preserve text and prev
   const id = await create(page);
   await page.getByRole("textbox", { name: "Explanation", exact: true }).fill("This cannot fit. ".repeat(100));
   await page.getByRole("button", { name: "Publish", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("The explanation is too long to fit on the card.");
+  await expect(page.locator("#info-body-capacity")).toContainText("The explanation is too long or wide to fit safely:");
   await page.route(`**/api/info-cards/${id}`, async route => {
     if (route.request().method() === "PATCH") await route.fulfill({ status: 409, json: { error: "STALE_INFO_REVISION" } }); else await route.continue();
   });
@@ -125,7 +125,7 @@ test("My Drafts traverses more than one page and stays usable from Deck mode", a
 
 test("mobile editor and static Library retain fixed card dimensions and fit the viewport", async ({ page }, info) => {
   await login(page); await page.setViewportSize({ width: 390, height: 844 }); const id = await create(page);
-  const face = page.locator("[data-info-card-face]"); await expect(face).toHaveCSS("height", "157px"); await expect(face).toHaveCSS("width", "240px");
+  const face = page.locator("[data-info-card-face]"); await expect(face).toHaveCSS("height", "204px"); await expect(face).toHaveCSS("width", "240px");
   expect(await face.locator("button[aria-expanded]").evaluate(node => node.getBoundingClientRect().height)).toBeLessThan(13);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("info-editor-mobile.png"), fullPage: true });
@@ -163,9 +163,9 @@ test("mocked image transfer uses real proof-checked draft save; cancellation, pr
   });
   await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "a.png", mimeType: "image/png", buffer: pixel });
   await expect.poll(async () => (await (await page.request.get(`/api/info-cards/${id}`)).json()).root.draft?.mediaItem?.assetId).toBe(media.assetId);
-  const sevenLines = Array(7).fill("Line").join("\n");
+  const twelveLines = Array(12).fill("Line").join("\n");
   const explanation = page.getByRole("textbox", { name: "Explanation", exact: true });
-  await explanation.fill(sevenLines);
+  await explanation.fill(twelveLines);
   await expect(page.locator("#info-body-capacity")).toBeVisible();
   await expect(explanation).toHaveAttribute("aria-invalid", "true");
   await page.getByRole("button", { name: "Remove media", exact: true }).click();
@@ -454,7 +454,7 @@ test("live title overflow is field-specific and reacts to typing and series chan
   await expect(title).toHaveAttribute("aria-describedby", "info-title-capacity");
   expect(await title.evaluate(node => node.closest("label")!.nextElementSibling?.id)).toBe("info-title-capacity");
   await expect(page.getByText("Preview unavailable.", { exact: true })).toBeVisible();
-  await expect(page.locator("[data-info-card-face]")).toHaveCount(0);
+  await expect(page.locator("[data-info-card-face]").locator("..")).toHaveCSS("opacity", "0");
   await expect.poll(async () => (await (await page.request.get(`/api/info-cards/${id}`)).json()).root.draft?.title).toBe("W".repeat(40));
   await title.fill("Signs"); await expect(page.locator("#info-title-capacity")).toHaveCount(0);
   await page.getByRole("combobox", { name: "Series", exact: true }).selectOption(seriesId);
@@ -472,7 +472,7 @@ test("live explanation feedback preserves text, paragraph spacing, autosave and 
   const text = "Too much explanation. ".repeat(100);
   await body.fill(text);
   const warning = page.locator("#info-body-capacity");
-  await expect(warning).toHaveText("The explanation is too long to fit on the card. Shorten it or reduce paragraph breaks.");
+  await expect(warning).toContainText("The explanation is too long or wide to fit safely:");
   await expect(body).toHaveAttribute("aria-invalid", "true");
   await expect(body).toHaveAttribute("aria-describedby", "info-body-capacity");
   expect(await body.evaluate(node => node.closest("label")!.nextElementSibling?.id)).toBe("info-body-capacity");
@@ -481,7 +481,8 @@ test("live explanation feedback preserves text, paragraph spacing, autosave and 
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   expect((await rejected).status()).toBe(422);
   await expect(body).toHaveValue(text);
-  await expect(page.getByText(warningMessage(), { exact: true })).toHaveCount(1);
+  await expect(warning).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
   expect((await (await page.request.get(`/api/info-cards/${id}`)).json()).root.latestVersion).toBe(0);
   await body.fill("One\n\n\n\nTwo");
@@ -491,7 +492,6 @@ test("live explanation feedback preserves text, paragraph spacing, autosave and 
   await expect(page.getByRole("button", { name: "Published", exact: true })).toBeVisible();
 });
 
-function warningMessage() { return "The explanation is too long to fit on the card. Shorten it or reduce paragraph breaks."; }
 
 test("series-first title entry explains unavailability to keyboard and touch users", async ({ page, browser }) => {
   await login(page); await page.goto("/creator/info-cards/new");

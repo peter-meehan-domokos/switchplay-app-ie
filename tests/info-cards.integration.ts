@@ -390,3 +390,31 @@ test("series selector orders own series first and filters hidden names before pa
   assert.equal(JSON.stringify(result).includes("Secret"), false);
   assert.deepEqual((await discoverSeries(repo, "bob", { search: "Secret" })).items, []);
 });
+
+test("maths publication requires trusted measurement, preserves exact source and bypasses only the old body estimator", async () => {
+  const repo = await setup(); await draft(repo);
+  const source = String.raw`General rule:
+$$\boldsymbol{\frac{a}{\frac{b}{c}}=\frac{ac}{b}}$$`;
+  await repo.save("alice", "a", 1, { ...content(), body: source, bodyFormat: "latex-v1" }, "public");
+  await assert.rejects(repo.publish("alice", "a", 2), { code: "INFO_MATHS_UNAVAILABLE" });
+  let calls = 0;
+  const validate: import("../src/lib/infoCards/mathsValidation").InfoMathsValidator = async saved => {
+    calls++; assert.equal(saved.body, source); return { result: { status: "ready", fits: true, generation: 1, diagnostics: [], layout: { available: { width: 214, height: 157 }, bounds: { left: 0, top: 0, right: 100, bottom: 90 }, width: 100, height: 90, overflowX: false, overflowY: false, excess: { left: 0, right: 0, top: 0, bottom: 0 } } }, safe: true, headerFits: true };
+  };
+  const publication = await repo.publish("alice", "a", 2, validate);
+  assert.equal(publication.content.body, source); assert.deepEqual(publication.mathsValidation, { version: 1 });
+  await repo.publish("alice", "a", 2, validate); assert.equal(calls, 1);
+  assert.equal((await publishedSnapshot(repo, "alice", ["a"]))[0].content.bodyFormat, "latex-v1");
+  assert.equal((await infoCatalogue(repo, "alice")).items[0].content.body, source);
+  await assert.rejects(repo.save("alice", "a", 3, content(), "public"), { code: "INFO_FORMAT_CONFLICT" });
+});
+
+test("maths measurement outside a transaction cannot publish a concurrently replaced revision", async () => {
+  const repo = await setup(); await draft(repo);
+  await repo.save("alice", "a", 1, { ...content(), bodyFormat: "latex-v1" }, "public");
+  await assert.rejects(repo.publish("alice", "a", 2, async () => {
+    await repo.save("alice", "a", 2, { ...content(), body: "$y$", bodyFormat: "latex-v1" }, "public");
+    return { result: { status: "ready", fits: true, generation: 1, diagnostics: [], layout: { available: { width: 214, height: 157 }, bounds: { left: 0, top: 0, right: 10, bottom: 10 }, width: 10, height: 10, overflowX: false, overflowY: false, excess: { left: 0, right: 0, top: 0, bottom: 0 } } }, safe: true, headerFits: true };
+  }), { code: "STALE_INFO_REVISION" });
+  assert.equal(await repo.versions().countDocuments(), 0); assert.equal((await repo.owner("alice", "a")).draft?.body, "$y$");
+});

@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
+  "scope": "peter-meehan-domokos-projects",
+  "name": "switchplay-maths-renderer-proof",
+  "deploymentId": "dpl_89GFXKA4tYrXR7VeykuCUX4dxcio",
+  "url": "switchplay-maths-renderer-proof-pw2l5uwpz.vercel.app",
+  "rawTarget": null,
+  "environment": "preview",
+  "customEnvironment": null,
+  "readyState": "READY",
+  "bootstrapRetained": true,
+  "targetVerifiedBeforeMeasurements": true,
+  "productionProjectModified": false,
+  "createdAt": 1793020547622,
+  "readyAt": 1793020619396
+}

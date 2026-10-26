@@ -1,0 +1,22 @@
+{
+  "cliVersion": "65.2.0",
+  "user": "peter-meehan-domokos",
+  "team": "peter-meehan-domokos-projects",
+  "plan": "Hobby",
+  "existingProject": {
+    "name": "switchplay-app-ie",
+    "id": "prj_DJ3l13AXX5vhETO9uZ77A28BcC5E",
+    "node": "24.x",
+    "productionUrl": "https://www.switchplay.ie"
+  },
+  "proposedProject": {
+    "name": "switchplay-maths-renderer-proof",
+    "exists": false,
+    "environment": "preview",
+    "deploymentProtection": "must configure/verify after approval, before deployment"
+  },
+  "operations": "read-only whoami, project ls/inspect, teams ls, command help and blocked dry-run",
+  "projectCreated": false,
+  "deploymentCreated": false,
+  "productionSettingsChanged": false
+}

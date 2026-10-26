@@ -14,6 +14,7 @@ import { infoCardError } from "./infoCardErrors";
 import CreatorDraftsModal from "../creator/CreatorDraftsModal";
 import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "../creator/creatorDraftEntries";
 import styles from "./InfoCardEditor.module.css";
+import type { InfoMathsMeasurement } from "./infoCardMaths";
 import { uploadInfoCardMedia } from "./infoCardUpload";
 import { useInfoVideoStatus } from "./useInfoVideoStatus";
 import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
@@ -25,7 +26,8 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const router = useRouter();
   const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
   const [lifetime] = useState(() => new CreatorActorLifetime());
-  const [controller] = useState(() => new InfoCardEditorController(id, actor, initial, actorCreatorTransport(actor, () => lifetime.isActive())));
+  const [controller] = useState(() => new InfoCardEditorController(id, actor, initial, actorCreatorTransport(actor, () => lifetime.isActive()), !initial));
+  const [maths, setMaths] = useState<{ source: string; media: boolean; title: string; series: string; measurement: InfoMathsMeasurement } | null>(null);
   const [, redraw] = useState(0);
   const [message, setMessage] = useState("");
   const [navigating, setNavigating] = useState(false);
@@ -84,10 +86,13 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   }, [controller]);
   const content = controller.desired;
   const hasSelectedSeries = !!content.seriesId && series?.seriesId === content.seriesId;
-  const capacity = measureInfoCapacity({ ...content, seriesTitle: series?.title ?? "", hasMedia: !!content.mediaItem });
-  const titleCapacityIssue = hasSelectedSeries ? capacity.fieldIssues.find(issue => issue.field === "title") : undefined;
-  const bodyCapacityIssue = capacity.fieldIssues.find(issue => issue.field === "body");
-  const previewOverflow = capacity.fieldIssues.length > 0;
+  const currentMaths = maths?.source === content.body && maths.media === !!content.mediaItem && maths.title === content.title && maths.series === series?.title ? maths.measurement : null;
+  const capacity = content.bodyFormat ? { fieldIssues: [] } : measureInfoCapacity({ ...content, seriesTitle: series?.title ?? "", hasMedia: !!content.mediaItem });
+  const mathsReady = currentMaths?.result.status === "ready" ? currentMaths : null;
+  const titleCapacityIssue = hasSelectedSeries ? (content.bodyFormat ? mathsReady && !mathsReady.headerFits ? { field: "title" as const, code: "HEADER_OVERFLOW" as const, message: "The series name and title are too wide to fit together. Shorten either one." } : undefined : capacity.fieldIssues.find(issue => issue.field === "title")) : undefined;
+  const bodyCapacityIssue = content.bodyFormat ? mathsReady && !mathsReady.safe ? { field: "body" as const, code: "BODY_OVERFLOW" as const, message: mathsReady.result.status === "ready" ? `The explanation is too long or wide to fit safely: measured ${mathsReady.result.layout.width.toFixed(1)} × ${mathsReady.result.layout.height.toFixed(1)}px; normal area ${mathsReady.result.layout.available.width.toFixed(1)} × ${mathsReady.result.layout.available.height?.toFixed(1)}px.` : "" } : undefined : capacity.fieldIssues.find(issue => issue.field === "body");
+  const previewOverflow = !content.bodyFormat && capacity.fieldIssues.length > 0;
+  const mathsMasked = !!content.bodyFormat && (!mathsReady || !mathsReady.safe || !mathsReady.headerFits);
   const titleRequired = showRequired && !content.title.trim();
   const locked = !hydrated || navigating || confirmPublic || leaveDestination !== null || controller.publishing || controller.pendingPublication !== undefined;
   const ready = hasSelectedSeries && !!content.title.trim();
@@ -163,7 +168,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
     return () => { active = false; };
   }, [navigation.openDrafts, controller]);
   function closeDrafts() { setDrafts(null); requestAnimationFrame(() => draftsTrigger.current?.focus()); }
-  const error = controller.error ? infoCardError(controller.error, capacity.fieldIssues) : "";
+  const error = controller.error ? infoCardError(controller.error, [titleCapacityIssue, bodyCapacityIssue].filter(issue => !!issue)) : "";
   if (sessionChanged) return <main className={styles.editor}><p role="alert">Your account changed. Reload before continuing.</p><button type="button" onClick={() => router.refresh()}>Reload</button></main>;
   return <main className={styles.editor}>
     <header className={styles.header}>
@@ -222,8 +227,13 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
         </section>
       </fieldset>
       <section className={styles.preview} aria-label="Info Card preview">
+        {content.bodyFormat && <p role="status">{!currentMaths || currentMaths.result.status === "pending" ? "Measuring explanation…"
+          : currentMaths.result.status === "invalid-input" ? currentMaths.result.diagnostics.filter(d => d.severity === "error").map(d => d.message).join(" ")
+          : currentMaths.result.status === "measurement-unavailable" ? "Layout measurement is unavailable. Your source is saved."
+          : !currentMaths.headerFits || !currentMaths.safe ? "Preview unavailable." : "Explanation fits."}</p>}
         {previewOverflow ? <p role="status">Preview unavailable.</p> :
-          <div className={styles.face}><InfoCardFace card={{ title: content.title, body: content.body, seriesTitle: series?.title ?? "Series", seriesCreatorUsername: series?.creatorUsername ?? username, mediaKind: content.mediaItem?.mediaType }}
+          <div className={styles.face} aria-hidden={mathsMasked || undefined} inert={mathsMasked} style={{ opacity: mathsMasked ? 0 : 1 }}><InfoCardFace card={{ title: content.title, body: content.body, bodyFormat: content.bodyFormat, seriesTitle: series?.title ?? "Series", seriesCreatorUsername: series?.creatorUsername ?? username, mediaKind: content.mediaItem?.mediaType }}
+            onMathsResult={measurement => setMaths({ source: content.body, media: !!content.mediaItem, title: content.title, series: series?.title ?? "", measurement })}
             onOpenMedia={content.mediaItem && !uploading ? () => void openMedia() : undefined} /></div>}
       </section>
     </div>

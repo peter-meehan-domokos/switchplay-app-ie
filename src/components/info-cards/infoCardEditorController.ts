@@ -9,7 +9,7 @@ type SaveCommand = { revision: number; content: InfoDraft; visibility: Visibilit
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem"> & Partial<Pick<globalThis.Storage, "key" | "length">>;
 type Recovery = { actor: string; id: string; save?: SaveCommand; publish?: number };
 const clone = <T>(value: T): T => structuredClone(value);
-const uncertain = (error: unknown) => !(error instanceof CreatorRequestError) || error.status >= 500 || error.status === 408;
+const uncertain = (error: unknown) => !(error instanceof CreatorRequestError) || (error.status >= 500 || error.status === 408) && error.details?.publicationNotCommitted !== true;
 const correctable = (error: unknown) => error instanceof CreatorRequestError && [400, 403, 422].includes(error.status)
   && !error.code.includes("SESSION") && error.code !== "INFO_FORBIDDEN";
 
@@ -31,7 +31,7 @@ export class InfoCardEditorController {
   private storage?: Storage;
   private recoveryError = false;
   private recoveringSelection = false;
-  constructor(readonly id: string, readonly actor: string, initial: InfoEditorDTO | null, readonly request: CreatorTransport) {
+  constructor(readonly id: string, readonly actor: string, initial: InfoEditorDTO | null, readonly request: CreatorTransport, readonly newMaths = false) {
     this.ack = initial;
     this.desired = clone(initial?.root.draft ?? initial?.publication?.content ?? EMPTY_INFO_DRAFT);
     this.visibility = initial?.root.draftVisibility ?? "private";
@@ -72,6 +72,7 @@ export class InfoCardEditorController {
     else this.storage.removeItem(this.key);
   }
   edit(content: InfoDraft, visibility = this.visibility, proof = this.mediaProof) {
+    if (this.newMaths && !this.ack) content = { ...content, bodyFormat: "latex-v1" };
     if (this.publishing || this.pendingPublication !== undefined || this.recoveryError) return;
     if (this.errorOperation === "publish" || this.errorOperation === "save" && correctable(this.error)) { this.error = null; this.errorOperation = null; }
     this.desired = clone(content); this.visibility = visibility; this.mediaProof = proof;

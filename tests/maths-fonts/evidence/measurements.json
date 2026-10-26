@@ -1,0 +1,2799 @@
+{
+  "measurements": [
+    {
+      "browser": "chromium",
+      "data": [
+        {
+          "profile": "current",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.96875,
+                "bottom": 76.453125
+              },
+              "width": 194.96875,
+              "height": 76.453125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 138.46875,
+                "bottom": 78.8125
+              },
+              "width": 138.46875,
+              "height": 78.8125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 95.8125
+              },
+              "width": 124.21875,
+              "height": 95.8125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 91.84375
+              },
+              "width": 124.21875,
+              "height": 91.84375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.53125,
+                "bottom": 22.765625
+              },
+              "width": 102.53125,
+              "height": 22.765625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 287.4375
+                },
+                "width": 124.21875,
+                "height": 287.4375,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 127.4375
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": true,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 287.4375
+                },
+                "width": 124.21875,
+                "height": 287.4375,
+                "overflowX": false,
+                "overflowY": false,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.96875,
+                "bottom": 76.453125
+              },
+              "width": 194.96875,
+              "height": 76.453125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 138.46875,
+                "bottom": 78.8125
+              },
+              "width": 138.46875,
+              "height": 78.8125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 95.8125
+              },
+              "width": 124.21875,
+              "height": 95.8125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 91.84375
+              },
+              "width": 124.21875,
+              "height": 91.84375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.53125,
+                "bottom": 22.765625
+              },
+              "width": 102.53125,
+              "height": 22.765625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 287.4375
+                },
+                "width": 124.21875,
+                "height": 287.4375,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 127.4375
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": true,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 287.4375
+                },
+                "width": 124.21875,
+                "height": 287.4375,
+                "overflowX": false,
+                "overflowY": false,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.96875,
+                "bottom": 76.453125
+              },
+              "width": 194.96875,
+              "height": 76.453125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 138.46875,
+                "bottom": 78.8125
+              },
+              "width": 138.46875,
+              "height": 78.8125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 95.8125
+              },
+              "width": 124.21875,
+              "height": 95.8125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 91.84375
+              },
+              "width": 124.21875,
+              "height": 91.84375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.015625
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.016
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.53125,
+                "bottom": 22.765625
+              },
+              "width": 102.53125,
+              "height": 22.765625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 287.4375
+                },
+                "width": 124.21875,
+                "height": 287.4375,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 127.4375
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": true,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 287.4375
+                },
+                "width": 124.21875,
+                "height": 287.4375,
+                "overflowX": false,
+                "overflowY": false,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "browser": "firefox",
+      "data": [
+        {
+          "profile": "current",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.9166717529297,
+                "bottom": 78.80000305175781
+              },
+              "width": 194.9166717529297,
+              "height": 78.80000305175781,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.04998779296875,
+                "right": 138.43333435058594,
+                "bottom": 78.86666870117188
+              },
+              "width": 138.43333435058594,
+              "height": 78.91665649414062,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.04998779296875,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.04998779296875,
+                "right": 124.16667175292969,
+                "bottom": 96.16667175292969
+              },
+              "width": 124.16667175292969,
+              "height": 96.21665954589844,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.04998779296875,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.0499267578125,
+                "right": 124.16667175292969,
+                "bottom": 92.19999694824219
+              },
+              "width": 124.16667175292969,
+              "height": 92.24992370605469,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.0499267578125,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.48333740234375,
+                "bottom": 23.800003051757812
+              },
+              "width": 102.48333740234375,
+              "height": 23.800003051757812,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": -0.050048828125,
+                  "right": 124.16667175292969,
+                  "bottom": 288.5
+                },
+                "width": 124.16667175292969,
+                "height": 288.550048828125,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0.050048828125,
+                  "right": 0,
+                  "bottom": 128.5
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": -0.0498046875,
+                  "right": 124.16667175292969,
+                  "bottom": 288.5
+                },
+                "width": 124.16667175292969,
+                "height": 288.5498046875,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0.0498046875,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.91665649414062,
+                "bottom": 78.80000305175781
+              },
+              "width": 194.91665649414062,
+              "height": 78.80000305175781,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.04998779296875,
+                "right": 138.433349609375,
+                "bottom": 78.86666870117188
+              },
+              "width": 138.433349609375,
+              "height": 78.91665649414062,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.04998779296875,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.04998779296875,
+                "right": 124.1666259765625,
+                "bottom": 96.16667175292969
+              },
+              "width": 124.1666259765625,
+              "height": 96.21665954589844,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.04998779296875,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.0499267578125,
+                "right": 124.1666259765625,
+                "bottom": 92.19999694824219
+              },
+              "width": 124.1666259765625,
+              "height": 92.24992370605469,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.0499267578125,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.48329162597656,
+                "bottom": 23.800003051757812
+              },
+              "width": 102.48329162597656,
+              "height": 23.800003051757812,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": -0.050048828125,
+                  "right": 124.1666259765625,
+                  "bottom": 288.5
+                },
+                "width": 124.1666259765625,
+                "height": 288.550048828125,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0.050048828125,
+                  "right": 0,
+                  "bottom": 128.5
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": -0.0498046875,
+                  "right": 124.1666259765625,
+                  "bottom": 288.5
+                },
+                "width": 124.1666259765625,
+                "height": 288.5498046875,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0.0498046875,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.9166717529297,
+                "bottom": 78.80000305175781
+              },
+              "width": 194.9166717529297,
+              "height": 78.80000305175781,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.04998779296875,
+                "right": 138.43336486816406,
+                "bottom": 78.86666870117188
+              },
+              "width": 138.43336486816406,
+              "height": 78.91665649414062,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.04998779296875,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.04998779296875,
+                "right": 124.16668701171875,
+                "bottom": 96.16667175292969
+              },
+              "width": 124.16668701171875,
+              "height": 96.21665954589844,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.04998779296875,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": false,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": -0.0499267578125,
+                "right": 124.16668701171875,
+                "bottom": 92.19999694824219
+              },
+              "width": 124.16668701171875,
+              "height": 92.24992370605469,
+              "overflowX": false,
+              "overflowY": true,
+              "excess": {
+                "left": 0,
+                "top": 0.0499267578125,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              110.11666870117188
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 110.117
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.48336791992188,
+                "bottom": 23.800003051757812
+              },
+              "width": 102.48336791992188,
+              "height": 23.800003051757812,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": -0.050048828125,
+                  "right": 124.16668701171875,
+                  "bottom": 288.5
+                },
+                "width": 124.16668701171875,
+                "height": 288.550048828125,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0.050048828125,
+                  "right": 0,
+                  "bottom": 128.5
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": -0.0498046875,
+                  "right": 124.16668701171875,
+                  "bottom": 288.5
+                },
+                "width": 124.16668701171875,
+                "height": 288.5498046875,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0.0498046875,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "data": [
+        {
+          "profile": "current",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.859375,
+                "bottom": 74.40625
+              },
+              "width": 194.859375,
+              "height": 74.40625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 138.515625,
+                "bottom": 77.9375
+              },
+              "width": 138.515625,
+              "height": 77.9375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 94.546875
+              },
+              "width": 124.21875,
+              "height": 94.546875,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 90.578125
+              },
+              "width": 124.21875,
+              "height": 90.578125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.59375,
+                "bottom": 22.375
+              },
+              "width": 102.59375,
+              "height": 22.375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "current",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 283.640625
+                },
+                "width": 124.21875,
+                "height": 283.640625,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 123.640625
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": true,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 283.640625
+                },
+                "width": 124.21875,
+                "height": 283.640625,
+                "overflowX": false,
+                "overflowY": false,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.859375,
+                "bottom": 74.40625
+              },
+              "width": 194.859375,
+              "height": 74.40625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 138.515625,
+                "bottom": 77.9375
+              },
+              "width": 138.515625,
+              "height": 77.9375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 94.546875
+              },
+              "width": 124.21875,
+              "height": 94.546875,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 90.578125
+              },
+              "width": 124.21875,
+              "height": 90.578125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.59375,
+                "bottom": 22.375
+              },
+              "width": 102.59375,
+              "height": 22.375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "liberation",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 283.640625
+                },
+                "width": 124.21875,
+                "height": 283.640625,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 123.640625
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": true,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 283.640625
+                },
+                "width": 124.21875,
+                "height": 283.640625,
+                "overflowX": false,
+                "overflowY": false,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 1,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 194.859375,
+                "bottom": 74.40625
+              },
+              "width": 194.859375,
+              "height": 74.40625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 2,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 138.515625,
+                "bottom": 77.9375
+              },
+              "width": 138.515625,
+              "height": 77.9375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 3,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 94.546875
+              },
+              "width": 124.21875,
+              "height": 94.546875,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 4,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 124.21875,
+                "bottom": 90.578125
+              },
+              "width": 124.21875,
+              "height": 90.578125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "example": 5,
+          "geometry": {
+            "frame": [
+              240,
+              157
+            ],
+            "budget": [
+              214,
+              111
+            ],
+            "font": "9.5px",
+            "math": "9.5px",
+            "indent": 9.5,
+            "overflow": "visible"
+          },
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 214,
+                "height": 111
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 102.59375,
+                "bottom": 22.375
+              },
+              "width": 102.59375,
+              "height": 22.375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "profile": "arimo",
+          "tall": {
+            "small": {
+              "status": "ready",
+              "fits": false,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 160
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 283.640625
+                },
+                "width": 124.21875,
+                "height": 283.640625,
+                "overflowX": false,
+                "overflowY": true,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 123.640625
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            },
+            "large": {
+              "status": "ready",
+              "fits": true,
+              "layout": {
+                "available": {
+                  "width": 214,
+                  "height": 320
+                },
+                "bounds": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 124.21875,
+                  "bottom": 283.640625
+                },
+                "width": 124.21875,
+                "height": 283.640625,
+                "overflowX": false,
+                "overflowY": false,
+                "excess": {
+                  "left": 0,
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0
+                }
+              },
+              "generation": 1,
+              "diagnostics": []
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actualFonts": [
+    {
+      "browser": "chromium",
+      "data": [
+        {
+          "profile": "liberation",
+          "actual": [
+            {
+              "selector": "[data-font-probe='liberation-0']",
+              "css": "ReviewLiberationSans, sans-serif",
+              "fonts": [
+                {
+                  "familyName": "Liberation Sans",
+                  "postScriptName": "LiberationSans",
+                  "isCustomFont": true,
+                  "glyphCount": 7
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='liberation-1']",
+              "css": "KaTeX_Math",
+              "fonts": [
+                {
+                  "familyName": "KaTeX_Math",
+                  "postScriptName": "KaTeX_Math-BoldItalic",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='liberation-2']",
+              "css": "KaTeX_Main, ReviewLiberationSerif, serif",
+              "fonts": [
+                {
+                  "familyName": "Liberation Serif",
+                  "postScriptName": "LiberationSerif",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='liberation-3']",
+              "css": "KaTeX_Main, ReviewLiberationSerif, serif",
+              "fonts": [
+                {
+                  "familyName": "Liberation Serif",
+                  "postScriptName": "LiberationSerif-Bold",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='liberation-4']",
+              "css": "KaTeX_Main, ReviewLiberationSerif, serif",
+              "fonts": [
+                {
+                  "familyName": "Liberation Serif",
+                  "postScriptName": "LiberationSerif-Italic",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='liberation-5']",
+              "css": "KaTeX_Main, ReviewLiberationSerif, serif",
+              "fonts": [
+                {
+                  "familyName": "Liberation Serif",
+                  "postScriptName": "LiberationSerif-BoldItalic",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "profile": "arimo",
+          "actual": [
+            {
+              "selector": "[data-font-probe='arimo-0']",
+              "css": "ReviewArimo, sans-serif",
+              "fonts": [
+                {
+                  "familyName": "Arimo",
+                  "postScriptName": "Arimo-Regular",
+                  "isCustomFont": true,
+                  "glyphCount": 7
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='arimo-1']",
+              "css": "KaTeX_Math",
+              "fonts": [
+                {
+                  "familyName": "KaTeX_Math",
+                  "postScriptName": "KaTeX_Math-BoldItalic",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='arimo-2']",
+              "css": "KaTeX_Main, ReviewTinos, serif",
+              "fonts": [
+                {
+                  "familyName": "Tinos",
+                  "postScriptName": "Tinos-Regular",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='arimo-3']",
+              "css": "KaTeX_Main, ReviewTinos, serif",
+              "fonts": [
+                {
+                  "familyName": "Tinos",
+                  "postScriptName": "Tinos-Bold",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='arimo-4']",
+              "css": "KaTeX_Main, ReviewTinos, serif",
+              "fonts": [
+                {
+                  "familyName": "Tinos",
+                  "postScriptName": "Tinos-Italic",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            },
+            {
+              "selector": "[data-font-probe='arimo-5']",
+              "css": "KaTeX_Main, ReviewTinos, serif",
+              "fonts": [
+                {
+                  "familyName": "Tinos",
+                  "postScriptName": "Tinos-BoldItalic",
+                  "isCustomFont": true,
+                  "glyphCount": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

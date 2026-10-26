@@ -1,0 +1,309 @@
+{
+  "scope": "Cumulative proof-only changes since the recorded pre-deployment approval baseline. Recursive manifest hashes omitted; no renderer, Info Card, schema, app manifest or global CSS changes.",
+  "files": [
+    {
+      "path": "tests/maths-renderer/vercel-proof/bootstrap.mts",
+      "bytes": 1377,
+      "sha256": "74d7b3b90dc5f43214c169a28635349bd4196a4686e421e6536683f993e843bd",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/bootstrap/404.html",
+      "bytes": 63,
+      "sha256": "d81e5ea82f3d8053c879b75f8661fcb278e9975c198883388f49c454b8a68413",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/bootstrap/config.json",
+      "bytes": 87,
+      "sha256": "f47e4904b798750134b4ff6fca94d8eff025cee1b9114b1efb41e3ad7e12d49d",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/deploy-preview.mts",
+      "bytes": 3337,
+      "sha256": "396544eac385529eb5124fa342a988b69164b5a42a482c0208de4bad52ea59b6",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/deployed-proof.test.ts",
+      "bytes": 4063,
+      "sha256": "f710898a9fe30bc51c367e5670e4791b9ce7d2d426c51e8c53f6ae5c01d9b5c9",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/DEPLOYMENT.md",
+      "bytes": 7568,
+      "sha256": "b085d1a296ce6ece2a420e4dffe7ea85cfb38607265cd687add806c1b13f4516",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/application-unit-tests.log",
+      "bytes": 92637,
+      "sha256": "8c0816b32c86e7b62d28c93baa077ae49cd2f7ddb0b307a83d9b12954f4ff571",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/bootstrap-deploy.log",
+      "bytes": 1691,
+      "sha256": "dde90a68e6ac5d25ad531f45369739dd80dca579b09cd914808aa939975e2d77",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/bootstrap-deployment.json",
+      "bytes": 868,
+      "sha256": "4ac1d7012ae76606985bf9cc49a658fd80fbd00a016313c812edd94e7187f1c0",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/bootstrap-preparation.json",
+      "bytes": 466,
+      "sha256": "9ec2a6da809c0d4bb214c441197bd63f2b6e17df7fe98087f358eb47338d83e9",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/browser-tests.json",
+      "bytes": 38439,
+      "sha256": "9071a4cdff32c86b93a4cabe69cc28a1a6f7cf32968eb3bcaacb3770b2c2ea64",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/build.log",
+      "bytes": 871,
+      "sha256": "e2b88bf0567a02ccf0ebec810abe7731c9c40f214d7121a34c1b44c31644eb09",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/cleanup.json",
+      "bytes": 745,
+      "sha256": "91ce4ce6da2683d0973bfdcd8a80e2d4856cc003b719893cee160a8a98ab58ce",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/deploy-inputs.json",
+      "bytes": 9111,
+      "sha256": "776515e280aa94c36da0560040c832846caa0d219b0691bc0708d2255f965a12",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/deploy.log",
+      "bytes": 296,
+      "sha256": "a0e409b4939cf4276e1fcb38e6058ad710f41a305f580c5b2ce2b88dd172af7d",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/deployed-results.json",
+      "bytes": 3258953,
+      "sha256": "0144fbccc6f07c2edc964e800178ab00ef7457f6b815e2c312750787525b1531",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/deployment-verification-status.json",
+      "bytes": 1981,
+      "sha256": "12f19c539da8e92cdcc28c9c35606dcfef497291b19d4124359241f15459e024",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/deployment.json",
+      "bytes": 534,
+      "sha256": "46ace539c4b48dcb70a1294eb89b17942b3d0ff1d5d8ce9cccc5609f32d0f582",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/final-deployment-safety.json",
+      "bytes": 3020,
+      "sha256": "81db0f9f3b01a7572dc426d6d6e3a4a79bd16967f975b2ae0ec953d12a7818a0",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/initial-deployment-preparation.json",
+      "bytes": 12078,
+      "sha256": "77bf7fb5e35a3f0a52693460012770048437d11f4a05f3bd47e379ab9a18bf08",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/initial-deployment-removal.json",
+      "bytes": 476,
+      "sha256": "565054e5db57fb4264aa0c539e9869bc01bbd9ad79714d823c14ddb138488365",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/initial-deployment-target.json",
+      "bytes": 377,
+      "sha256": "dc1615f514fe80d1c91d0194f996318fe0675ae63e2d52411d197d4f2b029b63",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/linux-summary.json",
+      "bytes": 9641,
+      "sha256": "e83bb6d4b2d29a279ab5643fd5499d62939a11badc4a0c1b5b563f63e0dd6efc",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/local-results.json",
+      "bytes": 1225648,
+      "sha256": "d5d2a7e4390ad6fc793828eff4c3c51a300df9f1708dd86819c2fd32c0b5d1ef",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/post-removal-state.json",
+      "bytes": 374,
+      "sha256": "cf11e4e4da094701f5dd09632a8392559dab9f160a405e358978bc800f737e4d",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/pre-deployment-change-manifest.json",
+      "bytes": 7225,
+      "sha256": "83a2518dbd6d908259a8ed97c65b9ce1af63fcfd134a507581202dee78c5c5a6",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preparation.json",
+      "bytes": 12319,
+      "sha256": "05db7f2d8cce67cbef9f2bbd55d87a8350f23e203fd68ad3f280f7169d9ed962",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt1-deployment.json",
+      "bytes": 558,
+      "sha256": "4aa6775b0d1154a5054ca25fdbfbf2c2030888a1a0360fc94afe13848b98eabd",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt1-preparation.json",
+      "bytes": 12319,
+      "sha256": "13611133bcf1c1f489a0d03e4432950434550045e1f02d4ccec6ded02a510464",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt1-results.json",
+      "bytes": 286,
+      "sha256": "f63ac62ec0db9cf60c58e80ba92456a3030c8a86bcba19fd8f309eb3d301fa1c",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt1-runtime-errors.jsonl",
+      "bytes": 2119,
+      "sha256": "32f5a4950f055fe1d1af9d8d7ce952c225d052b955444f7f43d53801ee532dc7",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt2-deployment.json",
+      "bytes": 534,
+      "sha256": "e372249136eb7cccc762accdea633a9915af1668db520a225a36c428a17578c2",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt2-preparation.json",
+      "bytes": 12319,
+      "sha256": "69e1ac138ce93a19aeb41815022199996af4bacabe2067a2fc550f33aaf6d96e",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-attempt2-results.json",
+      "bytes": 16733,
+      "sha256": "4f5d1d293ce4a7036ce6ab337dc9e3ea7247b3c38146e7edda608f33cf70a6c7",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/preview-deploy.log",
+      "bytes": 1514,
+      "sha256": "edb6df01adaf5e7043acd45869ce549584b6885646e042a050f00ca794cb4f6a",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/project-configuration.json",
+      "bytes": 701,
+      "sha256": "d6d1cec533a680f771438cd40324c9472f97092afbbd0a644d31fafa6f19221f",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/regressions.json",
+      "bytes": 1238,
+      "sha256": "430cfb225d4418523eef74fde065b3c6d5592756d26beb330ee753aa463bbbbb",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/runtime-package.json",
+      "bytes": 2400,
+      "sha256": "26f70756af6e8a94cafbaa08f0095f50b75c0626c4bf4d1add2204b9df50e367",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/server.log",
+      "bytes": 118,
+      "sha256": "e39d4a92b47b4e4cb998a1f22108664f666a735aaee6344070b72ed6e5b74048",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/template-lint.json",
+      "bytes": 1245,
+      "sha256": "29fe9e7802c96911ea56935d530e033aae8c4c3aadd3cc6f5bd8dca17cf3a1fa",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/evidence/unit-tests.log",
+      "bytes": 7371,
+      "sha256": "e02c42e1a6b71663eecda223b5735d1ad9a8225293ab9d11c010d320d0afe543",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/package.json",
+      "bytes": 562,
+      "sha256": "f0af15d46f1cf91ac43961ab9f6690ed5b803f8e0c2bce1a649712d19e2d2afe",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/proof.test.ts",
+      "bytes": 3959,
+      "sha256": "69aa7e3bdfd53faffc8578b723744908b979e69322ce8c9307153634eecae26e",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/README.md",
+      "bytes": 18532,
+      "sha256": "f76f270fad8328cae4795198c0e8f0791b04cd38175401a258cda07b0bc9358a",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/template/check-environment.mjs",
+      "bytes": 323,
+      "sha256": "39a6d595ece88b481964dea44c43d15f35cc62fa62bfb85861d820b857198930",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/template/next.config.mjs",
+      "bytes": 287,
+      "sha256": "92361775fc008b2ca92ac93b1f9c7873eb40c24d9ccfe52785be2f1b3a87cbd6",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/template/src/proof/memory.ts.txt",
+      "bytes": 3792,
+      "sha256": "a5340898a8f898fce0653bfc022c6180d93ca74198bf3f6801013865ca58699a",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/template/src/proof/runner.ts.txt",
+      "bytes": 15215,
+      "sha256": "a0bd755e6e7ce99e38a3b720a241c312761c714dbcf577aa29abc576a851f69b",
+      "status": "modified"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/verify-deployed.mts",
+      "bytes": 7931,
+      "sha256": "c9c10b6e8455aba0156d2e2e3d527027e88784956b5ab2a346f085356ce11d04",
+      "status": "created"
+    },
+    {
+      "path": "tests/maths-renderer/vercel-proof/verify.mts",
+      "bytes": 8486,
+      "sha256": "8caa38e30ed3c3378da1374f4096222e405698cd914a10da5c5651b1a3762b7c",
+      "status": "modified"
+    }
+  ],
+  "manifestFiles": [
+    "tests/maths-renderer/vercel-proof/evidence/change-manifest.json",
+    "tests/maths-renderer/vercel-proof/evidence/changed-since-deployment-approval.json"
+  ]
+}

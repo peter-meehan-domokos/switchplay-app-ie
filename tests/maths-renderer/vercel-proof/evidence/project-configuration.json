@@ -1,0 +1,30 @@
+{
+  "projectId": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
+  "name": "switchplay-maths-renderer-proof",
+  "scope": "peter-meehan-domokos-projects",
+  "framework": "nextjs",
+  "nodeVersion": "24.x",
+  "protection": {
+    "deploymentType": "all_except_custom_domains"
+  },
+  "resourceConfig": {
+    "fluid": true,
+    "functionDefaultRegions": [
+      "iad1"
+    ],
+    "buildMachineType": "basic",
+    "buildMachineSelection": "fixed"
+  },
+  "environmentVariables": [
+    {
+      "key": "MATHS_PROOF_KEY",
+      "target": [
+        "preview"
+      ],
+      "type": "sensitive"
+    }
+  ],
+  "automationBypassConfigured": true,
+  "productionProjectModified": false,
+  "credentialsExcludedFromEvidence": true
+}

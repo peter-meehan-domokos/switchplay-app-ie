@@ -4,6 +4,13 @@ import type { InfoCapacityFieldIssue } from "@/lib/infoCards/capacity";
 export function infoCardError(error: unknown, visibleCapacityIssues: readonly InfoCapacityFieldIssue[] = []): string {
   if (!(error instanceof CreatorRequestError)) return "The connection failed. Your local edits are retained; retry when connected.";
   if (error.code.includes("REVISION") || error.code.includes("CONFLICT")) return "This card changed in another session. Your local edits are retained. Review them before reloading the saved version.";
+  if (error.code.startsWith("INFO_MATHS_")) {
+    const m = error.details?.measurement as import("./infoCardMaths").InfoMathsMeasurement | undefined;
+    if (m?.result.status === "ready" && visibleCapacityIssues.some(issue => issue.field === (!m.headerFits ? "title" : "body"))) return "";
+    if (m?.result.status === "invalid-input") return m.result.diagnostics.filter(d => d.severity === "error").map(d => d.message).join(" ");
+    if (m?.result.status === "ready") return !m.headerFits ? "The series name and title are too wide to fit together." : `The explanation exceeds the card: required ${m.result.layout.width.toFixed(1)} × ${m.result.layout.height.toFixed(1)}px; normal area ${m.result.layout.available.width.toFixed(1)} × ${m.result.layout.available.height?.toFixed(1)}px. Your draft is saved.`;
+    return "Publication layout could not be verified. Your draft is saved; retry when connected.";
+  }
   const capacity = error.details?.capacity as { issues?: string[]; fieldIssues?: InfoCapacityFieldIssue[] } | undefined;
   if (capacity?.issues) {
     // Suppress only exact capacity diagnostics already visible at a field.

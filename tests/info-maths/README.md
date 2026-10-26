@@ -1,0 +1,53 @@
+# Maths Renderer integration into Info Cards
+
+Implemented under the user's production-integration authorisation. This is a source implementation and local verification record, **not a deployment**. The disposable Vercel proof project and existing application deployment settings were not changed.
+
+## Behaviour and boundaries
+
+- Reuses `InfoCardFace` in the existing editor, Library and learner physical stack. The standalone renderer implementation, parser, measurement contract and styling defaults are unchanged.
+- New cards receive optional `bodyFormat: "latex-v1"` on their first edit. Untouched new editors do not create a draft. Missing format means legacy literal text, including dollar signs and backslashes. Existing unmarked drafts/publications remain literal when edited or republished; there is no automatic conversion, activation control or migration.
+- Source remains in the existing textarea. Existing 250ms serial autosave, revision checks and recovery journal remain. Browser preview updates directly; only the existing renderer performs mathematical measurement. Header/series/media changes remount the renderer to invalidate consumer collision results even when the mathematical source is unchanged.
+- Uniform face height changes from 157px to **204px**, including legacy faces. Width240px, padding12px, border1px, logical body width214px and existing navigation/scaling/animation implementation remain unchanged. There are no height profiles or automatic resizing. Reference development boxes mirror the new height; their five source strings are unchanged.
+- Maths cards alone use the approved, self-hosted Liberation Sans/Serif font profile. Legacy cards keep Arial/Helvetica. Balanced scale1, indentation1em, display gap0.6em, paragraph gap0.8em, inline clearance0.25em and `arraystretch = 2.3125` remain unchanged.
+- `infoCardMaths.ts` compares the renderer's public bounds with existing card, header/control and media boundaries. It does not measure mathematical descendants or estimate content. Normal wrapping width and padding never change. Content may use existing spare bottom padding (or the existing gap before media), but cannot reach the border, header controls or media. The existing corner radius constrains horizontal borrowing. No fit tolerance or extra margin was added; the renderer's own `fits` and overflow flags remain intact.
+- Unsafe/pending/invalid editor previews retain a mounted measurement host but are hidden and inert, following the existing unavailable-preview behaviour. Source remains editable and saveable. Learner views never launch Chromium. A genuine local physical overflow or font failure displays an explanation-level error rather than clipping content; the card/navigation/media remain available.
+
+## Trusted publication
+
+The existing publication endpoint still accepts only the saved revision. It loads the authoritative draft and measures maths-enabled content **outside** the MongoDB transaction. Controlled Chromium mounts the actual shared `InfoCardFace` on an authenticated internal host and consumes its existing renderer callback. It independently checks actual glyph fonts, then consumes the latest definitive renderer result after font inspection. Client-submitted fits are rejected.
+
+Only ready, physically safe content with a fitting header can publish. Invalid, pending, unavailable, failed-font, startup/deadline and unsafe results fail closed. The transaction rechecks the exact saved revision and measured series title; immutable publication/sourceRevision receipts and retry behaviour remain. A server-only `mathsValidation: { version: 1 }` records acceptance. No collection, index, queue, service or client attestation was added. Catalogue and consultation retain structural/authorisation checks and consume this acceptance instead of re-running the old plain-text estimator. Legacy estimator/acceptance behaviour is unchanged.
+
+The runner pins `@sparticuz/chromium@153.0.0` and `playwright-core@1.63.0`. Vercel/Linux requires the previously verified Chromium153.0.8010.0 binary and SHA256 `53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0`. Runtime requirement: Node24.x or supported Node22.17+; full local production verification used Node24.22.1. Local macOS uses a native Playwright browser, not a Linux binary. The Linux package/version/hash/font environment matches the earlier deployed proof; this integrated application has not been externally deployed.
+
+One browser per function instance is allowed; contention returns a recoverable unavailable response, with no queue. The internal execution deadline is25s, publication-only creator transport timeout45s and Next function maximum60s. Other creator operations remain15s. Definite measurement failure declares that no publication committed, so editing/autosave can resume. Ambiguous transport failures still recover the original publication receipt.
+
+The browser child receives no database/session credentials. Its derived host token expires after60s; the internal page returns404 without a valid token. Browser requests are restricted to the exact deployment host's internal page and Next static assets. Downloads/service workers are disabled; KaTeX's existing trust protections remain. Contexts/browser resources close in `finally`, including failure and late-startup paths. Protected Vercel Preview hosting requires its existing automation-bypass credential; no project protection/settings were changed. Network interception is not an operating-system sandbox; the approved serverless runtime's sandbox limitation remains.
+
+## Fonts
+
+Eight unmodified Liberation2.1.5 TTFs and `Liberation-LICENSE.txt` were copied into `src/components/info-cards/fonts/` after checking against `src/app/dev/maths-fonts/fonts/sources.json`. Source: official [Liberation2.1.5 release](https://github.com/liberationfonts/liberation-fonts/releases/tag/2.1.5); SIL OFL1.1 and copyright notices are retained. No proprietary font was copied. CSS font faces are local to the consumer module; the serif fallback selector is scoped to maths faces. Next emits browser font assets, and publication tracing includes the raw files for restricted Linux fontconfig. KaTeX fonts remain unchanged.
+
+The production test rejects non-custom or unapproved actual glyph fonts via Chromium CDP. Currency verifies Liberation Serif fallback, not merely a declared CSS family. Mathematical euro warnings remain the renderer's existing diagnostics, not silent repairs.
+
+## Verification
+
+`evidence/verification.json` records commands, results, resolved initial failures and omissions. `evidence/production.json` contains actual public renderer results, with source examples indexed0–4. `production.mts` builds an ordinary temporary application snapshot, starts its own loopback production server, checks publication function tracing and protected host access, and runs the real trusted runner. It uses no live database or repository environment secrets and cleans up its server/snapshot.
+
+All five examples fit at204px with and without media. Production Chromium reported approximately157.016px available explanation height without media and121.016px with media, at214px width. Occupied heights remain76.453125,78.8125,95.8125,91.84375 and22.765625px respectively. The first source's occupied width is194.96875px; none overflows horizontally. A deliberately wide rule reports overflow and is unsafe. Currency is ready; malformed source is invalid. Forged host authentication fails, a subsequent request succeeds, and same-instance concurrent execution fails closed without affecting the successful request.
+
+Browser coverage exercises all five exact strings, media, physical safety boundaries, padding borrowing, legacy literal text, live editing, trusted publication, Library, actual learner consultation and mixed legacy/maths stack navigation. Existing regression checks exercise media authorisation, immutable receipts, concurrent revisions, navigation/animations, mobile geometry and legacy publication availability. Automated MathML/ARIA checks are not physical VoiceOver/NVDA testing; none is claimed.
+
+## Remaining limits
+
+- Canonical Chromium governs publication. Other browsers can have different line metrics near the physical boundary; there is no guarantee of identical line breaks for every authored string. Fixed logical width, exact approved fonts and whole-card scaling minimise differences. The consumer checks actual renderer bounds and fails visibly rather than clipping a rare unsafe rendering.
+- Earlier Linux Vercel proof performance/memory numbers are feasibility evidence, not guarantees for the integrated application. A full integrated deployment/load check remains unperformed because deployment was not authorised. No server pool or measurement cache is introduced.
+- The legacy estimator remains conservative at its previous157px reference. Legacy content is protected; this milestone does not expand legacy plain-text publication capacity or add a conversion workflow.
+- The existing dependency audit flags security advisories in the unchanged Next16.2.6/framework dependency tree. No advisory was introduced by the pinned Chromium/driver additions. Existing framework remediation needs separate deployment/security review; this work performs no deployment or unrelated dependency upgrade. See [Next's image-optimisation advisory](https://github.com/vercel/next.js/security/advisories/GHSA-2464-fhr4-w9xw).
+- The only new ordinary visual decision is the already authorised uniform204px height. `evidence/library-maths.png` and `evidence/consultation-maths.png` show actual integrated contexts; `maths-204.png` shows the shared face with media. No further product choice blocks the implementation.
+
+## Complete changed-file manifest
+
+See `evidence/changed-files.json` for every changed/new file and content hash relative to this task's preflight, including evidence and this documentation. It excludes pre-existing unrelated working changes. Existing changes to `tests/maths-renderer/explanation-review.browser.ts` were preserved; this task additionally makes its readiness assertion atomic. Neither proof project nor standalone renderer implementation was modified.
+
+Raw `*.log` execution/deployment transcripts in the evidence directory are local-only and intentionally ignored. Local copies are retained; the documented verification commands generate fresh logs. Committed JSON summaries, proof-test inputs, scripts and reference screenshots remain available. Historical change manifests describe their original verification runs, including local artifacts; they are not the current Git staging inventory.

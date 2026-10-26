@@ -790,3 +790,13 @@ Paths are relative to the repository root and the clean `323123f` Stage 5 prefli
 - `tests/maths-renderer/isolation.test.ts`
 - `tests/maths-renderer/presentation.browser.ts`
 - `tests/maths-renderer/production-acceptance.mts`
+
+## 18. Subsequent authorised Info Card integration
+
+The user's later **Implement Maths Renderer in Info Cards** instruction authorises consumer integration separately from completed standalone Stages0–5. Historical stage boundaries above remain records of their original scope. No standalone renderer source, parser, measurement contract or approved presentation value was changed for integration.
+
+Integration reuses `InfoCardFace` across the existing textarea editor/automatic preview, Library and learner consultation. New cards acquire an optional `latex-v1` format marker on first edit; absent markers preserve legacy literal text and publication behaviour, including subsequent edits. Exact source,250ms autosave, revision checks and immutable publication receipts remain. The authorised uniform204px Info Card height replaces157px; normal12px padding,1px borders and214px logical explanation width remain. No height profiles, automatic resizing, extra safety margin or mathematical estimator was introduced.
+
+The consumer compares public renderer bounds with existing physical card/header/media boundaries and can use existing spare padding. Publication independently mounts the real shared face in controlled Chromium, consumes the renderer's public callback, checks actual fonts and requires a definitive physically safe result. Chromium runs outside the transaction; the transaction rechecks the saved revision/series title and stores version1 acceptance on the immutable publication. Reads consume that acceptance without Chromium or the plain-text estimator. Browser/host failures fail closed and retain drafts. Scoped approved Liberation fonts and the pinned previously proved Linux Chromium/driver are packaged only where needed.
+
+Implementation details, complete verification results, production-build evidence, remaining limitations and the complete changed-file manifest are recorded in [the integration verification record](../../../../tests/info-maths/README.md). This milestone includes local production-build and real editor/publication/consultation tests, not a deployment. No existing application server was manually stopped or restarted; ports3000 and4181 remain available. The disposable Vercel project was not modified. Automated accessibility checks do not constitute physical VoiceOver/NVDA verification.

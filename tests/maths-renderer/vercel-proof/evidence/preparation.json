@@ -1,0 +1,300 @@
+{
+  "at": "2026-10-26T13:14:43.059Z",
+  "target": "/var/folders/7f/9s1f9rg52cvghtyks42_m_p00000gn/T/switchplay-maths-vercel-proof-Ae88MZ",
+  "externalDeployment": false,
+  "environmentFilesCopied": false,
+  "fixturesSourceSHA256": "a132531f8c02463e482885db5dc95d4ba396b96ab29d3ba0846d0ddc9e176ebe",
+  "rendererSourceUnmodified": true,
+  "inputs": [
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/.vercelignore",
+      "target": ".vercelignore",
+      "bytes": 43,
+      "sha256": "bfbf05bf0cc1c626c6e1af88c74df1f70bea373d72280a0715f3cebce3029d44"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/check-environment.mjs",
+      "target": "check-environment.mjs",
+      "bytes": 323,
+      "sha256": "39a6d595ece88b481964dea44c43d15f35cc62fa62bfb85861d820b857198930"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/next.config.mjs",
+      "target": "next.config.mjs",
+      "bytes": 287,
+      "sha256": "92361775fc008b2ca92ac93b1f9c7873eb40c24d9ccfe52785be2f1b3a87cbd6"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/app/api/proof/route.ts.txt",
+      "target": "src/app/api/proof/route.ts",
+      "bytes": 1011,
+      "sha256": "c012572d064001627f79071b2e8d4df27eeba401771bc00cbc779e0515f5d11b"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/app/layout.tsx.txt",
+      "target": "src/app/layout.tsx",
+      "bytes": 217,
+      "sha256": "2f75da03854e1d08f37d16ea0f41024ebb9fc20464ff8cbef6ed8b6098639601"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/app/measure-host/page.tsx.txt",
+      "target": "src/app/measure-host/page.tsx",
+      "bytes": 375,
+      "sha256": "6f8aa3ebcf6c32a1299bac17fa4a7a8906330a2ca8de6fa09635e464b83f3a72"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/app/page.tsx.txt",
+      "target": "src/app/page.tsx",
+      "bytes": 91,
+      "sha256": "a80eed6b98318827eaadeac586eb566ef0c01a3379dd37a465a3db7c816b0484"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/app/profile.css",
+      "target": "src/app/profile.css",
+      "bytes": 1581,
+      "sha256": "92634ba96011426fd89ce3f04f669c95f49078658d2783480495351b7938204c"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/proof/Host.tsx.txt",
+      "target": "src/proof/Host.tsx",
+      "bytes": 3088,
+      "sha256": "afffbbfb612c21e3ab14533a2f61855f889d02e152e3f1a358392cfc1e77c1b5"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/proof/auth.ts.txt",
+      "target": "src/proof/auth.ts",
+      "bytes": 523,
+      "sha256": "8f8e6e8fd5b4f519c277234a968e445e03b0455533e0f1289d2fabb974dc49b1"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/proof/memory.ts.txt",
+      "target": "src/proof/memory.ts",
+      "bytes": 3792,
+      "sha256": "a5340898a8f898fce0653bfc022c6180d93ca74198bf3f6801013865ca58699a"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/src/proof/runner.ts.txt",
+      "target": "src/proof/runner.ts",
+      "bytes": 15215,
+      "sha256": "a0bd755e6e7ce99e38a3b720a241c312761c714dbcf577aa29abc576a851f69b"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/tsconfig.json",
+      "target": "tsconfig.json",
+      "bytes": 497,
+      "sha256": "d393f38723465069700340b13a4459dfd79b2da185e17c47d9dbb82fac30da2a"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/template/vercel.json",
+      "target": "vercel.json",
+      "bytes": 147,
+      "sha256": "9fd4ea9e9bbb01391e7e946e1b2d3e2af2dd003b27067dadcdcaf4f20b799fb1"
+    },
+    {
+      "source": "src/components/maths-renderer/MathsExpression.module.css",
+      "target": "src/components/maths-renderer/MathsExpression.module.css",
+      "bytes": 700,
+      "sha256": "e769b31a0f6ee735e7cd30914329c4df9934d36e676784c922cd65b46f33c57a"
+    },
+    {
+      "source": "src/components/maths-renderer/MathsExpression.tsx",
+      "target": "src/components/maths-renderer/MathsExpression.tsx",
+      "bytes": 1092,
+      "sha256": "de311116e1a240bd75c764547f508fc8be42e2df2ff675b5574ac48f6a479dfb"
+    },
+    {
+      "source": "src/components/maths-renderer/MathsRenderer.module.css",
+      "target": "src/components/maths-renderer/MathsRenderer.module.css",
+      "bytes": 1050,
+      "sha256": "89331a0a1d1a9076771f07e0770be553e50afb3939b05cc462b41bb500a45057"
+    },
+    {
+      "source": "src/components/maths-renderer/MathsRenderer.tsx",
+      "target": "src/components/maths-renderer/MathsRenderer.tsx",
+      "bytes": 3967,
+      "sha256": "f552d7f627a5b27cde0fe199296bab15fa92b8d226372b1ee505b32458511abd"
+    },
+    {
+      "source": "src/components/maths-renderer/fontReadiness.ts",
+      "target": "src/components/maths-renderer/fontReadiness.ts",
+      "bytes": 4128,
+      "sha256": "d94bde72e20c6567735bd6c9f6d38cdebbc7a1c5a2e8b9800ed3a1b0dd8e2639"
+    },
+    {
+      "source": "src/components/maths-renderer/katex.LICENSE.txt",
+      "target": "src/components/maths-renderer/katex.LICENSE.txt",
+      "bytes": 1107,
+      "sha256": "766ccc1f306c885aa45542a9846bbd0a505b27a0374f146778171c2254ce18e3"
+    },
+    {
+      "source": "src/components/maths-renderer/katex.scoped.css",
+      "target": "src/components/maths-renderer/katex.scoped.css",
+      "bytes": 44531,
+      "sha256": "954954b16c25f6009b4aeb62d8924a927351b63819f1b81b4aa5406f2f5540f8"
+    },
+    {
+      "source": "src/components/maths-renderer/measureLayout.ts",
+      "target": "src/components/maths-renderer/measureLayout.ts",
+      "bytes": 8747,
+      "sha256": "40f3fc0ba2d8697e0654a4d4b3e7c325c2f2c3cd096ba645a66e2f395ed4708f"
+    },
+    {
+      "source": "src/components/maths-renderer/parseContent.ts",
+      "target": "src/components/maths-renderer/parseContent.ts",
+      "bytes": 3481,
+      "sha256": "9b3996d9cf03354c2963674bef6079f760f49fa956c7930a2ba3e68245867f35"
+    },
+    {
+      "source": "src/components/maths-renderer/prepareContent.ts",
+      "target": "src/components/maths-renderer/prepareContent.ts",
+      "bytes": 1225,
+      "sha256": "56ba8bb7f294515bffbef79b65b6e5bbcc5d852c571a902582e797e56f1f753e"
+    },
+    {
+      "source": "src/components/maths-renderer/types.ts",
+      "target": "src/components/maths-renderer/types.ts",
+      "bytes": 1510,
+      "sha256": "15282c55585e5be81870754a5aa109390682a20ae7375e29fdf3fda98952f28c"
+    },
+    {
+      "source": "src/components/maths-renderer/typesetMath.ts",
+      "target": "src/components/maths-renderer/typesetMath.ts",
+      "bytes": 2327,
+      "sha256": "ea5a7450a943a86f13ef30aeed1dd0c66bddedadb3b91e71242771861c5a72eb"
+    },
+    {
+      "source": "src/components/maths-renderer/useMeasurement.ts",
+      "target": "src/components/maths-renderer/useMeasurement.ts",
+      "bytes": 9883,
+      "sha256": "009ad380ff8a06369555c290f98369848f83a68930bd05d7a1e29d0cf5efecb5"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/package.json",
+      "target": "package.json",
+      "bytes": 562,
+      "sha256": "f0af15d46f1cf91ac43961ab9f6690ed5b803f8e0c2bce1a649712d19e2d2afe"
+    },
+    {
+      "source": "tests/maths-renderer/vercel-proof/package-lock.json",
+      "target": "package-lock.json",
+      "bytes": 42323,
+      "sha256": "ba1edd39eccd21a9082a0de0866a785471d0d1a83774d17a9bb3bf6cee076fa5"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/Liberation-LICENSE.txt",
+      "target": "public/fonts/Liberation-LICENSE.txt",
+      "bytes": 4414,
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSans-Regular.ttf",
+      "target": "public/fonts/LiberationSans-Regular.ttf",
+      "bytes": 410712,
+      "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSans-Bold.ttf",
+      "target": "public/fonts/LiberationSans-Bold.ttf",
+      "bytes": 414456,
+      "sha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSans-Italic.ttf",
+      "target": "public/fonts/LiberationSans-Italic.ttf",
+      "bytes": 415816,
+      "sha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSans-BoldItalic.ttf",
+      "target": "public/fonts/LiberationSans-BoldItalic.ttf",
+      "bytes": 408996,
+      "sha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSerif-Regular.ttf",
+      "target": "public/fonts/LiberationSerif-Regular.ttf",
+      "bytes": 393576,
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSerif-Bold.ttf",
+      "target": "public/fonts/LiberationSerif-Bold.ttf",
+      "bytes": 370096,
+      "sha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSerif-Italic.ttf",
+      "target": "public/fonts/LiberationSerif-Italic.ttf",
+      "bytes": 375632,
+      "sha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e"
+    },
+    {
+      "source": "src/app/dev/maths-fonts/fonts/LiberationSerif-BoldItalic.ttf",
+      "target": "public/fonts/LiberationSerif-BoldItalic.ttf",
+      "bytes": 376772,
+      "sha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7"
+    }
+  ],
+  "fonts": [
+    {
+      "file": "Liberation-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/liberationfonts/liberation-fonts/2.1.5/LICENSE",
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b",
+      "bytes": 4414
+    },
+    {
+      "file": "LiberationSans-Regular.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8",
+      "bytes": 410712
+    },
+    {
+      "file": "LiberationSans-Bold.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173",
+      "bytes": 414456
+    },
+    {
+      "file": "LiberationSans-Italic.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0",
+      "bytes": 415816
+    },
+    {
+      "file": "LiberationSans-BoldItalic.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee",
+      "bytes": 408996
+    },
+    {
+      "file": "LiberationSerif-Regular.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74",
+      "bytes": 393576
+    },
+    {
+      "file": "LiberationSerif-Bold.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce",
+      "bytes": 370096
+    },
+    {
+      "file": "LiberationSerif-Italic.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e",
+      "bytes": 375632
+    },
+    {
+      "file": "LiberationSerif-BoldItalic.ttf",
+      "url": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "sha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7",
+      "bytes": 376772
+    }
+  ],
+  "proposedRuntime": {
+    "node": "24.x",
+    "localVerificationNode": "24.22.1",
+    "chromiumPackage": "153.0.0",
+    "driver": "1.63.0"
+  }
+}
