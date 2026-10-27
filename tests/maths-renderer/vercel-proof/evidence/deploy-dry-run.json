@@ -1,7 +1,0 @@
-{
-  "dryRun": true,
-  "externalDeployment": false,
-  "exitCode": 1,
-  "reason": "Project is not linked. Run vercel link first.",
-  "decision": "No project created or linked before approval."
-}

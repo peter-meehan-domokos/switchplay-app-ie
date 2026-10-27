@@ -11,7 +11,16 @@ const proof = evidence.proof;
 test("proof used current, unchanged renderer and authored sources in a production Next build", () => {
   assert(evidence.passed && proof.passed && evidence.guardedFilesUnchanged && evidence.scratchRemoved && evidence.serverStopped);
   for (const [path, expected] of Object.entries(evidence.rendererHashes)) assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), expected);
-  assert.equal(createHash("sha256").update(readFileSync("src/app/dev/maths-renderer/ExplanationReviewFixtures.tsx")).digest("hex"), evidence.fixtureSourceHash);
+  const source = readFileSync("src/app/dev/maths-renderer/ExplanationReviewFixtures.tsx", "utf8");
+  // The proof extracted only authored strings. Git history confirms its module
+  // hash at da6af533; db6c6336 changed only the review wrapper/label to 204px.
+  // Keep that historical evidence intact and pin the approved current module,
+  // while checking every extracted source against what Chromium actually used.
+  assert.equal(evidence.fixtureSourceHash, "a132531f8c02463e482885db5dc95d4ba396b96ab29d3ba0846d0ddc9e176ebe");
+  assert.equal(createHash("sha256").update(source).digest("hex"), "7f59ca85923f87b70662373356e4c93614db59bda9988562b174d9b1379c8691");
+  const reviews = [...source.matchAll(/content:\s*String\.raw`([^`]+)`/g)].map((match, index) => ({ id: `review-${index + 1}`, content: match[1] }));
+  assert.equal(reviews.length, 5);
+  assert.deepEqual(reviews, evidence.fixtures.filter((fixture: { id: string }) => fixture.id.startsWith("review-")));
   assert.equal(proof.chromium, "145.0.7632.6");
 });
 

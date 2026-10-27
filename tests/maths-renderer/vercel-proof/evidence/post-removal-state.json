@@ -1,9 +1,0 @@
-{
-  "projectId": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
-  "remainingDeployments": [],
-  "removedUnexpectedDeployment": "dpl_BeCQ34fQoh1ojwgyqnVTkK6PijCU",
-  "proofProjectRetained": true,
-  "productionProjectModified": false,
-  "paidUpgrade": false,
-  "nextActionRequiresDecision": "Protected inert Production-classified bootstrap or supported Preview-only first deployment."
-}
