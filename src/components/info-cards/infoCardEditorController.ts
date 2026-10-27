@@ -1,3 +1,4 @@
+import type { InfoRenderingDiagnostic } from "@/lib/infoCards/mathsValidation";
 import type { Visibility } from "@/lib/cards/model";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { EMPTY_INFO_DRAFT, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
@@ -22,6 +23,11 @@ export class InfoCardEditorController {
   private errorOperation: "save" | "publish" | null = null;
   running: Promise<void> | null = null;
   publishing = false;
+  checkingRendering = false;
+  renderingCheckError: unknown = null;
+  private renderingResult: InfoRenderingDiagnostic | null = null;
+  private renderingGeneration = 0;
+  get renderingCheck() { return !this.dirty && this.renderingResult?.revision === this.ack?.root.revision ? this.renderingResult : null; }
   pendingPublication: number | undefined;
   confirmedPublicationVersion: number | null = null;
   private pendingSave: SaveCommand | undefined;
@@ -75,6 +81,7 @@ export class InfoCardEditorController {
     if (this.newMaths && !this.ack) content = { ...content, bodyFormat: "latex-v1" };
     if (this.publishing || this.pendingPublication !== undefined || this.recoveryError) return;
     if (this.errorOperation === "publish" || this.errorOperation === "save" && correctable(this.error)) { this.error = null; this.errorOperation = null; }
+    this.renderingGeneration++; this.renderingResult = null; this.renderingCheckError = null;
     this.desired = clone(content); this.visibility = visibility; this.mediaProof = proof;
     this.changed();
     clearTimeout(this.timer);
@@ -128,6 +135,20 @@ export class InfoCardEditorController {
     this.error = null; this.changed();
     if (this.pendingPublication !== undefined || operation === "publish") return this.publish();
     return this.flush();
+  }
+  async checkRendering() {
+    if (this.checkingRendering || this.publishing || this.pendingPublication !== undefined) return;
+    this.checkingRendering = true; this.renderingResult = null; this.renderingCheckError = null; this.changed();
+    let generation = this.renderingGeneration;
+    try {
+      await this.flush(); await this.ensureCreated();
+      generation = this.renderingGeneration;
+      const revision = this.ack!.root.revision;
+      const result = await this.request<InfoRenderingDiagnostic>(`${this.url}/check-rendering`, "POST", { revision });
+      if (generation === this.renderingGeneration && !this.dirty && this.ack?.root.revision === revision && result.revision === revision) this.renderingResult = result;
+    } catch (error) {
+      if (generation === this.renderingGeneration) this.renderingCheckError = error;
+    } finally { this.checkingRendering = false; this.changed(); }
   }
   async publish() {
     if (this.publishing) return;

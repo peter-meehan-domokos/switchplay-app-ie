@@ -23,7 +23,7 @@ export async function infoRequest(request: Request, run: (repo: InfoCardReposito
       throw error;
     }
   });
-  if (mathsError) return Response.json({ error: mathsError.code, publicationNotCommitted: true, measurement: mathsError.measurement }, { status: mathsError.code === "INFO_MATHS_UNAVAILABLE" ? 503 : 422, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
+  if (mathsError) return Response.json({ error: mathsError.code, publicationNotCommitted: true, measurement: mathsError.measurement, failure: mathsError.failure }, { status: mathsError.code === "INFO_MATHS_UNAVAILABLE" ? 503 : 422, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
   if (unavailable) return Response.json({ error: unavailable }, { status: 503, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
   if (detail) return Response.json({ error: detail.code,
     ...(detail instanceof InfoCapacityError ? { capacity: detail.capacity } : { blockers: detail.blockers }) },

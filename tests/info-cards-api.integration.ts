@@ -9,7 +9,7 @@ import { MongoClient, type Db } from "mongodb";
 import { createInfoCardIndexes } from "../src/lib/infoCards/repository";
 
 type Route = Record<string, (request: Request, context?: { params: Promise<{ infoCardId: string }> }) => Promise<Response>>;
-const fixture = { actor: null as { id: string } | null, db: null as Db | null, client: null as MongoClient | null };
+const fixture = { actor: null as { id: string } | null, db: null as Db | null, client: null as MongoClient | null, checks: 0, checkFailure: false };
 const global = globalThis as typeof globalThis & { __infoApi?: typeof fixture };
 let server: MongoMemoryReplSet;
 const routes: Record<string, Route> = {};
@@ -17,9 +17,17 @@ before(async () => {
   server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   fixture.client = await new MongoClient(server.getUri()).connect(); fixture.db = fixture.client.db("switchplay_info_api_tests");
   await createInfoCardIndexes(fixture.db); global.__infoApi = fixture;
-  for (const name of ["info-cards", "info-cards/[infoCardId]", "info-cards/[infoCardId]/publish", "info-cards/[infoCardId]/publication", "info-cards/[infoCardId]/upload", "info-cards/[infoCardId]/media", "info-cards/[infoCardId]/media/status", "info-card-series", "library/info-cards", "media/card", "media/protected"]) {
+  for (const name of ["info-cards", "info-cards/[infoCardId]", "info-cards/[infoCardId]/publish", "info-cards/[infoCardId]/check-rendering", "info-cards/[infoCardId]/publication", "info-cards/[infoCardId]/upload", "info-cards/[infoCardId]/media", "info-cards/[infoCardId]/media/status", "info-card-series", "library/info-cards", "media/card", "media/protected"]) {
     const bundle = await build({ entryPoints: [`src/app/api/${name}/route.ts`], bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
       plugins: [{ name: "info-api-auth-and-disposable-db", setup(builder) {
+        builder.onLoad({ filter: /src\/lib\/infoCards\/trustedMaths\.ts$/ }, () => ({ contents: `
+          import { InfoMathsError } from "./mathsValidation";
+          export function checkInfoMathsRendering() { return async () => {
+            globalThis.__infoApi.checks++;
+            if (globalThis.__infoApi.checkFailure) throw new InfoMathsError(undefined, "browser-startup");
+            return { measurement: { result: { status: "measurement-unavailable", reason: "FONT_LOAD_FAILED", generation: 1, diagnostics: [] }, safe: false, headerFits: false }, screenshot: null };
+          }; }
+        `, loader: "ts" }));
         builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: "export async function getCurrentUser() { return globalThis.__infoApi.actor; }", loader: "ts" }));
         builder.onLoad({ filter: /src\/lib\/cards\/repository\.ts$/ }, async args => ({ contents: await readFile(args.path, "utf8")
           + "\nCardRepository.application = async () => new CardRepository(globalThis.__infoApi.db, globalThis.__infoApi.client);", loader: "ts" }));
@@ -121,4 +129,30 @@ test("forged personal/main references cannot route private info assets through l
   assert.equal(exact.status, 403);
   const image = await routes["media/protected"].GET(request("media/protected?provider=r2&identity=https%3A%2F%2Fassets.invalid%2Finfo-cards%2Falice%2Fa%2Fprivate.png&format=image"));
   assert.equal(image.status, 403);
+});
+
+test("rendering API rejects unauthorised/foreign/stale/arbitrary inputs before any browser execution", async () => {
+  const id = "diagnostic-api", ctx = { params: Promise.resolve({ infoCardId: id }) };
+  fixture.actor = { id: "alice" };
+  await routes["info-cards"].POST(request("info-cards", "POST", { infoCardId: id }));
+  await routes["info-cards/[infoCardId]"].PATCH(request(`info-cards/${id}`, "PATCH", { revision: 0, content: { title: "Maths", body: "$x$", bodyFormat: "latex-v1", seriesId: "s", mediaItem: null }, visibility: "private" }), ctx);
+  const route = routes["info-cards/[infoCardId]/check-rendering"], calls = fixture.checks;
+  fixture.actor = null; assert.equal((await route.POST(request(`info-cards/${id}/check-rendering`, "POST", { revision: 1 }), ctx)).status, 401);
+  fixture.actor = { id: "bob" }; assert.equal((await route.POST(request(`info-cards/${id}/check-rendering`, "POST", { revision: 1 }), ctx)).status, 403);
+  fixture.actor = { id: "alice" };
+  assert.equal((await route.POST(request(`info-cards/${id}/check-rendering`, "POST", { revision: 0 }), ctx)).status, 409);
+  assert.equal((await route.POST(request(`info-cards/${id}/check-rendering`, "POST", { revision: 1, url: "https://example.invalid" }), ctx)).status, 400);
+  assert.equal(fixture.checks, calls);
+  const before = await fixture.db!.collection("infoCards").findOne({ infoCardId: id });
+  const result = await route.POST(request(`info-cards/${id}/check-rendering`, "POST", { revision: 1 }), ctx);
+  assert.equal(result.status, 200); assert.equal((await result.json()).measurement.result.status, "measurement-unavailable");
+  assert.match(result.headers.get("Cache-Control")!, /private.*no-store/);
+  assert.deepEqual(await fixture.db!.collection("infoCards").findOne({ infoCardId: id }), before);
+  fixture.checkFailure = true;
+  const failure = await route.POST(request(`info-cards/${id}/check-rendering`, "POST", { revision: 1 }), ctx);
+  assert.equal(failure.status, 503); assert.equal((await failure.json()).failure, "browser-startup");
+  fixture.checkFailure = false;
+  const checks = fixture.checks;
+  const published = await routes["info-cards/[infoCardId]/publish"].POST(request(`info-cards/${id}/publish`, "POST", { revision: 1 }), ctx);
+  assert.equal(published.status, 200); assert.equal((await published.json()).mathsValidation, undefined); assert.equal(fixture.checks, checks);
 });

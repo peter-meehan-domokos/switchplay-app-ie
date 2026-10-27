@@ -9,7 +9,12 @@ export function infoCardError(error: unknown, visibleCapacityIssues: readonly In
     if (m?.result.status === "ready" && visibleCapacityIssues.some(issue => issue.field === (!m.headerFits ? "title" : "body"))) return "";
     if (m?.result.status === "invalid-input") return m.result.diagnostics.filter(d => d.severity === "error").map(d => d.message).join(" ");
     if (m?.result.status === "ready") return !m.headerFits ? "The series name and title are too wide to fit together." : `The explanation exceeds the card: required ${m.result.layout.width.toFixed(1)} × ${m.result.layout.height.toFixed(1)}px; normal area ${m.result.layout.available.width.toFixed(1)} × ${m.result.layout.available.height?.toFixed(1)}px. Your draft is saved.`;
-    return "Publication layout could not be verified. Your draft is saved; retry when connected.";
+    const failure = error.details?.failure;
+    if (failure === "authentication") return "Publication verification is blocked by server authentication configuration. Your draft is saved.";
+    if (failure === "browser-startup") return "The publication verification browser could not start. Your draft is saved; retry later.";
+    if (failure === "timeout") return "Publication verification timed out on the server. Your draft is saved; retry later.";
+    if (failure === "fonts") return "Publication verification could not load the required fonts. Your draft is saved; retry later.";
+    return "Publication layout could not be verified on the server. Your draft is saved; retry later.";
   }
   const capacity = error.details?.capacity as { issues?: string[]; fieldIssues?: InfoCapacityFieldIssue[] } | undefined;
   if (capacity?.issues) {
@@ -36,4 +41,17 @@ export function infoCardError(error: unknown, visibleCapacityIssues: readonly In
   };
   if (error.status === 401) return "Please sign in again before continuing. Your local edits are retained.";
   return messages[error.code] ?? `The operation could not be completed (${error.code}). Your local edits are retained.`;
+}
+
+export function renderingCheckError(error: unknown): string {
+  if (error instanceof CreatorRequestError) {
+    if (error.code.includes("REVISION")) return "The saved card changed during the check. Run Check rendering again for the current revision.";
+    const failure = error.details?.failure;
+    if (failure === "authentication") return "Rendering check is blocked by server authentication configuration.";
+    if (failure === "browser-startup") return "The rendering check browser could not start.";
+    if (failure === "timeout") return "Rendering check timed out.";
+    if (failure === "fonts") return "Rendering check could not load the required fonts.";
+    if (failure === "busy") return "A rendering check is already running. Try again shortly.";
+  }
+  return "Rendering check could not finish. Your card and publication are unchanged.";
 }

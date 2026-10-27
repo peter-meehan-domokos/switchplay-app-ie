@@ -391,30 +391,73 @@ test("series selector orders own series first and filters hidden names before pa
   assert.deepEqual((await discoverSeries(repo, "bob", { search: "Secret" })).items, []);
 });
 
-test("maths publication requires trusted measurement, preserves exact source and bypasses only the old body estimator", async () => {
+const diagnosticMeasurement: import("../src/components/info-cards/infoCardMaths").InfoMathsMeasurement = {
+  result: { status: "ready", fits: false, generation: 1, diagnostics: [], layout: { available: { width: 214, height: 157 }, bounds: { left: 0, top: 0, right: 400, bottom: 200 }, width: 400, height: 200, overflowX: true, overflowY: true, excess: { left: 0, right: 186, top: 0, bottom: 43 } } }, safe: false, headerFits: true,
+};
+const capture = { measurement: diagnosticMeasurement, screenshot: { dataUrl: "data:image/png;base64,dGVzdA==", width: 426, height: 246 } };
+
+test("maths publication needs no browser/certificate, preserves source and remains available", async () => {
   const repo = await setup(); await draft(repo);
-  const source = String.raw`General rule:
-$$\boldsymbol{\frac{a}{\frac{b}{c}}=\frac{ac}{b}}$$`;
+  const source = String.raw`General rule: $$\boldsymbol{\frac{a}{\frac{b}{c}}=\frac{ac}{b}}$$`;
   await repo.save("alice", "a", 1, { ...content(), body: source, bodyFormat: "latex-v1" }, "public");
-  await assert.rejects(repo.publish("alice", "a", 2), { code: "INFO_MATHS_UNAVAILABLE" });
-  let calls = 0;
-  const validate: import("../src/lib/infoCards/mathsValidation").InfoMathsValidator = async saved => {
-    calls++; assert.equal(saved.body, source); return { result: { status: "ready", fits: true, generation: 1, diagnostics: [], layout: { available: { width: 214, height: 157 }, bounds: { left: 0, top: 0, right: 100, bottom: 90 }, width: 100, height: 90, overflowX: false, overflowY: false, excess: { left: 0, right: 0, top: 0, bottom: 0 } } }, safe: true, headerFits: true };
-  };
-  const publication = await repo.publish("alice", "a", 2, validate);
-  assert.equal(publication.content.body, source); assert.deepEqual(publication.mathsValidation, { version: 1 });
-  await repo.publish("alice", "a", 2, validate); assert.equal(calls, 1);
+  const publication = await repo.publish("alice", "a", 2);
+  assert.equal(publication.content.body, source); assert.equal(publication.mathsValidation, undefined);
+  assert.equal((await repo.publish("alice", "a", 2)).version, 1);
   assert.equal((await publishedSnapshot(repo, "alice", ["a"]))[0].content.bodyFormat, "latex-v1");
   assert.equal((await infoCatalogue(repo, "alice")).items[0].content.body, source);
+  await repo.versions().updateOne({ infoCardId: "a", version: 1 }, { $set: { mathsValidation: { version: 1 } } });
+  assert.equal((await publishedSnapshot(repo, "alice", ["a"]))[0].content.body, source);
   await assert.rejects(repo.save("alice", "a", 3, content(), "public"), { code: "INFO_FORMAT_CONFLICT" });
 });
 
-test("maths measurement outside a transaction cannot publish a concurrently replaced revision", async () => {
+test("maths source/security validation remains, while geometry does not block publication", async () => {
+  const repo = await setup(); await draft(repo);
+  for (const body of ["Before $$x", String.raw`$\href{https://example.invalid}{x}$`]) {
+    const root = await repo.owner("alice", "a");
+    await repo.save("alice", "a", root.revision, { ...content(), bodyFormat: "latex-v1", body }, "public");
+    await assert.rejects(repo.publish("alice", "a", root.revision + 1), { code: "INFO_MATHS_INVALID" });
+  }
+  const root = await repo.owner("alice", "a");
+  await repo.save("alice", "a", root.revision, { ...content(), bodyFormat: "latex-v1", body: "$$\\rule{400px}{1px}$$" }, "public");
+  assert.equal((await repo.publish("alice", "a", root.revision + 1)).version, 1);
+});
+
+test("publication still rechecks its saved revision inside the transaction", async () => {
   const repo = await setup(); await draft(repo);
   await repo.save("alice", "a", 1, { ...content(), bodyFormat: "latex-v1" }, "public");
-  await assert.rejects(repo.publish("alice", "a", 2, async () => {
-    await repo.save("alice", "a", 2, { ...content(), body: "$y$", bodyFormat: "latex-v1" }, "public");
-    return { result: { status: "ready", fits: true, generation: 1, diagnostics: [], layout: { available: { width: 214, height: 157 }, bounds: { left: 0, top: 0, right: 10, bottom: 10 }, width: 10, height: 10, overflowX: false, overflowY: false, excess: { left: 0, right: 0, top: 0, bottom: 0 } } }, safe: true, headerFits: true };
+  const original = repo.transaction.bind(repo); let edited = false;
+  repo.transaction = async run => {
+    if (!edited) { edited = true; await repo.save("alice", "a", 2, { ...content(), bodyFormat: "latex-v1", body: "$y$" }, "public"); }
+    return original(run);
+  };
+  await assert.rejects(repo.publish("alice", "a", 2), { code: "STALE_INFO_REVISION" });
+  assert.equal(await repo.versions().countDocuments(), 0);
+});
+
+test("rendering checks are owner/revision scoped, diagnostic-only and never write acceptance", async () => {
+  const repo = await setup(); await draft(repo);
+  await repo.save("alice", "a", 1, { ...content(), bodyFormat: "latex-v1", body: "$x$" }, "private");
+  let calls = 0;
+  const check: import("../src/lib/infoCards/mathsValidation").InfoRenderingChecker = async saved => { calls++; assert.equal(saved.body, "$x$"); return capture; };
+  const before = await repo.owner("alice", "a");
+  await assert.rejects(repo.checkRendering("bob", "a", 2, check), { code: "INFO_FORBIDDEN" });
+  await assert.rejects(repo.checkRendering("alice", "a", 1, check), { code: "STALE_INFO_REVISION" }); assert.equal(calls, 0);
+  const checked = await repo.checkRendering("alice", "a", 2, check);
+  assert.equal(checked.measurement.safe, false); assert.equal(checked.screenshot?.width, 426);
+  assert.deepEqual(await repo.owner("alice", "a"), before); assert.equal(await repo.versions().countDocuments(), 0);
+  await repo.publish("alice", "a", 2); // Overflow diagnostic has no publication effect.
+  const published = await repo.owner("alice", "a");
+  await repo.checkRendering("alice", "a", published.revision, check);
+  assert.deepEqual(await repo.owner("alice", "a"), published); assert.equal((await repo.owner("alice", "a")).draft, null);
+});
+
+test("a stale or failed rendering check cannot affect source or publication", async () => {
+  const repo = await setup(); await draft(repo);
+  await repo.save("alice", "a", 1, { ...content(), bodyFormat: "latex-v1" }, "private");
+  await assert.rejects(repo.checkRendering("alice", "a", 2, async () => {
+    await repo.save("alice", "a", 2, { ...content(), bodyFormat: "latex-v1", body: "$y$" }, "private"); return capture;
   }), { code: "STALE_INFO_REVISION" });
-  assert.equal(await repo.versions().countDocuments(), 0); assert.equal((await repo.owner("alice", "a")).draft?.body, "$y$");
+  await assert.rejects(repo.checkRendering("alice", "a", 3, async () => { throw new Error("Browser unavailable"); }));
+  assert.equal((await repo.owner("alice", "a")).draft?.body, "$y$"); assert.equal(await repo.versions().countDocuments(), 0);
+  assert.equal((await repo.publish("alice", "a", 3)).version, 1);
 });

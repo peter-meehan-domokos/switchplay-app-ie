@@ -14,7 +14,7 @@ export function actorCreatorTransport(actor: string, live: (url: string, method:
     if (!live(url, method, body)) throw new CreatorRequestError(409, "CREATOR_SESSION_CONFLICT");
     const current = await creatorRequest<{ user: { id: string } | null }>("/api/auth/me");
     if (current.user?.id !== actor || !live(url, method, body)) throw new CreatorRequestError(409, "CREATOR_SESSION_CONFLICT");
-    const response = await fetch(url, { method, signal: AbortSignal.timeout(method === "POST" && /^\/api\/info-cards\/[^/]+\/publish$/.test(url) ? 45000 : 15000), cache: "no-store",
+    const response = await fetch(url, { method, signal: AbortSignal.timeout(method === "POST" && /^\/api\/info-cards\/[^/]+\/check-rendering$/.test(url) ? 45000 : 15000), cache: "no-store",
       headers: { "Content-Type": "application/json", "X-Creator-Actor": actor }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const result = await response.json();
     if (!response.ok) throw new CreatorRequestError(response.status, result.code ?? result.error ?? "REQUEST_FAILED", result);

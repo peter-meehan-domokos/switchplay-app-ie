@@ -70,7 +70,9 @@ function validPublication(row: Joined) {
     assertInfoDraft(publication.content);
     infoId(publication.content.seriesId); infoId(series.seriesId); infoId(series.createdByUserId);
     requireCondition(series.seriesId === publication.content.seriesId && seriesName(series.title).title === series.title, "INVALID_INFO_PUBLICATION");
-    requireCondition(publication.content.bodyFormat ? publication.mathsValidation?.version === 1 : measureInfoCapacity({ title: publication.content.title, body: publication.content.body,
+    // Mathematical publications need no geometry certificate. Historical
+    // acceptance metadata remains readable; legacy plain-text rules stay intact.
+    if (!publication.content.bodyFormat) requireCondition(measureInfoCapacity({ title: publication.content.title, body: publication.content.body,
       seriesTitle: series.title, hasMedia: publication.content.mediaItem !== null }).fits, "INVALID_INFO_PUBLICATION");
     return true;
   } catch (error) {

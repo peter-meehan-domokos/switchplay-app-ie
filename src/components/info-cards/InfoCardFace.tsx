@@ -22,8 +22,6 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
   onMathsResult?: (result: InfoMathsMeasurement) => void;
 }) {
   const face = useRef<HTMLElement>(null), body = useRef<HTMLDivElement>(null);
-  const [failure, setFailure] = useState<{ source: string; message: string } | null>(null);
-  const localFailure = !onMathsResult && failure?.source === card.body ? failure.message : null;
   const titleId = useId();
   const tooltipId = useId();
   const attribution = useRef<HTMLSpanElement>(null);
@@ -83,17 +81,13 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
         <span className={styles.title} data-info-card-title="">{card.title}</span>
       </h3>
       <div ref={body} className={card.bodyFormat ? styles.mathsBody : styles.body} data-info-card-body="">
-        {card.bodyFormat ? <><div style={{ opacity: localFailure ? 0 : 1 }} aria-hidden={localFailure ? true : undefined}><MathsRenderer key={JSON.stringify([card.title, card.seriesTitle, card.mediaKind])} content={card.body} presentation={infoMathsPresentation}
+        {card.bodyFormat ? <MathsRenderer key={JSON.stringify([card.title, card.seriesTitle, card.mediaKind])} content={card.body} presentation={infoMathsPresentation}
           constraints={{ kind: "container", elementRef: body, height: "bounded" }}
           onResult={result => {
             if (!face.current || !body.current) return;
             const measurement = infoMathsMeasurement(result, face.current, body.current);
             onMathsResult?.(measurement);
-            if (!onMathsResult) {
-              if (result.status === "ready") setFailure(measurement.safe && measurement.headerFits ? null : { source: card.body, message: "This explanation cannot be displayed safely on this device." });
-              else if (result.status === "measurement-unavailable" && /FONT|STYLES/.test(result.reason)) setFailure({ source: card.body, message: "The explanation fonts could not load. Reload to try again." });
-            }
-          }} /></div>{localFailure && <p className={styles.layoutFailure} role="alert">{localFailure}</p>}</>
+          }} />
           : card.body.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </div>
       {card.mediaKind ? (

@@ -8,7 +8,8 @@ import { EMPTY_INFO_DRAFT, type InfoContent, type InfoDraft, type InfoPublicatio
 import type { Visibility } from "../cards/model";
 import { measureInfoCapacity } from "./capacity";
 import { assertMediaAttachment, productionMediaSecurity, type InfoMediaSecurity } from "./media";
-import { InfoMathsError, type InfoMathsValidator } from "./mathsValidation";
+import { InfoMathsError, type InfoRenderingChecker } from "./mathsValidation";
+import { prepareContent } from "../../components/maths-renderer/prepareContent";
 import { INFO_MEDIA_COLLECTION } from "./mediaRegistry";
 
 export const INFO_COLLECTIONS = { roots: "infoCards", versions: "infoCardVersions", series: "infoCardSeries" } as const;
@@ -140,7 +141,7 @@ export class InfoCardRepository {
     });
   }
 
-  async publish(actor: string, id: string, expected: number, validateMaths?: InfoMathsValidator) {
+  async publish(actor: string, id: string, expected: number) {
     revision(expected);
     // External provider checks happen once, outside retriable Mongo callbacks.
     const before = await this.owner(actor, id);
@@ -148,18 +149,14 @@ export class InfoCardRepository {
     if (prior) return prior;
     requireCondition(before.revision === expected, "STALE_INFO_REVISION");
     if (before.draft?.mediaItem) await this.mediaSecurity.assertReady(actor, before, before.draft.mediaItem);
-    let mathsValidation: { version: 1 } | undefined;
-    let measuredSeriesTitle: string | undefined;
     if (before.draft?.bodyFormat) {
       const draft = before.draft;
+      assertInfoDraft(draft);
       requireCondition(draft.seriesId && draft.title.trim() && draft.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
-      const series = await this.series().findOne({ seriesId: draft.seriesId });
-      requireCondition(series, "SERIES_FORBIDDEN");
-      requireCondition(!/[\r\n\t\p{Cc}\p{Cf}]/u.test(draft.title + series.title), "INVALID_INFO_TEXT");
-      if (!validateMaths) throw new InfoMathsError();
-      const measurement = await validateMaths(draft, series.title);
-      if (measurement.result.status !== "ready" || !measurement.safe || !measurement.headerFits) throw new InfoMathsError(measurement);
-      mathsValidation = { version: 1 }; measuredSeriesTitle = series.title;
+      // Reuse the renderer's pure source preparation for syntax/security only.
+      // This performs no DOM layout, capacity calculation or browser launch.
+      const prepared = prepareContent(draft.body);
+      if (prepared.invalid) throw new InfoMathsError({ result: { status: "invalid-input", generation: 0, diagnostics: prepared.diagnostics }, safe: false, headerFits: false });
     }
     return this.transaction(async session => {
       const root = await this.owner(actor, id, session);
@@ -170,19 +167,37 @@ export class InfoCardRepository {
       requireCondition(content && content.seriesId, "INFO_PUBLICATION_INCOMPLETE");
       const series = await this.eligibleSeries(actor, content.seriesId, content.seriesId, session);
       if (content.bodyFormat) {
-        requireCondition(mathsValidation && series.title === measuredSeriesTitle, "STALE_INFO_REVISION");
+        requireCondition(content.title.trim() && content.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
+        requireCondition(!/[\r\n\t\p{Cc}\p{Cf}]/u.test(content.title + series.title), "INVALID_INFO_TEXT");
       } else {
         const capacity = measureInfoCapacity({ ...content, seriesTitle: series.title, hasMedia: !!content.mediaItem });
         if (!capacity.fits) throw new InfoCapacityError(capacity);
       }
       requireCondition(root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
       const publication: InfoPublication = { infoCardId: id, version: root.latestVersion + 1, content: content as InfoContent,
-        ...(mathsValidation ? { mathsValidation } : {}), visibility: root.draftVisibility, sourceRevision: expected, publishedAt: new Date(), publishedByUserId: actor };
+        visibility: root.draftVisibility, sourceRevision: expected, publishedAt: new Date(), publishedByUserId: actor };
       await this.versions().insertOne({ ...publication }, { session });
       await this.roots().updateOne({ infoCardId: id, revision: expected }, { $set: { latestVersion: publication.version,
         visibility: publication.visibility, draft: null, updatedAt: publication.publishedAt }, $inc: { revision: 1 } }, { session });
       return publication;
     });
+  }
+
+  async checkRendering(actor: string, id: string, expected: number, check: InfoRenderingChecker) {
+    revision(expected);
+    const root = await this.owner(actor, id);
+    requireCondition(root.revision === expected, "STALE_INFO_REVISION");
+    const content = root.draft ?? (await this.versions().findOne({ infoCardId: id, version: root.latestVersion }))?.content;
+    requireCondition(content, "INFO_PUBLICATION_INCOMPLETE");
+    assertInfoDraft(content);
+    requireCondition(content.bodyFormat === "latex-v1", "INFO_MATHS_FORMAT_REQUIRED");
+    const series = content.seriesId ? await this.series().findOne({ seriesId: content.seriesId }) : null;
+    const result = await check(content, series?.title ?? "Series");
+    // Diagnostics never write content, status, certificates or publications.
+    const latest = await this.owner(actor, id);
+    requireCondition(latest.revision === expected, "STALE_INFO_REVISION");
+    if (series) requireCondition((await this.series().findOne({ seriesId: series.seriesId }))?.title === series.title, "STALE_INFO_REVISION");
+    return { revision: expected, ...result };
   }
 
   async drafts(actor: string, offset = 0, limit = 30) {

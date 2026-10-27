@@ -453,8 +453,9 @@ test("live title overflow is field-specific and reacts to typing and series chan
   await expect(title).toHaveAttribute("aria-invalid", "true");
   await expect(title).toHaveAttribute("aria-describedby", "info-title-capacity");
   expect(await title.evaluate(node => node.closest("label")!.nextElementSibling?.id)).toBe("info-title-capacity");
-  await expect(page.getByText("Preview unavailable.", { exact: true })).toBeVisible();
-  await expect(page.locator("[data-info-card-face]").locator("..")).toHaveCSS("opacity", "0");
+  await expect(page.getByText("The content exceeds the card’s layout limits.", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-info-card-face]")).toBeVisible();
+  await expect(page.locator("[data-info-card-face]").locator("..")).toHaveCSS("opacity", "1");
   await expect.poll(async () => (await (await page.request.get(`/api/info-cards/${id}`)).json()).root.draft?.title).toBe("W".repeat(40));
   await title.fill("Signs"); await expect(page.locator("#info-title-capacity")).toHaveCount(0);
   await page.getByRole("combobox", { name: "Series", exact: true }).selectOption(seriesId);
@@ -466,7 +467,7 @@ test("live title overflow is field-specific and reacts to typing and series chan
   await expect(title).not.toHaveAttribute("aria-describedby", /info-title-capacity/);
 });
 
-test("live explanation feedback preserves text, paragraph spacing, autosave and server rejection", async ({ page }) => {
+test("live explanation feedback preserves text, paragraph spacing, autosave and nonblocking publication", async ({ page }) => {
   await login(page); const id = await create(page);
   const body = page.getByRole("textbox", { name: "Explanation", exact: true });
   const text = "Too much explanation. ".repeat(100);
@@ -477,14 +478,17 @@ test("live explanation feedback preserves text, paragraph spacing, autosave and 
   await expect(body).toHaveAttribute("aria-describedby", "info-body-capacity");
   expect(await body.evaluate(node => node.closest("label")!.nextElementSibling?.id)).toBe("info-body-capacity");
   await expect.poll(async () => (await (await page.request.get(`/api/info-cards/${id}`)).json()).root.draft?.body).toBe(text);
-  const rejected = page.waitForResponse(response => response.url().endsWith(`/api/info-cards/${id}/publish`) && response.request().method() === "POST");
+  const published = page.waitForResponse(response => response.url().endsWith(`/api/info-cards/${id}/publish`) && response.request().method() === "POST");
   await page.getByRole("button", { name: "Publish", exact: true }).click();
-  expect((await rejected).status()).toBe(422);
+  expect((await published).status()).toBe(200);
+  await expect(page.getByRole("button", { name: "Published", exact: true })).toBeVisible();
   await expect(body).toHaveValue(text);
   await expect(warning).toBeVisible();
+  // The existing live overflow warning remains advisory after publication.
   await expect(page.getByRole("main").getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveAttribute("id", "info-body-capacity");
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
-  expect((await (await page.request.get(`/api/info-cards/${id}`)).json()).root.latestVersion).toBe(0);
+  expect((await (await page.request.get(`/api/info-cards/${id}`)).json()).root.latestVersion).toBe(1);
   await body.fill("One\n\n\n\nTwo");
   await expect(warning).toHaveCount(0); await expect(page.locator("[data-info-card-face]")).toBeVisible();
   await expect(page.locator("[data-info-card-body] p")).toHaveCount(2);

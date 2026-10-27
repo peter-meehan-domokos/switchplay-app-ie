@@ -14,6 +14,7 @@ export type InfoRoot = {
 export type InfoPublication = {
   infoCardId: string; version: number; content: InfoContent; visibility: Visibility;
   publishedByUserId: string; publishedAt: Date; sourceRevision: number;
+  // Historical Chromium acceptance only; new publications do not require it.
   mathsValidation?: { version: 1 };
 };
 export type InfoSeries = { seriesId: string; title: string; normalisedTitle: string; createdByUserId: string; createdAt: Date };
