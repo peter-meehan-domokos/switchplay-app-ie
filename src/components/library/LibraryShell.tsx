@@ -15,9 +15,11 @@ import type { PresentedCard } from "@/components/decks/presentation";
 import { deckPresentationIdentity } from "@/components/decks/presentation";
 import { deckEntryAction, libraryFetch, LibraryRequestError, workingDeckHref } from "./libraryClient";
 import LibraryDialog from "./LibraryDialog";
+import LibraryTabs from "./LibraryTabs";
 import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import { flushPersonalMutations } from "@/lib/deckMutations";
 import { useLibraryNavigation } from "./useLibraryNavigation";
+import CollectionReturnHighlight from "./CollectionReturnHighlight";
 
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 const LibraryView = forwardRef<HTMLDivElement, { children: ReactNode; detail: boolean }>(function LibraryView({ children, detail }, ref) {
@@ -29,8 +31,8 @@ const LibraryView = forwardRef<HTMLDivElement, { children: ReactNode; detail: bo
     {present || !detail ? children : null}
   </motion.div>;
 });
-export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName }: {
-  initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string;
+export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName, publishedId }: {
+  initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string; publishedId?: string;
 }) {
   const router = useRouter();
   const search = useSearchParams(), progressReturn = readProgressReturn(search);
@@ -170,7 +172,8 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     <main className={`app-shell library-shell${entry ? " app-shell--deck" : ""}`}>
     <AnimatePresence initial={false} mode="popLayout">
     <LibraryView key={entry ? `deck-${entry.deckTemplateId}` : "collection"} detail={!!entry}>
-    {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1></header></>}
+    <CollectionReturnHighlight id={publishedId ?? null} ready={!entry && !!collection?.entries.some(item => item.deckTemplateId === publishedId)} />
+    {!entry && <><OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>Library</h1></header><LibraryTabs active="decks" /></>}
     {error && !stale && !chooser && <p className="library-error" role="alert">{error}{!status && <button type="button" onClick={() => window.location.reload()}>Reload Library</button>}</p>}
     {navigation.changed && <p className="library-error" role="status">A newer publication is available. <button type="button" disabled={pending !== null} onClick={() => void refreshPreview()}>Refresh preview</button></p>}
     {active && requestedCard && !active.deck.cards.some((card) => card.cardTemplateId === requestedCard &&
@@ -197,7 +200,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     </> : entry ? <section className="library-unavailable"><button type="button" className="back-button" onClick={() => progressReturn ? router.push(progressReturnHref(progressReturn), { scroll: false }) : backToLibrary()}>{progressReturn ? "Back to Progress" : "Back to Library"}</button><h1>Unavailable Deck</h1><p>This public Deck cannot currently be previewed.</p></section> : <>
       {navigation.loading && <p role="status">Loading Library…</p>}
       <DeckGrid orderedEntries={(collection?.entries ?? []).map((item) => item.availability === "available" ? item.deck : {
-        id: item.deckTemplateId, unavailable: <div className="deck-tile library-unavailable-tile"><button type="button" onClick={() => navigation.select(item.deckTemplateId)}>Unavailable Deck</button><p>Public content needs attention.</p></div>,
+        id: item.deckTemplateId, unavailable: <div className="deck-tile library-unavailable-tile" data-collection-item-id={item.deckTemplateId}><button type="button" onClick={() => navigation.select(item.deckTemplateId)}>Unavailable Deck</button><p>Public content needs attention.</p></div>,
       })} decks={(collection?.entries ?? []).flatMap((item) => item.availability === "available" ? [item.deck] : [])}
         instantiatingDeckTemplateId={null} isInteractionLocked={pending !== null} transition={transition}
         onSelectDeck={(id) => navigation.select(id)} />

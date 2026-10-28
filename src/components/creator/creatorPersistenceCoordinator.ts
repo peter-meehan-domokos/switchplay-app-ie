@@ -10,6 +10,7 @@ import { forkCardContent } from "@/lib/cards/forks";
 import { sessionBoardDTO, type CreatorBoardDTO } from "./cardArchitectureAdapter";
 import type { BoardState } from "./creatorBoardState";
 import { creatorRequest, CreatorRequestError, type CreatorTransport } from "./creatorRequest";
+import { clientId } from "@/lib/clientId";
 
 type CardAck = CreatorDTO["cards"][number];
 type DeckAck = Pick<CreatorDTO, "root" | "content" | "publishedContent">;
@@ -49,6 +50,9 @@ export class EntityLane<C, A extends Ack<C>> {
   creationPending = false;
   uncertainSaves: { content: C; visibility: Visibility; generation: number; before: A }[] = [];
   uncertainPublication: { before: A; generation: number; note?: string } | null = null;
+  // UI return metadata only: existing publications/draft saves are not receipts
+  // for a publication made and authoritatively confirmed in this edit session.
+  confirmedPublicationVersion: number | null = null;
   tasks: (() => Promise<void>)[] = [];
   private unlocked: (() => void)[] = [];
   constructor(content: C, ack: A | null, readonly changed: () => void,
@@ -143,6 +147,7 @@ export class EntityLane<C, A extends Ack<C>> {
       const receipt = await this.readPublished(before.root.latestVersion + 1);
       if (receipt.version !== before.root.latestVersion + 1 || receipt.publishedByUserId !== before.root.ownerUserId || !sameContent(receipt.content, before.content) || receipt.updateNote !== pending.note
         || before.root.visibility && (receipt.visibility ?? remote.root.visibility) !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
+      this.confirmedPublicationVersion = receipt.version;
       this.accept(remote, pending.generation);
     }
     else if (remote.root.revision !== before.root.revision || !sameContent(remote.content, before.content) || intent(remote.root) !== intent(before.root)) throw conflict();
@@ -203,7 +208,7 @@ export class CreatorPersistenceCoordinator {
   private submitted: SubmittedCreatorOperation | null = null;
   private creationAcknowledged = false;
   recovering = false;
-  private sessionId = globalThis.crypto.randomUUID();
+  private sessionId = clientId();
   private origin = "";
   private reservedDeckId: string | null = null;
   private mediaProofs = new Map<string, string[]>();
@@ -318,7 +323,7 @@ export class CreatorPersistenceCoordinator {
       return { scope: "card-template", deckTemplateId: this.deckTemplateId, cardTemplateId: target?.id ?? this.cardIdentity(id),
         creatorActor: this.session?.actor, ...(card && target ? { prospective: { kind: "card", source: card.source, targetId: target.id, slot, context: this.session!.context } } : {}) };
     }
-    if (this.deckSource && !this.deck.ack) this.reservedDeckId ??= crypto.randomUUID();
+    if (this.deckSource && !this.deck.ack) this.reservedDeckId ??= clientId();
     return { scope: "deck-introduction", deckTemplateId: this.reservedDeckId ?? this.deckTemplateId, creatorActor: this.session?.actor,
       ...(this.deckSource && !this.deck.ack ? { prospective: { kind: "deck", source: this.deckSource.source, targetId: this.reservedDeckId!, slot: slot as "image" | "video", context: this.session!.context } } : {}) };
   }
@@ -328,7 +333,7 @@ export class CreatorPersistenceCoordinator {
       // Lineage allocation follows the immutable source order, even when the
       // first meaningful edit is a reorder of the visible Steps.
       const source = this.foreignCards.get(id)?.content ?? this.cards.get(id)!.desired;
-      target = { id: crypto.randomUUID(), steps: new Map(source.steps.map((step) => [step.stepId, crypto.randomUUID()])) };
+      target = { id: clientId(), steps: new Map(source.steps.map((step) => [step.stepId, clientId()])) };
       this.targets.set(id, target);
     }
     return target;
@@ -343,7 +348,7 @@ export class CreatorPersistenceCoordinator {
   private queueForeignDeck(content: DeckContent, visibility?: Visibility, cardFork?: CardForkCommand, newCards?: DeckForkCommand["newCards"]) {
     if (this.deckCreationQueued || this.deck.ack) return;
     this.deckCreationQueued = true;
-    const command: DeckForkCommand = { source: this.deckSource!.source, deckTemplateId: this.reservedDeckId ?? crypto.randomUUID(),
+    const command: DeckForkCommand = { source: this.deckSource!.source, deckTemplateId: this.reservedDeckId ?? clientId(),
       context: this.session!.context, content: clone(content), ...(visibility ? { visibility } : {}),
       mediaProofs: this.mediaProofs.get("deck"), foreignCardSelections: this.selections().filter((ref) => ref.cardTemplateId !== cardFork?.source.cardTemplateId), ...(cardFork ? { cardFork } : {}), ...(newCards ? { newCards } : {}) };
     this.enqueueFork("deck", command);
@@ -630,6 +635,7 @@ export class CreatorPersistenceCoordinator {
       const result = await publish();
       if (result.root.latestVersion !== before.root.latestVersion + 1 || result.root.revision !== before.root.revision + 1 || !sameContent(result.publishedContent, before.content)
         || before.root.visibility && result.root.visibility !== publicationVisibility(before.root as PublicationVisibility)) throw conflict();
+      lane.confirmedPublicationVersion = result.root.latestVersion;
       lane.uncertainPublication = null; return result;
     } catch (error) {
       const kind = failure(error).kind;

@@ -1,0 +1,57 @@
+{
+  "stats": {
+    "startTime": "2026-10-25T16:37:24.651Z",
+    "duration": 22656.742,
+    "expected": 9,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "webkit",
+      "status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "scope": "Local browser comparison only; Linux remains untested",
+  "comparisons": [
+    {
+      "example": 1,
+      "earlierBrowser": "Chromium 145 on macOS",
+      "currentBrowser": "153.0.8010.12",
+      "earlierBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 194.96875,
+        "bottom": 76.453125
+      },
+      "currentBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 194.96875,
+        "bottom": 76.453125
+      },
+      "heightDelta": 0.0
+    },
+    {
+      "example": 2,
+      "earlierBrowser": "Chromium 145 on macOS",
+      "currentBrowser": "153.0.8010.12",
+      "earlierBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 138.46875,
+        "bottom": 78.8125
+      },
+      "currentBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 138.46875,
+        "bottom": 78.8125
+      },
+      "heightDelta": 0.0
+    },
+    {
+      "example": 3,
+      "earlierBrowser": "Chromium 145 on macOS",
+      "currentBrowser": "153.0.8010.12",
+      "earlierBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 124.21875,
+        "bottom": 95.8125
+      },
+      "currentBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 124.21875,
+        "bottom": 95.8125
+      },
+      "heightDelta": 0.0
+    },
+    {
+      "example": 4,
+      "earlierBrowser": "Chromium 145 on macOS",
+      "currentBrowser": "153.0.8010.12",
+      "earlierBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 124.21875,
+        "bottom": 91.84375
+      },
+      "currentBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 124.21875,
+        "bottom": 91.84375
+      },
+      "heightDelta": 0.0
+    },
+    {
+      "example": 5,
+      "earlierBrowser": "Chromium 145 on macOS",
+      "currentBrowser": "153.0.8010.12",
+      "earlierBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 102.53125,
+        "bottom": 22.765625
+      },
+      "currentBounds": {
+        "left": 0,
+        "top": 0,
+        "right": 102.53125,
+        "bottom": 22.765625
+      },
+      "heightDelta": 0.0
+    }
+  ]
+}

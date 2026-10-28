@@ -1,0 +1,42 @@
+{
+  "url": "switchplay-maths-renderer-proof-dws5xm02t.vercel.app",
+  "projectId": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
+  "requestedEnvironment": "production",
+  "inert": true,
+  "retainedDuringTesting": true,
+  "deploymentId": "dpl_CbrdnyWE4rqepVTi55vg1ATgf3fs",
+  "target": "production",
+  "readyState": "READY",
+  "checks": [
+    {
+      "path": "/",
+      "method": "GET",
+      "authorised": false,
+      "status": 302
+    },
+    {
+      "path": "/",
+      "method": "GET",
+      "authorised": true,
+      "status": 404
+    },
+    {
+      "path": "/anything",
+      "method": "GET",
+      "authorised": true,
+      "status": 404
+    },
+    {
+      "path": "/api/proof",
+      "method": "POST",
+      "authorised": true,
+      "status": 404
+    },
+    {
+      "path": "/measure-host",
+      "method": "GET",
+      "authorised": true,
+      "status": 404
+    }
+  ]
+}

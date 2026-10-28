@@ -22,7 +22,7 @@ export default function DeckTile({
   isPreparing = false, onFrontCardAction, onIntroAnchorChange, onSelect, transition,
 }: DeckTileProps) {
   return (
-    <motion.article className={`deck-tile${isPreparing ? " deck-tile--preparing" : ""}`}
+    <motion.article className={`deck-tile${isPreparing ? " deck-tile--preparing" : ""}`} data-collection-item-id={deck.id}
       aria-busy={isPreparing} layout layoutId={`deck-${deckPresentationIdentity(deck)}`} transition={transition}>
       <DeckFrontContents front={deckFrontPresentation(deck)} animated preparing={isPreparing}
         introActive={isIntroActive} introPlaying={isIntroActive && introPlaybackStatus === "playing"}

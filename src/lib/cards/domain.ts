@@ -1,6 +1,7 @@
 import { isIsoDateOnlyString } from "../dateOnly";
 import { getConfidenceScore } from "../signals";
 import { isImageMediaItem, isVideoMediaItem } from "../media";
+import { infoReferences } from "../infoCards/domain";
 import type { AdoptedVersion, CardContent, CardData, CardTemplateRoot, DeckContent, DeckTemplateRoot, Step } from "./model";
 
 export class CardArchitectureError extends Error {
@@ -22,7 +23,8 @@ function keys(value: Record<string, unknown>, allowed: string[]) {
 function text(value: unknown, nullable = false) { requireCondition(typeof value === "string" || (nullable && value === null), "INVALID_CONTENT_TEXT"); }
 function media(value: unknown) { requireCondition(value == null || isImageMediaItem(value) || isVideoMediaItem(value), "INVALID_CANONICAL_MEDIA"); }
 export function assertCardContent(value: unknown): asserts value is CardContent {
-  requireCondition(isRecord(value), "INVALID_CARD_CONTENT"); keys(value, ["intro", "steps", "suggestedTargetDate", "mediaItem"]);
+  requireCondition(isRecord(value), "INVALID_CARD_CONTENT"); keys(value, ["intro", "steps", "suggestedTargetDate", "mediaItem", "infoCardIds"]);
+  infoReferences(value.infoCardIds);
   media(value.mediaItem);
   requireCondition(isRecord(value.intro), "INVALID_CARD_INTRO"); keys(value.intro, ["title", "description", "mediaItem"]);
   requireCondition(Object.hasOwn(value.intro, "mediaItem") && value.intro.mediaItem !== undefined, "INVALID_CARD_INTRO");

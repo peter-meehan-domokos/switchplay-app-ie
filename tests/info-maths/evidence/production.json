@@ -1,0 +1,452 @@
+{
+  "productionDeployment": false,
+  "applicationSnapshot": true,
+  "tracing": "browser binary, dynamic driver registry and eight fonts present",
+  "currency": {
+    "result": {
+      "status": "ready",
+      "fits": true,
+      "layout": {
+        "available": {
+          "width": 214,
+          "height": 157.016
+        },
+        "bounds": {
+          "left": 0,
+          "top": 0,
+          "right": 132.484375,
+          "bottom": 17.140625
+        },
+        "width": 132.484375,
+        "height": 17.140625,
+        "overflowX": false,
+        "overflowY": false,
+        "excess": {
+          "left": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      "generation": 5,
+      "diagnostics": [
+        {
+          "code": "unknownSymbol",
+          "message": "Unrecognized Unicode character \"€\" (8364)",
+          "severity": "warning",
+          "source": {
+            "start": 30,
+            "end": 31
+          }
+        },
+        {
+          "code": "symbolNotInFont",
+          "message": "No character metrics for '€' in style 'Main-Regular' and mode 'text'",
+          "severity": "warning",
+          "source": {
+            "start": 23,
+            "end": 44
+          }
+        }
+      ]
+    },
+    "safe": true,
+    "headerFits": true
+  },
+  "wide": {
+    "result": {
+      "status": "ready",
+      "fits": false,
+      "layout": {
+        "available": {
+          "width": 214,
+          "height": 157.016
+        },
+        "bounds": {
+          "left": 0,
+          "top": 0,
+          "right": 390.5,
+          "bottom": 22.765625
+        },
+        "width": 390.5,
+        "height": 22.765625,
+        "overflowX": true,
+        "overflowY": false,
+        "excess": {
+          "left": 0,
+          "top": 0,
+          "right": 176.5,
+          "bottom": 0
+        }
+      },
+      "generation": 3,
+      "diagnostics": []
+    },
+    "safe": false,
+    "headerFits": true
+  },
+  "failureCleanupAndContention": true,
+  "passed": true,
+  "results": [
+    {
+      "index": 0,
+      "media": false,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 157.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 194.96875,
+            "bottom": 76.453125
+          },
+          "width": 194.96875,
+          "height": 76.453125,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 0,
+      "media": true,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 121.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 194.96875,
+            "bottom": 76.453125
+          },
+          "width": 194.96875,
+          "height": 76.453125,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 1,
+      "media": false,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 157.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 138.46875,
+            "bottom": 78.8125
+          },
+          "width": 138.46875,
+          "height": 78.8125,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 1,
+      "media": true,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 121.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 138.46875,
+            "bottom": 78.8125
+          },
+          "width": 138.46875,
+          "height": 78.8125,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 2,
+      "media": false,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 157.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.21875,
+            "bottom": 95.8125
+          },
+          "width": 124.21875,
+          "height": 95.8125,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 4,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 2,
+      "media": true,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 121.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.21875,
+            "bottom": 95.8125
+          },
+          "width": 124.21875,
+          "height": 95.8125,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 4,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 3,
+      "media": false,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 157.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.21875,
+            "bottom": 91.84375
+          },
+          "width": 124.21875,
+          "height": 91.84375,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 3,
+      "media": true,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 121.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.21875,
+            "bottom": 91.84375
+          },
+          "width": 124.21875,
+          "height": 91.84375,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 4,
+      "media": false,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 157.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 102.53125,
+            "bottom": 22.765625
+          },
+          "width": 102.53125,
+          "height": 22.765625,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    },
+    {
+      "index": 4,
+      "media": true,
+      "result": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 121.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 102.53125,
+            "bottom": 22.765625
+          },
+          "width": 102.53125,
+          "height": 22.765625,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 5,
+        "diagnostics": []
+      },
+      "safe": true,
+      "headerFits": true
+    }
+  ],
+  "invalid": {
+    "result": {
+      "status": "invalid-input",
+      "generation": 0,
+      "diagnostics": [
+        {
+          "code": "UNMATCHED_DELIMITER",
+          "severity": "error",
+          "source": {
+            "start": 7,
+            "end": 20
+          },
+          "message": "Unmatched $$ delimiter. The remaining source is displayed literally."
+        }
+      ]
+    },
+    "safe": false,
+    "headerFits": false
+  },
+  "hostProtected": true
+}

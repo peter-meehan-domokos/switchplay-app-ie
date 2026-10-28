@@ -2,6 +2,7 @@ import type { DeckIntroduction, DeckTemplate, StepDescriptionSpan } from "@/comp
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import { normalizeDeckIntroductionForRuntime } from "@/lib/deckApiTransforms";
 import type { MediaItem } from "@/lib/media";
+import { clientId } from "@/lib/clientId";
 import { createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_DECK_CADENCE_DAYS, defaultCreatorThemeTitle, restoreCreatorCardTitle } from "@/lib/cards/creatorDefaults";
 
 export type CardColumnId = `card-${number}`;
@@ -17,6 +18,7 @@ export type Column = {
   cardId?: string;
   cardLabel?: string;
   cardTitle?: string;
+  infoCardIds?: string[];
   defaultCardTitle?: string;
   introDescription?: string | null;
   introMediaItem?: MediaItem | null;
@@ -41,7 +43,7 @@ export const STEP_PLACEHOLDER_TEXT = "Describe the step";
 export const VIDEO_PLACEHOLDER_TEXT = "Video placeholder";
 
 function createCreatorId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
+  return `${prefix}-${clientId()}`;
 }
 
 export function createCreatorDeckTemplateId() {
@@ -462,6 +464,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
         cardId: column.cardId ?? column.id,
         label: column.cardLabel ?? column.label,
         suggestedTargetDate: column.targetDate ?? "",
+        ...(column.infoCardIds !== undefined ? { infoCardIds: [...column.infoCardIds] } : {}),
         intro: {
           title: normalizeCreatorText(cardTitle),
           description: column.introDescription ?? null,
@@ -574,6 +577,7 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
       introDescription: templateCard?.intro.description ?? null,
       introMediaItem: templateCard?.intro.mediaItem ?? null,
       targetDate: templateCard?.suggestedTargetDate ?? "",
+      ...(templateCard?.infoCardIds !== undefined ? { infoCardIds: [...templateCard.infoCardIds] } : {}),
     };
   });
 }

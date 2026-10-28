@@ -64,6 +64,7 @@ function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof reso
       requireCondition(Array.isArray(card.data.items) && Array.isArray(card.data.signalReadings), "INVALID_CARD_DATA");
       const history = personalHistorySegments(deck.personalRecords, card.root.cardTemplateId);
       return { id: card.root.cardTemplateId, cardTemplateId: card.root.cardTemplateId, adoptedVersion: card.version.version,
+        ...(card.version.content.infoCardIds !== undefined ? { infoCardIds: [...card.version.content.infoCardIds] } : {}),
         templateOwnerUserId: card.root.ownerUserId, dataOwnerUserId: actor, permissions: card.permissions,
         label: labels[index].label, targetDate: card.data.targetDate ?? "", intro: card.version.content.intro,
         steps: card.version.content.steps.map((step) => ({ ...step,

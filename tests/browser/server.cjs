@@ -4,16 +4,51 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const http = require('node:http');
+const host = process.env.SWITCHPLAY_FIXTURE_HOST || '127.0.0.1';
+const port = Number(process.env.SWITCHPLAY_FIXTURE_PORT || 4178);
+if (!['127.0.0.1', '0.0.0.0'].includes(host) || !Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid fixture host/port');
 const { webpack } = require('next/dist/compiled/webpack/webpack');
 const output = fs.mkdtempSync(path.join(os.tmpdir(), 'switchplay-media-viewer-'));
-webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'fixture.tsx'), output: { path: output, filename: 'fixture.js' },
+const buildId = Date.now().toString(36);
+webpack({ mode: 'development', devtool: false, entry: { fixture: path.resolve(__dirname, 'fixture.tsx'), 'info-cards': path.resolve(__dirname, 'info-cards-fixture.tsx'), 'info-cards-integration': path.resolve(__dirname, 'info-cards-integration-fixture.tsx') }, output: { path: output, filename: '[name].js' },
   resolve: { extensions: ['.tsx', '.ts', '.js'], alias: { '@': path.resolve(__dirname, '../../src') } },
   module: { rules: [{ test: /\.(tsx?|css)$/, exclude: /node_modules/, use: path.resolve(__dirname, 'fixture-loader.cjs') }] },
-  plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'development' }) })],
+  plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'development' }) }),
+    new webpack.NormalModuleReplacementPlugin(/^@\/lib\/cloudflareStreamPlayback$/, path.resolve(__dirname, 'info-cards-playback.ts'))],
 }, (error, stats) => {
   if (error || stats.hasErrors()) { console.error(error || stats.toString({ all: false, errors: true })); process.exit(1); }
   const server = http.createServer((request, response) => {
-    if (request.url === '/fixture.js') { response.setHeader('Content-Type', 'text/javascript'); fs.createReadStream(path.join(output, 'fixture.js')).pipe(response); return; }
+    response.setHeader('Cache-Control', 'no-store');
+    const pathname = new URL(request.url, 'http://localhost').pathname.replace(/\/+$/, '') || '/';
+    if (pathname === '/api/library/media/stream-status') {
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ status: 'ready' })); return;
+    }
+    if (pathname === '/info-cards-media/sample.mp4') {
+      const file = path.resolve(__dirname, '../fixtures/info-cards-sample.mp4');
+      const size = fs.statSync(file).size;
+      const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
+      response.setHeader('Content-Type', 'video/mp4');
+      response.setHeader('Accept-Ranges', 'bytes');
+      if (range) {
+        const start = Number(range[1]), end = Math.min(range[2] ? Number(range[2]) : size - 1, size - 1);
+        if (start > end || start >= size) { response.writeHead(416, { 'Content-Range': `bytes */${size}` }); response.end(); return; }
+        response.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+        fs.createReadStream(file, { start, end }).pipe(response); return;
+      }
+      response.setHeader('Content-Length', size); fs.createReadStream(file).pipe(response); return;
+    }
+    const references = {
+      '/info-card-references/closed-step-view.png': 'closed-step-view.png',
+      '/info-card-references/open-info-card-bundle.png': 'open-info-card-bundle.png',
+      '/info-card-references/emerging-bundle.png': 'emerging-bundle.png',
+    };
+    if (references[pathname]) {
+      response.setHeader('Content-Type', 'image/png');
+      fs.createReadStream(path.resolve(__dirname, '../../docs/design/features/info-cards', references[pathname])).pipe(response);
+      return;
+    }
+    if (['/fixture.js', '/info-cards.js', '/info-cards-integration.js'].includes(pathname)) { response.setHeader('Content-Type', 'text/javascript'); fs.createReadStream(path.join(output, pathname.slice(1))).pipe(response); return; }
     if (/^\/image-\d+\.svg$/.test(request.url)) {
       const index = Number(request.url.match(/\d+/)[0]);
       const [width, height] = index === 0 ? [800, 1200] : index === 3 ? [1600, 400] : [900, 900];
@@ -53,10 +88,22 @@ webpack({ mode: 'development', devtool: false, entry: path.resolve(__dirname, 'f
       } else reply(new URL(request.url, 'http://localhost').searchParams.get('mediaItemId'));
       return;
     }
+    const script = { '/': 'fixture', '/info-cards': 'info-cards', '/info-cards/integration': 'info-cards-integration' }[pathname];
+    if (!script) {
+      response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('Unknown fixture URL. Open /info-cards/integration for the Info Cards prototype.');
+      return;
+    }
     response.setHeader('Content-Type', 'text/html');
-    response.end('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><div id="fixture-root"></div><script src="/fixture.js"></script></body></html>');
+    response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>${script === 'info-cards-integration' ? 'Info Cards Phase 1B review' : script === 'info-cards' ? 'Info Cards Phase 1A' : 'Media viewer fixture'}</title></head><body><div id="fixture-root"></div><script src="/${script}.js?build=${buildId}"></script></body></html>`);
   });
-  server.listen(4178, '127.0.0.1', () => console.log('Media viewer fixture ready on 4178'));
+  server.listen(port, host, () => {
+    console.log(`Fixtures ready: http://127.0.0.1:${port}/info-cards`);
+    console.log(`Integrated Step View: http://127.0.0.1:${port}/info-cards/integration`);
+    if (host === '0.0.0.0') for (const entries of Object.values(os.networkInterfaces())) for (const entry of entries || []) {
+      if (entry.family === 'IPv4' && !entry.internal) console.log(`Phone (same network): http://${entry.address}:${port}/info-cards/integration`);
+    }
+  });
   const close = () => server.close(() => { fs.rmSync(output, { recursive: true, force: true }); process.exit(0); });
   process.on('SIGTERM', close); process.on('SIGINT', close);
 });

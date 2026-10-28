@@ -1,0 +1,126 @@
+.face {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  height: 204px;
+  padding: 12px;
+  border: 1px solid rgba(179, 195, 217, 0.25);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #303947, #252d39);
+  color: #c9d0da;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5px;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.face:has(.media) {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.header {
+  position: relative;
+  min-width: 0;
+  margin: 0 0 9px;
+  font: inherit;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.attribution {
+  position: relative;
+  display: inline;
+}
+
+.series {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 8.8px;
+  font-weight: 400;
+  color: #b2bdcc;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.series:focus-visible,
+.media:focus-visible {
+  outline: 1.5px solid #a8d6e4;
+  outline-offset: 3px;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  bottom: calc(100% + 5px);
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 250, 240, 0.2);
+  border-radius: 4px;
+  background: #282e38;
+  color: #fffaf0;
+  font-size: 9px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.separator {
+  color: #8492a5;
+}
+
+.title {
+  color: #f0f2f6;
+  font-weight: 700;
+}
+
+.body {
+  min-height: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.body p {
+  margin: 0;
+}
+
+.body p + p {
+  margin-top: 7px;
+}
+
+.media {
+  display: flex;
+  align-items: center;
+  justify-self: start;
+  gap: 4px;
+  min-height: 32px;
+  margin: 4px 0 0;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: #d2deeb;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.media svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.media:disabled {
+  cursor: default;
+}
+
+.mathsBody { position: relative; min-height: 0; min-width: 0; }
+.layoutFailure { position: absolute; inset: 0; margin: 0; }

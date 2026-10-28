@@ -1,0 +1,65 @@
+.fixture {
+  min-height: 100svh;
+}
+
+.toolbar,
+.notes {
+  position: fixed;
+  z-index: 100;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  color: #c7c5bf;
+  font: 12px/1.4 Arial, Helvetica, sans-serif;
+}
+
+.toolbar {
+  top: max(10px, env(safe-area-inset-top));
+}
+
+.toolbar > p {
+  margin-bottom: 5px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.controls select,
+.controls button {
+  min-height: 32px;
+  padding: 3px 6px;
+  border: 1px solid #555f6d;
+  border-radius: 4px;
+  background: #202632;
+  color: #fffaf0;
+  font: inherit;
+}
+
+/* Avoid automatic form-control zoom on iPhone; browser pinch zoom stays available. */
+.controls select {
+  font-size: 16px;
+}
+
+.notes {
+  bottom: max(10px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.notes output {
+  display: block;
+  margin-top: 4px;
+  color: #e9d5a9;
+}
+
+.fixture [data-tall-lines] [data-info-card-body] {
+  line-height: 18px;
+}

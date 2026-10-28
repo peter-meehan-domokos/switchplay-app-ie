@@ -1,15 +1,36 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { before, test } from "node:test";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import ActiveCardFront from "../src/components/cards/ActiveCardFront";
-import DeckTile from "../src/components/decks/DeckTile";
-import DeckScene from "../src/components/decks/DeckScene";
-import FocusedCardView from "../src/components/decks/FocusedCardView";
 import { buildCardLayout } from "../src/components/cards/cardLayout";
 import { buildDeckLayout, buildOptimisticDeckLayout } from "../src/components/decks/deckLayout";
 import { cardPresentationIdentity, hasPersonalCard, hasPersonalDeck, deckPresentationIdentity } from "../src/components/decks/presentation";
 import { canonicalPresentationFixture } from "./fixtures/canonicalPresentation";
+
+let ActiveCardFront: typeof import("../src/components/cards/ActiveCardFront").default;
+let DeckTile: typeof import("../src/components/decks/DeckTile").default;
+let DeckScene: typeof import("../src/components/decks/DeckScene").default;
+let FocusedCardView: typeof import("../src/components/decks/FocusedCardView").default;
+before(async () => {
+  // These assertions check server-rendered structure, not CSS or geometry.
+  // Node/tsx has no CSS-module loader; limit its empty stub to component imports
+  // and restore the process-local hook before any test body executes.
+  const requireForTest = createRequire(resolve("package.json"));
+  const previous = requireForTest.extensions[".css"];
+  requireForTest.extensions[".css"] = module => { module.exports = {}; };
+  try {
+    [ActiveCardFront, DeckTile, DeckScene, FocusedCardView] = await Promise.all([
+      import("../src/components/cards/ActiveCardFront").then(module => module.default),
+      import("../src/components/decks/DeckTile").then(module => module.default),
+      import("../src/components/decks/DeckScene").then(module => module.default),
+      import("../src/components/decks/FocusedCardView").then(module => module.default),
+    ]);
+  } finally {
+    if (previous) requireForTest.extensions[".css"] = previous; else delete requireForTest.extensions[".css"];
+  }
+});
 
 const deck = canonicalPresentationFixture(390), card = deck.cards[0];
 const noop = () => undefined;

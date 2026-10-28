@@ -18,7 +18,7 @@ export type DeckForkCommand = {
   newCards?: { cardTemplateId: string; content: CardContent }[]; cardFork?: CardForkCommand; visibility?: Visibility; foreignCardSelections?: CardForkSource[]; mediaProofs?: string[];
 };
 export type ForkDeckEntry = { enterMyDecks: boolean };
-export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null };
+export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null; infoCardIds?: string[] };
 export type DeckContent = {
   title: string;
   introduction: DeckIntroduction | null;

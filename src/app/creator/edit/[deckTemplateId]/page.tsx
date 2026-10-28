@@ -5,7 +5,7 @@ import { creatorBoard, sessionBoardDTO } from "@/components/creator/cardArchitec
 import { CardRepository } from "@/lib/cards/repository";
 import { creatorSessionDTO } from "@/lib/cards/creatorSession";
 import { getCurrentUser } from "@/lib/auth";
-import { readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
+import { creatorNavigation, deckReturnOrigin } from "@/components/creator/creatorNavigation";
 
 
 type CreatorEditPageProps = {
@@ -19,6 +19,9 @@ type CreatorEditPageProps = {
     cards?: string;
     progressFramework?: string;
     progressArea?: string;
+    entry?: string;
+    draftOrigin?: string;
+    drafts?: string;
   }>;
 };
 
@@ -35,6 +38,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
 
   const { deckTemplateId } = await params;
   const resolvedSearchParams = await searchParams;
+  const navigation = creatorNavigation(resolvedSearchParams);
   const returnTo = readFirstSearchParam(resolvedSearchParams.returnTo);
   const returnDeckId = readFirstSearchParam(resolvedSearchParams.returnDeckId);
   const templateDocument = await Promise.resolve().then(async () => creatorSessionDTO(await CardRepository.application(), user.id, deckTemplateId,
@@ -46,25 +50,26 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
     return (
       <main className="creator-not-found">
         <p>Template not found.</p>
-        <Link href="/decks">Back to decks</Link>
+        <Link href="/decks">Back to My Decks</Link>
       </main>
     );
   }
 
   const canPreviewOutput = user.isAdmin === true || user.username === "dev";
+  const returnOrigin = deckReturnOrigin(resolvedSearchParams, deckTemplateId);
   const creatorReturnTarget =
-    returnTo === "library"
-      ? { label: "Decks" as const, href: returnDeckId ? `/library/${encodeURIComponent(returnDeckId)}` : `/library/${encodeURIComponent(deckTemplateId)}` }
-      : returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
-      ? { label: "Deck" as const, href: withProgressReturn(`/decks?openDeck=${encodeURIComponent(returnDeckId)}`,
-        readProgressReturn({ get: (key) => readFirstSearchParam(resolvedSearchParams[key as keyof typeof resolvedSearchParams]) ?? null })) }
-      : { label: "Decks" as const, href: "/decks" };
+    returnOrigin === "library"
+      ? { label: "Library" as const, href: "/library" }
+      : returnOrigin === "my-decks"
+      ? { label: "My Decks" as const, href: "/decks" }
+      : undefined;
 
   return (
     <CreatorDragLab
       key={`${user.id}:${deckTemplateId}`}
       canPreviewOutput={canPreviewOutput}
       creatorReturnTarget={creatorReturnTarget}
+      navigation={navigation}
       initialBoard={creatorBoard(sessionBoardDTO(templateDocument))}
       initialSession={templateDocument}
       currentUserId={user.id}

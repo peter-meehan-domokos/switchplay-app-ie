@@ -1,0 +1,10 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+export function hostKey() {
+  const key = process.env.MATHS_PROOF_KEY;
+  return key && key.length >= 32 ? createHmac("sha256", key).update("read-only-maths-host-v1").digest("hex") : null;
+}
+export function authorised(value: string | null, expected = process.env.MATHS_PROOF_KEY) {
+  if (!expected || expected.length < 32 || !value) return false;
+  const a = Buffer.from(value), b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}

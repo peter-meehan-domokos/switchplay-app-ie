@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 // Canonical inputs contain content and immutable selection only. They deliberately
 // cannot satisfy a working Card/Deck interface by inventing personal state.
 export type CanonicalCardPresentation = {
+  infoCardIds?: string[];
   surface: "canonical";
   creator?: { username: string; immediateSourceUsername: string | null };
   id: string;

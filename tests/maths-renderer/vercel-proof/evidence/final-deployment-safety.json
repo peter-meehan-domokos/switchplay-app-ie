@@ -1,0 +1,118 @@
+{
+  "at": "2026-10-26T13:22:11.983Z",
+  "proof": {
+    "id": "dpl_89GFXKA4tYrXR7VeykuCUX4dxcio",
+    "url": "switchplay-maths-renderer-proof-pw2l5uwpz.vercel.app",
+    "target": null,
+    "environment": "preview",
+    "readyState": "READY",
+    "plan": "hobby",
+    "nodeVersion": "24.x",
+    "regions": [
+      "iad1"
+    ],
+    "resourceConfig": {
+      "buildMachine": {
+        "defaultPurchaseType": "basic",
+        "purchaseType": "basic",
+        "machineSelectionType": "fixed",
+        "selectionSource": "plan-default",
+        "cores": 2,
+        "memory": 8192
+      }
+    }
+  },
+  "bootstrap": {
+    "id": "dpl_CbrdnyWE4rqepVTi55vg1ATgf3fs",
+    "url": "switchplay-maths-renderer-proof-dws5xm02t.vercel.app",
+    "target": "production",
+    "readyState": "READY",
+    "retained": true
+  },
+  "project": {
+    "id": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
+    "name": "switchplay-maths-renderer-proof",
+    "protection": {
+      "deploymentType": "all_except_custom_domains"
+    },
+    "nodeVersion": "24.x",
+    "resourceConfig": {
+      "fluid": true,
+      "functionDefaultRegions": [
+        "iad1"
+      ],
+      "buildMachineType": "basic",
+      "buildMachineSelection": "fixed"
+    },
+    "environmentVariables": [
+      {
+        "key": "MATHS_PROOF_KEY",
+        "type": "sensitive",
+        "target": [
+          "preview"
+        ]
+      }
+    ],
+    "paidUpgrade": false
+  },
+  "productionProject": {
+    "id": "prj_DJ3l13AXX5vhETO9uZ77A28BcC5E",
+    "name": "switchplay-app-ie",
+    "nodeVersion": "24.x",
+    "readOnlyInspection": true,
+    "modified": false
+  },
+  "checks": [
+    {
+      "url": "switchplay-maths-renderer-proof-dws5xm02t.vercel.app",
+      "path": "/",
+      "method": "GET",
+      "authenticated": false,
+      "status": 302
+    },
+    {
+      "url": "switchplay-maths-renderer-proof-dws5xm02t.vercel.app",
+      "path": "/",
+      "method": "GET",
+      "authenticated": true,
+      "status": 404
+    },
+    {
+      "url": "switchplay-maths-renderer-proof-dws5xm02t.vercel.app",
+      "path": "/api/proof",
+      "method": "POST",
+      "authenticated": true,
+      "status": 404
+    },
+    {
+      "url": "switchplay-maths-renderer-proof-dws5xm02t.vercel.app",
+      "path": "/measure-host",
+      "method": "GET",
+      "authenticated": true,
+      "status": 404
+    },
+    {
+      "url": "switchplay-maths-renderer-proof-pw2l5uwpz.vercel.app",
+      "path": "/api/proof",
+      "method": "POST",
+      "authenticated": false,
+      "status": 302
+    },
+    {
+      "url": "switchplay-maths-renderer-proof-pw2l5uwpz.vercel.app",
+      "path": "/api/proof",
+      "method": "POST",
+      "authenticated": true,
+      "status": 404
+    },
+    {
+      "url": "switchplay-maths-renderer-proof-pw2l5uwpz.vercel.app",
+      "path": "/measure-host",
+      "method": "GET",
+      "authenticated": true,
+      "status": 404
+    }
+  ],
+  "actualFunctionArtifactSize": "Not exposed by inspected deployment API; successful deployed packaging verified",
+  "credentialsExcluded": true
+}

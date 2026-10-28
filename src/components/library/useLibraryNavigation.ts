@@ -95,7 +95,8 @@ export function useLibraryNavigation({ initialCollection, initialEntry, assertCu
       // to the first page or partially replaced while a refresh is in flight.
       let loadedPages = 0;
       for (let page = 0; page < pages.current; page++) {
-        const value: LibraryCollectionDTO = await libraryFetch(`/api/library/decks${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, abort.signal);
+        const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+        const value: LibraryCollectionDTO = await libraryFetch(`/api/library/decks${query}`, abort.signal);
         entries.push(...value.entries.filter(item => !entries.some(old => old.deckTemplateId === item.deckTemplateId)));
         loadedPages++;
         cursor = value.nextCursor;
@@ -161,7 +162,7 @@ export function useLibraryNavigation({ initialCollection, initialEntry, assertCu
   function appendPage(value: LibraryCollectionDTO) {
     collectionRead.current?.abort(); collectionRead.current = null;
     pages.current++; lastCollectionRead.current = Date.now();
-    setCollection(previous => ({ entries: [...(previous?.entries ?? []), ...value.entries.filter(item =>
+    setCollection(previous => ({ ...previous, entries: [...(previous?.entries ?? []), ...value.entries.filter(item =>
       !previous?.entries.some(old => old.deckTemplateId === item.deckTemplateId))], nextCursor: value.nextCursor }));
   }
   return { collection, entry, checking, verified, changed, loading, sessionChanged, listHeight, select, acceptEntry, appendPage };

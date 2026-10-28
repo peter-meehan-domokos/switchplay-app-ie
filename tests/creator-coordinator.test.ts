@@ -209,6 +209,7 @@ test("lost successful publication response does not create duplicate version", a
   const transport: CreatorTransport = async <T>(url: string, method?: string, body?: unknown) => { const result = await original<T>(url, method, body); if (method === "PATCH" && (body as { type?: string })?.type === "publish" && lose) { lose = false; throw new Error("lost response"); } return result; };
   const next = new CreatorPersistenceCoordinator(creatorBoard(h.dto), copy(h.dto), transport);
   await next.publishCard("a"); await next.publishCard("a");
+  assert.equal(next.cards.get("a")!.confirmedPublicationVersion, 1);
   assert.equal(h.cards.get("a")!.root.latestVersion, 1); assert.equal(h.calls.filter((call) => call.method === "PATCH" && call.body.type === "publish").length, 1);
 });
 
@@ -231,6 +232,7 @@ for (const mismatchedReceipt of [false, true]) test(`visibility-only publication
   assert.equal(coordinator.publicationState().cards.a, true);
   if (mismatchedReceipt) await assert.rejects(coordinator.publishCard("a", undefined, async () => true), { code: "RECOVERY_REVISION_CONFLICT" });
   else { await coordinator.publishCard("a", undefined, async () => true); await coordinator.publishCard("a"); }
+  assert.equal(coordinator.cards.get("a")!.confirmedPublicationVersion, mismatchedReceipt ? null : 2);
   assert.equal(lost, true);
   assert.equal(card.root.latestVersion, 2);
   assert.equal(h.calls.filter((call) => call.body?.type === "publish").length, 1);

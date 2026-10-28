@@ -76,7 +76,7 @@ test.describe("iPhone Safari simulation", () => {
     await viewer.getByRole("button", { name: "Save video" }).click();
     await expect.poll(() => shareCalls(page)).toEqual([{ filename: "Practice.mp4", mimeType: "video/mp4", title: "Practice.mp4" }]);
     await expect(viewer).toBeVisible();
-    expect(page.url()).toBe("http://127.0.0.1:4178/");
+    expect(page.url()).toBe(new URL("/", test.info().project.use.baseURL!).href);
     await expect(viewer.getByText(/Check Photos or Files/)).toBeVisible();
   });
 
@@ -100,7 +100,7 @@ test.describe("iPhone Safari simulation", () => {
     await expect(viewer.getByText("Sharing cancelled. The video is still ready.")).toBeVisible();
     await expect(viewer.getByRole("button", { name: "Save video" })).toBeEnabled();
     await expect(viewer).toBeVisible();
-    expect(page.url()).toBe("http://127.0.0.1:4178/");
+    expect(page.url()).toBe(new URL("/", test.info().project.use.baseURL!).href);
   });
 
   test("failed fetch offers retry and a second direct gesture if activation expires", async ({ page }) => {
@@ -136,7 +136,7 @@ test.describe("iPhone Safari simulation", () => {
     await expect.poll(() => shareCalls(page)).toEqual([{ filename: "Practice.mp4", mimeType: "video/mp4", title: "Practice.mp4" }]);
     expect(directFetches).toBe(0);
     await expect(viewer).toBeVisible();
-    expect(page.url()).toBe("http://127.0.0.1:4178/");
+    expect(page.url()).toBe(new URL("/", test.info().project.use.baseURL!).href);
   });
 
   test("large MP4 offers a new-tab fallback and leaves the viewer page intact", async ({ page }) => {
@@ -154,7 +154,7 @@ test.describe("iPhone Safari simulation", () => {
     expect(await page.evaluate(() => (window as Window & { __newTabs?: Array<{ target: string }> }).__newTabs?.[0]?.target)).toBe("_blank");
     expect(await page.evaluate(() => (window as Window & { __newTabs?: Array<{ url: string }> }).__newTabs?.[0]?.url)).toContain("/api/media/card/video-file?");
     await expect(viewer).toBeVisible();
-    expect(page.url()).toBe("http://127.0.0.1:4178/");
+    expect(page.url()).toBe(new URL("/", test.info().project.use.baseURL!).href);
   });
 
   test("unavailable file sharing offers a fallback without fetching the MP4", async ({ page }) => {

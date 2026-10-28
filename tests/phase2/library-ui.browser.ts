@@ -82,6 +82,7 @@ test("Library owner Edit opens the same Creator identity without membership and 
   const edit = page.getByRole("menuitem", { name: "Edit", exact: true });
   await expect(edit).toHaveAttribute("href", new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`)); await edit.click();
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}\\?returnTo=library&returnDeckId=${id}&version=1&cards=`));
+  await expect(page.getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toContainText(title);
   await expect(page.locator(`.creator-column[data-card-template-id="${ids[0]}"]`)).toBeVisible();
   expect(await repo.getPersonalUser(owner)).toEqual(before);
@@ -99,9 +100,9 @@ test("Library owner Edit opens the same Creator identity without membership and 
   expect(await repo.cardVersions().countDocuments({ cardTemplateId: ids[0] })).toBe(1);
   expect(await repo.getPersonalUser(owner)).toEqual(before);
   expect(await repo.getPersonalUser(viewer)).toEqual(otherBefore);
-  await expect(page.locator(".creator-back-link")).toHaveAttribute("href", `/library/${id}`);
+  await expect(page.locator(".creator-back-link")).toHaveAttribute("href", `/library?published=${id}`);
   await page.locator(".creator-back-link").click();
-  await expect(page).toHaveURL(`/library/${id}`);
+  await expect(page).toHaveURL(`/library?published=${id}`);
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
 });
 
@@ -116,9 +117,10 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} Creator r
     await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
     await expect(page.getByRole("button", { name: "Edit deck title and introduction" })).toBeVisible();
   };
-  const returnHref = origin === "library" ? `/library/${id}` : `/decks?openDeck=${id}`;
-  const expectReturned = async () => {
-    await expect(page).toHaveURL(origin === "library" ? new RegExp(`/library/${id}$`) : new RegExp(`/decks\\?openDeck=${id}$`));
+  const returnHref = origin === "library" ? "/library" : `/decks?reveal=${id}`;
+  const expectReturned = async (published = false) => {
+    await expect(page).toHaveURL(origin === "library" && published ? `/library?published=${id}` : returnHref);
+    await expect(page.locator(".deck-detail h1")).toHaveCount(0);
   };
   const editTitle = async (value: string) => {
     await page.getByRole("button", { name: "Edit deck title and introduction" }).click();
@@ -151,7 +153,7 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} Creator r
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   const added = page.locator(".creator-column[data-card-template-id]").last();
   await added.locator(".creator-card-title-button").click();
-  await page.locator(".creator-modal textarea").fill("New public practice");
+  await page.locator(".creator-modal").getByRole("textbox").fill("New public practice");
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await added.getByRole("combobox", { name: "Card 2 publication visibility" }).selectOption("public");
   const cardId = (await added.getAttribute("data-card-template-id"))!;
@@ -166,12 +168,12 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} Creator r
   await page.locator(".creator-back-link").click();
   await leave.getByRole("button", { name: "Publish and leave", exact: true }).click();
   await publicConfirmation.getByRole("button", { name: "Publish publicly", exact: true }).click();
-  await expectReturned();
+  await expectReturned(true);
   expect((await repo.cards().findOne({ cardTemplateId: cardId }))!.latestVersion).toBe(1);
   expect((await repo.decks().findOne({ deckTemplateId: id }))!.latestVersion).toBe(2);
 });
 
-test("Library-origin Creator stays on failed saves; direct Creator entry retains its normal My Decks return", async ({ page }) => {
+test("Library-origin Creator stays on failed saves; direct public entry uses Library fallback", async ({ page }) => {
   const { id } = await fixture(0); await login(page, "phase2"); await detail(page, id);
   await page.getByRole("button", { name: "Deck menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
@@ -189,12 +191,12 @@ test("Library-origin Creator stays on failed saves; direct Creator entry retains
   await expect(page.getByRole("button", { name: "Retry Save Deck", exact: true })).toHaveCount(0);
   await page.locator(".creator-back-link").click();
   await page.getByRole("dialog", { name: "Leave Creator confirmation" }).getByRole("button", { name: "Leave without publishing", exact: true }).click();
-  await expect(page).toHaveURL(`/library/${id}`);
+  await expect(page).toHaveURL("/library");
   await page.goto(`/creator/edit/${id}`);
-  await expect(page.locator(".creator-back-link")).toHaveAttribute("href", "/decks");
+  await expect(page.locator(".creator-back-link")).toHaveAttribute("href", "/library");
   await page.locator(".creator-back-link").click();
   await page.getByRole("dialog", { name: "Leave Creator confirmation" }).getByRole("button", { name: "Leave without publishing", exact: true }).click();
-  await expect(page).toHaveURL(/\/decks$/);
+  await expect(page).toHaveURL("/library");
 });
 
 test("Library offers Edit for foreign Decks and mixed-ownership owned drafts", async ({ page }) => {

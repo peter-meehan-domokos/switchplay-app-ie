@@ -1,0 +1,223 @@
+// Trusted orchestration only. All capacity calculations stay in MathsRenderer.
+import { chromium, type Page } from "playwright-core";
+import serverlessChromium from "@sparticuz/chromium";
+import { createReadStream, existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { createHash, randomUUID } from "node:crypto";
+import { startMemorySampling } from "./memory";
+import { hostKey } from "./auth";
+import fixtures from "./fixtures.json";
+import type { Job } from "./Host";
+
+export const scenarioIds = [
+  ...fixtures.flatMap(f => (f.id.startsWith("review-") || f.id === "tall")
+    ? ["reference", "160", "320"].flatMap(height => ["plain", "media"].map(media => `${f.id}:${height}:${media}`))
+    : [`${f.id}:reference:plain`]),
+  "hidden", "missing-font", "font-timeout", "deadline", "exception", "missing-binary", "stale", "container",
+] as const;
+let active = false;
+let invocations = 0;
+const instanceId = randomUUID(), moduleLoadedAt = Date.now();
+export const busy = () => active;
+const ms = (since: number) => Math.round((performance.now() - since) * 100) / 100;
+const isAllowedFont = (family: string) => /^(Liberation (Sans|Serif)|KaTeX_)/.test(family);
+
+async function inspect(page: Page) {
+  const geometry = await page.locator("[data-maths-renderer]").evaluate(root => {
+    const rect = root.getBoundingClientRect(), css = getComputedStyle(root);
+    const math = root.querySelector(".katex"), inline = root.querySelector("[data-maths-expression='inline']");
+    const fontNodes: { selector: string; declared: string; text: string }[] = [];
+    for (const node of root.querySelectorAll<HTMLElement>("*")) {
+      if (node.closest(".katex-mathml, .pstrut, .vlist-s")) continue;
+      const text = [...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE).map(child => child.textContent).join("");
+      if (!text.trim()) continue;
+      const id = `glyph-${fontNodes.length}`; node.setAttribute("data-glyph", id);
+      fontNodes.push({ selector: `[data-glyph='${id}']`, declared: getComputedStyle(node).fontFamily, text });
+    }
+    return { width: rect.width, naturalHeight: rect.height, font: css.font, overflow: css.overflow,
+      mathSize: math ? getComputedStyle(math).fontSize : null, inlineClearance: inline ? getComputedStyle(inline).paddingTop : null,
+      displayIndents: [...root.querySelectorAll("[data-maths-expression='display']")].map(node => getComputedStyle(node).paddingInlineStart),
+      mathml: root.querySelectorAll("math").length, source: [...root.querySelectorAll("math annotation")].map(node => node.textContent),
+      loadedFaces: [...document.fonts].filter(face => face.status === "loaded").map(face => ({ family: face.family, weight: face.weight, style: face.style })), fontNodes };
+  });
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send("DOM.enable"); await cdp.send("CSS.enable");
+    const { root } = await cdp.send("DOM.getDocument");
+    const probes = await page.locator("[data-font-probe]").evaluateAll(nodes => nodes.map(node => ({ selector: `[data-font-probe='${node.getAttribute("data-font-probe")}']`, declared: getComputedStyle(node).fontFamily, text: node.textContent! })));
+    const actualFonts = [];
+    for (const node of [...geometry.fontNodes, ...probes]) {
+      const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: node.selector });
+      const fonts = (await cdp.send("CSS.getPlatformFontsForNode", { nodeId })).fonts;
+      actualFonts.push({ ...node, fonts });
+    }
+    const unexpectedFonts = actualFonts.flatMap(probe => probe.fonts.filter(font => font.glyphCount > 0 && !isAllowedFont(font.familyName)));
+    const verifiedFaces = actualFonts.slice(-8).every(probe => {
+      const [, family, weight, style] = probe.selector.match(/='(Sans|Serif)-(400|700)-(normal|italic)'/) ?? [];
+      const suffix = weight === "700" ? (style === "italic" ? "-BoldItalic" : "-Bold") : style === "italic" ? "-Italic" : "";
+      return family && probe.fonts.length > 0 && probe.fonts.every(font => font.isCustomFont && font.postScriptName === `Liberation${family}${suffix}`);
+    });
+    return { ...geometry, actualFonts, unexpectedFonts,
+      fontProfileVerified: unexpectedFonts.length === 0 && probes.length === 8 && verifiedFaces && actualFonts.every(probe => probe.fonts.length > 0 && probe.fonts.every(font => font.isCustomFont)) };
+  } finally { await cdp.detach(); }
+}
+
+export async function run(scenario: string) {
+  if (active) throw new Error("PROOF_BUSY");
+  active = true;
+  const started = performance.now(), requestNumber = ++invocations;
+  const stopMemorySampling = await startMemorySampling();
+  let browserServer: Awaited<ReturnType<typeof chromium.launchServer>> | undefined;
+  let browser: Awaited<ReturnType<typeof chromium.connect>> | undefined;
+  let context: Awaited<ReturnType<NonNullable<typeof browser>["newContext"]>> | undefined;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  let cancelled = false;
+  const report: Record<string, unknown> = { scenario, requestNumber, instanceId, moduleAgeMs: Date.now() - moduleLoadedAt, processUptimeSeconds: process.uptime(), platform: process.platform, arch: process.arch, node: process.version,
+    profile: { viewport: [1100, 900], deviceScaleFactor: 1, locale: "en-GB", timezone: "UTC", chromiumPackage: "153.0.0", driver: "1.63.0", fontVersion: "Liberation 2.1.5", arraystretch: "2.3125" } };
+  const task = (async () => {
+    report.phase = "prepare-executable";
+    const local = process.env.VERCEL !== "1" && process.env.PROOF_LOCAL_EXECUTABLE;
+    if (!local && (process.platform !== "linux" || process.arch !== "x64")) throw new Error("LINUX_X64_REQUIRED");
+    const origin = process.env.VERCEL === "1" ? `https://${process.env.VERCEL_URL}` : process.env.PROOF_LOCAL_ORIGIN;
+    if (!origin || !(process.env.VERCEL === "1" ? /^https:\/\/[a-z0-9.-]+\.vercel\.app$/.test(origin) : /^http:\/\/127\.0\.0\.1:\d+$/.test(origin))) throw new Error("UNTRUSTED_HOST_ORIGIN");
+    const launchStart = performance.now();
+    let executablePath: string;
+    const cleanEnv: Record<string, string> = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: tmpdir(), TMPDIR: tmpdir() };
+    if (local) executablePath = local;
+    else {
+      report.binaryAlreadyExtracted = existsSync(join(tmpdir(), "chromium"));
+      executablePath = await serverlessChromium.executablePath();
+      const fontConfig = join(tmpdir(), "switchplay-maths-fontconfig"); await mkdir(fontConfig, { recursive: true });
+      const fontDir = join(process.cwd(), "public/fonts");
+      // Use only the approved bundled system fallback. Webfonts use the exact
+      // same files through the host. Package-provided Open Sans is not selected.
+      const escape = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
+      await writeFile(join(fontConfig, "fonts.conf"), `<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig><dir>${escape(fontDir)}</dir><cachedir>${escape(join(fontConfig, "cache"))}</cachedir></fontconfig>`);
+      cleanEnv.FONTCONFIG_FILE = join(fontConfig, "fonts.conf");
+      cleanEnv.FONTCONFIG_PATH = fontConfig;
+      if (process.env.LD_LIBRARY_PATH) cleanEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH;
+    }
+    if (!local) {
+      // Official npm 153.0.0 binary identifies itself as .0 despite the release
+      // notes' .36 label. Pin its exact decompressed bytes, not a major match.
+      const hash = createHash("sha256");
+      for await (const chunk of createReadStream(executablePath)) hash.update(chunk);
+      report.executableSha256 = hash.digest("hex");
+      if (report.executableSha256 !== "53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0") throw new Error("UNEXPECTED_CHROMIUM_BINARY");
+    }
+    report.executablePreparationMs = ms(launchStart);
+    report.phase = "launch";
+    browserServer = await chromium.launchServer({ executablePath: scenario === "missing-binary" ? "/nonexistent/maths-proof-chromium" : executablePath,
+      args: local ? [] : serverlessChromium.args.filter(arg => !["--disable-web-security", "--allow-running-insecure-content"].includes(arg)),
+      headless: true, host: "127.0.0.1", timeout: 12000, env: cleanEnv });
+    if (cancelled) throw new Error("PROOF_DEADLINE");
+    report.browserPid = browserServer.process().pid;
+    report.phase = "connect";
+    browser = await chromium.connect(browserServer.wsEndpoint());
+    if (cancelled) throw new Error("PROOF_DEADLINE");
+    report.chromium = browser.version();
+    if (report.chromium !== (local ? "153.0.8010.12" : "153.0.8010.0")) throw new Error("UNEXPECTED_CHROMIUM_VERSION");
+    if (!local) {
+      const session = await browser.newBrowserCDPSession();
+      report.browserVersion = await session.send("Browser.getVersion");
+      await session.detach();
+    }
+    report.launchMs = ms(launchStart);
+    context = await browser.newContext({ viewport: { width: 1100, height: 900 }, deviceScaleFactor: 1,
+      locale: "en-GB", timezoneId: "UTC", serviceWorkers: "block", acceptDownloads: false, reducedMotion: "reduce" });
+    if (cancelled) throw new Error("PROOF_DEADLINE");
+    const blocked: string[] = [], pageErrors: string[] = [];
+    await context.route("**/*", async route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin || !(url.pathname === "/measure-host" || url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/fonts/"))) {
+        blocked.push(url.origin + url.pathname); return route.abort();
+      }
+      if (/\.(woff2?|ttf)$/.test(url.pathname)) {
+        if (scenario === "missing-font") return route.abort();
+        if (scenario === "font-timeout" || scenario === "deadline") return;
+      }
+      const headers: Record<string, string> = { ...route.request().headers(), "x-maths-host-key": hostKey()! };
+      if (process.env.VERCEL === "1" && process.env.VERCEL_AUTOMATION_BYPASS_SECRET) headers["x-vercel-protection-bypass"] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+      return route.continue({ headers });
+    });
+    const page = await context.newPage(); page.setDefaultTimeout(13000);
+    page.on("pageerror", error => pageErrors.push(error.message));
+    report.phase = "navigate";
+    const response = await page.goto(`${origin}/measure-host`, { waitUntil: "domcontentloaded" });
+    if (response?.status() !== 200) throw new Error("HOST_ACCESS_FAILED");
+    report.phase = "hydrate";
+    await page.waitForFunction(() => !!window.mathsProof);
+    // Load the reference's fonts before obtaining consumer-owned constraints.
+    if (!["missing-font", "font-timeout", "deadline"].includes(scenario)) await page.evaluate(() => document.fonts.ready.then(() => true));
+    const budgets = await page.locator("[data-reference]").evaluateAll(nodes => nodes.map(node => {
+      const body = node.querySelector("[data-reference-budget]")!.getBoundingClientRect();
+      return { media: node.getAttribute("data-reference") === "media", width: body.width, height: body.height };
+    }));
+    report.referenceBudgets = budgets;
+    const [fixtureId, height = "reference", media = "plain"] = scenario.split(":");
+    const budget = budgets.find(b => b.media === (media === "media"))!;
+    const job: Job = { id: scenario, content: fixtures.find(f => f.id === fixtureId)?.content ?? "$x=\\frac{1}{2}$",
+      width: budget.width, height: height === "reference" ? budget.height : Number(height) - (budget.media ? 36 : 0),
+      hidden: scenario === "hidden", container: scenario === "container" };
+    report.job = job;
+    if (scenario === "exception") await page.evaluate(() => { queueMicrotask(() => { throw new Error("Intentional proof exception"); }); });
+    if (scenario === "stale") {
+      await page.evaluate(j => window.mathsProof!.mount({ ...j, id: "superseded", content: "$x$" }), job);
+      await page.waitForFunction(() => !!window.mathsProof!.current);
+      job.id = "current"; job.content = "Before $$\\frac{1}{2}";
+    }
+    await page.evaluate(j => window.mathsProof!.mount(j), job);
+    report.phase = "measure";
+    for (;;) {
+      const handle = await page.waitForFunction(id => {
+        const current = window.mathsProof?.current;
+        return current?.id === id && current.result.status !== "pending" ? current : false;
+      }, job.id);
+      const snapshot = await handle.jsonValue(); await handle.dispose();
+      if (!snapshot) throw new Error("NO_CALLBACK");
+      const observation = snapshot.result.status === "ready" ? await inspect(page) : null;
+      const current = await page.evaluate(() => window.mathsProof!.current);
+      if (JSON.stringify(snapshot) !== JSON.stringify(current)) continue;
+      if (pageErrors.length) throw new Error("HOST_EXCEPTION");
+      report.result = snapshot.result; report.observation = observation;
+      report.history = await page.evaluate(() => window.mathsProof!.history);
+      report.blocked = blocked; report.pageErrors = pageErrors;
+      report.readyAndFits = snapshot.result.status === "ready" && snapshot.result.fits && observation?.fontProfileVerified === true;
+      report.throughResultMs = ms(started);
+      report.phase = "complete";
+      report.nodeRSSMiB = process.memoryUsage().rss / 1048576;
+      if (process.platform === "linux") {
+        try { report.browserProcStatus = (await readFile(`/proc/${browserServer.process().pid}/status`, "utf8")).split("\n").filter(line => /^Vm(RSS|HWM):/.test(line)); } catch { /* Runtime may hide /proc. */ }
+      }
+      break;
+    }
+  })();
+  try {
+    await Promise.race([task, new Promise<never>((_, reject) => { deadline = setTimeout(() => reject(new Error("PROOF_DEADLINE")), scenario === "deadline" ? 1000 : 25000); })]);
+    report.execution = "complete";
+  } catch (error) {
+    cancelled = true;
+    report.execution = "failed"; report.readyAndFits = false; delete report.result;
+    // Return an error category, never a credential-bearing request/stack trace.
+    report.failure = error instanceof Error && /^[A-Z_]+$/.test(error.message) ? error.message : "BROWSER_OR_HOST_FAILURE";
+  } finally {
+    clearTimeout(deadline);
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+    if (browserServer) await browserServer.close().catch(() => {});
+    await task.catch(() => {});
+    // A launch may resolve after a deadline, before a handle was available to
+    // the first cleanup pass. The cancellation checkpoints stop further work.
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+    if (browserServer) await browserServer.close().catch(() => {});
+    const pid = browserServer?.process().pid; let alive = false;
+    if (pid) { try { process.kill(pid, 0); alive = true; } catch {} }
+    report.cleanup = { browserConnected: browser?.isConnected() ?? false, browserProcessAlive: alive, contexts: browser?.contexts().length ?? 0 };
+    report.memory = await stopMemorySampling();
+    report.totalMs = ms(started); active = false;
+  }
+  return report;
+}

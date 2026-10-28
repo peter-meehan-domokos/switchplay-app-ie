@@ -1,5 +1,8 @@
 import { motion, type Transition } from "motion/react";
-import { type PointerEvent, type MouseEvent, type RefCallback } from "react";
+import { type PointerEvent, type MouseEvent, type ReactNode, type RefCallback } from "react";
+import InfoCardPouch, { type InfoCardPouchProps } from "@/components/info-cards/InfoCardPouch";
+import InfoCardStack from "@/components/info-cards/InfoCardStack";
+import styles from "./StepView.module.css";
 import type { PresentedCard } from "./presentation";
 import StepDescriptionText from "@/components/cards/StepDescriptionText";
 import CloudflareStreamPlayer from "@/components/media/CloudflareStreamPlayer";
@@ -14,6 +17,8 @@ export type StepViewItem =
   | { type: "intro" }
   | { type: "step"; stepIndex: number };
 
+export type StepViewInfoCards = InfoCardPouchProps & { content?: ReactNode };
+
 type StepViewProps = {
   card: PresentedCard;
   cloudflareVideoAnchorRef?: RefCallback<HTMLDivElement>;
@@ -24,6 +29,10 @@ type StepViewProps = {
   onNext: () => void;
   onPrevious: () => void;
   useCloudflareVideoHost?: boolean;
+  infoCards?: StepViewInfoCards;
+  mediaPreview?: ReactNode;
+  surfaceRef?: RefCallback<HTMLElement>;
+  activity?: ReactNode;
 };
 
 const stepViewTransition: Transition = {
@@ -112,6 +121,10 @@ export default function StepView({
   onNext,
   onPrevious,
   useCloudflareVideoHost = false,
+  infoCards,
+  mediaPreview,
+  surfaceRef,
+  activity,
 }: StepViewProps) {
   const itemLabel = getStepViewItemLabel(item);
   const itemTitle = getStepViewItemTitle(card, item);
@@ -125,7 +138,8 @@ export default function StepView({
 
   return (
     <motion.section
-      className="step-view-layer"
+      ref={surfaceRef}
+      className={`step-view-layer${infoCards || mediaPreview ? ` ${styles.surface}` : ""}`}
       data-step-view-item={item.type}
       initial={{ x: "-100%" }}
       animate={{ x: 0 }}
@@ -154,25 +168,29 @@ export default function StepView({
           ) : null}
         </h2>
         <div
-          className={videoPlaceholderClassName}
+          className={`${videoPlaceholderClassName}${mediaPreview ? ` ${styles.mediaPreview}` : ""}`}
           onClick={stopStepViewPropagation}
           onPointerDown={stopStepViewPropagation}
           onPointerMove={stopStepViewPropagation}
           onPointerUp={stopStepViewPropagation}
           onPointerCancel={stopStepViewPropagation}
         >
-          {renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost)}
+          {activity ?? mediaPreview ?? renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost)}
         </div>
       </main>
-      <footer className="step-view-actions">
-        <button disabled={itemIndex === 0} onClick={onPrevious} type="button">
+      <footer className={`step-view-actions ${styles.actions}`} data-info-open={Boolean(infoCards && infoCards.count > 0 && infoCards.expanded)}>
+        {infoCards && infoCards.count > 0 ? <div className={styles.pouch}><InfoCardPouch {...infoCards} /></div> : null}
+        <button className={styles.previous} disabled={itemIndex === 0} onClick={onPrevious} type="button">
           Previous
         </button>
-        <span>{itemIndex + 1}/{itemCount}</span>
-        <button disabled={itemIndex >= itemCount - 1} onClick={onNext} type="button">
+        <span className={styles.index}>{itemIndex + 1}/{itemCount}</span>
+        <button className={styles.next} disabled={itemIndex >= itemCount - 1} onClick={onNext} type="button">
           Next
         </button>
       </footer>
+      {infoCards && infoCards.count > 0 && infoCards.expanded && infoCards.content ? (
+        <InfoCardStack id={infoCards.controlsId} onClose={infoCards.onToggle}>{infoCards.content}</InfoCardStack>
+      ) : null}
     </motion.section>
   );
 }

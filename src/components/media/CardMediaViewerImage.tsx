@@ -10,7 +10,7 @@ type Point = { x: number; y: number };
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const midpoint = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
-export default function CardMediaViewerImage({ item, onNavigate }: { item: ImageMediaItem; onNavigate: (direction: -1 | 1) => void }) {
+export default function CardMediaViewerImage({ item, onNavigate, deliverySrc }: { item: ImageMediaItem; onNavigate: (direction: -1 | 1) => void; deliverySrc?: string }) {
   const surface = useRef<HTMLDivElement>(null);
   const size = useRef({ width: 1, height: 1 });
   const naturalSize = useRef({ width: 1, height: 1 });
@@ -114,7 +114,7 @@ export default function CardMediaViewerImage({ item, onNavigate }: { item: Image
     <div className={styles.imageSurface} ref={surface} onPointerDown={start} onPointerMove={move} onPointerUp={(event) => end(event)} onPointerCancel={(event) => end(event, true)}
       aria-label="Image. Pinch or double tap to zoom; drag to pan when zoomed.">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img key={attempt} className={styles.image} src={imageDeliveryUrl(item.src)} alt={item.description || "Card image"} draggable={false}
+      <img key={attempt} className={styles.image} src={deliverySrc ?? imageDeliveryUrl(item.src)} alt={item.description || "Card image"} draggable={false}
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, visibility: status === "ready" ? "visible" : "hidden" }}
         onLoad={(event) => { naturalSize.current = { width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight }; setStatus("ready"); }} onError={() => setStatus("failed")} />
       {status !== "ready" ? <div className={styles.mediaStatus} role={status === "failed" ? "alert" : "status"}>

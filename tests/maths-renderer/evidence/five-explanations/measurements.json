@@ -1,0 +1,608 @@
+[
+  {
+    "browser": "chromium",
+    "url": "http://192.168.1.38:4181/dev/maths-renderer",
+    "httpStatus": 200,
+    "measurements": [
+      {
+        "example": 1,
+        "screenViewport": {
+          "x": 40.32539749145508,
+          "y": 286.1343078613281,
+          "width": 334.5872802734375,
+          "height": 172.008544921875,
+          "top": 286.1343078613281,
+          "right": 374.9126777648926,
+          "bottom": 458.1428527832031,
+          "left": 40.32539749145508
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 175.32835287358805,
+            "bottom": 74.06258566447299
+          },
+          "width": 175.32835287358805,
+          "height": 74.06258566447299,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 2,
+        "screenViewport": {
+          "x": 40.32539749145508,
+          "y": 656.08740234375,
+          "width": 334.5872802734375,
+          "height": 172.008544921875,
+          "top": 656.08740234375,
+          "right": 374.9126777648926,
+          "bottom": 828.095947265625,
+          "left": 40.32539749145508
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 121.79703594099654,
+            "bottom": 59.39072940884655
+          },
+          "width": 121.79703594099654,
+          "height": 59.39072940884655,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 3,
+        "screenViewport": {
+          "x": 40.32539749145508,
+          "y": 1026.04052734375,
+          "width": 334.5872802734375,
+          "height": 172.008544921875,
+          "top": 1026.04052734375,
+          "right": 374.9126777648926,
+          "bottom": 1198.049072265625,
+          "left": 40.32539749145508
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.21890964494271,
+            "bottom": 95.8126524783897
+          },
+          "width": 124.21890964494271,
+          "height": 95.8126524783897,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 4,
+        "screenViewport": {
+          "x": 40.32539749145508,
+          "y": 1395.99365234375,
+          "width": 334.5872802734375,
+          "height": 172.008544921875,
+          "top": 1395.99365234375,
+          "right": 374.9126777648926,
+          "bottom": 1568.002197265625,
+          "left": 40.32539749145508
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.21890964494271,
+            "bottom": 91.843917069145
+          },
+          "width": 124.21890964494271,
+          "height": 91.843917069145,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 5,
+        "screenViewport": {
+          "x": 40.32539749145508,
+          "y": 1765.94677734375,
+          "width": 334.5872802734375,
+          "height": 172.008544921875,
+          "top": 1765.94677734375,
+          "right": 374.9126777648926,
+          "bottom": 1937.955322265625,
+          "left": 40.32539749145508
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.016
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 102.53138133163202,
+            "bottom": 22.765653806748045
+          },
+          "width": 102.53138133163202,
+          "height": 22.765653806748045,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "browser": "firefox",
+    "url": "http://192.168.1.38:4181/dev/maths-renderer",
+    "httpStatus": 200,
+    "measurements": [
+      {
+        "example": 1,
+        "screenViewport": {
+          "x": 40.33332824707031,
+          "y": 285.98333740234375,
+          "width": 334.5833435058594,
+          "height": 172.16665649414062,
+          "top": 285.98333740234375,
+          "right": 374.9166717529297,
+          "bottom": 458.1499938964844,
+          "left": 40.33332824707031
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.117
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 175.20631954316664,
+            "bottom": 77.41227806325413
+          },
+          "width": 175.20631954316664,
+          "height": 77.41227806325413,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 2,
+        "screenViewport": {
+          "x": 40.33332824707031,
+          "y": 656.4500122070312,
+          "width": 334.5833435058594,
+          "height": 172.1666717529297,
+          "top": 656.4500122070312,
+          "right": 374.9166717529297,
+          "bottom": 828.6166839599609,
+          "left": 40.33332824707031
+        },
+        "status": "ready",
+        "fits": false,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.117
+          },
+          "bounds": {
+            "left": 0,
+            "top": -0.05328654901202813,
+            "right": 122.64229124231206,
+            "bottom": 60.452360164553326
+          },
+          "width": 122.64229124231206,
+          "height": 60.505646713565355,
+          "overflowX": false,
+          "overflowY": true,
+          "excess": {
+            "left": 0,
+            "top": 0.05328654901202813,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 3,
+        "screenViewport": {
+          "x": 40.33332824707031,
+          "y": 1026.9166259765625,
+          "width": 334.5833435058594,
+          "height": 172.16665649414062,
+          "top": 1026.9166259765625,
+          "right": 374.9166717529297,
+          "bottom": 1199.0832824707031,
+          "left": 40.33332824707031
+        },
+        "status": "ready",
+        "fits": false,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.117
+          },
+          "bounds": {
+            "left": 0,
+            "top": -0.05324751124718415,
+            "right": 124.16665740282208,
+            "bottom": 96.16306318361359
+          },
+          "width": 124.16665740282208,
+          "height": 96.21631069486077,
+          "overflowX": false,
+          "overflowY": true,
+          "excess": {
+            "left": 0,
+            "top": 0.05324751124718415,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 4,
+        "screenViewport": {
+          "x": 40.33332824707031,
+          "y": 1397.38330078125,
+          "width": 334.5833435058594,
+          "height": 172.1666717529297,
+          "top": 1397.38330078125,
+          "right": 374.9166717529297,
+          "bottom": 1569.5499725341797,
+          "left": 40.33332824707031
+        },
+        "status": "ready",
+        "fits": false,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.117
+          },
+          "bounds": {
+            "left": 0,
+            "top": -0.05324751124718415,
+            "right": 124.16665740282208,
+            "bottom": 92.19758751188002
+          },
+          "width": 124.16665740282208,
+          "height": 92.2508350231272,
+          "overflowX": false,
+          "overflowY": true,
+          "excess": {
+            "left": 0,
+            "top": 0.05324751124718415,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 5,
+        "screenViewport": {
+          "x": 40.33332824707031,
+          "y": 1767.8499755859375,
+          "width": 334.5833435058594,
+          "height": 172.16665649414062,
+          "top": 1767.8499755859375,
+          "right": 374.9166717529297,
+          "bottom": 1940.0166320800781,
+          "left": 40.33332824707031
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 110.117
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 102.47374233779027,
+            "bottom": 23.803579656292303
+          },
+          "width": 102.47374233779027,
+          "height": 23.803579656292303,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      }
+    ]
+  },
+  {
+    "browser": "webkit",
+    "url": "http://192.168.1.38:4181/dev/maths-renderer",
+    "httpStatus": 200,
+    "measurements": [
+      {
+        "example": 1,
+        "screenViewport": {
+          "x": 31.190475463867188,
+          "y": 431.71429443359375,
+          "width": 315.90478515625,
+          "height": 163.85711669921875,
+          "top": 431.71429443359375,
+          "right": 347.0952606201172,
+          "bottom": 595.5714111328125,
+          "left": 31.190475463867188
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 111
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 175.30791837128544,
+            "bottom": 72.50001944935104
+          },
+          "width": 175.30791837128544,
+          "height": 72.50001944935104,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 2,
+        "screenViewport": {
+          "x": 31.190475463867188,
+          "y": 805.4642333984375,
+          "width": 315.90478515625,
+          "height": 163.857177734375,
+          "top": 805.4642333984375,
+          "right": 347.0952606201172,
+          "bottom": 969.3214111328125,
+          "left": 31.190475463867188
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 111
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 122.31254044009621,
+            "bottom": 58.12503056326591
+          },
+          "width": 122.31254044009621,
+          "height": 58.12503056326591,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 3,
+        "screenViewport": {
+          "x": 31.190475463867188,
+          "y": 1179.2142333984375,
+          "width": 315.90478515625,
+          "height": 163.857177734375,
+          "top": 1179.2142333984375,
+          "right": 347.0952606201172,
+          "bottom": 1343.0714111328125,
+          "left": 31.190475463867188
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 111
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.218785640605,
+            "bottom": 94.54691731226164
+          },
+          "width": 124.218785640605,
+          "height": 94.54691731226164,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 4,
+        "screenViewport": {
+          "x": 31.190475463867188,
+          "y": 1552.9642333984375,
+          "width": 315.90478515625,
+          "height": 163.857177734375,
+          "top": 1552.9642333984375,
+          "right": 347.0952606201172,
+          "bottom": 1716.8214111328125,
+          "left": 31.190475463867188
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 111
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 124.218785640605,
+            "bottom": 90.57815815651271
+          },
+          "width": 124.218785640605,
+          "height": 90.57815815651271,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      {
+        "example": 5,
+        "screenViewport": {
+          "x": 31.190475463867188,
+          "y": 1926.71435546875,
+          "width": 315.90478515625,
+          "height": 163.857177734375,
+          "top": 1926.71435546875,
+          "right": 347.0952606201172,
+          "bottom": 2090.571533203125,
+          "left": 31.190475463867188
+        },
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 214,
+            "height": 111
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 102.59378654030287,
+            "bottom": 22.37502296875741
+          },
+          "width": 102.59378654030287,
+          "height": 22.37502296875741,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      }
+    ]
+  }
+]

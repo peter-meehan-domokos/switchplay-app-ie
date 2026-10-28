@@ -3,6 +3,7 @@ import { authorizeUpload } from "@/lib/cards/uploadAuthorization";
 import { nonblank, requireCondition } from "@/lib/cards/domain";
 import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
 import { videoStatus } from "@/lib/cards/mediaProviders";
+import { assertNotInfoMedia } from "@/lib/infoCards/mediaRegistry";
 export async function GET(request: Request) {
   return cardRequest(async (repo, actor) => {
     const body = Object.fromEntries(new URL(request.url).searchParams);
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
       media = (await authorizeUpload(repo, actor, body, ["assetId"])).media;
     }
     requireCondition(media.some((item) => isCloudflareStreamVideoMediaItem(item) && item.assetId === body.assetId), "MEDIA_OUTSIDE_CONTEXT");
+    await assertNotInfoMedia(repo.db, "stream", body.assetId);
     return videoStatus(body.assetId);
   });
 }

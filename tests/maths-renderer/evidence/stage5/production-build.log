@@ -1,0 +1,98 @@
+▲ Next.js 16.2.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.5s
+  Running TypeScript ...
+  Finished TypeScript in 8.1s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/43) ...
+  Generating static pages using 11 workers (10/43) 
+  Generating static pages using 11 workers (21/43) 
+  Generating static pages using 11 workers (32/43) 
+✓ Generating static pages using 11 workers (43/43) in 384ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/me
+├ ƒ /api/card-templates/[cardTemplateId]
+├ ƒ /api/card-templates/[cardTemplateId]/copy-to
+├ ƒ /api/card-templates/[cardTemplateId]/fork
+├ ƒ /api/card-templates/[cardTemplateId]/info-cards
+├ ƒ /api/cards-data/[cardTemplateId]/assessment-history
+├ ƒ /api/cards-data/[cardTemplateId]/history
+├ ƒ /api/cards-data/[cardTemplateId]/media/[mediaItemId]
+├ ƒ /api/cards-data/[cardTemplateId]/tests
+├ ƒ /api/cards-data/[cardTemplateId]/tests/[testId]
+├ ƒ /api/cards-data/[cardTemplateId]/update
+├ ƒ /api/creator/drafts
+├ ƒ /api/creator/session
+├ ƒ /api/deck-templates
+├ ƒ /api/deck-templates/[deckTemplateId]
+├ ƒ /api/deck-templates/[deckTemplateId]/cards
+├ ƒ /api/deck-templates/[deckTemplateId]/cards/[cardTemplateId]
+├ ƒ /api/deck-templates/[deckTemplateId]/fork
+├ ƒ /api/deck-templates/[deckTemplateId]/move-step
+├ ƒ /api/deck-templates/[deckTemplateId]/publish
+├ ƒ /api/deck-templates/[deckTemplateId]/saved
+├ ƒ /api/decks-data
+├ ƒ /api/decks-data/[deckTemplateId]
+├ ƒ /api/decks-data/[deckTemplateId]/update
+├ ƒ /api/decks-data/reconcile
+├ ƒ /api/decks-data/shared
+├ ƒ /api/decks-data/shared/[deckTemplateId]/cards/[cardId]/comments
+├ ƒ /api/frameworks
+├ ƒ /api/frameworks/[frameworkId]/destinations
+├ ƒ /api/frameworks/[frameworkId]/summary
+├ ƒ /api/frameworks/summary
+├ ƒ /api/info-card-series
+├ ƒ /api/info-cards
+├ ƒ /api/info-cards/[infoCardId]
+├ ƒ /api/info-cards/[infoCardId]/media
+├ ƒ /api/info-cards/[infoCardId]/media/status
+├ ƒ /api/info-cards/[infoCardId]/publication
+├ ƒ /api/info-cards/[infoCardId]/publish
+├ ƒ /api/info-cards/[infoCardId]/upload
+├ ƒ /api/items-data/[itemId]/history
+├ ƒ /api/items-data/[itemId]/tests
+├ ƒ /api/items-data/[itemId]/tests/[testId]
+├ ƒ /api/library/decks
+├ ƒ /api/library/decks/[deckTemplateId]
+├ ƒ /api/library/decks/[deckTemplateId]/add
+├ ƒ /api/library/decks/[deckTemplateId]/restore
+├ ƒ /api/library/info-cards
+├ ƒ /api/library/media/stream-status
+├ ƒ /api/library/viewer-status
+├ ƒ /api/media/card
+├ ƒ /api/media/card/file
+├ ƒ /api/media/card/video-file
+├ ƒ /api/media/images/direct-upload
+├ ƒ /api/media/protected
+├ ƒ /api/media/stream/direct-upload
+├ ƒ /api/media/stream/status
+├ ƒ /api/public/contact
+├ ƒ /api/public/creator-interest
+├ ƒ /api/public/early-access
+├ ƒ /api/users
+├ ƒ /contact
+├ ○ /creator
+├ ƒ /creator/edit/[deckTemplateId]
+├ ƒ /creator/info-cards/[infoCardId]
+├ ƒ /creator/info-cards/new
+├ ƒ /creator/new
+├ ƒ /decks
+├ ○ /dev/maths-renderer
+├ ƒ /library
+├ ƒ /library/[deckTemplateId]
+├ ƒ /login
+├ ○ /maths-acceptance-probe
+├ ƒ /privacy
+└ ƒ /progress
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

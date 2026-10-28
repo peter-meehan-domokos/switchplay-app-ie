@@ -1,6 +1,24 @@
 import type { CardContent, DeckContent } from "@/lib/cards/model";
 import { createDefaultCardContent, createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_CREATOR_DECK_TITLE } from "@/lib/cards/creatorDefaults";
 import { cardPublicationIssue, deckPublicationIssue, sameContent, hasVisibilityChange, type PublicationVisibility } from "@/lib/cards/publicationRules";
+import { CreatorRequestError } from "./creatorRequest";
+
+type VisibilityLane = { desiredVisibility?: import("@/lib/cards/model").Visibility; ack: { root: Partial<PublicationVisibility> } | null };
+
+// Foreign source roots are deliberately not consulted: an unmaterialised fork's
+// lane describes the resulting private identity, not its public source.
+export function requiresPublicInfoAttachments(deck: VisibilityLane, card: VisibilityLane): boolean {
+  return [deck, card].some(lane => lane.ack?.root.visibility === "public"
+    || (lane.desiredVisibility ?? lane.ack?.root.draftVisibility ?? lane.ack?.root.visibility) === "public");
+}
+
+export function creatorPublicationErrorMessage(error: unknown): string {
+  const code = error instanceof CreatorRequestError ? error.code : error instanceof Error ? error.message : "";
+  if (code === "PRIVATE_INFO_BLOCKS_PUBLICATION") return "Cannot publish publicly. One or more attached Info Cards are private. Remove them or publish those Info Cards publicly first.";
+  if (code === "PUBLIC_PUBLICATION_REVIEW_CHANGED") return "The changes awaiting public publication changed. Review them and confirm again. Earlier successful publications are retained.";
+  if (code === "DECK_PUBLICATION_REVIEW_CONFLICT") return "The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained.";
+  return `${error instanceof Error ? error.message : "Publication failed"}. Earlier successful publications are retained.`;
+}
 
 type Lane<C> = {
   desired: C;

@@ -47,6 +47,7 @@ export function privateGraph(board: BoardState, baseline?: CreatorBoardDTO | nul
   const cards = columns.map((column) => {
     const original = baseline?.cards.find((card) => card.root.cardTemplateId === column.cardId)?.content;
     const card: CardContent = { ...(original ?? {}), suggestedTargetDate: column.targetDate ?? "",
+      ...(column.infoCardIds !== undefined ? { infoCardIds: [...column.infoCardIds] } : {}),
       intro: { title: column.cardTitle === "" && original?.intro.title == null ? null : column.cardTitle ?? null, description: column.introDescription ?? null, mediaItem: column.introMediaItem ?? null },
       steps: board.rows.map((row) => {
         const pair = board.pairs[board.cells[getCreatorCellId(column.id, row)].pairId!];

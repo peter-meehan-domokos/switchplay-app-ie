@@ -1,0 +1,46 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import MathsRenderer from "../components/maths-renderer/MathsRenderer";
+import type { MathsResult } from "../components/maths-renderer/types";
+
+export type Job = { id: string; content: string; width: number; height: number; container?: boolean; hidden?: boolean };
+type Record = { id: string; result: MathsResult };
+declare global { interface Window { mathsProof?: { mount(job: Job): void; current: Record | null; history: Record[] } } }
+export const presentation = { fontFamily: '"Switchplay Liberation Sans", "Switchplay Liberation Serif"', fontSizePx: 9.5,
+  fontWeight: 400, lineHeight: 1.25, mathScale: 1, displayIndentEm: 1, displayGapEm: .6, paragraphGapEm: .8 };
+
+function Consumer({ job }: { job: Job }) {
+  const budget = useRef<HTMLDivElement>(null);
+  return <div ref={budget} data-budget="" style={{ width: job.width, height: job.height, visibility: job.hidden ? "hidden" : "visible" }}>
+    <MathsRenderer content={job.content} presentation={presentation}
+      constraints={job.container ? { kind: "container", elementRef: budget, height: "bounded" }
+        : { kind: "explicit", widthPx: job.width, heightPx: job.height }}
+      onResult={result => { const api = window.mathsProof!; api.current = { id: job.id, result }; api.history.push(api.current); }} />
+  </div>;
+}
+
+export default function Host() {
+  const [job, setJob] = useState<Job | null>(null);
+  useEffect(() => {
+    window.mathsProof = { mount: next => { window.mathsProof!.current = null; setJob(next); }, current: null, history: [] };
+    return () => { delete window.mathsProof; };
+  }, []);
+  return <main className="liberation-profile" style={{ padding: 32 }}>
+    {/* Consumer-owned reference geometry only. No Info Card component/model. */}
+    <section style={{ display: "flex", gap: 24 }}>
+      {[false, true].map(media => <article key={String(media)} data-reference={media ? "media" : "plain"}
+        style={{ display: "grid", gridTemplateRows: media ? "auto minmax(0,1fr) auto" : "auto minmax(0,1fr)",
+          boxSizing: "border-box", width: 240, height: 157, padding: 12, border: "1px solid", fontFamily: presentation.fontFamily, fontSize: 9.5, lineHeight: 1.25 }}>
+        <h3 style={{ margin: "0 0 9px", font: "inherit", whiteSpace: "nowrap" }}><button style={{ border: 0, padding: 0, background: "none", font: "inherit", fontSize: 8.8 }}>Series</button>{" · "}<b>Title</b></h3>
+        <div data-reference-budget="" style={{ minHeight: 0 }} />
+        {media && <div style={{ height: 32, marginTop: 4 }} />}
+      </article>)}
+    </section>
+    <div style={{ marginTop: 24 }}>{job && <Consumer job={job} />}</div>
+    <aside style={{ marginTop: 400 }}>
+      {["Sans", "Serif"].flatMap(family => [400, 700].flatMap(weight => ["normal", "italic"].map(style =>
+        <p key={`${family}-${weight}-${style}`} data-font-probe={`${family}-${weight}-${style}`}
+          style={{ fontFamily: `"Switchplay Liberation ${family}"`, fontWeight: weight, fontStyle: style }}>ABC xyz € £ $ 123</p>)))}
+    </aside>
+  </main>;
+}

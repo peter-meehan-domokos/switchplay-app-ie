@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -28,6 +29,7 @@ export type CloudflareHlsVideoPlayerHandle = {
   loadMedia: (mediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean; beforeLoad?: VideoLoadGuard }) => void;
   pausePlayback: (reason?: string) => void;
   pauseAndReset: (reason?: string) => void;
+  setPlaybackSuspended: (suspended: boolean) => void;
   togglePlayback: () => void;
 };
 
@@ -44,6 +46,7 @@ type CloudflareHlsVideoPlayerProps = {
   previewControlDisabled?: boolean;
   previewLabel?: string;
   externalLoadingPresentation?: boolean;
+  playbackSuspended?: boolean;
   variant?: "standard" | "deck-preview";
 };
 
@@ -87,6 +90,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       previewControlDisabled = false,
       previewLabel = "Introduction video",
       externalLoadingPresentation = false,
+      playbackSuspended = false,
       variant = "standard",
     },
     ref
@@ -107,6 +111,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const activeAssetIdRef = useRef<string | null>(null);
     const activeManifestUrlRef = useRef<string | null>(null);
     const operationIdRef = useRef(0);
+    const playbackSuspendedRef = useRef(false);
+    const pauseGenerationRef = useRef(0);
+    const lastPlayRequestRef = useRef(0);
     const sourceGenerationRef = useRef(0);
     const removeReadinessListenersRef = useRef<(() => void) | null>(null);
     const [displayableAssetId, setDisplayableAssetId] = useState<string | null>(null);
@@ -180,6 +187,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     }, [emitPlaybackState, onMediaDisplayStateChange]);
 
     const requestUnmutedPlayback = useCallback((video: HTMLVideoElement, operationId: number) => {
+      if (playbackSuspendedRef.current) return;
+      const pauseGeneration = pauseGenerationRef.current;
+      const request = ++lastPlayRequestRef.current;
       video.defaultMuted = false;
       video.muted = false;
       const playResult = video.play();
@@ -187,6 +197,13 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       if (playResult instanceof Promise) {
         void playResult
           .then(() => {
+            // A request that resolves after consultation began cannot restart
+            // playback, even if the consultation has since closed. A newer
+            // explicit request owns its own result instead.
+            if (playbackSuspendedRef.current || (pauseGeneration !== pauseGenerationRef.current && request === lastPlayRequestRef.current)) {
+              video.pause();
+              return;
+            }
             if (isCurrentOperation(operationIdRef.current, operationId)) {
               clearInternalTransition();
             }
@@ -222,7 +239,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
       if (isSameSource) {
 
-        if (options?.shouldPlay) {
+        if (options?.shouldPlay && !playbackSuspendedRef.current) {
           operationIdRef.current = operationId;
           setIsEnded(false);
           emitPlaybackState("loading", nextMediaItem.assetId);
@@ -328,7 +345,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         video.load();
       }
 
-      if (options?.shouldPlay) {
+      if (options?.shouldPlay && !playbackSuspendedRef.current) {
         requestUnmutedPlayback(video, operationId);
       } else {
         window.setTimeout(() => clearInternalTransition(transitionToken), 0);
@@ -346,6 +363,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     ]);
 
     const loadMedia = useCallback((nextMediaItem: CloudflareStreamVideoMediaItem, options?: { shouldPlay?: boolean; beforeLoad?: VideoLoadGuard }) => {
+      const pauseGeneration = pauseGenerationRef.current;
       const guard = options?.beforeLoad ?? beforeLoad;
       if (!guard && !resolvePlayback) { pendingLoad.current?.abort(); pendingLoad.current = null; loadMediaDirect(nextMediaItem, options); return; }
       // Display callbacks may change while a poster/overlay animates. That is
@@ -382,7 +400,8 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         if (abort.signal.aborted) return;
         if (grant) setResolvedGrant({ resolver: resolvePlayback, grant });
         pendingLoad.current = null;
-        loadMediaDirect(nextMediaItem, { ...options, manifestUrl: grant?.manifestUrl });
+        loadMediaDirect(nextMediaItem, { ...options, manifestUrl: grant?.manifestUrl,
+          shouldPlay: Boolean(options?.shouldPlay && pauseGeneration === pauseGenerationRef.current && !playbackSuspendedRef.current) });
       })().catch(() => {
         if (abort.signal.aborted) return;
         setIsProcessing(false); pendingLoad.current = null; markFailed(nextMediaItem.assetId);
@@ -392,7 +411,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const togglePlayback = useCallback(() => {
       const video = videoRef.current;
 
-      if (!video || !activeAssetIdRef.current) {
+      if (!video || !activeAssetIdRef.current || playbackSuspendedRef.current) {
         return;
       }
 
@@ -421,6 +440,23 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
 
       video.pause();
     }, []);
+
+    const setPlaybackSuspended = useCallback((suspended: boolean) => {
+      if (playbackSuspendedRef.current === suspended) return;
+      playbackSuspendedRef.current = suspended;
+      if (!suspended) return; // Releasing the guard is never a play request.
+      pauseGenerationRef.current += 1;
+      operationIdRef.current += 1;
+      clearInternalTransition();
+      // Preserve source/HLS, readiness work, position and the mounted player.
+      // Even a currently-paused element can have an unsettled play() request.
+      videoRef.current?.pause();
+      setIsPaused(true);
+      onPlaybackIntentChange?.("paused");
+      emitPlaybackState("paused");
+    }, [clearInternalTransition, emitPlaybackState, onPlaybackIntentChange]);
+
+    useLayoutEffect(() => setPlaybackSuspended(playbackSuspended), [playbackSuspended, setPlaybackSuspended]);
 
     const pauseAndReset = useCallback((reason: string = "unspecified") => {
       // A cancelled/reset selection must be loadable again, including when
@@ -463,9 +499,10 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         loadMedia,
         pausePlayback,
         pauseAndReset,
+        setPlaybackSuspended,
         togglePlayback,
       }),
-      [loadMedia, pausePlayback, pauseAndReset, togglePlayback]
+      [loadMedia, pausePlayback, pauseAndReset, setPlaybackSuspended, togglePlayback]
     );
 
     // Cleanup effect above must not re-fire when pauseAndReset's identity changes across renders.
@@ -501,12 +538,14 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       const handleEmptied = () => {
       };
       const handlePlay = () => {
+        if (playbackSuspendedRef.current) { video.pause(); return; }
         if (!activeAssetIdRef.current || !video.currentSrc || video.currentSrc !== video.src) return;
         setIsPaused(false);
         setIsEnded(false);
         onPlaybackIntentChange?.("continue");
       };
       const handlePlaying = () => {
+        if (playbackSuspendedRef.current) { video.pause(); return; }
         if (!activeAssetIdRef.current || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
           || !video.currentSrc || video.currentSrc !== video.src) return;
         clearInternalTransition();

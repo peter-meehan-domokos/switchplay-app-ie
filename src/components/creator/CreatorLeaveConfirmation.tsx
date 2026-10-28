@@ -1,9 +1,10 @@
 "use client";
 
-export default function CreatorLeaveConfirmation({ onCancel, onLeave, onPublishAndLeave }: {
+export default function CreatorLeaveConfirmation({ onCancel, onLeave, onPublishAndLeave, destinationUnavailable }: {
   onCancel: () => void;
   onLeave: () => void;
   onPublishAndLeave: () => void;
+  destinationUnavailable?: boolean;
 }) {
   return <div className="creator-modal-backdrop">
     <div className="creator-modal creator-leave-modal" role="dialog" aria-modal="true" aria-label="Leave Creator confirmation"
@@ -17,6 +18,7 @@ export default function CreatorLeaveConfirmation({ onCancel, onLeave, onPublishA
         }
       }}>
       <p>You have unpublished changes. Your drafts are saved.</p>
+      {destinationUnavailable && <p>This item is saved in My Drafts and will not appear in the destination collection until published with the appropriate visibility.</p>}
       <div className="creator-modal-actions">
         <button className="creator-modal-secondary" type="button" autoFocus onClick={onCancel}>Cancel</button>
         <button className="creator-modal-secondary" type="button" onClick={onLeave}>Leave without publishing</button>

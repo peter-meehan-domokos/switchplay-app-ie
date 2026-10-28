@@ -18,7 +18,7 @@ async function add(page: Page, title = "Useful Card") {
   await page.getByRole("button", { name: "Add card", exact: true }).click(); await expect(page.locator(".creator-column[data-card-template-id]")).toHaveCount(count + 1);
   const id = (await page.locator(".creator-column[data-card-template-id]").last().getAttribute("data-card-template-id"))!;
   await expect.poll(async () => !!await root(id)).toBe(true);
-  await card(page, id).locator(".creator-card-title-button").click(); await page.locator(".creator-modal textarea").fill(title);
+  await card(page, id).locator(".creator-card-title-button").click(); await page.locator(".creator-modal").getByRole("textbox").fill(title);
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await expect.poll(async () => (await root(id))?.draft?.intro.title).toBe(title); return id;
 }
@@ -28,14 +28,14 @@ async function title(page: Page, text = "Public programme") {
 }
 const publicDialog = (page: Page) => page.getByRole("dialog", { name: "Confirm public publication" });
 async function leaveDialog(page: Page) {
-  await page.getByRole("link", { name: "Decks", exact: true }).click();
+  await page.locator(".creator-back-link").click();
   await page.getByRole("dialog", { name: "Leave Creator confirmation" }).getByRole("button", { name: "Publish and leave", exact: true }).click();
 }
 
 test("empty Deck public intent stays private until confirmed publication; Cancel retains draft and no membership is created", async ({ page }) => {
   await open(page); await expect(page.getByRole("button", { name: "Publish Deck", exact: true })).toHaveCount(0);
   await page.getByRole("combobox", { name: "Deck publication visibility" }).selectOption("public");
-  await expect(page).toHaveURL(/\/creator\/edit\//); const id = page.url().split("/").at(-1)!;
+  await expect(page).toHaveURL(/\/creator\/edit\//); const id = new URL(page.url()).pathname.split("/").at(-1)!;
   await expect.poll(async () => (await db().collection("deckTemplates").findOne({ deckTemplateId: id }))?.draftVisibility).toBe("public");
   expect((await db().collection("deckTemplates").findOne({ deckTemplateId: id }))!.visibility).toBe("private");
   expect((await page.request.get(`/api/library/decks/${id}`)).status()).toBe(403);
@@ -62,13 +62,13 @@ test("in-flight Card edits coalesce with public intent; Publish and leave waits 
   await card(page, id).locator(".creator-pair-step").first().click(); await page.locator(".creator-modal textarea").fill("Newest instruction before public publication");
   await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
   await page.getByRole("combobox", { name: "Deck publication visibility" }).selectOption("public");
-  await page.getByRole("link", { name: "Decks", exact: true }).click(); await expect(page.locator(".creator-navigation-status")).toContainText("Finishing saves and uploads");
+  await page.locator(".creator-back-link").click(); await expect(page.locator(".creator-navigation-status")).toContainText("Finishing saves and uploads");
   await expect(publicDialog(page)).toHaveCount(0); held.resolve();
   await page.getByRole("dialog", { name: "Leave Creator confirmation" }).getByRole("button", { name: "Publish and leave", exact: true }).click();
   await expect(publicDialog(page)).toContainText("1 Card and 1 Deck");
   expect((await root(id))!.visibility).toBe("private"); expect((await root(id))!.draft.steps[0].description).toBe("Newest instruction before public publication");
   await publicDialog(page).getByRole("button", { name: "Publish publicly", exact: true }).click();
-  await expect(page).toHaveURL(/\/decks$/); expect((await root(id))!.visibility).toBe("public");
+  await expect(page).toHaveURL(/\/library\?published=[^&]+$/); expect((await root(id))!.visibility).toBe("public");
   expect((await db().collection("cardTemplateVersions").findOne({ cardTemplateId: id, version: 1 }))!.content.steps[0].description).toBe("Newest instruction before public publication");
 });
 
@@ -87,7 +87,7 @@ test("public Deck lock explains private Cards; explicit Card publication preserv
   await expect(card(page, id).getByRole("combobox", { name: "Card 1 publication visibility" })).toBeDisabled();
   await expect(deckPublish.getByRole("img", { name: "Publication blocked" })).toHaveCount(0); await deckPublish.click();
   await expect(publicDialog(page)).toContainText("0 Cards and 1 Deck"); await publicDialog(page).getByRole("button", { name: "Publish publicly", exact: true }).click(); await expect(deckPublish).toHaveText("Published");
-  const deckId = page.url().split("/").at(-1)!; const preview = await (await page.request.get(`/api/library/decks/${deckId}`)).json(); expect(preview.manifest.cards).toEqual([{ cardTemplateId: id, version: 2 }]);
+  const deckId = new URL(page.url()).pathname.split("/").at(-1)!; const preview = await (await page.request.get(`/api/library/decks/${deckId}`)).json(); expect(preview.manifest.cards).toEqual([{ cardTemplateId: id, version: 2 }]);
 });
 
 test("partial Publish and leave retry retains public Card success and confirms only remaining first-public entities", async ({ page }) => {
@@ -103,7 +103,7 @@ test("partial Publish and leave retry retains public Card success and confirms o
   await expect(page.locator(".creator-save-message--error")).toContainText("Earlier successful publications are retained");
   expect((await root(a))!.latestVersion).toBe(1); expect((await root(a))!.visibility).toBe("public"); expect((await root(b))!.latestVersion).toBe(0);
   await page.unroute(`**/api/card-templates/${b}`); await leaveDialog(page); await expect(publicDialog(page)).toContainText("1 Card and 1 Deck");
-  await publicDialog(page).getByRole("button", { name: "Publish publicly", exact: true }).click(); await expect(page).toHaveURL(/\/decks$/);
+  await publicDialog(page).getByRole("button", { name: "Publish publicly", exact: true }).click(); await expect(page).toHaveURL(/\/library\?published=[^&]+$/);
   expect(await db().collection("cardTemplateVersions").countDocuments({ cardTemplateId: a })).toBe(1);
 });
 
@@ -115,7 +115,7 @@ test("failed visibility save stays in Creator with local intent intact and retri
   });
   const visibility = card(page, id).getByRole("combobox", { name: "Card 1 publication visibility" }); await visibility.selectOption("public");
   await expect(page.getByRole("button", { name: "Retry Save Card 1", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Decks", exact: true }).click(); await expect(page.locator(".creator-save-message--error")).toContainText("could not be saved");
+  await page.locator(".creator-back-link").click(); await expect(page.locator(".creator-save-message--error")).toContainText("could not be saved");
   await expect(page).toHaveURL(/\/creator\/edit\//); await expect(visibility).toHaveValue("public"); expect((await root(id))!.visibility).toBe("private");
   await page.unroute(`**/api/card-templates/${id}`); await page.getByRole("button", { name: "Retry Save Card 1", exact: true }).click();
   await expect.poll(async () => (await root(id))?.draftVisibility).toBe("public");

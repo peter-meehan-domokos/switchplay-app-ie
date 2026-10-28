@@ -4,6 +4,7 @@ import { personalWork } from "@/lib/cards/personalWork";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import OverviewMenu from "./OverviewMenu";
+import CollectionReturnHighlight from "../library/CollectionReturnHighlight";
 import DeckGrid from "@/components/decks/DeckGrid";
 import DeckDetail from "@/components/decks/DeckDetail";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
@@ -226,7 +227,8 @@ function WorkingShell({ memberships, currentUserId, userName }: AppShellProps) {
         creatorEditHref={progressReturn ? `/creator/edit/${encodeURIComponent(selected.deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(selected.deckTemplateId)}&progressFramework=${encodeURIComponent(progressReturn.frameworkId)}${progressReturn.areaId ? `&progressArea=${encodeURIComponent(progressReturn.areaId)}` : ""}` : undefined}
         isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation} onBack={() => void close()} onToggleDeckFlip={(delta = 180) => setRotation((value) => value + delta)} transition={transition} />
     </> : <>
-      <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My decks</h1></header>
+      <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My Decks</h1></header>
+      <CollectionReturnHighlight id={search.get("reveal")} ready={decks.some(deck => deck.id === search.get("reveal"))} scroll />
       <DeckGrid decks={decks} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null} onSelectDeck={(id) => void open(id)} transition={transition} />
       {active.filter((item) => item.availability === "unavailable").map((item) => <p key={item.deckTemplateId}>
         Unavailable Deck — your membership is retained. <button type="button" disabled={pending !== null} onClick={() => void membershipAction(item.deckTemplateId, "archive")}>Archive unavailable Deck</button>

@@ -21,17 +21,21 @@ import type { CreatorSessionDTO } from "@/lib/cards/creatorSession";
 import CreatorDraftsModal from "./CreatorDraftsModal";
 import CreatorCopyTo from "./CreatorCopyTo";
 import CreatorLeaveConfirmation from "./CreatorLeaveConfirmation";
+import CreatorModeSelector from "./CreatorModeSelector";
+import InfoCardAttachments from "./InfoCardAttachments";
+import type { CreatorTransport } from "./creatorRequest";
+import { currentDraftOrigin, deckCollectionTarget, type CreatorNavigation } from "./creatorNavigation";
+import { clientId } from "@/lib/clientId";
+import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "./creatorDraftEntries";
 import CreatorPublishControl from "./CreatorPublishControl";
 import CreatorVisibilityControl from "./CreatorVisibilityControl";
 import CreatorPublicConfirmation from "./CreatorPublicConfirmation";
-import { cardPublicationPresentation, deckPublicationPresentation } from "./creatorPublicationPresentation";
+import { cardPublicationPresentation, deckPublicationPresentation, requiresPublicInfoAttachments, creatorPublicationErrorMessage } from "./creatorPublicationPresentation";
 import { creatorRequest } from "./creatorRequest";
-import type { CreatorDraftSummary } from "@/lib/cards/creatorDrafts";
 import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
 import { restoreCreatorDeckTitle } from "@/lib/cards/creatorDefaults";
 import { useRouter } from "next/navigation";
-import { readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent } from "react";
 import {
   appendCreatorCard,
@@ -68,6 +72,7 @@ type EditTarget =
   | { type: "pair-step"; pairId: PairId };
 
 type EditSession = {
+  infoCardIds?: string[];
   descriptionContent?: StepDescriptionSpan[];
   helperText?: string;
   inputKind: "long-text" | "short-text";
@@ -110,7 +115,7 @@ const STEP_TEXT_WARNING_LENGTH = 65;
 const SUPPORT_ERROR_MESSAGE = "support";
 
 function createStepLinkId() {
-  return `step-link-${crypto.randomUUID()}`;
+  return `step-link-${clientId()}`;
 }
 
 function isIsoDateOnlyString(value: string) {
@@ -312,8 +317,9 @@ function getEditSession(board: BoardState, target: EditTarget): EditSession | nu
 
     return {
       helperText: "Short card title. Aim for 1-4 words.",
-      inputKind: "long-text",
+      inputKind: "short-text",
       label: "Card title",
+      infoCardIds: column.infoCardIds,
       target,
       value: column.cardTitle ?? "",
     };
@@ -367,6 +373,9 @@ function getEditTargetKey(target: EditTarget) {
 }
 
 function CreatorEditModal({
+  actor,
+  request,
+  publicInfoOnly,
   canDeleteCard = false,
   videoReadinessTarget,
   deckIntroductionImage,
@@ -385,6 +394,9 @@ function CreatorEditModal({
   onUploadDeckIntroductionImage,
   session,
 }: {
+  actor?: string;
+  request: CreatorTransport;
+  publicInfoOnly: boolean;
   canDeleteCard?: boolean;
   videoReadinessTarget: MediaUploadTarget;
   deckIntroductionImage: ImageMediaItem | null;
@@ -397,13 +409,14 @@ function CreatorEditModal({
   onClose: () => void;
   onDeleteCard?: () => void;
   onRemoveDeckIntroductionImage: () => void;
-  onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) => void;
+  onSave: (value: string, title?: string, descriptionContent?: StepDescriptionSpan[], infoCardIds?: string[]) => void;
   copyControl?: React.ReactNode;
   onUploadDeckIntroductionVideo: (file: File) => void;
   onUploadDeckIntroductionImage: (file: File) => void;
   session: EditSession;
 }) {
   const [draftValue, setDraftValue] = useState(session.value);
+  const [draftInfoIds, setDraftInfoIds] = useState(session.infoCardIds);
   const [draftTitle, setDraftTitle] = useState(session.stepTitle ?? "");
   const [linkRanges, setLinkRanges] = useState<StepLinkRange[]>(() =>
     getLinkRangesFromDescriptionContent(session.descriptionContent, session.value)
@@ -537,7 +550,8 @@ function CreatorEditModal({
     onSave(
       draftValue,
       isStepText ? draftTitle : undefined,
-      isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined
+      isStepText ? buildStepDescriptionContent(draftValue, linkRanges) : undefined,
+      isCardTitle ? draftInfoIds : undefined
     );
   }
 
@@ -587,6 +601,7 @@ function CreatorEditModal({
             {primaryField}
           </section>
         ) : primaryField}
+        {isCardTitle && actor && <InfoCardAttachments actor={actor} request={request} value={draftInfoIds ?? []} onChange={setDraftInfoIds} publicOnly={publicInfoOnly} />}
         {isDeckIntroduction ? (
           <MediaUploadPanel
             image={deckIntroductionImage}
@@ -937,7 +952,7 @@ function BoardCell({
 type CreatorDragLabProps = {
   canPreviewOutput: boolean;
   creatorReturnTarget?: {
-    label: "Deck" | "Decks";
+    label: "Library" | "My Decks";
     href: string;
   };
   initialBoard: BoardState;
@@ -946,9 +961,10 @@ type CreatorDragLabProps = {
   initialSession?: CreatorSessionDTO;
   currentUserId?: string;
   mode: "edit" | "new";
+  navigation?: CreatorNavigation;
 };
 
-export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode, navigation }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [canonical, setCanonical] = useState<CreatorBoardDTO | null>(initialCreator ?? null);
@@ -965,7 +981,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const confirmedCards = useRef(new Set<string>());
   const [entryConfirmed, setEntryConfirmed] = useState(initialSession?.deck.kind !== "foreign");
   const [isDraftsOpen, setIsDraftsOpen] = useState(false);
-  const [drafts, setDrafts] = useState<CreatorDraftSummary[]>([]);
+  const [drafts, setDrafts] = useState<CreatorDraftEntry[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [draftsError, setDraftsError] = useState("");
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
@@ -1013,7 +1029,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const activePair = activePairId ? board.pairs[activePairId] ?? null : null;
   const canDeleteActiveCard = editSession?.target.type === "card-title";
   const editingCardId = editSession?.target.type === "card-title" ? editSession.target.cardTemplateId : null;
-  const resolvedCreatorReturnTarget = creatorReturnTarget ?? { label: "Decks" as const, href: "/decks" };
+  function collectionDestination() {
+    return deckCollectionTarget({ creating: navigation?.creating ?? mode === "new", visibility: !persistence.deck.ack && initialSession?.deck.kind === "foreign" ? "public" : persistence.deck.desiredVisibility,
+      origin: creatorReturnTarget ? creatorReturnTarget.href === "/library" ? "library" : "my-decks" : undefined,
+      copied: !!persistence.deck.ack?.root.forkedFrom, id: persistence.deckTemplateId,
+      publicationVersion: persistence.deck.confirmedPublicationVersion,
+      reveal: !!persistence.deck.ack?.root.latestVersion || initialSession?.deck.kind === "foreign" && !persistence.deck.ack });
+  }
+  const resolvedCreatorReturnTarget = collectionDestination();
   const deckIntroductionUploadTarget = useMemo(() => ({
     scope: "deck-introduction" as const,
     deckTemplateId: persistence.deckTemplateId,
@@ -1053,9 +1076,14 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if (!persistence.deck.uncertainPublication && ![...persistence.cards.values()].some((lane) => lane.uncertainPublication)) setPublishMessage((current) => current.startsWith("Publication outcome is not yet confirmed.") ? "" : current);
     const dto = persistence.dto;
     // Autosave may install the edit URL, but must retain the explicit entry origin for reloads.
-    if (dto) { setCanonical(persistence.presentation); window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${window.location.search}`); persistence.routeInstalled(); }
+    if (dto) {
+      setCanonical(persistence.presentation);
+      const query = new URLSearchParams(window.location.search);
+      if (navigation?.creating) query.set("entry", "create");
+      window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${query.size ? `?${query}` : ""}`); persistence.routeInstalled();
+    }
     });
-  }, [persistence]);
+  }, [persistence, navigation?.creating]);
 
   useEffect(() => {
     boardRef.current = board;
@@ -1143,27 +1171,38 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     persistence.setCardVisibility(id, visibility);
   }
   function navigateToReturnTarget() {
-    router.push(resolvedCreatorReturnTarget.href);
+    router.push(collectionDestination().href);
   }
 
   async function openDrafts() {
     setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
-    try { setDrafts(await creatorRequest<CreatorDraftSummary[]>("/api/creator/drafts")); }
+    try { const result = await loadCreatorDraftEntries(persistence.request); setDrafts(result.items); setDraftsError(result.error); }
     catch { setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
     finally { setDraftsLoading(false); }
   }
+  useEffect(() => {
+    if (!navigation?.openDrafts) return;
+    let active = true;
+    void Promise.resolve().then(async () => {
+      if (!active) return;
+      setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
+      try { const result = await loadCreatorDraftEntries(persistence.request); if (active) { setDrafts(result.items); setDraftsError(result.error); } }
+      catch { if (active) setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
+      finally { if (active) setDraftsLoading(false); }
+    });
+    return () => { active = false; };
+  }, [navigation?.openDrafts, persistence]);
   function closeDrafts() {
     setIsDraftsOpen(false);
     requestAnimationFrame(() => draftsButtonRef.current?.focus());
   }
-  async function switchDraft(id: string) {
+  async function switchDraft(id: string, kind: CreatorDraftEntry["kind"] = "deck") {
     if (switchingRef.current !== null) return;
-    if (id === persistence.deckTemplateId) { closeDrafts(); return; }
+    if (kind === "deck" && id === persistence.deckTemplateId) { closeDrafts(); return; }
     switchingRef.current = id; setSwitchingTo(id); setDraftsError("");
     try {
       await prepareForNavigation();
-      // A plain edit URL deliberately does not inherit another Deck's return context.
-      router.push(`/creator/edit/${encodeURIComponent(id)}`);
+      router.push(creatorDraftHref(id, kind, currentDraftOrigin(window.location)));
     } catch {
       switchingRef.current = null; setSwitchingTo(null);
       setDraftsError("Current work could not be saved. Close My Drafts and review the save or upload errors before switching.");
@@ -1211,9 +1250,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setPublishStatus("error");
       const uncertain = target === "deck" ? persistence.deck.uncertainPublication : target === "all" ? persistence.deck.uncertainPublication || [...persistence.cards.values()].some((lane) => lane.uncertainPublication) : persistence.cards.get(target)?.uncertainPublication;
       setPublishMessage(uncertain ? "Publication outcome is not yet confirmed. It will be reconciled before another save or publication."
-        : error instanceof Error && error.message === "PUBLIC_PUBLICATION_REVIEW_CHANGED" ? "The changes awaiting public publication changed. Review them and confirm again. Earlier successful publications are retained."
-        : error instanceof Error && error.message === "DECK_PUBLICATION_REVIEW_CONFLICT" ? "The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained."
-        : `${error instanceof Error ? error.message : "Publication failed"}. Earlier successful publications are retained.`);
+        : creatorPublicationErrorMessage(error));
       return false;
     }
   }
@@ -1224,9 +1261,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       try {
         await prepareForNavigation();
         if (persistence.hasWork()) throw new Error("NEW_OUTSTANDING_WORK");
-        const personalDestination = persistence.publishedPersonalDeckHref();
-        router.push(personalDestination ? withProgressReturn(personalDestination,
-          readProgressReturn(new URL(resolvedCreatorReturnTarget.href, window.location.origin).searchParams)) : resolvedCreatorReturnTarget.href);
+        navigateToReturnTarget();
       } catch {
         navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
         setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");
@@ -1345,7 +1380,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
   }
 
-  function saveEdit(value: string, title?: string, descriptionContent?: StepDescriptionSpan[]) {
+  function saveEdit(value: string, title?: string, descriptionContent?: StepDescriptionSpan[], infoCardIds?: string[]) {
     if (!editSession) {
       return;
     }
@@ -1371,6 +1406,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         return {
           ...currentBoard,
           columns: currentBoard.columns.map((column) => (column.cardId === target.cardTemplateId ? { ...column,
+            ...(infoCardIds !== undefined ? { infoCardIds: [...infoCardIds] } : {}),
             cardTitle: resolveCreatorCardTitle(column, value, canonical?.cards.find((card) => card.root.cardTemplateId === column.cardId)?.publishedContent?.intro.title ?? null) } : column)),
         };
       }
@@ -1686,10 +1722,17 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   return (
-    <main className="creator-lab" style={creatorGeometryStyle}>
+    <main className="creator-lab" style={creatorGeometryStyle} data-creator-entry={mode}>
       <header className="creator-header" inert={navigationLocked}>
         <div>
-          <p className="creator-kicker">{mode === "edit" ? "Edit Template" : "Create New Deck"}</p>
+          {navigation?.creating ? <CreatorModeSelector mode="deck" disabled={anyPublishing || navigationPending} onChange={() => {
+            if (navigationRef.current) return;
+            navigationRef.current = true; setNavigationPending(true);
+            void prepareForNavigation().then(() => router.push("/creator/info-cards/new")).catch(() => {
+              navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
+              setPublishMessage("Current work could not be saved. Review the save or upload errors before switching modes.");
+            });
+          }} /> : <p className="creator-kicker">Edit Template</p>}
           <p className="creator-edit-hint">Tap text to edit</p>
         </div>
         <div className="creator-header-actions">
@@ -1735,11 +1778,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {persistence.recovering ? <p role="status">Recovering your submitted edit…</p> : null}
       {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
       {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
+        destinationUnavailable={persistence.deck.ack?.root.latestVersion === 0 || resolvedCreatorReturnTarget.label === "Library" && persistence.deck.ack?.root.visibility !== "public"}
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
       {publicConfirmation ? <CreatorPublicConfirmation review={publicConfirmation.review}
         onCancel={() => closePublicConfirmation(false)} onConfirm={() => closePublicConfirmation(true)} /> : null}
       {isDraftsOpen ? <CreatorDraftsModal drafts={drafts} currentDeckTemplateId={persistence.deckTemplateId} loading={draftsLoading} error={draftsError}
-        switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id) => void switchDraft(id)} /> : null}
+        switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id, kind) => void switchDraft(id, kind)} /> : null}
       {blockedPublication ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Publication blocked"
         onKeyDown={(event) => { if (event.key === "Escape") closePublicationBlock(); if (event.key === "Tab") event.preventDefault(); }}>
         <p>{blockedPublication}</p><button className="creator-modal-secondary" type="button" autoFocus onClick={closePublicationBlock}>Close</button>
@@ -1867,6 +1911,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       </DndContext>
       {editSession ? (
         <CreatorEditModal
+          actor={currentUserId}
+          request={persistence.request}
+          publicInfoOnly={editingCardId !== null && requiresPublicInfoAttachments(persistence.deck, persistence.cards.get(editingCardId)!)}
           canDeleteCard={canDeleteActiveCard}
           videoReadinessTarget={persistence.deckReadinessTarget}
           deckIntroductionImage={board.deckIntroduction?.image ?? null}
