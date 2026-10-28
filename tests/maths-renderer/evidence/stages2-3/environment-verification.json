@@ -1,0 +1,72 @@
+{
+  "stats": {
+    "startTime": "2026-10-25T16:40:52.582Z",
+    "duration": 26366.432,
+    "expected": 12,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "webkit",
+      "status": "passed"
+    }
+  ]
+}

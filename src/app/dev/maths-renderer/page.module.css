@@ -1,0 +1,24 @@
+.page { padding: 20px; background: #f3f1ec; color: #24313b; min-height: 100svh; }
+.heading { max-width: 65ch; margin-bottom: 28px; }
+.heading h1 { font-size: 28px; margin-block: 6px 12px; }
+.heading p + p { margin-top: 8px; }
+.group { margin-block: 32px; }
+.group h2 { font-size: 21px; margin-bottom: 20px; }
+.sample { margin-bottom: 32px; width: max-content; min-width: 280px; }
+.sample h3 { font-size: 16px; margin-bottom: 12px; }
+.example { box-sizing: content-box; padding: 16px; border: 1px solid #9ea9b1; background: white; line-height: 1.5; }
+.example p { margin: 0; }
+.source { margin-top: 12px; max-width: 730px; font-size: 14px; }
+.source summary { cursor: pointer; }
+.source pre { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 8px; }
+.capacityCase { margin-block: 32px; }
+.capacityCase h3 { margin-bottom: 12px; font-size: 17px; }
+.diagnostics { white-space: pre-wrap; font-size: 12px; max-width: 700px; }
+.reviewSetting { margin-block: 36px; }
+.reviewCase { margin-block: 24px 36px; }
+.reviewCase h3 { margin-bottom: 12px; font-size: 17px; }
+.reviewHost { box-sizing: border-box; padding: 12px; border: 1px solid #9ea9b1; background: white; }
+.reviewStatus { margin-top: 12px; }
+.regressionFixtures > summary { cursor: pointer; font-size: 19px; margin-block: 24px; }
+.heading a { text-decoration: underline; }
+@media (max-width: 400px) { .page { padding: 12px; } .heading h1 { font-size: 24px; } }

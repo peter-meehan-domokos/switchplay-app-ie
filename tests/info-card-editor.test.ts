@@ -113,3 +113,62 @@ test("reload of uncertain publication exposes recovery and reuses its receipt", 
   assert.equal(f.root.latestVersion, 1); assert.equal(values.size, 0); editor.stopTimer(); resumed.stopTimer();
   assert.equal(resumed.confirmedPublicationVersion, 1);
 });
+
+test("new maths cards retain the source and format without making an untouched editor dirty", async () => {
+  const f = fixture(); const editor = new InfoCardEditorController("a", "alice", null, f.request, true);
+  await editor.flush(); assert.equal(f.calls.length, 0);
+  const source = String.raw`Price \$5. $x=\frac{1}{2}$`;
+  editor.edit({ ...EMPTY_INFO_DRAFT, body: source }); await editor.flush();
+  assert.equal(f.root.draft?.body, source); assert.equal(f.root.draft?.bodyFormat, "latex-v1"); editor.stopTimer();
+  const legacy = new InfoCardEditorController("a", "alice", structuredClone(fixture().dto), fixture().request, false);
+  legacy.edit({ ...EMPTY_INFO_DRAFT, body: "$5 and $10" }); assert.equal(legacy.desired.bodyFormat, undefined); legacy.stopTimer();
+});
+
+test("definitive unavailable measurement unlocks editing; uncertain publication still uses receipt recovery", async () => {
+  const f = fixture(); const request: CreatorTransport = async <T>(url: string, method = "GET", data?: unknown) => {
+    if (url.endsWith("/publish")) throw new CreatorRequestError(503, "INFO_MATHS_UNAVAILABLE", { publicationNotCommitted: true });
+    return f.request<T>(url, method, data);
+  };
+  const editor = new InfoCardEditorController("a", "alice", null, request, true);
+  editor.edit({ ...EMPTY_INFO_DRAFT, title: "Maths", body: "$x$", seriesId: "s" });
+  await assert.rejects(editor.publish()); assert.equal(editor.pendingPublication, undefined);
+  editor.edit({ ...editor.desired, body: "$y$" }); await editor.flush(); assert.equal(f.root.draft?.body, "$y$"); editor.stopTimer();
+});
+
+
+const renderingResult = (revision: number): import("../src/lib/infoCards/mathsValidation").InfoRenderingDiagnostic => ({ revision,
+  measurement: { result: { status: "measurement-unavailable", generation: 1, reason: "FONT_LOAD_FAILED", diagnostics: [] }, safe: false, headerFits: false }, screenshot: null,
+});
+test("Check rendering flushes exact edits, never publishes, and works on clean published source", async () => {
+  const f = fixture(); let checked = 0;
+  const request: CreatorTransport = async <T>(url: string, method = "GET", data?: unknown) => {
+    if (url.endsWith("/check-rendering")) { checked++; const { revision } = data as { revision: number }; assert.equal(f.root.revision, revision); assert.equal(f.root.draft?.body, "$x$"); return renderingResult(revision) as T; }
+    return f.request<T>(url, method, data);
+  };
+  const editor = new InfoCardEditorController("a", "alice", null, request, true);
+  editor.edit({ ...EMPTY_INFO_DRAFT, title: "Maths", body: "$x$", seriesId: "s" });
+  await editor.checkRendering(); assert.equal(checked, 1); assert.equal(editor.dirty, false); assert.equal(f.root.latestVersion, 0); assert(editor.renderingCheck); assert.equal(editor.pendingPublication, undefined);
+  await editor.publish(); assert.equal(f.root.latestVersion, 1); assert.equal(editor.renderingCheck, null); editor.stopTimer();
+});
+test("edits during an optional check discard the old screenshot/result and continue autosaving", async () => {
+  const f = fixture(); let resolve!: (value: unknown) => void, started!: () => void;
+  const began = new Promise<void>(r => { started = r; });
+  const request: CreatorTransport = async <T>(url: string, method = "GET", data?: unknown) => {
+    if (url.endsWith("/check-rendering")) { started(); return new Promise<unknown>(r => { resolve = r; }) as Promise<T>; }
+    return f.request<T>(url, method, data);
+  };
+  const editor = new InfoCardEditorController("a", "alice", null, request, true);
+  editor.edit({ ...EMPTY_INFO_DRAFT, body: "$x$" }); const check = editor.checkRendering(); await began;
+  const revision = editor.ack!.root.revision; editor.edit({ ...editor.desired, body: "$y$" }); await editor.flush();
+  resolve(renderingResult(revision)); await check; assert.equal(editor.renderingCheck, null); assert.equal(f.root.draft?.body, "$y$"); assert.equal(editor.checkingRendering, false); editor.stopTimer();
+});
+test("diagnostic errors do not enter publication/save recovery or block publishing", async () => {
+  const f = fixture(); const request: CreatorTransport = async <T>(url: string, method = "GET", data?: unknown) => {
+    if (url.endsWith("/check-rendering")) throw new CreatorRequestError(503, "INFO_MATHS_UNAVAILABLE", { failure: "browser-startup" });
+    return f.request<T>(url, method, data);
+  };
+  const editor = new InfoCardEditorController("a", "alice", null, request, true);
+  editor.edit({ ...EMPTY_INFO_DRAFT, title: "Maths", body: "$x$", seriesId: "s" }); await editor.checkRendering();
+  assert(editor.renderingCheckError); assert.equal(editor.error, null); assert.equal(editor.pendingPublication, undefined);
+  await editor.publish(); assert.equal(f.root.latestVersion, 1); editor.stopTimer();
+});

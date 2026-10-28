@@ -1,0 +1,297 @@
+{
+  "stats": {
+    "startTime": "2026-10-25T16:34:16.294Z",
+    "duration": 132916.34699999998,
+    "expected": 57,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "column alignment and row clearance · small",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · medium",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · large",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "iPhone-sized viewport preserves authored alignment and captures visual evidence",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "desktop visual evidence and source candidates remain independently authored",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · small",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · medium",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · large",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "iPhone-sized viewport preserves authored alignment and captures visual evidence",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "desktop visual evidence and source candidates remain independently authored",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · small",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · medium",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "column alignment and row clearance · large",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "iPhone-sized viewport preserves authored alignment and captures visual evidence",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "desktop visual evidence and source candidates remain independently authored",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "nested radicals ignore construction SVG width and overhanging descendants are included",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "typography and rapid content changes invalidate old results without cross-instance changes",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "hidden hosts recover, invalid constraints cannot fit and invalid source retains diagnostics",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "font loading remains pending, source changes discard stale work, and release measures the new content",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "failed mathematical fonts never produce a ready fit",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "font changes after a ready result invalidate it; unmount cancels delayed work",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "the public mixed-content path retains both alignment candidates and indentation",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "subpixel capacity boundaries and intentional mathematical space are measured",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "font timeout is unavailable, never fit, and successful completion can recover",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "chromium",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "nested radicals ignore construction SVG width and overhanging descendants are included",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "typography and rapid content changes invalidate old results without cross-instance changes",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "hidden hosts recover, invalid constraints cannot fit and invalid source retains diagnostics",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "font loading remains pending, source changes discard stale work, and release measures the new content",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "failed mathematical fonts never produce a ready fit",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "font changes after a ready result invalidate it; unmount cancels delayed work",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "the public mixed-content path retains both alignment candidates and indentation",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "subpixel capacity boundaries and intentional mathematical space are measured",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "font timeout is unavailable, never fit, and successful completion can recover",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "firefox",
+      "status": "passed"
+    },
+    {
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "nested radicals ignore construction SVG width and overhanging descendants are included",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "typography and rapid content changes invalidate old results without cross-instance changes",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "hidden hosts recover, invalid constraints cannot fit and invalid source retains diagnostics",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "font loading remains pending, source changes discard stale work, and release measures the new content",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "failed mathematical fonts never produce a ready fit",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "font changes after a ready result invalidate it; unmount cancels delayed work",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "the public mixed-content path retains both alignment candidates and indentation",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "subpixel capacity boundaries and intentional mathematical space are measured",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "font timeout is unavailable, never fit, and successful completion can recover",
+      "project": "webkit",
+      "status": "passed"
+    },
+    {
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "project": "webkit",
+      "status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "deployed": false,
+  "environmentFilesCopied": false,
+  "guards": [
+    {
+      "route": "/dev/maths-fonts",
+      "rsc": false,
+      "status": 404,
+      "fixtureMarkup": false
+    },
+    {
+      "route": "/dev/maths-fonts",
+      "rsc": true,
+      "status": 404,
+      "fixtureMarkup": false
+    },
+    {
+      "route": "/dev/maths-renderer",
+      "rsc": false,
+      "status": 404,
+      "fixtureMarkup": false
+    },
+    {
+      "route": "/dev/maths-renderer",
+      "rsc": true,
+      "status": 404,
+      "fixtureMarkup": false
+    }
+  ],
+  "passed": true,
+  "serverStopped": true,
+  "scratchRemoved": true
+}

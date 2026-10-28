@@ -2,6 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import styles from "./InfoCardFace.module.css";
+import MathsRenderer from "../maths-renderer/MathsRenderer";
+import mathsStyles from "./InfoCardMaths.module.css";
+import { infoMathsMeasurement, infoMathsPresentation, type InfoMathsMeasurement } from "./infoCardMaths";
 
 // Presentation only: no publication, ownership or backend DTO assumptions.
 export type InfoCardFaceContent = {
@@ -9,13 +12,16 @@ export type InfoCardFaceContent = {
   seriesTitle: string;
   seriesCreatorUsername: string;
   body: string;
+  bodyFormat?: "latex-v1";
   mediaKind?: "image" | "video";
 };
 
-export default function InfoCardFace({ card, onOpenMedia }: {
+export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
   card: InfoCardFaceContent;
   onOpenMedia?: () => void;
+  onMathsResult?: (result: InfoMathsMeasurement) => void;
 }) {
+  const face = useRef<HTMLElement>(null), body = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const tooltipId = useId();
   const attribution = useRef<HTMLSpanElement>(null);
@@ -42,7 +48,7 @@ export default function InfoCardFace({ card, onOpenMedia }: {
   }, [showCreator]);
 
   return (
-    <article className={styles.face} aria-labelledby={titleId} data-info-card-face="">
+    <article ref={face} className={`${styles.face}${card.bodyFormat ? ` ${mathsStyles.mathsFace}` : ""}`} aria-labelledby={titleId} data-info-card-face="">
       <h3 id={titleId} className={styles.header} data-info-card-header="">
         <span
           ref={attribution}
@@ -74,11 +80,18 @@ export default function InfoCardFace({ card, onOpenMedia }: {
         <span className={styles.separator} aria-hidden="true"> · </span>
         <span className={styles.title} data-info-card-title="">{card.title}</span>
       </h3>
-      <div className={styles.body} data-info-card-body="">
-        {card.body.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+      <div ref={body} className={card.bodyFormat ? styles.mathsBody : styles.body} data-info-card-body="">
+        {card.bodyFormat ? <MathsRenderer key={JSON.stringify([card.title, card.seriesTitle, card.mediaKind])} content={card.body} presentation={infoMathsPresentation}
+          constraints={{ kind: "container", elementRef: body, height: "bounded" }}
+          onResult={result => {
+            if (!face.current || !body.current) return;
+            const measurement = infoMathsMeasurement(result, face.current, body.current);
+            onMathsResult?.(measurement);
+          }} />
+          : card.body.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </div>
       {card.mediaKind ? (
-        <button className={styles.media} type="button" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowCreator(false); onOpenMedia?.(); }} disabled={!onOpenMedia}>
+        <button className={styles.media} data-info-card-media="" type="button" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowCreator(false); onOpenMedia?.(); }} disabled={!onOpenMedia}>
           <svg viewBox="0 0 20 20" aria-hidden="true">
             {card.mediaKind === "video" ? <path d="M6 3.5 16 10 6 16.5Z" /> : <><rect x="2" y="3" width="16" height="14" rx="2" /><path d="m3 14 4-5 4 4 3-3 3 4" /><circle cx="13" cy="7" r="1" /></>}
           </svg>

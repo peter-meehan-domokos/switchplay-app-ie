@@ -1,0 +1,48 @@
+{
+  "environment": "Local macOS, existing Playwright 1.58.1 engines; not Linux/Vercel",
+  "unitAndIsolation": {
+    "passed": 24,
+    "failed": 0
+  },
+  "applicationUnits": {
+    "passed": 420,
+    "failed": 0
+  },
+  "fullBrowserSuite": {
+    "startTime": "2026-10-26T09:13:51.660Z",
+    "duration": 460780.12299999996,
+    "expected": 117,
+    "skipped": 6,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "finalScreenshotRerun": {
+    "startTime": "2026-10-26T09:26:25.310Z",
+    "duration": 23975.577,
+    "expected": 5,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "infoCardCapacityBrowser": {
+    "startTime": "2026-10-26T09:13:12.652Z",
+    "duration": 9431.658000000001,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "typescript": "passed: npx tsc --noEmit --incremental false",
+  "scopedEslint": "passed",
+  "productionBuildAndGuards": "passed; see production.json and build log",
+  "databaseBackedIntegration": "not run for this font-only evaluation",
+  "existingServerPidsPreserved": [
+    40331,
+    64861
+  ],
+  "temporaryReferenceServerPidStopped": 92669,
+  "externalDeployment": false,
+  "fontsApprovedForProduction": false,
+  "manualScreenReaderTesting": false,
+  "physicalIphoneTesting": false
+}

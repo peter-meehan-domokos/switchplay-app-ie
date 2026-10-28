@@ -24,7 +24,7 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
     if (entry.status !== "available" || entry.info.infoCardId !== context.attachmentIds[index]
       || !Number.isSafeInteger(entry.info.version) || entry.info.version < 1) throw new Error("Invalid consultation entry");
     const info = entry.info;
-    return { id: info.infoCardId, title: info.content.title, body: info.content.body, seriesTitle: info.series.title,
+    return { id: info.infoCardId, title: info.content.title, body: info.content.body, bodyFormat: info.content.bodyFormat, seriesTitle: info.series.title,
       seriesCreatorUsername: info.series.creatorUsername, ...(info.content.mediaItem ? { media: info.content.mediaItem } : {}),
       publication: { infoCardId: info.infoCardId, kind: "publication", version: info.version } };
   });

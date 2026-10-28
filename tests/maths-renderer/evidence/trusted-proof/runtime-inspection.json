@@ -1,0 +1,236 @@
+{
+  "at": "2026-10-26T01:32:10.819Z",
+  "executed": false,
+  "installed": false,
+  "driverCandidates": [
+    {
+      "version": "1.62.0",
+      "integrity": "sha512-nsNRyq0r2zsG8AcRHWknc9QRA5XCueC7gWMrs+Gx2tlZn9hcl8zudfh00lhJPY1DE7NmZ6bDsT9g2yey8mXljA==",
+      "chromium": [
+        {
+          "name": "chromium",
+          "revision": "1234",
+          "installByDefault": true,
+          "browserVersion": "151.0.7922.34",
+          "title": "Chrome for Testing"
+        },
+        {
+          "name": "chromium-headless-shell",
+          "revision": "1234",
+          "installByDefault": true,
+          "browserVersion": "151.0.7922.34",
+          "title": "Chrome Headless Shell"
+        }
+      ]
+    },
+    {
+      "version": "1.63.0",
+      "integrity": "sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==",
+      "chromium": [
+        {
+          "name": "chromium",
+          "revision": "1243",
+          "installByDefault": true,
+          "browserVersion": "153.0.8010.12",
+          "title": "Chrome for Testing"
+        },
+        {
+          "name": "chromium-headless-shell",
+          "revision": "1243",
+          "installByDefault": true,
+          "browserVersion": "153.0.8010.12",
+          "title": "Chrome Headless Shell"
+        }
+      ]
+    },
+    {
+      "version": "1.64.1",
+      "integrity": "sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==",
+      "chromium": [
+        {
+          "name": "chromium",
+          "revision": "1248",
+          "installByDefault": true,
+          "browserVersion": "156.0.8078.4",
+          "title": "Chrome for Testing"
+        },
+        {
+          "name": "chromium-headless-shell",
+          "revision": "1248",
+          "installByDefault": true,
+          "browserVersion": "156.0.8078.4",
+          "title": "Chrome Headless Shell"
+        }
+      ]
+    }
+  ],
+  "available145Releases": [],
+  "inspected": {
+    "name": "@sparticuz/chromium",
+    "version": "153.0.0",
+    "engines": {
+      "node": "^22.17.0 || >=24.0.0"
+    },
+    "dependencies": {
+      "tar-fs": "^3.1.2"
+    },
+    "dist": {
+      "shasum": "f8b987acb42e0b715700adebf051652b9910e6a0",
+      "tarball": "https://registry.npmjs.org/@sparticuz/chromium/-/chromium-153.0.0.tgz",
+      "fileCount": 15,
+      "integrity": "sha512-jiGWqSvPMdu4+P9TilYqAR7yEGPEHINx+lCvE/NqNO/EHYzF/x1hUiI5T6ioVIt7dEy7n88byyT0vk+dnsgQwA==",
+      "signatures": [
+        {
+          "sig": "MEUCIGjKR8bAkAWDgL95GbRaOdP+q5nVnBVJ89su5IdZYMJEAiEApbqY7k1mbgV0z8LYQ3/Q4csgQM3FotC29I7MzjHPs/M=",
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+        },
+        {
+          "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+          "sig": "MEUCIQCD2ZthwiyE3ANp794k2LT4KJ9EQsoEPX1I7b0FgBGGAQIgJiNOuJv6jjeAFyFqKshO40t/lQ58ijA+YmKPmmd5zKM="
+        }
+      ],
+      "attestations": {
+        "url": "https://registry.npmjs.org/-/npm/v1/attestations/@sparticuz%2fchromium@153.0.0",
+        "provenance": {
+          "predicateType": "https://slsa.dev/provenance/v1"
+        }
+      },
+      "unpackedSize": 70091665
+    },
+    "downloadedBytes": 69995309,
+    "integrityVerified": true,
+    "binaryFiles": [
+      {
+        "name": "al2023.tar.br",
+        "bytes": 1208350,
+        "localBrotliDecompressMs": 19.560923000000003,
+        "extractedBytes": 3532800,
+        "entries": [
+          "lib/libexpat.so.1",
+          "lib/libfreebl3.so",
+          "lib/libfreeblpriv3.so",
+          "lib/libnspr4.so",
+          "lib/libnss3.so",
+          "lib/libnssutil3.so",
+          "lib/libplc4.so",
+          "lib/libplds4.so",
+          "lib/libsoftokn3.so",
+          "lib/libfreebl3.chk",
+          "lib/libfreeblpriv3.chk",
+          "lib/libsoftokn3.chk"
+        ]
+      },
+      {
+        "name": "chromium.br",
+        "bytes": 67016039,
+        "localBrotliDecompressMs": 1310.6747510000005,
+        "extractedBytes": 209022176,
+        "binarySHA256": "53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0",
+        "magic": "7f454c46",
+        "elfMachine": 62
+      },
+      {
+        "name": "fonts.tar.br",
+        "bytes": 183738,
+        "localBrotliDecompressMs": 3.7117529999995895,
+        "extractedBytes": 460800,
+        "entries": [
+          "fonts.conf",
+          "fonts/",
+          "fonts/Open_Sans/",
+          "fonts/Open_Sans/OpenSans-Bold.ttf",
+          "fonts/Open_Sans/OpenSans-Italic.ttf",
+          "fonts/Open_Sans/OpenSans-Regular.ttf"
+        ]
+      },
+      {
+        "name": "swiftshader.tar.br",
+        "bytes": 1637479,
+        "localBrotliDecompressMs": 37.68770599999971,
+        "extractedBytes": 7485440,
+        "entries": [
+          "libEGL.so",
+          "libGLESv2.so",
+          "libvk_swiftshader.so",
+          "libvulkan.so.1",
+          "vk_swiftshader_icd.json"
+        ]
+      }
+    ]
+  },
+  "packageJSON": {
+    "name": "@sparticuz/chromium",
+    "version": "153.0.0",
+    "description": "Chromium Binary for Serverless Platforms",
+    "keywords": [
+      "aws",
+      "browser",
+      "chrome",
+      "chromium",
+      "lambda",
+      "puppeteer",
+      "playwright",
+      "serverless"
+    ],
+    "homepage": "https://github.com/Sparticuz/chromium",
+    "bugs": {
+      "url": "https://github.com/Sparticuz/chromium/issues"
+    },
+    "repository": {
+      "type": "git",
+      "url": "git://github.com/Sparticuz/chromium.git"
+    },
+    "license": "MIT",
+    "author": {
+      "name": "Kyle McNally"
+    },
+    "sideEffects": false,
+    "type": "module",
+    "exports": {
+      ".": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.js"
+      }
+    },
+    "types": "./build/index.d.ts",
+    "files": [
+      "bin",
+      "!bin/arm64",
+      "!bin/x64",
+      "build"
+    ],
+    "scripts": {
+      "build": "tsc -p tsconfig.build.json",
+      "build:fonts": "rm -f bin/fonts.tar.br && node ./tools/download-open-sans.mjs",
+      "layer:arm64": "make chromium-layer.arm64.zip",
+      "layer:x64": "make chromium-layer.x64.zip",
+      "lint": "eslint",
+      "pack:arm64": "make pack-arm64",
+      "pack:x64": "make pack-x64",
+      "test:integration": "make clean && make && make pretest && make test",
+      "test:source": "make presource && vitest run --coverage && make postsource",
+      "update": "node ./tools/update-browser-revision.mjs"
+    },
+    "dependencies": {
+      "tar-fs": "^3.1.2"
+    },
+    "devDependencies": {
+      "@sparticuz/eslint-config": "^11.5.0",
+      "@tsconfig/node22": "^22.0.5",
+      "@tsconfig/strictest": "^2.0.8",
+      "@types/node": "^22.19.19",
+      "@types/tar-fs": "^2.0.4",
+      "@vitest/coverage-v8": "^4.1.7",
+      "clean-modules": "^4.0.0",
+      "eslint": "^10.4.0",
+      "prettier": "^3.8.3",
+      "puppeteer-core": "^25.0.4",
+      "typescript": "^6.0.3",
+      "typescript-eslint": "^8.60.0",
+      "vitest": "^4.1.7"
+    },
+    "engines": {
+      "node": "^22.17.0 || >=24.0.0"
+    }
+  }
+}

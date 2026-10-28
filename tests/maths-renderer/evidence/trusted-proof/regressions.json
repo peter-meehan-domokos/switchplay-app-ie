@@ -1,0 +1,61 @@
+{
+  "rendererUnits": {
+    "command": "node --import tsx --test tests/maths-renderer/*.test.ts",
+    "passed": 17,
+    "failed": 0
+  },
+  "rendererBrowsers": {
+    "command": "PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/switchplay-trusted-proof-browser.json npx playwright test --config=playwright.maths-renderer.config.ts alignment.browser.ts capacity.browser.ts lifecycle.browser.ts presentation.browser.ts acceptance.browser.ts --reporter=line,json --output=/tmp/switchplay-trusted-proof-browser-results",
+    "stats": {
+      "startTime": "2026-10-26T01:21:52.205Z",
+      "duration": 395672.62299999996,
+      "expected": 105,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "projects": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ]
+  },
+  "applicationUnits": {
+    "command": "npm run test:unit",
+    "passed": 420,
+    "failed": 0
+  },
+  "infoIntegration": {
+    "command": "node --import tsx --test --test-concurrency=1 tests/info-cards.integration.ts tests/info-cards-api.integration.ts tests/info-cards-release.integration.ts",
+    "summary": "1..38\n# tests 38\n# suites 0\n# pass 38\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 84471.513663\n"
+  },
+  "scope": "Only new proof/evidence files. Existing review-fixture comparison test requires its own reference server and has a pre-existing expectation for an earlier version of explanation 1; it was not modified. The new compare-review script verifies all five current examples across all three engines.",
+  "proofEvidenceAssertions": {
+    "command": "node --import tsx --test tests/maths-renderer/trusted-proof/verify-results.test.ts",
+    "passed": 5,
+    "failed": 0
+  },
+  "staticChecks": {
+    "typescript": "npx tsc --noEmit --incremental false: passed",
+    "eslint": "npx eslint tests/maths-renderer/trusted-proof: passed"
+  },
+  "existingServers": {
+    "beforeAndAfter": [
+      {
+        "port": 3000,
+        "pid": 40331
+      },
+      {
+        "port": 4181,
+        "pid": 64861
+      }
+    ],
+    "changed": false
+  },
+  "finalBrowserPidsCheckedExited": [
+    88539,
+    89057,
+    89068,
+    89079
+  ]
+}

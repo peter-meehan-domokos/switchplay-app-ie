@@ -13,7 +13,8 @@ export function visibility(value: unknown): asserts value is Visibility {
   requireCondition(value === "private" || value === "public", "INVALID_INFO_VISIBILITY");
 }
 export function assertInfoDraft(value: unknown): asserts value is InfoDraft {
-  requireCondition(isRecord(value) && Object.keys(value).every(k => ["title", "body", "seriesId", "mediaItem"].includes(k)), "INVALID_INFO_DRAFT");
+  requireCondition(isRecord(value) && Object.keys(value).every(k => ["title", "body", "seriesId", "mediaItem", "bodyFormat"].includes(k)), "INVALID_INFO_DRAFT");
+  requireCondition(value.bodyFormat === undefined || value.bodyFormat === "latex-v1", "INVALID_INFO_FORMAT");
   // Transport/storage ceiling only; publication capacity is measured separately.
   requireCondition(typeof value.title === "string" && value.title.length <= 10000 && typeof value.body === "string" && value.body.length <= 100000, "INVALID_INFO_TEXT");
   if (value.seriesId !== null) infoId(value.seriesId);

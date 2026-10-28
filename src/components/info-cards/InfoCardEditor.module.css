@@ -21,3 +21,6 @@
 .form button[aria-disabled="true"] { background: #e5e9ed; color: #526170; cursor: default; }
 .actions button:focus-visible, .form button:focus-visible { outline: 2px solid #24778a; outline-offset: 3px; }
 @media (max-width: 640px) { .editor { padding: 12px; } .layout { grid-template-columns: minmax(0, 1fr); gap: 22px; } .header { align-items: start; } }
+
+.diagnostic { margin-top: 14px; font-size: 14px; }
+.diagnostic img { display: block; max-width: none; }

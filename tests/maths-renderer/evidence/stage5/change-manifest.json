@@ -1,0 +1,185 @@
+{
+  "baseRevision": "323123f4a5414d9ddab511e20359d47947d958ad",
+  "stage": 5,
+  "status": "standalone-acceptance-passed",
+  "branch": "feat/math-renderer",
+  "balanced": {
+    "mathScale": 1,
+    "displayIndentEm": 1,
+    "displayGapEm": 0.6,
+    "paragraphGapEm": 0.8,
+    "inlineClearanceMathematicalEm": 0.25,
+    "arraystretch": 2.3125
+  },
+  "infoCardIntegration": false,
+  "manualScreenReaderTesting": false,
+  "physicalIPhoneTesting": false,
+  "changedFiles": [
+    {
+      "path": "docs/engineering/features/maths-renderer/maths-renderer-engineering-plan.md",
+      "status": "modified",
+      "sha256": "4d86b97c419a42e9fa585ecd1678209acab00af51f4e56e34f79e96be6bb07a5"
+    },
+    {
+      "path": "src/app/dev/maths-renderer/CapacityFixtures.tsx",
+      "status": "modified",
+      "sha256": "405edccf6c5cb5bb635d776af25c54adada8e67bd3c9214964efa9ecbb36971d"
+    },
+    {
+      "path": "src/app/dev/maths-renderer/PresentationFixtures.tsx",
+      "status": "modified",
+      "sha256": "9123692320b489aa1634166c5eebc4e69847716c5041f0f59f6628c7cc2a5cb2"
+    },
+    {
+      "path": "src/app/dev/maths-renderer/page.tsx",
+      "status": "modified",
+      "sha256": "ae068ad85ab2728ea3f247e9fc3f636925f4b4cda1a2e78039e0deb418f0dec2"
+    },
+    {
+      "path": "src/app/dev/maths-renderer/presentationSamples.ts",
+      "status": "modified",
+      "sha256": "0e9b73b8eef078f219d2eb0c3b5441adbfae38c8deed3c74d4c193730249ab8e"
+    },
+    {
+      "path": "src/components/maths-renderer/MathsExpression.module.css",
+      "status": "modified",
+      "sha256": "e769b31a0f6ee735e7cd30914329c4df9934d36e676784c922cd65b46f33c57a"
+    },
+    {
+      "path": "src/components/maths-renderer/MathsRenderer.module.css",
+      "status": "modified",
+      "sha256": "89331a0a1d1a9076771f07e0770be553e50afb3939b05cc462b41bb500a45057"
+    },
+    {
+      "path": "src/components/maths-renderer/MathsRenderer.tsx",
+      "status": "modified",
+      "sha256": "f552d7f627a5b27cde0fe199296bab15fa92b8d226372b1ee505b32458511abd"
+    },
+    {
+      "path": "src/components/maths-renderer/katex.scoped.css",
+      "status": "modified",
+      "sha256": "954954b16c25f6009b4aeb62d8924a927351b63819f1b81b4aa5406f2f5540f8"
+    },
+    {
+      "path": "src/components/maths-renderer/typesetMath.ts",
+      "status": "modified",
+      "sha256": "ea5a7450a943a86f13ef30aeed1dd0c66bddedadb3b91e71242771861c5a72eb"
+    },
+    {
+      "path": "tests/maths-renderer/acceptance.browser.ts",
+      "status": "new",
+      "sha256": "c3e7b769492ce4c6099b553bbaba0b35ed3cf70848ea0f06d777e4bad9703a23"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/accessibility.json",
+      "status": "new",
+      "sha256": "9a63946cd3059c820d74aed0b99de5479dd350067354816cc908d26a5a3f3b76"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/browser-tests.json",
+      "status": "new",
+      "sha256": "8096c42cdb4f9a12cb5ebbe4b67bc8e10d1f15fdad98a3b6227c6f903d4dab74"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/change-manifest.json",
+      "status": "new",
+      "sha256": null
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/chromium-a-tall.png",
+      "status": "new",
+      "sha256": "bf70260daf0c3839678246febc663a942ad8dd51051d1de4789f95e6ddd5ce3c"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/chromium-b-columns-tall.png",
+      "status": "new",
+      "sha256": "31cc1a18ac45bf5d6660b5cd99f224845f58310495fcbf30d78da337d519a0ae"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/chromium-b-phantom-tall.png",
+      "status": "new",
+      "sha256": "13988ba9e211c2a623812e0d8716fbc3a9c58e7c6b9a1697c5277961649a887e"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/geometry.json",
+      "status": "new",
+      "sha256": "5b85063144350a27851cf324db92aac35d1b93210b52b10ecf32dfdc065c08b0"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-acceptance.json",
+      "status": "new",
+      "sha256": "3209271f97de225c802bd3448fa3abf3a5cb87621b1c9c251859434afecec95a"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-build.log",
+      "status": "new",
+      "sha256": "fb6adf09e659d8214c599124d4b91c8ff32c26a69df75df528063c3bcdc9fbfe"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-chromium.png",
+      "status": "new",
+      "sha256": "e231a9ba60a8b43815f6043e6602b63ff6ab61518579668302a1f2429510bc99"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-firefox.png",
+      "status": "new",
+      "sha256": "8cdf3d828a3b697f0ecb954240fb8fb619013b8617d25a5c74f315d77ec2e5cb"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-font-resolution-before.log",
+      "status": "new",
+      "sha256": "adc626e9f7dfe0b5f2af95294511be0f0a73f0be13223d5d86334418f75867c0"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-presentation-before.log",
+      "status": "new",
+      "sha256": "f60c8f2bcbc6033bc9b20746cf065e4ace648f15ca2d0f69e12f8e9051826386"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-server.log",
+      "status": "new",
+      "sha256": "76f3c0767a4cbe019efbc99e4271e65963d919810423ace69112f8dfd5635aa3"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/production-webkit.png",
+      "status": "new",
+      "sha256": "94c8b43ba84d0090c8c7eec42ba5f2d4eeae08d4f50c5bf737fbad04a4d984d9"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/regression-checks.json",
+      "status": "new",
+      "sha256": "8b935bfb7617d4e8be68eb1e3fa03e5e5a80d98ff9c5c08ad38a03c2c68bd7d3"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/webkit-a-tall.png",
+      "status": "new",
+      "sha256": "579a6c1e1aea7c080310d2effdc19d4c0120026bfff046a5440552cc33c5a93b"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/webkit-b-columns-tall.png",
+      "status": "new",
+      "sha256": "7338afab4bae8fad701bc416d2c0b235a288be29e4edcfa17b178be76604b2ff"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/stage5/webkit-b-phantom-tall.png",
+      "status": "new",
+      "sha256": "a6c2efd1d65b02d90ae27fe499624f1017c1e3f52b4d5f144f872f3cea11ddea"
+    },
+    {
+      "path": "tests/maths-renderer/isolation.test.ts",
+      "status": "modified",
+      "sha256": "7637bf7ed0a75357104f480f7d1a10fc07fa20c0b380ed9dc671bed668f88bd4"
+    },
+    {
+      "path": "tests/maths-renderer/presentation.browser.ts",
+      "status": "modified",
+      "sha256": "4785604916357face934856aef029749e33932472a4d7de61d91a703d6006436"
+    },
+    {
+      "path": "tests/maths-renderer/production-acceptance.mts",
+      "status": "new",
+      "sha256": "230d4c434159cc835bb60e2870b2199bafa67af0601200d6a90475840e5a4f02"
+    }
+  ],
+  "selfHashOmitted": true
+}

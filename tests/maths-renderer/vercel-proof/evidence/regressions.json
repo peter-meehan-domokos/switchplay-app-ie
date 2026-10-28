@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-26T13:27:53.448Z",
+  "rendererFontHistoricalAndNewProofUnits": {
+    "passed": 31,
+    "failed": 0
+  },
+  "newProofEvidenceTests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "applicationUnits": {
+    "passed": 420,
+    "failed": 0
+  },
+  "browserSuite": {
+    "startTime": "2026-10-26T13:17:04.320Z",
+    "duration": 431043.88800000004,
+    "expected": 117,
+    "skipped": 6,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "infoCardCapacityBrowsers": {
+    "startTime": "2026-10-26T13:19:43.272Z",
+    "duration": 8821.127,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "typeScript": "passed --noEmit --incremental false",
+  "scopedEslint": "passed, including eight template sources linted from text",
+  "isolatedProductionBuild": "passed with Node 24.22.1",
+  "actualVercelBuild": "passed with Node 24.x",
+  "linuxControlledCases": {
+    "representative": 42,
+    "lifecycleFailure": 8,
+    "initialRepeated": 4,
+    "concurrent": 2,
+    "passed": true
+  },
+  "originalNextServerPidsPreserved": [
+    40331,
+    64861
+  ],
+  "temporaryReferenceServerPidStopped": 3165,
+  "externalDeployment": "protected Preview verified; inert bootstrap retained",
+  "manualAccessibilityTesting": false
+}

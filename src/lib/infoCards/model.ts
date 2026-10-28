@@ -2,7 +2,7 @@ import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem } from 
 import type { Visibility } from "../cards/model";
 
 export type InfoMedia = CloudflareR2ImageMediaItem | CloudflareStreamVideoMediaItem;
-export type InfoDraft = { title: string; body: string; seriesId: string | null; mediaItem: InfoMedia | null };
+export type InfoDraft = { title: string; body: string; seriesId: string | null; mediaItem: InfoMedia | null; bodyFormat?: "latex-v1" };
 export type InfoContent = Omit<InfoDraft, "seriesId"> & { seriesId: string };
 export type InfoRoot = {
   infoCardId: string; ownerUserId: string; visibility: Visibility; draftVisibility: Visibility;
@@ -14,6 +14,8 @@ export type InfoRoot = {
 export type InfoPublication = {
   infoCardId: string; version: number; content: InfoContent; visibility: Visibility;
   publishedByUserId: string; publishedAt: Date; sourceRevision: number;
+  // Historical Chromium acceptance only; new publications do not require it.
+  mathsValidation?: { version: 1 };
 };
 export type InfoSeries = { seriesId: string; title: string; normalisedTitle: string; createdByUserId: string; createdAt: Date };
 export type PublishedInfo = {

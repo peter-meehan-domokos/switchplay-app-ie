@@ -1,0 +1,515 @@
+[
+  {
+    "name": "chromium",
+    "version": "145.0.7632.6",
+    "comparisons": [
+      {
+        "example": 1,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.016
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 194.96901401943603,
+              "bottom": 76.45321939644042
+            },
+            "width": 194.96901401943603,
+            "height": 76.45321939644042,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 76.453125,
+        "differencePx": 0.0000943964404171993
+      },
+      {
+        "example": 2,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.016
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 138.46893356416248,
+              "bottom": 78.81264243475334
+            },
+            "width": 138.46893356416248,
+            "height": 78.81264243475334,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 78.8125,
+        "differencePx": 0.00014243475334296818
+      },
+      {
+        "example": 3,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.016
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 124.21890964494271,
+              "bottom": 95.8126524783897
+            },
+            "width": 124.21890964494271,
+            "height": 95.8126524783897,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 95.8125,
+        "differencePx": 0.00015247838969401073
+      },
+      {
+        "example": 4,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.016
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 124.21890964494271,
+              "bottom": 91.843917069145
+            },
+            "width": 124.21890964494271,
+            "height": 91.843917069145,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 91.84375,
+        "differencePx": 0.00016706914499309278
+      },
+      {
+        "example": 5,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.016
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 102.53138133163202,
+              "bottom": 22.765653806748045
+            },
+            "width": 102.53138133163202,
+            "height": 22.765653806748045,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 22.765625,
+        "differencePx": 0.000028806748044729602
+      }
+    ]
+  },
+  {
+    "name": "firefox",
+    "version": "146.0.1",
+    "comparisons": [
+      {
+        "example": 1,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.117
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 194.91649677233167,
+              "bottom": 78.79806991800926
+            },
+            "width": 194.91649677233167,
+            "height": 78.79806991800926,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 76.453125,
+        "differencePx": 2.3449449180092614
+      },
+      {
+        "example": 2,
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.117
+            },
+            "bounds": {
+              "left": 0,
+              "top": -0.05328654901202813,
+              "right": 138.42962203895314,
+              "bottom": 78.86203329570611
+            },
+            "width": 138.42962203895314,
+            "height": 78.91531984471814,
+            "overflowX": false,
+            "overflowY": true,
+            "excess": {
+              "left": 0,
+              "top": 0.05328654901202813,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 78.8125,
+        "differencePx": 0.10281984471814098
+      },
+      {
+        "example": 3,
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.117
+            },
+            "bounds": {
+              "left": 0,
+              "top": -0.05324751124718415,
+              "right": 124.16665740282208,
+              "bottom": 96.16306318361359
+            },
+            "width": 124.16665740282208,
+            "height": 96.21631069486077,
+            "overflowX": false,
+            "overflowY": true,
+            "excess": {
+              "left": 0,
+              "top": 0.05324751124718415,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 95.8125,
+        "differencePx": 0.40381069486076626
+      },
+      {
+        "example": 4,
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.117
+            },
+            "bounds": {
+              "left": 0,
+              "top": -0.05324751124718415,
+              "right": 124.16665740282208,
+              "bottom": 92.19758751188002
+            },
+            "width": 124.16665740282208,
+            "height": 92.2508350231272,
+            "overflowX": false,
+            "overflowY": true,
+            "excess": {
+              "left": 0,
+              "top": 0.05324751124718415,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 91.84375,
+        "differencePx": 0.40708502312719475
+      },
+      {
+        "example": 5,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 110.117
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 102.47374233779027,
+              "bottom": 23.803579656292303
+            },
+            "width": 102.47374233779027,
+            "height": 23.803579656292303,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 22.765625,
+        "differencePx": 1.0379546562923032
+      }
+    ]
+  },
+  {
+    "name": "webkit",
+    "version": "26.0",
+    "comparisons": [
+      {
+        "example": 1,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 111
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 194.8593906973778,
+              "bottom": 74.40625704927456
+            },
+            "width": 194.8593906973778,
+            "height": 74.40625704927456,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 76.453125,
+        "differencePx": -2.046867950725442
+      },
+      {
+        "example": 2,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 111
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 138.51562121412232,
+              "bottom": 77.93751122037641
+            },
+            "width": 138.51562121412232,
+            "height": 77.93751122037641,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 78.8125,
+        "differencePx": -0.8749887796235924
+      },
+      {
+        "example": 3,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 111
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 124.21875074562037,
+              "bottom": 94.54692717187712
+            },
+            "width": 124.21875074562037,
+            "height": 94.54692717187712,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 95.8125,
+        "differencePx": -1.2655728281228846
+      },
+      {
+        "example": 4,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 111
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 124.21875074562037,
+              "bottom": 90.57811876395913
+            },
+            "width": 124.21875074562037,
+            "height": 90.57811876395913,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 91.84375,
+        "differencePx": -1.2656312360408748
+      },
+      {
+        "example": 5,
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 214,
+              "height": 111
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 102.5937495576246,
+              "bottom": 22.375013301555107
+            },
+            "width": 102.5937495576246,
+            "height": 22.375013301555107,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        },
+        "canonicalHeight": 22.765625,
+        "differencePx": -0.39061169844489285
+      }
+    ]
+  }
+]

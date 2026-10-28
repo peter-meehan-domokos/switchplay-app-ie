@@ -1,0 +1,47 @@
+▲ Next.js 16.2.6 (webpack)
+
+  Creating an optimized production build ...
+Failed to compile.
+
+./src/components/maths-renderer/katex.scoped.css
+Module not found: Can't resolve './katex/dist/fonts/KaTeX_AMS-Regular.woff2'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/maths-renderer/katex.scoped.css
+
+./src/components/maths-renderer/katex.scoped.css
+Module not found: Can't resolve './katex/dist/fonts/KaTeX_AMS-Regular.woff'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/maths-renderer/katex.scoped.css
+
+./src/components/maths-renderer/katex.scoped.css
+Module not found: Can't resolve './katex/dist/fonts/KaTeX_AMS-Regular.ttf'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/maths-renderer/katex.scoped.css
+
+./src/components/maths-renderer/katex.scoped.css
+Module not found: Can't resolve './katex/dist/fonts/KaTeX_Caligraphic-Bold.woff2'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/maths-renderer/katex.scoped.css
+
+./src/components/maths-renderer/katex.scoped.css
+Module not found: Can't resolve './katex/dist/fonts/KaTeX_Caligraphic-Bold.woff'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/components/maths-renderer/katex.scoped.css
+
+
+> Build failed because of webpack errors

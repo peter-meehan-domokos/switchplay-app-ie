@@ -1,0 +1,233 @@
+{
+  "scope": "Open-font evaluation only. Pre-existing trusted-proof files and evidence are excluded and unchanged.",
+  "files": [
+    {
+      "path": "src/app/dev/maths-fonts/FontReview.tsx",
+      "status": "created",
+      "bytes": 5792,
+      "sha256": "9bde2ff3786e5d952d40731094a763b548b1b6a44a46d4e60af4b085d56f6eb9"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Arimo-Italic.ttf",
+      "status": "created",
+      "bytes": 543196,
+      "sha256": "a80fc54fd0233c1dfe298577c4d00f5ae81d5bb83510975e473c47e699b7f4ed"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Arimo-OFL.txt",
+      "status": "created",
+      "bytes": 4384,
+      "sha256": "11cce536cd2f3864d767003af5dcd739e2e15818cf2279b6175edeadd3960992"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Arimo-Regular.ttf",
+      "status": "created",
+      "bytes": 496268,
+      "sha256": "e43898b143ec826ac8cb4034816458a7047fbe0836558de2a1f8c6223ae3e0ca"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Liberation-LICENSE.txt",
+      "status": "created",
+      "bytes": 4414,
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSans-Bold.ttf",
+      "status": "created",
+      "bytes": 414456,
+      "sha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSans-BoldItalic.ttf",
+      "status": "created",
+      "bytes": 408996,
+      "sha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSans-Italic.ttf",
+      "status": "created",
+      "bytes": 415816,
+      "sha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSans-Regular.ttf",
+      "status": "created",
+      "bytes": 410712,
+      "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSerif-Bold.ttf",
+      "status": "created",
+      "bytes": 370096,
+      "sha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSerif-BoldItalic.ttf",
+      "status": "created",
+      "bytes": 376772,
+      "sha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSerif-Italic.ttf",
+      "status": "created",
+      "bytes": 375632,
+      "sha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/LiberationSerif-Regular.ttf",
+      "status": "created",
+      "bytes": 393576,
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Tinos-Bold.ttf",
+      "status": "created",
+      "bytes": 597880,
+      "sha256": "393269dbab8899f938db19783eca5eac92eb431f7ae0ab45b8349ca895f1a06b"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Tinos-BoldItalic.ttf",
+      "status": "created",
+      "bytes": 578976,
+      "sha256": "a5de79f0fe863ea0954757acb3d47b3ccd0a930ce3dd5b97230cd3866790a06e"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Tinos-Italic.ttf",
+      "status": "created",
+      "bytes": 565016,
+      "sha256": "5942266ed398b155d7dc23e36833e7ec6be988f2439bdbeb8ef1bede808eaa91"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Tinos-OFL.txt",
+      "status": "created",
+      "bytes": 4383,
+      "sha256": "cb3382d4643e8b02c12e322c220a3c76a5020d667e4fd4e7c75e744cca6caa6b"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/Tinos-Regular.ttf",
+      "status": "created",
+      "bytes": 521588,
+      "sha256": "60a0e8ef0c04dd5dd69ffe91025fa2ae5836cbd35600a82ba031977557e2cb61"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/fonts/sources.json",
+      "status": "created",
+      "bytes": 5141,
+      "sha256": "cd347cde79b24eab80bd8afbf363b3bd4a7740f9a0f06fce77d14775767422ea"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/page.tsx",
+      "status": "created",
+      "bytes": 295,
+      "sha256": "5404f52102d930052d830549f67d558b4d50fa9babcb595b1f4525645bf8cb83"
+    },
+    {
+      "path": "src/app/dev/maths-fonts/review.module.css",
+      "status": "created",
+      "bytes": 4218,
+      "sha256": "f22eed7a20cdda303c020e60c7431e0f8bd982aa3141650349ef088e746f4f4a"
+    },
+    {
+      "path": "tests/maths-fonts/README.md",
+      "status": "created",
+      "bytes": 12160,
+      "sha256": "c8c585cbc70b18da5252609e0cad7a20f0737d58138e48787567b51dafb05bb6"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/browser-tests.json",
+      "status": "created",
+      "bytes": 38440,
+      "sha256": "2ae89066515f2709a8604ee3b8b8482f6249dbe352cff6a56da83294b9974069"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/change-manifest.json",
+      "status": "created",
+      "sha256": null,
+      "note": "Manifest omits its own hash."
+    },
+    {
+      "path": "tests/maths-fonts/evidence/chromium-font-comparison.png",
+      "status": "created",
+      "bytes": 566705,
+      "sha256": "5ff9ecd96c601fe13a6221da76685581008469d828af14074d4e73b807e61b96"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/firefox-font-comparison.png",
+      "status": "created",
+      "bytes": 653031,
+      "sha256": "308a4f61f5f3ad6deb73a558af8775101ef0a9adfca0054430cd38df82e127bb"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/iphone-font-comparison.png",
+      "status": "created",
+      "bytes": 8035432,
+      "sha256": "5d2c4acee27f14ee7db8079b210023d5f925d5307988586c10a21b057d754eef"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/measurements.json",
+      "status": "created",
+      "bytes": 73122,
+      "sha256": "752a0b016ec06fa6a300ee81db0d535a74dd95063ca94a481df18f4c391dcd61"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/production-build.log",
+      "status": "created",
+      "bytes": 3451,
+      "sha256": "07e8d0b14fc2f62e31b426daa7c188148cc390b53131cc2aafa56c8525364262"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/production-server.log",
+      "status": "created",
+      "bytes": 118,
+      "sha256": "2eb93a1f07d8fa22389a12b0a97a51afb405ecbef14743db296a16a7f5de6777"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/production.json",
+      "status": "created",
+      "bytes": 622,
+      "sha256": "b651d593dc0d1b17eee39d426290f007581cc8285a185939d9c95880b47fe13b"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/regressions.json",
+      "status": "created",
+      "bytes": 1257,
+      "sha256": "3b3068a82854d6b56bdc14ca15d6a929e3376edaf34d4434bde7e401bd888176"
+    },
+    {
+      "path": "tests/maths-fonts/evidence/webkit-font-comparison.png",
+      "status": "created",
+      "bytes": 2531786,
+      "sha256": "6db333f242c691feb79fdf9913839b9bc15d3339880f9a465dbd1e3f69914a1d"
+    },
+    {
+      "path": "tests/maths-fonts/fetch-fonts.mts",
+      "status": "created",
+      "bytes": 3859,
+      "sha256": "60d0c6583ff2f0207f8f5b71581da46ad88590d9ac718f6d1e9b06ff368a220f"
+    },
+    {
+      "path": "tests/maths-fonts/fonts.test.ts",
+      "status": "created",
+      "bytes": 1875,
+      "sha256": "6265907ab87b39b7961bacaba56d3d5baac39a74f9df3af524b37b83f967a3b5"
+    },
+    {
+      "path": "tests/maths-fonts/production.mts",
+      "status": "created",
+      "bytes": 4001,
+      "sha256": "559246f75af96abe0ccd95a104f2c382e3ef2599e4170569a4692e5ddb0424c1"
+    },
+    {
+      "path": "tests/maths-renderer/explanation-review.browser.ts",
+      "status": "modified",
+      "bytes": 11246,
+      "sha256": "211287268b5a9efb80173c9bd37a52d02b503fd0e168c039c4fe588a22f9d3dd"
+    },
+    {
+      "path": "tests/maths-renderer/font-review.browser.ts",
+      "status": "created",
+      "bytes": 8141,
+      "sha256": "6696beadf19fd677944223a74f83eed6629dc28ccb36caead7e59f22946b3064"
+    }
+  ]
+}

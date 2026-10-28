@@ -1,0 +1,549 @@
+{
+  "date": "2026-10-25",
+  "katex": "0.19.1",
+  "tolerancePx": 0.5,
+  "geometryCases": 36,
+  "browserTests": 10,
+  "measurements": [
+    {
+      "browser": "chromium",
+      "presentation": "small",
+      "fixture": "a-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 4,
+      "relationGapsPx": [
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "presentation": "small",
+      "fixture": "b-columns-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 4,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "small",
+      "fixture": "b-phantom-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 4,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "small",
+      "fixture": "a-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 1.03125,
+      "relationGapsPx": [
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "presentation": "small",
+      "fixture": "b-columns-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 1.03125,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "small",
+      "fixture": "b-phantom-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 1.03125,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "medium",
+      "fixture": "a-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 6,
+      "relationGapsPx": [
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "presentation": "medium",
+      "fixture": "b-columns-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 6,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "medium",
+      "fixture": "b-phantom-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 6,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "medium",
+      "fixture": "a-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 2.203125,
+      "relationGapsPx": [
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "presentation": "medium",
+      "fixture": "b-columns-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 2.203125,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "medium",
+      "fixture": "b-phantom-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 2.203125,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "large",
+      "fixture": "a-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 7,
+      "relationGapsPx": [
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "presentation": "large",
+      "fixture": "b-columns-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 7,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "large",
+      "fixture": "b-phantom-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 7,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "large",
+      "fixture": "a-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 2.359375,
+      "relationGapsPx": [
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        }
+      ]
+    },
+    {
+      "browser": "chromium",
+      "presentation": "large",
+      "fixture": "b-columns-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 2.34375,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "chromium",
+      "presentation": "large",
+      "fixture": "b-phantom-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 2.34375,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "small",
+      "fixture": "a-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 4,
+      "relationGapsPx": [
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "presentation": "small",
+      "fixture": "b-columns-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 4,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "small",
+      "fixture": "b-phantom-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 4,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "small",
+      "fixture": "a-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 0.921875,
+      "relationGapsPx": [
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        },
+        {
+          "before": 3.875,
+          "after": 3.875
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "presentation": "small",
+      "fixture": "b-columns-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 0.921875,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "small",
+      "fixture": "b-phantom-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 14,
+      "minSharedColumnClearancePx": 0.921875,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "medium",
+      "fixture": "a-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 6,
+      "relationGapsPx": [
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "presentation": "medium",
+      "fixture": "b-columns-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 6,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "medium",
+      "fixture": "b-phantom-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 6,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "medium",
+      "fixture": "a-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 2.203125,
+      "relationGapsPx": [
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        },
+        {
+          "before": 5,
+          "after": 5
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "presentation": "medium",
+      "fixture": "b-columns-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 2.171875,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "medium",
+      "fixture": "b-phantom-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 18,
+      "minSharedColumnClearancePx": 2.171875,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "large",
+      "fixture": "a-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 7,
+      "relationGapsPx": [
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "presentation": "large",
+      "fixture": "b-columns-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 7,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "large",
+      "fixture": "b-phantom-basic",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 7,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "large",
+      "fixture": "a-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 2.359375,
+      "relationGapsPx": [
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        },
+        {
+          "before": 6.109375,
+          "after": 6.109375
+        }
+      ]
+    },
+    {
+      "browser": "webkit",
+      "presentation": "large",
+      "fixture": "b-columns-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 2.34375,
+      "relationGapsPx": null
+    },
+    {
+      "browser": "webkit",
+      "presentation": "large",
+      "fixture": "b-phantom-tall",
+      "expressionStartSpreadPx": 0,
+      "equalsSpreadPx": 0,
+      "indentPx": 22,
+      "minSharedColumnClearancePx": 2.34375,
+      "relationGapsPx": null
+    }
+  ]
+}

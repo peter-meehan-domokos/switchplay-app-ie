@@ -1,0 +1,89 @@
+{
+  "scope": "Isolated technical proof only; all listed files are new. No tracked application files changed.",
+  "files": [
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/build.log",
+      "sha256": "41a6e951d52e92421d7613c2f96f5bf0b09187808ecae71f39df8e2a78f3976b"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/change-manifest.json",
+      "sha256": null
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/regressions.json",
+      "sha256": "1e607c3616aea5ee81ac2d00d4865b44634bfd7afeea88df1b38fedc24aee1ad"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/results.json",
+      "sha256": "07d3134b69b6c7571d8ac186666e962b568f70447e073a4145c2d3b0e1dff99b"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/review-1-plain.png",
+      "sha256": "15b583decb472be4a67b612003e573445644f34b53f6214e614c5412d128afc6"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/review-2-plain.png",
+      "sha256": "ac5191f7fe15d471711d44407ab70424237843b3d5415302fe455e6afe40376d"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/review-3-plain.png",
+      "sha256": "9d85f408937abd5c4fbc3746eaa9ba75be9498210c641b117afe68b3ef248306"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/review-4-plain.png",
+      "sha256": "f2da97570b969dcf34f7aa41a11d6a7e6f032851f604fe95a1828ac6e18276e5"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/review-5-plain.png",
+      "sha256": "15dbfcaaa5d582eb8cedc16bfcd5287b37b0160daed235cafd7c57cf6250fbb9"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/review-comparison.json",
+      "sha256": "de0464222778ac281d0c06751e9cfaaef0dd9b02628f908b9eddd194b09caafd"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/runtime-inspection.json",
+      "sha256": "fca7fe18261f4ef892a549cc1780b9d2907af2c14a293150796c0176c689e22c"
+    },
+    {
+      "path": "tests/maths-renderer/evidence/trusted-proof/server.log",
+      "sha256": "97e4f3906c6cacca9c5ee9f734eba12b137d3cc09c74c7106bc12e58b944c900"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/Host.tsx",
+      "sha256": "95c21c6c08d9ba908a349515e694b6d474a448cc4d3af06c0a50949ff217c49b"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/README.md",
+      "sha256": "af8945bcaba5dd3281be2c5121027585f420ee89da2449f9b49f7630b73741c0"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/Reference.tsx",
+      "sha256": "6f70ad7c0e7a7536bca70b89c00947943b988cc1cc056eee8bc9a63a528847cb"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/compare-review.mts",
+      "sha256": "f95d34f18d3b0397966ced01a319385c132c0d10592352a00ae144464b889d18"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/fixtures.ts",
+      "sha256": "1177399d5b5abcc36da727687d6c1e07bc46f72490b507b01021a871e98b6d8f"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/inspect-packaging.mts",
+      "sha256": "092a8aa28405ca067ab8937c5dcaba7cf9cd38a1dedd049c48989a01c9f18584"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/run.mts",
+      "sha256": "fc3ed9edd6b536207b5f43adb8c495cc0a3084cba3a3cec1b581545ae0ba1960"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/server.ts",
+      "sha256": "b04d32d7ac843c1d9672174bc0f1d7e74555cc8896a2b49971ea6ae4be564943"
+    },
+    {
+      "path": "tests/maths-renderer/trusted-proof/verify-results.test.ts",
+      "sha256": "f21dee8cb1ed31cf3e00ab30e53be4f53448355befe51e970f5ccc735f3f4eb0"
+    }
+  ]
+}

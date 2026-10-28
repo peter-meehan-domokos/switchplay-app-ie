@@ -8,6 +8,8 @@ import { EMPTY_INFO_DRAFT, type InfoContent, type InfoDraft, type InfoPublicatio
 import type { Visibility } from "../cards/model";
 import { measureInfoCapacity } from "./capacity";
 import { assertMediaAttachment, productionMediaSecurity, type InfoMediaSecurity } from "./media";
+import { InfoMathsError, type InfoRenderingChecker } from "./mathsValidation";
+import { prepareContent } from "../../components/maths-renderer/prepareContent";
 import { INFO_MEDIA_COLLECTION } from "./mediaRegistry";
 
 export const INFO_COLLECTIONS = { roots: "infoCards", versions: "infoCardVersions", series: "infoCardSeries" } as const;
@@ -127,6 +129,7 @@ export class InfoCardRepository {
       const root = await this.owner(actor, id, session);
       const published = root.latestVersion ? await this.versions().findOne({ infoCardId: id, version: root.latestVersion }, { session }) : null;
       const effective = root.draft ?? published?.content;
+      requireCondition(!effective?.bodyFormat || content.bodyFormat === effective.bodyFormat, "INFO_FORMAT_CONFLICT");
       if (root.revision === expected + 1 && root.draftVisibility === intent && sameContent(effective, content)) return root;
       requireCondition(root.revision === expected, "STALE_INFO_REVISION");
       requireCondition(root.visibility !== "public" || intent === "public", "PUBLIC_VISIBILITY_PERMANENT");
@@ -146,6 +149,15 @@ export class InfoCardRepository {
     if (prior) return prior;
     requireCondition(before.revision === expected, "STALE_INFO_REVISION");
     if (before.draft?.mediaItem) await this.mediaSecurity.assertReady(actor, before, before.draft.mediaItem);
+    if (before.draft?.bodyFormat) {
+      const draft = before.draft;
+      assertInfoDraft(draft);
+      requireCondition(draft.seriesId && draft.title.trim() && draft.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
+      // Reuse the renderer's pure source preparation for syntax/security only.
+      // This performs no DOM layout, capacity calculation or browser launch.
+      const prepared = prepareContent(draft.body);
+      if (prepared.invalid) throw new InfoMathsError({ result: { status: "invalid-input", generation: 0, diagnostics: prepared.diagnostics }, safe: false, headerFits: false });
+    }
     return this.transaction(async session => {
       const root = await this.owner(actor, id, session);
       const receipt = await this.versions().findOne({ infoCardId: id, sourceRevision: expected }, { session, projection: { _id: 0 } });
@@ -154,8 +166,13 @@ export class InfoCardRepository {
       const content = root.draft;
       requireCondition(content && content.seriesId, "INFO_PUBLICATION_INCOMPLETE");
       const series = await this.eligibleSeries(actor, content.seriesId, content.seriesId, session);
-      const capacity = measureInfoCapacity({ ...content, seriesTitle: series.title, hasMedia: !!content.mediaItem });
-      if (!capacity.fits) throw new InfoCapacityError(capacity);
+      if (content.bodyFormat) {
+        requireCondition(content.title.trim() && content.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
+        requireCondition(!/[\r\n\t\p{Cc}\p{Cf}]/u.test(content.title + series.title), "INVALID_INFO_TEXT");
+      } else {
+        const capacity = measureInfoCapacity({ ...content, seriesTitle: series.title, hasMedia: !!content.mediaItem });
+        if (!capacity.fits) throw new InfoCapacityError(capacity);
+      }
       requireCondition(root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
       const publication: InfoPublication = { infoCardId: id, version: root.latestVersion + 1, content: content as InfoContent,
         visibility: root.draftVisibility, sourceRevision: expected, publishedAt: new Date(), publishedByUserId: actor };
@@ -164,6 +181,23 @@ export class InfoCardRepository {
         visibility: publication.visibility, draft: null, updatedAt: publication.publishedAt }, $inc: { revision: 1 } }, { session });
       return publication;
     });
+  }
+
+  async checkRendering(actor: string, id: string, expected: number, check: InfoRenderingChecker) {
+    revision(expected);
+    const root = await this.owner(actor, id);
+    requireCondition(root.revision === expected, "STALE_INFO_REVISION");
+    const content = root.draft ?? (await this.versions().findOne({ infoCardId: id, version: root.latestVersion }))?.content;
+    requireCondition(content, "INFO_PUBLICATION_INCOMPLETE");
+    assertInfoDraft(content);
+    requireCondition(content.bodyFormat === "latex-v1", "INFO_MATHS_FORMAT_REQUIRED");
+    const series = content.seriesId ? await this.series().findOne({ seriesId: content.seriesId }) : null;
+    const result = await check(content, series?.title ?? "Series");
+    // Diagnostics never write content, status, certificates or publications.
+    const latest = await this.owner(actor, id);
+    requireCondition(latest.revision === expected, "STALE_INFO_REVISION");
+    if (series) requireCondition((await this.series().findOne({ seriesId: series.seriesId }))?.title === series.title, "STALE_INFO_REVISION");
+    return { revision: expected, ...result };
   }
 
   async drafts(actor: string, offset = 0, limit = 30) {

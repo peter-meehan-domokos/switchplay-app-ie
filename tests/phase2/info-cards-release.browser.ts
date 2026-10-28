@@ -30,7 +30,11 @@ async function close(page: Page) {
   await expect(page.getByRole("dialog", { name: "Info card consultation", exact: true })).toHaveCount(0);
 }
 async function enter(page: Page, deckId: string, working: boolean) {
+  // Library cards are server-rendered. Its existing viewer-status effect proves
+  // hydration has run before sending a keypress that Playwright cannot replay.
+  const hydrated = working ? null : page.waitForResponse(response => new URL(response.url()).pathname === "/api/library/viewer-status" && response.request().method() === "GET");
   await page.goto(working ? `/decks?openDeck=${deckId}` : `/library/${deckId}`);
+  if (hydrated) expect((await hydrated).ok()).toBe(true);
   await page.locator(".deck-card.is-active").press("Enter");
   await page.locator(".focused-card-layer .active-card-identity").click();
   await expect(page.locator(".step-view-layer")).toHaveCount(1);
@@ -70,7 +74,7 @@ test("authoring through attachment publication reaches both readers; Info update
   await expect(page.getByRole("button", { name: "Published", exact: true })).toBeVisible();
   const infoId = new URL(page.url()).pathname.split("/").at(-1)!;
   const infoRoot = await infos.owner(actor, infoId);
-  const seriesId = (await infos.versions().findOne({ infoCardId: infoId, version: 1 }))!.content.seriesId;
+  const initialInfoContent = (await infos.versions().findOne({ infoCardId: infoId, version: 1 }))!.content;
   expect(infoRoot.latestVersion).toBe(1);
 
   // This graph is authored through the real Creator, not seeded publications.
@@ -124,7 +128,7 @@ test("authoring through attachment publication reaches both readers; Info update
   // Independent publication must neither mutate an open consultation nor adopt
   // a new main version. Use the real publication transaction in another actor's
   // backend session; the reading browser remains signed in as the follower.
-  await infos.save(actor, infoId, infoRoot.revision, { title: "Fresh tip", body: "A newly published explanation.", seriesId, mediaItem: null }, "public");
+  await infos.save(actor, infoId, infoRoot.revision, { ...initialInfoContent, title: "Fresh tip", body: "A newly published explanation." }, "public");
   await infos.publish(actor, infoId, infoRoot.revision + 1);
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("Release tip");
   await close(page); await open(page);

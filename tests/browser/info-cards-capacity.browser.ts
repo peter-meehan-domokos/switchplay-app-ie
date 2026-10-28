@@ -25,7 +25,7 @@ for (const viewport of [{ width: 360, height: 780 }, { width: 390, height: 844 }
           bodyAvailable: body.getBoundingClientRect().height / scale };
       });
       const predicted = measureInfoCapacity(actual); measurements.push({ sample, actual, predicted });
-      expect(actual.width).toBeCloseTo(INFO_CAPACITY.width, 1); expect(actual.height).toBe(INFO_CAPACITY.height);
+      expect(actual.width).toBeCloseTo(INFO_CAPACITY.width, 1); expect(actual.height).toBe(204); // Legacy estimator stays conservative at its original height.
       expect(predicted.headerWidth + 0.1).toBeGreaterThanOrEqual(actual.headerWidth);
       expect(predicted.bodyHeight + 0.1).toBeGreaterThanOrEqual(actual.bodyUsed);
       expect(INFO_CAPACITY.headerWidth).toBeLessThanOrEqual(actual.availableHeader);

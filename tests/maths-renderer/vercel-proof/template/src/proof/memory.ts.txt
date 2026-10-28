@@ -1,0 +1,60 @@
+// Proof instrumentation only; it has no role in renderer capacity decisions.
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+export async function sampleMemory() {
+  const nodeMiB = process.memoryUsage().rss / 1048576;
+  if (process.platform !== "linux") return { nodeMiB, treeRSSMiB: null, cgroupMiB: null, cgroupPeakMiB: null, cgroupLimit: null };
+  const visited = new Set<number>();
+  async function processTree(pid: number): Promise<number> {
+    if (visited.has(pid)) return 0;
+    visited.add(pid);
+    try {
+      const [status, children] = await Promise.all([
+        readFile(`/proc/${pid}/status`, "utf8"),
+        readFile(`/proc/${pid}/task/${pid}/children`, "utf8").catch(() => ""),
+      ]);
+      const own = Number(status.match(/^VmRSS:\s+(\d+)/m)?.[1] ?? 0) / 1024;
+      const descendants = await Promise.all(children.trim().split(/\s+/).filter(Boolean).map(child => processTree(Number(child))));
+      return own + descendants.reduce((total, value) => total + value, 0);
+    } catch { return 0; } // A short-lived process may exit during inspection.
+  }
+  let cgroupMiB: number | null = null, cgroupPeakMiB: number | null = null, cgroupLimit: string | null = null;
+  try {
+    const membership = await readFile("/proc/self/cgroup", "utf8");
+    const v2 = membership.match(/^0::(.*)$/m)?.[1];
+    const v1 = membership.split("\n").find(line => line.split(":")[1]?.split(",").includes("memory"))?.split(":")[2];
+    const paths = v2 !== undefined ? [join("/sys/fs/cgroup", v2), "/sys/fs/cgroup"]
+      : v1 !== undefined ? [join("/sys/fs/cgroup/memory", v1), "/sys/fs/cgroup/memory"] : [];
+    for (const path of paths) {
+      try {
+        const usage = await readFile(join(path, v2 !== undefined ? "memory.current" : "memory.usage_in_bytes"), "utf8");
+        cgroupMiB = Number(usage.trim()) / 1048576;
+        cgroupPeakMiB = Number((await readFile(join(path, v2 !== undefined ? "memory.peak" : "memory.max_usage_in_bytes"), "utf8").catch(() => "NaN")).trim()) / 1048576;
+        if (!Number.isFinite(cgroupPeakMiB)) cgroupPeakMiB = null;
+        cgroupLimit = (await readFile(join(path, v2 !== undefined ? "memory.max" : "memory.limit_in_bytes"), "utf8").catch(() => "unavailable")).trim();
+        break;
+      } catch { /* The runtime may use a namespaced cgroup mount. */ }
+    }
+  } catch { /* Missing /proc/cgroup evidence remains explicitly unavailable. */ }
+  return { nodeMiB, treeRSSMiB: await processTree(process.pid), cgroupMiB, cgroupPeakMiB, cgroupLimit };
+}
+
+export async function startMemorySampling() {
+  const started = performance.now();
+  const samples: ({ elapsedMs: number } & Awaited<ReturnType<typeof sampleMemory>>)[] = [];
+  let pending: Promise<void> | null = null;
+  async function take() { samples.push({ elapsedMs: Math.round(performance.now() - started), ...await sampleMemory() }); }
+  await take();
+  const timer = setInterval(() => { if (!pending) pending = take().finally(() => { pending = null; }); }, 100);
+  return async () => {
+    clearInterval(timer); if (pending) await pending; await take();
+    const max = (key: "nodeMiB" | "treeRSSMiB" | "cgroupMiB" | "cgroupPeakMiB") => {
+      const values = samples.flatMap(sample => sample[key] === null ? [] : [sample[key]!]);
+      return values.length ? Math.max(...values) : null;
+    };
+    return { intervalMs: 100, samples, maximumNodeMiB: max("nodeMiB"), maximumCombinedTreeRSSMiB: max("treeRSSMiB"),
+      maximumCgroupMiB: max("cgroupMiB"), cgroupLifetimePeakMiB: max("cgroupPeakMiB"),
+      note: "Tree RSS samples Node and descendants together; shared pages can be counted more than once. Cgroup scope/peak follows the runtime and may include earlier invocations. Sampling is not a guaranteed peak or billed-memory calculation." };
+  };
+}
