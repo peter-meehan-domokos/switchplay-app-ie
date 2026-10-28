@@ -12,8 +12,12 @@ import { INFO_MEDIA_COLLECTION, type InfoMediaAllocation } from "./mediaRegistry
 
 export interface InfoMediaSecurity { assertReady(actor: string, root: InfoRoot, media: InfoMedia): Promise<void> }
 export function assertInfoMediaConfigured() {
+  // Explicitly accepted small-scale trial: application ACLs still apply, but
+  // R2 images may be read by direct URL. This is not storage verification.
+  // Stream provenance/readiness/signed-URL checks below remain mandatory.
   requireCondition(process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1"
-    && process.env.INFO_CARDS_PRIVATE_MEDIA_VERIFIED === "1", "INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED");
+    && (process.env.INFO_CARDS_PRIVATE_MEDIA_VERIFIED === "1"
+      || process.env.INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL === "1"), "INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED");
 }
 function secret() {
   requireCondition(!!process.env.SESSION_SECRET, "INFO_MEDIA_SIGNING_UNAVAILABLE");
@@ -64,10 +68,11 @@ export async function createInfoUpload(repo: InfoCardRepository, actor: string, 
   kind: "image" | "video", contentType?: string) {
   const root = await repo.owner(actor, id); assertInfoMediaConfigured();
   requireCondition(kind === "image" || kind === "video", "INVALID_INFO_MEDIA");
-  let media: InfoMedia, uploadURL: string;
+  let media: InfoMedia, uploadURL: string, headers: Record<string, string> | undefined;
   if (kind === "image") {
     const result = await createCloudflareR2InfoCardUpload({ creator: actor, infoCardId: id, contentType: contentType ?? "" });
     uploadURL = result.uploadURL;
+    headers = result.headers;
     media = { id: result.assetId.split("/").at(-1)!, mediaType: "image", provider: "cloudflare-r2", assetId: result.assetId, src: result.deliveryUrl, description: "Image" };
   } else {
     const result = await createCloudflareStreamDirectUpload({ creator: actor, name: `info-card:${id}` });
@@ -84,7 +89,7 @@ export async function createInfoUpload(repo: InfoCardRepository, actor: string, 
       src: media.src, infoCardId: id, ownerUserId: actor, createdAt: new Date() }, { session });
   });
   return { uploadURL, media, proof: await signInfoUpload(root, media),
-    ...(kind === "image" ? { headers: { "Content-Type": contentType!, "If-None-Match": "*" } } : {}) };
+    ...(headers ? { headers } : {}) };
 }
 
 export async function authorizeInfoMedia(repo: InfoCardRepository, actor: string, context: MediaContext): Promise<InfoMedia> {

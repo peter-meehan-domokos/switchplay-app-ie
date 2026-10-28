@@ -1,11 +1,28 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { productionMediaSecurity } from "../src/lib/infoCards/media";
+import { assertInfoMediaConfigured, productionMediaSecurity } from "../src/lib/infoCards/media";
 import { createCloudflareR2InfoCardUpload } from "../src/lib/cloudflareR2";
 import type { InfoRoot, InfoMedia } from "../src/lib/infoCards/model";
 
+test("public-image trial is explicit, never asserts verification and still requires protected application delivery", t => {
+  const keys = ["NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA", "INFO_CARDS_PRIVATE_MEDIA_VERIFIED", "INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL"];
+  const prior = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  t.after(() => { for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+  delete process.env.INFO_CARDS_PRIVATE_MEDIA_VERIFIED;
+  process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA = "1";
+  for (const value of [undefined, "0", "true"]) {
+    if (value === undefined) delete process.env.INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL; else process.env.INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL = value;
+    assert.throws(assertInfoMediaConfigured, { code: "INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED" });
+  }
+  process.env.INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL = "1";
+  assert.doesNotThrow(assertInfoMediaConfigured);
+  assert.equal(process.env.INFO_CARDS_PRIVATE_MEDIA_VERIFIED, undefined);
+  process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA = "0";
+  assert.throws(assertInfoMediaConfigured, { code: "INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED" });
+});
+
 test("provider readiness requires matching Stream creator, signed URLs and actual readiness", async t => {
-  const config = { NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", INFO_CARDS_PRIVATE_MEDIA_VERIFIED: "1", CLOUDFLARE_ACCOUNT_ID: "fixture", CLOUDFLARE_STREAM_API_TOKEN: "fixture" };
+  const config = { NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", INFO_CARDS_PRIVATE_MEDIA_VERIFIED: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "1", CLOUDFLARE_ACCOUNT_ID: "fixture", CLOUDFLARE_STREAM_API_TOKEN: "fixture" };
   const previous = Object.fromEntries(Object.keys(config).map(key => [key, process.env[key]])); Object.assign(process.env, config);
   t.after(() => { for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
   let result = { creator: "alice", requireSignedURLs: true, readyToStream: true };
@@ -29,8 +46,11 @@ test("R2 upload is scoped to owner/card and signs conditional create to prevent 
   const url = new URL(upload.uploadURL);
   assert(url.searchParams.get("X-Amz-SignedHeaders")?.includes("if-none-match"));
   assert(url.searchParams.get("X-Amz-SignedHeaders")?.includes("content-type"));
-  assert.equal(url.searchParams.get("x-amz-meta-creator"), "alice");
-  assert.equal(url.searchParams.get("x-amz-meta-info-card-id"), "a");
+  assert(url.searchParams.get("X-Amz-SignedHeaders")?.includes("x-amz-meta-creator"));
+  assert(url.searchParams.get("X-Amz-SignedHeaders")?.includes("x-amz-meta-info-card-id"));
+  assert.equal(url.searchParams.get("x-amz-meta-creator"), null);
+  assert.equal(url.searchParams.get("x-amz-meta-info-card-id"), null);
+  assert.deepEqual(upload.headers, { "Content-Type": "image/png", "If-None-Match": "*", "x-amz-meta-creator": "alice", "x-amz-meta-info-card-id": "a" });
   await assert.rejects(createCloudflareR2InfoCardUpload({ creator: "../bob", infoCardId: "a", contentType: "image/png" }));
   await assert.rejects(createCloudflareR2InfoCardUpload({ creator: "alice", infoCardId: "a", contentType: "image/svg+xml" }));
 });

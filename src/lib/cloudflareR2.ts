@@ -15,9 +15,14 @@ export async function createCloudflareR2InfoCardUpload({ creator, infoCardId, co
   const key = `info-cards/${creator}/${infoCardId}/${crypto.randomUUID()}.${getFileExtensionForImageUploadContentType(type)}`;
   const command = new PutObjectCommand({ Bucket: config.bucketName, Key: key, ContentType: type,
     IfNoneMatch: "*", Metadata: { creator, "info-card-id": infoCardId } });
+  // R2 accepts these as PUT headers but did not persist the SDK's default
+  // query-hoisted metadata in live verification. Bind the actual headers.
+  const headers = { "Content-Type": type, "If-None-Match": "*", "x-amz-meta-creator": creator, "x-amz-meta-info-card-id": infoCardId };
   const uploadURL = await getSignedUrl(createCloudflareR2S3Client(config), command,
-    { expiresIn: R2_PRESIGNED_UPLOAD_EXPIRATION_SECONDS, signableHeaders: new Set(["if-none-match", "content-type"]) });
-  return { assetId: key, uploadURL, deliveryUrl: createR2PublicObjectUrl(key) };
+    { expiresIn: R2_PRESIGNED_UPLOAD_EXPIRATION_SECONDS,
+      signableHeaders: new Set(Object.keys(headers).map(key => key.toLowerCase())),
+      unhoistableHeaders: new Set(["x-amz-meta-creator", "x-amz-meta-info-card-id"]) });
+  return { assetId: key, uploadURL, deliveryUrl: createR2PublicObjectUrl(key), headers };
 }
 
 export async function verifyCloudflareR2InfoCardObject(actor: string, infoCardId: string, media: CloudflareR2ImageMediaItem) {
