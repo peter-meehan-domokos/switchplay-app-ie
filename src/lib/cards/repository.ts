@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { getDatabase, getMongoClient, withMongoTransaction } from "../mongodb";
-import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
+import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, assertStepMediaWrite, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
 import type { AdoptedVersion, CardContent, CardTemplateRoot, CardTemplateVersion, CreateAndAttachCardCommand, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility, DeckPublicationReview, CopyPublicationReceipt } from "./model";
 import type { CompletionStatus } from "../../components/decks/types";
 import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
@@ -52,8 +52,8 @@ export async function createFoundationIndexes(db: Db) {
 }
 
 export class CardRepository {
-  constructor(readonly db: Db, readonly client: MongoClient) {}
-  static async application() { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient()); }
+  constructor(readonly db: Db, readonly client: MongoClient, readonly stepMediaProtocol?: string | null) {}
+  static async application(stepMediaProtocol?: string | null) { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient(), stepMediaProtocol); }
   cards() { return this.db.collection<CardTemplateRoot>(COLLECTIONS.cards); }
   cardVersions() { return this.db.collection<CardTemplateVersion>(COLLECTIONS.cardVersions); }
   decks() { return this.db.collection<DeckTemplateRoot>(COLLECTIONS.decks); }
@@ -363,6 +363,8 @@ export class CardRepository {
       }
       requireCondition(ownedAttachment || ref && (data?.cardTemplateVersion ?? ref.cardVersionAtPublish) === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
     }
+    assertCardContent(command.content);
+    assertStepMediaWrite(this.stepMediaProtocol, command.content, version.content);
     const content = editedForkContent(version.content, command.source, command.stepIds, command.content, command.visibility !== undefined);
     requireCondition(command.visibility === undefined || command.visibility === "private" || command.visibility === "public", "INVALID_VISIBILITY");
     const existing = await this.cards().findOne({ cardTemplateId: command.cardTemplateId }, { session });
@@ -436,7 +438,7 @@ export class CardRepository {
       }
       requireCondition(command.newCards === undefined || Array.isArray(command.newCards), "INVALID_NEW_FORK_CARDS");
       for (const card of command.newCards ?? []) {
-        entityId(card.cardTemplateId); assertCardContent(card.content);
+        entityId(card.cardTemplateId); assertCardContent(card.content); assertStepMediaWrite(this.stepMediaProtocol, card.content);
         requireCondition(content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && !version.content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && sameContent(card.content, createDefaultCardContent(card.content.steps.map((step) => step.stepId))), "INVALID_NEW_FORK_CARD");
@@ -473,7 +475,7 @@ export class CardRepository {
     cards: { cardTemplateId: string; content: CardContent }[]) {
     entityId(deckTemplateId); assertDeckContent(content);
     requireCondition(Array.isArray(cards) && cards.length === content.cards.length && cards.every((card) => card && typeof card === "object") && new Set(cards.map((card) => card.cardTemplateId)).size === cards.length, "INVALID_INITIAL_GRAPH");
-    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content);
+    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content); assertStepMediaWrite(this.stepMediaProtocol, card.content);
       requireCondition(card.content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED"); }
     requireCondition(content.cards.every((ref) => cards.some((card) => card.cardTemplateId === ref.cardTemplateId)), "INVALID_INITIAL_GRAPH");
     return this.transaction(async (session) => {
@@ -499,7 +501,7 @@ export class CardRepository {
   }
   async createCardDraft(actor: string, content: CardContent, visibility: Visibility = "private", cardTemplateId: string = randomUUID()) {
     entityId(cardTemplateId);
-    assertCardContent(content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
+    assertCardContent(content); assertStepMediaWrite(this.stepMediaProtocol, content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
     requireCondition(content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED");
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility: "private", ...(visibility === "public" ? { draftVisibility: visibility } : {}), latestVersion: 0,
@@ -582,6 +584,7 @@ export class CardRepository {
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_CARD_VERSION");
       const current = root.draft ?? latest?.content;
+      assertStepMediaWrite(this.stepMediaProtocol, content, current);
       for (const step of content.steps) {
         const previous = current?.steps.find((item) => item.stepId === step.stepId) ?? latest?.content.steps.find((item) => item.stepId === step.stepId);
         requireCondition(isDeepStrictEqual(step.forkedFrom, previous?.forkedFrom), "STEP_LINEAGE_IMMUTABLE");

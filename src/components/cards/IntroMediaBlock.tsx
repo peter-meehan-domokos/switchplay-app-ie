@@ -4,6 +4,7 @@ import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThre
 import { useDeckVideoResource } from "@/components/media/DeckVideoPreparation";
 import PreparedIntroThumbnail from "@/components/media/PreparedIntroThumbnail";
 import type { PresentedCard } from "@/components/decks/presentation";
+import { introductionVideo } from "@/lib/stepMedia";
 import {
   getMediaTitle,
   isCloudflareStreamVideoMediaItem,
@@ -58,7 +59,7 @@ export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavi
   const { manager, resource, key: preparationKey } = useDeckVideoResource(card);
   const grant = resource?.introGrant();
   const prepared = grant ? resource?.thumbnails.peek(grant) : undefined;
-  const mediaItem = card.intro.mediaItem;
+  const mediaItem = card.intro.mediaItems === undefined ? card.intro.mediaItem : introductionVideo(card.intro);
   const introTitle = card.intro.title ?? "";
   const thumbnailSrc = isCloudflareStreamVideoMediaItem(mediaItem) ? getCloudflareStreamThumbnailUrl(mediaItem) : null;
   const isPortraitThumbnail = isCloudflareStreamVideoMediaItem(mediaItem) && isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem);

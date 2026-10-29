@@ -21,9 +21,9 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | Slice | Status | Commit / evidence |
 | --- | --- | --- |
 | S00 plan, review and handoff | Complete | `ff330b4` |
-| S01 registry and Framework references | Complete, this checkpoint | Commit recorded by next checkpoint |
-| S02 canonical step media | Pending | Not implemented |
-| S03 Roots restore/adapter | Pending | Not implemented |
+| S01 registry and Framework references | Complete | `86780c8` |
+| S02 canonical step media | Complete, this checkpoint | Commit recorded by next checkpoint |
+| S03 Roots restore/adapter | Next | Not implemented |
 | S04 early card preview/host | Pending | Not implemented |
 | S05 Integration restore/adapter | Pending | Not implemented |
 | S06 records repository | Pending | Not implemented |
@@ -49,8 +49,12 @@ Tests: baseline `npm run test:unit` **432 passed**; targeted catalogue/Framework
 
 Physical iPhone Safari testing has **not** been performed. Required device sequence is in plan §12.5. Existing visual overflow, keyboard and enlarged-text limitations are separate visual backlog; test the host bounds independently. Existing R2/Stream delivery security needs the scoped provider audit before new restricted guest-media exposure. Guest retention is provisionally 90 days of inactivity, subject to privacy review before rollout.
 
+S02: canonical zero-to-four ordered video/image/Interactive Visual attachments, conservative Unicode label bounds, non-mutating legacy adaptation, first ordered Introduction video selection, creator roundtrip retention, public DTO allow-lists, full-content writer protocol guard and nested asset ownership/prospective-proof enumeration. No backfill or immutable-version rewrite. Creator modal and learner tabs are later slices; do not enable multimedia authoring in production from this foundation alone. Player timing/element code is unchanged.
+
+S02 verification: **442 unit tests passed**, TypeScript passed, focused new-module/test lint passed. Disposable MongoDB tests: **26 existing foundation/fork tests passed**; new multimedia test passed after correcting its publication title and explicitly creating learner CardData. It verifies old saves/forks reject modern content, owner-scoped upload enumeration, immutable old versions and retained completion. Initial database execution hit sandbox socket restrictions; the authorised disposable replica-set run succeeded outside that restriction. No environment database URI or live database used. Diff reviewed and whitespace check passed.
+
 ## Exact next step
 
-Commit the completed S01 checkpoint, then implement S02: canonical instructional media arrays, read projections and every creator/write/upload compatibility boundary. Inspect `cards/domain.ts`, `cards/model.ts`, creator adapters/board state/coordinator, all full-content API writes and upload proof enumeration before editing. Preserve untouched legacy field presence and first-video thumbnail semantics. Run focused roundtrip/authorization/regression tests and TypeScript; review diff, stage explicit files, commit with no apostrophes in subject/body, update this ledger and continue S03.
+Commit S02, then implement S03: activity-owned Roots and Factors snapshot codec and hosted adapter, with zero-event hydration, cross-field validation and stable event sequencing. Keep mathematical rules and lab behavior unchanged. Retain bounded per-stage work for the later same-attempt Back to Start slice. Verify every reachable stage roundtrip and completion after restoration, then continue S04 host/preview/origin integration.
 
 Do not push, deploy, merge, switch branches, run live migrations/provider changes, implement demo decks/general file picker or redesign mathematical responsiveness. Use the last successful commit as the recovery checkpoint. Pending work must never be reported as Saved or complete.
