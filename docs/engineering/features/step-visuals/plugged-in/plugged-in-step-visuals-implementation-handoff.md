@@ -20,8 +20,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 
 | Slice | Status | Commit / evidence |
 | --- | --- | --- |
-| S00 plan, review and handoff | Documentation checkpoint ready | Commit recorded by next checkpoint |
-| S01 registry and Framework references | Next | Not implemented |
+| S00 plan, review and handoff | Complete | `ff330b4` |
+| S01 registry and Framework references | Complete, this checkpoint | Commit recorded by next checkpoint |
 | S02 canonical step media | Pending | Not implemented |
 | S03 Roots restore/adapter | Pending | Not implemented |
 | S04 early card preview/host | Pending | Not implemented |
@@ -41,12 +41,16 @@ Passed documentation consistency review: all final decisions incorporated, compl
 
 ## Verification and limitations
 
-S00: read-only branch/status and source inspection; focused plan consistency searches; unchanged input hashes. No application test claimed for this documentation checkpoint. No application code, provider settings or database data changed.
+S00: read-only branch/status and source inspection; focused plan consistency searches; unchanged input hashes. No application test claimed for that documentation checkpoint.
+
+S01: added pure immutable catalogue and availability resolver for `roots-and-factors` v1 and `integration-area` v2. Framework references are independent of Card IDs and accept old absent fields, explicit empty arrays and known visual IDs; malformed, unknown and duplicate references fail. Sample Framework references now point to the existing visuals. Progress calculations, player and mathematical code unchanged. Preview metadata remains null until generated assets in S04; no new user interface is enabled.
+
+Tests: baseline `npm run test:unit` **432 passed**; targeted catalogue/Framework/deck-intro Node tests **33 passed**; `node_modules/.bin/tsc --noEmit` **passed**; `SPV_PURE_ONLY=1 node_modules/.bin/playwright test --config src/app/step-visuals/tests/playwright.config.ts --project pure` **157 passed**. No provider settings or database data changed.
 
 Physical iPhone Safari testing has **not** been performed. Required device sequence is in plan §12.5. Existing visual overflow, keyboard and enlarged-text limitations are separate visual backlog; test the host bounds independently. Existing R2/Stream delivery security needs the scoped provider audit before new restricted guest-media exposure. Guest retention is provisionally 90 days of inactivity, subject to privacy review before rollout.
 
 ## Exact next step
 
-Commit S00 with only the four named specification/plan/review/handoff files. Then implement S01: pure compiled Interactive Visual registry and `interactiveVisualIds` Framework validation, without changing Progress calculations. Inspect `src/lib/frameworks/configurationContracts.ts`, `configuration.ts`, `tests/frameworks.test.ts` and existing activity records first. Run relevant Node tests, activity baseline and `node_modules/.bin/tsc --noEmit`; review diff, stage explicit files, commit with no apostrophes in subject/body, update this ledger and continue S02.
+Commit the completed S01 checkpoint, then implement S02: canonical instructional media arrays, read projections and every creator/write/upload compatibility boundary. Inspect `cards/domain.ts`, `cards/model.ts`, creator adapters/board state/coordinator, all full-content API writes and upload proof enumeration before editing. Preserve untouched legacy field presence and first-video thumbnail semantics. Run focused roundtrip/authorization/regression tests and TypeScript; review diff, stage explicit files, commit with no apostrophes in subject/body, update this ledger and continue S03.
 
 Do not push, deploy, merge, switch branches, run live migrations/provider changes, implement demo decks/general file picker or redesign mathematical responsiveness. Use the last successful commit as the recovery checkpoint. Pending work must never be reported as Saved or complete.
