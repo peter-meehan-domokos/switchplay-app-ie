@@ -24,6 +24,9 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
         <Link className={styles.navLink} href="/contact">
           Contact
         </Link>
+        <Link className={styles.navLink} href="/step-visuals">
+          Step Visuals
+        </Link>
         {showLoginLink ? (
           <Link className={styles.navLink} href={authLink.href}>
             {authLink.label}

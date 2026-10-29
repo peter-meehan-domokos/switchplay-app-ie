@@ -1,0 +1,30 @@
+.frame { display: flex; flex-direction: column; gap: 8px; min-height: min(900px, max(640px, calc(var(--spv-surface-height, 100dvh) - 52px))); }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.heading h1 { margin: 0; font-size: 1.2rem; font-weight: 700; line-height: 1.25; }
+.heading button, .selector button, .navigation button { min-width: 44px; min-height: 44px; padding: 8px 12px; border: 1px solid #c5d3c6; border-radius: 8px; background: #f0f5ee; color: #375b46; font: inherit; font-size: .9rem; cursor: pointer; }
+.heading button { background: transparent; border-color: transparent; padding-inline: 8px; }
+.instruction { margin: 0; font-size: .875rem; line-height: 1.4; color: #4c5b52; }
+.selector { display: flex; flex-wrap: wrap; gap: 8px; }
+.selector button { flex: 1 1 9em; padding-inline: 6px; }
+.selector button[aria-pressed="true"] { background: #dfeadc; border-color: #537969; font-weight: 700; color: #24332f; }
+.frame .graph { flex: 1 0 220px; min-height: 220px; height: auto; width: 100%; overflow: hidden; }
+.rangeGroup { flex-shrink: 0; display: grid; grid-template-rows: auto 44px auto; min-width: 0; }
+.rangeGroup label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: .875rem; line-height: 1.4; font-weight: 600; }
+.rangeGroup label span { font-weight: 400; }
+.rangeGroup input { width: 100%; min-width: 0; min-height: 44px; margin: 0; accent-color: #28634f; touch-action: pan-y; }
+.ends { display: flex; justify-content: space-between; color: #536158; font-size: .75rem; line-height: 1.4; }
+.math { flex-shrink: 0; min-height: 3em; color: #28634f; font-size: .95rem; line-height: 1.45; }
+.math p { margin: 0; }
+.feedbackLabel { color: #536158; font-size: .875rem; }
+.insight { flex-shrink: 0; min-height: 4.2em; margin: 0; color: #536158; font-size: .875rem; line-height: 1.4; }
+.navigation { display: flex; justify-content: space-between; gap: 8px; margin-top: auto; flex-shrink: 0; }
+.frame button:focus-visible, .frame input:focus-visible, .heading h1:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
+.frame button:disabled, .frame input:disabled { opacity: .55; cursor: default; }
+/* Browser chrome can reduce a phone's usable height. Keep text/targets unchanged;
+   spend less on gaps/reservation before allowing the content to scroll. */
+@media (max-height: 760px) {
+  .frame { gap: 5px; min-height: min(900px, calc(var(--spv-surface-height, 100dvh) - 52px)); }
+  .frame .graph { flex-basis: 200px; min-height: 200px; }
+  .insight { min-height: 2.8em; }
+}
+@media (min-width: 700px) { .frame { max-width: 620px; margin-inline: auto; } }

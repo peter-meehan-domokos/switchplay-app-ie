@@ -1,0 +1,49 @@
+.spvLab { box-sizing: border-box; display: flex; flex-direction: column; min-height: 100svh; min-height: 100dvh; background: #f4f4ed; color: #24332f; font-family: Arial, Helvetica, sans-serif; line-height: 1.5; }
+.spvLabHeader { position: sticky; top: 0; z-index: 1; padding-top: env(safe-area-inset-top); border-bottom: 1px solid #d9ded6; background: #fffdf8; }
+.spvHeaderInner { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 760px; min-height: 52px; margin-inline: auto; padding: 4px 12px; }
+.spvBurger, .spvClose { display: grid; flex-shrink: 0; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid #c9d1c9; border-radius: 12px; background: #fffdf8; color: #24332f; cursor: pointer; font: inherit; }
+.spvBurgerLines { display: grid; width: 18px; gap: 4px; }
+.spvBurgerLines span { height: 2px; border-radius: 2px; background: currentColor; }
+.spvHeaderCopy { flex: 1; min-width: 0; }
+.spvLabName { margin: 0; font-size: 0.9rem; font-weight: 700; }
+.spvHost { --spv-surface-height: calc(100dvh - 52px - env(safe-area-inset-top) - 6px - max(12px, env(safe-area-inset-bottom))); display: flex; flex: 1; flex-direction: column; width: 100%; max-width: 760px; min-height: calc(100svh - 52px); margin-inline: auto; padding: 6px 12px max(12px, env(safe-area-inset-bottom)); }
+/* Integration's one-screen review also accounts for the lab header's 1px border.
+   Deliberately restricted: Card 1 and Integration Stages 3–6 retain their frame. */
+.spvHost:has([data-integration-intro], [data-integration-later]) { --spv-surface-height: calc(100dvh - 53px - env(safe-area-inset-top) - 6px - max(12px, env(safe-area-inset-bottom))); min-height: calc(100svh - 53px - env(safe-area-inset-top)); }
+.spvPreviewSelector { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
+.spvPreviewSelector select { min-width: 0; width: 100%; max-width: 245px; min-height: 44px; padding: 6px; border: 1px solid #d0d9ce; border-radius: 8px; background: #fffdf8; color: #435349; font-family: inherit; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; }
+.spvPreviewSelector select:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
+.spvPreviewDisclaimer { margin: 8px 0 0; color: #68746d; font-size: 0.65rem; line-height: 1.4; }
+.spvGuidedTools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.spvRestart { min-height: 44px; padding: 8px 10px; border: 1px solid #c9d1c9; border-radius: 8px; background: #fffdf8; color: #435349; font: inherit; font-size: 0.8rem; }
+.spvRestart:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
+.spvSessionProbe { margin-top: 8px; color: #5b6861; font-size: 0.75rem; }
+.spvSessionProbe summary { display: list-item; min-height: 44px; padding: 10px 0; cursor: pointer; }
+.spvSessionProbe label { display: block; margin: 4px 0; }
+.spvSessionProbe input { width: 100%; min-height: 44px; padding: 8px; border: 1px solid #aebfb3; border-radius: 8px; background: #fffdf8; color: #24332f; font: inherit; font-size: 1rem; }
+.spvRecordJSON { max-width: 100%; margin: 0 0 8px; padding: 8px; border: 1px solid #d9ded6; border-radius: 8px; background: #fffdf8; font-size: 0.7rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.spvDialog { position: fixed; inset: 0 auto 0 0; box-sizing: border-box; width: min(90vw, 380px); max-width: 100%; height: 100svh; height: 100dvh; max-height: 100%; margin: 0; padding: max(20px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); border: 0; border-right: 1px solid #c9d1c9; background: #fffdf8; color: #24332f; font-family: Arial, Helvetica, sans-serif; line-height: 1.5; overflow-y: auto; overscroll-behavior: contain; }
+.spvDialog::backdrop { background: rgb(18 32 25 / 45%); }
+.spvDialogHeading { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 28px; }
+.spvDialogTitle { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.spvClose { font-size: 1.5rem; }
+.spvCardGroup { border-block: 1px solid #d9ded6; padding-block: 8px; }
+.spvCardHeading { margin: 0; font-size: 0.95rem; }
+.spvDisclosure { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 10px 4px; border: 0; border-radius: 8px; background: transparent; color: #24332f; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.spvExperiences { margin: 0; padding: 0 0 8px 14px; list-style: none; }
+.spvExperienceItem + .spvExperienceItem { margin-top: 4px; }
+.spvExperienceButton { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #4c5b52; font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; }
+.spvExperienceButton[aria-current] { border-color: #c4d3c2; background: #e9eee6; color: #24332f; font-weight: 700; }
+.spvCurrentMark { color: #28634f; font-size: 0.6rem; }
+.spvBurger:focus-visible, .spvClose:focus-visible, .spvDisclosure:focus-visible, .spvExperienceButton:focus-visible, .spvChooseButton:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
+.spvPreview { display: grid; gap: 16px; min-width: 0; }
+.spvEyebrow { margin: 0 0 4px; color: #5b6861; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.spvExperienceTitle { margin: 0; color: #24332f; font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; overflow-wrap: anywhere; }
+.spvExperienceTitle:focus-visible { outline: 2px solid #28634f; outline-offset: 4px; }
+.spvDescription { margin: 8px 0 0; color: #5b6861; font-size: 0.9rem; }
+.spvEmpty { margin-block: auto; padding: 32px 0; text-align: center; }
+.spvChooseButton { min-height: 48px; margin-top: 20px; padding: 10px 18px; border: 1px solid #c4d3c2; border-radius: 12px; background: #e9eee6; color: #24332f; font: inherit; font-weight: 700; cursor: pointer; }
+
+@media (min-width: 700px) {
+  .spvHost { padding-inline: 28px; }
+}
