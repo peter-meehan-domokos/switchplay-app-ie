@@ -1,5 +1,6 @@
 "use client";
 
+import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { useRef, type ChangeEvent } from "react";
 import StreamVideoReadinessPreview from "@/components/media/StreamVideoReadinessPreview";
 import type { ImageMediaItem, VideoMediaItem } from "@/lib/media";
@@ -71,7 +72,7 @@ export default function MediaUploadPanel({
           {image ? (
             // The extracted creator preview deliberately retains the existing raw image behavior.
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt={image.description} className="creator-deck-introduction-image-preview" src={image.src} />
+            <img alt={image.description} className="creator-deck-introduction-image-preview" src={imageDeliveryUrl(image.src)} />
           ) : null}
           <div className="creator-deck-introduction-image-actions">
             <input

@@ -1,4 +1,4 @@
-import type { WeeklyCardStep } from "@/components/decks/types";
+import type { WeeklyCardStep, CardTemplateStep } from "@/components/decks/types";
 import type { KeyboardEvent } from "react";
 // Semantic gateway rollback: trace lane import paused for easy restoration.
 // import SemanticTraceLane from "@/components/cards/SemanticTraceLane";
@@ -12,7 +12,8 @@ type StepItemProps = {
   index: number;
   linksEnabled?: boolean;
   onOpenStepView?: (stepIndex: number) => void;
-  step: WeeklyCardStep;
+  step: WeeklyCardStep | CardTemplateStep;
+  showPersonalProgress?: boolean;
   onCycleStatus?: (stepId: string) => void;
 };
 
@@ -35,8 +36,8 @@ type StepItemProps = {
  * }
  */
 
-export default function StepItem({ index, linksEnabled, onOpenStepView, step, onCycleStatus }: StepItemProps) {
-  const completionStatus = normalizeCompletionStatus(step.completionStatus);
+export default function StepItem({ index, linksEnabled, onOpenStepView, step, onCycleStatus, showPersonalProgress = true }: StepItemProps) {
+  const completionStatus = "completionStatus" in step ? normalizeCompletionStatus(step.completionStatus) : null;
   const isStepViewTrigger = typeof onOpenStepView === "function";
   const openStepView = () => {
     onOpenStepView?.(index);
@@ -70,10 +71,10 @@ export default function StepItem({ index, linksEnabled, onOpenStepView, step, on
             <StepDescriptionText content={step.descriptionContent} fallback={step.description} linksEnabled={linksEnabled} />
           ) : null}
         </span>
-        <StepProgressStrip
+        {showPersonalProgress && completionStatus !== null ? <StepProgressStrip
           completionStatus={completionStatus}
           onCycleStatus={onCycleStatus ? () => onCycleStatus(step.stepId) : undefined}
-        />
+        /> : <span className={`${isStepViewTrigger ? "step-progress-hit-area" : "step-progress-strip"} personal-layout-slot`} aria-hidden="true" />}
         {/*
           Semantic gateway rollback: lane wrapper and trace rendering paused for easy restoration.
 

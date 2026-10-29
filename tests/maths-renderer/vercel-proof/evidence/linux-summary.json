@@ -1,0 +1,343 @@
+{
+  "at": "2026-10-26T13:23:15.339Z",
+  "verdict": "demonstrated for controlled fixtures on actual protected Vercel Preview",
+  "deployment": {
+    "projectId": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
+    "scope": "peter-meehan-domokos-projects",
+    "name": "switchplay-maths-renderer-proof",
+    "deploymentId": "dpl_89GFXKA4tYrXR7VeykuCUX4dxcio",
+    "url": "switchplay-maths-renderer-proof-pw2l5uwpz.vercel.app",
+    "rawTarget": null,
+    "environment": "preview",
+    "customEnvironment": null,
+    "readyState": "READY",
+    "bootstrapRetained": true,
+    "targetVerifiedBeforeMeasurements": true,
+    "productionProjectModified": false,
+    "createdAt": 1793020547622,
+    "readyAt": 1793020619396
+  },
+  "profile": {
+    "platform": "linux",
+    "arch": "x64",
+    "node": "v24.21.0",
+    "chromiumPackage": "153.0.0",
+    "chromiumReported": "153.0.8010.0",
+    "driver": "1.63.0",
+    "revision": "@86cee6df69e0463a839c0cc8435c9d4c259434d3",
+    "executableSha256": "53a15d6c3a3d27dfb54c4ba60278b1683136f70cf1e67e989da7dfbd3d451ef0",
+    "viewport": [
+      1100,
+      900
+    ],
+    "deviceScaleFactor": 1,
+    "liberation": "2.1.5",
+    "katex": "0.19.1"
+  },
+  "counts": {
+    "representativeCases": 42,
+    "failureCases": 8,
+    "serialRequests": 54,
+    "concurrentRequests": 2
+  },
+  "referenceGeometry": [
+    {
+      "media": false,
+      "width": 214,
+      "height": 110.015625
+    },
+    {
+      "media": true,
+      "width": 214,
+      "height": 74.015625
+    }
+  ],
+  "rows": [
+    {
+      "scenario": "review-1:reference:plain",
+      "width": 194.984375,
+      "height": 76.453125,
+      "widthDeltaVersusMac": 0.015625,
+      "heightDeltaVersusMac": 0,
+      "referenceNoMediaFits": true,
+      "referenceMediaFits": false
+    },
+    {
+      "scenario": "review-2:reference:plain",
+      "width": 138.515625,
+      "height": 78.8125,
+      "widthDeltaVersusMac": 0.046875,
+      "heightDeltaVersusMac": 0,
+      "referenceNoMediaFits": true,
+      "referenceMediaFits": false
+    },
+    {
+      "scenario": "review-3:reference:plain",
+      "width": 124.25,
+      "height": 95.8125,
+      "widthDeltaVersusMac": 0.03125,
+      "heightDeltaVersusMac": 0,
+      "referenceNoMediaFits": true,
+      "referenceMediaFits": false
+    },
+    {
+      "scenario": "review-4:reference:plain",
+      "width": 124.25,
+      "height": 91.84375,
+      "widthDeltaVersusMac": 0.03125,
+      "heightDeltaVersusMac": 0,
+      "referenceNoMediaFits": true,
+      "referenceMediaFits": false
+    },
+    {
+      "scenario": "review-5:reference:plain",
+      "width": 102.53125,
+      "height": 22.765625,
+      "widthDeltaVersusMac": 0,
+      "heightDeltaVersusMac": 0,
+      "referenceNoMediaFits": true,
+      "referenceMediaFits": true
+    }
+  ],
+  "largerConstraints": {
+    "allFiveFit160And320WithAndWithoutMedia": true,
+    "mediaReservationPx": 36,
+    "testsDoNotChangeActualInfoCardGeometry": true,
+    "tall": [
+      {
+        "scenario": "tall:reference:plain",
+        "available": {
+          "width": 214,
+          "height": 110.015625
+        },
+        "requiredHeight": 287.4375,
+        "fits": false,
+        "overflowX": false,
+        "overflowY": true
+      },
+      {
+        "scenario": "tall:reference:media",
+        "available": {
+          "width": 214,
+          "height": 74.015625
+        },
+        "requiredHeight": 287.4375,
+        "fits": false,
+        "overflowX": false,
+        "overflowY": true
+      },
+      {
+        "scenario": "tall:160:plain",
+        "available": {
+          "width": 214,
+          "height": 160
+        },
+        "requiredHeight": 287.4375,
+        "fits": false,
+        "overflowX": false,
+        "overflowY": true
+      },
+      {
+        "scenario": "tall:160:media",
+        "available": {
+          "width": 214,
+          "height": 124
+        },
+        "requiredHeight": 287.4375,
+        "fits": false,
+        "overflowX": false,
+        "overflowY": true
+      },
+      {
+        "scenario": "tall:320:plain",
+        "available": {
+          "width": 214,
+          "height": 320
+        },
+        "requiredHeight": 287.4375,
+        "fits": true,
+        "overflowX": false,
+        "overflowY": false
+      },
+      {
+        "scenario": "tall:320:media",
+        "available": {
+          "width": 214,
+          "height": 284
+        },
+        "requiredHeight": 287.4375,
+        "fits": false,
+        "overflowX": false,
+        "overflowY": true
+      }
+    ]
+  },
+  "fontFamilies": [
+    "KaTeX_Main",
+    "KaTeX_Math",
+    "Liberation Sans",
+    "Liberation Serif",
+    "KaTeX_Size2"
+  ],
+  "fontProfileVerifiedForEveryReadyResult": true,
+  "failures": [
+    {
+      "scenario": "hidden",
+      "state": "measurement-unavailable",
+      "clientMs": 2354.31,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "missing-font",
+      "state": "measurement-unavailable",
+      "clientMs": 2208.8,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "font-timeout",
+      "state": "measurement-unavailable",
+      "clientMs": 12099.91,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "deadline",
+      "state": "PROOF_DEADLINE",
+      "clientMs": 1568.76,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "exception",
+      "state": "HOST_EXCEPTION",
+      "clientMs": 2291.04,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "missing-binary",
+      "state": "BROWSER_OR_HOST_FAILURE",
+      "clientMs": 1229.45,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "stale",
+      "state": "invalid-input",
+      "clientMs": 2375.49,
+      "readyAndFits": false,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    },
+    {
+      "scenario": "container",
+      "state": "ready",
+      "clientMs": 2608.02,
+      "readyAndFits": true,
+      "cleanup": {
+        "browserConnected": false,
+        "browserProcessAlive": false,
+        "contexts": 0
+      }
+    }
+  ],
+  "performance": {
+    "firstObservedClientMs": 6567.21,
+    "firstObservedServerTotalMs": 6375.94,
+    "firstObservedExecutablePreparationMs": 4325.96,
+    "firstObservedThroughResultMs": 6322.05,
+    "warmReadyClientMs": {
+      "minimum": 2455.78,
+      "maximum": 3171.69
+    },
+    "warmReadyServerMs": {
+      "minimum": 2337.05,
+      "maximum": 3030.81
+    },
+    "warmReadyExecutablePreparationMs": {
+      "minimum": 987.04,
+      "maximum": 1336.22
+    },
+    "coldSampleCount": 2,
+    "note": "First observed execution follows non-executing authentication guards; not an untouched function cold start. Includes cold browser extraction and a cold measurement host. Small sample, not latency percentiles."
+  },
+  "memory": {
+    "sampleIntervalMs": 100,
+    "maximumNodeMiB": 324.421875,
+    "maximumConcurrentNodeAndDescendantRSSMiB": 528.98828125,
+    "cgroupAvailable": false,
+    "note": "Sampled simultaneous process-tree RSS, not sum of separate peaks. Shared pages may be double counted; short peaks, other function instances, host functions and Vercel platform overhead are not covered. Not billed memory."
+  },
+  "concurrent": [
+    {
+      "scenario": "review-2:reference:plain",
+      "status": 200,
+      "instance": "6007d7af-a19a-4647-9790-44b64e829931",
+      "binaryAlreadyExtracted": true,
+      "serverTotalMs": 2694.33,
+      "combinedTreeRSSMiB": 497.34375
+    },
+    {
+      "scenario": "review-5:reference:plain",
+      "status": 200,
+      "instance": "9a82d07c-d06f-4216-913a-d6b41db46c27",
+      "binaryAlreadyExtracted": false,
+      "serverTotalMs": 5879.96,
+      "combinedTreeRSSMiB": 396.93359375
+    }
+  ],
+  "cleanupVerified": true,
+  "nextTrace": {
+    "count": 263,
+    "bytes": 88379426,
+    "includes": [
+      "../../../../../node_modules/@sparticuz/chromium/bin/al2023.tar.br",
+      "../../../../../node_modules/@sparticuz/chromium/bin/chromium.br",
+      "../../../../../node_modules/@sparticuz/chromium/bin/fonts.tar.br",
+      "../../../../../node_modules/@sparticuz/chromium/bin/swiftshader.tar.br",
+      "../../../../../public/fonts/Liberation-LICENSE.txt",
+      "../../../../../public/fonts/LiberationSans-Bold.ttf",
+      "../../../../../public/fonts/LiberationSans-BoldItalic.ttf",
+      "../../../../../public/fonts/LiberationSans-Italic.ttf",
+      "../../../../../public/fonts/LiberationSans-Regular.ttf",
+      "../../../../../public/fonts/LiberationSerif-Bold.ttf",
+      "../../../../../public/fonts/LiberationSerif-BoldItalic.ttf",
+      "../../../../../public/fonts/LiberationSerif-Italic.ttf",
+      "../../../../../public/fonts/LiberationSerif-Regular.ttf"
+    ],
+    "note": "Next trace, not a Vercel function artifact"
+  },
+  "actualVercelFunctionSize": "Not exposed by inspected deployment API; deployed packaging and execution succeeded",
+  "creatorTimeoutChanged": false,
+  "rendererChanged": false,
+  "productionInfoCardsChanged": false
+}

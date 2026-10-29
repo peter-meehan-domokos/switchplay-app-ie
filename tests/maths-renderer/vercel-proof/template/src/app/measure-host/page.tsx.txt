@@ -1,0 +1,9 @@
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { authorised, hostKey } from "../../proof/auth";
+import Host from "../../proof/Host";
+export const dynamic = "force-dynamic";
+export default async function Page() {
+  if (!authorised((await headers()).get("x-maths-host-key"), hostKey() ?? undefined)) notFound();
+  return <Host />;
+}

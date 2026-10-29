@@ -1,0 +1,176 @@
+{
+  "scratch": "/var/folders/7f/9s1f9rg52cvghtyks42_m_p00000gn/T/switchplay-maths-production-JJBH5v",
+  "testConsumerOnlyInScratch": true,
+  "repositoryEnvFilesCopied": false,
+  "build": {
+    "passed": true,
+    "bundler": "turbopack",
+    "fullApplicationSnapshot": true
+  },
+  "guards": [
+    {
+      "rsc": false,
+      "status": 404,
+      "fixtureContent": false
+    },
+    {
+      "rsc": true,
+      "status": 404,
+      "fixtureContent": false
+    }
+  ],
+  "browsers": [
+    {
+      "name": "chromium",
+      "deniedStatus": 404,
+      "fixtureHooksExposed": false,
+      "capacity": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 360,
+            "height": 1000
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 160.359375,
+            "bottom": 295.625
+          },
+          "width": 160.359375,
+          "height": 295.625,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 1,
+        "diagnostics": []
+      },
+      "styles": {
+        "prose": 18,
+        "math": 18,
+        "overflow": "visible",
+        "mathml": 3,
+        "visualHidden": 3,
+        "loadedKaTeXFaces": 2
+      },
+      "spacing": {
+        "indent": 18,
+        "before": 10.796875,
+        "after": 10.796875,
+        "paragraph": 14.390625,
+        "inline": 4.5
+      },
+      "errors": [],
+      "assetErrors": []
+    },
+    {
+      "name": "firefox",
+      "deniedStatus": 404,
+      "fixtureHooksExposed": false,
+      "capacity": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 360,
+            "height": 1000
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 160.38333129882812,
+            "bottom": 295.66668701171875
+          },
+          "width": 160.38333129882812,
+          "height": 295.66668701171875,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 2,
+        "diagnostics": []
+      },
+      "styles": {
+        "prose": 18,
+        "math": 18,
+        "overflow": "visible",
+        "mathml": 3,
+        "visualHidden": 3,
+        "loadedKaTeXFaces": 2
+      },
+      "spacing": {
+        "indent": 18,
+        "before": 10.800003051757812,
+        "after": 10.800003051757812,
+        "paragraph": 14.4000244140625,
+        "inline": 4.5
+      },
+      "errors": [],
+      "assetErrors": []
+    },
+    {
+      "name": "webkit",
+      "deniedStatus": 404,
+      "fixtureHooksExposed": false,
+      "capacity": {
+        "status": "ready",
+        "fits": true,
+        "layout": {
+          "available": {
+            "width": 360,
+            "height": 1000
+          },
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "right": 160.369140625,
+            "bottom": 295.625
+          },
+          "width": 160.369140625,
+          "height": 295.625,
+          "overflowX": false,
+          "overflowY": false,
+          "excess": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          }
+        },
+        "generation": 1,
+        "diagnostics": []
+      },
+      "styles": {
+        "prose": 18,
+        "math": 18,
+        "overflow": "visible",
+        "mathml": 3,
+        "visualHidden": 3,
+        "loadedKaTeXFaces": 3
+      },
+      "spacing": {
+        "indent": 18,
+        "before": 10.796875,
+        "after": 10.796875,
+        "paragraph": 14.390625,
+        "inline": 4.5
+      },
+      "errors": [],
+      "assetErrors": []
+    }
+  ],
+  "passed": true,
+  "scratchRemoved": true
+}

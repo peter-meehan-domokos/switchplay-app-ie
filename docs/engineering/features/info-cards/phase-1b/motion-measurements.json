@@ -1,0 +1,38 @@
+{
+  "viewport": { "width": 390, "height": 844 },
+  "source": "Final Chromium integration report frame attachments",
+  "suite": {
+    "startTime": "2026-10-23T07:59:45.151Z",
+    "durationMs": 167407.017,
+    "passed": 38,
+    "skipped": 0,
+    "failed": 0,
+    "flaky": 0
+  },
+  "pack": {
+    "samples": 72,
+    "widthRangeLayoutPx": [240, 240],
+    "heightRangeLayoutPx": [157, 157],
+    "scaleXRange": [0.999999542049895, 1.0000004548238965],
+    "scaleYRange": [0.999999542049895, 1.0000004548238965],
+    "parentScaleRange": [1.4761904761904763, 1.4761904761904763],
+    "translationXRangeLayoutPx": [-275.398, 0],
+    "translationYRangeLayoutPx": [0, 75.0625],
+    "rotationDegreesRange": [0, 12.000012571476546],
+    "maxPouchCornerErrorRenderedPx": 0,
+    "phaseSamples": { "opening": 26, "open": 21, "closing": 25 }
+  },
+  "browse": {
+    "samples": 47,
+    "widthRangeLayoutPx": [240, 240],
+    "heightRangeLayoutPx": [157, 157],
+    "scaleXRange": [0.9999995455845309, 1.000000485722007],
+    "scaleYRange": [0.9999995455845309, 1.000000485722007]
+  },
+  "notes": [
+    "Transform matrix rounding accounts for scale deviations below 0.0000005.",
+    "Rendered intrinsic face size is layout size multiplied by the existing parent scale; axis-aligned bounding boxes grow temporarily during rotation.",
+    "The responsive case separately checks live pouch corner alignment below 0.5 rendered CSS pixels after viewport changes.",
+    "No manual phone or WebKit result is implied by these measurements."
+  ]
+}

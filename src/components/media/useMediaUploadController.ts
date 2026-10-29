@@ -103,14 +103,20 @@ export function isActiveMediaUploadSession(
 
 type UseMediaUploadControllerOptions = {
   onUploadCompleted: (result: CompletedMediaUpload) => void | Promise<void>;
-  onUploadStarted?: (kind: MediaUploadKind) => void;
+  onUploadStarted?: (kind: MediaUploadKind) => void | Promise<void>;
+  // Upload-stage failures after onUploadStarted succeeds, excluding cancellation,
+  // initial file validation and failures in onUploadCompleted (e.g. persistence).
+  onUploadFailed?: (kind: MediaUploadKind) => void;
   target: MediaUploadTarget;
+  prepareTarget?: (kind: MediaUploadKind) => MediaUploadTarget | Promise<MediaUploadTarget>;
 };
 
 export function useMediaUploadController({
   onUploadCompleted,
   onUploadStarted,
+  onUploadFailed,
   target,
+  prepareTarget,
 }: UseMediaUploadControllerOptions) {
   const [state, dispatch] = useReducer(mediaUploadControllerReducer, initialMediaUploadControllerState);
   const imageSessionRef = useRef<MediaUploadSession | null>(null);
@@ -154,10 +160,12 @@ export function useMediaUploadController({
     const session = replaceMediaUploadSession(imageSessionRef.current, "image");
     imageSessionRef.current = session;
     dispatch({ type: "start", kind: "image" });
-    onUploadStarted?.("image");
-
+    let started = false, uploaded = false;
     try {
-      const mediaItem = await uploadImageMedia(target, file, session.controller.signal);
+      await onUploadStarted?.("image");
+      started = true;
+      const mediaItem = await uploadImageMedia(await prepareTarget?.("image") ?? target, file, session.controller.signal);
+      uploaded = true;
 
       if (!isActiveMediaUploadSession(imageSessionRef.current, session)) {
         return;
@@ -170,6 +178,8 @@ export function useMediaUploadController({
         return;
       }
 
+      if (started && !uploaded) onUploadFailed?.("image");
+
       dispatch({
         type: "error",
         kind: "image",
@@ -178,7 +188,7 @@ export function useMediaUploadController({
     } finally {
       finishImageSession(session);
     }
-  }, [finishImageSession, onUploadCompleted, onUploadStarted, target]);
+  }, [finishImageSession, onUploadCompleted, onUploadStarted, onUploadFailed, target, prepareTarget]);
 
   const uploadVideo = useCallback(async (file: File) => {
     const validationError = validateVideoUploadFile(file);
@@ -191,10 +201,12 @@ export function useMediaUploadController({
     const session = replaceMediaUploadSession(videoSessionRef.current, "video");
     videoSessionRef.current = session;
     dispatch({ type: "start", kind: "video" });
-    onUploadStarted?.("video");
-
+    let started = false, uploaded = false;
     try {
-      const mediaItem = await uploadVideoMedia(target, file, session.controller.signal);
+      await onUploadStarted?.("video");
+      started = true;
+      const mediaItem = await uploadVideoMedia(await prepareTarget?.("video") ?? target, file, session.controller.signal);
+      uploaded = true;
 
       if (!isActiveMediaUploadSession(videoSessionRef.current, session)) {
         return;
@@ -207,6 +219,8 @@ export function useMediaUploadController({
         return;
       }
 
+      if (started && !uploaded) onUploadFailed?.("video");
+
       dispatch({
         type: "error",
         kind: "video",
@@ -215,7 +229,7 @@ export function useMediaUploadController({
     } finally {
       finishVideoSession(session);
     }
-  }, [finishVideoSession, onUploadCompleted, onUploadStarted, target]);
+  }, [finishVideoSession, onUploadCompleted, onUploadStarted, onUploadFailed, target, prepareTarget]);
 
   const clearImageError = useCallback(() => dispatch({ type: "clear-error", kind: "image" }), []);
   const clearVideoError = useCallback(() => dispatch({ type: "clear-error", kind: "video" }), []);

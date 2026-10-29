@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import type { Deck } from "@/components/decks/types";
-import type { AuthUser, UserDocument } from "@/lib/auth";
+import type { LegacyAuthUser, UserDocument } from "@/lib/auth";
 import { mergeDeckTemplatesWithUserData } from "@/lib/deckData";
 import { normalizeDeckTemplateForRuntime, serverDeckDataItemsToClientDeckDataSteps } from "@/lib/deckApiTransforms";
 import {
@@ -19,7 +19,7 @@ function getSharedReferenceKey(deckUserId: string, deckTemplateId: string) {
   return `${deckUserId}:${deckTemplateId}`;
 }
 
-export async function getSharedDecksForUser(user: AuthUser): Promise<Deck[]> {
+export async function getSharedDecksForUser(user: LegacyAuthUser): Promise<Deck[]> {
   const uniqueReferences = Array.from(
     new Map(
       user.sharedDeckData

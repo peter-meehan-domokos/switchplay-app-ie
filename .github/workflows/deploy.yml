@@ -1,8 +1,7 @@
-name: Deploy Next.js site to GitHub Pages
+name: Verify Next.js production build
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,27 +13,14 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build site
         run: npm run build
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./out
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-
-    permissions:
-      pages: write
-      id-token: write
-
-    steps:
-      - name: Deploy
-        uses: actions/deploy-pages@v4
+        env:
+          MONGODB_URI: ""
+          MONGODB_DB: ""
+          NEXT_TELEMETRY_DISABLED: "1"

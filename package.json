@@ -11,12 +11,20 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:unit": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --import tsx --test --test-concurrency=1 tests/*.integration.ts",
+    "migration:plan": "node --import tsx scripts/migrate-first-class-cards.ts",
+    "migration:phase8": "node --import tsx scripts/prepare-phase8.ts",
+    "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit",
+    "test:phase2": "node --import tsx scripts/test-phase2.ts",
+    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",
     "@aws-sdk/s3-request-presigner": "^3.1125.0",
     "@dnd-kit/core": "^6.3.1",
+    "@sparticuz/chromium": "153.0.0",
     "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^3.0.3",
     "d3-array": "^3.2.4",
@@ -24,9 +32,11 @@
     "d3-shape": "3.2.0",
     "hls.js": "^1.7.1",
     "jose": "^6.2.3",
+    "katex": "0.19.1",
     "mongodb": "^7.2.0",
     "motion": "^12.38.0",
     "next": "16.2.6",
+    "playwright-core": "1.63.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-phone-number-input": "^3.4.17"
@@ -40,9 +50,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "mongodb-memory-server": "^11.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

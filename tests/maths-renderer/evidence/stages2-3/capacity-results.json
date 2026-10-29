@@ -1,0 +1,688 @@
+[
+  {
+    "browser": "chromium",
+    "url": "http://192.168.1.38:4181/dev/maths-renderer",
+    "httpStatus": 200,
+    "alignmentExamples": 18,
+    "measurements": [
+      {
+        "id": "mixed",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 360,
+              "height": 330
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.15625,
+              "bottom": 189.65625
+            },
+            "width": 254.15625,
+            "height": 189.65625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "container",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 360,
+              "height": 330
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.15625,
+              "bottom": 189.65625
+            },
+            "width": 254.15625,
+            "height": 189.65625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "inline",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 260,
+              "height": 250
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 246.6875,
+              "bottom": 136.671875
+            },
+            "width": 246.6875,
+            "height": 136.671875,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "wide",
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 160,
+              "height": 300
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 510.390625,
+              "bottom": 81
+            },
+            "width": 510.390625,
+            "height": 81,
+            "overflowX": true,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 350.390625,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "tall",
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 420,
+              "height": 35
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.15625,
+              "bottom": 189.65625
+            },
+            "width": 254.15625,
+            "height": 189.65625,
+            "overflowX": false,
+            "overflowY": true,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 154.65625
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "nested",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 650,
+              "height": 400
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 590.296875,
+              "bottom": 174.359375
+            },
+            "width": 590.296875,
+            "height": 174.359375,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "unbounded",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 280,
+              "height": null
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.15625,
+              "bottom": 189.65625
+            },
+            "width": 254.15625,
+            "height": 189.65625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "currency",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 500,
+              "height": 250
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 298.90625,
+              "bottom": 95.390625
+            },
+            "width": 298.90625,
+            "height": 95.390625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": [
+            {
+              "code": "unknownSymbol",
+              "message": "Unrecognized Unicode character \"€\" (8364)",
+              "severity": "warning",
+              "source": {
+                "start": 116,
+                "end": 117
+              }
+            },
+            {
+              "code": "symbolNotInFont",
+              "message": "No character metrics for '€' in style 'Main-Regular' and mode 'text'",
+              "severity": "warning",
+              "source": {
+                "start": 95,
+                "end": 120
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "invalid",
+        "result": {
+          "status": "invalid-input",
+          "generation": 2,
+          "diagnostics": [
+            {
+              "code": "INVALID_LATEX",
+              "message": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{1}",
+              "severity": "error",
+              "source": {
+                "start": 42,
+                "end": 43
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "unmatched",
+        "result": {
+          "status": "invalid-input",
+          "generation": 2,
+          "diagnostics": [
+            {
+              "code": "UNMATCHED_DELIMITER",
+              "severity": "error",
+              "source": {
+                "start": 14,
+                "end": 51
+              },
+              "message": "Unmatched $$ delimiter. The remaining source is displayed literally."
+            }
+          ]
+        }
+      },
+      {
+        "id": "overhang",
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 240,
+              "height": 40
+            },
+            "bounds": {
+              "left": -24.75,
+              "top": 0,
+              "right": 65.578125,
+              "bottom": 65.875
+            },
+            "width": 90.328125,
+            "height": 65.875,
+            "overflowX": true,
+            "overflowY": true,
+            "excess": {
+              "left": 24.75,
+              "top": 0,
+              "right": 0,
+              "bottom": 25.875
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      }
+    ],
+    "pageErrors": []
+  },
+  {
+    "browser": "iphone-webkit",
+    "url": "http://192.168.1.38:4181/dev/maths-renderer",
+    "httpStatus": 200,
+    "alignmentExamples": 18,
+    "measurements": [
+      {
+        "id": "mixed",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 360,
+              "height": 330
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.14453125,
+              "bottom": 189.0625
+            },
+            "width": 254.14453125,
+            "height": 189.0625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "container",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 360,
+              "height": 330
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.14453125,
+              "bottom": 189.0625
+            },
+            "width": 254.14453125,
+            "height": 189.0625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "inline",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 260,
+              "height": 250
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 246.6337890625,
+              "bottom": 137
+            },
+            "width": 246.6337890625,
+            "height": 137,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "wide",
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 160,
+              "height": 300
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 510.671875,
+              "bottom": 81
+            },
+            "width": 510.671875,
+            "height": 81,
+            "overflowX": true,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 350.671875,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "tall",
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 420,
+              "height": 35
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.14453125,
+              "bottom": 189.0625
+            },
+            "width": 254.14453125,
+            "height": 189.0625,
+            "overflowX": false,
+            "overflowY": true,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 154.0625
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "nested",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 650,
+              "height": 400
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 590.2958984375,
+              "bottom": 173.359375
+            },
+            "width": 590.2958984375,
+            "height": 173.359375,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "unbounded",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 280,
+              "height": null
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 254.14453125,
+              "bottom": 189.0625
+            },
+            "width": 254.14453125,
+            "height": 189.0625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      },
+      {
+        "id": "currency",
+        "result": {
+          "status": "ready",
+          "fits": true,
+          "layout": {
+            "available": {
+              "width": 500,
+              "height": 250
+            },
+            "bounds": {
+              "left": 0,
+              "top": 0,
+              "right": 298.86328125,
+              "bottom": 95.390625
+            },
+            "width": 298.86328125,
+            "height": 95.390625,
+            "overflowX": false,
+            "overflowY": false,
+            "excess": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          "generation": 2,
+          "diagnostics": [
+            {
+              "code": "unknownSymbol",
+              "message": "Unrecognized Unicode character \"€\" (8364)",
+              "severity": "warning",
+              "source": {
+                "start": 116,
+                "end": 117
+              }
+            },
+            {
+              "code": "symbolNotInFont",
+              "message": "No character metrics for '€' in style 'Main-Regular' and mode 'text'",
+              "severity": "warning",
+              "source": {
+                "start": 95,
+                "end": 120
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "invalid",
+        "result": {
+          "status": "invalid-input",
+          "generation": 2,
+          "diagnostics": [
+            {
+              "code": "INVALID_LATEX",
+              "message": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{1}",
+              "severity": "error",
+              "source": {
+                "start": 42,
+                "end": 43
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "unmatched",
+        "result": {
+          "status": "invalid-input",
+          "generation": 2,
+          "diagnostics": [
+            {
+              "code": "UNMATCHED_DELIMITER",
+              "severity": "error",
+              "source": {
+                "start": 14,
+                "end": 51
+              },
+              "message": "Unmatched $$ delimiter. The remaining source is displayed literally."
+            }
+          ]
+        }
+      },
+      {
+        "id": "overhang",
+        "result": {
+          "status": "ready",
+          "fits": false,
+          "layout": {
+            "available": {
+              "width": 240,
+              "height": 40
+            },
+            "bounds": {
+              "left": -24.71875,
+              "top": 0,
+              "right": 65.609375,
+              "bottom": 71.59375
+            },
+            "width": 90.328125,
+            "height": 71.59375,
+            "overflowX": true,
+            "overflowY": true,
+            "excess": {
+              "left": 24.71875,
+              "top": 0,
+              "right": 0,
+              "bottom": 31.59375
+            }
+          },
+          "generation": 2,
+          "diagnostics": []
+        }
+      }
+    ],
+    "pageErrors": []
+  }
+]

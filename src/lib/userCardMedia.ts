@@ -1,5 +1,7 @@
 import {
   isCloudflareR2ImageMediaItem,
+  isImageMediaItem,
+  isVideoMediaItem,
   isCloudflareStreamVideoMediaItem,
   type CloudflareR2ImageMediaItem,
   type CloudflareStreamVideoMediaItem,
@@ -118,6 +120,10 @@ export function selectVisibleUserCardMediaItems(mediaItems: MediaItem[]): Modern
   return [image, video].filter((mediaItem): mediaItem is ModernUserCardMediaItem => Boolean(mediaItem));
 }
 
-export function selectAllVisibleUserCardMediaItems(mediaItems: MediaItem[]): ModernUserCardMediaItem[] {
-  return mediaItems.filter(isModernUserCardMediaItem);
+export function selectAllVisibleUserCardMediaItems(mediaItems: MediaItem[]): MediaItem[] {
+  return mediaItems.filter((item) => isImageMediaItem(item) || isVideoMediaItem(item));
+}
+
+export function selectAllTrustedUserCardMediaItems(mediaItems: MediaItem[]) {
+  return { images: mediaItems.filter(isImageMediaItem), videos: mediaItems.filter(isVideoMediaItem) };
 }

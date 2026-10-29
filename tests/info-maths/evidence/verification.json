@@ -1,0 +1,114 @@
+{
+  "deploymentPerformed": false,
+  "standaloneRendererImplementationChanged": false,
+  "existingServersManuallyRestarted": false,
+  "checks": [
+    {
+      "suite": "Application unit tests",
+      "command": "node --import tsx --test tests/*.test.ts",
+      "passed": 424,
+      "failed": 0,
+      "log": "application-units.log"
+    },
+    {
+      "suite": "Standalone renderer unit/isolation tests",
+      "command": "node --import tsx --test tests/maths-renderer/*.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "log": "renderer-units.log"
+    },
+    {
+      "suite": "Disposable Info Card database/API/attachment/release regressions",
+      "command": "node --import tsx --test --test-concurrency=1 tests/info-cards.integration.ts tests/info-cards-api.integration.ts tests/info-card-attachments.integration.ts tests/info-cards-release.integration.ts",
+      "passed": 57,
+      "failed": 0,
+      "log": "database.log"
+    },
+    {
+      "suite": "Legacy capacity browser regressions",
+      "passed": 5,
+      "failed": 0,
+      "log": "legacy-capacity-browser.log"
+    },
+    {
+      "suite": "Stack/navigation/animation/media/browser production regressions",
+      "command": "SWITCHPLAY_FIXTURE_PORT=4192 npx playwright test -c playwright.info-cards-integration.config.ts",
+      "passed": 57,
+      "failed": 0,
+      "log": "stack-browser.log"
+    },
+    {
+      "suite": "Real editor/authoring regressions",
+      "passed": 24,
+      "failed": 0,
+      "log": "editor-targeted.log",
+      "note": "All 24 existing authoring cases passed. This run also included 4 new integration cases, 2 of which initially failed because of fixture/harness issues; the new suite was subsequently corrected and all 4 passed separately."
+    },
+    {
+      "suite": "Existing real learner consultation regressions",
+      "passed": 12,
+      "failed": 0,
+      "log": "consultation-and-initial-editor.log",
+      "note": "The first 12 existing consultation cases all passed. Later failures in unrelated editor/new tests in this same earlier run were corrected and rerun."
+    },
+    {
+      "suite": "New maths editor/trusted-publication/Library/learner/font-failure and cross-browser geometry integration",
+      "command": "node --import tsx scripts/test-phase2.ts --info-cards info-maths.browser.ts",
+      "passed": 4,
+      "failed": 0,
+      "log": "maths-integration.log"
+    },
+    {
+      "suite": "Standalone renderer Chromium/Firefox/WebKit browser regressions",
+      "command": "npx playwright test -c playwright.maths-renderer.config.ts",
+      "passed": 117,
+      "failed": 0,
+      "skipped": 6,
+      "log": "renderer-browser-initial.log",
+      "note": "Aggregate distinct cases across the full run (116 passed, 6 browser-specific skips, 1 ready-read timing-race failure) and corrected targeted rerun (7 passed, 2 browser-specific skips). No unresolved failures; no second full run claimed.",
+      "targeted_log": "renderer-review-rerun.log"
+    },
+    {
+      "suite": "Isolated full Next production build/tracing/protected host/trusted browser/fonts/failure cleanup/contention",
+      "command": "node24 --import tsx tests/info-maths/production.mts",
+      "passed": true,
+      "evidence": "production.json"
+    },
+    {
+      "suite": "TypeScript",
+      "command": "npx tsc --noEmit",
+      "passed": true
+    },
+    {
+      "suite": "Scoped ESLint",
+      "passed": true,
+      "note": "Changed TS/TSX files, Info Card modules, new host/runner/tests, and the review test."
+    },
+    {
+      "suite": "Diff whitespace check",
+      "command": "git diff --check",
+      "passed": true
+    },
+    {
+      "suite": "Approved font upstream SHA256/retained licence",
+      "passed": true,
+      "files": 9
+    }
+  ],
+  "resolvedFindings": [
+    "Header/series-only changes now invalidate consumer measurements by remounting the renderer.",
+    "Scoped serif fallback selector corrected; actual currency glyph fonts verified.",
+    "Host token validation rejects malformed Unicode signatures without throwing.",
+    "Trusted runner consumes latest definitive result after header font readiness/CDP inspection.",
+    "Existing editor tests updated for measured capacity and authorised 204px height; old estimator not weakened.",
+    "New test harness imports, private-deck route and mandatory main-card fixture content corrected.",
+    "Cross-browser spare-padding checks use actual line metrics instead of assuming Chromium line height.",
+    "Review test consumes an atomic ready snapshot; prior fixture correction preserved."
+  ],
+  "remainingLimits": [
+    "No integrated external deployment or load test; previous Linux feasibility evidence is historical.",
+    "No physical VoiceOver/NVDA testing.",
+    "Canonical Chromium governs publication; cross-browser boundary differences remain possible and consumer fails visibly if unsafe.",
+    "Existing Next framework dependency advisories remain; no unrelated dependency upgrade or deployment performed."
+  ]
+}

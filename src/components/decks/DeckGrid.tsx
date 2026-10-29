@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, Fragment } from "react";
 import DeckTile from "@/components/decks/DeckTile";
-import type { DeckLayout } from "@/components/decks/deckLayout";
+import { publishedVideoGuard } from "@/components/media/publishedVideo";
+import { hasPersonalDeck } from "./presentation";
+import type { PresentedDeck } from "./presentation";
 import {
   getContainedIntroVideoSize,
   getPlayableDeckIntroductionVideo,
@@ -21,7 +23,8 @@ type IntroHostRect = {
 };
 
 type DeckGridProps = {
-  decks: DeckLayout[];
+  decks: PresentedDeck[];
+  orderedEntries?: (PresentedDeck | { id: string; unavailable: ReactNode })[];
   instantiatingDeckTemplateId: string | null;
   isInteractionLocked: boolean;
   onSelectDeck: (deckId: string) => void;
@@ -30,6 +33,7 @@ type DeckGridProps = {
 
 export default function DeckGrid({
   decks,
+  orderedEntries,
   instantiatingDeckTemplateId,
   isInteractionLocked,
   onSelectDeck,
@@ -61,6 +65,7 @@ export default function DeckGrid({
     const nextState = reduceDeckIntroPreviewState(previewStateRef.current, action);
     previewStateRef.current = nextState;
     setPreviewState(nextState);
+    if (nextState.visibleDeckId !== nextState.activeDeckId) setIsIntroExpanded(false);
   }, []);
 
   const updateHostRect = useCallback((deckId: string) => {
@@ -94,7 +99,7 @@ export default function DeckGrid({
     setHostRect(null);
   }, [applyPreviewAction]);
 
-  const handleFrontCardAction = useCallback((deck: DeckLayout) => {
+  const handleFrontCardAction = useCallback((deck: PresentedDeck) => {
     if (isInteractionLocked) {
       return;
     }
@@ -133,7 +138,7 @@ export default function DeckGrid({
     updateHostRect(deck.id);
 
     console.log("[DIAG DECKGRID] calling loadMedia", { assetId: video.assetId, src: video.src, shouldPlay: true });
-    playerRef.current?.loadMedia(video, { shouldPlay: true });
+    playerRef.current?.loadMedia(video, { shouldPlay: true, ...(!hasPersonalDeck(deck) ? { beforeLoad: publishedVideoGuard("deck", deck.deckTemplateId, deck.version) } : {}) });
   }, [applyPreviewAction, clearPreview, isInteractionLocked, onSelectDeck, updateHostRect]);
 
   const handleOpenDeck = useCallback((deckId: string) => {
@@ -192,14 +197,6 @@ export default function DeckGrid({
   }, [previewState.activeDeckId, updateHostRect]);
 
   useEffect(() => {
-    if (isPlayerVisible || !isIntroExpanded) {
-      return;
-    }
-
-    setIsIntroExpanded(false);
-  }, [isIntroExpanded, isPlayerVisible]);
-
-  useEffect(() => {
     if (!isIntroExpanded) {
       return;
     }
@@ -244,7 +241,7 @@ export default function DeckGrid({
 
   return (
     <div className="deck-grid" ref={gridRef}>
-      {decks.map((deck) => (
+      {(orderedEntries ?? decks).map((deck) => "unavailable" in deck ? <Fragment key={deck.id}>{deck.unavailable}</Fragment> : (
         <DeckTile
           key={deck.id}
           deck={deck}

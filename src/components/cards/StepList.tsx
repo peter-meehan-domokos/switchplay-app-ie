@@ -1,10 +1,11 @@
 import StepItem from "@/components/cards/StepItem";
 import { useRef, type MouseEvent, type PointerEvent } from "react";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
-import type { WeeklyCard } from "@/components/decks/types";
+import type { WeeklyCardStep, CardTemplateStep } from "@/components/decks/types";
 
 type StepListProps = {
-  steps: WeeklyCard["steps"];
+  steps: (WeeklyCardStep | CardTemplateStep)[];
+  showPersonalProgress?: boolean;
   linksEnabled?: boolean;
   onCycleStepStatus?: (stepId: string) => void;
   onOpenStepView?: (stepIndex: number) => void;
@@ -81,13 +82,14 @@ function getStepItemIndexFromEventTarget(eventTarget: EventTarget | null) {
 
 export default function StepList({
   steps,
+  showPersonalProgress = true,
   linksEnabled,
   onCycleStepStatus,
   onOpenStepView,
   onStepNavigateNext,
   onStepNavigatePrevious,
 }: StepListProps) {
-  const isInteractive = typeof onCycleStepStatus === "function";
+  const isInteractive = typeof onOpenStepView === "function" || typeof onCycleStepStatus === "function";
   const stepGestureSessionRef = useRef<StepGestureSession | null>(null);
   const pendingTapStepIndexRef = useRef<number | null>(null);
   const suppressNextClickRef = useRef(false);
@@ -105,6 +107,11 @@ export default function StepList({
 
     suppressNextClickRef.current = false;
     pendingTapStepIndexRef.current = getStepItemIndexFromEventTarget(event.target);
+    // Buttons and links handle their own clicks. Capturing their pointer on
+    // the list retargets the eventual click and prevents those controls firing.
+    if (event.target instanceof Element && event.target.closest(".step-progress-hit-area, .step-description-link")) {
+      return;
+    }
     stepGestureSessionRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -228,7 +235,7 @@ export default function StepList({
   };
 
   const handleInteractiveClickCapture = (event: MouseEvent<HTMLOListElement>) => {
-    if (event.target instanceof HTMLElement && event.target.closest(".step-description-link")) {
+    if (event.target instanceof Element && event.target.closest(".step-progress-hit-area, .step-description-link")) {
       pendingTapStepIndexRef.current = null;
       return;
     }
@@ -254,8 +261,8 @@ export default function StepList({
     onOpenStepView?.(stepIndex);
   };
 
-  // When no cycle callback is supplied, steps are visual-only active/deck
-  // content. Parent card gestures must remain in charge.
+  // Instructional navigation and personal completion are independent capabilities.
+  // Passive stack content still leaves gestures with the parent Card.
   const gestureShieldHandlers = isInteractive
     ? {
         // Focused step regions own step-start gestures. They either perform
@@ -281,6 +288,7 @@ export default function StepList({
           linksEnabled={linksEnabled}
           onOpenStepView={onOpenStepView}
           step={step}
+          showPersonalProgress={showPersonalProgress}
           onCycleStatus={onCycleStepStatus}
         />
       ))}

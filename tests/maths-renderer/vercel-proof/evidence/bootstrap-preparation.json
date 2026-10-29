@@ -1,0 +1,14 @@
+{
+  "target": "/var/folders/7f/9s1f9rg52cvghtyks42_m_p00000gn/T/switchplay-maths-inert-bootstrap-9QaGp6",
+  "projectId": "prj_KIkD92Ngbvl0b7IF1QSFU0l1D63o",
+  "outputFiles": [
+    "config.json",
+    "static/404.html"
+  ],
+  "functions": 0,
+  "browserRuntime": false,
+  "applicationCode": false,
+  "measurementAPI": false,
+  "databaseConnection": false,
+  "approval": "User explicitly approved inert Production-classified bootstrap, retained during Preview tests."
+}

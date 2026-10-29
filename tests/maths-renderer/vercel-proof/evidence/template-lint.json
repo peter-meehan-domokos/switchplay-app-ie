@@ -1,0 +1,50 @@
+[
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/app/api/proof/route.ts.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/app/layout.tsx.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/app/measure-host/page.tsx.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/app/page.tsx.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/proof/Host.tsx.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/proof/auth.ts.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/proof/memory.ts.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  },
+  {
+    "file": "tests/maths-renderer/vercel-proof/template/src/proof/runner.ts.txt",
+    "errorCount": 0,
+    "warningCount": 0,
+    "messages": []
+  }
+]

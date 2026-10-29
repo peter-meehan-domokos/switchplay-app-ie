@@ -1,0 +1,20 @@
+node:internal/modules/run_main:122
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+21.78 !== 18
+
+    at <anonymous> (/Users/peterdomokos/projects/switchplay-app/tests/maths-renderer/production-acceptance.mts:98:46)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:459:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 21.78,
+  expected: 18,
+  operator: 'strictEqual'
+}
+
+Node.js v22.14.0

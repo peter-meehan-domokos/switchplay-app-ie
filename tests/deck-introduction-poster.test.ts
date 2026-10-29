@@ -40,7 +40,7 @@ test("null image uses the fallback card", () => {
   assert.equal(getDeckIntroductionPosterImage({ introduction: { image: null, video: null } }), null);
 });
 
-test("video-only introduction uses the fallback card for now", () => {
+test("video-only introduction has no explicit cover image", () => {
   assert.equal(getDeckIntroductionPosterImage({ introduction: videoOnlyIntroduction }), null);
 });
 

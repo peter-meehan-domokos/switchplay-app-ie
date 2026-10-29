@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'node:fs';
 
 function replaceFileContent(filePath, target, replacement) {
   let content = fs.readFileSync(filePath, 'utf8');

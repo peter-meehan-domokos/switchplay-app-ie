@@ -64,7 +64,7 @@ export const initialUserCardMediaUploadState: UserCardMediaUploadState = {
 };
 
 export function createUserCardMediaUploadKey(target: UserCardMediaUploadTarget) {
-  return `user-card:${encodeURIComponent(target.deckTemplateId)}:${encodeURIComponent(target.cardId)}`;
+  return target.userId ? `user-card:${encodeURIComponent(target.userId)}:${encodeURIComponent(target.cardId)}` : `user-card:${encodeURIComponent(target.deckTemplateId)}:${encodeURIComponent(target.cardId)}`;
 }
 
 export function getUserCardMediaUploadState(
@@ -183,12 +183,14 @@ export class UserCardMediaUploadSessionStore {
 
 type UseKeyedUserCardMediaUploadControllerOptions = {
   onUploadCompleted: (result: CompletedUserCardMediaUpload) => void | Promise<void>;
+  onUploadSettled?: (target: UserCardMediaUploadTarget, kind: UserCardMediaUploadKind, error?: Error, retry?: () => Promise<void>) => void;
   onUploadStarted?: (target: UserCardMediaUploadTarget, kind: UserCardMediaUploadKind) => void;
 };
 
 export function useKeyedUserCardMediaUploadController({
   onUploadCompleted,
   onUploadStarted,
+  onUploadSettled,
 }: UseKeyedUserCardMediaUploadControllerOptions) {
   const [statesByKey, dispatch] = useReducer(userCardMediaUploadStateReducer, {});
   const sessionStoreRef = useRef<UserCardMediaUploadSessionStore | null>(null);
@@ -229,9 +231,10 @@ export function useKeyedUserCardMediaUploadController({
     }
 
     dispatch({ key: session.key, kind: "image", type: "start" });
-    onUploadStarted?.(session.target, "image");
-
+    let failure: Error | undefined;
+    let retryAttachment: (() => Promise<void>) | undefined;
     try {
+      onUploadStarted?.(session.target, "image");
       const mediaItem = await uploadImageMedia(session.target, file, session.controller.signal);
 
       if (!sessionStoreRef.current?.isActive(session)) {
@@ -239,13 +242,21 @@ export function useKeyedUserCardMediaUploadController({
       }
 
       dispatch({ key: session.key, kind: "image", type: "saving" });
+      retryAttachment = async () => {
+        await onUploadCompleted({ file, kind: "image", mediaItem, target: session.target });
+        dispatch({ key: session.key, kind: "image", type: "clear-error" });
+      };
       try {
         await onUploadCompleted({ file, kind: "image", mediaItem, target: session.target });
       } catch (error) {
         throw new Error(`Image uploaded, but could not be saved. ${error instanceof Error ? error.message : "Please try again."}`);
       }
     } catch (error) {
+      failure = error instanceof Error ? error : new Error("Upload could not be saved.");
       if (session.controller.signal.aborted || isAbortError(error)) {
+        // Preserve existing deliberate working-view teardown semantics. Update
+        // cancellation never aborts this controller.
+        failure = undefined;
         return;
       }
 
@@ -256,9 +267,10 @@ export function useKeyedUserCardMediaUploadController({
         type: "error",
       });
     } finally {
+      onUploadSettled?.(session.target, session.kind, failure, retryAttachment);
       finishSession(session);
     }
-  }, [finishSession, onUploadCompleted, onUploadStarted]);
+  }, [finishSession, onUploadCompleted, onUploadStarted, onUploadSettled]);
 
   const uploadVideo = useCallback(async (target: UserCardMediaUploadTarget, file: File) => {
     const validationError = validateVideoUploadFile(file);
@@ -276,9 +288,10 @@ export function useKeyedUserCardMediaUploadController({
     }
 
     dispatch({ key: session.key, kind: "video", type: "start" });
-    onUploadStarted?.(session.target, "video");
-
+    let failure: Error | undefined;
+    let retryAttachment: (() => Promise<void>) | undefined;
     try {
+      onUploadStarted?.(session.target, "video");
       const mediaItem = await uploadVideoMedia(session.target, file, session.controller.signal);
 
       if (!sessionStoreRef.current?.isActive(session)) {
@@ -286,13 +299,21 @@ export function useKeyedUserCardMediaUploadController({
       }
 
       dispatch({ key: session.key, kind: "video", type: "saving" });
+      retryAttachment = async () => {
+        await onUploadCompleted({ file, kind: "video", mediaItem, target: session.target });
+        dispatch({ key: session.key, kind: "video", type: "clear-error" });
+      };
       try {
         await onUploadCompleted({ file, kind: "video", mediaItem, target: session.target });
       } catch (error) {
         throw new Error(`Video uploaded, but could not be saved. ${error instanceof Error ? error.message : "Please try again."}`);
       }
     } catch (error) {
+      failure = error instanceof Error ? error : new Error("Upload could not be saved.");
       if (session.controller.signal.aborted || isAbortError(error)) {
+        // Preserve existing deliberate working-view teardown semantics. Update
+        // cancellation never aborts this controller.
+        failure = undefined;
         return;
       }
 
@@ -303,9 +324,10 @@ export function useKeyedUserCardMediaUploadController({
         type: "error",
       });
     } finally {
+      onUploadSettled?.(session.target, session.kind, failure, retryAttachment);
       finishSession(session);
     }
-  }, [finishSession, onUploadCompleted, onUploadStarted]);
+  }, [finishSession, onUploadCompleted, onUploadStarted, onUploadSettled]);
 
   const clearImageError = useCallback((target: UserCardMediaUploadTarget) => {
     dispatch({ key: createUserCardMediaUploadKey(target), kind: "image", type: "clear-error" });

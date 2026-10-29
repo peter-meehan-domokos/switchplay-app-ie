@@ -1,21 +1,19 @@
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
+import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import type { Transition } from "motion/react";
+import { createCardPlaybackGrants } from "@/lib/cardPlaybackGrants";
+import { createCardVideoThumbnails } from "@/lib/cardVideoThumbnails";
+import PreparedVideoPoster from "@/components/media/PreparedVideoPoster";
+import { useDeckVideoResource } from "@/components/media/DeckVideoPreparation";
+import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
-import type { CardLayout } from "@/components/cards/cardLayout";
-import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
-import CloudflareHlsVideoPlayer, {
-  type CloudflareHlsVideoPlayerHandle,
-  type VideoPlaybackIntent,
-} from "@/components/media/CloudflareHlsVideoPlayer";
-import UserCardMediaUploadPanel, { type UserCardMediaRemovalState } from "@/components/media/UserCardMediaUploadPanel";
-import {
-  useKeyedUserCardMediaUploadController,
-  type CompletedUserCardMediaUpload,
-  type UserCardMediaUploadTarget,
-} from "@/components/media/useKeyedUserCardMediaUploadController";
-import StepView, { type StepViewItem } from "@/components/decks/StepView";
+import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
+import { hasPersonalCard, cardPresentationIdentity, type PresentedCard } from "./presentation";
+import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackIntent } from "@/components/media/CloudflareHlsVideoPlayer";
+import StepView, { type StepViewInfoCards, type StepViewItem } from "@/components/decks/StepView";
+import InfoCardConsultation, { type InfoCardConsultationCard } from "@/components/info-cards/InfoCardConsultation";
+import { loadInfoConsultation, type ConsultationRequest } from "@/components/info-cards/infoCardConsultationClient";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -25,8 +23,6 @@ import {
   isKnownPortraitCloudflareStreamVideoMediaItem,
   type MediaItem,
 } from "@/lib/media";
-import { selectAllModernUserCardMediaItems, type ModernUserCardMediaItem } from "@/lib/userCardMedia";
-import { createUserCardMediaMutationKey } from "@/lib/userCardMediaMutationQueue";
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 import {
   CARD_ASPECT_RATIO,
@@ -40,24 +36,29 @@ import {
   FOCUSED_CARD_VERTICAL_PADDING,
 } from "@/constants/cardStack";
 
-type FocusedCardViewProps = {
-  card: CardLayout;
+export type FocusedCardViewProps = {
+  onOpenMedia?: OpenCardMedia;
+  mediaViewerOpen?: boolean;
+  card: PresentedCard;
+  playbackViewerUserId?: string;
   cardIndex: number;
-  canMutate: boolean;
   deckTemplateId: string;
   isDeckFlipped: boolean;
   totalCards: number;
   onClose: () => void;
   onPrevious: () => void;
   onNext: () => void;
-  onCycleStepStatus: (stepId: string) => void;
-  onAdjustTargetDate: (direction: -1 | 1) => void;
-  onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
-  onCommitReflection?: (cardId: string, reflection: string) => Promise<void>;
-  onCommitCardMedia?: (target: UserCardMediaUploadTarget, mediaItem: ModernUserCardMediaItem) => Promise<void>;
-  onRemoveCardMedia?: (target: UserCardMediaUploadTarget, mediaItemId: string) => Promise<void>;
-  onOpenMedia?: OpenCardMedia;
-  isMediaViewerOpen?: boolean;
+  onCycleStepStatus?: (stepId: string) => void;
+  onAdjustTargetDate?: (direction: -1 | 1) => void;
+  backFace?: ReactElement<{ onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void; onOpenMedia?: OpenCardMedia }>;
+  overlays?: ReactNode;
+  stepViewInfoCards?: StepViewInfoCards;
+  stepViewMediaPreview?: ReactNode;
+  infoCards?: readonly InfoCardConsultationCard[];
+  renderStepActivity?: (item: StepViewItem) => ReactNode;
+  assessment?: ReactNode;
+  frontAction?: ReactNode;
+  interactionLocked?: boolean;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
@@ -78,10 +79,6 @@ type StepViewState = {
   itemIndex: number;
 };
 
-type ReflectionEditorState = {
-  cardId: string;
-};
-
 type VideoHostRect = {
   height: number;
   left: number;
@@ -97,7 +94,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 const FOCUSED_FLIP_LOCK_MS = 680;
 const FOCUSED_TRAVERSAL_LOCK_MS = 280;
 const FALLBACK_FOCUSED_CARD_SCALE = FOCUSED_CARD_PREFERRED_VISUAL_WIDTH / FOCUSED_CARD_BASELINE_WIDTH;
-const REFLECTION_DISPLAY_RECOMMENDED_CHARS = 55;
 
 function getDeckFlipSide(isDeckFlipped: boolean): FocusedFlipSide {
   return isDeckFlipped ? "back" : "front";
@@ -107,14 +103,14 @@ function getDeckFlipRotation(isDeckFlipped: boolean) {
   return isDeckFlipped ? 180 : 0;
 }
 
-function getStepViewSequence(card: CardLayout): StepViewItem[] {
+function getStepViewSequence(card: PresentedCard): StepViewItem[] {
   return [
     { type: "intro" },
     ...card.steps.map((_, stepIndex) => ({ type: "step" as const, stepIndex })),
   ];
 }
 
-function getStepViewMediaItem(card: CardLayout, item: StepViewItem): MediaItem | null {
+function getStepViewMediaItem(card: PresentedCard, item: StepViewItem): MediaItem | null {
   return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
 }
 
@@ -213,48 +209,91 @@ function useFocusedCardScale() {
   return focusedCardScale;
 }
 
+function CardBackSlot({ content, onNext, onPrevious, onOpenMedia }: {
+  onOpenMedia?: OpenCardMedia;
+  content: NonNullable<FocusedCardViewProps["backFace"]>;
+  onNext: () => void;
+  onPrevious: () => void;
+}) {
+  return cloneElement(content, { onSignalNavigateNext: onNext, onSignalNavigatePrevious: onPrevious, onOpenMedia });
+}
+
 export default function FocusedCardView({
+  onOpenMedia, mediaViewerOpen = false,
   card,
-  cardIndex,
-  canMutate,
   deckTemplateId,
-  isDeckFlipped,
+  cardIndex,
+  isDeckFlipped: requestedDeckFlip,
   totalCards,
   onClose,
   onPrevious,
   onNext,
   onCycleStepStatus,
   onAdjustTargetDate,
-  onCommitSignalReading,
-  onCommitReflection,
-  onCommitCardMedia,
-  onRemoveCardMedia,
-  onOpenMedia,
-  isMediaViewerOpen = false,
+  backFace,
+  overlays,
+  stepViewInfoCards,
+  stepViewMediaPreview,
+  infoCards,
+  renderStepActivity,
+  frontAction,
+  assessment,
+  playbackViewerUserId,
+  interactionLocked = false,
   onRequestAddComment,
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
+  const isPresent = useIsPresent();
+  const consultationId = useId();
+  const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
+  const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement;
+    status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest } | null>(null);
+  const canonicalVersion = hasPersonalCard(card) ? null : card.version;
+  const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("card", card.cardTemplateId!, canonicalVersion), [card.cardTemplateId, canonicalVersion]);
+  const isDeckFlipped = Boolean(backFace) && requestedDeckFlip;
+  const contentIdentity = cardPresentationIdentity(card);
+  const playbackActor = hasPersonalCard(card) ? card.dataOwnerUserId : playbackViewerUserId;
+  const playbackVersion = hasPersonalCard(card) ? card.adoptedVersion : card.version;
+  const playbackMode = hasPersonalCard(card) ? "working" : "canonical";
+  const sharedPreparation = useDeckVideoResource(card);
+  const sharedResource = sharedPreparation.resource;
+  const preparationManager = sharedPreparation.manager;
+  const preparationKey = sharedPreparation.key;
+  const playbackGrants = useMemo(() => sharedResource ? sharedResource.grants : process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1" && playbackActor && playbackVersion
+    ? createCardPlaybackGrants({ viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode }) : null,
+    [sharedResource, playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
+  const [, refreshPlaybackGrants] = useState(0);
+  const thumbnails = useMemo(() => sharedResource?.thumbnails ?? createCardVideoThumbnails(() => refreshPlaybackGrants(value => value + 1)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- A fresh image store is required for each learner/Card/version, even if URLs match.
+    [sharedResource, playbackActor, playbackVersion, playbackMode, card.cardTemplateId]);
+  const preparePlayback = useRef<() => void>(() => {});
+  useEffect(() => () => { if (!sharedResource) playbackGrants?.clear(); }, [playbackGrants, sharedResource]);
+  useEffect(() => () => { if (!sharedResource) thumbnails.clear(); }, [thumbnails, sharedResource]);
+  useEffect(() => {
+    preparationManager?.focus(preparationKey);
+    return () => { preparationManager?.setVideoOpen(false); preparationManager?.focus(null); };
+  }, [preparationManager, preparationKey]);
+  const resolvePlayback = useMemo(() => playbackGrants ? async (media: import("@/lib/media").CloudflareStreamVideoMediaItem, signal: AbortSignal) => {
+    const grant = await playbackGrants.read(media, signal);
+    if (!signal.aborted && document.visibilityState !== "hidden") thumbnails.prepare(grant);
+    refreshPlaybackGrants(value => value + 1);
+    preparePlayback.current();
+    return grant;
+  } : undefined, [playbackGrants, thumbnails]);
   const [flipState, setFlipState] = useState<FocusedFlipState>({
     cardId: card.id,
     side: isDeckFlipped ? "back" : "front",
     rotationY: isDeckFlipped ? 180 : 0,
   });
   const [stepViewState, setStepViewState] = useState<StepViewState | null>(null);
-  const [reflectionEditorState, setReflectionEditorState] = useState<ReflectionEditorState | null>(null);
-  const [reflectionDraftValue, setReflectionDraftValue] = useState("");
-  const [reflectionEditorError, setReflectionEditorError] = useState<string | null>(null);
-  const [isSavingReflection, setIsSavingReflection] = useState(false);
-  const [mediaEditorCardId, setMediaEditorCardId] = useState<string | null>(null);
-  const [mediaRemovalStatesByKey, setMediaRemovalStatesByKey] = useState<Record<string, UserCardMediaRemovalState>>({});
-  const mediaRemovalInFlightKeysRef = useRef(new Set<string>());
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
   const [expandedLandscapeFrameSize, setExpandedLandscapeFrameSize] = useState<{ width: number; height: number } | null>(null);
   const [renderableVideoAssetId, setRenderableVideoAssetId] = useState<string | null>(null);
+  const [decodedVideoAssetId, setDecodedVideoAssetId] = useState<string | null>(null);
   const [failedVideoAssetId, setFailedVideoAssetId] = useState<string | null>(null);
-  const [failedVideoPosterSrc, setFailedVideoPosterSrc] = useState<string | null>(null);
   const [fadingPosterAssetId, setFadingPosterAssetId] = useState<string | null>(null);
   const [isFocusedGestureLocked, setIsFocusedGestureLocked] = useState(false);
   const focusedGestureLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -264,7 +303,6 @@ export default function FocusedCardView({
   const stepViewStateRef = useRef<StepViewState | null>(null);
   const videoPlaybackIntentRef = useRef<VideoPlaybackIntent>("idle");
   const activeVideoAssetIdRef = useRef<string | null>(null);
-  const isDeckFlippedRef = useRef(isDeckFlipped);
   const focusedCardScale = useFocusedCardScale();
   const deckSideFlipState: FocusedFlipState = {
     cardId: card.id,
@@ -273,13 +311,67 @@ export default function FocusedCardView({
   };
   const cardFlipState = flipState.cardId === card.id ? flipState : deckSideFlipState;
   const isFlipped = cardFlipState.side === "back";
+  const instructionalVideos = useMemo(() => [card.intro.mediaItem, ...card.steps.map(step => step.mediaItem)]
+    .filter(isCloudflareStreamVideoMediaItem), [card.intro.mediaItem, card.steps]);
+  useEffect(() => {
+    if (isFlipped) { preparePlayback.current = () => {}; return; }
+    let preparation: AbortController | null = null, preparing = false, live = true;
+    const start = () => {
+      if (!live || document.visibilityState === "hidden" || preparing) return;
+      const controller = new AbortController(); preparation = controller; preparing = true;
+      const onGrant = (grant: import("@/lib/cardPlaybackGrants").PlaybackGrant) => {
+        if (!live || controller.signal.aborted) return;
+        thumbnails.prepare(grant); refreshPlaybackGrants(value => value + 1);
+      };
+      if (!playbackGrants) for (const media of instructionalVideos) thumbnails.prepare({ assetId: media.assetId,
+        thumbnailUrl: getCloudflareStreamThumbnailUrl(media), reuseUntil: Infinity, expiresAt: Infinity });
+      void Promise.allSettled([playbackGrants?.prepare(instructionalVideos, controller.signal, onGrant),
+        ...instructionalVideos.map(media => videoGuard?.prepare?.(media, controller.signal))]).then(() => {
+        if (live && !controller.signal.aborted) refreshPlaybackGrants(value => value + 1);
+      }).finally(() => { if (preparation === controller) preparing = false; });
+    };
+    const visibility = () => {
+      if (document.visibilityState === "hidden") {
+        preparation?.abort(); thumbnails.cancelPending(); preparing = false;
+      } else start();
+    };
+    preparePlayback.current = start;
+    document.addEventListener("visibilitychange", visibility);
+    start();
+    return () => {
+      live = false; preparation?.abort();
+      thumbnails.cancelPending(sharedResource?.card.intro ? [sharedResource.card.intro.assetId] : []);
+      preparePlayback.current = () => {};
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [playbackGrants, thumbnails, instructionalVideos, isFlipped, videoGuard, sharedResource]);
   const stepViewSequence = getStepViewSequence(card);
   const stepViewItemIndex =
     stepViewState?.cardId === card.id && !isFlipped
       ? Math.min(stepViewState.itemIndex, stepViewSequence.length - 1)
       : null;
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
-  const activeStepViewMediaItem = stepViewItem ? getStepViewMediaItem(card, stepViewItem) : null;
+  const stepActivity = stepViewItem ? renderStepActivity?.(stepViewItem) : null;
+  const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
+  const attachmentCount = infoCards !== undefined ? infoCards.length : card.infoCardIds?.length ?? 0;
+  const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);
+  if (consultation && (consultation.identity !== consultationIdentity || !stepViewItem || !isPresent || mediaViewerOpen)) setConsultation(null);
+  const consultationRequest = consultation?.request;
+  useEffect(() => {
+    if (!consultationRequest) return;
+    const abort = new AbortController();
+    const timer = setTimeout(() => setConsultation(current => current?.request === consultationRequest && current.status === "pending"
+      ? { ...current, showLoading: true } : current), 1000);
+    void loadInfoConsultation(consultationRequest, abort.signal).then(cards => {
+      if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
+        ? { ...current, cards, status: "ready", showLoading: false } : current);
+    }).catch(() => {
+      if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
+        ? { ...current, status: "failed", showLoading: false } : current);
+    }).finally(() => clearTimeout(timer));
+    return () => { clearTimeout(timer); abort.abort(); };
+  }, [consultationRequest, consultationIdentity]);
+  const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem) : null;
   const activeCloudflareVideoMediaItem =
     activeStepViewMediaItem && isCloudflareStreamVideoMediaItem(activeStepViewMediaItem)
       ? activeStepViewMediaItem
@@ -289,44 +381,24 @@ export default function FocusedCardView({
   const isExpandedVideoLandscape =
     activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
   const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
-  const activeVideoPosterSrc = activeCloudflareVideoMediaItem ? getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem) : null;
-  const hasPosterFallback = Boolean(activeVideoPosterSrc && failedVideoPosterSrc !== activeVideoPosterSrc);
-  const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId);
+  useEffect(() => {
+    preparationManager?.setVideoOpen(activeVideoAssetId !== null);
+  }, [preparationManager, activeVideoAssetId]);
+  const activeGrant = activeCloudflareVideoMediaItem ? (playbackGrants ? playbackGrants.peek(activeCloudflareVideoMediaItem.assetId)
+    : { assetId: activeCloudflareVideoMediaItem.assetId, thumbnailUrl: getCloudflareStreamThumbnailUrl(activeCloudflareVideoMediaItem), reuseUntil: Infinity, expiresAt: Infinity }) : null;
+  const activeThumbnail = activeGrant ? thumbnails.peek(activeGrant) : undefined;
+  const hasPosterFallback = activeThumbnail?.state === "ready";
+  const isCurrentVideoRenderable = Boolean(activeVideoAssetId && renderableVideoAssetId === activeVideoAssetId && failedVideoAssetId !== activeVideoAssetId);
   const isCurrentVideoFailed = Boolean(activeVideoAssetId && failedVideoAssetId === activeVideoAssetId);
   const isPosterFadeOutActive = Boolean(
     activeVideoAssetId && isCurrentVideoRenderable && fadingPosterAssetId === activeVideoAssetId
   );
   const shouldConcealCloudflarePlayer = Boolean(
-    activeVideoAssetId && !isCurrentVideoRenderable && !(isCurrentVideoFailed && !hasPosterFallback)
+    activeVideoAssetId && decodedVideoAssetId !== activeVideoAssetId
   );
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
   const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
-  const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
-  const mediaUploadTarget = useMemo(
-    () => ({ scope: "user-card" as const, deckTemplateId, cardId: card.id }),
-    [card.id, deckTemplateId],
-  );
-  const commitCompletedMediaUpload = useCallback(
-    async ({ mediaItem, target }: CompletedUserCardMediaUpload) => {
-      if (!onCommitCardMedia) {
-        throw new Error("Unable to save media for this card.");
-      }
-
-      await onCommitCardMedia(target, mediaItem);
-    },
-    [onCommitCardMedia],
-  );
-  const mediaUploadController = useKeyedUserCardMediaUploadController({
-    onUploadCompleted: commitCompletedMediaUpload,
-  });
-  const mediaUploadState = mediaUploadController.getState(mediaUploadTarget);
-  const { images: cardImages, videos: cardVideos } = selectAllModernUserCardMediaItems(card.mediaItems);
-  const removalStatesById = Object.fromEntries(
-    [...cardImages, ...cardVideos].map((item) => [
-      item.id,
-      mediaRemovalStatesByKey[`${createUserCardMediaMutationKey(mediaUploadTarget)}:${encodeURIComponent(item.id)}`],
-    ]),
-  );
+  const dateLabel = hasPersonalCard(card) ? dateFormatter.format(dateOnlyToUtcDate(card.targetDate)) : "";
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
   const focusedCardTransition: Transition = {
@@ -353,13 +425,13 @@ export default function FocusedCardView({
     videoPlaybackIntentRef.current = intent;
   }, []);
   const resetVideoDisplayState = useCallback(() => {
+    setDecodedVideoAssetId(null);
     setRenderableVideoAssetId(null);
     setFailedVideoAssetId(null);
-    setFailedVideoPosterSrc(null);
     setFadingPosterAssetId(null);
-  }, []);
+  }, [setDecodedVideoAssetId, setRenderableVideoAssetId, setFailedVideoAssetId, setFadingPosterAssetId]);
   const toggleFocusedCardSide = (commitment: GestureCommitment, vector: GestureVector) => {
-    if (isFocusedGestureLocked) {
+    if (isFocusedGestureLocked || consultationOpen) {
       return;
     }
 
@@ -380,7 +452,7 @@ export default function FocusedCardView({
     });
   };
   const settleFocusedCardToPast = () => {
-    if (isFocusedGestureLocked || isFinalCard) {
+    if (isFocusedGestureLocked || isFinalCard || consultationOpen) {
       return;
     }
 
@@ -388,7 +460,7 @@ export default function FocusedCardView({
     onNext();
   };
   const restoreFocusedCardFromPast = () => {
-    if (isFocusedGestureLocked || isFirstCard) {
+    if (isFocusedGestureLocked || isFirstCard || consultationOpen) {
       return;
     }
 
@@ -396,9 +468,11 @@ export default function FocusedCardView({
     onPrevious();
   };
   const openStepView = (stepIndex: number) => {
-    if (isFlipped) {
+    if (isFlipped || consultationOpen) {
       return;
     }
+
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.steps[stepIndex]?.mediaItem));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -412,9 +486,11 @@ export default function FocusedCardView({
     setStepViewState(nextStepViewState);
   };
   const openIntroView = () => {
-    if (isFlipped) {
+    if (isFlipped || consultationOpen) {
       return;
     }
+
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.intro.mediaItem));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -427,100 +503,8 @@ export default function FocusedCardView({
     setIsVideoExpanded(false);
     setStepViewState(nextStepViewState);
   };
-  const openReflectionEditor = (cardId: string) => {
-    if (!onCommitReflection || !isFlipped) {
-      return;
-    }
-
-    setReflectionEditorState({
-      cardId,
-    });
-    setReflectionDraftValue(card.reflection);
-    setReflectionEditorError(null);
-  };
-  const openMediaEditor = (cardId: string) => {
-    if (!onCommitCardMedia || !onRemoveCardMedia || !isFlipped) {
-      return;
-    }
-
-    setMediaEditorCardId(cardId);
-  };
-  const closeMediaEditor = () => {
-    setMediaEditorCardId(null);
-  };
-  const removeCardMedia = async (item: ModernUserCardMediaItem) => {
-    if (!onRemoveCardMedia) {
-      return;
-    }
-
-    const target = { ...mediaUploadTarget };
-    const key = `${createUserCardMediaMutationKey(target)}:${encodeURIComponent(item.id)}`;
-
-    if (mediaRemovalInFlightKeysRef.current.has(key)) {
-      return;
-    }
-
-    mediaRemovalInFlightKeysRef.current.add(key);
-
-    setMediaRemovalStatesByKey((currentStates) => ({
-      ...currentStates,
-      [key]: { error: null, isRemoving: true },
-    }));
-
-    try {
-      await onRemoveCardMedia(target, item.id);
-      setMediaRemovalStatesByKey((currentStates) => {
-        const nextStates = { ...currentStates };
-        delete nextStates[key];
-        return nextStates;
-      });
-    } catch (error) {
-      setMediaRemovalStatesByKey((currentStates) => ({
-        ...currentStates,
-        [key]: {
-          error: error instanceof Error ? error.message : "Unable to remove card media.",
-          isRemoving: false,
-        },
-      }));
-    } finally {
-      mediaRemovalInFlightKeysRef.current.delete(key);
-    }
-  };
-  const stopMediaEditorGesturePropagation = (event: PointerEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-  };
-  const closeReflectionEditor = () => {
-    if (isSavingReflection) {
-      return;
-    }
-
-    setReflectionEditorState(null);
-    setReflectionEditorError(null);
-  };
-  const stopReflectionEditorGesturePropagation = (event: PointerEvent<HTMLFormElement>) => {
-    event.stopPropagation();
-  };
-  const submitReflectionEditor = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!reflectionEditorState || !onCommitReflection) {
-      return;
-    }
-
-    setIsSavingReflection(true);
-    setReflectionEditorError(null);
-
-    try {
-      await onCommitReflection(reflectionEditorState.cardId, reflectionDraftValue);
-      setReflectionEditorState(null);
-    } catch (error) {
-      console.warn("Unable to persist card reflection.", error);
-      setReflectionEditorError(error instanceof Error ? error.message : "Unable to save reflection.");
-    } finally {
-      setIsSavingReflection(false);
-    }
-  };
   const closeStepView = () => {
+    if (consultationOpen) return;
     videoPlayerRef.current?.pauseAndReset();
     stepViewStateRef.current = null;
     activeVideoAssetIdRef.current = null;
@@ -533,7 +517,7 @@ export default function FocusedCardView({
   const goToStepViewItem = (direction: -1 | 1) => {
     const currentStepViewState = stepViewStateRef.current;
 
-    if (!currentStepViewState || currentStepViewState.cardId !== card.id) {
+    if (!currentStepViewState || currentStepViewState.cardId !== card.id || consultationOpen) {
       return;
     }
 
@@ -559,6 +543,7 @@ export default function FocusedCardView({
     setIsVideoExpanded(false);
 
     if (nextCloudflareVideoMediaItem) {
+      preparationManager?.setVideoOpen(true);
       activeVideoAssetIdRef.current = nextCloudflareVideoMediaItem.assetId;
       resetVideoDisplayState();
       videoPlayerRef.current?.loadMedia(nextCloudflareVideoMediaItem, { shouldPlay: shouldContinuePlayback });
@@ -578,23 +563,43 @@ export default function FocusedCardView({
   const goToNextStepViewItem = () => {
     goToStepViewItem(1);
   };
+  const openConsultation = () => {
+    if (!stepViewElement || !stepViewItem || !attachmentCount || consultationOpen || interactionLocked || mediaViewerOpen) return;
+    const source = stepViewElement.querySelector<HTMLElement>("[data-info-card-pouch]");
+    if (!source) return;
+    source.focus({ preventScroll: true });
+    videoPlayerRef.current?.setPlaybackSuspended(true);
+    updateVideoPlaybackIntent("paused");
+    setConsultation({ identity: consultationIdentity, source, showLoading: false,
+      status: infoCards ? "ready" : playbackActor && playbackVersion ? "pending" : "failed",
+      cards: infoCards ? structuredClone([...infoCards]) : [],
+      ...(!infoCards && playbackActor && playbackVersion ? { request: { actor: playbackActor,
+        mainCardId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode,
+        ...(playbackMode === "working" ? { deckTemplateId } : {}), attachmentIds: [...(card.infoCardIds ?? [])] } } : {}) });
+  };
+  const handleStepViewRef = useCallback((element: HTMLElement | null) => {
+    // An outgoing animated Step View can detach after the next one has mounted.
+    // Its null callback must not erase the current consultation anchor.
+    // Rebind for each selection, including reversal to a retained outgoing view.
+    if (element && stepViewItemIndex !== null) setStepViewElement(element);
+  }, [stepViewItemIndex, setStepViewElement]);
   const handleVideoAnchorRef = useCallback((nextAnchorElement: HTMLDivElement | null) => {
     // Ignore transient null callbacks during re-render so the hosted player remains mounted.
-    if (!nextAnchorElement) {
+    if (!nextAnchorElement || stepViewItemIndex === null) {
       return;
     }
 
     setVideoAnchorElement((currentAnchorElement) => (currentAnchorElement === nextAnchorElement ? currentAnchorElement : nextAnchorElement));
-  }, []);
+    // Rebind on selection, including when reversing to a view still animating
+    // out. Its retained DOM must become the anchor again without a player remount.
+  }, [stepViewItemIndex, setVideoAnchorElement]);
   const focusedGestures = useDeckGestures({
     mode: "focus",
-    allowedIntents: ["settleToPast", "restoreFromPast", "flip"],
+    allowedIntents: backFace ? ["settleToPast", "restoreFromPast", "flip"] : ["settleToPast", "restoreFromPast"],
     locked:
-      isMediaViewerOpen ||
       isFocusedGestureLocked ||
       Boolean(stepViewItem) ||
-      Boolean(reflectionEditorState) ||
-      Boolean(mediaEditorCardId) ||
+      mediaViewerOpen || interactionLocked || consultationOpen ||
       isVideoExpanded,
     onSettleToPast: settleFocusedCardToPast,
     onRestoreFromPast: restoreFocusedCardFromPast,
@@ -604,53 +609,42 @@ export default function FocusedCardView({
   useLayoutEffect(() => {
     stepViewStateRef.current = stepViewState;
     activeVideoAssetIdRef.current = activeVideoAssetId;
-    isDeckFlippedRef.current = isDeckFlipped;
   }, [activeVideoAssetId, isDeckFlipped, stepViewState]);
 
+  const [displayedAssetId, setDisplayedAssetId] = useState(activeVideoAssetId);
+  if (displayedAssetId !== activeVideoAssetId) {
+    setDecodedVideoAssetId(null);
+    setDisplayedAssetId(activeVideoAssetId);
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFadingPosterAssetId(null);
+    if (!activeVideoAssetId) {
+      setIsVideoExpanded(false);
+      setExpandedLandscapeFrameSize(null);
+      setVideoHostRect(null);
+      setVideoAnchorElement(null);
+    }
+  }
   useEffect(() => {
     if (!activeCloudflareVideoMediaItem) {
       videoPlayerRef.current?.pauseAndReset();
       activeVideoAssetIdRef.current = null;
       updateVideoPlaybackIntent("idle");
-      setIsVideoExpanded(false);
-      setExpandedLandscapeFrameSize(null);
-      setRenderableVideoAssetId(null);
-      setFailedVideoAssetId(null);
-      setFailedVideoPosterSrc(null);
-      setFadingPosterAssetId(null);
-      setVideoHostRect(null);
-      setVideoAnchorElement(null);
     }
   }, [activeCloudflareVideoMediaItem, updateVideoPlaybackIntent]);
-
   useEffect(() => {
-    setRenderableVideoAssetId(null);
-    setFailedVideoAssetId(null);
-    setFailedVideoPosterSrc(null);
-    setFadingPosterAssetId(null);
-  }, [activeVideoAssetId]);
-
-  useEffect(() => {
-    if (!activeVideoAssetId || !hasPosterFallback || !isCurrentVideoRenderable) {
-      setFadingPosterAssetId(null);
-      return;
-    }
-
-    setFadingPosterAssetId(activeVideoAssetId);
+    if (!activeVideoAssetId || !hasPosterFallback || !isCurrentVideoRenderable) return;
     const fadeTimeout = window.setTimeout(() => {
-      setFadingPosterAssetId((currentAssetId) => (currentAssetId === activeVideoAssetId ? null : currentAssetId));
+      setFadingPosterAssetId((currentAssetId) => currentAssetId === activeVideoAssetId ? null : currentAssetId);
     }, 250);
-
-    return () => {
-      window.clearTimeout(fadeTimeout);
-    };
+    return () => window.clearTimeout(fadeTimeout);
   }, [activeVideoAssetId, hasPosterFallback, isCurrentVideoRenderable]);
 
+  if ((!isVideoExpanded || isExpandedVideoPortrait) && expandedLandscapeFrameSize !== null) {
+    setExpandedLandscapeFrameSize(null);
+  }
   useLayoutEffect(() => {
-    if (!isVideoExpanded || isExpandedVideoPortrait) {
-      setExpandedLandscapeFrameSize(null);
-      return;
-    }
+    if (!isVideoExpanded || isExpandedVideoPortrait) return;
 
     const updateExpandedLandscapeFrameSize = () => {
       const hostElement = videoHostElementRef.current;
@@ -751,45 +745,33 @@ export default function FocusedCardView({
     };
   }, [videoAnchorElement]);
 
+  const [displayedContentIdentity, setDisplayedContentIdentity] = useState(contentIdentity);
+  const [displayedDeckFlip, setDisplayedDeckFlip] = useState(isDeckFlipped);
+  if (displayedContentIdentity !== contentIdentity) {
+    setDecodedVideoAssetId(null);
+    setDisplayedContentIdentity(contentIdentity);
+    setDisplayedDeckFlip(isDeckFlipped);
+    setFlipState({ cardId: card.id, side: getDeckFlipSide(isDeckFlipped), rotationY: getDeckFlipRotation(isDeckFlipped) });
+    setIsVideoExpanded(false);
+    setExpandedLandscapeFrameSize(null);
+    setRenderableVideoAssetId(null);
+    setFailedVideoAssetId(null);
+    setFadingPosterAssetId(null);
+    setVideoHostRect(null);
+    setVideoAnchorElement(null);
+    setStepViewState(null);
+  } else if (displayedDeckFlip !== isDeckFlipped) {
+    setDisplayedDeckFlip(isDeckFlipped);
+    const targetSide = getDeckFlipSide(isDeckFlipped);
+    if (flipState.side !== targetSide) setFlipState({ ...flipState, side: targetSide,
+      rotationY: flipState.rotationY + (targetSide === "back" ? 180 : -180) });
+  }
   useEffect(() => {
     videoPlayerRef.current?.pauseAndReset();
     stepViewStateRef.current = null;
     activeVideoAssetIdRef.current = null;
     updateVideoPlaybackIntent("idle");
-    setFlipState({
-      cardId: card.id,
-      side: getDeckFlipSide(isDeckFlippedRef.current),
-      rotationY: getDeckFlipRotation(isDeckFlippedRef.current),
-    });
-    setIsVideoExpanded(false);
-    setExpandedLandscapeFrameSize(null);
-    setRenderableVideoAssetId(null);
-    setFailedVideoAssetId(null);
-    setFailedVideoPosterSrc(null);
-    setFadingPosterAssetId(null);
-    setVideoHostRect(null);
-    setVideoAnchorElement(null);
-    setStepViewState(null);
-    setReflectionEditorState(null);
-    setReflectionEditorError(null);
-    setMediaEditorCardId(null);
-  }, [card.id, updateVideoPlaybackIntent]);
-
-  useEffect(() => {
-    setFlipState((currentFlipState) => {
-      const targetSide = getDeckFlipSide(isDeckFlipped);
-
-      if (currentFlipState.cardId !== card.id || currentFlipState.side === targetSide) {
-        return currentFlipState;
-      }
-
-      return {
-        cardId: card.id,
-        side: targetSide,
-        rotationY: currentFlipState.rotationY + (targetSide === "back" ? 180 : -180),
-      };
-    });
-  }, [card.id, isDeckFlipped]);
+  }, [contentIdentity, updateVideoPlaybackIntent]);
 
   useEffect(() => {
     return () => {
@@ -802,18 +784,20 @@ export default function FocusedCardView({
   return (
     <motion.div
       className="focused-card-layer"
+      inert={consultationOpen}
+      aria-hidden={consultationOpen || undefined}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
     >
-      <motion.button type="button" className="focused-card-scrim" onClick={onClose} aria-label="Close focused card" />
+      <motion.button type="button" className="focused-card-scrim" onClick={() => { if (!consultationOpen) onClose(); }} aria-label="Close focused card" />
       <AnimatePresence mode="popLayout" initial={false} custom={traversalDirection}>
         <motion.article
           key={card.id}
           className="focused-card-stage"
           layout
-          layoutId={`week-card-${card.id}`}
+          layoutId={`week-card-${cardPresentationIdentity(card)}`}
           style={{ width: FOCUSED_CARD_STAGE_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
           custom={traversalDirection}
           variants={focusedTraversalVariants}
@@ -838,6 +822,7 @@ export default function FocusedCardView({
             <div className="physical-card focused-card-surface focused-card-surface--front" aria-hidden={isFlipped} inert={isFlipped}>
               <div className="focused-card-content">
                 <ActiveCardFront
+                  assessment={assessment}
                   card={card}
                   dateLabel={dateLabel}
                   variant="focused"
@@ -849,26 +834,16 @@ export default function FocusedCardView({
                   onStepNavigatePrevious={restoreFocusedCardFromPast}
                 />
               </div>
+              <CardCreatorAttribution card={card} />
+              {!isFlipped ? frontAction : null}
             </div>
-            <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
-              <BackCardFaceContent
-                card={card}
-                deckTemplateId={deckTemplateId}
-                dateLabel={dateLabel}
-                variant="focused"
-                canMutate={canMutate}
-                onCommitSignalReading={onCommitSignalReading}
-                onOpenMedia={onOpenMedia ? (cardId, itemId, source) => {
-                  if (!isFlipped || isFocusedGestureLocked || stepViewItem || reflectionEditorState || mediaEditorCardId) return;
-                  videoPlayerRef.current?.pauseAndReset("opening card media viewer");
-                  onOpenMedia(cardId, itemId, source);
-                } : undefined}
-                onEditMedia={onCommitCardMedia && onRemoveCardMedia ? openMediaEditor : undefined}
-                onEditReflection={onCommitReflection ? openReflectionEditor : undefined}
-                onSignalNavigateNext={settleFocusedCardToPast}
-                onSignalNavigatePrevious={restoreFocusedCardFromPast}
-              />
-            </div>
+            {backFace ? <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
+              <CardBackSlot onOpenMedia={onOpenMedia ? (cardId, key, source) => {
+                if (!isFlipped || isFocusedGestureLocked || stepViewItem || interactionLocked || mediaViewerOpen) return;
+                videoPlayerRef.current?.pauseAndReset("opening personal media viewer");
+                onOpenMedia(cardId, key, source);
+              } : undefined} content={backFace} onNext={settleFocusedCardToPast} onPrevious={restoreFocusedCardFromPast} />
+            </div> : null}
             <AnimatePresence>
               {stepViewItem && stepViewItemIndex !== null ? (
                 <StepView
@@ -882,6 +857,10 @@ export default function FocusedCardView({
                   onNext={goToNextStepViewItem}
                   onPrevious={goToPreviousStepViewItem}
                   useCloudflareVideoHost={Boolean(activeCloudflareVideoMediaItem)}
+                  surfaceRef={handleStepViewRef}
+                  infoCards={attachmentCount ? { count: attachmentCount, expanded: consultationOpen && consultation?.status === "ready", controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
+                  mediaPreview={stepViewMediaPreview}
+                  activity={stepActivity}
                 />
               ) : null}
             </AnimatePresence>
@@ -896,7 +875,7 @@ export default function FocusedCardView({
         </div>
       ) : null}
       {isVideoHostVisible && activeCloudflareVideoMediaItem ? (
-        <div className="switchplay-video-host-layer" aria-hidden="true">
+        <div className="switchplay-video-host-layer" inert={consultationOpen} aria-hidden={consultationOpen || undefined}>
           {isVideoExpanded ? <div className="switchplay-video-expanded-backdrop" /> : null}
           <div
             ref={videoHostElementRef}
@@ -931,27 +910,35 @@ export default function FocusedCardView({
               }
             >
               <div className="switchplay-video-content">
-                {shouldShowVideoPoster ? (
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    className={`switchplay-video-poster${isPosterFadeOutActive ? " switchplay-video-poster--fade-out" : ""}`}
-                    onError={() => setFailedVideoPosterSrc(activeVideoPosterSrc)}
-                    src={activeVideoPosterSrc ?? undefined}
-                  />
+                {shouldShowVideoPoster && activeThumbnail ? (
+                  <PreparedVideoPoster image={activeThumbnail.image} fading={isPosterFadeOutActive} />
+                ) : null}
+                {isCurrentVideoFailed || (!isCurrentVideoRenderable && !hasPosterFallback) ? (
+                  <div className="switchplay-video-loading-cover">
+                    <p className="cloudflare-stream-player-status" role="status">
+                      {isCurrentVideoFailed ? "Video unavailable." : "Preparing video…"}
+                    </p>
+                  </div>
                 ) : null}
                 <div className="switchplay-video-player-layer" style={shouldConcealCloudflarePlayer ? { visibility: "hidden" } : undefined}>
                   <CloudflareHlsVideoPlayer
                     ref={videoPlayerRef}
+                    playbackSuspended={consultationOpen}
                     displayMode={isVideoExpanded ? "expanded" : "embedded"}
+                    beforeLoad={videoGuard}
+                    resolvePlayback={resolvePlayback}
+                    externalLoadingPresentation
                     mediaItem={activeCloudflareVideoMediaItem}
                     onMediaDisplayStateChange={({ assetId, state }) => {
                       if (assetId !== activeVideoAssetIdRef.current) {
                         return;
                       }
 
+                      if (state === "decoded") { setDecodedVideoAssetId(assetId); return; }
+
                       if (state === "renderable") {
                         setRenderableVideoAssetId(assetId);
+                        setFadingPosterAssetId(assetId);
                         setFailedVideoAssetId(null);
                         return;
                       }
@@ -966,97 +953,10 @@ export default function FocusedCardView({
           </div>
         </div>
       ) : null}
-      <AnimatePresence>
-        {mediaEditorCardId === card.id ? (
-          <motion.div
-            className="creator-modal-backdrop reflection-editor-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.14 }}
-            role="presentation"
-          >
-            <div
-              aria-labelledby="card-media-editor-title"
-              aria-modal="true"
-              className="creator-modal creator-modal--deck-introduction card-media-upload-modal"
-              onPointerCancel={stopMediaEditorGesturePropagation}
-              onPointerDown={stopMediaEditorGesturePropagation}
-              onPointerMove={stopMediaEditorGesturePropagation}
-              onPointerUp={stopMediaEditorGesturePropagation}
-              role="dialog"
-            >
-              <header className="creator-modal-header">
-                <p id="card-media-editor-title">Card media</p>
-                <button className="creator-modal-close" onClick={closeMediaEditor} type="button">
-                  Close
-                </button>
-              </header>
-              <UserCardMediaUploadPanel
-                images={cardImages}
-                videos={cardVideos}
-                target={mediaUploadTarget}
-                uploadState={mediaUploadState}
-                removalStatesById={removalStatesById}
-                onAddImage={(file) => void mediaUploadController.uploadImage(mediaUploadTarget, file)}
-                onAddVideo={(file) => void mediaUploadController.uploadVideo(mediaUploadTarget, file)}
-                onRemoveMedia={(item) => void removeCardMedia(item)}
-              />
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      <AnimatePresence>
-        {reflectionEditorState ? (
-          <motion.div
-            className="creator-modal-backdrop reflection-editor-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.14 }}
-            role="presentation"
-          >
-            <form
-              className="creator-modal creator-modal--reflection-editor reflection-editor-modal"
-              onPointerCancel={stopReflectionEditorGesturePropagation}
-              onPointerDown={stopReflectionEditorGesturePropagation}
-              onPointerMove={stopReflectionEditorGesturePropagation}
-              onPointerUp={stopReflectionEditorGesturePropagation}
-              onSubmit={submitReflectionEditor}
-            >
-              <header className="creator-modal-header">
-                <p>Edit reflection</p>
-                <button className="creator-modal-close" disabled={isSavingReflection} onClick={closeReflectionEditor} type="button">
-                  Close
-                </button>
-              </header>
-              <p className="creator-modal-note">Aim for about 9 words. Longer reflections may be truncated on the card.</p>
-              <textarea
-                autoFocus
-                className="creator-modal-field creator-modal-field--reflection"
-                onChange={(event) => setReflectionDraftValue(event.target.value)}
-                value={reflectionDraftValue}
-              />
-              <p
-                className={`creator-modal-counter${
-                  reflectionDraftValue.length > REFLECTION_DISPLAY_RECOMMENDED_CHARS ? " creator-modal-counter--warning" : ""
-                }`}
-              >
-                {reflectionDraftValue.length}/{REFLECTION_DISPLAY_RECOMMENDED_CHARS} recommended characters
-              </p>
-              {reflectionEditorError ? <p className="creator-modal-error">{reflectionEditorError}</p> : null}
-              <div className="creator-modal-actions">
-                <button className="creator-modal-secondary" disabled={isSavingReflection} onClick={closeReflectionEditor} type="button">
-                  Cancel
-                </button>
-                <button className="creator-modal-primary" disabled={isSavingReflection} type="submit">
-                  {isSavingReflection ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      {consultationOpen && consultation && stepViewElement ? <InfoCardConsultation id={consultationId}
+        cards={consultation.cards} anchor={stepViewElement} source={consultation.source} status={consultation.status}
+        count={attachmentCount} loadingMessage={consultation.showLoading} actor={playbackActor} onClose={() => setConsultation(null)} /> : null}
+      {overlays}
     </motion.div>
   );
 }

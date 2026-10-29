@@ -1,7 +1,9 @@
 import { useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
-import type { WeeklyCard } from "@/components/decks/types";
+import { useDeckVideoResource } from "@/components/media/DeckVideoPreparation";
+import PreparedIntroThumbnail from "@/components/media/PreparedIntroThumbnail";
+import type { PresentedCard } from "@/components/decks/presentation";
 import {
   getMediaTitle,
   isCloudflareStreamVideoMediaItem,
@@ -9,7 +11,7 @@ import {
 } from "@/lib/media";
 
 type IntroMediaBlockProps = {
-  card: WeeklyCard;
+  card: PresentedCard;
   onIntroNavigateNext?: () => void;
   onIntroNavigatePrevious?: () => void;
   onOpenIntroView?: () => void;
@@ -53,13 +55,16 @@ function getIntroGestureAxis(deltaX: number, deltaY: number): "horizontal" | "ve
 }
 
 export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavigatePrevious, onOpenIntroView }: IntroMediaBlockProps) {
+  const { manager, resource, key: preparationKey } = useDeckVideoResource(card);
+  const grant = resource?.introGrant();
+  const prepared = grant ? resource?.thumbnails.peek(grant) : undefined;
   const mediaItem = card.intro.mediaItem;
   const introTitle = card.intro.title ?? "";
   const thumbnailSrc = isCloudflareStreamVideoMediaItem(mediaItem) ? getCloudflareStreamThumbnailUrl(mediaItem) : null;
   const isPortraitThumbnail = isCloudflareStreamVideoMediaItem(mediaItem) && isKnownPortraitCloudflareStreamVideoMediaItem(mediaItem);
   const identityClassName = `active-card-identity${isPortraitThumbnail ? " active-card-identity--portrait-intro" : ""}${!mediaItem ? " active-card-identity--no-media" : ""}`;
   const [failedThumbnailSrc, setFailedThumbnailSrc] = useState<string | null>(null);
-  const shouldShowThumbnail = Boolean(thumbnailSrc && failedThumbnailSrc !== thumbnailSrc);
+  const shouldShowThumbnail = Boolean(thumbnailSrc && (failedThumbnailSrc !== thumbnailSrc || prepared?.state === "ready"));
   const isIntroViewTrigger = typeof onOpenIntroView === "function";
   const introGestureSessionRef = useRef<IntroGestureSession | null>(null);
   const suppressNextClickRef = useRef(false);
@@ -256,13 +261,19 @@ export default function IntroMediaBlock({ card, onIntroNavigateNext, onIntroNavi
           aria-label={getMediaTitle(mediaItem, introTitle)}
         >
           {thumbnailSrc && shouldShowThumbnail ? (
-            <img
+            <PreparedIntroThumbnail key={preparationKey} image={prepared?.state === "ready" ? prepared.image : undefined} fallback={<img
               alt=""
               className="intro-media-thumbnail"
               loading="lazy"
-              onError={() => setFailedThumbnailSrc(thumbnailSrc)}
+              onError={() => { setFailedThumbnailSrc(thumbnailSrc); manager?.settled(preparationKey); }}
+              onLoad={(event) => {
+                const image = event.currentTarget;
+                // Decoding the cold active image is the gate for background work.
+                void (typeof image.decode === "function" ? image.decode() : Promise.resolve())
+                  .catch(() => {}).then(() => manager?.settled(preparationKey));
+              }}
               src={thumbnailSrc}
-            />
+            />} />
           ) : null}
           <span className="intro-media-play" aria-hidden="true" />
         </div>

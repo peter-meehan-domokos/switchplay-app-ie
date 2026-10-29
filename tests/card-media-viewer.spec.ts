@@ -6,30 +6,31 @@ import { createCardMediaFileHandler } from "@/lib/cardMediaFile";
 import { createCardMediaVideoFileHandler } from "@/lib/cardMediaVideoFile";
 import { getCardMediaDownload, mediaDownloadFilename } from "@/lib/cardMediaDownloads";
 import { startCardMediaDownload, type DownloadState } from "@/lib/cardMediaClient";
-import { createUserCardImageDownloadUrl } from "@/lib/cloudflareR2";
+import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
+import { r2Location, streamPlaybackGrant } from "@/lib/cards/protectedMedia";
+import type { CardData } from "@/lib/cards/model";
 import { requestCloudflareStreamDownload } from "@/lib/cloudflareStream";
 import type { AuthUser } from "@/lib/auth";
-import type { RuntimeDeckTemplate, UserDeckData } from "@/components/decks/types";
 import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
 
 const ownerId = "507f1f77bcf86cd799439011";
 const viewerId = "507f1f77bcf86cd799439012";
-const target: CardMediaRequest = { deckUserId: ownerId, deckTemplateId: "deck-1", cardId: "card-1", mediaItemId: "image-1" };
+const target: CardMediaRequest = { viewerUserId: ownerId, cardTemplateId: "card-1", sourceCardTemplateId: "card-1", mediaItemId: "image-1" };
 const image: ModernUserCardMediaItem = { id: "image-1", mediaType: "image", provider: "cloudflare-r2", assetId: `user-decks/${ownerId}/deck-1/cards/card-1/abc.png`, src: "https://images.example/abc.png", description: "Written work.png" };
 const video: ModernUserCardMediaItem = { id: "stream-1", mediaType: "video", provider: "cloudflare-stream", assetId: "video-1", src: "https://iframe.videodelivery.net/video-1", description: "Practice.mov" };
 const items: ModernUserCardMediaItem[] = [image, video, { ...video, id: "stream-2" }, ...Array.from({ length: 5 }, (_, i) => ({ ...image, id: `image-${i + 2}` }))];
-const deck = { deckTemplateId: "deck-1", cards: [{ cardId: "card-1", mediaItems: items }], sharedWithUserIds: [viewerId] } as UserDeckData;
-const owner = { id: ownerId, decksData: [deck], sharedDeckData: [], isAdmin: false } as unknown as AuthUser;
-const viewer = { ...owner, id: viewerId, decksData: [], sharedDeckData: [{ deckUserId: ownerId, deckTemplateId: "deck-1" }] };
-const template = { cards: [{ cardId: "card-1" }] } as RuntimeDeckTemplate;
-const accessDeps = { loadOwnerDecks: async () => [deck], loadTemplate: async () => template, loadVisibleTemplate: async () => template };
+const record = { cardTemplateId: "card-1", mediaItems: items, tests: [], chats: [], cardTemplateVersion: 1 } as unknown as CardData;
+const owner: AuthUser = { id: ownerId, isAdmin: false, username: "learner", email: "learner@example.invalid", createdAt: "2026-10-01", updatedAt: "2026-10-01" };
+const viewer: AuthUser = { ...owner, id: viewerId };
+const accessDeps = { loadCards: async (actor: string) => actor === ownerId ? [record] : [] };
+const grant = async (assetId: string) => ({ assetId, manifestUrl: "https://videodelivery.net/signed-token/manifest/video.m3u8", thumbnailUrl: "https://videodelivery.net/signed-token/thumbnails/thumbnail.jpg", expiresAt: Date.now() + 3600000, reuseUntil: Date.now() + 600000 });
 
 test("selection uses stable IDs, preserves mixed order beyond five, and finds nearest after removal", () => {
-  items.forEach((item, index) => expect(resolveMediaSelection(items, { mediaItemId: item.id, index: 0 })).toEqual({ mediaItemId: item.id, index }));
+  items.forEach((item, index) => expect(resolveMediaSelection(items, { mediaItemId: personalMediaKey(item), index: 0 })).toEqual({ mediaItemId: personalMediaKey(item), index }));
   const reversed = [...items].reverse();
-  expect(resolveMediaSelection(reversed, { mediaItemId: image.id, index: 0 })?.index).toBe(7);
-  expect(resolveMediaSelection(items.slice(0, 7), { mediaItemId: items[7].id, index: 7 })).toEqual({ mediaItemId: items[6].id, index: 6 });
-  expect(resolveMediaSelection([], { mediaItemId: image.id, index: 0 })).toBeNull();
+  expect(resolveMediaSelection(reversed, { mediaItemId: personalMediaKey(image), index: 0 })?.index).toBe(7);
+  expect(resolveMediaSelection(items.slice(0, 7), { mediaItemId: personalMediaKey(items[7]), index: 7 })).toEqual({ mediaItemId: personalMediaKey(items[6]), index: 6 });
+  expect(resolveMediaSelection([], { mediaItemId: personalMediaKey(image), index: 0 })).toBeNull();
   expect(resolveMediaSelection([image], { mediaItemId: "gone", index: 8 })?.index).toBe(0);
 });
 
@@ -39,23 +40,30 @@ test("swipes reject short and vertical movements; pan stays bounded from fit thr
   expect(boundImageTransform({ scale: 10, x: 5000, y: -5000 }, { width: 300, height: 600 }, { width: 1000, height: 1000 })).toEqual({ scale: 4, x: 450, y: -300 });
 });
 
-test("read access allows owner, reciprocal shares and admin, without trusting template access alone", async () => {
+test("personal access is actor scoped, includes inherited history and never grants admin or template-owner access", async () => {
   expect(await resolveAccessibleCardMedia(owner, target, accessDeps)).toEqual(image);
-  expect(await resolveAccessibleCardMedia(viewer, target, accessDeps)).toEqual(image);
-  expect(await resolveAccessibleCardMedia({ ...viewer, isAdmin: true, sharedDeckData: [] }, target, accessDeps)).toEqual(image);
-  await expect(resolveAccessibleCardMedia({ ...viewer, sharedDeckData: [] }, target, accessDeps)).rejects.toMatchObject({ status: 403 });
-  await expect(resolveAccessibleCardMedia(viewer, target, { ...accessDeps, loadOwnerDecks: async () => [{ ...deck, sharedWithUserIds: [] }] })).rejects.toMatchObject({ status: 403 });
+  await expect(resolveAccessibleCardMedia(viewer, target, accessDeps)).rejects.toMatchObject({ status: 403 });
+  await expect(resolveAccessibleCardMedia({ ...viewer, isAdmin: true }, target, accessDeps)).rejects.toMatchObject({ status: 403 });
+  await expect(resolveAccessibleCardMedia(viewer, { ...target, viewerUserId: viewerId }, accessDeps)).rejects.toMatchObject({ status: 404 });
   await expect(resolveAccessibleCardMedia(owner, { ...target, mediaItemId: "foreign" }, accessDeps)).rejects.toMatchObject({ status: 404 });
-  await expect(resolveAccessibleCardMedia(owner, target, { ...accessDeps, loadVisibleTemplate: async () => null })).rejects.toMatchObject({ status: 404 });
-  const badDeck = { ...deck, cards: [{ ...deck.cards[0], mediaItems: [{ ...image, assetId: "other-user/private.png" }] }] };
-  await expect(resolveAccessibleCardMedia({ ...owner, decksData: [badDeck] }, target, accessDeps)).rejects.toMatchObject({ status: 422 });
+  const fork = { ...record, cardTemplateId: "fork", historySourceCardTemplateId: "card-1", mediaItems: [] };
+  const inherited = { ...target, cardTemplateId: "fork" };
+  expect(await resolveAccessibleCardMedia(owner, inherited, { loadCards: async () => [fork, record] })).toEqual(image);
+  await expect(resolveAccessibleCardMedia(owner, { ...inherited, sourceCardTemplateId: "unrelated" }, { loadCards: async () => [fork, record] })).rejects.toMatchObject({ status: 404 });
+  await expect(resolveAccessibleCardMedia(owner, target, { loadCards: async () => [record, record] })).rejects.toMatchObject({ status: 404 });
   expect(() => readCardMediaRequest({ ...target, url: "https://attacker.example" })).toThrow(CardMediaAccessError);
+  expect(() => readCardMediaRequest({ ...target, deckUserId: viewerId })).toThrow(CardMediaAccessError);
+});
+
+test("source-aware selection does not confuse matching media IDs from an original and fork", () => {
+  const inherited = { ...image, sourceCardTemplateId: "source" };
+  expect(resolveMediaSelection([image, inherited], { mediaItemId: personalMediaKey(inherited), index: 0 })?.index).toBe(1);
 });
 
 test("API authenticates, checks origin, and uses only the authorized persisted asset", async () => {
   const assets: string[] = [];
-  const handler = createCardMediaHandler({ currentUser: async () => viewer, resolveMedia: (user, request) => resolveAccessibleCardMedia(user, request, accessDeps),
-    download: async (item) => { assets.push(item.assetId); return { status: "ready", url: "https://delivery.example/file.png", filename: "file.png" }; }, videoStatus: async () => ({ status: "ready" }) });
+  const handler = createCardMediaHandler({ currentUser: async () => owner, resolveMedia: (user, request) => resolveAccessibleCardMedia(user, request, accessDeps),
+    download: async (item) => { assets.push(item.assetId); return { status: "ready", url: "https://delivery.example/file.png", filename: "file.png" }; }, grant, videoStatus: async () => ({ status: "ready" }) });
   const post = (body: unknown, origin = "https://app.example") => handler(new Request("https://app.example/api/media/card", { method: "POST", headers: { "Content-Type": "application/json", origin }, body: JSON.stringify(body) }));
   const imageResponse = await post(target);
   expect(imageResponse.status).toBe(200);
@@ -65,13 +73,13 @@ test("API authenticates, checks origin, and uses only the authorized persisted a
   expect((await post(target, "https://other.example")).status).toBe(403);
   expect((await post({ ...target, assetId: "arbitrary" })).status).toBe(400);
   expect((await post({ ...target, mediaItemId: "other" })).status).toBe(404);
-  const unauthenticated = createCardMediaHandler({ currentUser: async () => null, resolveMedia: async () => { throw new Error("must not run"); }, download: async () => ({ status: "failed" }), videoStatus: async () => ({ status: "ready" }) });
+  const unauthenticated = createCardMediaHandler({ currentUser: async () => null, resolveMedia: async () => { throw new Error("must not run"); }, download: async () => ({ status: "failed" }), grant, videoStatus: async () => ({ status: "ready" }) });
   expect((await unauthenticated(new Request("https://app.example/api/media/card"))).status).toBe(401);
 });
 
 test("downloads preserve image format and use direct MP4 delivery; generation is POST only and reused", async () => {
   const calls: string[] = [];
-  const deps = { videoStatus: async () => ({ status: "ready" as const }),
+  const deps = { grant, videoStatus: async () => ({ status: "ready" as const }),
     download: async (_asset: string, method: "GET" | "POST" = "GET") => { calls.push(method); return method === "GET" ? null : { status: "inprogress" as const, percentComplete: 12 }; } };
   expect(mediaDownloadFilename(image)).toBe("Written-work.png");
   expect(mediaDownloadFilename(video)).toBe("Practice.mp4");
@@ -79,41 +87,47 @@ test("downloads preserve image format and use direct MP4 delivery; generation is
   expect(await getCardMediaDownload(video, true, deps)).toEqual({ status: "preparing", progress: 12 });
   expect(calls).toEqual(["GET", "GET", "POST"]);
   const readyDeps = { ...deps, download: async (_asset: string, method: "GET" | "POST" = "GET") => { expect(method).toBe("GET"); return { status: "ready" as const, url: "https://customer-test.cloudflarestream.com/video-1/downloads/default.mp4" }; } };
-  expect(await getCardMediaDownload(video, true, readyDeps)).toMatchObject({ status: "ready", url: "https://customer-test.cloudflarestream.com/video-1/downloads/default.mp4?filename=Practice" });
+  expect(await getCardMediaDownload(video, true, readyDeps)).toMatchObject({ status: "ready", url: "https://videodelivery.net/signed-token/downloads/default.mp4?filename=Practice" });
   expect(await getCardMediaDownload(video, true, { ...deps, videoStatus: async () => ({ status: "processing" as const }) })).toEqual({ status: "preparing", progress: undefined });
   expect(await getCardMediaDownload(video, false, { ...deps, download: async () => ({ status: "error" as const }) })).toEqual({ status: "failed" });
 });
 
-test("R2 image GET is presigned without changing stored object metadata", async () => {
-  const env = { CLOUDFLARE_ACCOUNT_ID: "account", CLOUDFLARE_R2_ACCESS_KEY_ID: "access", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "secret", CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "uploads", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: "https://images.example" };
-  const previous = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+test("image resolution preserves historical and Card-scoped keys without assuming Deck-derived paths", () => {
+  const key = "path-templates/old/introduction/abc.png";
+  const origins = ["https://assets.tebostudio.com", "https://pub-121cf28a94a14f79a0d3145eac12674b.r2.dev"];
+  const env = { CLOUDFLARE_R2_BUCKET_NAME: "canonical", CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "personal", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: "https://personal.example", CLOUDFLARE_R2_LEGACY_ORIGINS: JSON.stringify(Object.fromEntries(origins.map(origin => [origin, "canonical"]))) };
+  origins.forEach(origin => expect(r2Location({ ...image, src: `${origin}/${key}`, assetId: key }, env)).toEqual({ bucket: "canonical", key }));
+  const cardKey = `user-cards/${ownerId}/card-1/media.png`;
+  expect(r2Location({ ...image, src: `https://personal.example/${cardKey}`, assetId: cardKey }, env)).toEqual({ bucket: "personal", key: cardKey });
+  expect(() => r2Location({ ...image, src: "https://attacker.example/a.png" }, env)).toThrow();
+});
+
+test("download-enabled Stream tokens are requested separately from ordinary playback tokens", async () => {
+  const env = { CLOUDFLARE_ACCOUNT_ID: "fixture", CLOUDFLARE_STREAM_API_TOKEN: "fixture" };
+  const old = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
   Object.assign(process.env, env);
+  const bodies: Array<Record<string, unknown>> = [];
   try {
-    const url = await createUserCardImageDownloadUrl(image.assetId, async (_client, command, options) => {
-      expect(command).toEqual(expect.objectContaining({ input: expect.objectContaining({
-        Key: image.assetId, Bucket: "uploads",
-      }) }));
-      expect("ResponseContentDisposition" in command.input).toBe(false);
-      expect(options?.expiresIn).toBe(300);
-      return "https://r2.example/signed";
-    });
-    expect(url).toBe("https://r2.example/signed");
-  } finally { Object.entries(previous).forEach(([key, value]) => value === undefined ? delete process.env[key] : process.env[key] = value); }
+    const fetchToken: typeof fetch = async (_url, init) => { bodies.push(JSON.parse(String(init?.body))); return Response.json({ success: true, result: { token: "signed-token" } }); };
+    await streamPlaybackGrant("video-1", fetchToken);
+    await streamPlaybackGrant("video-1", fetchToken, true);
+    expect(bodies[0].downloadable).toBeUndefined();
+    expect(bodies[1].downloadable).toBe(true);
+  } finally { Object.entries(old).forEach(([key, value]) => value === undefined ? delete process.env[key] : process.env[key] = value); }
 });
 
 test("image download streams the authorized full image with attachment headers", async () => {
   const requested: string[] = [];
-  const handler = createCardMediaFileHandler({ currentUser: async () => viewer,
+  const handler = createCardMediaFileHandler({ currentUser: async () => owner,
     resolveMedia: (user, request) => resolveAccessibleCardMedia(user, request, accessDeps),
-    signedUrl: async (key) => { requested.push(key); return "https://r2.example/signed"; },
-    fetchImage: async () => new Response(new Uint8Array([1, 2, 3]), { headers: { "content-length": "3" } }),
+    readImage: async (item) => { requested.push(item.src); return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-length": "3", "content-type": "image/png" } }); },
   });
   const response = await handler(new Request(`https://app.example/api/media/card/file?${new URLSearchParams(target)}`));
   expect(response.status).toBe(200);
   expect(response.headers.get("content-disposition")).toBe('attachment; filename="Written-work.png"');
   expect(response.headers.get("content-type")).toBe("image/png");
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
-  expect(requested).toEqual([image.assetId]);
+  expect(requested).toEqual([image.src]);
   expect((await handler(new Request(`https://app.example/api/media/card/file?${new URLSearchParams({ ...target, mediaItemId: "missing" })}`))).status).toBe(404);
 });
 
@@ -122,7 +136,7 @@ test("Safari video delivery streams an authorized MP4 with attachment headers an
   const url = `https://app.example/api/media/card/video-file?${new URLSearchParams(requestTarget)}`;
   const upstreamUrl = "https://customer-test.cloudflarestream.com/video-1/downloads/default.mp4?filename=Practice";
   const handler = createCardMediaVideoFileHandler({
-    currentUser: async () => viewer,
+    currentUser: async () => owner,
     resolveMedia: (user, request) => resolveAccessibleCardMedia(user, request, accessDeps),
     download: async () => ({ status: "ready", url: upstreamUrl, filename: "Practice.mp4" }),
     fetchVideo: async (input, init) => {

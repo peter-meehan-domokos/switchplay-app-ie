@@ -1,0 +1,697 @@
+{
+  "verifiedAt": "2026-10-25T21:38:26.387Z",
+  "physicalIPhone": false,
+  "checks": [
+    {
+      "kind": "iphone-webkit",
+      "url": "http://192.168.1.38:4181/dev/maths-renderer",
+      "httpStatus": 200,
+      "heading": "Stage 4 · Presentation review",
+      "viewport": 390,
+      "pageWidth": 390,
+      "reviewCases": [
+        {
+          "id": "balanced-small",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 254,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 254,
+                "bottom": 513.734375
+              },
+              "width": 254,
+              "height": 513.734375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "balanced-medium",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 340,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 339.53125,
+                "bottom": 597.28125
+              },
+              "width": 339.53125,
+              "height": 597.28125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "balanced-large",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 340,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 308,
+                "bottom": 840.78125
+              },
+              "width": 308,
+              "height": 840.78125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "larger-maths-small",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 254,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 254,
+                "bottom": 540.59375
+              },
+              "width": 254,
+              "height": 540.59375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "larger-maths-medium",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 340,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 337.78125,
+                "bottom": 641.0625
+              },
+              "width": 337.78125,
+              "height": 641.0625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "larger-maths-large",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 340,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 308,
+                "bottom": 882.609375
+              },
+              "width": 308,
+              "height": 882.609375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "more-space-small",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 254,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 254,
+                "bottom": 524.921875
+              },
+              "width": 254,
+              "height": 524.921875,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "more-space-medium",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 340,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 339.53125,
+                "bottom": 611.65625
+              },
+              "width": 339.53125,
+              "height": 611.65625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "more-space-large",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 340,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 308,
+                "bottom": 858.40625
+              },
+              "width": 308,
+              "height": 858.40625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        }
+      ],
+      "legacyOpen": false,
+      "fontsLoaded": [
+        "KaTeX_Main",
+        "KaTeX_Main",
+        "KaTeX_Math",
+        "__nextjs-Geist"
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "afterScreenshots": [
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 12
+        }
+      ]
+    },
+    {
+      "kind": "desktop-chromium",
+      "url": "http://192.168.1.38:4181/dev/maths-renderer",
+      "httpStatus": 200,
+      "heading": "Stage 4 · Presentation review",
+      "viewport": 1100,
+      "pageWidth": 1100,
+      "reviewCases": [
+        {
+          "id": "balanced-small",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 254,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 253.6875,
+                "bottom": 513.484375
+              },
+              "width": 253.6875,
+              "height": 513.484375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "balanced-medium",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 434,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 424.15625,
+                "bottom": 569.953125
+              },
+              "width": 424.15625,
+              "height": 569.953125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "balanced-large",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 674,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 643.140625,
+                "bottom": 697.390625
+              },
+              "width": 643.140625,
+              "height": 697.390625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "larger-maths-small",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 254,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 253.6875,
+                "bottom": 540.59375
+              },
+              "width": 253.6875,
+              "height": 540.59375,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "larger-maths-medium",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 434,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 432.8125,
+                "bottom": 604.1875
+              },
+              "width": 432.8125,
+              "height": 604.1875,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "larger-maths-large",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 674,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 653.75,
+                "bottom": 738.515625
+              },
+              "width": 653.75,
+              "height": 738.515625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "more-space-small",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 254,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 253.6875,
+                "bottom": 524.671875
+              },
+              "width": 253.6875,
+              "height": 524.671875,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "more-space-medium",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 434,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 424.15625,
+                "bottom": 584.328125
+              },
+              "width": 424.15625,
+              "height": 584.328125,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        },
+        {
+          "id": "more-space-large",
+          "result": {
+            "status": "ready",
+            "fits": true,
+            "layout": {
+              "available": {
+                "width": 674,
+                "height": null
+              },
+              "bounds": {
+                "left": 0,
+                "top": 0,
+                "right": 643.140625,
+                "bottom": 715.015625
+              },
+              "width": 643.140625,
+              "height": 715.015625,
+              "overflowX": false,
+              "overflowY": false,
+              "excess": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              }
+            },
+            "generation": 2,
+            "diagnostics": []
+          }
+        }
+      ],
+      "legacyOpen": false,
+      "fontsLoaded": [
+        "KaTeX_Main",
+        "KaTeX_Math"
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "httpErrors": [],
+      "afterScreenshots": [
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        },
+        {
+          "status": "ready",
+          "fits": true,
+          "generation": 2
+        }
+      ]
+    }
+  ],
+  "screenshotScope": "Individual comparison images show the rendered host; review images show the page viewport."
+}

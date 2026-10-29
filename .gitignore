@@ -50,3 +50,30 @@ next-env.d.ts
 out
 .next
 node_modules
+
+# Local maths verification/deployment transcripts; summaries and fixtures stay tracked.
+/tests/info-maths/evidence/*.log
+/tests/maths-fonts/evidence/*.log
+/tests/maths-renderer/evidence/trusted-proof/*.log
+/tests/maths-renderer/vercel-proof/evidence/*.log
+
+# Historical maths review/deployment artifacts retained locally after merge audit.
+/tests/maths-fonts/evidence/iphone-font-comparison.png
+/tests/maths-fonts/evidence/firefox-font-comparison.png
+/tests/maths-fonts/evidence/webkit-font-comparison.png
+/tests/maths-renderer/vercel-proof/evidence/changed-since-deployment-approval.json
+/tests/maths-renderer/vercel-proof/evidence/cleanup.json
+/tests/maths-renderer/vercel-proof/evidence/deploy-dry-run.json
+/tests/maths-renderer/vercel-proof/evidence/deploy-inputs.json
+/tests/maths-renderer/vercel-proof/evidence/initial-deployment-preparation.json
+/tests/maths-renderer/vercel-proof/evidence/initial-deployment-removal.json
+/tests/maths-renderer/vercel-proof/evidence/initial-deployment-target.json
+/tests/maths-renderer/vercel-proof/evidence/post-removal-state.json
+/tests/maths-renderer/vercel-proof/evidence/pre-deployment-change-manifest.json
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt1-deployment.json
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt1-preparation.json
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt1-results.json
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt1-runtime-errors.jsonl
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt2-deployment.json
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt2-preparation.json
+/tests/maths-renderer/vercel-proof/evidence/preview-attempt2-results.json

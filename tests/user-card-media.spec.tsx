@@ -195,12 +195,12 @@ test("Stream persistence requires the conventional id and iframe URL", () => {
 test("card media request bodies use explicit mutation types", () => {
   expect(createCardMediaAppendRequestBody("card-003", image)).toEqual({
     type: "append-card-media",
-    cardId: "card-003",
+    cardTemplateId: "card-003",
     mediaItem: image,
   });
   expect(createCardMediaRemovalRequestBody("card-003", image.id)).toEqual({
     type: "remove-card-media",
-    cardId: "card-003",
+    cardTemplateId: "card-003",
     mediaItemId: image.id,
   });
 });

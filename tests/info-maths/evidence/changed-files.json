@@ -1,0 +1,316 @@
+{
+  "baseline": "Task preflight content hashes, preserving pre-existing working changes. Dependency manifests explicitly included because installation was already pending when their preflight hashes were captured.",
+  "self": "tests/info-maths/evidence/changed-files.json (listed here without recursive self-hash)",
+  "files": [
+    {
+      "path": "src/app/internal/info-maths/Host.tsx",
+      "status": "new",
+      "sha256": "4f4206e1067b95c495c5fba1c16a0a16700ab294c07db2fb2b217fbc98822a31"
+    },
+    {
+      "path": "src/app/internal/info-maths/page.tsx",
+      "status": "new",
+      "sha256": "adc99b0cf9b51fee6eda4b5a3c1769875429cea9bdd893ec886f423b57335468"
+    },
+    {
+      "path": "src/components/info-cards/InfoCardMaths.module.css",
+      "status": "new",
+      "sha256": "405f81aeff9d013924e6a7d3280ad3f5189891028c6830f29fb4383a1e4452a9"
+    },
+    {
+      "path": "src/components/info-cards/fonts/Liberation-LICENSE.txt",
+      "status": "new",
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSans-Bold.ttf",
+      "status": "new",
+      "sha256": "788abee4c806d660e8aee46689dd8540cd4bb98da03dcc9d171ce3efd99a9173"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSans-BoldItalic.ttf",
+      "status": "new",
+      "sha256": "698da70fc191cc5f33ad4d6d3fe830fe4624b898ea2e3169955928b7c491f1ee"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSans-Italic.ttf",
+      "status": "new",
+      "sha256": "e5bae5c4cde31f22142753855f4f8fb86da6ff39955ed3c0a11248b0d16948b0"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSans-Regular.ttf",
+      "status": "new",
+      "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSerif-Bold.ttf",
+      "status": "new",
+      "sha256": "d754ba427cfe0bca54ae052384baa8f842da5bd6550ad4da024ac441e7a7d5ce"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSerif-BoldItalic.ttf",
+      "status": "new",
+      "sha256": "f17db8af71e24d2066b587546021d4f0b296be389512b658dec3c09affeb11a7"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSerif-Italic.ttf",
+      "status": "new",
+      "sha256": "0e3dea9f8d613e006ccfa62201f33e265d19167bd0907725c3e145368b04fc2e"
+    },
+    {
+      "path": "src/components/info-cards/fonts/LiberationSerif-Regular.ttf",
+      "status": "new",
+      "sha256": "058ea80864aef09a23f45cbec2bb5400bc3dfbdea01c3f10538a21fcb497fb74"
+    },
+    {
+      "path": "src/components/info-cards/infoCardMaths.ts",
+      "status": "new",
+      "sha256": "c9c2f8b8858b08b6d46069236547fd7c00373442ab3146fdcd22dd6fc5a78d91"
+    },
+    {
+      "path": "src/lib/infoCards/mathsHostAuth.ts",
+      "status": "new",
+      "sha256": "6c0a2f5e824e0b74ee4d19828edf3472ecc8aec74b9e4d319ab053e65feb01a5"
+    },
+    {
+      "path": "src/lib/infoCards/mathsValidation.ts",
+      "status": "new",
+      "sha256": "158749208fc65da17e7949032e04dc4155c277605e598f5b56be66bd94cf8fd5"
+    },
+    {
+      "path": "src/lib/infoCards/trustedMaths.ts",
+      "status": "new",
+      "sha256": "21b48298eba4a62f096e5120d01d6d70637794419397e01239a236f8c74d2f99"
+    },
+    {
+      "path": "tests/info-maths.test.ts",
+      "status": "new",
+      "sha256": "6295cec5d149b80d274370e3fdaeb3658eea06f85f0484d842db791adbf594cf"
+    },
+    {
+      "path": "tests/info-maths/README.md",
+      "status": "new",
+      "sha256": "36625d7ab4b8f35cda0484332fdac4ffeb73ff782827b252135eabb22a1bf38c"
+    },
+    {
+      "path": "tests/info-maths/evidence/application-units.log",
+      "status": "new",
+      "sha256": "1fb12cf0ba92cb24aabb42cd0861c90745e74d095081069bacfa555f664a8b38"
+    },
+    {
+      "path": "tests/info-maths/evidence/build.log",
+      "status": "new",
+      "sha256": "5ee655d973d27ae255f98948afd36c734b666c1586554be483e88d27c8a29d78"
+    },
+    {
+      "path": "tests/info-maths/evidence/consultation-and-initial-editor.log",
+      "status": "new",
+      "sha256": "3270e287f762c7d859238b689dfcedfb38b9d31a7cc1d5cf647b34d9acd342d4"
+    },
+    {
+      "path": "tests/info-maths/evidence/consultation-maths.png",
+      "status": "new",
+      "sha256": "f30aadf32f245d0848d72dd3b7782afe87cce319c20360ec1372bcfb262b38a2"
+    },
+    {
+      "path": "tests/info-maths/evidence/database.log",
+      "status": "new",
+      "sha256": "183fbf0c239847d135d97002cdd00b0ae4036d694067a748ba905926ad8a9673"
+    },
+    {
+      "path": "tests/info-maths/evidence/editor-targeted.log",
+      "status": "new",
+      "sha256": "45a29f677ef4401a67cbcabdf8ecd182338ab2b72ae75040f0e43ab4668cb961"
+    },
+    {
+      "path": "tests/info-maths/evidence/legacy-capacity-browser.log",
+      "status": "new",
+      "sha256": "c96a8212668084334d63eeaf93e9be1f40da9a447cc172d6f8435137293fa368"
+    },
+    {
+      "path": "tests/info-maths/evidence/library-maths.png",
+      "status": "new",
+      "sha256": "c76f2366b7046653c2b9ea0bff1a1f00f3b4925887208a0271460fe84068ac6e"
+    },
+    {
+      "path": "tests/info-maths/evidence/maths-204.png",
+      "status": "new",
+      "sha256": "b5773450cb8c0bf0087f622adb777de2f415709cd7ae616afc57c5613cd74d9b"
+    },
+    {
+      "path": "tests/info-maths/evidence/maths-integration.log",
+      "status": "new",
+      "sha256": "478148dcef6cda1acb084a4ec1e0cf7fb29375e2e151aaf401dc32931ea0b59c"
+    },
+    {
+      "path": "tests/info-maths/evidence/production.json",
+      "status": "new",
+      "sha256": "540332d30434dd1aceaab9043d7b19b85067449c39ea48adc3d703cf546530b4"
+    },
+    {
+      "path": "tests/info-maths/evidence/renderer-browser-initial.log",
+      "status": "new",
+      "sha256": "c6638bc1df8b37bcb35a610998552ae5556b3da6cc33fad80733836dfc40496b"
+    },
+    {
+      "path": "tests/info-maths/evidence/renderer-review-rerun.log",
+      "status": "new",
+      "sha256": "037423237acc50b5ddc9f383ef413014f12e1ab7986023bfc27b9ada8727fcaf"
+    },
+    {
+      "path": "tests/info-maths/evidence/renderer-units.log",
+      "status": "new",
+      "sha256": "e327fdff385ad198e490776f2d978cc4b08d2b84e7023d9faa3cca31b89e1116"
+    },
+    {
+      "path": "tests/info-maths/evidence/server.log",
+      "status": "new",
+      "sha256": "b66970e756f5648b083f2cd9d10f03a97b1f36914be286bf75e29ae261d34402"
+    },
+    {
+      "path": "tests/info-maths/evidence/stack-browser.log",
+      "status": "new",
+      "sha256": "1c734b0db7abf357dcf6fc1806111f90beabe5c088a50d7e79492a50d77b7c29"
+    },
+    {
+      "path": "tests/info-maths/evidence/verification.json",
+      "status": "new",
+      "sha256": "d980a2b1437e330911b9c8787685f3a2b65b31ce7e68f90a22b877c48df423d7"
+    },
+    {
+      "path": "tests/info-maths/production.mts",
+      "status": "new",
+      "sha256": "8521d8e8e98f72a7c31e1c21ed29b1e870f5b6a35fa2f5ff510409eb7a29c6ec"
+    },
+    {
+      "path": "tests/phase2/info-maths.browser.ts",
+      "status": "new",
+      "sha256": "f95472e318f0a37c8a767e7ea89a9b42bdd159e003651ac4eaffad8cb66cb227"
+    },
+    {
+      "path": "docs/engineering/features/maths-renderer/maths-renderer-engineering-plan.md",
+      "status": "modified",
+      "sha256": "e776a51d51bb7f929ae43990f0db34619921a54e4e8cdb148829d5f5b2b2edbd"
+    },
+    {
+      "path": "next.config.ts",
+      "status": "modified",
+      "sha256": "125f518f8baff0ea4688ff1e1bb85359b89544d76c5ea0f80f89cb999f43630d"
+    },
+    {
+      "path": "package-lock.json",
+      "status": "modified",
+      "sha256": "569508fb69f7e2f870fafb87107cc1590dc167359f1b344d468c79427adf67ac"
+    },
+    {
+      "path": "package.json",
+      "status": "modified",
+      "sha256": "35c41c79ee33fe333ebf7d59a2ca0620549a22c8921540db3e460e98e032eb2e"
+    },
+    {
+      "path": "src/app/api/info-cards/[infoCardId]/publish/route.ts",
+      "status": "modified",
+      "sha256": "5156f3585e0fae17d59a7cbeb386782c90c9b9db17faaeed05d36c5e6f50e98e"
+    },
+    {
+      "path": "src/app/dev/maths-renderer/ExplanationReviewFixtures.tsx",
+      "status": "modified",
+      "sha256": "7f59ca85923f87b70662373356e4c93614db59bda9988562b174d9b1379c8691"
+    },
+    {
+      "path": "src/app/dev/maths-renderer/explanationReview.module.css",
+      "status": "modified",
+      "sha256": "046a14b07afeb98619b0453e924fe40f9d748c9434f8b99808b6b70c234212fb"
+    },
+    {
+      "path": "src/components/creator/creatorRequest.ts",
+      "status": "modified",
+      "sha256": "ae21d86ab04387a662e519872638bd7471461089b98aff4f585af01476b5e561"
+    },
+    {
+      "path": "src/components/info-cards/InfoCardEditor.tsx",
+      "status": "modified",
+      "sha256": "efd204f366c572d921afe9c9eb52e39b58e575d9f99fdbaf9f5f02e35d0dd81a"
+    },
+    {
+      "path": "src/components/info-cards/InfoCardFace.module.css",
+      "status": "modified",
+      "sha256": "036d63fbe9f1adfb25012e2fd1d2f1c6d8a4b544345199d4d82a8a58e8f693dd"
+    },
+    {
+      "path": "src/components/info-cards/InfoCardFace.tsx",
+      "status": "modified",
+      "sha256": "c4f75eb4fcb1dd0479219e1f890f8b359fcd208c15311050287a7a73abaeb34e"
+    },
+    {
+      "path": "src/components/info-cards/infoCardConsultationClient.ts",
+      "status": "modified",
+      "sha256": "e4929c0737bcb724114453bbb20297e8106ad83b23150a286d057afade037d13"
+    },
+    {
+      "path": "src/components/info-cards/infoCardEditorController.ts",
+      "status": "modified",
+      "sha256": "13d6d09b7556ff803b5a2900f048b7e0b05ddccf184c9ba3f7c1b962a8148f84"
+    },
+    {
+      "path": "src/components/info-cards/infoCardErrors.ts",
+      "status": "modified",
+      "sha256": "58dc9ac082fa06335da7d603069ecf020f1f55c8e4042966e04affffb74d541d"
+    },
+    {
+      "path": "src/components/library/InfoCardsLibrary.tsx",
+      "status": "modified",
+      "sha256": "f1f0cdb01967837fef18005c4b07b7073134cd84e768d2d2564a9396b9625462"
+    },
+    {
+      "path": "src/lib/infoCards/domain.ts",
+      "status": "modified",
+      "sha256": "dbb54a13cae202bc5d40d5d7ac3cd4d7c91b0d10bd8cd7d88f30f2b208789152"
+    },
+    {
+      "path": "src/lib/infoCards/http.ts",
+      "status": "modified",
+      "sha256": "e765d27b4648f956409cafc945f52a7c5d4f86e98a3f11d424d31acc9783f685"
+    },
+    {
+      "path": "src/lib/infoCards/model.ts",
+      "status": "modified",
+      "sha256": "31382dfbf6a4ddc517764e34bb9f1a81eb1c5f6367c1254be818f4749d4964a8"
+    },
+    {
+      "path": "src/lib/infoCards/queries.ts",
+      "status": "modified",
+      "sha256": "b037b5102f719da0ac470a509cdc83c8f16a8fb52d8039c5b829eedd5bce7bf5"
+    },
+    {
+      "path": "src/lib/infoCards/repository.ts",
+      "status": "modified",
+      "sha256": "85f2746e05d007e595d4943ab102e94584c3ba9410959aafd39353e34ca55ef2"
+    },
+    {
+      "path": "tests/browser/info-cards-capacity.browser.ts",
+      "status": "modified",
+      "sha256": "cf1b589753f27d11d7e9d22bf98de6d40f176ad5e6c333666c7da782ebb8c368"
+    },
+    {
+      "path": "tests/info-card-editor.test.ts",
+      "status": "modified",
+      "sha256": "7d9515e6688234be295a46bad61279cad01a8392efdbc213c73dfc0a6acdaa78"
+    },
+    {
+      "path": "tests/info-cards.integration.ts",
+      "status": "modified",
+      "sha256": "dd62584cb96792bd1c2a26eac6864590e449b9db7c3c86d348977211c2b96ad6"
+    },
+    {
+      "path": "tests/maths-renderer/explanation-review.browser.ts",
+      "status": "modified",
+      "sha256": "fc33f7b399be257e8472bcff61dbcf2d12bdcb613790b4c0767c7a0854c91403"
+    },
+    {
+      "path": "tests/phase2/info-cards-authoring.browser.ts",
+      "status": "modified",
+      "sha256": "b734c8ec79d978e4d0a26987692a93a01d710a96b70935c8f0b6880c36e4926c"
+    }
+  ]
+}

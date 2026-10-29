@@ -1,0 +1,67 @@
+{
+  "recordedAt": "2026-10-25T21:44:13.510Z",
+  "stage": 4,
+  "checks": [
+    {
+      "name": "Standalone parser, security and isolation",
+      "passed": 16,
+      "failed": 0,
+      "command": "node --import tsx --test tests/maths-renderer/*.test.ts"
+    },
+    {
+      "name": "Existing application units",
+      "passed": 420,
+      "failed": 0,
+      "command": "npm run test:unit",
+      "baselinePassed": 420
+    },
+    {
+      "name": "Existing Info Card database integration",
+      "passed": 26,
+      "failed": 0,
+      "file": "tests/info-cards.integration.ts",
+      "isolation": "Disposable MongoDB replica set"
+    },
+    {
+      "name": "Existing Info Card capacity browser checks",
+      "passed": 5,
+      "failed": 0,
+      "file": "tests/browser/info-cards-capacity.browser.ts",
+      "isolation": "Dedicated fixture server"
+    },
+    {
+      "name": "Existing Info Card consultation/layout browser checks",
+      "passed": 19,
+      "failed": 0,
+      "file": "tests/browser/info-cards-integration.browser.ts",
+      "isolation": "Dedicated fixture server"
+    },
+    {
+      "name": "Existing real Info Card authoring and consultation",
+      "passed": 36,
+      "failed": 0,
+      "command": "node --import tsx scripts/test-phase2.ts --info-cards tests/phase2/info-cards-authoring.browser.ts tests/phase2/info-card-consultation.browser.ts --output=/tmp/maths-stage4-info-phase2-results --reporter=line",
+      "isolation": "Disposable Phase 2 database/server; separate build output"
+    },
+    {
+      "name": "Scoped ESLint",
+      "status": "passed",
+      "command": "npx eslint src/components/maths-renderer src/app/dev/maths-renderer tests/maths-renderer"
+    },
+    {
+      "name": "TypeScript",
+      "status": "passed",
+      "command": "npx tsc --noEmit --incremental false"
+    },
+    {
+      "name": "Whitespace diff check",
+      "status": "passed",
+      "command": "git diff --check"
+    }
+  ],
+  "limitations": [
+    "Physical iPhone hardware and audible VoiceOver/NVDA checks were not performed.",
+    "Numerical styling requires visual approval.",
+    "Stage 5 production-build acceptance and consumer integration have not begun."
+  ]
+}

@@ -1,0 +1,1488 @@
+{
+  "stats": {
+    "startTime": "2026-10-26T13:17:04.320Z",
+    "duration": 431043.88800000004,
+    "expected": 117,
+    "skipped": 6,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "file": "acceptance.browser.ts",
+      "title": "specification examples preserve authored prose, dollars, currency and literal markup",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2186
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "long display working stays natural and reports both insufficient dimensions",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2024
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "loading the renderer stylesheet leaves neighbouring prose and engine-like class names unchanged",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1329
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "specification examples preserve authored prose, dollars, currency and literal markup",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3664
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "long display working stays natural and reports both insufficient dimensions",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2460
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "loading the renderer stylesheet leaves neighbouring prose and engine-like class names unchanged",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1800
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "specification examples preserve authored prose, dollars, currency and literal markup",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3721
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "long display working stays natural and reports both insufficient dimensions",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3511
+        }
+      ]
+    },
+    {
+      "file": "acceptance.browser.ts",
+      "title": "loading the renderer stylesheet leaves neighbouring prose and engine-like class names unchanged",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2163
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · small",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2044
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · medium",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1991
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · large",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1986
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "iPhone-sized viewport preserves authored alignment and captures visual evidence",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3514
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "desktop visual evidence and source candidates remain independently authored",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2382
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · small",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2656
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · medium",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2662
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · large",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2577
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "iPhone-sized viewport preserves authored alignment and captures visual evidence",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2801
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "desktop visual evidence and source candidates remain independently authored",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2925
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · small",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3386
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · medium",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3512
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "column alignment and row clearance · large",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3505
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "iPhone-sized viewport preserves authored alignment and captures visual evidence",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4959
+        }
+      ]
+    },
+    {
+      "file": "alignment.browser.ts",
+      "title": "desktop visual evidence and source candidates remain independently authored",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 10945
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "empty mathematical regions are accepted without fallback or diagnostics",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2537
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1858
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "nested radicals ignore construction SVG width and overhanging descendants are included",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1741
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2175
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2282
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "typography and rapid content changes invalidate old results without cross-instance changes",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2049
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2163
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "hidden hosts recover, invalid constraints cannot fit and invalid source retains diagnostics",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2504
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font loading remains pending, source changes discard stale work, and release measures the new content",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2510
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "failed mathematical fonts never produce a ready fit",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1551
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font changes after a ready result invalidate it; unmount cancels delayed work",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2374
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "the public mixed-content path retains both alignment candidates and indentation",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2239
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "subpixel capacity boundaries and intentional mathematical space are measured",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2603
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font timeout is unavailable, never fit, and successful completion can recover",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 12030
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2365
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "empty mathematical regions are accepted without fallback or diagnostics",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3250
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2939
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "nested radicals ignore construction SVG width and overhanging descendants are included",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2395
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3397
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2871
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "typography and rapid content changes invalidate old results without cross-instance changes",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2615
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2959
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "hidden hosts recover, invalid constraints cannot fit and invalid source retains diagnostics",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3853
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font loading remains pending, source changes discard stale work, and release measures the new content",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2863
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "failed mathematical fonts never produce a ready fit",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2443
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font changes after a ready result invalidate it; unmount cancels delayed work",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3706
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "the public mixed-content path retains both alignment candidates and indentation",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3701
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "subpixel capacity boundaries and intentional mathematical space are measured",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4156
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font timeout is unavailable, never fit, and successful completion can recover",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 12676
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2858
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "empty mathematical regions are accepted without fallback or diagnostics",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4024
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "actual occupied bounds, equivalent constraints and independent overflow axes",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4218
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "nested radicals ignore construction SVG width and overhanging descendants are included",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3789
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "container resizing, padding/borders, zero height and unbounded height",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4236
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "prose breaks and paragraph gaps survive; inline mathematics stays atomic with tall clearance",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3565
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "typography and rapid content changes invalidate old results without cross-instance changes",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3904
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "translations, nested nonuniform positive scales and unsupported transforms",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3689
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "hidden hosts recover, invalid constraints cannot fit and invalid source retains diagnostics",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4389
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font loading remains pending, source changes discard stale work, and release measures the new content",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4514
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "failed mathematical fonts never produce a ready fit",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4259
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font changes after a ready result invalidate it; unmount cancels delayed work",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4409
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "the public mixed-content path retains both alignment candidates and indentation",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3797
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "subpixel capacity boundaries and intentional mathematical space are measured",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3984
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "font timeout is unavailable, never fit, and successful completion can recover",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 13892
+        }
+      ]
+    },
+    {
+      "file": "capacity.browser.ts",
+      "title": "an active ancestor transform animation cannot retain an earlier fit",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4892
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "five authored explanations match the actual text-only Info Card at mobile and desktop widths",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 6193
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "each review viewport scrolls independently when space is insufficient and retains intrinsic overflow reporting",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3442
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "iPhone Safari review page renders all five explanations over the LAN",
+      "browser": "chromium",
+      "outcome": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "durationMs": 1
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "five authored explanations match the actual text-only Info Card at mobile and desktop widths",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 9291
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "each review viewport scrolls independently when space is insufficient and retains intrinsic overflow reporting",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4777
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "iPhone Safari review page renders all five explanations over the LAN",
+      "browser": "firefox",
+      "outcome": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "durationMs": 1
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "five authored explanations match the actual text-only Info Card at mobile and desktop widths",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 12939
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "each review viewport scrolls independently when space is insufficient and retains intrinsic overflow reporting",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4389
+        }
+      ]
+    },
+    {
+      "file": "explanation-review.browser.ts",
+      "title": "iPhone Safari review page renders all five explanations over the LAN",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4737
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "open-font review preserves sources, maths, actual constraints and taller height results",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2321
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "Chromium verifies actual candidate prose, serif styles and unchanged KaTeX fonts",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1722
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "font review is readable on mobile WebKit over the existing Wi-Fi server",
+      "browser": "chromium",
+      "outcome": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "durationMs": 1
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "open-font review preserves sources, maths, actual constraints and taller height results",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3445
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "Chromium verifies actual candidate prose, serif styles and unchanged KaTeX fonts",
+      "browser": "firefox",
+      "outcome": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "durationMs": 302
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "font review is readable on mobile WebKit over the existing Wi-Fi server",
+      "browser": "firefox",
+      "outcome": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "durationMs": 1
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "open-font review preserves sources, maths, actual constraints and taller height results",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3911
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "Chromium verifies actual candidate prose, serif styles and unchanged KaTeX fonts",
+      "browser": "webkit",
+      "outcome": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "durationMs": 232
+        }
+      ]
+    },
+    {
+      "file": "font-review.browser.ts",
+      "title": "font review is readable on mobile WebKit over the existing Wi-Fi server",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3974
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "detached hosts become unavailable and recover with observers on their new ancestors",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2396
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "a stable host ref can change target and observes the replacement height budget",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2254
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "visibility and native disclosure changes recover without an old fit",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2653
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "unrelated fonts, paint changes and equivalent consumer rerenders do not repeat callbacks",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2238
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "strict mounting and repeated remounts clean up all instance-owned observers",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2348
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "missing ResizeObserver reports unavailable instead of a fit or a component crash",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1982
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "detached hosts become unavailable and recover with observers on their new ancestors",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2866
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "a stable host ref can change target and observes the replacement height budget",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2950
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "visibility and native disclosure changes recover without an old fit",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3996
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "unrelated fonts, paint changes and equivalent consumer rerenders do not repeat callbacks",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2987
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "strict mounting and repeated remounts clean up all instance-owned observers",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3010
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "missing ResizeObserver reports unavailable instead of a fit or a component crash",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2615
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "detached hosts become unavailable and recover with observers on their new ancestors",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4748
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "a stable host ref can change target and observes the replacement height budget",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4418
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "visibility and native disclosure changes recover without an old fit",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4857
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "unrelated fonts, paint changes and equivalent consumer rerenders do not repeat callbacks",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4009
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "strict mounting and repeated remounts clean up all instance-owned observers",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3959
+        }
+      ]
+    },
+    {
+      "file": "lifecycle.browser.ts",
+      "title": "missing ResizeObserver reports unavailable instead of a fit or a component crash",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3489
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "presentation settings preserve alignment, row clearance, scale, indentation and gaps",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2606
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "working-row pitch retains the approved arraystretch of 2.3125",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1617
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "hanging prose spaces do not create false overflow; authored text and gaps survive",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2164
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "prose/math accessibility order exposes one MathML alternative per expression",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1798
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "mobile and desktop review containers respond without shrinking or clipping mathematics",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 4443
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "mobile prose wrapping excludes nonpainting line-boundary carets from capacity",
+      "browser": "chromium",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 1830
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "presentation settings preserve alignment, row clearance, scale, indentation and gaps",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3190
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "working-row pitch retains the approved arraystretch of 2.3125",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2153
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "hanging prose spaces do not create false overflow; authored text and gaps survive",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2668
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "prose/math accessibility order exposes one MathML alternative per expression",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2358
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "mobile and desktop review containers respond without shrinking or clipping mathematics",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 5147
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "mobile prose wrapping excludes nonpainting line-boundary carets from capacity",
+      "browser": "firefox",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2805
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "presentation settings preserve alignment, row clearance, scale, indentation and gaps",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3795
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "working-row pitch retains the approved arraystretch of 2.3125",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2611
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "hanging prose spaces do not create false overflow; authored text and gaps survive",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 3121
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "prose/math accessibility order exposes one MathML alternative per expression",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2743
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "mobile and desktop review containers respond without shrinking or clipping mathematics",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 11137
+        }
+      ]
+    },
+    {
+      "file": "presentation.browser.ts",
+      "title": "mobile prose wrapping excludes nonpainting line-boundary carets from capacity",
+      "browser": "webkit",
+      "outcome": "expected",
+      "results": [
+        {
+          "status": "passed",
+          "durationMs": 2723
+        }
+      ]
+    }
+  ]
+}

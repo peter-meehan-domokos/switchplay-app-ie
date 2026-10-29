@@ -1,0 +1,4 @@
+.tabs { display: flex; gap: 16px; margin: 16px 0 24px; }
+.tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 4px; color: #c2d3e4; border-bottom: 2px solid transparent; text-decoration: none; }
+.tabs a[aria-current="page"] { color: #f2f5f8; border-color: #a8cde0; }
+.tabs a:focus-visible { outline: 2px solid #a8cde0; outline-offset: 3px; }

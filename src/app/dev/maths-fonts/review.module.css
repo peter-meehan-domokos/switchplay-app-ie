@@ -1,0 +1,40 @@
+@font-face { font-family: ReviewArimo; src: url(./fonts/Arimo-Regular.ttf) format("truetype"); font-weight: 400 700; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewArimo; src: url(./fonts/Arimo-Italic.ttf) format("truetype"); font-weight: 400 700; font-style: italic; font-display: block; }
+@font-face { font-family: ReviewTinos; src: url(./fonts/Tinos-Regular.ttf) format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewTinos; src: url(./fonts/Tinos-Bold.ttf) format("truetype"); font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewTinos; src: url(./fonts/Tinos-Italic.ttf) format("truetype"); font-weight: 400; font-style: italic; font-display: block; }
+@font-face { font-family: ReviewTinos; src: url(./fonts/Tinos-BoldItalic.ttf) format("truetype"); font-weight: 700; font-style: italic; font-display: block; }
+@font-face { font-family: ReviewLiberationSans; src: url(./fonts/LiberationSans-Regular.ttf) format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewLiberationSans; src: url(./fonts/LiberationSans-Bold.ttf) format("truetype"); font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewLiberationSans; src: url(./fonts/LiberationSans-Italic.ttf) format("truetype"); font-weight: 400; font-style: italic; font-display: block; }
+@font-face { font-family: ReviewLiberationSans; src: url(./fonts/LiberationSans-BoldItalic.ttf) format("truetype"); font-weight: 700; font-style: italic; font-display: block; }
+@font-face { font-family: ReviewLiberationSerif; src: url(./fonts/LiberationSerif-Regular.ttf) format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewLiberationSerif; src: url(./fonts/LiberationSerif-Bold.ttf) format("truetype"); font-weight: 700; font-style: normal; font-display: block; }
+@font-face { font-family: ReviewLiberationSerif; src: url(./fonts/LiberationSerif-Italic.ttf) format("truetype"); font-weight: 400; font-style: italic; font-display: block; }
+@font-face { font-family: ReviewLiberationSerif; src: url(./fonts/LiberationSerif-BoldItalic.ttf) format("truetype"); font-weight: 700; font-style: italic; font-display: block; }
+
+.page { max-width: 1160px; margin: auto; padding: 20px 14px; color: #202b38; background: #f5f6f8; font: 15px/1.5 Arial, sans-serif; }
+.page h1 { font-size: 25px; }
+.page > p { margin-block: 14px; }
+.page nav { display: flex; flex-wrap: wrap; gap: 18px; }
+.page a { color: #235a8e; }
+.profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+.profile { min-width: 0; }
+.profile > h2 { font-size: 20px; margin-block: 20px 10px; }
+.profile > p { min-height: 88px; }
+.example { margin-block: 24px; }
+.example h3 { font-size: 15px; margin-bottom: 10px; }
+.frame { box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr); width: 240px; height: 157px; padding: 12px; border: 1px solid rgba(179, 195, 217, .25); border-radius: 12px; background: linear-gradient(145deg, #303947, #252d39); color: #c9d0da; font-size: 9.5px; font-weight: 400; line-height: 1.25; }
+.header { margin: 0 0 9px; font: inherit; white-space: nowrap; }
+.header button { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-size: 8.8px; }
+.viewport { min-height: 0; overflow: auto; }
+.budget { width: 100%; height: 100%; padding: 0; border: 0; }
+.panel { overflow: auto; background: white; color: #202b38; outline: 1px solid #9ea9b1; }
+.diagnostics { margin-block: 10px; font-size: 12px; }
+.source { font-size: 12px; }
+.diagnostics pre, .source pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+/* Review-only missing-glyph comparison. KaTeX_Main remains the primary face;
+   none of the twenty mathematical font files or numerical rules is changed.
+   This demonstrates the candidate fallback, not a production integration API. */
+.profile :global(.switchplay-maths-katex .katex) { font-family: KaTeX_Main, var(--review-serif), serif; }
+@media (max-width: 600px) { .profile > p { min-height: 0; } }

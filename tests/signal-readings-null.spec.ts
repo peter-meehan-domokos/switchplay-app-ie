@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { mergeDeckTemplatesWithUserData, createEmptyClientUserCardDataFromTemplate } from "../src/lib/deckData";
 import { reconcileDeckDataWithTemplate } from "../src/lib/deckDataReconciliation";
-import { DeckTemplate, RuntimeDeckTemplate } from "../src/components/decks/types";
+import type { RuntimeDeckTemplate } from "../src/components/decks/types";
 
 const dummyTemplate: RuntimeDeckTemplate = {
   deckTemplateId: "test-deck",

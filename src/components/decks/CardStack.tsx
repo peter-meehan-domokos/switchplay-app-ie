@@ -1,12 +1,13 @@
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { motion } from "motion/react";
 import type { MotionStyle } from "motion/react";
-import type { CardLayout } from "@/components/cards/cardLayout";
+import { cardPresentationIdentity, type PresentedCard, type CardBackPresentation } from "./presentation";
 import DeckCard from "@/components/decks/DeckCard";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
 import {
   ACTIVE_CARD_OCCLUSION_RELIEF,
   CARD_ASPECT_RATIO,
+  CARD_HEIGHT_RATIO,
   CARD_OPACITY_STEP,
   CARD_SCALE_STEP,
   FUTURE_CONTINUATION_MAX_X_OFFSET,
@@ -35,7 +36,8 @@ import {
   MAX_SCALE_REDUCTION,
   PAST_CARD_OPACITY_STEP,
   PAST_CARD_SCALE_STEP,
-  PAST_TABLE_CARD_WIDTH,
+  DECK_CARD_BASELINE_WIDTH,
+  PAST_CARD_BASELINE_WIDTH,
   PAST_TABLE_MIN_X_OFFSET,
   PAST_TABLE_THIRD_X_OFFSET,
   PAST_TABLE_TRACE_INITIAL_X_OFFSET,
@@ -48,7 +50,10 @@ import {
 } from "@/constants/cardStack";
 
 type CardStackProps = {
-  cards: CardLayout[];
+  renderAssessment?: (card: PresentedCard) => import("react").ReactNode;
+  renderFrontAction?: (card: PresentedCard) => import("react").ReactNode;
+  renderBackFace?: CardBackPresentation;
+  cards: PresentedCard[];
   deckTemplateId: string;
   activeCardIndex: number;
   isDeckFlipped: boolean;
@@ -269,14 +274,16 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
     showHeader: true,
     showProgress: true,
     style: {
-      top: TABLE_ZONE_TOP,
+      // Keep the authored surface at the active size. Move its centre to the
+      // old 148px slot and shrink the whole object, rather than reflowing it.
+      top: TABLE_ZONE_TOP + (PAST_CARD_BASELINE_WIDTH - DECK_CARD_BASELINE_WIDTH) * CARD_HEIGHT_RATIO / 2,
       right: "auto",
-      left: 0,
-      width: PAST_TABLE_CARD_WIDTH,
+      left: (PAST_CARD_BASELINE_WIDTH - DECK_CARD_BASELINE_WIDTH) / 2,
+      width: PROGRESSION_CARD_WIDTH,
       aspectRatio: CARD_ASPECT_RATIO,
       x: getPastTableX(index, activeCardIndex),
       y: 0,
-      scale: getScale(pastIndex, PAST_CARD_SCALE_STEP),
+      scale: getScale(pastIndex, PAST_CARD_SCALE_STEP) * PAST_CARD_BASELINE_WIDTH / DECK_CARD_BASELINE_WIDTH,
       rotate: 0,
       transformOrigin: "50% 50%",
       opacity: getOpacity(pastIndex, PAST_CARD_OPACITY_STEP),
@@ -293,6 +300,9 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
 }
 
 export default function CardStack({
+  renderAssessment,
+  renderFrontAction,
+  renderBackFace,
   cards,
   deckTemplateId,
   activeCardIndex,
@@ -330,7 +340,10 @@ export default function CardStack({
 
           return (
             <DeckCard
-              key={card.id}
+              assessment={baseStackStyle.showHeader ? renderAssessment?.(card) : undefined}
+              renderBackFace={renderBackFace}
+              frontAction={isActiveInteractionCard && !isDeckFlipped ? renderFrontAction?.(card) : undefined}
+              key={cardPresentationIdentity(card)}
               card={card}
               onOpenMedia={!transitionPhase ? onOpenMedia : undefined}
               deckTemplateId={deckTemplateId}
@@ -339,6 +352,7 @@ export default function CardStack({
               stackZone={baseStackStyle.zone}
               showHeader={baseStackStyle.showHeader}
               showProgress={baseStackStyle.showProgress}
+              prepareContent={index === transitionPhase?.toIndex}
               onActivate={isActiveInteractionCard ? () => onFocusCard(index) : undefined}
               gestureHandlers={
                 isActiveInteractionCard

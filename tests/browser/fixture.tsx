@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import DeckDetail from "@/components/decks/DeckDetail";
 import { buildDeckLayout } from "@/components/decks/deckLayout";
 import type { Deck } from "@/components/decks/types";
@@ -14,16 +14,16 @@ const media: ModernUserCardMediaItem[] = Array.from({ length: 8 }, (_, index) =>
 });
 const options = new URLSearchParams(location.search);
 const items = options.has("single") ? [media[0]] : media;
-const deck: Deck = { id: `${owner}:deck-1`, deckTemplateId: "deck-1", hasUserDeckData: true, createdAt: null, updatedAt: null, canMutate: true, isOwnedByCurrentUser: true, ownerUserId: owner, ownerUsername: "Fixture", showOwnerTag: false, activeCardId: "card-1", title: "Media viewer test", category: null,
+const deck: Deck = { context: "working", dataOwnerUserId: owner, adoptedVersion: 1, id: `${owner}:deck-1`, deckTemplateId: "deck-1", hasUserDeckData: true, createdAt: null, updatedAt: null, canMutate: true, isOwnedByCurrentUser: true, ownerUserId: owner, ownerUsername: "Fixture", showOwnerTag: false, activeCardId: "card-1", title: "Media viewer test", category: null,
   introduction: { image: null, video: { ...media[1], mediaType: "video", provider: "cloudflare-stream" } },
-  cards: [{ id: "card-1", label: "Practice card", targetDate: "2026-09-27", intro: { title: "Card introduction", description: "Practice", mediaItem: media[1] },
-    steps: [{ stepId: "step-1", title: "Practice step", description: "Practice the phrase", completionStatus: "todo", mediaItem: media[2] }], signals: [], mediaItems: items, chats: [], reflection: "My work" }],
+  cards: [{ id: "card-1", cardTemplateId: "card-1", dataOwnerUserId: owner, adoptedVersion: 1, label: "Practice card", targetDate: "2026-09-27", intro: { title: "Card introduction", description: "Practice", mediaItem: media[1] },
+    steps: [{ stepId: "step-1", title: "Practice step", description: "Practice the phrase", completionStatus: "todo", mediaItem: media[2] }], signals: [], mediaItems: options.has("inherited") ? items.slice(0, 2) : items, personalHistory: options.has("inherited") ? [{ cardTemplateId: "original", mediaItems: [media[0]], tests: [], chats: [], currentAdoptedCardTemplateVersion: 1, eventVersionAttribution: "not-recorded" }] : [], chats: [], reflection: "My work" }],
 };
 function Fixture() {
   const [flipped, setFlipped] = useState(!options.has("front"));
   const [open, setOpen] = useState(true);
   return <main className="app-shell app-shell--deck">
-    {open ? <DeckDetail deck={buildDeckLayout(deck, { currentUserId: owner, users: [] })} isDeckFlipped={flipped} deckFlipRotationY={flipped ? 180 : 0} onToggleDeckFlip={() => setFlipped((value) => !value)} onBack={() => setOpen(false)} transition={{ duration: 0 }} /> : <button onClick={() => setOpen(true)}>Reopen deck</button>}
+    {open ? <DeckDetail onAdopted={async () => {}} deck={buildDeckLayout(deck, { currentUserId: owner, users: [] })} isDeckFlipped={flipped} deckFlipRotationY={flipped ? 180 : 0} onToggleDeckFlip={() => setFlipped((value) => !value)} onBack={() => setOpen(false)} transition={{ duration: 0 }} /> : <button onClick={() => setOpen(true)}>Reopen deck</button>}
   </main>;
 }
-createRoot(document.getElementById("fixture-root")!).render(<Fixture />);
+createRoot(document.getElementById("fixture-root")!).render(options.has("strict") ? <StrictMode><Fixture /></StrictMode> : <Fixture />);

@@ -1,11 +1,9 @@
-import { descending, sort } from "d3-array";
 import type { DeckLayout } from "@/components/decks/deckLayout";
 
-const compareOpenedAt = descending as (
-  a: string | null | undefined,
-  b: string | null | undefined,
-) => number;
-
 export function buildMyDecksLayout(decks: DeckLayout[]): DeckLayout[] {
-  return sort(decks, (a, b) => compareOpenedAt(a.openedAt, b.openedAt));
+  return [...decks].sort((a, b) => {
+    const time = (value: string | null | undefined) => value ? Date.parse(value) || 0 : 0;
+    const recency = (deck: DeckLayout) => Math.max(time(deck.createdAt), time(deck.openedAt));
+    return recency(b) - recency(a) || a.id.localeCompare(b.id);
+  });
 }

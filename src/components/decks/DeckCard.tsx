@@ -1,27 +1,26 @@
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { motion, type MotionStyle } from "motion/react";
-import type { CSSProperties } from "react";
+import { useState } from "react";
+import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
-import type { CardLayout } from "@/components/cards/cardLayout";
-import BackCardFaceContent from "@/components/decks/BackCardFaceContent";
+import { cardPresentationIdentity, hasPersonalCard, type PresentedCard, type CardBackPresentation } from "./presentation";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
-import {
-  CARD_HEIGHT_RATIO,
-  DECK_CARD_BASELINE_WIDTH,
-  PAST_CARD_BASELINE_WIDTH,
-} from "@/constants/cardStack";
 import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type DeckCardProps = {
-  card: CardLayout;
+  onOpenMedia?: OpenCardMedia;
+  assessment?: import("react").ReactNode;
+  frontAction?: import("react").ReactNode;
+  renderBackFace?: CardBackPresentation;
+  card: PresentedCard;
   deckTemplateId: string;
   isDeckFlipped: boolean;
   deckFlipRotationY: number;
   stackZone: "past" | "active" | "future";
   showHeader: boolean;
   showProgress: boolean;
-  onOpenMedia?: OpenCardMedia;
+  prepareContent?: boolean;
   onActivate?: () => void;
   gestureHandlers?: DeckGestureHandlers;
   suppressActivation?: boolean;
@@ -40,14 +39,17 @@ const deckFlipTransition = {
 } as const;
 
 export default function DeckCard({
+  onOpenMedia,
+  assessment,
+  frontAction,
+  renderBackFace,
   card,
-  deckTemplateId,
   isDeckFlipped,
   deckFlipRotationY,
   stackZone,
   showHeader,
   showProgress,
-  onOpenMedia,
+  prepareContent = false,
   onActivate,
   gestureHandlers,
   suppressActivation = false,
@@ -55,15 +57,14 @@ export default function DeckCard({
   transition,
 }: DeckCardProps) {
   const cardStateClass = showHeader || showProgress ? `is-${stackZone}` : `is-${stackZone} is-compressed`;
-  const dateLabel = dateFormatter.format(dateOnlyToUtcDate(card.targetDate));
-  const backFaceVariant = stackZone === "past" ? "preview" : "deck";
-  const renderSurfaceStyle = stackZone === "past"
-    ? {
-        "--deck-card-render-width": `${DECK_CARD_BASELINE_WIDTH}px`,
-        "--deck-card-render-height": `${DECK_CARD_BASELINE_WIDTH * CARD_HEIGHT_RATIO}px`,
-        "--deck-card-render-scale": PAST_CARD_BASELINE_WIDTH / DECK_CARD_BASELINE_WIDTH,
-      } as CSSProperties
-    : undefined;
+  const personal = hasPersonalCard(card);
+  const dateLabel = personal ? dateFormatter.format(dateOnlyToUtcDate(card.targetDate)) : "";
+  // Incoming content mounts in the same commit that starts movement. Keep it
+  // afterwards so reversing navigation never swaps a complete face for anchors.
+  const needsContent = prepareContent || stackZone !== "future";
+  const [hasContent, setHasContent] = useState(needsContent);
+  if (needsContent && !hasContent) setHasContent(true);
+  const { x, y, scale, rotate, opacity, ...placementStyle } = style;
   const handleActivate = () => {
     if (!suppressActivation) {
       onActivate?.();
@@ -71,6 +72,7 @@ export default function DeckCard({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget) return;
     if (!onActivate) {
       return;
     }
@@ -86,13 +88,21 @@ export default function DeckCard({
       className={`deck-card-slot deck-card ${cardStateClass}`}
       data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
-      layoutId={`week-card-${card.id}`}
-      role={onActivate ? (isDeckFlipped && onOpenMedia ? "group" : "button") : undefined}
+      layoutId={`week-card-${cardPresentationIdentity(card)}`}
+      role={onActivate ? isDeckFlipped && onOpenMedia ? "group" : "button" : undefined}
       aria-label={isDeckFlipped && onOpenMedia ? `${card.label}. Press Enter to focus this card, or open a media item.` : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onClick={onActivate ? handleActivate : undefined}
       onKeyDown={handleKeyDown}
-      style={style}
+      initial={false}
+      style={placementStyle}
+      animate={{
+        x: typeof x === "number" ? x : 0,
+        y: typeof y === "number" ? y : 0,
+        scale: typeof scale === "number" ? scale : 1,
+        rotate: typeof rotate === "number" ? rotate : 0,
+        opacity: typeof opacity === "number" ? opacity : 1,
+      }}
       transition={transition}
       {...gestureHandlers}
     >
@@ -102,19 +112,21 @@ export default function DeckCard({
         animate={{ rotateY: deckFlipRotationY }}
         transition={deckFlipTransition}
       >
-        <div className="deck-card-render-surface" style={renderSurfaceStyle}>
+        <div className="deck-card-render-surface">
           <div className="deck-card-surface deck-card-surface--front" aria-hidden={isDeckFlipped} inert={isDeckFlipped}>
             <div className="deck-card-content">
-              {stackZone === "active" || stackZone === "past" ? (
-                <ActiveCardFront card={card} dateLabel={dateLabel} />
+              {hasContent ? (
+                <ActiveCardFront assessment={assessment} card={card} dateLabel={dateLabel} />
               ) : showHeader || showProgress ? (
-                <CardSemanticAnchors card={card} dateLabel={dateLabel} showText={showHeader} />
+                <CardSemanticAnchors assessment={assessment} card={card} dateLabel={dateLabel} showText={showHeader} />
               ) : null}
             </div>
+            <CardCreatorAttribution card={card} />
+            {frontAction}
           </div>
-          <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped} inert={!isDeckFlipped}>
-            {showHeader || showProgress ? <BackCardFaceContent card={card} dateLabel={dateLabel} deckTemplateId={deckTemplateId} variant={backFaceVariant} onOpenMedia={isDeckFlipped ? onOpenMedia : undefined} /> : null}
-          </div>
+          {renderBackFace ? <div className="deck-card-surface deck-card-surface--back" aria-hidden={!isDeckFlipped} inert={!isDeckFlipped}>
+            {showHeader || showProgress ? renderBackFace(card, { dateLabel, variant: "deck", onOpenMedia: isDeckFlipped ? onOpenMedia : undefined }) : null}
+          </div> : null}
         </div>
       </motion.div>
     </motion.article>

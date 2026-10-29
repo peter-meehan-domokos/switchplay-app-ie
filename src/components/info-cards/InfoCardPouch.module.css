@@ -1,0 +1,126 @@
+.pouch[type="button"] {
+  /* Largest-circle centre of y >= x, clipped by the Step View's R=30
+     bottom-left arc: x=L/4+R/2-R/(2*sqrt(2)), y=L-x (L=46).
+     Unlike a rectangular centre, this accounts for the missing corner. */
+  --interior-x: 15.8934px;
+  --interior-y: 30.1066px;
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #cee1e9;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pouch[aria-expanded="false"] {
+  /* Expand only the closed pocket's hit clip, not its box or artwork. The
+     parallel seam is 24px inward; cap it at x=42 through the navigation row,
+     leaving 6px before Previous at x=48. Keep the open card/media area clear. */
+  clip-path: polygon(0 0, 24px 0, 42px 18px, 42px 40px, 100% 44px, 100% 100%, 0 100%);
+}
+
+.pouch .artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  pointer-events: none;
+}
+
+.pouch[aria-expanded="false"] .artwork {
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: #36414f;
+}
+
+.shape .fold {
+  fill: none;
+  stroke: rgba(190, 208, 225, 0.13);
+  stroke-width: 0.6;
+}
+
+.pouch .label {
+  position: absolute;
+  /* Centre the circular artwork near the usable interior centre, then
+     compensate for the small lower-right subscript's visual weight. */
+  left: calc(var(--interior-x) - 7px - 1.5px);
+  top: calc(var(--interior-y) - 7px - 1.5px);
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5px;
+  white-space: nowrap;
+  color: inherit;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 10px;
+}
+
+.pouch .label > span {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  margin-top: 9px;
+}
+
+/* A wider subscript needs more diagonal clearance, not a smaller icon. */
+.pouch:not([data-count-digits="1"]) .label > span {
+  margin-top: 13.5px;
+}
+
+.pouch[aria-expanded="true"] .label {
+  left: var(--interior-x);
+  top: var(--interior-y);
+  transform: translate(-50%, -50%);
+  display: block;
+  font-size: 12px;
+  line-height: 12px;
+  font-weight: 600;
+}
+
+.pouch[aria-expanded="true"] .label > span {
+  display: block;
+  margin: 0;
+}
+
+.information {
+  display: block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+/* The open face takes precedence over the pocket's seam. */
+.pouch[aria-expanded="true"] .shape {
+  fill: #2c3542;
+}
+
+.pouch[aria-expanded="true"] .shape .fold {
+  stroke: rgba(190, 208, 225, 0.025);
+}
+
+.pouch[aria-expanded="false"]:hover .shape {
+  fill: #3b4857;
+}
+
+.pouch:focus-visible {
+  outline: none;
+}
+
+.pouch:focus-visible .fold {
+  stroke: #a8d6e4;
+  stroke-width: 2;
+}

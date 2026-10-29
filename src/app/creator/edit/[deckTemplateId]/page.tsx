@@ -1,9 +1,12 @@
 import Link from "next/link";
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
-import { createCreatorBoardFromTemplate } from "@/components/creator/creatorBoardState";
+import { creatorBoard, sessionBoardDTO } from "@/components/creator/cardArchitectureAdapter";
+import { CardRepository } from "@/lib/cards/repository";
+import { creatorSessionDTO } from "@/lib/cards/creatorSession";
 import { getCurrentUser } from "@/lib/auth";
-import { getVisibleDeckTemplateDocumentByIdForUser } from "@/lib/deckTemplateQueries";
+import { creatorNavigation, deckReturnOrigin } from "@/components/creator/creatorNavigation";
+
 
 type CreatorEditPageProps = {
   params: Promise<{
@@ -12,6 +15,13 @@ type CreatorEditPageProps = {
   searchParams: Promise<{
     returnTo?: string | string[];
     returnDeckId?: string | string[];
+    version?: string;
+    cards?: string;
+    progressFramework?: string;
+    progressArea?: string;
+    entry?: string;
+    draftOrigin?: string;
+    drafts?: string;
   }>;
 };
 
@@ -28,33 +38,41 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
 
   const { deckTemplateId } = await params;
   const resolvedSearchParams = await searchParams;
+  const navigation = creatorNavigation(resolvedSearchParams);
   const returnTo = readFirstSearchParam(resolvedSearchParams.returnTo);
   const returnDeckId = readFirstSearchParam(resolvedSearchParams.returnDeckId);
-  const templateDocument = await getVisibleDeckTemplateDocumentByIdForUser(user, deckTemplateId);
+  const templateDocument = await Promise.resolve().then(async () => creatorSessionDTO(await CardRepository.application(), user.id, deckTemplateId,
+    returnTo === "deck" ? { kind: "my-decks", deckTemplateId: returnDeckId ?? deckTemplateId } : { kind: "library" },
+    resolvedSearchParams.version ? Number(resolvedSearchParams.version) : undefined,
+    resolvedSearchParams.cards ? JSON.parse(resolvedSearchParams.cards) : undefined)).catch(() => null);
 
   if (!templateDocument) {
     return (
       <main className="creator-not-found">
         <p>Template not found.</p>
-        <Link href="/decks">Back to decks</Link>
+        <Link href="/decks">Back to My Decks</Link>
       </main>
     );
   }
 
   const canPreviewOutput = user.isAdmin === true || user.username === "dev";
-  const editableTemplate = templateDocument.savedTemplate ?? templateDocument.template;
-  const publishedBoard = createCreatorBoardFromTemplate(templateDocument.template);
+  const returnOrigin = deckReturnOrigin(resolvedSearchParams, deckTemplateId);
   const creatorReturnTarget =
-    returnTo === "deck" && typeof returnDeckId === "string" && returnDeckId.trim() !== ""
-      ? { label: "Deck" as const, href: `/decks?openDeck=${encodeURIComponent(returnDeckId)}` }
-      : { label: "Decks" as const, href: "/decks" };
+    returnOrigin === "library"
+      ? { label: "Library" as const, href: "/library" }
+      : returnOrigin === "my-decks"
+      ? { label: "My Decks" as const, href: "/decks" }
+      : undefined;
 
   return (
     <CreatorDragLab
+      key={`${user.id}:${deckTemplateId}`}
       canPreviewOutput={canPreviewOutput}
       creatorReturnTarget={creatorReturnTarget}
-      initialBoard={createCreatorBoardFromTemplate(editableTemplate)}
-      initialPublishedBoard={publishedBoard}
+      navigation={navigation}
+      initialBoard={creatorBoard(sessionBoardDTO(templateDocument))}
+      initialSession={templateDocument}
+      currentUserId={user.id}
       mode="edit"
     />
   );

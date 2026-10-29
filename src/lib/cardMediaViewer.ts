@@ -1,15 +1,16 @@
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
+import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
+import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
 
-export type CardMediaTarget = { deckUserId: string; deckTemplateId: string; cardId: string };
+export type CardMediaTarget = { viewerUserId: string; cardTemplateId: string; sourceCardTemplateId: string };
 export type CardMediaRequest = CardMediaTarget & { mediaItemId: string };
-export type OpenCardMedia = (cardId: string, mediaItemId: string, source: HTMLButtonElement) => void;
+export type OpenCardMedia = (cardId: string, mediaItemId: string, source: HTMLButtonElement, context?: { activeCardId: string; focused: boolean }) => void;
 export type MediaSelection = { mediaItemId: string; index: number };
 
-export function resolveMediaSelection(items: ModernUserCardMediaItem[], selection: MediaSelection): MediaSelection | null {
+export function resolveMediaSelection(items: PersonalMediaDisplayItem[], selection: MediaSelection): MediaSelection | null {
   if (!items.length) return null;
-  const found = items.findIndex((item) => item.id === selection.mediaItemId);
+  const found = items.findIndex((item) => personalMediaKey(item) === selection.mediaItemId);
   const index = found < 0 ? Math.max(0, Math.min(selection.index, items.length - 1)) : found;
-  return { mediaItemId: items[index].id, index };
+  return { mediaItemId: personalMediaKey(items[index]), index };
 }
 
 export function gallerySwipeDirection(dx: number, dy: number) {
