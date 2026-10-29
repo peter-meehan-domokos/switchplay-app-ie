@@ -1,10 +1,10 @@
 # Group Experiences — Final Engineering Plan
 
-**Status:** Approved architecture, incorporating the final four corrections. The latest implementation amendment authorizes **Phase 1 only**, followed by its handoff and a mandatory stop. No automatic progression to Phase 2 is authorized. Detailed UI and operational approvals in §18 remain gates for later work.
+**Status:** Approved architecture, incorporating the final four corrections. Phase 1 is complete and committed as `d68bd4c`. The subsequent “Implement Group Experiences Phases 2 and 3” commission authorizes Phase 2, its acceptance checks and separate commit, then Phase 3, its acceptance checks and separate commit. A documentation-only handoff commit follows. Stop before Phase 4; detailed UI and operational approvals in §18 remain gates.
 
 **Baseline:** `feat/group-experience`, commit `2ff6388`. The existing untracked design requirements, draft and independent review are preserved. Phase 1 implementation evidence and changed files are recorded in [its handoff](group-experience-phase-1-handoff.md); later phases below remain specifications.
 
-**Authority:** The user's latest “Final Corrections and Authorisation” prompt, including its overriding **Implement Phase 1 Only** amendment, governs this commission. It updates the “Group Experiences: Final Engineering Plan” prompt supplied as attachment `89884217-de1f-47aa-9472-1782689e0999/Pasted text.txt`, which supersedes the earlier requirements, [draft](group-experience-engineering-plan-draft.md) and [Claude review](group-experience-independent-review.md). This document restates the implementation contract so those materials are not required to recover product rules. Source paths refer to the inspected baseline; proposed files are identified as proposed.
+**Authority:** The current “Implement Group Experiences Phases 2 and 3” commission supersedes the prior Phase 1 stopping gate, while preserving all approved product corrections. The “Final Corrections and Authorisation” prompt updates the “Group Experiences: Final Engineering Plan” prompt supplied as attachment `89884217-de1f-47aa-9472-1782689e0999/Pasted text.txt`, which supersedes the earlier requirements, [draft](group-experience-engineering-plan-draft.md) and [Claude review](group-experience-independent-review.md). This document restates the implementation contract so those materials are not required to recover product rules. Source paths refer to the inspected baseline; proposed files are identified as proposed.
 
 ## 1. Executive summary
 
@@ -20,7 +20,7 @@ The principal decisions are:
 6. Keep the five-thumbnail layout, selecting the newest five in oldest-to-newest order. Use paged group metadata and the existing full gallery. New group images use a private storage origin; group videos require signed delivery. Existing public-image trial permission is insufficient for group assets.
 7. Validate the central Card experience after the learning/membership foundation, before advanced sharing/media work. Use one main Card scene, lightweight perspectives, shared active Card and front/back orientation, and modest visible-page polling.
 
-The personal Framework policy is approved: use the highest version explicitly adopted by an eligible context and retain eligibility once legitimately assigned, including after Card removal from Deck composition. The one-hour signed-video lifetime is provisionally approved. Remaining gates concern concrete UI integration and operational verification. No broad personal-data migration is required. This commission ends after Phase 1 regardless of passing tests.
+The personal Framework policy is approved: use the highest version explicitly adopted by an eligible context and retain eligibility once legitimately assigned, including after Card removal from Deck composition. The one-hour signed-video lifetime is provisionally approved. Remaining gates concern concrete UI integration and operational verification. No broad personal-data migration is required. This commission ends after Phase 3 and its separate consolidated handoff commit regardless of passing tests.
 
 ## 2. Confirmed product contract
 
@@ -64,7 +64,7 @@ Saved self-only **group** notes remain visible to admins. Permanently private Pe
 
 ### 2.4 Superseded proposals
 
-Do not carry forward independent follower progress per experience; admin reset/deletion of personal progress, signals or tests; exclusion of group assignments from Framework eligibility; decimal confidence display; removal of the five-thumbnail layout; special group-owned/prominent admin reflection; restrictions on follower recipient subsets; `allowFollowerGroupInfoCards`; private-template distribution; or classroom navigation broadcasts. The latest amendment's Phase 1 review/stopping point remains mandatory.
+Do not carry forward independent follower progress per experience; admin reset/deletion of personal progress, signals or tests; exclusion of group assignments from Framework eligibility; decimal confidence display; removal of the five-thumbnail layout; special group-owned/prominent admin reflection; restrictions on follower recipient subsets; `allowFollowerGroupInfoCards`; private-template distribution; or classroom navigation broadcasts. The Phase 1 review gate was satisfied; the current commission requires separate tested Phase 2 and Phase 3 commits and a stop after the consolidated handoff.
 
 Initial engineering targets are 10–20 followers, several admins and hundreds of registered users. Batching supports larger groups; those targets are not product caps. Broader discovery/consent/organisation/safeguarding workflows are explicitly deferred pre-release work. Core access control and private group-media delivery are essential now.
 
@@ -174,6 +174,7 @@ Keep the authenticated viewer, inspected subject, template creator, original aut
 | Proposed `groupExperiences` | `experienceId`, `name`, immutable `deckTemplateId`, creator attribution, creation/update timestamps, exact `deckVersion`, per-Card adopted version selections (including temporarily detached Cards), `structureRevision`, `adoptionRevision`, `adminCount`. Group direct Item tests and `itemTestsRevision` reuse existing shape. Creator ID is not authority. |
 | Proposed `groupExperienceMembers` | Unique `(experienceId,userId)`; `isAdmin`, `followerStatus: never/active/removed`, joined/rejoined/removed timestamps; `accessEpoch`, incrementing write fence; viewer active Card/openedAt; latest removal snapshot manifest; lifetime assigned-Card references with highest adopted versions. No group cadence anchor. A non-admin removed follower row is retained but grants no group access. |
 | Proposed `groupCardState` | Unique `(experienceId,cardTemplateId)`, sparse Step completion/readings, existing Card test list/revision, timestamps and read revision. No personal reflection/media/Info/test fields copied here. Missing new group row means default todo/null/empty tests; values persist across composition changes. |
+| `groupOperationReceipts` | Narrow structural-operation receipts keyed by experience/authenticated actor/operation ID. Store command hash and committed structural revision, with no private content. Exact retries acknowledge or report superseded intent and cannot replay over a later transition. Creation uses its own unique creator/operation key on the experience. |
 | Proposed `groupRemovalLearning` | Unique `(experienceId,userId,cardTemplateId)` for the latest completed removal snapshot generation. Exact selected version and only its Step statuses/readings, snapshot generation/time. No personal tests, dates, private content, history pointers or user-document timestamps. The member manifest stores Deck version/order and snapshot generation. |
 | Proposed `groupMediaContributions` | Stable ID, experience/Card, immutable uploader ID, `source: group/follower` for provenance, server upload-completion time, scoped asset reference, revision, pending/attached/deleted state and deletion metadata. The same row acts as an allocation/attachment receipt; deleting leaves a content-free reservation sufficient to reject delayed commits. |
 | Proposed `groupReflections` | Unique `(experienceId,cardTemplateId,authorUserId)`, text, revision, createdAt/updatedAt and last clearing metadata. Author ownership ignores whether they also administer. Clear retains revision; delayed saves cannot restore cleared text. |
@@ -199,7 +200,7 @@ On an explicit **own-follower working open**, materialize missing personal learn
 
 ### 6.4 Indexes, constraints and rollout
 
-- Unique experience ID; unique `(experienceId,userId)` members; member indexes `(userId,isAdmin,experienceId)`, `(userId,followerStatus,experienceId)` and `(experienceId,followerStatus,userId)`.
+- Unique experience ID and `(creatorUserId,operationId)` creation receipt; unique `(experienceId,actor,operationId)` structural-operation receipt; unique `(experienceId,userId)` members; member indexes `(userId,isAdmin,experienceId)`, `(userId,followerStatus,experienceId)` and `(experienceId,followerStatus,userId)`.
 - Unique `(experienceId,cardTemplateId)` group state; unique `(experienceId,userId,cardTemplateId)` latest removal row, with generation filter checked against its member manifest.
 - Media unique contribution ID and provider/asset allocation identity; feed index `(experienceId,cardTemplateId,state,uploadedAt,contributionId)`; uploader-prefix variant only if query plans justify it. Pending/deleted records do not appear in feeds.
 - Reflections unique experience/Card/author and chronological index experience/Card/createdAt/author. Maintain updatedAt/revision for edits and concurrency, without changing order. Filter blank text in the repository; cap neither author count nor contribution count by product rule.
@@ -534,7 +535,7 @@ No staged follower provisioning, background aggregation, websocket synchronizati
 
 ### 15.1 Operating rules and model choice
 
-The latest amendment commissions Phase 1 only and requires its handoff and a stop before Phase 2. Later phases remain future specifications. References to automatic progression below apply only after a new explicit commission authorizes those phases; they do not override the current mandatory stop. No deployment, production-backed test writes, provider changes or materially different product design is authorized.
+The current commission authorizes Phases 2 and 3 sequentially after the completed Phase 1 review. Phase 2 must pass acceptance/regression checks and be committed before Phase 3 starts. Phase 3 receives its own tested commit, followed by a documentation-only consolidated handoff commit. Stop before Phase 4. No deployment, production-backed test writes, provider changes or materially different product design is authorized.
 
 Use existing node/tsx integration tests with disposable Mongo replica sets, the seeded `scripts/test-phase2.ts` browser harness and current Playwright infrastructure. The normal development app connects to production Atlas; do not use it for fixtures. Read installed Next guides before code. Finish a phase's focused checks before advancing; repeat broader tests only when changes/failures justify them.
 
@@ -563,7 +564,7 @@ Each phase below states pre-start feedback, post-phase approval and automatic pr
 - **Measurable acceptance:** one stored personal row after competing materializations; writing Step `a` is visible in all selected versions containing `a`; no personal adoption/date/content fields change during group-style projection; group materialization does not initialize a date; legitimate personal Deck removal preserves unique highest-adopted references without restoring navigation; duplicate/corrupt rows fail; relevant personal regression selection passes.
 - **Manual:** none beyond review of fixture projections; UI remains exercised by existing personal tests.
 - **Risk/rollback:** broadening a legacy resolver can accidentally loosen privacy. Keep new context entry explicit; rollback is code-only before group enablement, preserving any additive optional fields.
-- **Gates:** Phase 1 is authorized. After acceptance, create `group-experience-phase-1-handoff.md`, report results and **stop**. New explicit user authorization is required before Phase 2, even when every test passes.
+- **Gates:** Phase 1 completed its handoff and mandatory stop. The user subsequently reviewed/committed it and explicitly authorized Phases 2–3.
 - **Model/effort:** GPT-6.1 Sol, High.
 
 ### Phase 2 — Experience identity, roles, assignments and group learning
@@ -575,7 +576,7 @@ Each phase below states pre-start feedback, post-phase approval and automatic pr
 - **Measurable acceptance:** one experience per operation ID; one assignment tile descriptor per experience/user; zero private sentinels in any foreign response; `10,2,2,2 → 4`; dual-role follower counted once; two concurrent last-admin removals cannot produce zero admins; group and personal writes remain independent where required.
 - **Manual:** inspect fixture roles/DTOs; no live database setup.
 - **Risk/rollback:** member/role authority must be complete before exposing UI. Keep feature entry disabled until Phase 3; preserve group rows on rollback and deny unknown group kinds.
-- **Gates:** no additional feedback before/after within approved design. May proceed automatically to Phase 3.
+- **Gates:** no additional feedback within approved design. Acceptance and relevant regression checks must pass, then create the required separate Phase 2 commit before proceeding automatically to Phase 3. Follower removal snapshots/rejoining remain Phase 3; Phase 2 exposes addition and independent admin-role changes only.
 - **Model/effort:** GPT-6 Astra, High.
 
 ### Phase 3 — Adoption, removal snapshots and lifecycle races
@@ -587,7 +588,7 @@ Each phase below states pre-start feedback, post-phase approval and automatic pr
 - **Measurable acceptance:** adoption writes zero follower personal adoption fields; changed shared values survive every tested ordering; fresh unauthorized writes fail after removal; later private activity changes no former-follower response; no snapshot contains tests/private metadata; rejoin shows current personal values rather than copying the snapshot back.
 - **Manual:** inspect exact review results and removal labels/data in fixture responses. No claim of measured production contention.
 - **Risk/rollback:** membership transitions and snapshots must commit together. A failed transaction leaves the prior membership usable; rollback never clears learning/contributions. Existing participant data must not be opened by an older reader.
-- **Gates:** no routine feedback before/after. Phase 4 can start only after its Phase 0 UX approval; other independent backend work may proceed if separately included in the commission.
+- **Gates:** acceptance and relevant regressions must pass before the separate Phase 3 commit. Commit the consolidated handoff separately and stop. Phase 4 requires new explicit authorization and its UX approval.
 - **Model/effort:** GPT-6 Astra, High.
 
 ### Phase 4 — Early synchronized-perspective vertical slice
@@ -769,14 +770,14 @@ Provider setup/verification, live index installation, actual device acceptance a
 
 ### Final implementation phase table
 
-The current amendment authorizes Phase 1 only. Its handoff is a mandatory stopping point. Later automatic-progression entries describe possible future commissions and do not grant permission now. Deployment/provider operations always require their own operational authorization.
+The current commission authorizes Phases 2 and 3, with a tested implementation commit at each boundary and a separate consolidated handoff commit. Stop after Phase 3. Later automatic-progression entries describe possible future commissions and do not grant permission now. Deployment/provider operations always require their own operational authorization.
 
 | Phase | Scope | Recommended model | Reasoning effort | Automated acceptance gate | User feedback required? | May proceed automatically? |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | Decisions, visual contract, fixtures | GPT-6.1 Sol | High | Relevant personal baselines; privacy/version fixtures defined | Yes — product/UX approval for affected phases | No for gated UI/policy; approved foundations may proceed |
-| 1 | Shared learning projection and client boundaries | GPT-6.1 Sol | High | One row; three-version projection; private fields/dates protected; retained references | Review Phase 1 handoff before Phase 2 | **No — mandatory stop after Phase 1** |
+| 1 | Shared learning projection and client boundaries | GPT-6.1 Sol | High | One row; three-version projection; private fields/dates protected; retained references | Completed, reviewed and committed | Gate satisfied by explicit Phase 2–3 commission |
 | 2 | Experience, roles, assignments, group learning | GPT-6 Astra | High | Role/DTO isolation; unique retries; counts/means; final-admin invariant | No — fully specified | Yes, after passing tests |
-| 3 | Adoption, removal history, lifecycle races | GPT-6 Astra | High | No adoption fan-out; frozen former reads; deterministic race tests | Conditional — only if a material problem appears | Yes, subject to next phase's UX approval |
+| 3 | Adoption, removal history, lifecycle races | GPT-6 Astra | High | No adoption fan-out; frozen former reads; deterministic race tests | Review consolidated handoff before further authorization | **No — commit Phase 3 and handoff, then stop** |
 | 4 | Early synchronized-perspective slice | GPT-6.1 Sol | High | Shared Card/side; isolated capabilities; one heavy scene; switch budget | Yes — UX before, slice acceptance after | No, requires slice acceptance for dependent UI |
 | 5 | Framework, group Progress, assessments | GPT-6.1 Sol | High | Lifetime assigned inclusion; highest adopted version; deduplication; test privacy | Progress UX only; Q1 approved | Future authorization required |
 | 6 | Protected group-media lifecycle | GPT-6 Astra | High | Scoped commit/tombstone/purge retry; anti-bypass; no public fallback | Provider operations/verification; Q3 approved | Future authorization required |
