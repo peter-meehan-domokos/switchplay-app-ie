@@ -24,6 +24,7 @@ const addDaysToDateString = addDaysToDateOnly;
 // Mounted only by DeckDetail's working adapter. Queues, optimistic state and
 // store ownership survive focus and Card navigation for the lifetime of the Deck.
 export function useWorkingDeck(deck: DeckLayout, ready = true) {
+  const ownerSession = useRef(deck.dataOwnerUserId ? workingCardStore.session(deck.dataOwnerUserId) : undefined);
   const canMutate = ready && deck.dataOwnerUserId != null && deck.cards.every((card) => card.permissions?.canMutateCardData && card.permissions.dataOwnerUserId === deck.dataOwnerUserId);
   const [mutationError, setMutationError] = useState("");
   const [cards, setCards] = useState(() => deck.dataOwnerUserId ? deck.cards.map((card) => workingCardStore.project(deck.dataOwnerUserId!, card)) : deck.cards);
@@ -50,7 +51,7 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
   }
   useEffect(() => {
     cardsRef.current = cards;
-    if (ready && deck.dataOwnerUserId) workingCardStore.accept(deck.dataOwnerUserId, cards);
+    if (ready && deck.dataOwnerUserId) workingCardStore.accept(deck.dataOwnerUserId, cards, undefined, undefined, ownerSession.current);
   }, [cards, deck.dataOwnerUserId, ready]);
   const [sourceCards, setSourceCards] = useState(deck.cards);
   if (sourceCards !== deck.cards) {

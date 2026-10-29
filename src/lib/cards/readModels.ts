@@ -8,6 +8,7 @@ import { jsonDTO } from "./http";
 import { layoutCardLabels } from "./layout";
 import { personalHistorySegments } from "./forks";
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
+import { projectLearning } from "./learning";
 
 // Actor-scoped current reads: retain each event's original Card/Deck context.
 // Membership is not required for retained personal history.
@@ -62,6 +63,7 @@ function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof reso
       requireCondition(card.data !== null, "MISSING_CARD_DATA");
       assertCardContent(card.version.content);
       requireCondition(Array.isArray(card.data.items) && Array.isArray(card.data.signalReadings), "INVALID_CARD_DATA");
+      const learning = projectLearning(card.version.content, card.data);
       const history = personalHistorySegments(deck.personalRecords, card.root.cardTemplateId);
       return { id: card.root.cardTemplateId, cardTemplateId: card.root.cardTemplateId, adoptedVersion: card.version.version,
         ...(card.version.content.infoCardIds !== undefined ? { infoCardIds: [...card.version.content.infoCardIds] } : {}),
@@ -71,8 +73,8 @@ function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof reso
         templateOwnerUserId: card.root.ownerUserId, dataOwnerUserId: actor, permissions: card.permissions,
         label: labels[index].label, targetDate: card.data.targetDate ?? "", intro: card.version.content.intro,
         steps: card.version.content.steps.map((step) => ({ ...step,
-          completionStatus: card.data!.items.find((item) => item.stepId === step.stepId)?.completionStatus ?? "todo" })),
-        signals: stepLinkedSignals(card.version.content, card.data).map((signal) => ({ id: signal.stepId,
+          completionStatus: learning.items.find((item) => item.stepId === step.stepId)!.completionStatus })),
+        signals: stepLinkedSignals(card.version.content, { ...card.data, ...learning }).map((signal) => ({ id: signal.stepId,
           title: signal.title, reading: signal.reading, rawReading: signal.reading, order: "increasing", unit: null })),
         mediaItems: history[0]?.mediaItems ?? [], reflection: card.data.reflection,
         chats: history[0]?.chats ?? [],

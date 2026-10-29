@@ -1,6 +1,8 @@
 import { withCardMediaItems, withUpdatedReflection, withUpdatedSignalReading, type CardLayout } from "../../components/cards/cardLayout";
 import type { CompletionStatus } from "../../components/decks/types";
 import { normalizeCompletionStatus } from "../progress";
+import { learningOwnerKey, type CardLearningContext } from "./learningContext";
+import { requireCondition } from "./domain";
 
 type PersonalFields = Pick<CardLayout, "targetDate" | "reflection" | "mediaItems"> & {
   adoptedVersion: number | undefined;
@@ -18,8 +20,10 @@ export class WorkingCardStore {
     });
   }
   private epochs = new Map<string, number>();
+  private sessions = new Map<string, number>();
   private listeners = new Map<string, Set<() => void>>();
   epoch(userId: string) { return this.epochs.get(userId) ?? 0; }
+  session(userId: string) { return this.sessions.get(userId) ?? 0; }
   subscribe(userId: string, listener: () => void) {
     const listeners = this.listeners.get(userId) ?? new Set<() => void>();
     listeners.add(listener); this.listeners.set(userId, listeners);
@@ -30,8 +34,15 @@ export class WorkingCardStore {
     for (const listener of [...(this.listeners.get(userId) ?? [])]) listener();
   }
   private records = new Map<string, PersonalFields>();
-  private key(userId: string, cardId: string) { return JSON.stringify([userId, cardId]); }
-  accept(userId: string, cards: CardLayout[]) {
+  private key(userId: string, cardId: string) { return learningOwnerKey(userId, cardId); }
+  // The default is the existing personal-only call boundary. Future experience
+  // adapters must pass their context and cannot insert private/group DTOs here.
+  accept(userId: string, cards: CardLayout[], context?: CardLearningContext, expectedEpoch = this.epoch(userId), expectedSession = this.session(userId)) {
+    requireCondition(!context || context.kind === "personal", "PERSONAL_CACHE_CONTEXT_REQUIRED");
+    requireCondition(cards.every(card => !card.dataOwnerUserId || card.dataOwnerUserId === userId), "PERSONAL_CACHE_OWNER_MISMATCH");
+    if (context) requireCondition(cards.every(card => (card.cardTemplateId ?? card.id) === context.cardTemplateId
+      && card.adoptedVersion === context.version), "PERSONAL_CACHE_CONTEXT_MISMATCH");
+    if (expectedEpoch !== this.epoch(userId) || expectedSession !== this.session(userId)) return false;
     for (const card of cards) {
       this.acceptPersonal(userId, { ...card, cardTemplateId: card.cardTemplateId ?? card.id });
       for (const source of card.personalHistory ?? []) this.acceptPersonal(userId, source);
@@ -43,6 +54,7 @@ export class WorkingCardStore {
       readings: new Map(card.signals.map((signal) => [signal.id, signal.rawReading])),
     });
     }
+    return true;
   }
   personal(userId: string, cardId: string) { return this.records.get(this.key(userId, cardId)); }
   removeMedia(userId: string, cardId: string, mediaItemId: string) {
@@ -65,6 +77,15 @@ export class WorkingCardStore {
   }
   clearUser(userId: string) {
     for (const map of [this.records, this.infoRecords]) for (const key of map.keys()) if (JSON.parse(key)[0] === userId) map.delete(key);
+    this.sessions.set(userId, this.session(userId) + 1);
+    this.invalidate(userId);
+  }
+  // Shared learning may change through any authorized context. Remove the
+  // mixed private-presentation overlay, keeping independent Info revisions.
+  // Epoch consumers already reject stale reads and refresh Progress/history.
+  invalidateLearning(userId: string, cardTemplateId: string) {
+    this.records.delete(this.key(userId, cardTemplateId));
+    this.invalidate(userId);
   }
 }
 export const workingCardStore = new WorkingCardStore();

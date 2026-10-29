@@ -1,6 +1,11 @@
-export type PersonalWorkScope = { userId: string; deckId?: string; cardIds: readonly string[] };
+export type ContributionWorkContext = { kind: "experience-contribution"; experienceId: string };
+export type PersonalWorkScope = { userId: string; deckId?: string; cardIds: readonly string[]; context?: ContributionWorkContext };
 type Entry = { scope: PersonalWorkScope; promise?: Promise<unknown>; operation?: Promise<unknown>; retry?: () => Promise<unknown>; error?: Error; token: symbol };
-const overlaps = (a: PersonalWorkScope, b: PersonalWorkScope) => a.userId === b.userId &&
+const namespace = (scope: PersonalWorkScope) => scope.context ? JSON.stringify([scope.context.kind, scope.context.experienceId]) : "personal";
+const identity = (scope: PersonalWorkScope, key: string) => JSON.stringify([scope.userId, namespace(scope), key]);
+// Learning work omits contribution context and therefore shares one queue/barrier
+// across all Deck/experience views. Content work is isolated per experience.
+const overlaps = (a: PersonalWorkScope, b: PersonalWorkScope) => a.userId === b.userId && namespace(a) === namespace(b) &&
   ((a.deckId !== undefined && a.deckId === b.deckId) || a.cardIds.some((id) => b.cardIds.includes(id)));
 
 // Tracks in-memory saves, uploads and editor-readiness markers, never editing
@@ -14,13 +19,13 @@ export class PersonalWork {
   private locks = new Set<PersonalWorkScope>();
   run<T>(scope: PersonalWorkScope, key: string, operation: () => Promise<T>): Promise<T> {
     if ([...this.locks].some((lock) => overlaps(lock, scope))) return Promise.reject(new Error("Please wait for Update to finish."));
-    const identity = JSON.stringify([scope.userId, key]);
-    this.changes.set(identity, { scope, revision: (this.changes.get(identity)?.revision ?? 0) + 1 });
+    const operationId = identity(scope, key);
+    this.changes.set(operationId, { scope, revision: (this.changes.get(operationId)?.revision ?? 0) + 1 });
     const entry: Entry = { scope, token: Symbol(), retry: () => this.run(scope, key, operation) };
     const promise = Promise.resolve().then(operation);
-    entry.promise = promise; entry.operation = promise; this.entries.set(identity, entry);
-    void promise.then(() => { if (this.entries.get(identity) === entry) this.entries.delete(identity); }, (error) => {
-      if (this.entries.get(identity) === entry) { entry.promise = undefined; entry.error = error instanceof Error ? error : new Error("Personal work could not be saved."); }
+    entry.promise = promise; entry.operation = promise; this.entries.set(operationId, entry);
+    void promise.then(() => { if (this.entries.get(operationId) === entry) this.entries.delete(operationId); }, (error) => {
+      if (this.entries.get(operationId) === entry) { entry.promise = undefined; entry.error = error instanceof Error ? error : new Error("Personal work could not be saved."); }
     });
     return promise;
   }
@@ -33,8 +38,7 @@ export class PersonalWork {
     const tracked = this.run(scope, key, () => promise);
     void tracked.catch(() => {});
     return (error?: Error, retry?: () => Promise<unknown>) => {
-      const identity = JSON.stringify([scope.userId, key]);
-      const entry = this.entries.get(identity);
+      const entry = this.entries.get(identity(scope, key));
       if (entry?.promise === tracked) entry.retry = retry ? () => this.run(scope, key, retry) : undefined;
       if (error) reject(error); else resolve();
     };
@@ -74,12 +78,12 @@ export class PersonalWork {
   hasWork(scope: PersonalWorkScope) { return [...this.entries.values()].some((entry) => overlaps(scope, entry.scope)); }
   // Only the caller holding this exact settled operation can abandon its failure.
   // Never release an in-flight operation or a newer save occupying the same key.
-  discardFailed(userId: string, key: string, operation: Promise<unknown>) {
-    const identity = JSON.stringify([userId, key]), entry = this.entries.get(identity);
-    if (entry?.operation === operation && !entry.promise && entry.error) this.entries.delete(identity);
+  discardFailed(userId: string, key: string, operation: Promise<unknown>, context?: ContributionWorkContext) {
+    const operationId = identity({ userId, cardIds: [], context }, key), entry = this.entries.get(operationId);
+    if (entry?.operation === operation && !entry.promise && entry.error) this.entries.delete(operationId);
   }
-  retryFailed(userId: string, key: string, operation: Promise<unknown>) {
-    const entry = this.entries.get(JSON.stringify([userId, key]));
+  retryFailed(userId: string, key: string, operation: Promise<unknown>, context?: ContributionWorkContext) {
+    const entry = this.entries.get(identity({ userId, cardIds: [], context }, key));
     if (entry?.operation !== operation || entry.promise || !entry.error || !entry.retry) throw new Error("This save has changed. Refresh before retrying.");
     return entry.retry();
   }

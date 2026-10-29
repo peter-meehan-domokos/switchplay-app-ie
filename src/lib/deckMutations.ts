@@ -1,4 +1,5 @@
 import { personalWork } from "./cards/personalWork";
+import { workingCardStore } from "./cards/workingCardStore";
 import type { CompletionStatus } from "@/components/decks/types";
 import type { MediaItem } from "@/lib/media";
 import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
@@ -14,9 +15,21 @@ export function enqueuePersonalMutation<Result>(key: string, operation: () => Pr
   return result;
 }
 async function mutate(deckTemplateId: string, key: string, body: unknown, userId?: string, cardId?: string) {
+  const session = userId ? workingCardStore.session(userId) : undefined;
+  const assertSession = () => {
+    if (userId && workingCardStore.session(userId) !== session) throw new Error("Your account changed. Reopen the Card before retrying.");
+  };
   const operation = () => enqueuePersonalMutation(JSON.stringify([userId, key]), async () => {
+    assertSession();
     const response = await fetch(`/api/decks-data/${encodeURIComponent(deckTemplateId)}`, { method: "PATCH", headers: { "Content-Type": "application/json", ...(userId ? { "X-Personal-Viewer": userId } : {}) }, body: JSON.stringify(body) });
-    const payload = await response.json(); if (!response.ok) throw new Error(payload.error ?? "Unable to save change"); return payload;
+    const payload = await response.json();
+    assertSession();
+    const actor = response.headers?.get("X-Personal-Viewer");
+    if (userId && actor && actor !== userId) throw new Error("Your account changed. Reopen the Card before retrying.");
+    if (!response.ok) throw new Error(payload.error ?? "Unable to save change");
+    if (userId && cardId && body && typeof body === "object" && "type" in body
+      && ["completion", "signal", "target-date"].includes(String(body.type))) workingCardStore.invalidateLearning(userId, cardId);
+    return payload;
   });
   return userId ? personalWork.run({ userId, ...(cardId ? {} : { deckId: deckTemplateId }), cardIds: cardId ? [cardId] : [] }, key, operation) : operation();
 }

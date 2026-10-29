@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { getDatabase, getMongoClient, withMongoTransaction } from "../mongodb";
 import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
-import type { AdoptedVersion, CardContent, CardTemplateRoot, CardTemplateVersion, CreateAndAttachCardCommand, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility, DeckPublicationReview, CopyPublicationReceipt } from "./model";
+import type { AdoptedVersion, CardContent, CardData, CardTemplateRoot, CardTemplateVersion, CreateAndAttachCardCommand, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility, DeckPublicationReview, CopyPublicationReceipt } from "./model";
 import type { CompletionStatus } from "../../components/decks/types";
 import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
 import type { MediaItem } from "../media";
@@ -20,6 +20,8 @@ import type { CardForkCommand, DeckForkCommand, ForkContext, ForkDeckEntry } fro
 import { assertPreviewManifest, LibraryPreviewConflict, type PersonalEntryResult } from "./libraryEntry";
 import type { LibraryPreviewManifest } from "./libraryProjection";
 import { assertUpdateCommand, reconcileCardUpdate, UpdateReviewConflict, type UpdateCommand, type UpdateReviewResult, type UpdateAdoptionResult } from "./updateAdoption";
+import { ensurePersonalLearningInSession, mutatePersonalLearningInSession } from "./personalLearning";
+import { mergeRetainedAssignments, type RetainedCardAssignment } from "./retainedAssignments";
 
 export const COLLECTIONS = { cards: "cardTemplates", cardVersions: "cardTemplateVersions", decks: "deckTemplates", deckVersions: "deckTemplateVersions", users: "users" } as const;
 function entityId(value: unknown) { requireCondition(nonblank(value), "INVALID_ENTITY_ID"); }
@@ -165,6 +167,9 @@ export class CardRepository {
           "cardsData.$[card].cardTemplateVersion": command.targetVersion, "cardsData.$[card].updatedAt": now,
           "cardsData.$[card].items": state.items, "cardsData.$[card].signalReadings": state.signalReadings,
         } }, { session, arrayFilters: [{ "card.cardTemplateId": id }] });
+        if (user.retainedCardAssignments?.some(ref => ref.cardTemplateId === id)) {
+          await this.retainAssignments(actor, [{ cardTemplateId: id, version: command.targetVersion }], session);
+        }
       } else {
         const target = (await this.getDeckVersion(id, command.targetVersion, session))!;
         // Lock only missing Card adoptions, then the Deck. A publication of a
@@ -172,6 +177,9 @@ export class CardRepository {
         await this.guardCardRoots(reviewed.missingCards.map((ref) => ref.cardTemplateId), session);
         const guarded = await this.decks().updateOne({ deckTemplateId: id, latestVersion: command.targetVersion }, { $inc: { publicationGuard: 1 } }, { session });
         requireCondition(guarded.matchedCount === 1, "UPDATE_REVIEW_CONFLICT");
+        // Seed old adopted composition before it disappears, including legacy
+        // memberships which predate retained-assignment metadata.
+        await this.retainComposition(actor, user, data as DeckData, session);
         await this.ensureCompositionCardData(actor, user, target.content.cards, now, session);
         const activeCardId = target.content.cards.some((ref) => ref.cardTemplateId === (data as DeckData).activeCardId)
           ? (data as DeckData).activeCardId : target.content.cards[0]?.cardTemplateId ?? null;
@@ -202,7 +210,37 @@ export class CardRepository {
       membershipState: data.archivedAt === null ? "active" : "archived", adoptedCards };
   }
   getPersonalUser(userId: string, session?: ClientSession) {
-    return this.users().findOne({ _id: userKey(userId) }, { projection: { decksData: 1, cardsData: 1, itemTests: 1, itemTestsRevision: 1 }, session });
+    return this.users().findOne({ _id: userKey(userId) }, { projection: { decksData: 1, cardsData: 1, itemTests: 1, itemTestsRevision: 1, retainedCardAssignments: 1 }, session });
+  }
+  // Storage projection only, never an authorization grant. All current callers
+  // pass the authenticated owner after working-context authorization.
+  getPersonalLearning(userId: string, cardTemplateId: string, session?: ClientSession) {
+    entityId(cardTemplateId);
+    return this.users().aggregate<{ _id: PersonalUser["_id"]; cardsData: Pick<CardData, "cardTemplateId" | "items" | "signalReadings">[] }>([
+      { $match: { _id: userKey(userId) } },
+      { $project: { _id: 1, cardsData: { $map: {
+        input: { $filter: { input: "$cardsData", as: "card", cond: { $eq: ["$$card.cardTemplateId", { $literal: cardTemplateId }] } } },
+        as: "card", in: { cardTemplateId: "$$card.cardTemplateId", items: "$$card.items", signalReadings: "$$card.signalReadings" },
+      } } } },
+    ], { session }).next();
+  }
+  // Called only with server-resolved legitimate personal assignments. The
+  // references preserve eligibility evidence, never workload/navigation access.
+  private async retainAssignments(actor: string, refs: readonly RetainedCardAssignment[], session: ClientSession) {
+    if (!refs.length) return;
+    const user = await this.getPersonalUser(actor, session);
+    requireCondition(user, "NEW_MODEL_USER_REQUIRED");
+    const retained = mergeRetainedAssignments(user.retainedCardAssignments, refs);
+    if (!isDeepStrictEqual(retained, user.retainedCardAssignments)) await this.users().updateOne({ _id: user._id },
+      { $set: { retainedCardAssignments: retained } }, { session });
+  }
+  private async retainComposition(actor: string, user: PersonalUser, membership: DeckData, session: ClientSession) {
+    const refs = await this.retainedComposition(actor, membership, session);
+    await this.retainAssignments(actor, refs.map(({ cardTemplateId }) => {
+      const records = user.cardsData.filter(card => card.cardTemplateId === cardTemplateId);
+      requireCondition(records.length === 1, "AMBIGUOUS_OR_MISSING_CARD_DATA");
+      return { cardTemplateId, version: records[0].cardTemplateVersion };
+    }), session);
   }
   private async ownerCard(actor: string, cardTemplateId: string, expectedRevision: number, session: ClientSession) {
     entityId(actor); entityId(cardTemplateId);
@@ -689,7 +727,11 @@ export class CardRepository {
       // Field-level update: no reconciliation, replacement, deletion or follower adoption.
       await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": cardTemplateId }, {
         $set: { "cardsData.$[card].cardTemplateVersion": version, "cardsData.$[card].updatedAt": now },
-      }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] }); return version;
+      }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });
+      if (user.retainedCardAssignments?.some(ref => ref.cardTemplateId === cardTemplateId)) {
+        await this.retainAssignments(actor, [{ cardTemplateId, version }], session);
+      }
+      return version;
     });
   }
   private publicationReview(root: DeckTemplateRoot, cards: CardTemplateRoot[]): DeckPublicationReview {
@@ -782,6 +824,7 @@ export class CardRepository {
     const firstPrivateEntry = root.latestVersion === 0 && visibility === "private" && root.forkedFrom === null;
     const forkPersonalEntry = root.forkedFrom !== null && version === 1 && forkEntry?.enterMyDecks === true;
     if (membership || firstPrivateEntry || forkPersonalEntry) {
+      if (membership) await this.retainComposition(actor, user, membership, session);
       await this.ensureCompositionCardData(actor, user, root.draft.cards, now, session);
       if (!membership) {
         await this.ensureDeckDataInSession(actor, root, version, now, session);
@@ -833,6 +876,7 @@ export class CardRepository {
     const personal = new Map(user.cardsData.map((data) => [data.cardTemplateId, data]));
     const selected = roots.map((root) => {
       requireCondition(root.ownerUserId === actor || root.visibility === "public", "CARD_FORBIDDEN");
+      requireCondition(user.cardsData.filter(data => data.cardTemplateId === root.cardTemplateId).length <= 1, "AMBIGUOUS_CARD_DATA");
       const existing = personal.get(root.cardTemplateId);
       const version = existing ? existing.cardTemplateVersion : root.latestVersion;
       assertAdoption(version);
@@ -848,6 +892,7 @@ export class CardRepository {
         $push: { cardsData: initialCardData(ref.cardTemplateId, version.version, version.content, now) },
       }, { session });
     }
+    await this.retainAssignments(actor, selected, session);
     return refs.map((ref) => selected.find((item) => item.cardTemplateId === ref.cardTemplateId)!);
   }
   private async retainedComposition(actor: string, data: DeckData, session: ClientSession) {
@@ -958,9 +1003,7 @@ export class CardRepository {
       requireCondition(root && (root.ownerUserId === actor || root.visibility === "public"), "CARD_FORBIDDEN");
       const adopted = await this.getCardVersion(cardTemplateId, version, session); requireCondition(adopted, "MISSING_CARD_VERSION");
       assertCardVersionAccess(actor, root, adopted);
-      await this.users().updateOne({ _id: userKey(actor), "cardsData.cardTemplateId": { $ne: cardTemplateId } }, {
-        $push: { cardsData: initialCardData(cardTemplateId, version, adopted.content, new Date(), targetDate) },
-      }, { session });
+      await ensurePersonalLearningInSession(this, actor, adopted, session, { scheduling: "personal", targetDate });
     });
     return (await this.getPersonalUser(actor))!.cardsData.find((data) => data.cardTemplateId === cardTemplateId)!;
   }
@@ -1027,6 +1070,7 @@ export class CardRepository {
           $set: { "cardsData.$[card].targetDate": adopted.content.suggestedTargetDate || generated, "cardsData.$[card].updatedAt": now },
         }, { session, arrayFilters: [{ "card.cardTemplateId": ref.cardTemplateId }] });
       }
+      await this.retainAssignments(actor, requests, session);
       const activeCardId = targetCardTemplateId ?? (version.content.cards.some((ref) => ref.cardTemplateId === data.activeCardId)
         ? data.activeCardId : version.content.cards[0]?.cardTemplateId ?? null);
       await this.users().updateOne({ _id: userKey(actor) }, { $set: {
@@ -1133,30 +1177,15 @@ export class CardRepository {
   async setCompletion(actor: string, deckTemplateId: string, cardTemplateId: string, stepId: string, completionStatus: CompletionStatus) {
     requireCondition(["todo", "inProgress", "done", "skipped"].includes(completionStatus), "INVALID_COMPLETION");
     await this.transaction(async (session) => {
-      const { data, cardVersion } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
-      requireCondition(cardVersion.content.steps.some((step) => step.stepId === stepId), "STEP_OUTSIDE_ADOPTED_CARD");
-      if (!data.items.some((item) => item.stepId === stepId)) {
-        await this.users().updateOne({ _id: userKey(actor) }, { $push: { "cardsData.$[card].items": { stepId, completionStatus } }, $set: { "cardsData.$[card].updatedAt": new Date() } },
-          { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] }); return;
-      }
-      const result = await this.users().updateOne({ _id: userKey(actor) }, { $set: {
-        "cardsData.$[card].items.$[step].completionStatus": completionStatus, "cardsData.$[card].updatedAt": new Date(),
-      } }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }, { "step.stepId": stepId }] });
-      requireCondition(result.matchedCount === 1, "MISSING_CARD_DATA");
+      const { cardVersion } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+      await mutatePersonalLearningInSession(this, actor, cardVersion, { kind: "completion", stepId, completionStatus }, session);
     });
   }
   async setSignalReading(actor: string, deckTemplateId: string, cardTemplateId: string, stepId: string, reading: number | null) {
     requireCondition(reading === null || (typeof reading === "number" && Number.isFinite(reading) && reading >= 1 && reading <= 10), "INVALID_SIGNAL_READING");
     await this.transaction(async (session) => {
-      const { data, cardVersion } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
-      requireCondition(cardVersion.content.steps.some((step) => step.stepId === stepId), "STEP_OUTSIDE_ADOPTED_CARD");
-      if (!data.signalReadings.some((item) => item.stepId === stepId)) {
-        await this.users().updateOne({ _id: userKey(actor) }, { $push: { "cardsData.$[card].signalReadings": { stepId, reading } }, $set: { "cardsData.$[card].updatedAt": new Date() } },
-          { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] }); return;
-      }
-      await this.users().updateOne({ _id: userKey(actor) }, { $set: {
-        "cardsData.$[card].signalReadings.$[step].reading": reading, "cardsData.$[card].updatedAt": new Date(),
-      } }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }, { "step.stepId": stepId }] });
+      const { cardVersion } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+      await mutatePersonalLearningInSession(this, actor, cardVersion, { kind: "signal", stepId, reading }, session);
     });
   }
   async setTargetDate(actor: string, deckTemplateId: string, cardTemplateId: string, targetDate: string | null) {

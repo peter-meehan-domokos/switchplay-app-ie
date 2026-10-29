@@ -1,5 +1,6 @@
-import { CardArchitectureError, assertAdoption, assertCardContent, isRecord, nonblank, requireCondition } from "./domain";
+import { CardArchitectureError, assertAdoption, isRecord, nonblank, requireCondition } from "./domain";
 import type { CardContent, CardData } from "./model";
+import { reconcileLearning } from "./learning";
 
 // A review pins only changes this operation may adopt. Existing global CardData
 // never becomes a freshness dependency of a Deck Update.
@@ -53,22 +54,5 @@ export function assertUpdateCommand(value: unknown): asserts value is UpdateComm
 // target dates and reflection are not re-created or copied during adoption.
 // Keep values for temporarily absent IDs, so a returning stable ID retains them.
 export function reconcileCardUpdate(data: CardData, target: CardContent) {
-  assertCardContent(target);
-  requireCondition(Array.isArray(data.items) && Array.isArray(data.signalReadings), "INVALID_CARD_DATA");
-  const completions = new Set<string>(), signals = new Set<string>();
-  for (const item of data.items) {
-    requireCondition(isRecord(item) && nonblank(item.stepId) && !completions.has(item.stepId)
-      && ["todo", "inProgress", "done", "skipped"].includes(item.completionStatus), "INVALID_COMPLETION");
-    completions.add(item.stepId);
-  }
-  for (const signal of data.signalReadings) {
-    requireCondition(isRecord(signal) && nonblank(signal.stepId) && !signals.has(signal.stepId)
-      && (signal.reading === null || typeof signal.reading === "number" && Number.isFinite(signal.reading)
-        && signal.reading >= 1 && signal.reading <= 10), "INVALID_SIGNAL_READING");
-    signals.add(signal.stepId);
-  }
-  return {
-    items: [...data.items, ...target.steps.filter((step) => !completions.has(step.stepId)).map(({ stepId }) => ({ stepId, completionStatus: "todo" as const }))],
-    signalReadings: [...data.signalReadings, ...target.steps.filter((step) => !signals.has(step.stepId)).map(({ stepId }) => ({ stepId, reading: null }))],
-  };
+  return reconcileLearning(data, target);
 }

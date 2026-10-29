@@ -1,6 +1,7 @@
 import type { ObjectId } from "mongodb";
 import type { CompletionStatus, CardIntro, CardTemplateStep, DeckIntroduction, CardComment } from "../../components/decks/types";
 import type { MediaItem } from "../media";
+import type { RetainedCardAssignment } from "./retainedAssignments";
 
 export type Visibility = "private" | "public";
 export type AdoptedVersion = number; // Validated integer >= 1; personal data adopts immutable published content.
@@ -107,7 +108,8 @@ export type DeckData = {
 };
 export type ItemTest = CardTest & { itemId: string };
 export type PersonalUser = { _id: ObjectId | string; decksData: DeckData[]; cardsData: CardData[];
-  itemTests?: ItemTest[]; itemTestsRevision?: number };
+  itemTests?: ItemTest[]; itemTestsRevision?: number;
+  retainedCardAssignments?: RetainedCardAssignment[] };
 export type Capabilities = {
   templateOwnerUserId: string; dataOwnerUserId: string;
   canEditDeck: boolean; canPublishDeck: boolean; canArchiveDeck: boolean;
