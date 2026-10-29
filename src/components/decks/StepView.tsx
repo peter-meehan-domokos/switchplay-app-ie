@@ -179,7 +179,7 @@ export default function StepView({
         </div>
       </main>
       <footer className={`step-view-actions ${styles.actions}`} data-info-open={Boolean(infoCards && infoCards.count > 0 && infoCards.expanded)}>
-        {infoCards && infoCards.count > 0 ? <div className={styles.pouch}><InfoCardPouch {...infoCards} /></div> : null}
+        {infoCards && (infoCards.count > 0 || infoCards.allowEmpty) ? <div className={styles.pouch}><InfoCardPouch {...infoCards} /></div> : null}
         <button className={styles.previous} disabled={itemIndex === 0} onClick={onPrevious} type="button">
           Previous
         </button>

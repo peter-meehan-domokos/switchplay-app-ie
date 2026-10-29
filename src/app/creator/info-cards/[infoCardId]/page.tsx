@@ -3,7 +3,9 @@ import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import InfoCardEditor from "@/components/info-cards/InfoCardEditor";
 import { getCurrentUser } from "@/lib/auth";
 import { InfoCardRepository } from "@/lib/infoCards/repository";
-import { infoEditor } from "@/lib/infoCards/queries";
+import { infoEditor, personalRecoveryContext } from "@/lib/infoCards/queries";
+import { isPersonalInfo } from "@/lib/infoCards/model";
+import { redirect } from "next/navigation";
 import { CardArchitectureError } from "@/lib/cards/domain";
 import { creatorNavigation, type CreatorSearch } from "@/components/creator/creatorNavigation";
 
@@ -15,5 +17,9 @@ export default async function EditInfoCardPage({ params, searchParams }: { param
     throw error;
   });
   if (!initial) return <main className="app-shell"><p>Info Card unavailable.</p><Link href="/library?tab=info-cards">Back to Library</Link></main>;
+  if (isPersonalInfo(initial.root)) {
+    const context = await personalRecoveryContext(await InfoCardRepository.application(), user.id, initial.root);
+    if (context) redirect(`/decks?${new URLSearchParams({ openDeck: context.deckTemplateId, openCard: context.cardTemplateId, personalDraft: infoCardId })}`);
+  }
   return <InfoCardEditor key={`${user.id}:${infoCardId}`} id={infoCardId} actor={user.id} username={user.username} initial={initial} navigation={creatorNavigation(await searchParams)} />;
 }

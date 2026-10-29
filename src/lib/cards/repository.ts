@@ -15,6 +15,7 @@ import { assertForkContext, editedForkContent, inheritForkCardData } from "./for
 import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAccess";
 import { validateForkAttachments } from "./prospectiveUpload";
 import { readablePersonalHistory } from "./personalHistory";
+import { withInfoAttachmentDates } from "../infoCards/attachmentDates";
 import type { CardForkCommand, DeckForkCommand, ForkContext, ForkDeckEntry } from "./model";
 import { assertPreviewManifest, LibraryPreviewConflict, type PersonalEntryResult } from "./libraryEntry";
 import type { LibraryPreviewManifest } from "./libraryProjection";
@@ -363,9 +364,11 @@ export class CardRepository {
       }
       requireCondition(ownedAttachment || ref && (data?.cardTemplateVersion ?? ref.cardVersionAtPublish) === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
     }
-    const content = editedForkContent(version.content, command.source, command.stepIds, command.content, command.visibility !== undefined);
+    let content: CardContent = editedForkContent(version.content, command.source, command.stepIds,
+      withInfoAttachmentDates(command.content, version.content), command.visibility !== undefined);
     requireCondition(command.visibility === undefined || command.visibility === "private" || command.visibility === "public", "INVALID_VISIBILITY");
     const existing = await this.cards().findOne({ cardTemplateId: command.cardTemplateId }, { session });
+    content = withInfoAttachmentDates(content, existing?.draft ?? version.content);
     // Recovery checks the exact committed draft first; expired upload proofs must not undo a proven outcome.
     if (!existing) await validateForkAttachments(actor, { kind: "card", source: command.source, targetId: command.cardTemplateId, context: command.context }, version.content, content, command.mediaProofs);
     if (existing) {
@@ -483,14 +486,14 @@ export class CardRepository {
         requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && isDeepStrictEqual(existing.draft, content), "INITIAL_GRAPH_CONFLICT");
         for (const card of cards) {
           const root = await this.cards().findOne({ cardTemplateId: card.cardTemplateId }, { session });
-          requireCondition(root?.ownerUserId === actor && root.latestVersion === 0 && sameContent(root.draft, card.content), "INITIAL_GRAPH_CONFLICT");
+          requireCondition(root?.ownerUserId === actor && root.latestVersion === 0 && sameContent(root.draft, withInfoAttachmentDates(card.content, root.draft)), "INITIAL_GRAPH_CONFLICT");
         }
         return;
       }
       const now = new Date();
       await this.guardInfoReferences(actor, cards.map(card => card.content), "private", session);
       for (const card of cards) await this.cards().insertOne({ cardTemplateId: card.cardTemplateId, ownerUserId: actor,
-        visibility: "private", latestVersion: 0, draft: card.content, stepIds: card.content.steps.map((step) => step.stepId),
+        visibility: "private", latestVersion: 0, draft: withInfoAttachmentDates(card.content, null, now), stepIds: card.content.steps.map((step) => step.stepId),
         revision: 0, forkedFrom: null, createdAt: now, updatedAt: now }, { session });
       const root: DeckTemplateRoot = { deckTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
         draft: content, revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
@@ -503,11 +506,11 @@ export class CardRepository {
     requireCondition(content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED");
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility: "private", ...(visibility === "public" ? { draftVisibility: visibility } : {}), latestVersion: 0,
-      draft: structuredClone(content), stepIds: content.steps.map((step) => step.stepId), revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
+      draft: withInfoAttachmentDates(structuredClone(content), null, now), stepIds: content.steps.map((step) => step.stepId), revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
     const existing = await this.transaction(async (session) => {
       await this.assertUser(actor, session);
       const existing = await this.cards().findOne({ cardTemplateId }, { session });
-      if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && publicationVisibility(existing) === visibility && sameContent(existing.draft, content), "INITIAL_CARD_CONFLICT"); return existing; }
+      if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && publicationVisibility(existing) === visibility && sameContent(existing.draft, withInfoAttachmentDates(content, existing.draft)), "INITIAL_CARD_CONFLICT"); return existing; }
       await this.guardInfoReferences(actor, [content], "private", session);
       await this.cards().insertOne(root, { session }); return root;
     });
@@ -582,6 +585,7 @@ export class CardRepository {
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_CARD_VERSION");
       const current = root.draft ?? latest?.content;
+      content = withInfoAttachmentDates(content, current);
       for (const step of content.steps) {
         const previous = current?.steps.find((item) => item.stepId === step.stepId) ?? latest?.content.steps.find((item) => item.stepId === step.stepId);
         requireCondition(isDeepStrictEqual(step.forkedFrom, previous?.forkedFrom), "STEP_LINEAGE_IMMUTABLE");

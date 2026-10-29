@@ -1,4 +1,5 @@
 import type { ClientSession, Document } from "mongodb";
+import { createHmac } from "node:crypto";
 import { CardRepository } from "../cards/repository";
 import { creatorUsernames, UNKNOWN_CREATOR } from "../cards/creatorAttribution";
 import { CardArchitectureError, isRecord, requireCondition } from "../cards/domain";
@@ -6,6 +7,8 @@ import { INFO_COLLECTIONS, type InfoCardRepository } from "./repository";
 import { assertInfoDraft, infoId, infoReferences, seriesName, visibility } from "./domain";
 import { measureInfoCapacity } from "./capacity";
 import type { InfoConsultationEntry, InfoConsultationSnapshot, MainInfoContext, InfoPublication, InfoRoot, InfoSeries, PublishedInfo } from "./model";
+import { CREATOR_INFO_FILTER, isCreatorInfo, isPersonalInfo } from "./model";
+import { personalHistorySegments } from "../cards/forks";
 
 export type InfoQuery = { search?: string; offset?: number; limit?: number; seriesId?: string };
 export async function infoEditor(repo: InfoCardRepository, actor: string, id: string) {
@@ -17,6 +20,29 @@ export async function infoEditor(repo: InfoCardRepository, actor: string, id: st
     const names = await creatorUsernames(new CardRepository(repo.db, repo.client), series ? [series.createdByUserId] : [], session);
     return { root, publication, selectedSeries: series ? { seriesId: series.seriesId, title: series.title,
       createdByUserId: series.createdByUserId, creatorUsername: names.get(series.createdByUserId) ?? UNKNOWN_CREATOR } : null };
+  });
+}
+// Owner unfinished-work recovery only. Reuse real working membership and the
+// existing actor history; a URL/origin cannot grant access to a parent/fork.
+export async function personalRecoveryContext(repo: InfoCardRepository, actor: string, root: InfoRoot) {
+  requireCondition(root.ownerUserId === actor && isPersonalInfo(root), "INFO_FORBIDDEN");
+  return repo.transaction(async session => {
+    const main = new CardRepository(repo.db, repo.client), user = await main.getPersonalUser(actor, session);
+    if (!user) return null;
+    for (const membership of user.decksData.filter(data => data.archivedAt === null).sort((a, b) => a.deckTemplateId.localeCompare(b.deckTemplateId))) {
+      const deck = await main.getDeckVersion(membership.deckTemplateId, membership.deckTemplateVersion, session);
+      if (!deck) continue;
+      for (const ref of deck.content.cards) {
+        const data = user.cardsData.filter(data => data.cardTemplateId === ref.cardTemplateId);
+        if (data.length !== 1 || root.latestVersion === 0 && ref.cardTemplateId !== root.originCardTemplateId) continue;
+        if (!personalHistorySegments(user.cardsData, ref.cardTemplateId).some(source => source.cardTemplateId === root.originCardTemplateId)) continue;
+        try {
+          await main.consultationCardVersion(actor, ref.cardTemplateId, { mode: "working", version: data[0].cardTemplateVersion, deckTemplateId: membership.deckTemplateId }, session);
+          return { deckTemplateId: membership.deckTemplateId, cardTemplateId: ref.cardTemplateId };
+        } catch (error) { if (!(error instanceof CardArchitectureError)) throw error; }
+      }
+    }
+    return null;
   });
 }
 function page(query: InfoQuery) {
@@ -32,6 +58,7 @@ type Joined = InfoRoot & { publication: InfoPublication; series: InfoSeries };
 async function decorate(repo: InfoCardRepository, rows: Joined[], session: ClientSession): Promise<PublishedInfo[]> {
   const names = await creatorUsernames(new CardRepository(repo.db, repo.client), rows.flatMap(r => [r.ownerUserId, r.series.createdByUserId]), session);
   return rows.map(r => ({ infoCardId: r.infoCardId, version: r.publication.version, visibility: r.publication.visibility,
+    ...(isPersonalInfo(r) ? { kind: "personal" as const, originCardTemplateId: r.originCardTemplateId } : {}),
     content: r.publication.content, ownerUserId: r.ownerUserId, creatorUsername: names.get(r.ownerUserId) ?? UNKNOWN_CREATOR,
     series: { seriesId: r.series.seriesId, title: r.series.title, createdByUserId: r.series.createdByUserId,
       creatorUsername: names.get(r.series.createdByUserId) ?? UNKNOWN_CREATOR } }));
@@ -83,14 +110,18 @@ function validPublication(row: Joined) {
 
 // Same resolution machinery as strict catalogue publication reads, but preserves
 // authorised main-reference positions without exposing why a slot is unavailable.
-export async function publicationSnapshotEntries(repo: InfoCardRepository, actor: string, ids: unknown, session?: ClientSession): Promise<InfoConsultationEntry[]> {
+export async function publicationSnapshotEntries(repo: InfoCardRepository, actor: string, ids: unknown, session?: ClientSession,
+  personalOrigins?: ReadonlyMap<string, ReadonlySet<string>>): Promise<InfoConsultationEntry[]> {
   infoId(actor); const ordered = infoReferences(ids);
   const read = async (snapshot: ClientSession): Promise<InfoConsultationEntry[]> => {
     const rows = await repo.roots().aggregate<Joined>([
       { $match: { infoCardId: { $in: ordered }, latestVersion: { $gt: 0 }, $or: [{ ownerUserId: actor }, { visibility: "public" }] } },
       ...latestJoin(), { $match: access(actor) },
     ], { session: snapshot }).toArray();
-    const items = await decorate(repo, rows.filter(validPublication), snapshot), byId = new Map(items.map(item => [item.infoCardId, item]));
+    const permitted = rows.filter(row => isCreatorInfo(row) || isPersonalInfo(row) && row.ownerUserId === actor
+      && row.visibility === "private" && row.publication.visibility === "private"
+      && personalOrigins?.get(row.infoCardId)?.has(row.originCardTemplateId!));
+    const items = await decorate(repo, permitted.filter(validPublication), snapshot), byId = new Map(items.map(item => [item.infoCardId, item]));
     return ordered.map(id => { const info = byId.get(id); return info ? { status: "available", info } : { status: "unavailable" }; });
   };
   if (session) { requireCondition(session.inTransaction(), "INFO_TRANSACTION_REQUIRED"); return read(session); }
@@ -101,8 +132,48 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
   const main = new CardRepository(repo.db, repo.client);
   return repo.transaction(async session => {
     const version = await main.consultationCardVersion(actor, mainCardId, context, session);
-    return { mainCardId, mainCardVersion: version.version,
-      entries: await publicationSnapshotEntries(repo, actor, version.content.infoCardIds, session) };
+    type Ref = { id: string; source: "shared" | "personal"; origin?: string; date?: string };
+    const refs: Ref[] = infoReferences(version.content.infoCardIds).map(id => ({ id, source: "shared", date: version.content.infoCardAttachedAt?.[id] }));
+    const origins = new Map<string, Set<string>>();
+    let sources: { cardTemplateId: string; personalInfoRevision: number }[] | undefined;
+    if (context.mode === "working") {
+      const user = await main.getPersonalUser(actor, session);
+      requireCondition(user?.cardsData.filter(data => data.cardTemplateId === mainCardId).length === 1, "AMBIGUOUS_CARD_DATA");
+      infoReferences(user.cardsData.find(data => data.cardTemplateId === mainCardId)!.personalInfoCardIds);
+      const segments = personalHistorySegments(user.cardsData, mainCardId);
+      sources = segments.map(segment => ({ cardTemplateId: segment.cardTemplateId, personalInfoRevision: segment.personalInfoRevision ?? 0 }));
+      for (const segment of segments) for (const id of segment.personalInfoCardIds ?? []) {
+        const allowed = origins.get(id) ?? new Set<string>(); allowed.add(segment.cardTemplateId); origins.set(id, allowed);
+        refs.push({ id, source: "personal", origin: segment.cardTemplateId, date: segment.personalInfoCardAttachedAt?.[id] });
+      }
+    }
+    const ids = [...new Set(refs.map(ref => ref.id))];
+    const resolved = await publicationSnapshotEntries(repo, actor, ids, session, origins);
+    const byId = new Map(ids.map((id, index) => [id, resolved[index]]));
+    const availableIds = resolved.flatMap(entry => entry.status === "available" ? [entry.info.infoCardId] : []);
+    const roots = availableIds.length ? await repo.roots().find({ infoCardId: { $in: availableIds } },
+      { session, projection: { infoCardId: 1, createdAt: 1 } }).toArray() : [];
+    const dates = new Map(roots.map(root => [root.infoCardId, root.createdAt]));
+    const seen = new Set<string>();
+    const entries = refs.flatMap(ref => {
+      const found = byId.get(ref.id);
+      const available = found?.status === "available" && (ref.source === "shared" ? found.info.kind !== "personal"
+        : found.info.kind === "personal" && found.info.originCardTemplateId === ref.origin);
+      if (available && seen.has(ref.id)) return [];
+      if (available) seen.add(ref.id);
+      const createdAt = available ? dates.get(ref.id) : undefined;
+      const rawDate = ref.date ?? (createdAt instanceof Date && Number.isFinite(createdAt.getTime()) ? createdAt.toISOString() : undefined);
+      const time = rawDate && Number.isFinite(Date.parse(rawDate)) ? Date.parse(rawDate) : null;
+      const key = available ? ref.id : (() => {
+        requireCondition(!!process.env.SESSION_SECRET, "INFO_CONTEXT_SIGNING_UNAVAILABLE");
+        return createHmac("sha256", process.env.SESSION_SECRET!).update(JSON.stringify([actor, mainCardId, version.version, ref.source, ref.origin, ref.id])).digest("hex");
+      })();
+      const entry: InfoConsultationEntry = available ? { ...found, key, source: ref.source,
+        ...(ref.origin ? { sourceCardTemplateId: ref.origin } : {}), attachedAt: time !== null ? new Date(time).toISOString() : null }
+        : { status: "unavailable", key };
+      return [{ entry, time, tie: available ? ref.id : key }];
+    }).sort((a, b) => (b.time ?? -Infinity) - (a.time ?? -Infinity) || (a.tie < b.tie ? -1 : a.tie > b.tie ? 1 : 0));
+    return { mainCardId, mainCardVersion: version.version, ...(sources ? { personalSources: sources } : {}), entries: entries.map(item => item.entry) };
   });
 }
 
@@ -110,7 +181,7 @@ export async function infoCatalogue(repo: InfoCardRepository, actor: string, que
   infoId(actor); const { search, offset, limit } = page(query);
   return repo.transaction(async session => {
     // ACL filters precede every group/count/search/pagination operation.
-    const pipeline: Document[] = [{ $match: { latestVersion: { $gt: 0 }, $or: [{ ownerUserId: actor }, { visibility: "public" }] } },
+    const pipeline: Document[] = [{ $match: { $and: [CREATOR_INFO_FILTER], deletedAt: { $exists: false }, latestVersion: { $gt: 0 }, $or: [{ ownerUserId: actor }, { visibility: "public" }] } },
       ...latestJoin(), { $match: access(actor) }];
     if (query.seriesId) pipeline.push({ $match: { "series.seriesId": query.seriesId } });
     // User lookup projects usernames only, never account/contact metadata.
@@ -135,7 +206,7 @@ export async function discoverSeries(repo: InfoCardRepository, actor: string, qu
     pipeline.push({ $lookup: { from: INFO_COLLECTIONS.versions, let: { id: "$seriesId" }, pipeline: [
       { $match: { visibility: "public", $expr: { $eq: ["$content.seriesId", "$$id"] } } },
       { $lookup: { from: INFO_COLLECTIONS.roots, let: { id: "$infoCardId", version: "$version" }, pipeline: [
-        { $match: { visibility: "public", $expr: { $and: [{ $eq: ["$infoCardId", "$$id"] }, { $eq: ["$latestVersion", "$$version"] }] } } }, { $project: { _id: 1 } },
+        { $match: { $and: [CREATOR_INFO_FILTER], deletedAt: { $exists: false }, visibility: "public", $expr: { $and: [{ $eq: ["$infoCardId", "$$id"] }, { $eq: ["$latestVersion", "$$version"] }] } } }, { $project: { _id: 1 } },
       ], as: "root" } }, { $match: { "root.0": { $exists: true } } }, { $limit: 1 }, { $project: { _id: 1 } },
     ], as: "publicMember" } },
     { $match: { $or: [{ createdByUserId: actor }, { "publicMember.0": { $exists: true } }] } },

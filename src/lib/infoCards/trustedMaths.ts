@@ -18,7 +18,7 @@ export function checkInfoMathsRendering(origin: string): InfoRenderingChecker {
   return trustedRendering(origin, true);
 }
 function trustedRendering(origin: string, capture: boolean): InfoRenderingChecker {
-  return async (content, seriesTitle) => {
+  return async (content, seriesTitle, attribution) => {
     if (active) throw new InfoMathsError(undefined, "busy");
     active = true;
     let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
@@ -83,7 +83,8 @@ function trustedRendering(origin: string, capture: boolean): InfoRenderingChecke
       if (page.url() !== `${url.origin}/internal/info-maths` || response?.status() !== 200) throw new Error("Measurement host unavailable");
       await page.waitForFunction(() => !!window.infoMaths);
       failure = "renderer";
-      await page.evaluate(card => window.infoMaths!.mount(card), { title: content.title, body: content.body, bodyFormat: content.bodyFormat, seriesTitle, seriesCreatorUsername: "", mediaKind: content.mediaItem?.mediaType });
+      await page.evaluate(card => window.infoMaths!.mount(card), { title: content.title, body: content.body, bodyFormat: content.bodyFormat, seriesTitle, seriesCreatorUsername: "",
+        creatorUsername: attribution?.creatorUsername, personal: attribution?.personal, mediaKind: content.mediaItem?.mediaType });
       const readMeasurement = async () => {
         const handle = await page.waitForFunction(() => {
           const current = window.infoMaths?.current;

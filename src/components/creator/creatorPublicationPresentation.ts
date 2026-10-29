@@ -1,6 +1,6 @@
 import type { CardContent, DeckContent } from "@/lib/cards/model";
 import { createDefaultCardContent, createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_CREATOR_DECK_TITLE } from "@/lib/cards/creatorDefaults";
-import { cardPublicationIssue, deckPublicationIssue, sameContent, hasVisibilityChange, type PublicationVisibility } from "@/lib/cards/publicationRules";
+import { cardPublicationIssue, deckPublicationIssue, sameContent, sameCardAuthoringContent, hasVisibilityChange, type PublicationVisibility } from "@/lib/cards/publicationRules";
 import { CreatorRequestError } from "./creatorRequest";
 
 type VisibilityLane = { desiredVisibility?: import("@/lib/cards/model").Visibility; ack: { root: Partial<PublicationVisibility> } | null };
@@ -44,9 +44,9 @@ export type PublicationPresentation = {
   blockedReason: string | null;
 };
 
-function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null): PublicationPresentation {
+function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null, sameEditableContent: (left: C, right: C) => boolean = sameContent): PublicationPresentation {
   const baseline = lane.ack?.publishedContent ?? defaults;
-  const outstanding = !sameContent(lane.desired, baseline) || !!lane.ack && (!sameContent(lane.ack.content, baseline)
+  const outstanding = !sameEditableContent(lane.desired, baseline) || !!lane.ack && (!sameContent(lane.ack.content, baseline)
     || hasVisibilityChange(lane.ack.root.visibility ? lane.ack.root as PublicationVisibility : undefined))
     || lane.desiredVisibility !== undefined && lane.desiredVisibility !== (lane.ack?.root.visibility ?? "private");
   const busy = !!lane.running || lane.creationPending || lane.pendingOperations > 0 || lane.tasks.length > 0;
@@ -73,7 +73,7 @@ function presentation<C>(lane: Lane<C>, defaults: C, issue: string | null): Publ
 export function cardPublicationPresentation(lane: Lane<CardContent>): PublicationPresentation {
   const saved = lane.ack;
   return presentation(lane, createDefaultCardContent(lane.desired.steps.map((step) => step.stepId)),
-    saved ? cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, saved.root.visibility ? saved.root as PublicationVisibility : undefined) : null);
+    saved ? cardPublicationIssue(saved.root.latestVersion, saved.root.draft, saved.publishedContent, saved.root.visibility ? saved.root as PublicationVisibility : undefined) : null, sameCardAuthoringContent);
 }
 export function deckPublicationPresentation(lane: Lane<DeckContent>, cards: readonly { cardTemplateId: string; latestVersion: number; visibility?: import("@/lib/cards/model").Visibility }[]): PublicationPresentation {
   const saved = lane.ack;

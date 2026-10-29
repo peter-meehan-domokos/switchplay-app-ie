@@ -63,7 +63,7 @@ test("public confirmation, attribution, collaboration and owner-only editing", a
   await page.goto("/library?tab=info-cards");
   await expect(page.locator(`[data-info-id="${id}"]`)).toBeVisible();
   await expect(page.locator(`[data-info-id="${id}"]`)).toContainText("Basics (series by other)");
-  await expect(page.locator(`[data-info-id="${id}"]`)).toContainText("Card by phase2");
+  await expect(page.locator(`[data-info-id="${id}"]`).getByRole("button", { name: "Card by phase2", exact: true })).toBeVisible();
   await expect(page.locator(`[data-info-id="${id}"]`).getByRole("link", { name: /^Edit/ })).toHaveCount(0);
   await expect(page.locator('[data-info-id="demo-owner-private"]')).toHaveCount(0);
   await expect(page.locator('[data-info-id="demo-other-private"]')).toBeVisible();
@@ -126,7 +126,7 @@ test("My Drafts traverses more than one page and stays usable from Deck mode", a
 test("mobile editor and static Library retain fixed card dimensions and fit the viewport", async ({ page }, info) => {
   await login(page); await page.setViewportSize({ width: 390, height: 844 }); const id = await create(page);
   const face = page.locator("[data-info-card-face]"); await expect(face).toHaveCSS("height", "204px"); await expect(face).toHaveCSS("width", "240px");
-  expect(await face.locator("button[aria-expanded]").evaluate(node => node.getBoundingClientRect().height)).toBeLessThan(13);
+  expect(await face.getByRole("button", { name: /^Series .*; show series creator$/ }).evaluate(node => node.getBoundingClientRect().height)).toBeLessThan(13);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("info-editor-mobile.png"), fullPage: true });
   await page.getByRole("button", { name: "Publish", exact: true }).click(); await expect(page.getByRole("button", { name: "Published", exact: true })).toBeVisible();
@@ -169,8 +169,11 @@ test("mocked image transfer uses real proof-checked draft save; cancellation, pr
   await expect(page.locator("#info-body-capacity")).toBeVisible();
   await expect(explanation).toHaveAttribute("aria-invalid", "true");
   await page.getByRole("button", { name: "Remove media", exact: true }).click();
-  await expect(page.locator("#info-body-capacity")).toHaveCount(0);
-  await expect(explanation).not.toHaveAttribute("aria-invalid", "true");
+  // The approved common footer reserves its creator/actions space with or
+  // without media. Twelve maths lines still exceed that physical boundary;
+  // the source remains intact and the existing advisory policy is unchanged.
+  await expect(page.locator("#info-body-capacity")).toBeVisible();
+  await expect(explanation).toHaveValue(twelveLines);
   await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "a.png", mimeType: "image/png", buffer: pixel });
   await expect(page.locator("#info-body-capacity")).toBeVisible();
   await explanation.fill("Keep the sign attached to its number.\n\nCheck each step before continuing.");
@@ -305,7 +308,7 @@ test("keyboard attribution, publication confirmation and My Drafts restore focus
   await page.keyboard.press("Escape"); await expect(page.getByRole("dialog", { name: "My Drafts", exact: true })).toHaveCount(0); await expect(drafts).toBeFocused();
 });
 
-test("Library has no unrequested controls and card attribution is directly below each face", async ({ page }) => {
+test("Library has no unrequested controls and uses the common centred creator credit", async ({ page }) => {
   await login(page); await page.goto("/library?tab=info-cards");
   await expect(page.locator("[data-info-id]").first()).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Search Info Cards" })).toHaveCount(0);
@@ -314,9 +317,8 @@ test("Library has no unrequested controls and card attribution is directly below
   await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
   const card = page.locator('[data-info-id="demo-owner-public"]');
   await expect(card).toContainText("Basics (series by phase2)");
-  await expect(card.locator("[data-info-card-face] + p")).toHaveText("Card by phase2");
-  const gap = await card.evaluate(node => node.querySelector("[data-info-card-face]")!.nextElementSibling!.getBoundingClientRect().top - node.querySelector("[data-info-card-face]")!.getBoundingClientRect().bottom);
-  expect(gap).toBeGreaterThanOrEqual(3); expect(gap).toBeLessThanOrEqual(8);
+  await expect(card.locator("[data-info-card-face]").getByRole("button", { name: "Card by phase2", exact: true })).toBeVisible();
+  await expect(card.locator("[data-info-card-face] + p")).toHaveCount(0);
 });
 
 test("new-item context survives autosave/reload; Library edit returns to Info Cards without a mode selector", async ({ page }) => {

@@ -15,6 +15,16 @@ function lane<C>(content: C, published: C | null = null) {
     dirty: false, running: null as unknown, error: null as { kind: string } | null, publishing: false, creationPending: false,
     pendingOperations: 0, tasks: [], uncertainSaves: [] as unknown[], uncertainPublication: null as unknown };
 }
+test("server-owned attachment dates do not leave a confirmed publication looking unpublished", () => {
+  const editable = { ...createDefaultCardContent(["a", "b", "c"]), infoCardIds: ["shared"] };
+  const published = { ...editable, infoCardAttachedAt: { shared: "2026-10-28T10:00:00.000Z" } };
+  const clean = { ...lane(published, published), desired: editable };
+  assert.equal(cardPublicationPresentation(clean).cleanPublished, true);
+  const reattached = { ...published, infoCardAttachedAt: { shared: "2026-10-29T10:00:00.000Z" } };
+  const changed = { ...clean, ack: { ...clean.ack, content: reattached, root: { ...clean.ack.root, draft: reattached } } };
+  assert.equal(cardPublicationPresentation(changed).outstanding, true);
+  assert.equal(cardPublicationPresentation(changed).eligible, true);
+});
 test("never-published default Deck/Card controls are hidden before and after persistence", () => {
   const deck = lane(createDefaultDeckContent(["t1", "t2", "t3"]));
   const card = lane(createDefaultCardContent(["a", "b", "c"]));

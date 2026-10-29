@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import InfoCardFace from "./InfoCardFace";
-import { InfoCardEditorController, type InfoEditorDTO, type SeriesOption } from "./infoCardEditorController";
+import { InfoCardEditorController, type InfoEditorDTO, type SeriesOption, type PersonalEditorContext } from "./infoCardEditorController";
 import { actorCreatorTransport, CreatorActorLifetime, creatorRequest } from "../creator/creatorRequest";
 import CreatorModeSelector from "../creator/CreatorModeSelector";
 import CreatorVisibilityControl from "../creator/CreatorVisibilityControl";
@@ -18,15 +18,19 @@ import type { InfoMathsMeasurement } from "./infoCardMaths";
 import { uploadInfoCardMedia } from "./infoCardUpload";
 import { useInfoVideoStatus } from "./useInfoVideoStatus";
 import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
-import type { InfoMedia, MediaContext } from "@/lib/infoCards/model";
+import type { InfoMedia, MediaContext, PersonalInfoAssociation } from "@/lib/infoCards/model";
 import { currentDraftOrigin, infoCollectionTarget, infoEditorHref, type CreatorNavigation } from "../creator/creatorNavigation";
 const subscribeHydration = () => () => {};
 
-export default function InfoCardEditor({ id, actor, username, initial, navigation }: { id: string; actor: string; username: string; initial: InfoEditorDTO | null; navigation: CreatorNavigation }) {
+export default function InfoCardEditor({ id, actor, username, initial, navigation, personal }: {
+  id: string; actor: string; username: string; initial: InfoEditorDTO | null; navigation: CreatorNavigation;
+  personal?: PersonalEditorContext & { onSaved: (id: string, association?: PersonalInfoAssociation) => Promise<void>; onCancel: () => void; cancelRef?: React.RefObject<HTMLButtonElement | null> };
+}) {
   const router = useRouter();
   const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
   const [lifetime] = useState(() => new CreatorActorLifetime());
-  const [controller] = useState(() => new InfoCardEditorController(id, actor, initial, actorCreatorTransport(actor, () => lifetime.isActive()), !initial));
+  const [controller] = useState(() => new InfoCardEditorController(id, actor, initial, actorCreatorTransport(actor, () => lifetime.isActive()), !initial, personal));
+  const isPersonal = !!controller.personal;
   const [maths, setMaths] = useState<{ source: string; media: boolean; title: string; series: string; measurement: InfoMathsMeasurement } | null>(null);
   const [, redraw] = useState(0);
   const [message, setMessage] = useState("");
@@ -77,9 +81,10 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   }, [actor, lifetime, controller]);
   useEffect(() => () => { upload.current?.controller.abort(); }, []);
   useEffect(() => {
+    if (isPersonal) return;
     const href = controller.ack || controller.dirty ? infoEditorHref(id, !!controller.ack, navigation) : null;
     if (href && window.location.pathname + window.location.search !== href) window.history.replaceState(null, "", href);
-  }, [controller, controller.ack, controller.dirty, id, navigation]);
+  }, [controller, controller.ack, controller.dirty, id, navigation, isPersonal]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (controller.dirty || controller.running || controller.pendingPublication !== undefined) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn);
@@ -111,14 +116,27 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
     setShowRequired(true);
     if (!ready || !content.body.trim()) return;
     if (uploading || uploadFailure.current) { setMessage("Finish, retry or cancel the upload before publishing."); return; }
-    if (controller.visibility === "public" && controller.ack?.root.visibility !== "public") { setConfirmPublic(true); return; }
+    if (!isPersonal && controller.visibility === "public" && controller.ack?.root.visibility !== "public") { setConfirmPublic(true); return; }
     await publishNow();
   }
   async function publishNow() {
-    await controller.publish().then(() => { setSeries(controller.ack!.selectedSeries); setMessage("Published."); }).catch(() => {});
+    try {
+      await controller.publish(); setSeries(controller.ack!.selectedSeries);
+      if (personal) await personal.onSaved(id, controller.personalAssociation); else setMessage(isPersonal ? "Saved." : "Published.");
+    } catch (cause) { if (!controller.error) setMessage(infoCardError(cause)); }
     requestAnimationFrame(() => (controller.error ? publishTrigger.current : libraryTrigger.current)?.focus({ preventScroll: true }));
   }
   function cancelPublicConfirmation() { setConfirmPublic(false); requestAnimationFrame(() => publishTrigger.current?.focus({ preventScroll: true })); }
+  async function cancelPersonal() {
+    setNavigating(true); setMessage("");
+    try {
+      await upload.current?.task; if (uploadFailure.current) throw new Error("Upload incomplete");
+      if (controller.pendingPublication !== undefined) await controller.retry();
+      if (controller.confirmedPublicationVersion !== null && personal) { await personal.onSaved(id, controller.personalAssociation); return; }
+      await controller.flush();
+      if (personal) personal.onCancel(); else router.push("/creator/new?drafts=1");
+    } catch (cause) { setNavigating(false); setMessage(infoCardError(cause)); }
+  }
   async function chooseMedia(file: File) {
     if (!ready) { setPrerequisiteFeedback(true); return; }
     upload.current?.controller.abort(); uploadFailure.current = ""; setUploadError(""); setUploading(true);
@@ -169,20 +187,21 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   function closeDrafts() { setDrafts(null); requestAnimationFrame(() => draftsTrigger.current?.focus()); }
   const error = controller.error ? infoCardError(controller.error, [titleCapacityIssue, bodyCapacityIssue].filter(issue => !!issue)) : "";
   if (sessionChanged) return <main className={styles.editor}><p role="alert">Your account changed. Reload before continuing.</p><button type="button" onClick={() => router.refresh()}>Reload</button></main>;
-  return <main className={styles.editor}>
+  return <main className={`${styles.editor}${personal ? ` ${styles.embedded}` : ""}`}>
     <header className={styles.header}>
       <div className={styles.heading}>
-        {navigation.creating && <CreatorModeSelector mode="info-card" disabled={locked} onChange={() => void navigate("/creator/new")} />}
+        {!isPersonal && navigation.creating && <CreatorModeSelector mode="info-card" disabled={locked} onChange={() => void navigate("/creator/new")} />}
         <h1>{navigation.creating ? "New Info Card" : "Edit Info Card"}</h1>
         <span className={styles.saveStatus} role="status">{navigating ? "Finishing saves…" : controller.running ? "Saving…" : controller.dirty ? "Unsaved changes" : controller.ack ? "Saved" : ""}</span>
       </div>
       <div className={styles.actions}>
-        <button type="button" ref={draftsTrigger} disabled={locked} onClick={() => void openDrafts()}>My Drafts</button>
-        <CreatorVisibilityControl label="Info Card" value={controller.visibility} publishedPublic={controller.ack?.root.visibility === "public"} disabled={locked}
-          onChange={value => controller.edit(content, value)} />
-        <button type="button" ref={publishTrigger} disabled={locked || !controller.outstanding} onClick={() => void publish()}>
-          {controller.publishing ? "Publishing…" : controller.ack?.publication && !controller.outstanding ? "Published" : "Publish"}</button>
-        <button type="button" ref={libraryTrigger} disabled={locked} onClick={() => void navigate(returnTarget.href, true)}>{returnTarget.label}</button>
+        {!isPersonal && <><button type="button" ref={draftsTrigger} disabled={locked} onClick={() => void openDrafts()}>My Drafts</button>
+          <CreatorVisibilityControl label="Info Card" value={controller.visibility} publishedPublic={controller.ack?.root.visibility === "public"} disabled={locked}
+            onChange={value => controller.edit(content, value)} /></>}
+        <button type="button" ref={publishTrigger} disabled={locked || !isPersonal && !controller.outstanding} onClick={() => void publish()}>
+          {isPersonal ? controller.publishing ? "Saving…" : "Save" : controller.publishing ? "Publishing…" : controller.ack?.publication && !controller.outstanding ? "Published" : "Publish"}</button>
+        {isPersonal ? <button type="button" ref={personal?.cancelRef ?? libraryTrigger} disabled={controller.publishing || navigating} onClick={() => void cancelPersonal()}>Cancel</button>
+          : <button type="button" ref={libraryTrigger} disabled={locked} onClick={() => void navigate(returnTarget.href, true)}>{returnTarget.label}</button>}
       </div>
     </header>
     {message && <p className={styles.message} role="status">{message}</p>}
@@ -235,7 +254,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
           : currentMaths.result.status === "measurement-unavailable" ? "Layout measurement is unavailable. Your source is saved."
           : !currentMaths.headerFits || !currentMaths.safe ? "The content exceeds the card’s layout limits." : "Explanation fits."}</p>}
         {previewOverflow ? <p role="status">Preview unavailable.</p> :
-          <div className={styles.face}><InfoCardFace card={{ title: content.title, body: content.body, bodyFormat: content.bodyFormat, seriesTitle: series?.title ?? "Series", seriesCreatorUsername: series?.creatorUsername ?? username, mediaKind: content.mediaItem?.mediaType }}
+          <div className={styles.face}><InfoCardFace card={{ creatorUsername: username, personal: isPersonal, title: content.title, body: content.body, bodyFormat: content.bodyFormat, seriesTitle: series?.title ?? "Series", seriesCreatorUsername: series?.creatorUsername ?? username, mediaKind: content.mediaItem?.mediaType }}
             onMathsResult={measurement => setMaths({ source: content.body, media: !!content.mediaItem, title: content.title, series: series?.title ?? "", measurement })}
             onOpenMedia={content.mediaItem && !uploading ? () => void openMedia() : undefined} /></div>}
         {!!controller.renderingCheckError && <p role="alert">{renderingCheckError(controller.renderingCheckError)}</p>}

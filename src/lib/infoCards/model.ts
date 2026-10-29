@@ -5,6 +5,8 @@ export type InfoMedia = CloudflareR2ImageMediaItem | CloudflareStreamVideoMediaI
 export type InfoDraft = { title: string; body: string; seriesId: string | null; mediaItem: InfoMedia | null; bodyFormat?: "latex-v1" };
 export type InfoContent = Omit<InfoDraft, "seriesId"> & { seriesId: string };
 export type InfoRoot = {
+  kind?: "creator" | "personal";
+  originCardTemplateId?: string;
   infoCardId: string; ownerUserId: string; visibility: Visibility; draftVisibility: Visibility;
   draft: InfoDraft | null; latestVersion: number; revision: number; referenceRevision: number;
   createdAt: Date; updatedAt: Date;
@@ -19,12 +21,25 @@ export type InfoPublication = {
 };
 export type InfoSeries = { seriesId: string; title: string; normalisedTitle: string; createdByUserId: string; createdAt: Date };
 export type PublishedInfo = {
+  kind?: "creator" | "personal";
+  originCardTemplateId?: string;
   infoCardId: string; version: number; content: InfoContent; visibility: Visibility;
   ownerUserId: string; creatorUsername: string;
   series: { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
 };
 export type MediaContext = { infoCardId: string } & ({ kind: "draft"; revision: number } | { kind: "publication"; version: number });
-export type InfoConsultationEntry = { status: "available"; info: PublishedInfo } | { status: "unavailable" };
-export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[] };
+export type PersonalInfoSource = { cardTemplateId: string; personalInfoRevision: number };
+export type PersonalInfoAssociation = PersonalInfoSource & { personalInfoCardIds: string[]; personalInfoCardAttachedAt: Record<string, string> };
+export type InfoConsultationEntry = ({ status: "available"; info: PublishedInfo; source?: "shared" | "personal";
+  sourceCardTemplateId?: string; attachedAt?: string | null } | { status: "unavailable" }) & { key?: string };
+export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[]; personalSources?: PersonalInfoSource[] };
 export type MainInfoContext = { mode: "working" | "canonical"; version: number; deckTemplateId?: string };
+export type PersonalInfoContext = { deckTemplateId: string; version: number; personalInfoRevision: number };
+export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
+  return (root.kind === undefined || root.kind === "creator") && root.originCardTemplateId === undefined;
+}
+export function isPersonalInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
+  return root.kind === "personal" && typeof root.originCardTemplateId === "string" && root.originCardTemplateId.trim().length > 0;
+}
+export const CREATOR_INFO_FILTER = { $or: [{ kind: { $exists: false } }, { kind: "creator" as const }], originCardTemplateId: { $exists: false } };
 export const EMPTY_INFO_DRAFT: InfoDraft = { title: "", body: "", seriesId: null, mediaItem: null };

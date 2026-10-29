@@ -1407,6 +1407,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           ...currentBoard,
           columns: currentBoard.columns.map((column) => (column.cardId === target.cardTemplateId ? { ...column,
             ...(infoCardIds !== undefined ? { infoCardIds: [...infoCardIds] } : {}),
+            ...(infoCardIds !== undefined && column.infoCardAttachedAt ? { infoCardAttachedAt: Object.fromEntries(
+              Object.entries(column.infoCardAttachedAt).filter(([id]) => infoCardIds.includes(id))) } : {}),
             cardTitle: resolveCreatorCardTitle(column, value, canonical?.cards.find((card) => card.root.cardTemplateId === column.cardId)?.publishedContent?.intro.title ?? null) } : column)),
         };
       }

@@ -6,8 +6,10 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
 import bcrypt from "bcryptjs";
-import { createFoundationIndexes } from "../src/lib/cards/repository";
+import { CardRepository, createFoundationIndexes } from "../src/lib/cards/repository";
 import { createInfoCardIndexes, InfoCardRepository } from "../src/lib/infoCards/repository";
+import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
+import { forkCardContent } from "../src/lib/cards/forks";
 import { networkInterfaces } from "node:os";
 import { loadEnvConfig } from "@next/env";
 
@@ -48,6 +50,7 @@ try {
   const now = new Date(); const userId = new ObjectId();
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
     decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
+  let personalReview: { deckId: string; emptyCardId: string; mixedCardId: string; inheritedDeckId: string; inheritedCardId: string } | undefined;
   if (infoCards) {
     const repo = new InfoCardRepository(db, client), other = (await db.collection("users").findOne({ username: "other" }))!._id.toString();
     for (const [actor, suffix] of [[userId.toHexString(), "owner"], [other, "other"]]) {
@@ -58,6 +61,40 @@ try {
         await repo.save(actor, id, 0, { title: intent === "public" ? "Signs" : "Private tip", body: "Keep the sign attached to its number.\n\nCheck each step before continuing.", seriesId: `demo-series-${suffix}`, mediaItem: null }, intent);
         await repo.publish(actor, id, 1);
       }
+    }
+    if (interactive) {
+      // Review-only content in this runner's OWN memory replica set. Never
+      // seed the normal development database, even when .env.local uses Atlas.
+      const main = new CardRepository(db, client), actor = userId.toHexString();
+      const makeCard = async (title: string, shared = false) => {
+        const card = await main.createCardDraft(actor, { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]),
+          intro: { title, description: "Open the corner pouch. The working Card stays mounted while you make private notes.", mediaItem: null },
+          ...(shared ? { infoCardIds: ["demo-owner-public", "demo-other-public"] } : {}) }, "public");
+        await main.publishCard(actor, card.cardTemplateId, 0); return card.cardTemplateId;
+      };
+      const makeDeck = async (title: string, ids: string[]) => {
+        const deck = await main.createDeckDraft(actor, { ...createDefaultDeckContent([]), title,
+          cards: ids.map(cardTemplateId => ({ cardTemplateId })) }, "public");
+        await main.publishDeck(actor, deck.deckTemplateId, 0); await main.ensureDeckData(actor, deck.deckTemplateId, 1);
+        return deck.deckTemplateId;
+      };
+      const emptyCardId = await makeCard("Empty pouch"), mixedCardId = await makeCard("Mixed pouch", true);
+      const deckId = await makeDeck("Personal Info Cards review", [emptyCardId, mixedCardId]);
+      for (const [index, maths] of [false, true].entries()) {
+        const id = randomUUID(), context = { deckTemplateId: deckId, version: 1, personalInfoRevision: index };
+        await repo.createPersonal(actor, id, mixedCardId, context);
+        await repo.save(actor, id, 0, { title: maths ? "My algebra" : "My reminder", seriesId: "demo-series-owner", mediaItem: null,
+          body: maths ? "Keep $x^2 + 1$ together." : "This note belongs only to phase2.\n\nEdit or remove it from the three-dot menu.",
+          ...(maths ? { bodyFormat: "latex-v1" as const } : {}) }, "private");
+        await repo.savePersonal(actor, id, 1, context);
+      }
+      const source = { cardTemplateId: mixedCardId, version: 1 }, inheritedCardId = randomUUID();
+      const original = (await main.getCardVersion(mixedCardId, 1))!.content, stepIds = [randomUUID(), randomUUID(), randomUUID()];
+      await main.createCardFork(actor, { source, cardTemplateId: inheritedCardId, stepIds, context: { kind: "library" }, visibility: "public",
+        content: { ...forkCardContent(original, source, stepIds), intro: { ...original.intro, title: "Adapted pouch" } } });
+      await main.publishCard(actor, inheritedCardId, 0);
+      const inheritedDeckId = await makeDeck("Inherited personal notes review", [inheritedCardId]);
+      personalReview = { deckId, emptyCardId, mixedCardId, inheritedDeckId, inheritedCardId };
     }
   }
   media.listen(0, "127.0.0.1"); await once(media, "listening"); const address = media.address();
@@ -91,14 +128,15 @@ try {
   const deadline = Date.now() + 90_000;
   while (true) {
     if (app.exitCode !== null) throw new Error("Local Next server exited");
-    try { const response = await fetch(`${baseURL}/api/auth/me`); if (response.status < 500) break; } catch {}
+    try { const response = await fetch(`${baseURL}/api/auth/me`); if (response.status === 200 || response.status === 401) break; } catch {}
     if (Date.now() >= deadline) throw new Error("Local Next server did not become ready");
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   if (process.argv.includes("--dev")) {
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/library?tab=info-cards`) : [];
-    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, infoCards }, null, 2));
+    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, infoCards, personalReview }, null, 2));
     console.log(`Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+    if (personalReview) console.log(`Personal review: ${baseURL}/decks?openDeck=${personalReview.deckId}\nInherited review: ${baseURL}/decks?openDeck=${personalReview.inheritedDeckId}`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
     const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media"].includes(arg))], { env, stdio: "inherit" });

@@ -9,6 +9,14 @@ type PersonalFields = Pick<CardLayout, "targetDate" | "reflection" | "mediaItems
 };
 // Deck labels, themes, chats and navigation are deliberately absent from this cache.
 export class WorkingCardStore {
+  private infoRecords = new Map<string, { personalInfoRevision: number; personalInfoCardIds: string[]; personalInfoCardAttachedAt: Record<string, string> }>();
+  acceptPersonal(userId: string, source: { cardTemplateId: string; personalInfoRevision?: number; personalInfoCardIds?: string[]; personalInfoCardAttachedAt?: Record<string, string> }) {
+    const key = this.key(userId, source.cardTemplateId), previous = this.infoRecords.get(key);
+    const revision = source.personalInfoRevision ?? 0;
+    if (!previous || revision >= previous.personalInfoRevision) this.infoRecords.set(key, {
+      personalInfoRevision: revision, personalInfoCardIds: [...(source.personalInfoCardIds ?? [])], personalInfoCardAttachedAt: { ...source.personalInfoCardAttachedAt },
+    });
+  }
   private epochs = new Map<string, number>();
   private listeners = new Map<string, Set<() => void>>();
   epoch(userId: string) { return this.epochs.get(userId) ?? 0; }
@@ -25,6 +33,8 @@ export class WorkingCardStore {
   private key(userId: string, cardId: string) { return JSON.stringify([userId, cardId]); }
   accept(userId: string, cards: CardLayout[]) {
     for (const card of cards) {
+      this.acceptPersonal(userId, { ...card, cardTemplateId: card.cardTemplateId ?? card.id });
+      for (const source of card.personalHistory ?? []) this.acceptPersonal(userId, source);
       const previous = this.personal(userId, card.id);
       if ((previous?.adoptedVersion ?? 0) > (card.adoptedVersion ?? 0)) continue;
       this.records.set(this.key(userId, card.id), {
@@ -39,7 +49,13 @@ export class WorkingCardStore {
     const record = this.personal(userId, cardId);
     if (record) record.mediaItems = record.mediaItems.filter((item) => item.id !== mediaItemId);
   }
+  projectPersonal(userId: string, card: CardLayout): CardLayout {
+    const info = this.infoRecords.get(this.key(userId, card.id));
+    return { ...card, ...(info ?? {}), personalHistory: card.personalHistory?.map(source => ({ ...source,
+      ...(this.infoRecords.get(this.key(userId, source.cardTemplateId)) ?? {}) })) };
+  }
   project(userId: string, card: CardLayout): CardLayout {
+    card = this.projectPersonal(userId, card);
     const data = this.personal(userId, card.id);
     if (!data || data.adoptedVersion !== card.adoptedVersion) return card;
     let result = withUpdatedReflection(withCardMediaItems({ ...card, targetDate: data.targetDate,
@@ -47,6 +63,8 @@ export class WorkingCardStore {
     for (const signal of card.signals) if (data.readings.has(signal.id)) result = withUpdatedSignalReading(result, signal.id, data.readings.get(signal.id)!);
     return result;
   }
-  clearUser(userId: string) { for (const key of this.records.keys()) if (JSON.parse(key)[0] === userId) this.records.delete(key); }
+  clearUser(userId: string) {
+    for (const map of [this.records, this.infoRecords]) for (const key of map.keys()) if (JSON.parse(key)[0] === userId) map.delete(key);
+  }
 }
 export const workingCardStore = new WorkingCardStore();

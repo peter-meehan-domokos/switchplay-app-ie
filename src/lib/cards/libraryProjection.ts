@@ -70,6 +70,7 @@ export function cardContentPresentation(version: CardTemplateVersion, label: str
   const content = version.content;
   return { surface: "canonical", id: version.cardTemplateId, cardTemplateId: version.cardTemplateId,
     ...(content.infoCardIds !== undefined ? { infoCardIds: [...content.infoCardIds] } : {}),
+    ...(content.infoCardAttachedAt ? { infoCardAttachedAt: { ...content.infoCardAttachedAt } } : {}),
     version: version.version, label, creator: { username: creator.username, immediateSourceUsername: creator.immediateSourceUsername },
     intro: { title: content.intro.title, description: content.intro.description, mediaItem: canonicalMediaDTO(content.intro.mediaItem) },
     steps: content.steps.map((step) => ({ stepId: step.stepId,

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { InfoCardEditorController, type InfoEditorDTO } from "../src/components/info-cards/infoCardEditorController";
 import { CreatorRequestError, type CreatorTransport } from "../src/components/creator/creatorRequest";
 import { EMPTY_INFO_DRAFT, type InfoRoot } from "../src/lib/infoCards/model";
+import type { PersonalEditorContext } from "../src/components/info-cards/infoCardEditorController";
 
 function fixture() {
   const root: InfoRoot = { infoCardId: "a", ownerUserId: "alice", visibility: "private", draftVisibility: "private", draft: { ...EMPTY_INFO_DRAFT }, latestVersion: 0, revision: 0, referenceRevision: 0, createdAt: new Date(), updatedAt: new Date() };
@@ -37,6 +38,46 @@ function fixture() {
   return { request, calls, root, get dto() { return dto; }, set dto(value) { dto = value; },
     loseSave() { loseSave = true; }, loseCreate() { loseCreate = true; }, losePublish() { losePublish = true; } };
 }
+
+test("personal embedded callbacks/DOM refs never enter journals; Save uses only personal creation and private Save routes", async () => {
+  const f = fixture(), urls: string[] = [], values = new Map<string, string>();
+  f.root.kind = "personal"; f.root.originCardTemplateId = "main";
+  const request: CreatorTransport = async <T>(url: string, method = "GET", body?: unknown) => {
+    urls.push(url);
+    return f.request<T>(url.includes("personal-info-cards") ? "/api/info-cards" : url.endsWith("/save") ? url.replace(/\/save$/, "/publish") : url, method, body);
+  };
+  const circular: Record<string, unknown> = {}; circular.current = circular;
+  const personal = { originCardTemplateId: "main", context: { deckTemplateId: "deck", version: 1, personalInfoRevision: 0 },
+    cancelRef: circular, onSaved() {} } as PersonalEditorContext;
+  const controller = new InfoCardEditorController("a", "alice", null, request, true, personal);
+  controller.configureRecovery({ getItem: k => values.get(k) ?? null, setItem: (k, value) => { values.set(k, value); }, removeItem: k => { values.delete(k); } });
+  controller.edit({ ...EMPTY_INFO_DRAFT, title: "Personal", body: "Keep signs.", seriesId: "s" }, "public");
+  await controller.flush(); f.losePublish(); await assert.rejects(controller.publish());
+  const journal = JSON.parse([...values.values()][0]);
+  assert.deepEqual(journal.personal, { originCardTemplateId: "main", context: { deckTemplateId: "deck", version: 1, personalInfoRevision: 0 } });
+  assert.equal(controller.visibility, "private"); await controller.retry(); controller.stopTimer();
+  assert.ok(urls.includes("/api/cards-data/main/personal-info-cards")); assert.ok(urls.includes("/api/info-cards/a/save"));
+  assert.equal(urls.some(url => url.endsWith("/publish")), false); assert.equal(values.size, 0);
+});
+
+test("personal list conflict retries refresh the existing authorised main snapshot rather than losing the new draft", async () => {
+  const f = fixture(); f.root.kind = "personal"; f.root.originCardTemplateId = "main";
+  let rejected = false, refreshed = false;
+  const request: CreatorTransport = async <T>(url: string, method = "GET", body?: unknown) => {
+    if (url.startsWith("/api/card-templates/main/info-cards?")) { refreshed = true; return { mainCardId: "main", mainCardVersion: 1,
+      personalSources: [{ cardTemplateId: "main", personalInfoRevision: 1 }], entries: [] } as T; }
+    if (url.endsWith("/save")) {
+      if (!rejected) { rejected = true; throw new CreatorRequestError(409, "STALE_PERSONAL_INFO_REVISION"); }
+      assert.equal((body as { context: { personalInfoRevision: number } }).context.personalInfoRevision, 1);
+    }
+    return f.request<T>(url.includes("personal-info-cards") ? "/api/info-cards" : url.replace(/\/save$/, "/publish"), method, body);
+  };
+  const controller = new InfoCardEditorController("a", "alice", null, request, true,
+    { originCardTemplateId: "main", context: { deckTemplateId: "deck", version: 1, personalInfoRevision: 0 } });
+  controller.edit({ ...EMPTY_INFO_DRAFT, title: "Retained", body: "Keep the source.", seriesId: "s" });
+  await assert.rejects(controller.publish()); await controller.retry(); controller.stopTimer();
+  assert.equal(refreshed, true); assert.equal(f.root.latestVersion, 1); assert.equal(controller.desired.title, "Retained");
+});
 
 test("clean published editor does not save or create a spurious draft", async () => {
   const f = fixture(); f.root.latestVersion = 1; f.root.draft = null;

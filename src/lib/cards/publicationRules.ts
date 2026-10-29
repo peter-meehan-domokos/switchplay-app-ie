@@ -14,9 +14,20 @@ export function sameContent(left: unknown, right: unknown): boolean {
   const a = left as Record<string, unknown>, b = right as Record<string, unknown>;
   const mainContent = [a, b].every(value => Object.hasOwn(value, "intro") && Array.isArray(value.steps) && Object.hasOwn(value, "suggestedTargetDate"));
   const keysFor = (value: Record<string, unknown>) => Object.keys(value).filter(key =>
-    !(mainContent && key === "infoCardIds" && (value[key] === undefined || Array.isArray(value[key]) && value[key].length === 0)));
+    !(mainContent && key === "infoCardIds" && (value[key] === undefined || Array.isArray(value[key]) && value[key].length === 0))
+    && !(mainContent && key === "infoCardAttachedAt" && (value[key] === undefined || value[key] && Object.keys(value[key] as object).length === 0)));
   const keys = keysFor(a);
   return keys.length === keysFor(b).length && keys.every((key) => Object.hasOwn(b, key) && sameContent(a[key], b[key]));
+}
+
+// Creator submits editable content, not authority over server association dates.
+// Use only for command/acknowledgement matching; canonical publication equality
+// above deliberately still includes dates (remove + re-add is a new association).
+export function sameCardAuthoringContent(left: CardContent, right: CardContent): boolean {
+  const { infoCardAttachedAt: leftDates, ...a } = left;
+  const { infoCardAttachedAt: rightDates, ...b } = right;
+  void leftDates; void rightDates;
+  return sameContent(a, b);
 }
 
 export function deckDraftContent(published: PublishedDeckContent): DeckContent {

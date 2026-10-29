@@ -4,7 +4,7 @@ import type { CreatorTransport } from "./creatorRequest";
 import { safeDraftOrigin } from "./creatorNavigation";
 
 export type CreatorDraftEntry = (CreatorDraftSummary & { kind: "deck" }) | {
-  kind: "infoCard"; infoCardId: string; title: string; updatedAt: string;
+  kind: "infoCard"; infoCardId: string; title: string; updatedAt: string; purpose?: "personal";
 };
 export async function loadCreatorDraftEntries(request: CreatorTransport): Promise<{ items: CreatorDraftEntry[]; error: string }> {
   const [decks, info] = await Promise.allSettled([
@@ -14,7 +14,8 @@ export async function loadCreatorDraftEntries(request: CreatorTransport): Promis
       do {
         const page: { items: InfoRoot[]; nextOffset: number | null } = await request(`/api/info-cards?limit=50&offset=${offset}`);
         for (const root of page.items) if (!entries.some(entry => entry.kind === "infoCard" && entry.infoCardId === root.infoCardId)) {
-          entries.push({ kind: "infoCard", infoCardId: root.infoCardId, title: root.draft?.title ?? "", updatedAt: new Date(root.updatedAt).toISOString() });
+          entries.push({ kind: "infoCard", infoCardId: root.infoCardId, title: root.draft?.title ?? "", updatedAt: new Date(root.updatedAt).toISOString(),
+            ...(root.kind === "personal" ? { purpose: "personal" as const } : {}) });
         }
         offset = page.nextOffset;
       } while (offset !== null);

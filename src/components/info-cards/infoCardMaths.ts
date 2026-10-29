@@ -16,7 +16,7 @@ export function infoMathsMeasurement(result: MathsResult, face: HTMLElement, bod
   const css = getComputedStyle(face);
   const header = face.querySelector<HTMLElement>("[data-info-card-header]")!;
   const title = face.querySelector<HTMLElement>("[data-info-card-title]")!;
-  const media = face.querySelector<HTMLElement>("[data-info-card-media]");
+  const footer = face.querySelector<HTMLElement>("[data-info-card-footer]");
   // Stay inside the flat part of the rounded border, even when borrowing
   // bottom padding. This uses the existing radius, not an added safety margin.
   const inset = Math.max(parseFloat(css.borderRadius) || 0, parseFloat(css.borderLeftWidth), parseFloat(css.borderRightWidth));
@@ -25,6 +25,6 @@ export function infoMathsMeasurement(result: MathsResult, face: HTMLElement, bod
   const safe = origin.left + left * scale >= box.left + inset * scale
     && origin.left + right * scale <= box.right - inset * scale
     && origin.top + top * scale >= Math.max(header.getBoundingClientRect().bottom, box.top + 32 * scale)
-    && origin.top + bottom * scale <= (media ? media.getBoundingClientRect().top : box.bottom - parseFloat(css.borderBottomWidth) * scale);
+    && origin.top + bottom * scale <= (footer ? footer.getBoundingClientRect().top - 4 * scale : box.bottom - parseFloat(css.borderBottomWidth) * scale);
   return { result, safe, headerFits };
 }

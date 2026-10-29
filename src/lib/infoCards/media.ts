@@ -8,6 +8,7 @@ import { readProtectedImage, streamPlaybackGrant } from "../cards/protectedMedia
 import type { InfoCardRepository } from "./repository";
 import type { InfoMedia, InfoRoot, MediaContext } from "./model";
 import { infoId, revision } from "./domain";
+import { isCreatorInfo, isPersonalInfo } from "./model";
 import { INFO_MEDIA_COLLECTION, type InfoMediaAllocation } from "./mediaRegistry";
 
 export interface InfoMediaSecurity { assertReady(actor: string, root: InfoRoot, media: InfoMedia): Promise<void> }
@@ -97,7 +98,7 @@ export async function authorizeInfoMedia(repo: InfoCardRepository, actor: string
   requireCondition(context.kind === "draft" || context.kind === "publication", "INVALID_INFO_MEDIA_CONTEXT");
   return repo.transaction(async session => {
     const root = await repo.roots().findOne({ infoCardId: context.infoCardId }, { session });
-    requireCondition(root && !root.deletedAt, "INFO_MEDIA_FORBIDDEN");
+    requireCondition(root && !root.deletedAt && (isCreatorInfo(root) || isPersonalInfo(root) && root.ownerUserId === actor), "INFO_MEDIA_FORBIDDEN");
     if (context.kind === "draft") {
       revision(context.revision);
       requireCondition(root.ownerUserId === actor && root.revision === context.revision && root.draft?.mediaItem, "INFO_MEDIA_FORBIDDEN");

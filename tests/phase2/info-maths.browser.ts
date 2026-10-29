@@ -22,7 +22,7 @@ test("real editor autosaves exact maths, publishes without Chromium, Library and
     await expect(page.locator("[data-maths-renderer] .katex").first()).toBeVisible();
     expect(await input.inputValue()).toBe(source.content);
     const geometry = await page.locator("[data-info-card-face]").evaluate(el => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding }));
-    expect(geometry).toEqual({ width: 240, height: 204, padding: "12px" });
+    expect(geometry).toEqual({ width: 240, height: 204, padding: "12px 12px 60px" });
   }
   const source = explanationReviews[2].content;
   await input.fill(source); await expect(page.getByText("Explanation fits.", { exact: true })).toBeVisible();
@@ -59,6 +59,7 @@ test("real editor autosaves exact maths, publishes without Chromium, Library and
   await page.locator(".focused-card-layer .active-card-identity").click();
   await page.getByRole("button", { name: /^Open information cards/ }).click();
   const stack = page.locator("[data-info-card-stack]"); await expect(stack).toHaveAttribute("data-info-stack-phase", "open");
+  if (await page.locator('[data-info-card-current="true"]').getAttribute("data-info-card-id") !== id) await page.keyboard.press("ArrowDown");
   await expect(page.locator('[data-info-card-current="true"] [data-maths-renderer] .katex').first()).toBeVisible();
   await expect(stack.getByRole("alert")).toHaveCount(0);
   await stack.screenshot({ path: test.info().outputPath("consultation-maths.png") });
@@ -97,21 +98,22 @@ for (const browserName of ["chromium", "firefox", "webkit"] as const) test(`real
       const measured = await page.evaluate(() => window.infoMaths!.current!);
       expect(measured.safe).toBe(true); expect(measured.headerFits).toBe(true);
       const box = await page.locator("[data-info-card-face]").evaluate(el => ({ height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding, width: el.querySelector("[data-info-card-body]")!.getBoundingClientRect().width }));
-      expect(box).toEqual({ height: 204, padding: "12px", width: 214 });
+      expect(box).toEqual({ height: 204, padding: "12px 12px 60px", width: 214 });
+      expect(await page.locator("[data-info-card-creator] button").evaluate(el => getComputedStyle(el).fontFamily)).toContain("Switchplay Liberation Sans");
       expect(await page.locator(".katex-error").count()).toBe(0);
     }
-    // Existing bottom padding absorbs overflow, then the physical boundary
-    // rejects additional lines. Engines have different actual line metrics.
-    let borrowedPadding = false, physicallyUnsafe = false;
-    for (const lines of [14, 15, 16, 17, 18]) {
+    // The shared footer is now a real collision boundary in every host.
+    // Diagnostic measurements must identify content reaching that footer;
+    // publication remains governed by the existing maths policy.
+    let physicallyUnsafe = false;
+    for (const lines of [8, 9, 10, 14, 15, 16, 17, 18]) {
       await page.evaluate(body => window.infoMaths!.mount({ title: "Maths", seriesTitle: "Basics", seriesCreatorUsername: "", bodyFormat: "latex-v1", body }), Array(lines).fill("Line").join("\n"));
       await page.waitForFunction(() => window.infoMaths?.current?.result.status === "ready");
       const measured = await page.evaluate(() => window.infoMaths!.current!);
       expect(measured.result.status).toBe("ready");
-      borrowedPadding ||= measured.result.status === "ready" && measured.result.layout.overflowY && measured.safe;
       physicallyUnsafe ||= !measured.safe;
     }
-    expect(borrowedPadding).toBe(true); expect(physicallyUnsafe).toBe(true);
+    expect(physicallyUnsafe).toBe(true);
     await page.evaluate(() => window.infoMaths!.mount({ title: "Maths", seriesTitle: "Basics", seriesCreatorUsername: "", bodyFormat: "latex-v1", body: "$$\\rule{400px}{1px}$$" }));
     await page.waitForFunction(() => window.infoMaths?.current?.result.status === "ready");
     expect((await page.evaluate(() => window.infoMaths!.current!)).safe).toBe(false);
@@ -146,7 +148,7 @@ for (const engine of ["chromium", "firefox", "webkit"] as const) test(`unmasked 
       return true;
     })).toBe(true);
     await expect(face.getByRole("alert")).toHaveCount(0);
-    expect(await face.evaluate(el => ({ height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding, width: el.querySelector("[data-info-card-body]")!.getBoundingClientRect().width }))).toEqual({ height: 204, padding: "12px", width: 214 });
+    expect(await face.evaluate(el => ({ height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding, width: el.querySelector("[data-info-card-body]")!.getBoundingClientRect().width }))).toEqual({ height: 204, padding: "12px 12px 60px", width: 214 });
   };
   try {
     await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });

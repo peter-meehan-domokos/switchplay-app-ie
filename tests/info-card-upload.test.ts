@@ -8,8 +8,9 @@ import { EMPTY_INFO_DRAFT } from "../src/lib/infoCards/model";
 
 const media: InfoMedia = { id: "new", provider: "cloudflare-r2", mediaType: "image", src: "https://private.invalid/new.png", assetId: "new", description: "Image" };
 const uploadHeaders = { "Content-Type": "image/png", "If-None-Match": "*", "x-amz-meta-creator": "alice", "x-amz-meta-info-card-id": "a" };
-function fixture() {
+function fixture(personal = false) {
   const root: InfoRoot = { infoCardId: "a", ownerUserId: "alice", visibility: "private", draftVisibility: "private", draft: { ...EMPTY_INFO_DRAFT }, revision: 0, latestVersion: 0, referenceRevision: 0, createdAt: new Date(), updatedAt: new Date() };
+  if (personal) { root.kind = "personal"; root.originCardTemplateId = "main"; }
   const saves: Record<string, unknown>[] = [];
   const request: CreatorTransport = async <T>(url: string, method = "GET", body?: unknown) => {
     if (url.endsWith("/upload")) return { media, proof: "target-proof", uploadURL: "https://upload.invalid/object", headers: uploadHeaders } as T;
@@ -19,8 +20,8 @@ function fixture() {
   return { editor: new InfoCardEditorController("a", "alice", { root: structuredClone(root), publication: null, selectedSeries: null }, request), root, saves };
 }
 
-test("image upload honours server headers/proof and merges into text edited during transfer", async t => {
-  const f = fixture(); let finish!: () => void, started!: () => void;
+for (const personal of [false, true]) test(`image upload honours headers/proof and newer text (personal: ${personal})`, async t => {
+  const f = fixture(personal); let finish!: () => void, started!: () => void;
   const beginning = new Promise<void>(resolve => { started = resolve; }), transfer = new Promise<void>(resolve => { finish = resolve; });
   t.mock.method(globalThis, "fetch", async (_input: unknown, init: RequestInit) => {
     assert.equal(init.method, "PUT"); assert.deepEqual(init.headers, uploadHeaders); started(); await transfer; return new Response(null, { status: 200 });

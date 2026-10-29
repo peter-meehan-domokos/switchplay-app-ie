@@ -35,6 +35,14 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
   // This avoids missed persistence updates and prepares the interaction for future
   // long-press acceleration.
   const cardsRef = useRef(cards);
+  useEffect(() => {
+    if (!deck.dataOwnerUserId) return;
+    const actor = deck.dataOwnerUserId;
+    return workingCardStore.subscribe(actor, () => {
+      const next = cardsRef.current.map(card => workingCardStore.projectPersonal(actor, card));
+      cardsRef.current = next; setCards(next);
+    });
+  }, [deck.dataOwnerUserId]);
   const cardMediaMutationQueueRef = useRef<UserCardMediaMutationQueue | null>(null);
 
   if (cardMediaMutationQueueRef.current === null) {

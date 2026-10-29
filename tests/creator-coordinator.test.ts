@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import { CreatorPersistenceCoordinator, CreatorRequestError, EntityLane, type CreatorTransport } from "../src/components/creator/creatorPersistenceCoordinator";
 import { blankPrivateBoard, creatorBoard } from "../src/components/creator/cardArchitectureAdapter";
 import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
-import { sameContent } from "../src/lib/cards/publicationRules";
+import { sameContent, sameCardAuthoringContent } from "../src/lib/cards/publicationRules";
+import { withInfoAttachmentDates } from "../src/lib/infoCards/attachmentDates";
 import type { CreatorDTO } from "../src/lib/cards/readModels";
 import type { CardTemplateRoot } from "../src/lib/cards/model";
 const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -59,6 +60,24 @@ function harness(published = true) {
   return { coordinator, calls, cards, get dto() { return dto; }, request, intercept(fn: typeof intercept) { intercept = fn; } };
 }
 const ack = (content: { text: string }, revision = 0) => ({ root: { ownerUserId: "alice", revision, latestVersion: 0, draft: content }, content, publishedContent: null });
+
+for (const lostResponse of [false, true]) test(`server-owned attachment dates acknowledge editable Card content without a false conflict (lost response: ${lostResponse})`, async () => {
+  let remote = copy(fixture(false).cards[0]); let writes = 0;
+  const lane = new EntityLane(remote.content, remote, () => {}, async content => {
+    writes++;
+    const stored = withInfoAttachmentDates(content, remote.content, new Date("2026-10-28T10:00:00Z"));
+    remote = { ...remote, content: stored, root: { ...remote.root, revision: remote.root.revision + 1, draft: stored } };
+    if (lostResponse && writes === 1) throw new CreatorRequestError(503, "RESPONSE_LOST");
+    return copy(remote);
+  }, async () => copy(remote), undefined, sameCardAuthoringContent);
+  lane.set({ ...lane.desired, infoCardIds: ["shared"] }); await lane.flush();
+  assert.equal(lane.error, null); assert.equal(lane.dirty, false); assert.equal(writes, 1);
+  assert.equal(lane.ack!.content.infoCardAttachedAt?.shared, "2026-10-28T10:00:00.000Z");
+  lane.set({ ...lane.desired, intro: { ...lane.desired.intro, title: "After attachment" } }); await lane.flush();
+  assert.equal(lane.error, null); assert.equal(writes, 2);
+  assert.equal(lane.ack!.content.infoCardAttachedAt?.shared, "2026-10-28T10:00:00.000Z");
+  assert.equal(sameContent(remote.content, { ...remote.content, infoCardAttachedAt: { shared: "2000-01-01T00:00:00.000Z" } }), false);
+});
 
 test("one in-flight request coalesces edits and an older response cannot replace desired content", async () => {
   const h = harness(), gate = deferred<void>(); h.intercept(async (url, method) => { if (url.endsWith("/a") && method === "PATCH") await gate.promise; });

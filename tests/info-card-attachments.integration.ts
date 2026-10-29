@@ -19,6 +19,7 @@ import { mainInfoConsultation, publicationSnapshotEntries, publishedSnapshot } f
 
 let mongo: MongoMemoryReplSet, client: MongoClient, sequence = 0;
 before(async () => {
+  process.env.SESSION_SECRET = "disposable-attachment-snapshot-test-only";
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   client = await new MongoClient(mongo.getUri()).connect();
 });
@@ -63,18 +64,24 @@ test("graph/create/save guard all references and preserve title, board and proje
   await main.createPrivateGraph("alice", "graph", d, [{ cardTemplateId: "main", content: c }]);
   await main.createPrivateGraph("alice", "graph", d, [{ cardTemplateId: "main", content: c }]);
   assert.equal((await info.owner("alice", "a")).referenceRevision, 1);
-  const dto = { root: { deckTemplateId: "graph" }, content: d, cards: [{ root: { cardTemplateId: "main" }, content: c, publishedContent: null }] };
+  const stored = (await main.cards().findOne({ cardTemplateId: "main" }))!.draft!;
+  assert.deepEqual(Object.keys(stored.infoCardAttachedAt!).sort(), ["a", "b"]);
+  const dto = { root: { deckTemplateId: "graph" }, content: d, cards: [{ root: { cardTemplateId: "main" }, content: stored, publishedContent: null }] };
   const board = creatorBoard(dto);
   assert.deepEqual(privateGraph(board, dto).cards[0].content.infoCardIds, ["b", "a"]);
+  assert.deepEqual(privateGraph(board, dto).cards[0].content.infoCardAttachedAt, stored.infoCardAttachedAt);
   const template = creatorBoardToDeckTemplate(board);
   assert.deepEqual(creatorBoardToDeckTemplate(createCreatorBoardFromTemplate(template)).cards[0].infoCardIds, ["b", "a"]);
+  assert.deepEqual(creatorBoardToDeckTemplate(createCreatorBoardFromTemplate(template)).cards[0].infoCardAttachedAt, stored.infoCardAttachedAt);
   await main.saveCardDraft("alice", "main", 0, { ...c, intro: { ...c.intro, title: "Changed" } });
   await assert.rejects(main.saveCardDraft("alice", "main", 0, c), { code: "STALE_REVISION" });
   await main.publishCard("alice", "main", 1);
   await main.publishDeck("alice", "graph", 0);
   assert.deepEqual((await workingDTO(main, "alice", "graph")).cards[0].infoCardIds, ["b", "a"]);
+  assert.deepEqual((await workingDTO(main, "alice", "graph")).cards[0].infoCardAttachedAt, stored.infoCardAttachedAt);
   const version = (await main.getCardVersion("main", 1))!;
   assert.deepEqual(cardContentPresentation(version, "Card 1", { username: "alice", immediateSourceUsername: null }).infoCardIds, ["b", "a"]);
+  assert.deepEqual(cardContentPresentation(version, "Card 1", { username: "alice", immediateSourceUsername: null }).infoCardAttachedAt, stored.infoCardAttachedAt);
   assert.equal(version.content.intro.description, "Keep this introduction");
   assert.equal((await info.owner("alice", "a")).revision, 2);
 });
@@ -111,6 +118,7 @@ test("legacy empty attachments do not create spurious drafts/publications or mea
 test("standalone and combined forks preserve attachments; reference-only Copy retains main identity", async () => {
   const { main } = await setup(); const c = content(["a", "b"]);
   await main.createCardDraft("alice", c, "public", "main"); await main.publishCard("alice", "main", 0);
+  const dates = (await main.getCardVersion("main", 1))!.content.infoCardAttachedAt;
   const d = deck(["main"]); const sourceDeck = await main.createDeckDraft("alice", d, "public"); await main.publishDeck("alice", sourceDeck.deckTemplateId, 0);
   for (const combined of [false, true]) {
     const source = { cardTemplateId: "main", version: 1 }, stepIds = [randomUUID(), randomUUID(), randomUUID()];
@@ -120,6 +128,7 @@ test("standalone and combined forks preserve attachments; reference-only Copy re
       context: { kind: "library" }, content: d, cardFork: command });
     else { await main.createCardFork("bob", command); await main.createCardFork("bob", command); }
     assert.deepEqual((await main.cards().findOne({ cardTemplateId: command.cardTemplateId }))!.draft!.infoCardIds, ["b", "a"]);
+    assert.deepEqual((await main.cards().findOne({ cardTemplateId: command.cardTemplateId }))!.draft!.infoCardAttachedAt, dates);
   }
   const destination = deck([]); const target = await main.createDeckDraft("alice", destination, "private");
   await main.copyOwnedCard("alice", "main", { deckTemplateId: target.deckTemplateId, revision: 0, contentHash: deckContentHash(destination) });
@@ -224,7 +233,10 @@ test("consultation uses adopted main versus displayed canonical version, indepen
   const canonical = await mainInfoConsultation(info, "bob", "main", { mode: "canonical", version: 2 });
   assert.equal(canonical.entries[0].status === "available" && canonical.entries[0].info.infoCardId, "b");
   assert.equal((await main.getDeckVersion(d.deckTemplateId, 1))!.content.cards[0].cardVersionAtPublish, 1);
-  assert.deepEqual(await mainInfoConsultation(info, "bob", "main", { mode: "canonical", version: 1 }), working);
+  const sameMain = await mainInfoConsultation(info, "bob", "main", { mode: "canonical", version: 1 });
+  assert.deepEqual(sameMain.entries, working.entries);
+  assert.equal(sameMain.personalSources, undefined);
+  assert.deepEqual(working.personalSources, [{ cardTemplateId: "main", personalInfoRevision: 0 }]);
   await assert.rejects(mainInfoConsultation(info, "bob", "main", { mode: "working", version: 2, deckTemplateId: d.deckTemplateId }), { code: "INFO_MAIN_VERSION_CONFLICT" });
   const outside = await main.createDeckDraft("alice", deck([]), "public"); await main.publishDeck("alice", outside.deckTemplateId, 0);
   await main.ensureDeckData("bob", outside.deckTemplateId, 1);
@@ -262,7 +274,9 @@ test("main-context and info resolution share one snapshot during concurrent repu
   hold.release(); const first = await pending;
   assert.deepEqual(first.entries.map(entry => entry.status === "available" && [entry.info.infoCardId, entry.info.version]), [["a", 1], ["b", 1]]);
   const next = await mainInfoConsultation(info, "bob", "main", { mode: "canonical", version: 2 });
-  assert.deepEqual(next.entries.map(entry => entry.status === "available" && [entry.info.infoCardId, entry.info.version]), [["b", 1], ["a", 2]]);
+  // Retained attachment dates survive reordering and Info republication. Equal
+  // dates use stable ID ordering rather than the canonical array's position.
+  assert.deepEqual(next.entries.map(entry => entry.status === "available" && [entry.info.infoCardId, entry.info.version]), [["a", 2], ["b", 1]]);
   assert.equal(first.entries[0].status === "available" && first.entries[0].info.content.title, "Signs");
 });
 

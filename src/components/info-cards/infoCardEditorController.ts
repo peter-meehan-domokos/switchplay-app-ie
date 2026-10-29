@@ -1,14 +1,15 @@
 import type { InfoRenderingDiagnostic } from "@/lib/infoCards/mathsValidation";
 import type { Visibility } from "@/lib/cards/model";
 import { sameContent } from "@/lib/cards/publicationRules";
-import { EMPTY_INFO_DRAFT, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
+import { EMPTY_INFO_DRAFT, isPersonalInfo, type InfoConsultationSnapshot, type PersonalInfoContext, type PersonalInfoAssociation, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
 import { CreatorRequestError, type CreatorTransport } from "../creator/creatorRequest";
 
 export type SeriesOption = { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
 export type InfoEditorDTO = { root: InfoRoot; publication: InfoPublication | null; selectedSeries: SeriesOption | null };
 type SaveCommand = { revision: number; content: InfoDraft; visibility: Visibility; mediaProof?: string };
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem"> & Partial<Pick<globalThis.Storage, "key" | "length">>;
-type Recovery = { actor: string; id: string; save?: SaveCommand; publish?: number };
+export type PersonalEditorContext = { originCardTemplateId: string; context?: PersonalInfoContext };
+type Recovery = { actor: string; id: string; save?: SaveCommand; publish?: number; personal?: PersonalEditorContext };
 const clone = <T>(value: T): T => structuredClone(value);
 const uncertain = (error: unknown) => !(error instanceof CreatorRequestError) || (error.status >= 500 || error.status === 408) && error.details?.publicationNotCommitted !== true;
 const correctable = (error: unknown) => error instanceof CreatorRequestError && [400, 403, 422].includes(error.status)
@@ -30,6 +31,7 @@ export class InfoCardEditorController {
   get renderingCheck() { return !this.dirty && this.renderingResult?.revision === this.ack?.root.revision ? this.renderingResult : null; }
   pendingPublication: number | undefined;
   confirmedPublicationVersion: number | null = null;
+  personalAssociation?: PersonalInfoAssociation;
   private pendingSave: SaveCommand | undefined;
   private mediaProof: string | undefined;
   private listeners = new Set<() => void>();
@@ -37,7 +39,14 @@ export class InfoCardEditorController {
   private storage?: Storage;
   private recoveryError = false;
   private recoveringSelection = false;
-  constructor(readonly id: string, readonly actor: string, initial: InfoEditorDTO | null, readonly request: CreatorTransport, readonly newMaths = false) {
+  readonly personal?: PersonalEditorContext;
+  constructor(readonly id: string, readonly actor: string, initial: InfoEditorDTO | null, readonly request: CreatorTransport, readonly newMaths = false, personal?: PersonalEditorContext) {
+    // Keep command identity serialisable. The editor's embedding props also
+    // contain callbacks/DOM refs, which must never enter the recovery journal.
+    this.personal = personal ? { originCardTemplateId: personal.originCardTemplateId,
+      ...(personal.context ? { context: { deckTemplateId: personal.context.deckTemplateId, version: personal.context.version,
+        personalInfoRevision: personal.context.personalInfoRevision } } : {}) }
+      : initial && isPersonalInfo(initial.root) ? { originCardTemplateId: initial.root.originCardTemplateId! } : undefined;
     this.ack = initial;
     this.desired = clone(initial?.root.draft ?? initial?.publication?.content ?? EMPTY_INFO_DRAFT);
     this.visibility = initial?.root.draftVisibility ?? "private";
@@ -63,6 +72,7 @@ export class InfoCardEditorController {
       if (!raw) return;
       const record = JSON.parse(raw) as Recovery;
       if (record.actor !== this.actor || record.id !== this.id || (!record.save && record.publish === undefined)) throw new Error("Invalid recovery record");
+      if (!!record.personal !== !!this.personal || record.personal?.originCardTemplateId !== this.personal?.originCardTemplateId) throw new Error("Invalid recovery purpose");
       this.pendingSave = record.save; this.pendingPublication = record.publish;
       if (record.save) { this.desired = clone(record.save.content); this.visibility = record.save.visibility; this.mediaProof = record.save.mediaProof; this.recoveringSelection = true; }
       if (record.publish !== undefined) { this.errorOperation = "publish"; this.error = new CreatorRequestError(503, "INFO_PUBLICATION_RECOVERY_REQUIRED"); }
@@ -74,10 +84,11 @@ export class InfoCardEditorController {
     if (!this.storage) return;
     // Submitted immutable commands only; never File/provider upload URL/session credentials.
     if (this.pendingSave || this.pendingPublication !== undefined) this.storage.setItem(this.key, JSON.stringify({ actor: this.actor, id: this.id,
-      save: this.pendingSave, publish: this.pendingPublication } satisfies Recovery));
+      save: this.pendingSave, publish: this.pendingPublication, ...(this.personal ? { personal: this.personal } : {}) } satisfies Recovery));
     else this.storage.removeItem(this.key);
   }
   edit(content: InfoDraft, visibility = this.visibility, proof = this.mediaProof) {
+    if (this.personal) visibility = "private";
     if (this.newMaths && !this.ack) content = { ...content, bodyFormat: "latex-v1" };
     if (this.publishing || this.pendingPublication !== undefined || this.recoveryError) return;
     if (this.errorOperation === "publish" || this.errorOperation === "save" && correctable(this.error)) { this.error = null; this.errorOperation = null; }
@@ -90,7 +101,8 @@ export class InfoCardEditorController {
   stopTimer() { clearTimeout(this.timer); }
   async ensureCreated() {
     if (this.ack) return;
-    const root = await this.request<InfoRoot>("/api/info-cards", "POST", { infoCardId: this.id });
+    const root = await this.request<InfoRoot>(this.personal ? `/api/cards-data/${encodeURIComponent(this.personal.originCardTemplateId)}/personal-info-cards` : "/api/info-cards", "POST", {
+      infoCardId: this.id, ...(this.personal ? { context: this.personal.context } : {}) });
     this.ack = { root, publication: null, selectedSeries: null }; this.changed();
   }
   async flush(): Promise<void> {
@@ -131,6 +143,18 @@ export class InfoCardEditorController {
   }
   async retry() {
     if (this.recoveryError) throw this.error;
+    if (this.personal?.context && this.error instanceof CreatorRequestError && this.error.code === "STALE_PERSONAL_INFO_REVISION") {
+      // Another note changed this list, not this draft. Reuse the authorised
+      // exact-main snapshot to refresh only the first-attachment CAS context.
+      const context = this.personal.context;
+      try {
+        const snapshot = await this.request<InfoConsultationSnapshot>(`/api/card-templates/${encodeURIComponent(this.personal.originCardTemplateId)}/info-cards?${new URLSearchParams({ mode: "working", version: String(context.version), deckTemplateId: context.deckTemplateId })}`);
+        const source = snapshot.personalSources?.find(source => source.cardTemplateId === this.personal!.originCardTemplateId);
+        if (snapshot.mainCardId !== this.personal.originCardTemplateId || snapshot.mainCardVersion !== context.version
+          || !source || !Number.isSafeInteger(source.personalInfoRevision) || source.personalInfoRevision < 0) throw new CreatorRequestError(409, "PERSONAL_INFO_CONTEXT_REQUIRED");
+        context.personalInfoRevision = source.personalInfoRevision;
+      } catch (error) { this.error = error; this.changed(); throw error; }
+    }
     const operation = this.errorOperation;
     this.error = null; this.changed();
     if (this.pendingPublication !== undefined || operation === "publish") return this.publish();
@@ -156,12 +180,14 @@ export class InfoCardEditorController {
     try {
       if (this.pendingPublication === undefined) { await this.flush(); await this.ensureCreated(); }
       this.pendingPublication ??= this.ack!.root.revision; this.journal();
-      const receipt = await this.request<InfoPublication>(`${this.url}/publish`, "POST", { revision: this.pendingPublication });
+      const receipt = await this.request<InfoPublication & { association?: PersonalInfoAssociation }>(`${this.url}/${this.personal ? "save" : "publish"}`, "POST", {
+        revision: this.pendingPublication, ...(this.personal?.context ? { context: this.personal.context } : {}) });
       // Receipt retry is safe even if another tab has made newer edits. Always
       // read the editor separately instead of synthesising current state from it.
       const remote = await this.request<InfoEditorDTO>(this.url);
       this.ack = remote; this.desired = clone(remote.root.draft ?? remote.publication!.content); this.visibility = remote.root.draftVisibility;
       this.confirmedPublicationVersion = receipt.version;
+      this.personalAssociation = receipt.association;
       this.pendingPublication = undefined; this.errorOperation = null; this.journal();
     } catch (error) {
       if (!uncertain(error)) { this.pendingPublication = undefined; this.journal(); }

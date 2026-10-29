@@ -15,6 +15,10 @@ async function fixture(visibility: "public" | "private" = "public", attached = [
   const c = await main.createCardDraft(owner, { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]), infoCardIds: attached,
     intro: { title: "Consultation practice", description: "Main instruction remains mounted", mediaItem: null },
     steps: [0, 1, 2].map(index => ({ stepId: randomUUID(), title: `Practice ${index + 1}`, description: "Keep working on this step.", mediaItem: null })) }, visibility);
+  // Explicit disposable association dates retain these regression fixtures'
+  // intended order under newest-attached sorting, rather than accidental ties.
+  if (attached.length) await main.cards().updateOne({ cardTemplateId: c.cardTemplateId }, { $set: {
+    "draft.infoCardAttachedAt": Object.fromEntries(attached.map((id, i) => [id, new Date(Date.UTC(2020, 0, attached.length - i)).toISOString()])) } });
   await main.publishCard(owner, c.cardTemplateId, 0);
   const d = await main.createDeckDraft(owner, { ...createDefaultDeckContent([]), title: "Consultation programme",
     cards: [{ cardTemplateId: c.cardTemplateId }] }, visibility); await main.publishDeck(owner, d.deckTemplateId, 0);
@@ -95,7 +99,8 @@ test("republication while consulting stays pinned, the next opening refreshes, a
     await expect(consultation(page).getByRole("button", { name: "Close information cards (2 attached)", exact: true })).toBeVisible();
     await expect(consultation(page).locator("[data-info-card-pouch-count]")).toHaveText("2");
     const data = await (await page.request.get(`/api/card-templates/${f.cardId}/info-cards?mode=canonical&version=1`)).json();
-    expect(data.entries[1]).toEqual({ status: "unavailable" });
+    expect(data.entries[1]).toMatchObject({ status: "unavailable", key: expect.any(String) });
+    expect(Object.keys(data.entries[1]).sort()).toEqual(["key", "status"]);
   } finally { await f.info.versions().replaceOne({ _id: version._id }, version); }
 });
 

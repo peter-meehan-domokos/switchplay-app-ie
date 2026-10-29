@@ -5,6 +5,7 @@ import styles from "./InfoCardPouch.module.css";
 
 export type InfoCardPouchProps = {
   count: number;
+  allowEmpty?: boolean;
   expanded: boolean;
   pending?: boolean;
   position?: number;
@@ -12,7 +13,7 @@ export type InfoCardPouchProps = {
   onToggle: () => void;
 };
 
-export default function InfoCardPouch({ count, expanded, pending = false, position = 1, controlsId, onToggle }: InfoCardPouchProps) {
+export default function InfoCardPouch({ count, expanded, pending = false, position = 1, controlsId, onToggle, allowEmpty = false }: InfoCardPouchProps) {
   const numeral = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     if (!numeral.current) return;
@@ -36,7 +37,7 @@ export default function InfoCardPouch({ count, expanded, pending = false, positi
     void document.fonts.ready.then(centreInk);
     return () => { active = false; };
   }, [expanded, position]);
-  if (count < 1) return null;
+  if (count < 1 && !allowEmpty) return null;
   return (
     <button
       className={styles.pouch}

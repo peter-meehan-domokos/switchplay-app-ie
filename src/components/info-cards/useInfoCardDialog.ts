@@ -47,7 +47,7 @@ export function containInfoCardFocus(event: KeyboardEvent<HTMLDialogElement>) {
   event.stopPropagation();
   if (event.key !== "Tab") return;
   const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
-    "button:not(:disabled), a[href], input:not(:disabled), video[controls], [tabindex]:not([tabindex='-1'])"
+    "button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [contenteditable='true'], video[controls], [tabindex]:not([tabindex='-1'])"
   )).filter(node => node.tabIndex >= 0 && node.getClientRects().length && !node.closest("[inert]"));
   const first = controls[0], last = controls.at(-1), active = document.activeElement;
   if (!first || !controls.includes(active as HTMLElement) || (event.shiftKey && active === first) || (!event.shiftKey && active === last)) {

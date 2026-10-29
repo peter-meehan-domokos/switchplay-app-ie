@@ -9,3 +9,5 @@
 .mathsFace :global(.switchplay-maths-katex) :global(.katex) { font-family: KaTeX_Main, "Switchplay Liberation Serif"; }
 
 .mathsFace.mathsFace { font-family: "Switchplay Liberation Sans", "Switchplay Liberation Serif"; }
+.mathsFace [data-info-card-footer] button,
+.mathsFace [data-info-card-footer] [role="tooltip"] { font-family: inherit; }

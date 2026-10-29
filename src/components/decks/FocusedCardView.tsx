@@ -14,6 +14,7 @@ import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type Vid
 import StepView, { type StepViewInfoCards, type StepViewItem } from "@/components/decks/StepView";
 import InfoCardConsultation, { type InfoCardConsultationCard } from "@/components/info-cards/InfoCardConsultation";
 import { loadInfoConsultation, type ConsultationRequest } from "@/components/info-cards/infoCardConsultationClient";
+import type { PersonalInfoSource } from "@/lib/infoCards/model";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -37,6 +38,7 @@ import {
 } from "@/constants/cardStack";
 
 export type FocusedCardViewProps = {
+  personalDraftId?: string;
   onOpenMedia?: OpenCardMedia;
   mediaViewerOpen?: boolean;
   card: PresentedCard;
@@ -219,6 +221,7 @@ function CardBackSlot({ content, onNext, onPrevious, onOpenMedia }: {
 }
 
 export default function FocusedCardView({
+  personalDraftId,
   onOpenMedia, mediaViewerOpen = false,
   card,
   deckTemplateId,
@@ -248,7 +251,9 @@ export default function FocusedCardView({
   const consultationId = useId();
   const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
   const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement;
-    status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest } | null>(null);
+    status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest; selectedId?: string; personalSources?: PersonalInfoSource[] } | null>(null);
+  const refreshAbort = useRef<AbortController | null>(null);
+  const recoveryOpened = useRef(false);
   const canonicalVersion = hasPersonalCard(card) ? null : card.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("card", card.cardTemplateId!, canonicalVersion), [card.cardTemplateId, canonicalVersion]);
   const isDeckFlipped = Boolean(backFace) && requestedDeckFlip;
@@ -286,7 +291,7 @@ export default function FocusedCardView({
     side: isDeckFlipped ? "back" : "front",
     rotationY: isDeckFlipped ? 180 : 0,
   });
-  const [stepViewState, setStepViewState] = useState<StepViewState | null>(null);
+  const [stepViewState, setStepViewState] = useState<StepViewState | null>(() => personalDraftId ? { cardId: card.id, itemIndex: 0 } : null);
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [videoAnchorElement, setVideoAnchorElement] = useState<HTMLDivElement | null>(null);
   const [videoHostRect, setVideoHostRect] = useState<VideoHostRect | null>(null);
@@ -353,7 +358,10 @@ export default function FocusedCardView({
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
   const stepActivity = stepViewItem ? renderStepActivity?.(stepViewItem) : null;
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
-  const attachmentCount = infoCards !== undefined ? infoCards.length : card.infoCardIds?.length ?? 0;
+  const personalEnabled = infoCards === undefined && hasPersonalCard(card) && !!playbackActor && !!playbackVersion && card.permissions?.canMutateCardData === true;
+  const personalCount = hasPersonalCard(card) ? (card.personalInfoCardIds?.length ?? 0)
+    + (card.personalHistory ?? []).filter(source => source.cardTemplateId !== card.id).reduce((sum, source) => sum + (source.personalInfoCardIds?.length ?? 0), 0) : 0;
+  const attachmentCount = infoCards !== undefined ? infoCards.length : (card.infoCardIds?.length ?? 0) + (personalEnabled ? personalCount : 0);
   const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);
   if (consultation && (consultation.identity !== consultationIdentity || !stepViewItem || !isPresent || mediaViewerOpen)) setConsultation(null);
   const consultationRequest = consultation?.request;
@@ -362,14 +370,15 @@ export default function FocusedCardView({
     const abort = new AbortController();
     const timer = setTimeout(() => setConsultation(current => current?.request === consultationRequest && current.status === "pending"
       ? { ...current, showLoading: true } : current), 1000);
-    void loadInfoConsultation(consultationRequest, abort.signal).then(cards => {
+    void loadInfoConsultation(consultationRequest, abort.signal, snapshot => setConsultation(current => current?.request === consultationRequest
+      ? { ...current, personalSources: snapshot.personalSources } : current)).then(cards => {
       if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
         ? { ...current, cards, status: "ready", showLoading: false } : current);
     }).catch(() => {
       if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
         ? { ...current, status: "failed", showLoading: false } : current);
     }).finally(() => clearTimeout(timer));
-    return () => { clearTimeout(timer); abort.abort(); };
+    return () => { clearTimeout(timer); abort.abort(); refreshAbort.current?.abort(); };
   }, [consultationRequest, consultationIdentity]);
   const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem) : null;
   const activeCloudflareVideoMediaItem =
@@ -564,7 +573,7 @@ export default function FocusedCardView({
     goToStepViewItem(1);
   };
   const openConsultation = () => {
-    if (!stepViewElement || !stepViewItem || !attachmentCount || consultationOpen || interactionLocked || mediaViewerOpen) return;
+    if (!stepViewElement || !stepViewItem || !attachmentCount && !personalEnabled || consultationOpen || interactionLocked || mediaViewerOpen) return;
     const source = stepViewElement.querySelector<HTMLElement>("[data-info-card-pouch]");
     if (!source) return;
     source.focus({ preventScroll: true });
@@ -577,6 +586,12 @@ export default function FocusedCardView({
         mainCardId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode,
         ...(playbackMode === "working" ? { deckTemplateId } : {}), attachmentIds: [...(card.infoCardIds ?? [])] } } : {}) });
   };
+  useEffect(() => {
+    if (!personalDraftId || recoveryOpened.current || !personalEnabled || !stepViewElement) return;
+    recoveryOpened.current = true; openConsultation();
+    // Explicit one-shot recovery entry; ordinary Step View navigation is unchanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personalDraftId, personalEnabled, stepViewElement, consultationIdentity]);
   const handleStepViewRef = useCallback((element: HTMLElement | null) => {
     // An outgoing animated Step View can detach after the next one has mounted.
     // Its null callback must not erase the current consultation anchor.
@@ -858,7 +873,8 @@ export default function FocusedCardView({
                   onPrevious={goToPreviousStepViewItem}
                   useCloudflareVideoHost={Boolean(activeCloudflareVideoMediaItem)}
                   surfaceRef={handleStepViewRef}
-                  infoCards={attachmentCount ? { count: attachmentCount, expanded: consultationOpen && consultation?.status === "ready", controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
+                  infoCards={attachmentCount || personalEnabled ? { count: consultationOpen && consultation?.status === "ready" ? consultation.cards.length : attachmentCount,
+                    allowEmpty: personalEnabled, expanded: consultationOpen && consultation?.status === "ready", controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
                   mediaPreview={stepViewMediaPreview}
                   activity={stepActivity}
                 />
@@ -955,7 +971,23 @@ export default function FocusedCardView({
       ) : null}
       {consultationOpen && consultation && stepViewElement ? <InfoCardConsultation id={consultationId}
         cards={consultation.cards} anchor={stepViewElement} source={consultation.source} status={consultation.status}
-        count={attachmentCount} loadingMessage={consultation.showLoading} actor={playbackActor} onClose={() => setConsultation(null)} /> : null}
+        count={consultation.status === "ready" ? consultation.cards.length : attachmentCount} loadingMessage={consultation.showLoading} actor={playbackActor} onClose={() => setConsultation(null)}
+        recoveryId={personalDraftId} selectedId={consultation.selectedId}
+        personalContext={personalEnabled ? { mainCardId: card.id, deckTemplateId, version: playbackVersion!,
+          personalInfoRevision: consultation.personalSources?.find(source => source.cardTemplateId === card.id)?.personalInfoRevision ?? 0 } : undefined}
+        personalSources={consultation.personalSources}
+        onSelect={selectedId => setConsultation(current => current && current.request === consultation.request ? { ...current, selectedId } : current)}
+        onReplace={(cards, selectedId) => setConsultation(current => current && current.request === consultation.request ? { ...current, cards, selectedId } : current)}
+        onRefresh={async (selectedId, successors = []) => {
+          if (!consultation.request) throw new Error("Info Cards unavailable.");
+          refreshAbort.current?.abort(); const abort = new AbortController(); refreshAbort.current = abort;
+          let personalSources = consultation.personalSources;
+          const cards = await loadInfoConsultation(consultation.request, abort.signal, snapshot => { personalSources = snapshot.personalSources; });
+          if (abort.signal.aborted) throw new DOMException("Aborted", "AbortError");
+          setConsultation(current => current && current.request === consultation.request ? { ...current, cards, personalSources,
+            selectedId: cards.some(card => card.id === selectedId) ? selectedId : successors.find(id => cards.some(card => card.id === id)) ?? cards[0]?.id } : current);
+          return cards;
+        }} /> : null}
       {overlays}
     </motion.div>
   );

@@ -18,7 +18,7 @@ export type DeckForkCommand = {
   newCards?: { cardTemplateId: string; content: CardContent }[]; cardFork?: CardForkCommand; visibility?: Visibility; foreignCardSelections?: CardForkSource[]; mediaProofs?: string[];
 };
 export type ForkDeckEntry = { enterMyDecks: boolean };
-export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null; infoCardIds?: string[] };
+export type CardContent = { intro: CardIntro; suggestedTargetDate: string; steps: Step[]; mediaItem?: MediaItem | null; infoCardIds?: string[]; infoCardAttachedAt?: Record<string, string> };
 export type DeckContent = {
   title: string;
   introduction: DeckIntroduction | null;
@@ -76,6 +76,9 @@ export type CopyPublicationReceipt = { cardTemplateId: string; revision: number;
 export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string; copyReceipt?: CopyPublicationReceipt; forkPublicationReceipt?: ForkPublicationReceipt };
 export type CardTest = { id: string; date: string; result: boolean; createdAt: Date };
 export type CardData = {
+  personalInfoCardIds?: string[];
+  personalInfoCardAttachedAt?: Record<string, Date>;
+  personalInfoRevision?: number;
   cardTemplateId: string;
   cardTemplateVersion: AdoptedVersion;
   targetDate: string | null;

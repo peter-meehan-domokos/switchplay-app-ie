@@ -5,9 +5,12 @@ import styles from "./InfoCardFace.module.css";
 import MathsRenderer from "../maths-renderer/MathsRenderer";
 import mathsStyles from "./InfoCardMaths.module.css";
 import { infoMathsMeasurement, infoMathsPresentation, type InfoMathsMeasurement } from "./infoCardMaths";
+import InfoCardMenu, { type InfoCardActions } from "./InfoCardMenu";
 
 // Presentation only: no publication, ownership or backend DTO assumptions.
 export type InfoCardFaceContent = {
+  creatorUsername?: string;
+  personal?: boolean;
   title: string;
   seriesTitle: string;
   seriesCreatorUsername: string;
@@ -16,16 +19,19 @@ export type InfoCardFaceContent = {
   mediaKind?: "image" | "video";
 };
 
-export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
+export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions }: {
   card: InfoCardFaceContent;
   onOpenMedia?: () => void;
   onMathsResult?: (result: InfoMathsMeasurement) => void;
+  actions?: InfoCardActions;
 }) {
   const face = useRef<HTMLElement>(null), body = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const tooltipId = useId();
   const attribution = useRef<HTMLSpanElement>(null);
   const [showCreator, setShowCreator] = useState(false);
+  const [showAuthor, setShowAuthor] = useState(false), authorId = useId();
+  const creator = card.creatorUsername || "Unknown creator";
 
   useEffect(() => {
     if (!showCreator) return;
@@ -48,7 +54,7 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
   }, [showCreator]);
 
   return (
-    <article ref={face} className={`${styles.face}${card.bodyFormat ? ` ${mathsStyles.mathsFace}` : ""}`} aria-labelledby={titleId} data-info-card-face="">
+    <article ref={face} className={`${styles.face}${card.personal ? ` ${styles.personal}` : ""}${card.bodyFormat ? ` ${mathsStyles.mathsFace}` : ""}`} aria-labelledby={titleId} data-info-card-face="">
       <h3 id={titleId} className={styles.header} data-info-card-header="">
         <span
           ref={attribution}
@@ -90,6 +96,7 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
           }} />
           : card.body.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </div>
+      <footer className={styles.footer} data-info-card-footer="">
       {card.mediaKind ? (
         <button className={styles.media} data-info-card-media="" type="button" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowCreator(false); onOpenMedia?.(); }} disabled={!onOpenMedia}>
           <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -98,6 +105,15 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult }: {
           {card.mediaKind === "video" ? "Watch video" : "View image"}
         </button>
       ) : null}
+      <div className={styles.creator} data-info-card-creator="" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
+        onBlur={() => setShowAuthor(false)} onKeyDown={event => { event.stopPropagation(); if (event.key === "Escape") { event.preventDefault(); setShowAuthor(false); } }}>
+        <button type="button" aria-label={`Card by ${creator}`} aria-expanded={showAuthor} aria-describedby={showAuthor ? authorId : undefined}
+          onFocus={event => { if (event.currentTarget.matches(":focus-visible")) setShowAuthor(true); }}
+          onClick={() => setShowAuthor(value => !value)}>{creator}</button>
+        {showAuthor && <span id={authorId} role="tooltip" className={styles.authorTooltip}>{creator}</span>}
+      </div>
+      {actions && <InfoCardMenu {...actions} />}
+      </footer>
     </article>
   );
 }

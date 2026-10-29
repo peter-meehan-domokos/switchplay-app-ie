@@ -1,6 +1,6 @@
 import type { CardContent, DeckContent, DeckPublicationReview, Visibility } from "@/lib/cards/model";
 import type { CreatorDTO } from "@/lib/cards/readModels";
-import { cardPublicationIssue, deckPublicationIssue, sameContent, publicationVisibility, type PublicationVisibility } from "@/lib/cards/publicationRules";
+import { cardPublicationIssue, deckPublicationIssue, sameContent, sameCardAuthoringContent, publicationVisibility, type PublicationVisibility } from "@/lib/cards/publicationRules";
 import { createDefaultCardContent } from "@/lib/cards/creatorDefaults";
 import { privateGraph } from "./cardArchitectureAdapter";
 import type { CreatorSessionDTO } from "@/lib/cards/creatorSession";
@@ -57,11 +57,12 @@ export class EntityLane<C, A extends Ack<C>> {
   private unlocked: (() => void)[] = [];
   constructor(content: C, ack: A | null, readonly changed: () => void,
     readonly save: (content: C, revision: number, visibility: Visibility) => Promise<A>, readonly read: () => Promise<A>,
-    readonly readPublished?: (version: number) => Promise<{ version: number; content: C; visibility?: import("@/lib/cards/model").Visibility; updateNote?: string; publishedByUserId: string }>) {
+    readonly readPublished?: (version: number) => Promise<{ version: number; content: C; visibility?: import("@/lib/cards/model").Visibility; updateNote?: string; publishedByUserId: string }>,
+    readonly sameDraft: (left: C, right: C) => boolean = sameContent) {
     this.desired = clone(content); this.ack = ack ? clone(ack) : null;
     this.desiredVisibility = ack ? intent(ack.root) : "private";
   }
-  get dirty() { return !this.ack || !sameContent(this.desired, this.ack.content) || this.desiredVisibility !== intent(this.ack.root); }
+  get dirty() { return !this.ack || !this.sameDraft(this.desired, this.ack.content) || this.desiredVisibility !== intent(this.ack.root); }
   setVisibility(visibility: Visibility) {
     if (visibility !== "private" && visibility !== "public") throw new CreatorRequestError(400, "INVALID_VISIBILITY");
     if (this.ack?.root.visibility === "public" && visibility !== "public") throw new CreatorRequestError(400, "PUBLIC_VISIBILITY_PERMANENT");
@@ -69,7 +70,7 @@ export class EntityLane<C, A extends Ack<C>> {
     this.desiredVisibility = visibility; this.generation++; this.changed(); this.kick();
   }
   set(content: C) {
-    if (sameContent(this.desired, content)) return;
+    if (this.sameDraft(this.desired, content)) return;
     this.desired = clone(content); this.generation++; this.changed(); this.kick();
   }
   accept(ack: A, generation: number) {
@@ -114,7 +115,7 @@ export class EntityLane<C, A extends Ack<C>> {
           throw error;
         }
         if (next.root.revision !== revision + 1 || next.root.latestVersion !== this.ack!.root.latestVersion
-          || next.root.visibility !== this.ack!.root.visibility || !sameContent(next.content, content) || intent(next.root) !== visibility) throw conflict();
+          || next.root.visibility !== this.ack!.root.visibility || !this.sameDraft(next.content, content) || intent(next.root) !== visibility) throw conflict();
         this.uncertainSaves = []; this.accept(next, generation);
       });
     }
@@ -124,7 +125,7 @@ export class EntityLane<C, A extends Ack<C>> {
     const remote = await this.read();
     const committed = this.uncertainSaves.find((attempt) => remote.root.revision === attempt.before.root.revision + 1
       && remote.root.latestVersion === attempt.before.root.latestVersion && remote.root.visibility === attempt.before.root.visibility
-      && sameContent(remote.content, attempt.content) && intent(remote.root) === attempt.visibility);
+      && this.sameDraft(remote.content, attempt.content) && intent(remote.root) === attempt.visibility);
     if (committed) { this.accept(remote, committed.generation); this.uncertainSaves = []; return true; }
     if (remote.root.revision !== this.ack!.root.revision || !sameContent(remote.content, this.ack!.content) || intent(remote.root) !== intent(this.ack!.root)) throw conflict();
     // This read establishes current state, not proof that an older timed-out
@@ -390,7 +391,7 @@ export class CreatorPersistenceCoordinator {
         for (const card of (command as DeckForkCommand).newCards ?? []) {
           const lane = this.cards.get(card.cardTemplateId)!;
           const ack = await this.request<CardAck>(`/api/card-templates/${encodeURIComponent(card.cardTemplateId)}`);
-          if (ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameContent(ack.content, card.content)) throw conflict();
+          if (ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameCardAuthoringContent(ack.content, card.content)) throw conflict();
           lane.accept(ack, 0); lane.creationPending = false; lane.kick();
         }
       }
@@ -398,7 +399,7 @@ export class CreatorPersistenceCoordinator {
         const target = kind === "card" ? command as CardForkCommand : (command as DeckForkCommand).cardFork!;
         const lane = this.cards.get(cardId)!;
         const ack = this.normalizeCard(cardId, await this.request<CardAck>(`/api/card-templates/${encodeURIComponent(target.cardTemplateId)}`));
-        if (ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameContent(this.cardContent(cardId, ack.content), target.content)
+        if (ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameCardAuthoringContent(this.cardContent(cardId, ack.content), target.content)
           || intent(ack.root) !== (target.visibility ?? "private")) throw conflict();
         // Lineage changes persistence identity, never the board/pair keys or newer user edits.
         lane.desired = { ...lane.desired, steps: lane.desired.steps.map((step) => ({ ...step,
@@ -437,7 +438,7 @@ export class CreatorPersistenceCoordinator {
           || intent(this.deck.ack.root) !== (deckCommand.visibility ?? "private"))) throw conflict();
       for (const expected of [...(card ? [card] : []), ...(deckCommand?.newCards ?? [])]) {
         const ack = this.cards.get(expected.cardTemplateId)?.ack;
-        if (!ack || ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameContent(ack.content, expected.content)) throw conflict();
+        if (!ack || ack.root.revision !== 0 || ack.root.latestVersion !== 0 || !sameCardAuthoringContent(ack.content, expected.content)) throw conflict();
       }
       if (card) {
         const root = this.cards.get(card.cardTemplateId)!.ack!.root;
@@ -478,7 +479,7 @@ export class CreatorPersistenceCoordinator {
       async (content, revision, visibility) => this.normalizeCard(id, await this.request(this.cardURL(id), "PATCH", { type: "save", content: this.cardContent(id, content), revision, visibility })), async () => this.normalizeCard(id, await this.request(this.cardURL(id))), async (version) => {
         const result = await this.request<import("@/lib/cards/model").CardTemplateVersion>(this.cardURL(id) + `?version=${version}`);
         return { ...result, content: this.normalizeCard(id, { ...this.cards.get(id)!.ack!, content: result.content }).content };
-      });
+      }, sameCardAuthoringContent);
     this.cards.set(id, lane); return lane;
   }
   private ensureInitial(content: DeckContent, cards: { cardTemplateId: string; content: CardContent }[] = []) {

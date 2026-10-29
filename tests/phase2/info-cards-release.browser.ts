@@ -54,7 +54,9 @@ test("authoring through attachment publication reaches both readers; Info update
   await page.setViewportSize({ width: 390, height: 844 });
   // A second, dedicated published reference avoids depending on runner examples
   // whose titles other Creator/Library regressions intentionally edit.
-  const companionId = randomUUID();
+  // Both new associations in one modal Save share a server timestamp. The
+  // stable ID tie-break keeps the newly authored UUID first deterministically.
+  const companionId = `zz-companion-${randomUUID()}`;
   await infos.create(actor, companionId);
   await infos.save(actor, companionId, 0, { title: "Companion tip", body: "Check each step.", seriesId: "demo-series-owner", mediaItem: null }, "public");
   await infos.publish(actor, companionId, 1);
@@ -137,12 +139,14 @@ test("authoring through attachment publication reaches both readers; Info update
   expect((await main.getPersonalUser(follower))!.cardsData.find(row => row.cardTemplateId === cardId)).toEqual(before);
   await close(page);
 
-  // Attachment order is different: it is a main-card publication which requires
+  // Attachment removal is different: it is a main-card publication which requires
   // the existing explicit adoption contract, unlike Info content updates.
   const mainRoot = (await main.cards().findOne({ cardTemplateId: cardId }))!;
   const published = (await main.getCardVersion(cardId, 1))!.content;
-  await main.saveCardDraft(actor, cardId, mainRoot.revision, { ...published, infoCardIds: [companionId, infoId] });
-  await main.publishCard(actor, cardId, mainRoot.revision + 1, "Reorder reference cards");
+  const { infoCardAttachedAt: previousDates, ...retained } = published;
+  await main.saveCardDraft(actor, cardId, mainRoot.revision, { ...retained, infoCardIds: [companionId],
+    infoCardAttachedAt: { [companionId]: previousDates![companionId] } });
+  await main.publishCard(actor, cardId, mainRoot.revision + 1, "Remove one reference card");
   await enter(page, deckId, true); await open(page);
   await expect(current(page)).toHaveAttribute("data-info-card-id", infoId);
   await close(page);
@@ -157,8 +161,7 @@ test("authoring through attachment publication reaches both readers; Info update
   expect((await adopted.json()).adoptedVersion).toBe(2);
   await enter(page, deckId, true); await open(page);
   await expect(current(page)).toHaveAttribute("data-info-card-id", companionId);
-  await page.keyboard.press("ArrowDown");
-  await expect(current(page).locator("[data-info-card-title]")).toHaveText("Fresh tip");
+  await expect(page.locator("[data-info-card-pouch-count]").last()).toHaveText("1");
   const after = (await main.getPersonalUser(follower))!;
   expect(after.decksData.find(row => row.deckTemplateId === deckId)!.deckTemplateVersion).toBe(1);
   expect(after.cardsData.find(row => row.cardTemplateId === cardId)!.items).toEqual(before.items);

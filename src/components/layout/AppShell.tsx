@@ -97,9 +97,11 @@ function WorkingShell({ memberships, currentUserId, userName }: AppShellProps) {
         if (workingCardStore.epoch(currentUserId) !== epoch || personalWork.hasWork(scope) || personalWork.revision(scope) !== revision) throw new Error("Personal state changed while checking this Deck. Retry opening to load its current state.");
         if (expectedVersion !== null && deck.cards.find(card => card.cardTemplateId === cardTemplateId)?.adoptedVersion !== Number(expectedVersion)) throw new Error("The selected Card version changed. Return to Progress and refresh your choices.");
         workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
-        openedParam.current = JSON.stringify([currentUserId, id, null, null]);
+        const personalDraft = new URLSearchParams(window.location.search).get("personalDraft");
+        openedParam.current = JSON.stringify([currentUserId, id, personalDraft ? cardTemplateId ?? null : null, null]);
         setSelected(deck); setEntryRevision(generation); setVerified(true); setRetryEntry(null);
-        window.history.replaceState(null, "", withProgressReturn(`/decks?openDeck=${encodeURIComponent(id)}`, progressReturn ? { ...progressReturn, restored: false } : null));
+        window.history.replaceState(null, "", withProgressReturn(`/decks?${new URLSearchParams({ openDeck: id,
+          ...(personalDraft && cardTemplateId ? { openCard: cardTemplateId, personalDraft } : {}) })}`, progressReturn ? { ...progressReturn, restored: false } : null));
       } catch (cause) {
         if (!stillRequested()) return;
         freshness.current.at = 0;
@@ -222,6 +224,7 @@ function WorkingShell({ memberships, currentUserId, userName }: AppShellProps) {
     </div> : null}
     {selected ? <>
       <DeckDetail key={`${currentUserId}:${selected.deckTemplateId}`} ready={verified} entryRevision={entryRevision} onAdopted={refreshWorking} deck={selectedLayout!}
+        recoveryInfoCardId={search.get("personalDraft") ?? undefined}
         onArchive={() => membershipAction(selected.deckTemplateId, "archive")} archiveDisabled={pending !== null}
         backLabel={progressReturn ? "Back to Progress" : undefined}
         creatorEditHref={progressReturn ? `/creator/edit/${encodeURIComponent(selected.deckTemplateId)}?returnTo=deck&returnDeckId=${encodeURIComponent(selected.deckTemplateId)}&progressFramework=${encodeURIComponent(progressReturn.frameworkId)}${progressReturn.areaId ? `&progressArea=${encodeURIComponent(progressReturn.areaId)}` : ""}` : undefined}

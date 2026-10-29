@@ -31,6 +31,7 @@ export type DeckSceneProps = {
   initialCardTemplateId?: string;
   // One-time entry confirmation, independent of subsequent working navigation.
   entrySelection?: { revision: number; cardId: string };
+  initiallyFocused?: boolean;
   onToggleDeckFlip?: (rotationDelta?: number) => void;
   transition: object;
   error?: string;
@@ -154,7 +155,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay }: DeckSceneProps) {
+export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, initiallyFocused = false, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -163,7 +164,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
     return initialCardIndex >= 0 ? initialCardIndex : deck.cards.length ? 0 : -1;
   });
   const [transitionPhase, setTransitionPhase] = useState<CardTransitionPhase | null>(null);
-  const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
+  const [isFocusModeOpen, setIsFocusModeOpen] = useState(initiallyFocused);
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
   const [isDeckIntroExpanded, setIsDeckIntroExpanded] = useState(false);
   const [deckIntroPlaybackState, setDeckIntroPlaybackState] = useState<VideoPlaybackState>("idle");

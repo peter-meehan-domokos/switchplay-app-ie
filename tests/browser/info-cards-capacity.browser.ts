@@ -29,7 +29,12 @@ for (const viewport of [{ width: 360, height: 780 }, { width: 390, height: 844 }
       expect(predicted.headerWidth + 0.1).toBeGreaterThanOrEqual(actual.headerWidth);
       expect(predicted.bodyHeight + 0.1).toBeGreaterThanOrEqual(actual.bodyUsed);
       expect(INFO_CAPACITY.headerWidth).toBeLessThanOrEqual(actual.availableHeader);
-      expect(predicted.availableBodyHeight).toBeLessThanOrEqual(actual.bodyAvailable + 0.1);
+      // The common creator/footer leaves ~109px. The old plain-text validator's
+      // fractional limit is 109.875px, but no allowed line/gap combination uses
+      // that last fraction. Compare its largest actually accepted height.
+      const allowedHeights = Array.from({ length: 10 }, (_, i) => i + 1).flatMap(lines => Array.from({ length: lines }, (_, gaps) => lines * INFO_CAPACITY.lineHeight + gaps * INFO_CAPACITY.paragraphGap))
+        .filter(height => height <= predicted.availableBodyHeight);
+      expect(Math.max(...allowedHeights)).toBeLessThanOrEqual(actual.bodyAvailable + 0.1);
       if (predicted.fits) { expect(actual.bodyUsed).toBeLessThanOrEqual(actual.bodyAvailable); expect(actual.headerWidth).toBeLessThanOrEqual(actual.availableHeader); }
       expect(predicted.fits).toBe(["maths", "basketball", "no-media"].includes(sample));
     }

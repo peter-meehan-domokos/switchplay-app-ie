@@ -2,6 +2,7 @@ import { isRecord, nonblank } from "./domain";
 import { isIsoDateOnlyString } from "../dateOnly";
 import { isMediaItem, type MediaItem } from "../media";
 import type { CardData } from "./model";
+import { infoReferences } from "../infoCards/domain";
 
 // Read-boundary repair only: never rewrite stored events or relax new-upload
 // validation. A bad item/comment cannot invalidate other items or current state.
@@ -42,5 +43,14 @@ export function readablePersonalHistory(data: CardData) {
     void sourceCardTemplateId; void historyReadOnly;
     return item;
   });
-  return { tests, chats, mediaItems };
+  let personalInfoCardIds: string[] = [];
+  try { personalInfoCardIds = infoReferences(data.personalInfoCardIds); } catch { /* Corrupt list is not an ancestry grant. */ }
+  const personalInfoCardAttachedAt = Object.fromEntries(personalInfoCardIds.flatMap(id => {
+    const value = data.personalInfoCardAttachedAt?.[id];
+    const date = value instanceof Date ? value : typeof value === "string" ? new Date(value) : null;
+    return date && Number.isFinite(date.getTime()) ? [[id, date.toISOString()]] : [];
+  }));
+  return { tests, chats, mediaItems, ...(data.personalInfoCardIds !== undefined || data.personalInfoRevision !== undefined ? {
+    personalInfoCardIds, personalInfoCardAttachedAt,
+    personalInfoRevision: Number.isSafeInteger(data.personalInfoRevision) && data.personalInfoRevision! >= 0 ? data.personalInfoRevision! : 0 } : {}) };
 }

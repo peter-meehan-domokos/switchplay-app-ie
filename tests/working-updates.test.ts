@@ -12,6 +12,19 @@ const scope = { userId: "alice", cardIds: ["x"] };
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 const deferred = () => { let resolve!: () => void; const promise = new Promise<void>((ok) => { resolve = ok; }); return { promise, resolve }; };
 
+test("personal source revisions merge independently of adoption and refresh loaded descendants without altering progress", () => {
+  const card = buildCardLayout({ id: "fork", label: "Card 1", adoptedVersion: 2, targetDate: "", intro: { title: "Fork", description: null, mediaItem: null }, steps: [], signals: [],
+    reflection: "Keep progress", chats: [], mediaItems: [], personalHistory: [{ cardTemplateId: "source", currentAdoptedCardTemplateVersion: 1,
+      eventVersionAttribution: "not-recorded", tests: [], chats: [], mediaItems: [], personalInfoRevision: 2, personalInfoCardIds: ["old"], personalInfoCardAttachedAt: { old: "2020-01-01T00:00:00.000Z" } }] }, { currentUserId: "alice", users: [] });
+  const store = new WorkingCardStore(); store.accept("alice", [card]);
+  store.acceptPersonal("alice", { cardTemplateId: "source", personalInfoRevision: 3, personalInfoCardIds: ["new"], personalInfoCardAttachedAt: { new: "2026-01-01T00:00:00.000Z" } });
+  store.accept("alice", [{ ...card, adoptedVersion: 1, reflection: "Stale" }]);
+  const projected = store.project("alice", card);
+  assert.equal(projected.reflection, "Keep progress"); assert.deepEqual(projected.personalHistory![0].personalInfoCardIds, ["new"]);
+  assert.equal(store.personal("alice", "fork")!.adoptedVersion, 2);
+  assert.deepEqual(store.project("bob", card).personalHistory![0].personalInfoCardIds, ["old"]);
+});
+
 test("Update waits only for affected actor/Card work, Cancel does not cancel the submitted operation", async () => {
   const work = new PersonalWork(), a = deferred(), b = deferred();
   const save = work.run(scope, "save", () => a.promise);

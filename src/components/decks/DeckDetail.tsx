@@ -13,10 +13,10 @@ import BackCardFaceContent from "./BackCardFaceContent";
 import { hasPersonalCard } from "./presentation";
 import { useWorkingDeck } from "./useWorkingDeck";
 
-type DeckDetailProps = Pick<DeckSceneProps, "isDeckFlipped" | "deckFlipRotationY" | "onBack" | "backLabel" | "onToggleDeckFlip" | "transition"> & { deck: DeckLayout; ready?: boolean; entryRevision?: number; creatorEditHref?: string; onArchive?: () => Promise<boolean>; archiveDisabled?: boolean; onAdopted: (command: import("@/lib/cards/updateAdoption").UpdateCommand) => Promise<void> };
+type DeckDetailProps = Pick<DeckSceneProps, "isDeckFlipped" | "deckFlipRotationY" | "onBack" | "backLabel" | "onToggleDeckFlip" | "transition"> & { deck: DeckLayout; ready?: boolean; entryRevision?: number; recoveryInfoCardId?: string; creatorEditHref?: string; onArchive?: () => Promise<boolean>; archiveDisabled?: boolean; onAdopted: (command: import("@/lib/cards/updateAdoption").UpdateCommand) => Promise<void> };
 
 // Existing working entry point: canonical consumers mount DeckScene directly.
-export default function DeckDetail({ deck, ready = true, entryRevision, onAdopted, creatorEditHref, onArchive, archiveDisabled, ...props }: DeckDetailProps) {
+export default function DeckDetail({ deck, ready = true, entryRevision, recoveryInfoCardId, onAdopted, creatorEditHref, onArchive, archiveDisabled, ...props }: DeckDetailProps) {
   const [viewer, setViewer] = useState<WorkingMediaSelection | null>(null);
   const mediaSourceRef = useRef<HTMLButtonElement | null>(null);
   const closeViewer = useCallback(() => setViewer(null), []);
@@ -50,7 +50,7 @@ export default function DeckDetail({ deck, ready = true, entryRevision, onAdopte
       source: { kind: "card", cardTemplateId: card.id }, deckTemplateId: deck.deckTemplateId,
       canCreate: deck.hasUserDeckData && deck.context === "working" }} onOpenChange={setAssessmentOpen} /> : undefined;
   const entryCardId = pendingNavigation && deck.cards.some(card => card.id === pendingNavigation.cardId) ? pendingNavigation.cardId : deck.activeCardId;
-  return <><DeckScene {...props} entrySelection={entryRevision === undefined ? undefined : { revision: entryRevision, cardId: entryCardId }} onOpenMedia={openMedia} mediaViewerOpen={!!viewer}
+  return <><DeckScene {...props} initiallyFocused={!!recoveryInfoCardId} entrySelection={entryRevision === undefined ? undefined : { revision: entryRevision, cardId: entryCardId }} onOpenMedia={openMedia} mediaViewerOpen={!!viewer}
     renderMediaOverlay={context => <WorkingCardMediaViewer deck={working.deck} selection={viewer} context={context}
       sourceRef={mediaSourceRef} onSelect={setViewer} onClose={closeViewer} />} deck={working.deck} updateAction={updates.deckButton} cardFrontAction={(card) => updates.cardButton(card.id)} error={working.mutationError || updates.discoveryError}
     deckActions={canEnterCreator || onArchive ? <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} editHref={creatorEditHref}
@@ -61,6 +61,7 @@ export default function DeckDetail({ deck, ready = true, entryRevision, onAdopte
     }}
     renderCardBackFace={(card, options) => hasPersonalCard(card) ? <BackCardFaceContent assessment={assessment(card, "back", false)} card={card} deckTemplateId={deck.deckTemplateId} {...options} /> : null}
     renderFocusedCard={(focused) => hasPersonalCard(focused.card) ? <WorkingFocusedCardView {...focused} card={focused.card}
+      personalDraftId={focused.card.id === deck.activeCardId ? recoveryInfoCardId : undefined}
       backAssessment={assessment(focused.card, "back")} assessmentOpen={assessmentOpen}
       canMutate={working.canMutate}
       frontAction={updates.cardButton(focused.card.id)}

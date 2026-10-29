@@ -65,6 +65,9 @@ function projectWorking(deck: Extract<NonNullable<Awaited<ReturnType<typeof reso
       const history = personalHistorySegments(deck.personalRecords, card.root.cardTemplateId);
       return { id: card.root.cardTemplateId, cardTemplateId: card.root.cardTemplateId, adoptedVersion: card.version.version,
         ...(card.version.content.infoCardIds !== undefined ? { infoCardIds: [...card.version.content.infoCardIds] } : {}),
+        ...(card.version.content.infoCardAttachedAt ? { infoCardAttachedAt: { ...card.version.content.infoCardAttachedAt } } : {}),
+        personalInfoCardIds: history[0]?.personalInfoCardIds ?? [], personalInfoCardAttachedAt: history[0]?.personalInfoCardAttachedAt ?? {},
+        personalInfoRevision: history[0]?.personalInfoRevision ?? 0,
         templateOwnerUserId: card.root.ownerUserId, dataOwnerUserId: actor, permissions: card.permissions,
         label: labels[index].label, targetDate: card.data.targetDate ?? "", intro: card.version.content.intro,
         steps: card.version.content.steps.map((step) => ({ ...step,

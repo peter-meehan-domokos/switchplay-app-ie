@@ -50,6 +50,7 @@ export type CardTemplateSignal = {
 
 export type CardTemplate = {
   infoCardIds?: string[];
+  infoCardAttachedAt?: Record<string, string>;
   cardId: string;
   label: string;
   suggestedTargetDate: string;
@@ -155,10 +156,17 @@ export type WeeklyCardSignal = {
 };
 
 export type WeeklyCard = {
+  infoCardAttachedAt?: Record<string, string>;
+  personalInfoCardIds?: string[];
+  personalInfoCardAttachedAt?: Record<string, string>;
+  personalInfoRevision?: number;
   creator?: { username: string; immediateSourceUsername: string | null };
   // Viewer-owned history. Events retain their original Card/Deck context;
   // adoption is explicitly not an event-time version attribution.
   personalHistory?: {
+    personalInfoCardIds?: string[];
+    personalInfoCardAttachedAt?: Record<string, string>;
+    personalInfoRevision?: number;
     cardTemplateId: string;
     currentAdoptedCardTemplateVersion: number | null; // Unknown for corrupt historical metadata, never event-time attribution.
     eventVersionAttribution: "not-recorded";

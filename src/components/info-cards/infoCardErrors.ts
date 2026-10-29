@@ -27,6 +27,10 @@ export function infoCardError(error: unknown, visibleCapacityIssues: readonly In
   }
   if (error.code === "INVALID_INFO_UPLOAD_FILE" && typeof error.details?.message === "string") return error.details.message;
   const messages: Record<string, string> = {
+    PERSONAL_INFO_CONTEXT_REQUIRED: "This Card is not currently available for attaching the saved note. Your draft is retained in My Drafts.",
+    PERSONAL_INFO_PRIVATE_ONLY: "Personal Info Cards remain private to your account.",
+    PERSONAL_INFO_FORBIDDEN: "This personal Info Card is unavailable to your account.",
+    PERSONAL_INFO_ALREADY_ATTACHED: "This Info Card is already attached. Reopen the pouch to read its current content.",
     INFO_PUBLICATION_INCOMPLETE: "Choose a series and complete the title and explanation before publishing.",
     INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED: "Media is unavailable until protected Cloudflare delivery has been verified. Your text draft is safe.",
     INFO_MEDIA_NOT_READY_OR_UNPROTECTED: "The video is still processing or its protection could not be verified. Check its status and retry.",

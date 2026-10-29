@@ -11,6 +11,20 @@ const snapshot = (): InfoConsultationSnapshot => ({ mainCardId: "main", mainCard
   entries: [{ status: "available", info: structuredClone(info) }, { status: "unavailable" }] });
 function result(value: unknown) { return Response.json(value, { headers: { "X-Personal-Viewer": "alice" } }); }
 
+test("modern mixed chronological snapshots validate source identity rather than shared positional prefixes", async t => {
+  const mixed: InfoConsultationSnapshot = { mainCardId: "main", mainCardVersion: 3,
+    personalSources: [{ cardTemplateId: "main", personalInfoRevision: 2 }, { cardTemplateId: "ancestor", personalInfoRevision: 4 }],
+    entries: [{ status: "available", key: "personal", source: "personal", sourceCardTemplateId: "ancestor", info: { ...info, infoCardId: "personal", kind: "personal",
+      originCardTemplateId: "ancestor", ownerUserId: "alice", visibility: "private", creatorUsername: "alice" } },
+      { status: "unavailable", key: "opaque-slot" }, { status: "available", key: "a", source: "shared", info }] };
+  t.mock.method(globalThis, "fetch", async (url: string) => url === "/api/auth/me" ? Response.json({ user: { id: "alice" } }) : result(mixed));
+  const cards = await loadInfoConsultation(request, new AbortController().signal);
+  assert.deepEqual(cards.map(card => card.id), ["personal", "opaque-slot", "a"]);
+  assert.equal(!cards[0].unavailable && cards[0].personalSource?.cardTemplateId, "ancestor");
+  if (mixed.entries[0].status === "available") mixed.entries[0].info.ownerUserId = "bob";
+  await assert.rejects(loadInfoConsultation(request, new AbortController().signal), /Invalid personal/);
+});
+
 test("consultation client binds actor/main context without sending attachment IDs and pins publication metadata", async t => {
   const calls: { url: string; init?: RequestInit }[] = [];
   t.mock.method(globalThis, "fetch", async (url: string, init?: RequestInit) => {

@@ -16,4 +16,4 @@ export type InfoRenderingCapture = {
   screenshotError?: string;
 };
 export type InfoRenderingDiagnostic = InfoRenderingCapture & { revision: number };
-export type InfoRenderingChecker = (content: InfoDraft, seriesTitle: string) => Promise<InfoRenderingCapture>;
+export type InfoRenderingChecker = (content: InfoDraft, seriesTitle: string, attribution?: { creatorUsername: string; personal: boolean }) => Promise<InfoRenderingCapture>;

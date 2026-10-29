@@ -5,7 +5,7 @@
   grid-template-columns: minmax(0, 1fr);
   width: 100%;
   height: 204px;
-  padding: 12px;
+  padding: 12px 12px 60px;
   border: 1px solid rgba(179, 195, 217, 0.25);
   border-radius: 12px;
   background: linear-gradient(145deg, #303947, #252d39);
@@ -18,9 +18,17 @@
   text-align: left;
 }
 
-.face:has(.media) {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
+.personal { background: #263b36; }
+.footer { position: absolute; left: 12px; right: 12px; bottom: 1px; height: 56px; z-index: 2; }
+.creator { position: absolute; left: 50%; bottom: 0; height: 24px; width: 100%; transform: translateX(-50%); text-align: center; }
+.creator button { display: block; width: 100%; height: 24px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; border: 0; background: transparent; color: #b2bdcc; font: 9px/12px Arial, Helvetica, sans-serif; cursor: pointer; touch-action: manipulation; }
+.creator button:focus-visible, .menu button:focus-visible { outline: 1.5px solid #a8d6e4; outline-offset: 1px; }
+.authorTooltip { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); width: max-content; max-width: 214px; overflow-wrap: anywhere; padding: 4px 7px; border: 1px solid #536174; border-radius: 4px; background: #282e38; color: #edf1f5; font: 9px/1.3 Arial, Helvetica, sans-serif; }
+.menu { position: absolute; right: 0; top: 0; }
+.menuTrigger { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #b2bdcc; font-size: 20px; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.menuItems { position: absolute; right: 0; bottom: 100%; min-width: 100px; padding: 4px; border: 1px solid #536174; border-radius: 7px; background: #282e38; box-shadow: 0 3px 8px #0003; }
+.menuItems button { display: block; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; background: transparent; color: #edf1f5; font: 11px/1.4 Arial, Helvetica, sans-serif; text-align: left; cursor: pointer; touch-action: manipulation; }
+.menuItems button:hover { background: #354150; }
 
 .header {
   position: relative;
@@ -94,12 +102,15 @@
 }
 
 .media {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
   align-items: center;
   justify-self: start;
   gap: 4px;
   min-height: 32px;
-  margin: 4px 0 0;
+  margin: 0;
   padding: 0 4px;
   border: 0;
   background: none;

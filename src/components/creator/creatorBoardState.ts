@@ -19,6 +19,7 @@ export type Column = {
   cardLabel?: string;
   cardTitle?: string;
   infoCardIds?: string[];
+  infoCardAttachedAt?: Record<string, string>;
   defaultCardTitle?: string;
   introDescription?: string | null;
   introMediaItem?: MediaItem | null;
@@ -465,6 +466,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
         label: column.cardLabel ?? column.label,
         suggestedTargetDate: column.targetDate ?? "",
         ...(column.infoCardIds !== undefined ? { infoCardIds: [...column.infoCardIds] } : {}),
+        ...(column.infoCardAttachedAt ? { infoCardAttachedAt: { ...column.infoCardAttachedAt } } : {}),
         intro: {
           title: normalizeCreatorText(cardTitle),
           description: column.introDescription ?? null,
@@ -578,6 +580,7 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
       introMediaItem: templateCard?.intro.mediaItem ?? null,
       targetDate: templateCard?.suggestedTargetDate ?? "",
       ...(templateCard?.infoCardIds !== undefined ? { infoCardIds: [...templateCard.infoCardIds] } : {}),
+      ...(templateCard?.infoCardAttachedAt ? { infoCardAttachedAt: { ...templateCard.infoCardAttachedAt } } : {}),
     };
   });
 }

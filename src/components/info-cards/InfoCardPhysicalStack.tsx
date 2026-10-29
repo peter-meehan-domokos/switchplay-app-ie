@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type R
 import { motion, useAnimate, useMotionValue, useReducedMotion, useTransform, type AnimationSequence } from "motion/react";
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import InfoCardFace from "./InfoCardFace";
+import InfoCardMenu, { type InfoCardActions } from "./InfoCardMenu";
 import type { InfoCardConsultationCard, AvailableConsultationCard } from "./InfoCardConsultation";
 import faceStyles from "./InfoCardFace.module.css";
 import stepStyles from "@/components/decks/StepView.module.css";
@@ -14,7 +15,8 @@ type PointerSession = { id: number; x: number; y: number; time: number; axis: "x
 
 // Motion/selection only. The parent keeps the pinned consultation, media and
 // playback suspension alive until onExited, including while this pack returns.
-export default function InfoCardPhysicalStack({ id, cards, closing, blocked, closeRef, pouch, pouchGeometry, onRequestClose, onExited, onBusyChange, onOpenMedia, onPositionChange }: {
+export default function InfoCardPhysicalStack({ id, cards, closing, blocked, closeRef, pouch, pouchGeometry, onRequestClose, onExited, onBusyChange, onOpenMedia, onPositionChange,
+  selectedId, onSelect, actions, initiallySettled = false }: {
   id: string;
   cards: readonly InfoCardConsultationCard[];
   closing: boolean;
@@ -27,30 +29,42 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
   onBusyChange: (busy: boolean) => void;
   onOpenMedia: (card: AvailableConsultationCard) => void;
   onPositionChange: (position: number) => void;
+  selectedId?: string;
+  onSelect?: (id: string) => void;
+  actions?: (card: InfoCardConsultationCard) => InfoCardActions;
+  initiallySettled?: boolean;
 }) {
   const [scope, animate] = useAnimate<HTMLElement>();
   const reduced = Boolean(useReducedMotion());
-  const [index, setIndex] = useState(0);
+  const [storedIndex, setIndex] = useState(0);
+  const index = selectedId && cards.some(card => card.id === selectedId) ? cards.findIndex(card => card.id === selectedId) : Math.min(storedIndex, cards.length - 1);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [phase, setPhase] = useState("opening");
   const busy = useRef(true);
   const pointer = useRef<PointerSession | null>(null);
   const suppressClick = useRef(false);
   const positioned = useRef(false);
+  const hasMoved = useRef(false);
   const generation = useRef(0);
   const turnAnimation = useRef<ReturnType<typeof animate> | null>(null);
-  const callbacks = useRef({ onExited, onBusyChange, onPositionChange });
+  const callbacks = useRef({ onExited, onBusyChange, onPositionChange, onSelect });
   const packX = useMotionValue(0), packY = useMotionValue(0), packRotation = useMotionValue(0), opacity = useMotionValue(0);
   const dragY = useMotionValue(0);
   const dragRotation = useTransform(dragY, [-100, 0, 100], [-2, 0, 2]);
   const returnGeometry = closing ? pouchGeometry : null;
-  useLayoutEffect(() => { callbacks.current = { onExited, onBusyChange, onPositionChange }; }, [onExited, onBusyChange, onPositionChange]);
+  useLayoutEffect(() => { callbacks.current = { onExited, onBusyChange, onPositionChange, onSelect }; }, [onExited, onBusyChange, onPositionChange, onSelect]);
+  useEffect(() => { callbacks.current.onPositionChange(index + 1); }, [index]);
 
   // The parent shows the native modal in its layout effect. Measure afterwards;
   // a child layout effect would see a still-hidden dialog with zero dimensions.
   useEffect(() => {
     const pack = scope.current;
     if (!pack) return;
+    if (initiallySettled && !closing && !hasMoved.current) {
+      positioned.current = true; opacity.set(1); setPhase("open"); busy.current = false; callbacks.current.onBusyChange(false);
+      return;
+    }
+    hasMoved.current = true;
     let active = true;
     generation.current++;
     pointer.current = null;
@@ -113,7 +127,7 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
     });
     return () => { active = false; control.stop(); turnAnimation.current?.stop(); };
     // Retarget a return if resizing moves the real pouch; never resize the pack.
-  }, [animate, closing, reduced, scope, packX, packY, packRotation, opacity, dragY, pouch, returnGeometry]);
+  }, [animate, closing, reduced, scope, packX, packY, packRotation, opacity, dragY, pouch, returnGeometry, initiallySettled]);
 
   useEffect(() => {
     if (!turn || closing) return;
@@ -148,6 +162,7 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
         if (!active) return;
         dragY.set(0);
         setIndex(turn.to);
+        callbacks.current.onSelect?.(cards[turn.to].id);
         callbacks.current.onPositionChange(turn.to + 1);
         setTurn(null);
         setPhase("open");
@@ -156,7 +171,7 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
       });
     });
     return () => { active = false; turnAnimation.current?.stop(); };
-  }, [animate, closing, reduced, scope, turn, dragY]);
+  }, [animate, closing, reduced, scope, turn, dragY, cards]);
 
   function browse(direction: -1 | 1) {
     if (busy.current || closing || blocked || cards.length < 2) return;
@@ -211,7 +226,7 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
     onPointerDown={event => {
       suppressClick.current = false;
       if (!event.isPrimary) { pointer.current = null; restoreDrag(); return; }
-      if (locked || busy.current || event.button !== 0 || (event.target as Element).closest("[data-info-stack-close]")) return;
+      if (locked || busy.current || event.button !== 0 || (event.target as Element).closest("button, a, [data-info-card-menu]")) return;
       callbacks.current.onBusyChange(true);
       pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now(), axis: null, moved: false };
     }}
@@ -249,11 +264,13 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
           style={current ? { zIndex: 3, y: dragY, rotate: dragRotation } : { zIndex: 2 }}>
           {card.unavailable ? <article className={`${faceStyles.face} ${styles.unavailable}`} data-info-card-unavailable="">
             <p>This Info Card is unavailable.</p>
-          </article> : <InfoCardFace card={{ ...card, mediaKind: card.media?.mediaType }} onOpenMedia={card.media ? () => { if (!busy.current && !closing && !blocked) onOpenMedia(card); } : undefined} />}
+            {actions && <footer className={faceStyles.footer}><InfoCardMenu {...actions(card)} disabled={locked} /></footer>}
+          </article> : <InfoCardFace card={{ ...card, mediaKind: card.media?.mediaType }} actions={actions ? { ...actions(card), disabled: locked } : undefined}
+            onOpenMedia={card.media ? () => { if (!busy.current && !closing && !blocked) onOpenMedia(card); } : undefined} />}
         </motion.div>;
       })}
     </div>
-    <button ref={closeRef} className={`${stepStyles.consultationClose} ${styles.close}`} data-info-stack-close="" type="button" aria-label="Close information card stack" onClick={onRequestClose}>×</button>
+    <button ref={closeRef} className={`${stepStyles.consultationClose} ${styles.close}`} data-info-stack-close="" type="button" disabled={blocked} aria-label="Close information card stack" onClick={onRequestClose}>×</button>
     <span className={styles.announcement} role="status" aria-live="polite">{cards[index].unavailable ? "This Info Card is unavailable." : cards[index].title}</span>
   </motion.section>;
 }
