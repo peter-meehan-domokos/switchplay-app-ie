@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { isRecord, nonblank, requireCondition } from "../cards/domain";
 import { assertPreviewManifest } from "../cards/libraryEntry";
-import type { CreateExperience, LearningCommand, MemberCommand } from "./model";
+import type { CreateExperience, GroupUpdateCommand, LearningCommand, MemberCommand } from "./model";
 
 export function id(value: unknown): asserts value is string {
   requireCondition(nonblank(value) && value.length <= 200 && value === value.trim(), "INVALID_GROUP_ID");
@@ -29,9 +29,21 @@ export function createCommand(value: unknown): CreateExperience {
 export function memberCommand(value: unknown): MemberCommand {
   exact(value, ["operationId", "expectedStructureRevision", "targetUserId", "kind", "isAdmin"]);
   id(value.operationId); id(value.targetUserId); revision(value.expectedStructureRevision);
-  requireCondition(value.kind === "add-follower" && value.isAdmin === undefined
+  requireCondition((value.kind === "add-follower" || value.kind === "remove-follower") && value.isAdmin === undefined
     || value.kind === "set-admin" && typeof value.isAdmin === "boolean", "INVALID_GROUP_MEMBER_COMMAND");
   return value as MemberCommand;
+}
+export function adoptionCommand(value: unknown): { operationId: string; review: GroupUpdateCommand } {
+  exact(value, ["operationId", "review"]); id(value.operationId);
+  exact(value.review, ["viewerUserId", "experienceId", "perspective", "kind", "entityId", "sourceVersion", "targetVersion", "expectedAdoptionRevision", "expectedStructureRevision", "cards"]);
+  const review = value.review; id(review.viewerUserId); id(review.experienceId); id(review.entityId);
+  requireCondition(review.perspective === "group" && (review.kind === "card" || review.kind === "deck"), "INVALID_GROUP_UPDATE");
+  revision(review.expectedAdoptionRevision); revision(review.expectedStructureRevision);
+  requireCondition(Number.isSafeInteger(review.sourceVersion) && Number(review.sourceVersion) >= 1
+    && Number.isSafeInteger(review.targetVersion) && Number(review.targetVersion) > Number(review.sourceVersion), "INVALID_GROUP_UPDATE");
+  assertPreviewManifest({ deckTemplateId: review.entityId, deckVersion: review.targetVersion, cards: review.cards });
+  requireCondition(review.kind === "deck" || (review.cards as unknown[]).length === 0, "INVALID_GROUP_UPDATE");
+  return value as { operationId: string; review: GroupUpdateCommand };
 }
 export function learningCommand(value: unknown): LearningCommand {
   exact(value, ["accessEpoch", "version", "change"]); revision(value.accessEpoch);

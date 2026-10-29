@@ -8,12 +8,14 @@ import { mergeRetainedAssignments } from "../cards/retainedAssignments";
 import { cardContentPresentation } from "../cards/libraryProjection";
 import { cardCreatorAttributions, creatorUsernames } from "../cards/creatorAttribution";
 import { GROUP_COLLECTIONS, assertGroupExperienceIndexes } from "./indexes";
-import type { GroupExperience, GroupMember, GroupCardState, GroupReceipt, Perspective } from "./model";
+import type { GroupExperience, GroupMember, GroupCardState, GroupReceipt, Perspective, RemovalLearning } from "./model";
 import { authorize, type GroupRole } from "./authorization";
 import { createCommand, memberCommand, learningCommand, hash, id, page, revision } from "./contracts";
-import { selectedCard, selectedContent, validateCreationManifest } from "./publicVersions";
+import { publicCards, selectedCard, selectedContent, validateCreationManifest } from "./publicVersions";
 import { personalLearningForUsers, userKey } from "./learningReads";
 import { aggregateLearning, entry, identity } from "./readModels";
+import { formerCardLearning, removalSnapshot, snapshotRemoval } from "./lifecycle";
+import { adoptGroupUpdate, reviewGroupUpdate } from "./adoption";
 
 export class GroupExperienceRepository {
   constructor(readonly cards: CardRepository) {}
@@ -21,6 +23,7 @@ export class GroupExperienceRepository {
   members() { return this.cards.db.collection<GroupMember>(GROUP_COLLECTIONS.members); }
   states() { return this.cards.db.collection<GroupCardState>(GROUP_COLLECTIONS.states); }
   receipts() { return this.cards.db.collection<GroupReceipt>(GROUP_COLLECTIONS.receipts); }
+  removals() { return this.cards.db.collection<RemovalLearning>(GROUP_COLLECTIONS.removals); }
   private ready = false;
   async transaction<T>(run: (session: ClientSession) => Promise<T>) {
     if (!this.ready) { await assertGroupExperienceIndexes(this.cards.db); this.ready = true; }
@@ -102,7 +105,7 @@ export class GroupExperienceRepository {
     await this.receipts().insertOne({ experienceId, actor, operationId, commandHash, structureRevision, createdAt: now }, { session });
   }
   async changeMember(actor: string, experienceId: string, input: unknown) {
-    const command = memberCommand(input), commandHash = hash(command), now = new Date();
+    const command = memberCommand(input), commandHash = hash(command), now = new Date(), generation = randomUUID();
     return this.transaction(async session => {
       const { experience, member } = await this.access(actor, experienceId, "admin", session);
       const replay = await this.replay(actor, experience, command.operationId, commandHash, session); if (replay) return replay;
@@ -110,19 +113,31 @@ export class GroupExperienceRepository {
       await this.registered([command.targetUserId], session);
       const target = await this.members().findOne({ experienceId, userId: command.targetUserId }, { session });
       await this.fence(target ? [member, target] : [member], session);
-      const refs = (await selectedContent(this.cards, experience, session)).cards.map(({ cardTemplateId, version }) => ({ cardTemplateId, version }));
+      const selected = (await selectedContent(this.cards, experience, session)).cards;
+      const refs = selected.map(({ cardTemplateId, version }) => ({ cardTemplateId, version }));
       const next = target ? { ...target } : this.newMember(experienceId, command.targetUserId, false, false, [], now);
       if (command.kind === "set-admin") next.isAdmin = command.isAdmin;
+      else if (command.kind === "remove-follower") {
+        requireCondition(target && target.followerStatus !== "never", "GROUP_FOLLOWER_FORBIDDEN");
+        if (target.followerStatus === "active") {
+          next.latestRemoval = await snapshotRemoval(this, experience, target, selected, generation, now, session);
+          next.followerStatus = "removed"; next.removedAt = now; next.activeCardId = null;
+          next.retainedCardAssignments = mergeRetainedAssignments(next.retainedCardAssignments, refs);
+        }
+      }
       else {
-        requireCondition(next.followerStatus !== "removed", "GROUP_LIFECYCLE_UNAVAILABLE");
+        if (next.followerStatus === "removed") next.rejoinedAt = now;
         next.followerStatus = "active"; next.joinedAt ??= now;
+        next.removedAt = null;
         next.retainedCardAssignments = mergeRetainedAssignments(next.retainedCardAssignments, refs);
       }
       const adminCount = experience.adminCount + Number(next.isAdmin) - Number(target?.isAdmin ?? false);
       requireCondition(adminCount >= 1, "GROUP_FINAL_ADMIN_CONFLICT");
       if (target) {
         await this.members().updateOne({ experienceId, userId: next.userId }, { $set: { isAdmin: next.isAdmin, followerStatus: next.followerStatus,
-          joinedAt: next.joinedAt, retainedCardAssignments: next.retainedCardAssignments }, $inc: { accessEpoch: 1 } }, { session });
+          joinedAt: next.joinedAt, removedAt: next.removedAt, rejoinedAt: next.rejoinedAt ?? null, activeCardId: next.activeCardId,
+          ...(next.latestRemoval ? { latestRemoval: next.latestRemoval } : {}),
+          retainedCardAssignments: next.retainedCardAssignments }, $inc: { accessEpoch: 1 } }, { session });
       } else await this.members().insertOne(next, { session });
       const update = await this.experiences().updateOne({ experienceId, structureRevision: command.expectedStructureRevision },
         { $set: { adminCount, updatedAt: now }, $inc: { structureRevision: 1 } }, { session });
@@ -174,9 +189,12 @@ export class GroupExperienceRepository {
       const { cards } = await selectedContent(this.cards, experience, session), selected = cards.find(card => card.cardTemplateId === cardTemplateId);
       requireCondition(selected, "GROUP_CARD_FORBIDDEN");
       const subject = perspective === "self" ? actor : subjectUserId;
-      if (subject) authorize(await this.members().findOne({ experienceId, userId: subject }, { session }), "follower");
-      const learning = perspective === "group" ? (await this.groupLearning(experienceId, [selected], session))[0]
-        : (await personalLearningForUsers(this.cards, [subject!], [selected], session)).get(subject!)![0];
+      const subjectMember = subject ? await this.members().findOne({ experienceId, userId: subject }, { session }) : null;
+      const former = perspective === "follower" && subjectMember?.followerStatus === "removed";
+      if (subject && !former) authorize(subjectMember, "follower");
+      const learning = former ? await formerCardLearning(this, subjectMember!, selected, session)
+        : perspective === "group" ? (await this.groupLearning(experienceId, [selected], session))[0]
+          : (await personalLearningForUsers(this.cards, [subject!], [selected], session)).get(subject!)![0];
       const root = (await this.cards.cards().findOne({ cardTemplateId }, { session }))!;
       const attribution = (await cardCreatorAttributions(this.cards, [root], session)).get(cardTemplateId)!;
       return { ...identity(actor, experience, member), perspective, subjectUserId: subject ?? null,
@@ -214,7 +232,11 @@ export class GroupExperienceRepository {
       const { experience, member } = await this.access(actor, experienceId, owner === "group" ? "admin" : "follower", session, command.accessEpoch);
       await this.fence([member], session);
       const selected = await selectedCard(this.cards, experience, cardTemplateId, session);
-      requireCondition(command.version === selected.version, "GROUP_VERSION_CONFLICT");
+      requireCondition(command.version <= selected.version, "GROUP_VERSION_CONFLICT");
+      if (command.version !== selected.version) {
+        const submitted = (await publicCards(this.cards, [{ cardTemplateId, version: command.version }], session))[0];
+        assertLearningChange(submitted.content, command.change);
+      }
       assertLearningChange(selected.content, command.change);
       if (owner === "personal") {
         const existing = await this.cards.getPersonalLearning(actor, cardTemplateId, session);
@@ -240,4 +262,17 @@ export class GroupExperienceRepository {
       return { ...identity(actor, experience, member), cardTemplateId, version: selected.version, owner, ok: true };
     });
   }
+  async snapshot(actor: string, experienceId: string, userId: string) {
+    id(userId);
+    return this.transaction(async session => {
+      const { experience, member } = await this.access(actor, experienceId, "admin", session);
+      const subject = await this.members().findOne({ experienceId, userId }, { session });
+      requireCondition(subject, "GROUP_SNAPSHOT_FORBIDDEN");
+      return { ...identity(actor, experience, member), subjectUserId: userId, ...await removalSnapshot(this, subject, session) };
+    });
+  }
+  reviewUpdate(actor: string, experienceId: string, kind: "card" | "deck", entityId: string) {
+    return reviewGroupUpdate(this, actor, experienceId, kind, entityId);
+  }
+  adoptUpdate(actor: string, experienceId: string, input: unknown) { return adoptGroupUpdate(this, actor, experienceId, input); }
 }

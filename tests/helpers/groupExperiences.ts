@@ -5,6 +5,7 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../../src/li
 import { createGroupExperienceIndexes } from "../../src/lib/groupExperiences/indexes";
 import { GroupExperienceRepository } from "../../src/lib/groupExperiences/repository";
 import type { CreateExperience } from "../../src/lib/groupExperiences/model";
+import { deckDraftContent } from "../../src/lib/cards/publicationRules";
 
 export async function groupFixture(client: MongoClient, options: { followers?: string[]; admins?: string[]; cardCount?: number } = {}) {
   const cards = new CardRepository(client.db(`switchplay_test_groups_${randomUUID().replaceAll("-", "")}`), client);
@@ -29,3 +30,20 @@ export const completion = (stepId: string, completionStatus: "todo" | "done" | "
   ({ accessEpoch, version, change: { kind: "completion", stepId, completionStatus } });
 export const signal = (stepId: string, reading: number | null, accessEpoch = 0, version = 1) =>
   ({ accessEpoch, version, change: { kind: "signal", stepId, reading } });
+
+export async function publishGroupCard(f: Awaited<ReturnType<typeof groupFixture>>, index: number, stepIds: string[]) {
+  const id = f.ids[index], root = (await f.cards.cards().findOne({ cardTemplateId: id }))!;
+  const prior = (await f.cards.getCardVersion(id, root.latestVersion))!;
+  await f.cards.saveCardDraft("creator", id, root.revision, { ...prior.content, steps: stepIds.map((stepId, i) => ({ ...prior.content.steps[i], stepId })) });
+  return f.cards.publishCard("creator", id, root.revision + 1, `Card update ${root.latestVersion + 1}`);
+}
+export async function publishGroupDeck(f: Awaited<ReturnType<typeof groupFixture>>, ids: string[]) {
+  const root = (await f.cards.decks().findOne({ deckTemplateId: f.deckId }))!, prior = (await f.cards.getDeckVersion(f.deckId, root.latestVersion))!;
+  await f.cards.saveDeckDraft("creator", f.deckId, root.revision, { ...deckDraftContent(prior.content), cards: ids.map(cardTemplateId => ({ cardTemplateId })) });
+  return f.cards.publishDeck("creator", f.deckId, root.revision + 1, `Deck update ${root.latestVersion + 1}`);
+}
+export async function reviewedUpdate(f: Awaited<ReturnType<typeof groupFixture>>, kind: "card" | "deck", entityId: string, actor = "alice", experienceId = f.experienceId) {
+  const result = await f.repo.reviewUpdate(actor, experienceId, kind, entityId);
+  if (!result.review) throw Error("Fixture requires a pending Update");
+  return { operationId: randomUUID(), review: result.review.command };
+}

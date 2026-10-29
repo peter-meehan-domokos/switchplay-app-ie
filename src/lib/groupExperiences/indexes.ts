@@ -2,7 +2,7 @@ import type { Db, IndexDescription } from "mongodb";
 import { requireCondition } from "../cards/domain";
 
 export const GROUP_COLLECTIONS = { experiences: "groupExperiences", members: "groupExperienceMembers",
-  states: "groupCardState", receipts: "groupOperationReceipts" } as const;
+  states: "groupCardState", receipts: "groupOperationReceipts", removals: "groupRemovalLearning" } as const;
 const definitions: [string, IndexDescription][] = [
   [GROUP_COLLECTIONS.experiences, { key: { experienceId: 1 }, name: "group_identity", unique: true }],
   [GROUP_COLLECTIONS.experiences, { key: { creatorUserId: 1, operationId: 1 }, name: "group_create_receipt", unique: true }],
@@ -12,6 +12,7 @@ const definitions: [string, IndexDescription][] = [
   [GROUP_COLLECTIONS.members, { key: { experienceId: 1, followerStatus: 1, userId: 1 }, name: "group_roster" }],
   [GROUP_COLLECTIONS.states, { key: { experienceId: 1, cardTemplateId: 1 }, name: "group_learning_identity", unique: true }],
   [GROUP_COLLECTIONS.receipts, { key: { experienceId: 1, actor: 1, operationId: 1 }, name: "group_operation_identity", unique: true }],
+  [GROUP_COLLECTIONS.removals, { key: { experienceId: 1, userId: 1, cardTemplateId: 1 }, name: "group_removal_identity", unique: true }],
 ];
 // Explicit provisioning only. No route/module import creates collections or indexes.
 export async function createGroupExperienceIndexes(db: Db) {

@@ -2,17 +2,22 @@ import { cardRequest } from "../cards/http";
 import { requireCondition } from "../cards/domain";
 import { GroupExperienceRepository } from "./repository";
 import { exact } from "./contracts";
+import { GroupUpdateConflict } from "./adoption";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 export async function groupRequest(request: Request, run: (repo: GroupExperienceRepository, actor: string) => Promise<unknown>) {
   // Opt-in remains an operational gate. No deployment/configuration is enabled here.
   if (process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED !== "1") return Response.json({ error: "Group Experiences unavailable" }, { status: 503, headers });
   let viewer: string | undefined;
+  let conflict: GroupUpdateConflict | undefined;
   const result = await cardRequest(async (cards, actor) => {
     const expected = request.headers.get("X-Group-Viewer");
     requireCondition(expected === null || expected === actor, "GROUP_SESSION_CONFLICT"); viewer = actor;
-    return run(new GroupExperienceRepository(cards), actor);
+    try { return await run(new GroupExperienceRepository(cards), actor); }
+    catch (error) { if (error instanceof GroupUpdateConflict) conflict = error; throw error; }
   });
+  if (conflict) return Response.json({ error: conflict.code, code: conflict.code, refreshRequired: true, latestReview: conflict.latestReview },
+    { status: 409, headers: { ...headers, ...(viewer ? { "X-Group-Viewer": viewer } : {}) } });
   // Index readiness is an operational problem, not a malformed user command.
   if (result.status === 400 && (await result.clone().json()).code === "GROUP_INDEXES_NOT_READY") {
     return Response.json({ error: "GROUP_INDEXES_NOT_READY", code: "GROUP_INDEXES_NOT_READY" }, { status: 503, headers });
