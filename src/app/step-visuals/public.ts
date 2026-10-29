@@ -4,6 +4,8 @@ export { default as Card1Sparkline } from "./sparklines/Card1Sparkline";
 export type { Card1SparklineProps } from "./sparklines/Card1Sparkline";
 export type { SparklineVariant } from "./core/sparklines/card1SparklineLayout";
 export type { RootInteger } from "./activities/roots-factors/model";
+export { createRootsHostedState, restoreRootsHostedState, reduceRootsHostedState, acknowledgeRootsEvents, rootsSnapshot, isRootsSnapshot, rootsHostNavigation } from "./activities/roots-factors/hostState";
+export type { RootsHostedState, RootsSnapshot } from "./activities/roots-factors/hostState";
 export type {
   Card1LearningCallbacks, Card1LearningResult, Card1LearningEvent, Card1SessionRecords,
   Card1AttemptSnapshot, Card1PredictionRecord, Card1CheckRecord, Card1RootPlacement, Card1LearningStage,

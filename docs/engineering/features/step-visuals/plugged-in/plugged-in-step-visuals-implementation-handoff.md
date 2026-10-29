@@ -22,8 +22,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | --- | --- | --- |
 | S00 plan, review and handoff | Complete | `ff330b4` |
 | S01 registry and Framework references | Complete | `86780c8` |
-| S02 canonical step media | Complete, this checkpoint | Commit recorded by next checkpoint |
-| S03 Roots restore/adapter | Next | Not implemented |
+| S02 canonical step media | Complete | `2c5d300` |
+| S03 Roots restore/adapter | Complete, this checkpoint | Commit recorded by next checkpoint |
 | S04 early card preview/host | Pending | Not implemented |
 | S05 Integration restore/adapter | Pending | Not implemented |
 | S06 records repository | Pending | Not implemented |
@@ -53,8 +53,12 @@ S02: canonical zero-to-four ordered video/image/Interactive Visual attachments, 
 
 S02 verification: **442 unit tests passed**, TypeScript passed, focused new-module/test lint passed. Disposable MongoDB tests: **26 existing foundation/fork tests passed**; new multimedia test passed after correcting its publication title and explicitly creating learner CardData. It verifies old saves/forks reject modern content, owner-scoped upload enumeration, immutable old versions and retained completion. Initial database execution hit sandbox socket restrictions; the authorised disposable replica-set run succeeded outside that restriction. No environment database URI or live database used. Diff reviewed and whitespace check passed.
 
+S03: added activity-local `roots-factors/hostState.ts` and public exports. Snapshot stores settled learning state, consistent prediction/check evidence, bounded visited stages and monotonic event sequence; history remains separate. Hydration does not call the fresh-attempt constructor and emits no events/completion. Hosted adapter delegates mathematical actions to the existing reducer, retains every pending event across batched input until explicit local-outbox acknowledgement, and exposes only supported generic Next capabilities. Existing lab components/reducers and mathematical layout are unchanged. Same-attempt Back to Start is still S08; the retained stage data needed for it is present.
+
+S03 tests: **7 new Node tests passed** (all stages, correct/incorrect predictions, assisted/independent completion, corrupt state, transient pointer exclusion and pending-event acknowledgements); **157 existing activity tests passed**; TypeScript and focused lint passed. No live persistence is claimed yet.
+
 ## Exact next step
 
-Commit S02, then implement S03: activity-owned Roots and Factors snapshot codec and hosted adapter, with zero-event hydration, cross-field validation and stable event sequencing. Keep mathematical rules and lab behavior unchanged. Retain bounded per-stage work for the later same-attempt Back to Start slice. Verify every reachable stage roundtrip and completion after restoration, then continue S04 host/preview/origin integration.
+Commit S03, then implement S04: generic fullscreen host with stable control/content regions, activity-owned hosted rendering, generated inert preview and an internal card-step opening/return example. Expose measured dimensions without changing existing mathematical CSS. Keep execution development-only until durable persistence and guest authorization slices. Use an explicit temporary persistence service reporting local-only status, not Saved. Add browser checks for origin/focus return and host bounds before continuing S05.
 
 Do not push, deploy, merge, switch branches, run live migrations/provider changes, implement demo decks/general file picker or redesign mathematical responsiveness. Use the last successful commit as the recovery checkpoint. Pending work must never be reported as Saved or complete.
