@@ -111,6 +111,7 @@ for (const mode of ["working", "canonical"]) test(`${mode}: each grant prepares 
   await page.goto(`https://fixture.invalid/?${mode}`);
   await page.addStyleTag({content:await readFile("src/app/globals.css", "utf8") + componentCss});
   await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   try {
     await page.evaluate(() => (window as unknown as Harness).mountCard()); await expect.poll(()=>grants.size).toBe(4);
     await grants.get("intro")!();
@@ -171,6 +172,7 @@ test("renewed grants replace thumbnails; learner/version changes and closing rel
     return route.abort();
   });
   await page.goto("https://fixture.invalid/?working");await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss});await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   await page.evaluate(()=>(window as unknown as Harness).mountCard());
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {decoded:string[]}).decoded.length)).toBe(4);
   await page.locator(".active-card-identity").press("Enter");await expect(page.locator(".switchplay-video-poster")).toBeVisible();
@@ -189,7 +191,7 @@ test("renewed grants replace thumbnails; learner/version changes and closing rel
   await expect(page.locator(".switchplay-video-poster")).toHaveAttribute("src",/context=bob-2-intro/);
   await page.evaluate(()=>{(window as unknown as {closingImage:Element}).closingImage=document.querySelector(".switchplay-video-poster")!;});
   await page.evaluate(()=>(window as unknown as Harness).unmountCard());
-  expect(await page.evaluate(()=>{const image=(window as unknown as {closingImage:Element}).closingImage;return !image.isConnected&&!image.hasAttribute("src");})).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>{const image=(window as unknown as {closingImage:Element}).closingImage;return !image.isConnected&&!image.hasAttribute("src");})).toBe(true);
 });
 
 test("delayed and failed thumbnails leave a visible loading message; video readiness ends loading independently", async ({page}) => {
@@ -207,6 +209,7 @@ test("delayed and failed thumbnails leave a visible loading message; video readi
     return route.abort();
   });
   await page.goto("https://fixture.invalid/?working"); await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss}); await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   try {
     await page.evaluate(()=>(window as unknown as Harness).mountCard()); await expect.poll(()=>!!releaseImage).toBe(true);
     await page.locator(".active-card-identity").press("Enter");
@@ -312,6 +315,7 @@ for (const mode of ["working", "canonical"]) test(`${mode} focused Card prepares
   await page.route("https://videodelivery.net/**", route => route.abort());
   page.on("pageerror", error => { throw error; });
   await page.goto(`https://fixture.invalid/?${mode}`); await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   await page.evaluate(() => (window as unknown as Harness).mountCard());
   await expect.poll(() => grants.length).toBe(4);
   if (mode === "canonical") await expect.poll(() => statuses.length).toBe(4);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import CreatorDragLab from "@/components/creator/CreatorDragLab";
+import { stepMediaAuthoringEnabled } from "@/lib/stepMediaRollout";
 import { creatorBoard, sessionBoardDTO } from "@/components/creator/cardArchitectureAdapter";
 import { CardRepository } from "@/lib/cards/repository";
 import { creatorSessionDTO } from "@/lib/cards/creatorSession";
@@ -68,6 +69,7 @@ export default async function CreatorEditPage({ params, searchParams }: CreatorE
     <CreatorDragLab
       key={`${user.id}:${deckTemplateId}`}
       canPreviewOutput={canPreviewOutput}
+      multimediaEnabled={stepMediaAuthoringEnabled()}
       creatorReturnTarget={creatorReturnTarget}
       navigation={navigation}
       initialBoard={creatorBoard(sessionBoardDTO(templateDocument))}

@@ -121,6 +121,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     const pendingPositionRef = useRef<{ position: number; assigned: boolean } | null>(null);
     const removeReadinessListenersRef = useRef<(() => void) | null>(null);
     const [displayableAssetId, setDisplayableAssetId] = useState<string | null>(null);
+    const renderableAssetIdRef = useRef<string | null>(null);
     const internalTransitionRef = useRef<InternalTransition | null>(null);
     const [isPlayable, setIsPlayable] = useState(false);
     const [hasFailed, setHasFailed] = useState(false);
@@ -168,6 +169,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     }, []);
 
     const markRenderable = useCallback((assetId: string) => {
+      renderableAssetIdRef.current = assetId;
       setIsPlayable(true);
       setIsProcessing(false);
       setDisplayableAssetId(assetId);
@@ -176,6 +178,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
     }, [onMediaDisplayStateChange]);
 
     const markFailed = useCallback((assetId: string) => {
+      renderableAssetIdRef.current = null;
       sourceGenerationRef.current += 1;
       removeReadinessListenersRef.current?.();
       activeAssetIdRef.current = null;
@@ -253,7 +256,9 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       const operationId = operationIdRef.current + 1;
 
       if (isSameSource) {
-        setIsProcessing(false);
+        // A prop reconciliation can follow explicit selection before decoding.
+        // Only an already presented source can finish this loading status.
+        if (renderableAssetIdRef.current === nextMediaItem.assetId) setIsProcessing(false);
         if (options?.startAt !== undefined && Number.isFinite(options.startAt)) {
           pendingPositionRef.current = { position: Math.max(0, options.startAt), assigned: false };
           restorePosition(video);
@@ -270,6 +275,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       }
 
       operationIdRef.current = operationId;
+      renderableAssetIdRef.current = null;
       const sourceGeneration = ++sourceGenerationRef.current;
       const requestedPosition = options?.startAt && Number.isFinite(options.startAt) && options.startAt > 0 ? options.startAt : 0;
       pendingPositionRef.current = requestedPosition > 0 ? { position: requestedPosition, assigned: false } : null;
@@ -406,6 +412,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         destroyHls();
         activeAssetIdRef.current = null;
         activeManifestUrlRef.current = null;
+        renderableAssetIdRef.current = null;
         setDisplayableAssetId(null);
         setIsPlayable(false);
         const video = videoRef.current;
@@ -499,6 +506,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
       removeReadinessListenersRef.current?.();
       activeAssetIdRef.current = null;
       activeManifestUrlRef.current = null;
+      renderableAssetIdRef.current = null;
       setDisplayableAssetId(null);
       if (video) video.style.visibility = "hidden";
       setIsPlayable(false);
