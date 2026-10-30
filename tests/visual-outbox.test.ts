@@ -1,12 +1,20 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { acknowledgeVisualBatch, enqueueVisualChange, freezeVisualBatch, hasPendingVisualWork, initialVisualOutbox, type VisualSession } from "../src/lib/visualLearningRecords/outbox";
+import { acknowledgeVisualBatch, enqueueVisualChange, freezeVisualBatch, hasPendingVisualWork, initialVisualOutbox, newAttemptOutbox, type VisualSession } from "../src/lib/visualLearningRecords/outbox";
 import { createRootsHostedState, reduceRootsHostedState, rootsSnapshot } from "../src/app/step-visuals/activities/roots-factors/hostState";
 
 const session = (): VisualSession => ({ learner: "account:one", recordId: randomUUID(), activityId: "roots-and-factors", activeAttemptId: randomUUID(),
   attemptId: randomUUID(), attemptNumber: 1, stateRevision: 0, activityVersion: 1, snapshotSchema: 1, snapshot: null, visitId: randomUUID() });
 const date = "2026-10-30T12:00:00.000Z";
+test("future attempt allocation follows the merged record without renumbering historical snapshots and supports old stored sessions", () => {
+  const opened = { ...session(), nextAttemptNumber: 9 }, old = initialVisualOutbox(opened, randomUUID());
+  const ids = () => ({ attemptId: randomUUID(), commandId: randomUUID(), writerId: randomUUID(), visitId: randomUUID() });
+  const next = newAttemptOutbox(old, ids()), offlineNext = newAttemptOutbox(next, ids());
+  assert.equal(next.session.attemptNumber, 9); assert.equal(offlineNext.session.attemptNumber, 10); assert.equal(old.session.attemptNumber, 1);
+  assert.equal(newAttemptOutbox(initialVisualOutbox(session(), randomUUID()), ids()).session.attemptNumber, 2);
+  assert.throws(() => initialVisualOutbox({ ...opened, nextAttemptNumber: 1 }, randomUUID()), /INVALID_VISUAL_SESSION/);
+});
 test("strict effects deduplicate local events while newer state remains pending after an older acknowledgement", () => {
   const opened = session(), state = createRootsHostedState(opened.attemptId), snapshot = rootsSnapshot(state);
   let row = enqueueVisualChange(initialVisualOutbox(opened, randomUUID()), snapshot, state.recorded.records.events, randomUUID, date);

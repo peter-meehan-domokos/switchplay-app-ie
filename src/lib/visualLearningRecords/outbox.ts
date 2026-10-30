@@ -9,6 +9,7 @@ import { convertVisualSnapshot, findVisualMigration, type VisualVersionPolicy } 
 export type VisualSession = Readonly<{
   learner: string; recordId: string; activityId: string; activeAttemptId: string;
   attemptId: string; attemptNumber: number; stateRevision: number;
+  nextAttemptNumber?: number;
   activityVersion: number; snapshotSchema: number; snapshot: VisualSnapshot | null; visitId: string;
   release?: InteractiveVisualRelease; restoration?: VisualRestoration;
 }>;
@@ -28,6 +29,7 @@ export const visualOutboxKey = (learner: string, activityId: string) => `${learn
 export function initialVisualOutbox(session: VisualSession, writerId: string, source: VisualSource = { kind: "direct" }): VisualOutbox {
   assertUuid(session.recordId); assertUuid(session.attemptId); assertUuid(session.activeAttemptId); assertUuid(session.visitId); assertUuid(writerId);
   requireVisual(safeCount(session.attemptNumber) && session.attemptNumber > 0 && safeCount(session.stateRevision), "INVALID_VISUAL_SESSION");
+  requireVisual(session.nextAttemptNumber === undefined || safeCount(session.nextAttemptNumber) && session.nextAttemptNumber > session.attemptNumber, "INVALID_VISUAL_SESSION");
   const release = getInteractiveVisual(session.activityId);
   requireVisual(release && (!session.release || release.id === session.release.id && release.activityVersion === session.release.activityVersion && release.snapshotSchema === session.release.snapshotSchema), "VISUAL_RELEASE_MISMATCH");
   const recovering = session.restoration && session.restoration.status !== "ready";
@@ -63,9 +65,10 @@ export function upgradeVisualOutbox(row: VisualOutbox, uuid: () => string, versi
 export function newAttemptOutbox(previous: VisualOutbox, ids: { attemptId: string; commandId: string; visitId: string; writerId: string }): VisualOutbox {
   requireVisual(!previous.conflict, "VISUAL_ACTIVE_ATTEMPT_CONFLICT");
   const release = getInteractiveVisual(previous.session.activityId); requireVisual(release, "VISUAL_UNAVAILABLE");
+  const allocated = previous.session.nextAttemptNumber ?? previous.session.attemptNumber + 1;
   const session: VisualSession = { ...previous.session, activityVersion: release.activityVersion, snapshotSchema: release.snapshotSchema, release,
     attemptId: ids.attemptId, activeAttemptId: ids.attemptId,
-    attemptNumber: previous.session.attemptNumber + 1, snapshot: null, stateRevision: 0, visitId: ids.visitId, restoration: { status: "ready" } };
+    attemptNumber: allocated, nextAttemptNumber: allocated + 1, snapshot: null, stateRevision: 0, visitId: ids.visitId, restoration: { status: "ready" } };
   const source = previous.source ?? { kind: "direct" as const };
   return { ...initialVisualOutbox(session, ids.writerId, source), visits: [{ visitId: ids.visitId, source }],
     command: { request: { commandId: ids.commandId, attemptId: ids.attemptId, expectedActiveAttemptId: previous.session.attemptId },

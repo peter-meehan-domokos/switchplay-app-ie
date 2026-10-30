@@ -38,7 +38,7 @@ export function visualSessionDto(actor: LearnerPrincipal, record: VisualRecord, 
   const release = resolveInteractiveVisual(record.activityId, { disabledIds });
   const restoration = inspectVisualRestoration(attempt, release);
   return { learner: principalKey(actor), recordId: record.recordId, activityId: record.activityId, activeAttemptId: record.activeAttemptId,
-    attemptId: attempt.attemptId, attemptNumber: attempt.attemptNumber, stateRevision: attempt.stateRevision,
+    attemptId: attempt.attemptId, attemptNumber: attempt.attemptNumber, nextAttemptNumber: record.attemptCount + 1, stateRevision: attempt.stateRevision,
     activityVersion: attempt.activityVersion, snapshotSchema: attempt.snapshotSchema, snapshot: restoration.status === "ready" ? attempt.snapshot : null,
     ...(visitId ? { visitId } : {}), release, restoration };
 }

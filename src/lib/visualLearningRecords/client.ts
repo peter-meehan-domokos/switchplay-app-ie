@@ -93,7 +93,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
             requireVisual(session.learner === options.learner && session.attemptId === attemptId && session.attemptNumber === row.session.attemptNumber, "VISUAL_SESSION_CONFLICT");
             row = await store.update(key, latest => {
               requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT");
-              return { ...latest, command: undefined, conflict: session.activeAttemptId !== attemptId };
+              return { ...latest, session: { ...latest.session, nextAttemptNumber: session.nextAttemptNumber ?? latest.session.nextAttemptNumber }, command: undefined, conflict: session.activeAttemptId !== attemptId };
             });
             if (row.conflict) conflicts.add(attemptId);
             notify(row); continue;
@@ -105,7 +105,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
             row = await store.update(key, latest => {
               requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT");
               return session.attemptId === attemptId ? { ...latest, visits: latest.visits.filter(v => v.visitId !== visit.visitId),
-                session: { ...latest.session, restoration: session.restoration, release: session.release } } : { ...latest, conflict: true };
+                session: { ...latest.session, nextAttemptNumber: session.nextAttemptNumber ?? latest.session.nextAttemptNumber, restoration: session.restoration, release: session.release } } : { ...latest, conflict: true };
             });
             if (row.conflict) conflicts.add(attemptId);
             errors.delete(attemptId); failures.delete(attemptId); retryAt.delete(attemptId); notify(row); continue;
@@ -205,7 +205,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
                 ? { ...incoming, generation: previous.generation + 1, savedGeneration: previous.generation + 1 } : incoming;
           }
           if (previous.session.attemptId !== session.attemptId) return { ...previous, conflict: true };
-          return { ...previous, source, session: { ...previous.session, visitId: session.visitId, restoration: session.restoration, release: session.release } };
+          return { ...previous, source, session: { ...previous.session, nextAttemptNumber: session.nextAttemptNumber ?? previous.session.nextAttemptNumber, visitId: session.visitId, restoration: session.restoration, release: session.release } };
         });
         await store.opening(key, null);
       } catch (error) {

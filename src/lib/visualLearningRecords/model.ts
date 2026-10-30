@@ -7,7 +7,20 @@ export type VisualSource = VisualOrigin & Readonly<{ frameworkId?: string; journ
 export type VisualRecord = {
   recordId: string; principalKey: string; activityId: string; activeAttemptId: string;
   revision: number; attemptCount: number; createdAt: Date; updatedAt: Date;
+  claimedFromGuestId?: string;
+  /** Retained audit root only. Never a redirect or executable record. */
+  claimArchive?: { claimId: string; accountId: string; accountRecordId: string };
 };
+export type VisualClaimRequest = Readonly<{ claimId: string; foregroundAttemptId: string }>;
+export type VisualClaimMapping = Readonly<{
+  activityId: string; guestRecordId: string; recordId: string; guestActiveAttemptId: string;
+  activeAttemptId: string; nextAttemptNumber: number;
+}>;
+export type VisualGuestClaim = {
+  claimId: string; guestId: string; accountId: string; foregroundAttemptId: string;
+  recordIds: string[]; mappings: VisualClaimMapping[]; createdAt: Date; completedAt?: Date;
+};
+export type VisualClaimReceipt = Readonly<{ claimId: string; learner: string; guestLearner: string; foregroundAttemptId: string; mappings: readonly VisualClaimMapping[] }>;
 export type VisualAttempt = {
   attemptId: string; recordId: string; activityId: string; attemptNumber: number;
   startedRelease: number; activityVersion: number; snapshotSchema: number;

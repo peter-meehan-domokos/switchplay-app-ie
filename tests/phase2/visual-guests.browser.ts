@@ -21,6 +21,7 @@ async function identity(page: Page) {
 
 test("anonymous browser uses the common DB and IndexedDB pipeline through offline reload, reconnect and a later account cookie", async ({ page }) => {
   const userCount = await db().collection("users").countDocuments(); let offline = false;
+  const accountRecordsBefore = await db().collection("visualRecords").find({ principalKey: `account:${process.env.PHASE2_USER_ID}` }).sort({ recordId: 1 }).toArray();
   await page.route("**/api/visual-attempts/*/batches", route => offline ? route.abort("internetdisconnected") : route.continue());
   let host = await open(page); await expect(status(page)).toHaveText("Saved");
   const { learner, cookie, guestId } = await identity(page);
@@ -40,7 +41,7 @@ test("anonymous browser uses the common DB and IndexedDB pipeline through offlin
   expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).ok()).toBe(true);
   await host.getByRole("slider").focus(); await page.keyboard.press("ArrowLeft"); await expect(status(page)).toHaveText("Saved");
   expect((await db().collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
-  expect(await db().collection("visualRecords").countDocuments({ principalKey: `account:${process.env.PHASE2_USER_ID}` })).toBe(0);
+  expect(await db().collection("visualRecords").find({ principalKey: `account:${process.env.PHASE2_USER_ID}` }).sort({ recordId: 1 }).toArray()).toEqual(accountRecordsBefore);
   expect(await db().collection("users").countDocuments()).toBe(userCount);
   const visit = (await db().collection("visualVisits").findOne({ attemptId: record.activeAttemptId }))!;
   expect(visit.principalKindAtAccess).toBe("guest"); expect(visit.source).toEqual({ kind: "direct" });

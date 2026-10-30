@@ -172,8 +172,11 @@ export class VisualLearningRecordRepository {
     assertUuid(recordId); assertNewVisualAttempt(command); const commandHash = hash(command);
     return this.transaction(async session => {
       const record = await this.ownedRecord(actor, recordId, session); this.release(record.activityId);
-      const previous = await this.attempts().findOne({ recordId, "command.id": command.commandId }, { session });
+      // Claim can combine independently scoped historical command IDs. The
+      // immutable attempt ID disambiguates an exact old command retry.
+      const previous = await this.attempts().findOne({ recordId, attemptId: command.attemptId, "command.id": command.commandId }, { session });
       if (previous) { requireVisual(previous.command?.hash === commandHash, "VISUAL_COMMAND_ID_CONFLICT"); return previous; }
+      requireVisual(!(await this.attempts().findOne({ recordId, "command.id": command.commandId }, { session })), "VISUAL_COMMAND_ID_CONFLICT");
       requireVisual(record.activeAttemptId === command.expectedActiveAttemptId, "VISUAL_ACTIVE_ATTEMPT_CONFLICT");
       requireVisual(!(await this.attempts().findOne({ attemptId: command.attemptId }, { session })), "VISUAL_ATTEMPT_ID_CONFLICT");
       const now = new Date(), attempt = this.attempt({ ...record, attemptCount: record.attemptCount + 1 }, command.attemptId, now,

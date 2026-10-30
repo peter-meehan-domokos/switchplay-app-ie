@@ -4,6 +4,7 @@ import { requireVisual } from "./contracts";
 import type { LearnerPrincipal } from "./model";
 
 export const VISUAL_GUEST_COLLECTION = "visualGuests";
+export const VISUAL_GUEST_CLAIMS_COLLECTION = "visualGuestClaims";
 export const VISUAL_GUEST_DURATION_SECONDS = 90 * 24 * 60 * 60;
 export const VISUAL_GUEST_INDEXES = [
   { collection: VISUAL_GUEST_COLLECTION, key: { guestId: 1 }, name: "visual_guest_id", unique: true },
@@ -11,10 +12,14 @@ export const VISUAL_GUEST_INDEXES = [
   // No TTL: deleting only the credential would orphan attempts/history. Retention
   // needs the separately reviewed coordinated traversal and claim protection.
   { collection: VISUAL_GUEST_COLLECTION, key: { status: 1, expiresAt: 1 }, name: "visual_guest_retention", unique: false },
+  { collection: VISUAL_GUEST_CLAIMS_COLLECTION, key: { claimId: 1 }, name: "visual_guest_claim_id", unique: true },
+  { collection: VISUAL_GUEST_CLAIMS_COLLECTION, key: { guestId: 1 }, name: "visual_guest_claim_guest", unique: true },
+  { collection: VISUAL_GUEST_CLAIMS_COLLECTION, key: { accountId: 1, createdAt: 1 }, name: "visual_guest_claim_account", unique: false },
 ] as const;
 export type VisualGuest = {
   guestId: string; credentialHash: string; status: "active" | "claiming" | "claimed";
   createdAt: Date; lastActiveAt: Date; expiresAt: Date; useCount: number;
+  claimId?: string; claimedBy?: string;
 };
 const credentialPattern = /^([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})\.([A-Za-z0-9_-]{43})$/;
 export function parseVisualGuestCredential(value: string | undefined) {
