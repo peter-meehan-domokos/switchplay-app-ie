@@ -11,6 +11,15 @@ before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count:
 after(async () => { await client?.close(); await mongo?.stop(); });
 const member = (kind: "remove-follower" | "add-follower", expectedStructureRevision: number, operationId: string = kind, targetUserId = "bob") =>
   ({ kind, expectedStructureRevision, operationId, targetUserId });
+test("all-skipped historical learning has no eligible completion and retains independent confidence", async () => {
+  const f = await groupFixture(client, { cardCount: 1 });
+  for (const step of ["a0", "b0", "c0"]) await f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", completion(step, "skipped"));
+  await f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", signal("a0", 8));
+  await f.repo.changeMember("alice", f.experienceId, member("remove-follower", 0));
+  const snapshot = await f.repo.snapshot("alice", f.experienceId, "bob");
+  assert.deepEqual(snapshot.metrics, { completion: null, confidence: 8 });
+  assert.ok(snapshot.learning[0].items.every(item => item.completionStatus === "skipped"));
+});
 function gateBeforeFence(t: TestContext, repo: GroupExperienceRepository) {
   let release!: () => void, reached!: () => void, once = true, calls = 0;
   const held = new Promise<void>(resolve => { release = resolve; }), ready = new Promise<void>(resolve => { reached = resolve; });
@@ -92,7 +101,7 @@ test("removal freezes only permitted learning, revokes fresh access and preserve
   assert.deepEqual(Object.keys(rows[0]).sort(), ["_id", "cardTemplateId", "experienceId", "generation", "items", "signalReadings", "snapshotAt", "userId", "version"]);
   await assert.rejects(f.repo.get("bob", f.experienceId), { code: "GROUP_FORBIDDEN" });
   await assert.rejects(f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", completion("a0")), { code: "GROUP_FORBIDDEN" });
-  assert.equal((await f.repo.list("bob")).entries.length, 0); assert.equal((await f.repo.summary("alice", f.experienceId)).followers.total, 1);
+  assert.equal((await f.repo.list("bob")).entries.length, 0); assert.equal((await f.repo.summary("alice", f.experienceId)).followers.activeTotal, 1);
   await f.cards.setCompletion("bob", f.deckId, f.ids[0], "a0", "todo"); await f.cards.setReflection("bob", f.deckId, f.ids[0], "Later private reflection");
   t.mock.method(f.cards, "getPersonalUser", () => { throw Error("Former inspection must not read live personal state"); });
   assert.deepEqual(await f.repo.snapshot("alice", f.experienceId, "bob"), snapshot);
@@ -126,7 +135,7 @@ test("former views distinguish new Steps and Cards from unavailable history; rej
 test("follower removal retains independent admin grants until the admin role is also removed", async () => {
   const f = await groupFixture(client, { admins: ["bob"] });
   await f.repo.changeMember("alice", f.experienceId, member("remove-follower", 0));
-  assert.equal((await f.repo.get("bob", f.experienceId)).isAdmin, true); assert.equal((await f.repo.summary("bob", f.experienceId)).followers.total, 1);
+  assert.equal((await f.repo.get("bob", f.experienceId)).isAdmin, true); assert.equal((await f.repo.summary("bob", f.experienceId)).followers.activeTotal, 1);
   await f.repo.writeLearning("bob", f.experienceId, f.ids[0], "group", completion("a0", "done", 1));
   await assert.rejects(f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", completion("a0", "done", 1)), { code: "GROUP_FORBIDDEN" });
   await f.repo.changeMember("alice", f.experienceId, { kind: "set-admin", isAdmin: false, targetUserId: "bob", operationId: "demote", expectedStructureRevision: 1 });

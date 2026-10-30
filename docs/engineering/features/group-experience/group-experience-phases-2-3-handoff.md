@@ -4,6 +4,8 @@
 
 The authority for this work is the subsequent **Implement Group Experiences Phases 2 and 3** commission. The earlier Phase 1-only amendment and its handoff describe the previous delivery boundary. The approved [engineering plan](group-experience-engineering-plan.md) remains the architecture and later-phase specification.
 
+> **30 October 2026 supersession:** Phase 4 corrects the historical all-skipped/rounded-100 follower classification documented below. Earlier passing tests describe the former implementation; the current contract excludes skipped progress observations and uses exact statuses. Personal percentage presentation and stored snapshot values are preserved.
+
 ## 1. Commit history and scope
 
 | Delivery | Commit | Subject |

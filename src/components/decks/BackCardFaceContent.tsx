@@ -31,6 +31,7 @@ const signalFieldMovementRatio = SIGNAL_FIELD_WIDTH / SIGNAL_FIELD_VIEWBOX_WIDTH
 type SignalGestureIntent = "pending" | "signal" | "vertical" | "cancelled";
 
 type SignalDragSession = {
+  sourceIdentity?: string;
   pointerId: number;
   startPointerX: number;
   startPointerY: number;
@@ -100,6 +101,9 @@ function blockSignalBlockGesturePropagation(event: PointerEvent<HTMLElement>) {
 }
 
 type FocusedSignalRowProps = {
+  readOnly?: boolean;
+  interactionIdentity?: string;
+  heading?: import("react").ReactNode;
   cardId: string;
   signal: CardLayout["signals"][number];
   onCommitSignalReading: (cardId: string, signalId: string, reading: number) => void;
@@ -107,13 +111,13 @@ type FocusedSignalRowProps = {
   onSignalNavigatePrevious?: () => void;
 };
 
-function PassiveSignalRow({ signal }: { signal: CardLayout["signals"][number] }) {
+export function PassiveSignalRow({ signal, heading }: { signal: CardLayout["signals"][number]; heading?: import("react").ReactNode }) {
   const displayedReading = signal.reading === null ? null : snapReadingToInteger(signal.reading);
   const displayedReadingLabel = displayedReading === null ? "" : formatDisplayedSignalReading(signal, displayedReading);
 
   return (
     <div className="focused-card-signal-slot">
-      <p>{signal.title}</p>
+      <p>{heading ?? signal.title}</p>
       <div
         className="focused-card-signal-track"
         style={{ "--signal-value-position": getSignalValuePositionPercent(signal.value) } as CSSProperties}
@@ -146,6 +150,9 @@ export function getFocusedSignalDisplayState(
 }
 
 export function FocusedSignalRow({
+  readOnly = false,
+  interactionIdentity,
+  heading,
   cardId,
   signal,
   onCommitSignalReading,
@@ -154,12 +161,13 @@ export function FocusedSignalRow({
 }: FocusedSignalRowProps) {
   const [isValueVisible, setIsValueVisible] = useState(false);
   const [previewNormalized, setPreviewNormalized] = useState<number | null>(null);
-  const [previewSource, setPreviewSource] = useState({ id: signal.id, value: signal.value });
+  const [previewSource, setPreviewSource] = useState({ id: signal.id, value: signal.value, interactionIdentity, readOnly });
   // Reset only gesture-local preview when its canonical signal changes, before
   // rendering children. Keep the value-visibility timer's existing behaviour.
-  if (previewSource.id !== signal.id || previewSource.value !== signal.value) {
-    setPreviewSource({ id: signal.id, value: signal.value });
+  if (previewSource.id !== signal.id || previewSource.value !== signal.value || previewSource.interactionIdentity !== interactionIdentity || previewSource.readOnly !== readOnly) {
+    setPreviewSource({ id: signal.id, value: signal.value, interactionIdentity, readOnly });
     setPreviewNormalized(null);
+    if (previewSource.interactionIdentity !== interactionIdentity || previewSource.readOnly !== readOnly) setIsValueVisible(false);
   }
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragSessionRef = useRef<SignalDragSession | null>(null);
@@ -205,7 +213,7 @@ export function FocusedSignalRow({
 
   useEffect(() => {
     dragSessionRef.current = null;
-  }, [signal.id, signal.value]);
+  }, [signal.id, signal.value, interactionIdentity, readOnly]);
 
   useEffect(() => {
     return () => {
@@ -265,6 +273,7 @@ export function FocusedSignalRow({
     }
 
     dragSessionRef.current = {
+      sourceIdentity: interactionIdentity,
       pointerId: event.pointerId,
       startPointerX: event.clientX,
       startPointerY: event.clientY,
@@ -284,6 +293,7 @@ export function FocusedSignalRow({
     if (!session || session.pointerId !== event.pointerId) {
       return;
     }
+    if (session.sourceIdentity !== interactionIdentity) { releaseDragSession(); hideValueNow(); return; }
 
     const deltaX = event.clientX - session.startPointerX;
     const deltaY = event.clientY - session.startPointerY;
@@ -347,6 +357,7 @@ export function FocusedSignalRow({
     if (!session || session.pointerId !== event.pointerId) {
       return;
     }
+    if (session.sourceIdentity !== interactionIdentity) { releaseDragSession(); hideValueNow(); return; }
 
     event.currentTarget.releasePointerCapture?.(event.pointerId);
 
@@ -437,7 +448,7 @@ export function FocusedSignalRow({
   };
 
   const signalRowClassName = "focused-card-signal-slot";
-  const signalValueClassName = [
+  const signalValueClassName = readOnly ? "focused-card-signal-value" : [
     "focused-card-signal-value",
     isValueVisible || isUnset ? "focused-card-signal-value--visible" : "focused-card-signal-value--hidden",
     isUnset ? "focused-card-signal-value--unset" : "",
@@ -446,25 +457,25 @@ export function FocusedSignalRow({
   return (
     <div
       className={signalRowClassName}
-      role="button"
-      tabIndex={0}
-      aria-label={`Adjust ${signal.title} reading`}
-      onPointerDown={handleRowPointerDown}
-      onPointerMove={handleRowPointerMove}
-      onPointerUp={finishRowPointerInteraction}
-      onPointerCancel={handleRowPointerCancel}
-      onLostPointerCapture={handleLostPointerCapture}
-      onClick={handleRowClick}
-      onKeyDown={handleRowKeyDown}
+      role={readOnly ? undefined : "button"}
+      tabIndex={readOnly ? undefined : 0}
+      aria-label={readOnly ? undefined : `Adjust ${signal.title} reading`}
+      onPointerDown={readOnly ? undefined : handleRowPointerDown}
+      onPointerMove={readOnly ? undefined : handleRowPointerMove}
+      onPointerUp={readOnly ? undefined : finishRowPointerInteraction}
+      onPointerCancel={readOnly ? undefined : handleRowPointerCancel}
+      onLostPointerCapture={readOnly ? undefined : handleLostPointerCapture}
+      onClick={readOnly ? undefined : handleRowClick}
+      onKeyDown={readOnly ? undefined : handleRowKeyDown}
     >
-      <p>{signal.title}</p>
+      <p>{heading ?? signal.title}</p>
       <div
         ref={signalTrackRef}
         className="focused-card-signal-track"
         style={{ "--signal-value-position": getSignalValuePositionPercent(displayState.effectiveNormalized) } as CSSProperties}
       >
-        <span className={signalValueClassName} aria-hidden={!(isValueVisible || isUnset)}>
-          {displayedReadingLabel}
+        <span className={signalValueClassName} aria-hidden={readOnly || !(isValueVisible || isUnset)}>
+          {readOnly && isUnset ? "" : displayedReadingLabel}
         </span>
         <PulseFieldSignal value={displayState.effectiveNormalized} variant={signal.variant} className="focused-card-signal-trace" />
       </div>

@@ -27,9 +27,13 @@ test("20 by 12 summary and concurrent writes meet local repository budgets with 
     assert.equal(cards.length, 1); assert.equal(cards[0].signalReadings[0].reading, 10); assert.equal(cards[0].targetDate, null);
   }
   const summary = await f.repo.summary("alice", group.experienceId);
-  assert.equal(summary.followers.total, 20); assert.equal(summary.followers.confidence, 10);
+  assert.equal(summary.followers.activeTotal, 20); assert.equal(summary.followers.confidence, 10);
   const bytes = Buffer.byteLength(JSON.stringify(summary)); assert.ok(bytes <= 250_000);
-  const batch = await f.repo.perspectives("alice", group.experienceId, f.ids[0]); assert.ok(Buffer.byteLength(JSON.stringify(batch)) <= 100_000);
+  const batch = await f.repo.perspectives("alice", group.experienceId, f.ids[0]);
+  const activeCardBytes = Buffer.byteLength(JSON.stringify(batch)); assert.ok(activeCardBytes <= 100_000);
+  const transport = await Promise.all([f.repo.bootstrap("alice", group.experienceId), f.repo.perspectivePage("alice", group.experienceId), f.repo.cardAggregates("alice", group.experienceId)]);
+  const bootstrapBytes = transport.reduce((total, value) => total + Buffer.byteLength(JSON.stringify(value)), 0);
+  assert.ok(bootstrapBytes <= 250_000, `combined content/matrix/aggregates ${bootstrapBytes} bytes`);
   for (let i = 0; i < 5; i++) await f.repo.summary("alice", group.experienceId);
   const reads: number[] = []; for (let i = 0; i < 100; i++) { const start = performance.now(); await f.repo.summary("alice", group.experienceId); reads.push(performance.now() - start); }
   assert.ok(percentile(reads, .95) <= 300, `summary p95 ${percentile(reads, .95)}ms`);
@@ -37,7 +41,7 @@ test("20 by 12 summary and concurrent writes meet local repository budgets with 
   const explain = await f.repo.members().find({ experienceId: group.experienceId, followerStatus: "active" }).sort({ userId: 1 }).explain("queryPlanner");
   assert.ok(JSON.stringify(explain.queryPlanner.winningPlan).includes("group_roster"));
   console.log(JSON.stringify({ fixture: "20 followers, 3 admins, 12 Cards", node: process.version, platform: platform(), architecture: arch(), cpu: cpus()[0]?.model,
-    warmupReads: 5, sampleReads: reads.length, summaryBytes: bytes, summaryP95Ms: percentile(reads, .95), writes: times.length,
+    warmupReads: 5, sampleReads: reads.length, summaryBytes: bytes, bootstrapBytes, activeCardBytes, summaryP95Ms: percentile(reads, .95), writes: times.length,
     writeP95Ms: percentile(times, .95), transactionMaxAttempts: Math.max(...attempts), retriedTransactions: attempts.filter(n => n > 1).length }));
 });
 test("40 by 24 supports a second roster/perspective page without a product membership cap", async () => {
@@ -47,5 +51,11 @@ test("40 by 24 supports a second roster/perspective page without a product membe
   const group = await f.repo.create("alice", { ...f.command, operationId: "paging", followerIds: followers });
   const first = await f.repo.perspectives("alice", group.experienceId, f.ids[0]), second = await f.repo.perspectives("alice", group.experienceId, f.ids[0], first.nextCursor!);
   assert.equal(first.followers.length, 30); assert.equal(second.followers.length, 10); assert.equal(second.nextCursor, null);
-  const summary = await f.repo.summary("alice", group.experienceId); assert.equal(summary.cards.length, 24); assert.equal(summary.followers.total, 40);
+  const summary = await f.repo.summary("alice", group.experienceId); assert.equal(summary.cards.length, 24); assert.equal(summary.followers.activeTotal, 40);
+  const content = await f.repo.bootstrap("alice", group.experienceId), contentTail = await f.repo.bootstrap("alice", group.experienceId, content.nextCardOffset!);
+  const matrix = await f.repo.perspectivePage("alice", group.experienceId), matrixTail = await f.repo.perspectivePage("alice", group.experienceId, matrix.nextCursor!);
+  const lastCards = await f.repo.perspectivePage("alice", group.experienceId, undefined, undefined, content.nextCardOffset!);
+  assert.equal(content.deck.cards.length, 20); assert.equal(contentTail.deck.cards.length, 4); assert.equal(contentTail.nextCardOffset, null);
+  assert.equal(matrix.followers.length, 30); assert.equal(matrixTail.followers.length, 10); assert.equal(matrixTail.nextCursor, null);
+  assert.equal(matrix.followers[0].learning.length, 20); assert.equal(lastCards.followers[0].learning.length, 4);
 });

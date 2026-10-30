@@ -1,5 +1,7 @@
 "use client";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
+import { classifyProgress } from "@/lib/progress";
+import PerspectiveExchange from "@/components/group-experiences/PerspectiveExchange";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -7,7 +9,7 @@ import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import CardStack, { type CardTransitionPhase } from "./CardStack";
 import { getPlayableDeckIntroductionVideo } from "./deckIntroPreview";
 import FocusedCardView, { type FocusedCardViewProps, type FocusedTraversalDirection } from "./FocusedCardView";
-import { deckPresentationIdentity, hasPersonalDeck, type PresentedDeck, type PresentedCard, type CardBackPresentation } from "./presentation";
+import { deckPresentationIdentity, hasPersonalDeck, isExperienceDeck, type PresentedDeck, type PresentedCard, type CardBackPresentation } from "./presentation";
 import { DECK_GESTURE_THRESHOLDS } from "./gestures/gestureThresholds";
 import { useDeckGestures } from "./gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "./gestures/gestureTypes";
@@ -42,6 +44,7 @@ export type DeckSceneProps = {
   cardActions?: (card: PresentedCard) => ReactNode;
   onActiveCardChange?: (previous: number, next: number, rollback: (index: number) => void) => void;
   renderFocusedCard?: (props: FocusedCardViewProps) => ReactNode;
+  onFocusChange?: (focused: boolean) => void;
 };
 
 function FocusedCardSlot({ render, props }: { render: NonNullable<DeckSceneProps["renderFocusedCard"]>; props: FocusedCardViewProps }) {
@@ -155,7 +158,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, initiallyFocused = false, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay }: DeckSceneProps) {
+export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, initiallyFocused = false, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay, onFocusChange }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -202,7 +205,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
     }
   }, [activeCardTemplateId, deck.deckTemplateId, templateIdLogContext]);
 
-  const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id), hasPersonalDeck(deck) ? null : initialCardTemplateId]);
+  const compositionKey = JSON.stringify([hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version, cards.map((card) => card.id), hasPersonalDeck(deck) || isExperienceDeck(deck) ? null : initialCardTemplateId]);
   const [confirmedEntry, setConfirmedEntry] = useState(entrySelection?.revision);
   const [selectedComposition, setSelectedComposition] = useState(compositionKey);
   const entryChanged = confirmedEntry !== entrySelection?.revision;
@@ -318,10 +321,12 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
     }
     commitActiveCardIndex(cardIndex);
     setIsFocusModeOpen(true);
+    onFocusChange?.(true);
   };
 
   const closeFocusMode = () => {
     setIsFocusModeOpen(false);
+    onFocusChange?.(false);
   };
 
   const openDeckIntroViewer = () => {
@@ -448,7 +453,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
 
       <motion.div className="detail-heading" layout>
         <div className="detail-progress-row">
-          {hasPersonalDeck(optimisticDeck) && optimisticDeck.progressPercentage !== null ? <p className="detail-progress">{Math.round(optimisticDeck.progressPercentage) === 100 ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p> : <p className="detail-progress personal-layout-slot" aria-hidden="true" />}
+          {hasPersonalDeck(optimisticDeck) && optimisticDeck.progressPercentage !== null ? <p className="detail-progress">{classifyProgress(optimisticDeck.cards.flatMap(card => card.steps)).isComplete ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p> : <p className="detail-progress personal-layout-slot" aria-hidden="true" />}
           {hasPersonalDeck(optimisticDeck) && optimisticDeck.confidenceScore !== null && (
             <p className="detail-confidence">Confidence {optimisticDeck.confidenceScore}</p>
           )}
@@ -475,7 +480,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
         style={deckSceneLayout.frameHeight === null ? undefined : { height: deckSceneLayout.frameHeight }}
       >
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
-          <CardStack
+          <PerspectiveExchange kind="deck" disabled={isFocusModeOpen} identity={isExperienceDeck(deck) ? deck.cards[0]?.dataIdentity : undefined}><CardStack
             renderBackFace={renderCardBackFace}
             renderAssessment={cardAssessment}
             renderFrontAction={cardFrontAction}
@@ -492,7 +497,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
             activeGesturePreviewY={activeGesturePreviewY}
             suppressActiveCardActivation={suppressActiveCardActivation}
             transition={transition}
-          />
+          /></PerspectiveExchange>
         </div>
       </div> : null}
 

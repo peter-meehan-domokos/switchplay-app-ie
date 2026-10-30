@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { memo, useId, useMemo } from "react";
 
 export type PulseFieldSignalVariant = "recovery" | "movement" | "load";
 
@@ -98,7 +98,7 @@ const fieldCharacters = {
   },
 } satisfies Record<PulseFieldSignalVariant, Record<string, number>>;
 
-export default function PulseFieldSignal({ value, variant = "movement", className }: PulseFieldSignalProps) {
+function PulseFieldSignal({ value, variant = "movement", className }: PulseFieldSignalProps) {
   const character = fieldCharacters[variant];
   const id = useId().replace(/:/g, "");
   const clampedValue = clamp(value, 0, 1);
@@ -124,15 +124,10 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
   const fieldBlurId = `${id}-field-blur`;
   const pulseBlurId = `${id}-pulse-blur`;
 
-  return (
-    <svg
-      className={className}
-      viewBox={`0 0 ${SIGNAL_FIELD_VIEWBOX_WIDTH} 28`}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={`Signal field ${Math.round(clampedValue * 100)} percent`}
-      focusable="false"
-    >
+  // These gradients/masks/filters depend on this physical SVG's IDs, not its
+  // reading. Reuse their elements when comparing values instead of rebuilding
+  // the entire definition tree (especially costly in React development mode).
+  const definitions = useMemo(() => (
       <defs>
         <linearGradient id={endFadeId} x1="0" x2="1" y1="0" y2="0">
           <stop offset="0%" stopColor="black" />
@@ -169,6 +164,18 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
           <feGaussianBlur stdDeviation="6.8" />
         </filter>
       </defs>
+  ), [endFadeId, directionId, wakeId, verticalFadeId, fieldMaskId, fieldBlurId, pulseBlurId]);
+
+  return (
+    <svg
+      className={className}
+      viewBox={`0 0 ${SIGNAL_FIELD_VIEWBOX_WIDTH} 28`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`Signal field ${Math.round(clampedValue * 100)} percent`}
+      focusable="false"
+    >
+      {definitions}
       <g mask={`url(#${fieldMaskId})`}>
         <rect x="6" y="2.5" width="228" height="23" fill={`url(#${verticalFadeId})`} opacity={character.verticalOpacity} />
         <ellipse
@@ -241,3 +248,7 @@ export default function PulseFieldSignal({ value, variant = "movement", classNam
     </svg>
   );
 }
+
+// Perspective comparisons often change identity/counts while this trace's value
+// stays identical. Preserve its SVG/filter subtree rather than rediffing it.
+export default memo(PulseFieldSignal);

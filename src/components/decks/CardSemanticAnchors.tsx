@@ -1,6 +1,8 @@
 import { getConfidenceScore } from "@/lib/signals";
 import type { SyntheticEvent } from "react";
-import { hasPersonalCard, type PresentedCard } from "./presentation";
+import { hasPersonalCard, isExperienceCard, type PresentedCard } from "./presentation";
+import ConfidencePair from "@/components/group-experiences/ConfidencePair";
+import { dateOnlyToUtcDate } from "@/lib/dateOnly";
 
 type CardSemanticAnchorsProps = {
   assessment?: import("react").ReactNode;
@@ -22,8 +24,11 @@ export default function CardSemanticAnchors({
   onAdjustTargetDate,
 }: CardSemanticAnchorsProps) {
   const personal = hasPersonalCard(card);
-  const confidence = personal ? getConfidenceScore(card.signals.map((signal) => signal.rawReading)) : null;
-  const progressPercentage = showProgress && personal ? card.progressPercentage : null;
+  const experience = isExperienceCard(card);
+  const confidence = personal ? getConfidenceScore(card.signals.map((signal) => signal.rawReading)) : experience ? card.confidence : null;
+  const progressPercentage = showProgress ? personal ? card.progressPercentage : experience ? card.completion : null : null;
+  const hasDate = personal || experience && card.ownerDate != null;
+  const shownDate = experience && card.ownerDate ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(dateOnlyToUtcDate(card.ownerDate)) : dateLabel;
   const surfaceVariant = variant === "back" ? "back" : "front";
   const isTargetDateInteractive = personal && variant === "focused" && typeof onAdjustTargetDate === "function";
 
@@ -45,10 +50,13 @@ export default function CardSemanticAnchors({
           </div>
         ) : showProgress ? <div className="completion-strip personal-layout-slot" aria-hidden="true" /> : null}
       </div>
-      {showText && personal ? <span className="card-confidence" aria-label={confidence === null ? "Confidence not set" : `Confidence ${confidence} out of 10`}>{confidence}</span> : null}
+      {showText && (personal || experience) ? <span className="card-confidence">
+        {experience && card.aggregates ? <ConfidencePair group={confidence} follower={card.aggregates.followers.confidence} activeTotal={card.aggregates.followers.activeTotal} />
+          : <span aria-label={confidence === null ? "Confidence not set" : `Confidence ${confidence} out of 10`}>{confidence ?? (experience ? "—" : null)}</span>}
+      </span> : null}
       {showText ? (
-        <div className={`deck-card-date-shell${personal ? "" : " personal-date-slot"}`} aria-hidden={personal ? undefined : true}>
-          <p className="deck-card-date">{personal ? dateLabel : ""}</p>
+        <div className={`deck-card-date-shell${hasDate ? "" : " personal-date-slot"}`} aria-hidden={hasDate ? undefined : true}>
+          <p className="deck-card-date">{hasDate ? shownDate : ""}{experience && card.ownerDate ? <span className="group-private-mark" title="Private to you" aria-label="Private to you"> 🔒</span> : null}</p>
           {isTargetDateInteractive ? (
             <>
               <button

@@ -21,6 +21,7 @@
 /.next/
 /.next-phase2/
 /.next-phase2-test/
+/.next-phase2-optimized/
 /phase2-test-results/
 /out/
 

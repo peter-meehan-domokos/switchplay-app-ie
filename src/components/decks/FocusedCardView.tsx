@@ -9,7 +9,8 @@ import { useDeckVideoResource } from "@/components/media/DeckVideoPreparation";
 import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import ActiveCardFront from "@/components/cards/ActiveCardFront";
 import CardCreatorAttribution from "@/components/cards/CardCreatorAttribution";
-import { hasPersonalCard, cardPresentationIdentity, type PresentedCard } from "./presentation";
+import { hasPersonalCard, isExperienceCard, cardPresentationIdentity, type PresentedCard } from "./presentation";
+import PerspectiveExchange from "@/components/group-experiences/PerspectiveExchange";
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackIntent } from "@/components/media/CloudflareHlsVideoPlayer";
 import StepView, { type StepViewInfoCards, type StepViewItem } from "@/components/decks/StepView";
 import InfoCardConsultation, { type InfoCardConsultationCard } from "@/components/info-cards/InfoCardConsultation";
@@ -38,6 +39,8 @@ import {
 } from "@/constants/cardStack";
 
 export type FocusedCardViewProps = {
+  comparisonFraction?: number;
+  onFaceChange?: (rotationY: number) => void;
   personalDraftId?: string;
   onOpenMedia?: OpenCardMedia;
   mediaViewerOpen?: boolean;
@@ -170,13 +173,13 @@ function getViewportSize() {
   };
 }
 
-function getFocusedCardScale(viewportSize: { width: number; height: number } | null) {
+function getFocusedCardScale(viewportSize: { width: number; height: number } | null, comparisonFraction = 0) {
   if (!viewportSize) {
     return FALLBACK_FOCUSED_CARD_SCALE;
   }
 
   const availableWidth = Math.max(0, viewportSize.width - FOCUSED_CARD_HORIZONTAL_PADDING);
-  const availableHeight = Math.max(0, viewportSize.height - FOCUSED_CARD_VERTICAL_PADDING);
+  const availableHeight = Math.max(0, viewportSize.height * (1 - comparisonFraction) - FOCUSED_CARD_VERTICAL_PADDING);
   const heightConstrainedWidth = availableHeight / CARD_HEIGHT_RATIO;
   const fitVisualWidth = Math.min(
     FOCUSED_CARD_PREFERRED_VISUAL_WIDTH,
@@ -190,12 +193,12 @@ function getFocusedCardScale(viewportSize: { width: number; height: number } | n
   return focusedVisualWidth / FOCUSED_CARD_BASELINE_WIDTH;
 }
 
-function useFocusedCardScale() {
-  const [focusedCardScale, setFocusedCardScale] = useState(() => getFocusedCardScale(getViewportSize()));
+function useFocusedCardScale(comparisonFraction = 0) {
+  const [focusedCardScale, setFocusedCardScale] = useState(() => getFocusedCardScale(getViewportSize(), comparisonFraction));
 
   useEffect(() => {
     const updateFocusedCardScale = () => {
-      setFocusedCardScale(getFocusedCardScale(getViewportSize()));
+      setFocusedCardScale(getFocusedCardScale(getViewportSize(), comparisonFraction));
     };
 
     updateFocusedCardScale();
@@ -206,7 +209,7 @@ function useFocusedCardScale() {
       window.removeEventListener("resize", updateFocusedCardScale);
       window.visualViewport?.removeEventListener("resize", updateFocusedCardScale);
     };
-  }, []);
+  }, [comparisonFraction]);
 
   return focusedCardScale;
 }
@@ -226,6 +229,8 @@ export default function FocusedCardView({
   card,
   deckTemplateId,
   cardIndex,
+  comparisonFraction = 0,
+  onFaceChange,
   isDeckFlipped: requestedDeckFlip,
   totalCards,
   onClose,
@@ -308,7 +313,7 @@ export default function FocusedCardView({
   const stepViewStateRef = useRef<StepViewState | null>(null);
   const videoPlaybackIntentRef = useRef<VideoPlaybackIntent>("idle");
   const activeVideoAssetIdRef = useRef<string | null>(null);
-  const focusedCardScale = useFocusedCardScale();
+  const focusedCardScale = useFocusedCardScale(comparisonFraction);
   const deckSideFlipState: FocusedFlipState = {
     cardId: card.id,
     side: getDeckFlipSide(isDeckFlipped),
@@ -445,6 +450,8 @@ export default function FocusedCardView({
     }
 
     lockFocusedGestures(FOCUSED_FLIP_LOCK_MS);
+    const delta = commitment.direction === "right" || (!commitment.direction && vector.x > 0) ? 180 : -180;
+    onFaceChange?.(cardFlipState.rotationY + delta);
     setFlipState((currentFlipState) => {
       const currentCardFlipState =
         currentFlipState.cardId === card.id ? currentFlipState : deckSideFlipState;
@@ -802,7 +809,7 @@ export default function FocusedCardView({
       inert={consultationOpen}
       aria-hidden={consultationOpen || undefined}
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      animate={{ opacity: 1, paddingBottom: comparisonFraction ? `${comparisonFraction * 100}dvh` : "18px" }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
     >
@@ -821,7 +828,7 @@ export default function FocusedCardView({
           exit="exit"
           transition={focusedCardTransition}
         >
-          <motion.div
+          <PerspectiveExchange kind="focused" identity={isExperienceCard(card) ? card.dataIdentity : undefined}><motion.div
             className={`focused-card-object${isFlipped ? " is-flipped" : ""}`}
             {...focusedGestures.handlers}
             initial={false}
@@ -880,7 +887,7 @@ export default function FocusedCardView({
                 />
               ) : null}
             </AnimatePresence>
-          </motion.div>
+          </motion.div></PerspectiveExchange>
         </motion.article>
       </AnimatePresence>
       {isFlipped && onRequestAddComment ? (

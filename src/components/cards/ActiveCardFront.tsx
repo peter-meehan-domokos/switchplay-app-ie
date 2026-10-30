@@ -1,4 +1,4 @@
-import { hasPersonalCard, type PresentedCard } from "@/components/decks/presentation";
+import { hasPersonalCard, isExperienceCard, type PresentedCard } from "@/components/decks/presentation";
 import CardHeader from "@/components/cards/CardHeader";
 import IntroMediaBlock from "@/components/cards/IntroMediaBlock";
 import StepList from "@/components/cards/StepList";
@@ -45,9 +45,10 @@ export default function ActiveCardFront({
       {staticSelection && card.intro.description ? <p className="card-selection-description">{card.intro.description}</p> : null}
       <StepList
         steps={card.steps}
-        showPersonalProgress={!staticSelection && hasPersonalCard(card)}
+        showPersonalProgress={!staticSelection && (hasPersonalCard(card) || isExperienceCard(card))}
+        followerProgress={isExperienceCard(card) ? card.aggregates?.steps : undefined}
         linksEnabled={interactive}
-        onCycleStepStatus={interactive && hasPersonalCard(card) ? onCycleStepStatus : undefined}
+        onCycleStepStatus={interactive && (hasPersonalCard(card) || isExperienceCard(card) && card.canWriteLearning) ? onCycleStepStatus : undefined}
         onOpenStepView={interactive ? onOpenStepView : undefined}
         onStepNavigateNext={interactive ? onStepNavigateNext : undefined}
         onStepNavigatePrevious={interactive ? onStepNavigatePrevious : undefined}

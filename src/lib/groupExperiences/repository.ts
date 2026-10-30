@@ -16,6 +16,10 @@ import { personalLearningForUsers, userKey } from "./learningReads";
 import { aggregateLearning, entry, identity } from "./readModels";
 import { formerCardLearning, removalSnapshot, snapshotRemoval } from "./lifecycle";
 import { adoptGroupUpdate, reviewGroupUpdate } from "./adoption";
+import { canInspectPeers, assertSelection } from "./policy";
+import { restoredPerspective, saveNavigation, saveSettings } from "./navigation";
+import { activeIdentities } from "./identities";
+import { bootstrap, perspectivePage, cardAggregates, collectionTiles } from "./presentationReads";
 
 export class GroupExperienceRepository {
   constructor(readonly cards: CardRepository) {}
@@ -91,6 +95,8 @@ export class GroupExperienceRepository {
       const { experience, member } = await this.access(actor, experienceId, "member", session);
       const { deck, cards } = await selectedContent(this.cards, experience, session);
       return { ...entry(actor, experience, member), title: deck.content.title,
+        allowFollowerInspection: experience.allowFollowerInspection === true, canInspectFollowers: canInspectPeers(experience, member),
+        selection: await restoredPerspective(this, experience, member, session),
         cards: cards.map(card => ({ cardTemplateId: card.cardTemplateId, version: card.version, title: card.content.intro.title })) };
     });
   }
@@ -185,12 +191,14 @@ export class GroupExperienceRepository {
     requireCondition(perspective === "follower" ? subjectUserId !== undefined : subjectUserId === undefined, "INVALID_GROUP_SUBJECT");
     if (subjectUserId !== undefined) id(subjectUserId);
     return this.transaction(async session => {
-      const { experience, member } = await this.access(actor, experienceId, perspective === "follower" ? "admin" : perspective === "self" ? "follower" : "member", session);
+      const { experience, member } = await this.access(actor, experienceId, perspective === "self" ? "follower" : "member", session);
       const { cards } = await selectedContent(this.cards, experience, session), selected = cards.find(card => card.cardTemplateId === cardTemplateId);
       requireCondition(selected, "GROUP_CARD_FORBIDDEN");
       const subject = perspective === "self" ? actor : subjectUserId;
       const subjectMember = subject ? await this.members().findOne({ experienceId, userId: subject }, { session }) : null;
       const former = perspective === "follower" && subjectMember?.followerStatus === "removed";
+      if (former) requireCondition(member.isAdmin, "GROUP_SNAPSHOT_FORBIDDEN");
+      else assertSelection(experience, member, perspective === "follower" ? { perspective, subjectUserId: subject! } : { perspective }, subjectMember);
       if (subject && !former) authorize(subjectMember, "follower");
       const learning = former ? await formerCardLearning(this, subjectMember!, selected, session)
         : perspective === "group" ? (await this.groupLearning(experienceId, [selected], session))[0]
@@ -199,7 +207,7 @@ export class GroupExperienceRepository {
       const attribution = (await cardCreatorAttributions(this.cards, [root], session)).get(cardTemplateId)!;
       return { ...identity(actor, experience, member), perspective, subjectUserId: subject ?? null,
         content: cardContentPresentation(selected, `Card ${cards.indexOf(selected) + 1}`, attribution), learning,
-        capabilities: { canWriteLearning: perspective === "group" ? member.isAdmin : perspective === "self", canInspectFollowers: member.isAdmin } };
+        capabilities: { canWriteLearning: perspective === "group" ? member.isAdmin : perspective === "self", canInspectFollowers: canInspectPeers(experience, member) } };
     });
   }
   async summary(actor: string, experienceId: string) {
@@ -212,17 +220,16 @@ export class GroupExperienceRepository {
     });
   }
   async perspectives(actor: string, experienceId: string, cardTemplateId: string, after?: string, limit?: number) {
-    id(cardTemplateId); const paging = page(after, limit);
+    id(cardTemplateId); const paging = page(undefined, limit);
     return this.transaction(async session => {
-      const { experience, member } = await this.access(actor, experienceId, "admin", session);
+      const { experience, member } = await this.access(actor, experienceId, "member", session);
+      requireCondition(canInspectPeers(experience, member), "GROUP_PERSPECTIVE_FORBIDDEN");
       const selected = await selectedCard(this.cards, experience, cardTemplateId, session);
-      const rows = await this.members().find({ experienceId, followerStatus: "active", ...(paging.after ? { userId: { $gt: paging.after } } : {}) }, { session })
-        .sort({ userId: 1 }).limit(paging.limit + 1).toArray();
-      const visible = rows.slice(0, paging.limit), users = visible.map(row => row.userId);
-      const personal = await personalLearningForUsers(this.cards, users, [selected], session), names = await creatorUsernames(this.cards, users, session);
+      const visible = await activeIdentities(this, experience, member, session, after, paging.limit), users = visible.followers.map(row => row.userId);
+      const personal = await personalLearningForUsers(this.cards, users, [selected], session);
       return { ...identity(actor, experience, member), cardTemplateId, version: selected.version,
         group: (await this.groupLearning(experienceId, [selected], session))[0], followers: users.map(userId => ({ userId,
-          username: names.get(userId) ?? "Unknown user", learning: personal.get(userId)![0] })), nextCursor: rows.length > paging.limit ? visible.at(-1)!.userId : null };
+          username: visible.followers.find(row => row.userId === userId)!.username, learning: personal.get(userId)![0] })), nextCursor: visible.nextCursor };
     });
   }
   async writeLearning(actor: string, experienceId: string, cardTemplateId: string, owner: "group" | "personal", input: unknown) {
@@ -275,4 +282,16 @@ export class GroupExperienceRepository {
     return reviewGroupUpdate(this, actor, experienceId, kind, entityId);
   }
   adoptUpdate(actor: string, experienceId: string, input: unknown) { return adoptGroupUpdate(this, actor, experienceId, input); }
+  saveSettings(actor: string, experienceId: string, input: unknown) { return saveSettings(this, actor, experienceId, input); }
+  saveNavigation(actor: string, experienceId: string, input: unknown) { return saveNavigation(this, actor, experienceId, input); }
+  async identities(actor: string, experienceId: string, after?: string, limit?: number) {
+    return this.transaction(async session => {
+      const { experience, member } = await this.access(actor, experienceId, "member", session);
+      return { ...identity(actor, experience, member), ...await activeIdentities(this, experience, member, session, after, limit) };
+    });
+  }
+  bootstrap(actor: string, experienceId: string, offset?: number) { return bootstrap(this, actor, experienceId, offset); }
+  perspectivePage(actor: string, experienceId: string, after?: string, limit?: number, offset?: number) { return perspectivePage(this, actor, experienceId, after, limit, offset); }
+  cardAggregates(actor: string, experienceId: string, offset?: number) { return cardAggregates(this, actor, experienceId, offset); }
+  collectionTiles(actor: string, after?: string) { return collectionTiles(this, actor, after); }
 }

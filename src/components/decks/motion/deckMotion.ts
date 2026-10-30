@@ -15,6 +15,7 @@ export const deckMotionEasing = {
   damped: [0.2, 0.68, 0.18, 1],
   restore: [0.24, 0.64, 0.22, 1],
 } as const;
+export const perspectiveExchange = { duration: .16, ease: deckMotionEasing.calm } as const;
 
 export const deckMotionTransitions = {
   traversal: {

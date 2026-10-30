@@ -7,7 +7,7 @@ import type { DeckFrontPresentation } from "./deckFrontPresentation";
 export default function DeckFrontContents({ front, animated = false, preparing = false, introActive = false, introPlaying = false,
   disabled = false, onIntroAction, introAnchor }: { front: DeckFrontPresentation; animated?: boolean; preparing?: boolean;
     introActive?: boolean; introPlaying?: boolean; disabled?: boolean; onIntroAction?: () => void; introAnchor?: RefCallback<HTMLDivElement> }) {
-  const completion = front.context === "personal" ? front.completion : null;
+  const completion = front.context !== "canonical" ? front.completion : null;
   return <>
     {front.category ? <span className="category-chip">{front.category}</span> : null}
     {front.showOwnerTag ? <span className="deck-owner-tag">{front.ownerUsername}</span> : null}
@@ -28,8 +28,8 @@ export default function DeckFrontContents({ front, animated = false, preparing =
     </motion.div>
     <span className="deck-tile-title">{front.title} <span className="deck-tile-title-chevron" aria-hidden="true">›</span></span>
     <span className="deck-tile-meta">{preparing ? "Preparing deck..." : <>
-      {front.cardCount} cards{completion !== null ? <> &middot; {Math.round(completion) === 100 ? "Completed" : `${Math.round(completion)}%`}</> : null}
-      {front.context === "personal" && front.confidence !== null ? <span className="deck-tile-meta-confidence">{front.confidence}</span> : null}
+      {front.cardCount} cards{completion !== null ? <> &middot; {front.context !== "canonical" && front.isComplete ? "Completed" : `${Math.round(completion)}%`}</> : null}
+      {front.context !== "canonical" && front.confidence !== null ? <span className="deck-tile-meta-confidence">{front.confidence}</span> : null}
     </>}</span>
   </>;
 }

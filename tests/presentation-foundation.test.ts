@@ -107,7 +107,7 @@ test("working all-skipped Card/Deck is 100%, while genuine zero remains visible"
     activeCardId: working.id, dataOwnerUserId: "alice", hasUserDeckData: true }, { currentUserId: "alice", users: [] });
   const tile = (value: typeof deck) => renderToStaticMarkup(React.createElement(DeckTile, { deck: value,
     onFrontCardAction: noop, onSelect: noop, onIntroAnchorChange: noop, transition: {} }));
-  assert.equal(deck.progressPercentage, 100); assert.match(tile(deck), /Completed/);
+  assert.equal(deck.progressPercentage, 100); assert.match(tile(deck), /100%/); assert.doesNotMatch(tile(deck), /Completed/);
   const front = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: working, dateLabel: "8 Oct" }));
   assert.match(front, /width:100%/);
   const zero = buildOptimisticDeckLayout(deck, [buildCardLayout({ ...working,

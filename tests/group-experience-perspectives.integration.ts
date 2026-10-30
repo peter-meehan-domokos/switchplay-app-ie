@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+import { test, before, after } from "node:test";
+import { MongoClient } from "mongodb";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
+import { groupFixture, completion } from "./helpers/groupExperiences";
+import { GroupExperienceRepository } from "../src/lib/groupExperiences/repository";
+
+let mongo: MongoMemoryReplSet, client: MongoClient;
+before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); });
+after(async () => { await client?.close(); await mongo?.stop(); });
+test("peer policy defaults Off, grants narrow active learning only, and revokes fresh requests immediately", async () => {
+  const f = await groupFixture(client);
+  assert.equal((await f.repo.get("bob", f.experienceId)).allowFollowerInspection, false);
+  assert.deepEqual((await f.repo.get("alice", f.experienceId)).selection, { perspective: "group" });
+  assert.deepEqual((await f.repo.get("bob", f.experienceId)).selection, { perspective: "self" });
+  await assert.rejects(f.repo.card("bob", f.experienceId, f.ids[0], "follower", "carol"), { code: "GROUP_PERSPECTIVE_FORBIDDEN" });
+  await assert.rejects(f.repo.saveSettings("bob", f.experienceId, { operationId: "on", expectedStructureRevision: 0, allowFollowerInspection: true }), { code: "GROUP_FORBIDDEN" });
+  await f.repo.writeLearning("carol", f.experienceId, f.ids[0], "personal", completion("a0"));
+  await f.cards.users().updateOne({ _id: "carol" }, { $set: { "cardsData.0.reflection": "PRIVATE", "cardsData.0.targetDate": "2099-12-31", "cardsData.0.tests": [{ id: "PRIVATE-TEST" }] } });
+  const command = { operationId: "on", expectedStructureRevision: 0, allowFollowerInspection: true };
+  await f.repo.saveSettings("alice", f.experienceId, command);
+  assert.equal((await f.repo.saveSettings("alice", f.experienceId, command)).outcome, "already-applied");
+  const peer = await f.repo.card("bob", f.experienceId, f.ids[0], "follower", "carol");
+  assert.equal(peer.capabilities.canWriteLearning, false); assert.ok(!JSON.stringify(peer).includes("PRIVATE")); assert.ok(!JSON.stringify(peer).includes("2099"));
+  await assert.rejects(f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", { ...completion("a0"), subjectUserId: "carol" }));
+  await f.repo.saveNavigation("bob", f.experienceId, { accessEpoch: 0, expectedStructureRevision: 1, selection: { perspective: "follower", subjectUserId: "carol" } });
+  assert.deepEqual((await f.repo.get("bob", f.experienceId)).selection, { perspective: "follower", subjectUserId: "carol" });
+  await f.repo.saveSettings("alice", f.experienceId, { operationId: "off", expectedStructureRevision: 1, allowFollowerInspection: false });
+  await assert.rejects(f.repo.card("bob", f.experienceId, f.ids[0], "follower", "carol"), { code: "GROUP_PERSPECTIVE_FORBIDDEN" });
+  assert.deepEqual((await f.repo.get("bob", f.experienceId)).selection, { perspective: "self" });
+  assert.deepEqual((await f.repo.identities("bob", f.experienceId)).followers.map(row => row.userId), ["bob"]);
+});
+test("active identities are globally alphabetical across pages and removed history remains admin-only", async () => {
+  const f = await groupFixture(client, { followers: ["alice", "bob", "carol"] });
+  await f.cards.users().updateOne({ _id: "bob" }, { $set: { username: "Zebra" } });
+  await f.cards.users().updateOne({ _id: "carol" }, { $set: { username: "Aardvark" } });
+  const first = await f.repo.identities("alice", f.experienceId, undefined, 1);
+  assert.deepEqual(first.followers.map(row => row.userId), ["carol"]);
+  const next = await f.repo.identities("alice", f.experienceId, first.nextCursor!, 1); assert.equal(next.followers[0].userId, "alice");
+  await f.repo.saveSettings("alice", f.experienceId, { operationId: "on", expectedStructureRevision: 0, allowFollowerInspection: true });
+  await f.repo.changeMember("alice", f.experienceId, { kind: "remove-follower", operationId: "remove", expectedStructureRevision: 1, targetUserId: "carol" });
+  assert.ok(!(await f.repo.identities("bob", f.experienceId)).followers.some(row => row.userId === "carol"));
+  await assert.rejects(f.repo.card("bob", f.experienceId, f.ids[0], "follower", "carol"), { code: "GROUP_SNAPSHOT_FORBIDDEN" });
+  await assert.rejects(f.repo.snapshot("bob", f.experienceId, "carol"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.repo.saveNavigation("bob", f.experienceId, { accessEpoch: 0, expectedStructureRevision: 2, selection: { perspective: "follower", subjectUserId: "carol" } }));
+  assert.equal((await f.repo.get("alice", f.experienceId)).selection.perspective, "group");
+});
+test("policy revocation wins against a navigation request held before its member fence", async t => {
+  const f = await groupFixture(client);
+  await f.repo.saveSettings("alice", f.experienceId, { operationId: "on", expectedStructureRevision: 0, allowFollowerInspection: true });
+  let reached!: () => void, release!: () => void, first = true;
+  const ready = new Promise<void>(resolve => { reached = resolve; }), held = new Promise<void>(resolve => { release = resolve; });
+  const fence = f.repo.fence.bind(f.repo);
+  t.mock.method(f.repo, "fence", async (...args: Parameters<typeof fence>) => { if (first) { first = false; reached(); await held; } return fence(...args); });
+  t.after(() => release());
+  const pending = f.repo.saveNavigation("bob", f.experienceId, { accessEpoch: 0, expectedStructureRevision: 1, selection: { perspective: "follower", subjectUserId: "carol" } });
+  const rejected = assert.rejects(pending);
+  await ready;
+  await new GroupExperienceRepository(f.cards).saveSettings("alice", f.experienceId, { operationId: "off", expectedStructureRevision: 1, allowFollowerInspection: false });
+  release(); await rejected;
+  assert.deepEqual((await f.repo.get("bob", f.experienceId)).selection, { perspective: "self" });
+});
+test("presentation reuses selected public content, separates own dates and never retrieves foreign private fields", async t => {
+  const f = await groupFixture(client, { cardCount: 2 });
+  await f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", completion("a0"));
+  await f.cards.users().updateOne({ _id: "bob" }, { $set: { "cardsData.0.targetDate": "2027-09-10", "cardsData.0.reflection": "PRIVATE-REFLECTION", "cardsData.0.tests": [{ id: "PRIVATE-TEST" }] } });
+  const own = await f.repo.bootstrap("bob", f.experienceId);
+  assert.equal(own.ownDates![0].targetDate, "2027-09-10"); assert.equal(own.deck.cards[0].cardTemplateId, f.ids[0]);
+  assert.equal(own.own![0].items[0].completionStatus, "done"); assert.ok(!JSON.stringify(own).includes("PRIVATE"));
+  const admin = await f.repo.bootstrap("alice", f.experienceId); assert.equal(admin.ownDates, null); assert.equal(admin.own, null);
+  const projections: string[] = [], users = f.cards.users(), aggregate = users.aggregate.bind(users);
+  t.mock.method(f.cards, "users", () => users);
+  t.mock.method(users, "aggregate", (...args: Parameters<typeof aggregate>) => { projections.push(JSON.stringify(args[0])); return aggregate(...args); });
+  const peers = await f.repo.perspectivePage("alice", f.experienceId);
+  assert.ok(!JSON.stringify(peers).includes("2027-09-10")); assert.ok(!JSON.stringify(peers).includes("PRIVATE"));
+  assert.ok(projections.every(pipeline => !pipeline.includes("targetDate") && !pipeline.includes("reflection") && !pipeline.includes("tests")));
+  const values = (await f.cards.getPersonalUser("bob"))!.cardsData;
+  assert.equal(values.length, 1); assert.equal(values[0].targetDate, "2027-09-10");
+});
+test("presentation batches page Cards and identities without losing selected content or revealing peers when Off", async () => {
+  const f = await groupFixture(client, { cardCount: 21 });
+  const first = await f.repo.bootstrap("bob", f.experienceId), last = await f.repo.bootstrap("bob", f.experienceId, first.nextCardOffset!);
+  assert.equal(first.deck.cards.length, 20); assert.equal(last.deck.cards.length, 1); assert.equal(last.nextCardOffset, null);
+  const matrix = await f.repo.perspectivePage("bob", f.experienceId);
+  assert.deepEqual(matrix.followers.map(row => row.userId), ["bob"]); assert.equal(matrix.followers[0].learning.length, 20);
+  assert.equal((await f.repo.cardAggregates("alice", f.experienceId, 20)).cards.length, 1);
+  await assert.rejects(f.repo.bootstrap("bob", f.experienceId, 21), { code: "INVALID_GROUP_PAGE" });
+  for (let i = 0; i < 20; i++) for (const prefix of ["a", "b", "c"]) {
+    await f.repo.writeLearning("alice", f.experienceId, f.ids[i], "group", completion(`${prefix}${i}`));
+  }
+  const tile = (await f.repo.collectionTiles("alice")).entries[0];
+  assert.equal(tile.deck.cards.length, 20); assert.equal(tile.cardCount, 21);
+  assert.equal(tile.isComplete, false, "a complete first page cannot complete the entire Deck");
+});

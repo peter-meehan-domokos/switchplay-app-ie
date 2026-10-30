@@ -10,20 +10,27 @@ import { canonicalPresentationFixture } from "../fixtures/canonicalPresentation"
 import type { CanonicalDeckPresentation } from "../../src/components/decks/presentation";
 import { randomUUID } from "node:crypto";
 
-let canonicalBundle: string;
+let canonicalBundle: string, canonicalStyles: string;
 test.beforeAll(async () => {
   const result = await build({
-    entryPoints: ["tests/fixtures/canonicalPresentationHarness.tsx"], bundle: true, write: false,
+    entryPoints: ["tests/fixtures/canonicalPresentationHarness.tsx"], bundle: true, write: false, outdir: "/tmp/switchplay-canonical-presentation",
     platform: "browser", format: "iife", jsx: "automatic", tsconfig: "tsconfig.json",
+    // Later shared Info components include CSS modules/fonts. Bundle those
+    // assets in memory so this fixture remains independent of a Next build.
+    loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" },
     define: { "process.env.NODE_ENV": '"development"', "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": '"1"',
       "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": '"0"' },
-    plugins: [{ name: "no-working-dependencies", setup(builder) {
-      builder.onResolve({ filter: /workingCardStore|useWorkingDeck|WorkingFocusedCardView|BackCardFaceContent|useKeyedUserCardMediaUploadController|userCardMediaMutationQueue/ }, ({ path }) => {
+    plugins: [{ name: "no-working-controllers", setup(builder) {
+      // Public Info consultation now shares an owner-store module import. That
+      // is not a mounted personal controller. Keep the real shared components,
+      // forbid private adapters, and retain the zero-API-request assertions.
+      builder.onResolve({ filter: /useWorkingDeck|WorkingFocusedCardView|BackCardFaceContent|useKeyedUserCardMediaUploadController|userCardMediaMutationQueue/ }, ({ path }) => {
         throw new Error(`Canonical presentation must not initialize working dependency: ${path}`);
       });
     } }],
   });
-  canonicalBundle = result.outputFiles[0].text;
+  canonicalBundle = result.outputFiles.find(file => file.path.endsWith(".js"))!.text;
+  canonicalStyles = result.outputFiles.filter(file => file.path.endsWith(".css")).map(file => file.text).join("\n");
 });
 
 function compareGeometry(actual: Record<string, number[]>, expected: Record<string, number[]>) {
@@ -238,6 +245,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
         body: `<html><head>${styles}</head><body class="${bodyClass ?? ""}"><div id="fixture"></div></body></html>` }));
       await page.goto("/__presentation-fixture");
       await expect.poll(() => page.locator("body").evaluate((body) => getComputedStyle(body).margin)).toBe("0px");
+      await page.addStyleTag({ content: canonicalStyles });
       await page.addScriptTag({ content: canonicalBundle });
       const canonical = canonicalPresentationFixture(viewport.width);
       await renderCanonical(page, canonical, true);

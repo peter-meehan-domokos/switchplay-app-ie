@@ -9,6 +9,7 @@ import StepDescriptionText from "@/components/cards/StepDescriptionText";
 import { normalizeCompletionStatus } from "@/lib/progress";
 
 type StepItemProps = {
+  followerProgress?: { eligibleTotal: number; doing: number; done: number };
   index: number;
   linksEnabled?: boolean;
   onOpenStepView?: (stepIndex: number) => void;
@@ -36,7 +37,7 @@ type StepItemProps = {
  * }
  */
 
-export default function StepItem({ index, linksEnabled, onOpenStepView, step, onCycleStatus, showPersonalProgress = true }: StepItemProps) {
+export default function StepItem({ index, linksEnabled, onOpenStepView, step, onCycleStatus, showPersonalProgress = true, followerProgress }: StepItemProps) {
   const completionStatus = "completionStatus" in step ? normalizeCompletionStatus(step.completionStatus) : null;
   const isStepViewTrigger = typeof onOpenStepView === "function";
   const openStepView = () => {
@@ -71,10 +72,15 @@ export default function StepItem({ index, linksEnabled, onOpenStepView, step, on
             <StepDescriptionText content={step.descriptionContent} fallback={step.description} linksEnabled={linksEnabled} />
           ) : null}
         </span>
+        <span className={followerProgress ? "group-step-learning" : undefined}>
         {showPersonalProgress && completionStatus !== null ? <StepProgressStrip
           completionStatus={completionStatus}
           onCycleStatus={onCycleStatus ? () => onCycleStatus(step.stepId) : undefined}
         /> : <span className={`${isStepViewTrigger ? "step-progress-hit-area" : "step-progress-strip"} personal-layout-slot`} aria-hidden="true" />}
+        {followerProgress && followerProgress.eligibleTotal > 0 ? <span className="group-step-counts">
+          {followerProgress.doing}/{followerProgress.eligibleTotal} doing · {followerProgress.done}/{followerProgress.eligibleTotal} done
+        </span> : null}
+        </span>
         {/*
           Semantic gateway rollback: lane wrapper and trace rendering paused for easy restoration.
 

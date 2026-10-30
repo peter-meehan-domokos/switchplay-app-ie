@@ -12,6 +12,7 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/c
 import { forkCardContent } from "../src/lib/cards/forks";
 import { networkInterfaces } from "node:os";
 import { loadEnvConfig } from "@next/env";
+import { seedGroupReview } from "../tests/helpers/groupReviewFixture";
 
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
@@ -28,9 +29,12 @@ const output: string[] = [];
 const interactive = process.argv.includes("--dev");
 const lan = interactive && process.argv.includes("--lan");
 const infoCards = process.argv.includes("--info-cards");
+const groupExperiences = process.argv.includes("--group-experiences");
+const optimized = process.argv.includes("--optimized");
 // Opt-in provider checks still own a disposable database. Never forward an
 // environment database URI; only the provider credentials are used live.
 const liveInfoMedia = process.argv.includes("--live-info-media");
+if (optimized && (lan || liveInfoMedia)) throw new Error("Optimized fixtures are loopback-only with mocked providers. Use normal --dev --lan for phone review.");
 if (liveInfoMedia && (interactive || !process.argv.includes("info-cards-live-media.browser.ts")
   || process.argv.slice(2).some(arg => arg.endsWith(".browser.ts") && arg !== "info-cards-live-media.browser.ts"))) {
   throw new Error("Live providers are restricted to the explicitly authorised, self-cleaning info-cards-live-media.browser.ts check.");
@@ -97,6 +101,7 @@ try {
       personalReview = { deckId, emptyCardId, mixedCardId, inheritedDeckId, inheritedCardId };
     }
   }
+  const groupReview = groupExperiences ? await seedGroupReview(client, database, userId.toHexString(), (await db.collection("users").findOne({ username: "other" }))!._id.toString()) : undefined;
   media.listen(0, "127.0.0.1"); await once(media, "listening"); const address = media.address();
   if (!address || typeof address === "string") throw new Error("Missing media fixture port");
   mediaOrigin = `http://127.0.0.1:${address.port}`;
@@ -105,15 +110,17 @@ try {
   await new Promise<void>((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
   const appPort = Number(process.env.PHASE2_APP_PORT ?? (lan ? process.env.SWITCHPLAY_REVIEW_PORT ?? "4181" : appAddress.port));
   if (!Number.isSafeInteger(appPort) || appPort < 1024 || appPort > 65535) throw new Error("Invalid review port");
-  const baseURL = `http://127.0.0.1:${appPort}`;
+  // The API test transport honours Secure cookies on localhost. Keep the real
+  // production cookie policy in optimized tests; never loosen auth for fixtures.
+  const baseURL = `http://${optimized ? "localhost" : "127.0.0.1"}:${appPort}`;
   const lanIPs = Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => row.address);
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
     SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","),
-    PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
+    PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", PHASE2_OPTIMIZED: optimized ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
-    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture" };
+    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture", SWITCHPLAY_GROUP_EXPERIENCES_ENABLED: groupExperiences ? "1" : "0", PHASE2_GROUP_FIXTURE: JSON.stringify(groupReview ?? null) };
   if (liveInfoMedia) Object.assign(env, {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("CLOUDFLARE_"))),
     PHASE2_LIVE_INFO_MEDIA: "1", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "0", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1",
@@ -121,8 +128,21 @@ try {
   });
   await mkdir("phase2-test-results", { recursive: true });
   await writeFile(`phase2-test-results/tsconfig-${mode}.json`, JSON.stringify({ extends: "../tsconfig.json",
-    include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", `../${env.PHASE2_INTERACTIVE === "1" ? ".next-phase2" : ".next-phase2-test"}/dev/types/**/*.ts`] }, null, 2));
-  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", lan ? "0.0.0.0" : "127.0.0.1", "--port", String(appPort)], { env, stdio: ["ignore", "pipe", "pipe"] });
+    include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", optimized ? "../.next-phase2-optimized/types/**/*.ts"
+      : `../${env.PHASE2_INTERACTIVE === "1" ? ".next-phase2" : ".next-phase2-test"}/dev/types/**/*.ts`] }, null, 2));
+  if (optimized) {
+    // Measure/review actual optimized React, not JSX development stack capture.
+    // Build without any database connection; only the local runtime receives
+    // this harness's disposable URI. Public media flags remain fixture mocks.
+    app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build"], {
+      env: { ...env, MONGODB_URI: "", MONGODB_DB: "" }, stdio: ["ignore", "pipe", "pipe"],
+    });
+    app.stdout!.on("data", value => { output.push(String(value)); if (interactive) process.stdout.write(value); });
+    app.stderr!.on("data", value => { output.push(String(value)); if (interactive) process.stderr.write(value); });
+    const [code] = await once(app, "exit");
+    if (code !== 0) throw new Error("Optimized disposable build failed; see the fixture server log.");
+  }
+  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", optimized ? "start" : "dev", "--hostname", lan ? "0.0.0.0" : "127.0.0.1", "--port", String(appPort)], { env, stdio: ["ignore", "pipe", "pipe"] });
   app.stdout!.on("data", (value) => { output.push(String(value)); if (interactive) process.stdout.write(value); });
   app.stderr!.on("data", (value) => { output.push(String(value)); if (interactive) process.stderr.write(value); });
   const deadline = Date.now() + 90_000;
@@ -133,13 +153,14 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   if (process.argv.includes("--dev")) {
-    const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/library?tab=info-cards`) : [];
-    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, infoCards, personalReview }, null, 2));
-    console.log(`Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+    const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/${groupExperiences ? "decks" : "library?tab=info-cards"}`) : [];
+    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview }, null, 2));
+    console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
     if (personalReview) console.log(`Personal review: ${baseURL}/decks?openDeck=${personalReview.deckId}\nInherited review: ${baseURL}/decks?openDeck=${personalReview.inheritedDeckId}`);
+    if (groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: other / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
-    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media"].includes(arg))], { env, stdio: "inherit" });
+    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--optimized"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));

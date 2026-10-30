@@ -4,6 +4,7 @@ import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThre
 import type { WeeklyCardStep, CardTemplateStep } from "@/components/decks/types";
 
 type StepListProps = {
+  followerProgress?: import("@/lib/groupExperiences/presentationReads").GroupAggregates["cards"][number]["steps"];
   steps: (WeeklyCardStep | CardTemplateStep)[];
   showPersonalProgress?: boolean;
   linksEnabled?: boolean;
@@ -81,6 +82,7 @@ function getStepItemIndexFromEventTarget(eventTarget: EventTarget | null) {
 }
 
 export default function StepList({
+  followerProgress,
   steps,
   showPersonalProgress = true,
   linksEnabled,
@@ -289,6 +291,7 @@ export default function StepList({
           onOpenStepView={onOpenStepView}
           step={step}
           showPersonalProgress={showPersonalProgress}
+          followerProgress={followerProgress?.find(value => value.stepId === step.stepId)?.followers}
           onCycleStatus={onCycleStepStatus}
         />
       ))}

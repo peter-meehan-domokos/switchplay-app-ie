@@ -50,7 +50,7 @@ test("roles isolate admin, follower, creator, application admin and other experi
   await assert.rejects(f.repo.card("alice", f.experienceId, f.ids[0], "self"), { code: "GROUP_FORBIDDEN" });
   await assert.rejects(f.repo.writeLearning("alice", f.experienceId, f.ids[0], "personal", completion("a0")), { code: "GROUP_FORBIDDEN" });
   await assert.rejects(f.repo.writeLearning("bob", f.experienceId, f.ids[0], "group", completion("a0")), { code: "GROUP_FORBIDDEN" });
-  await assert.rejects(f.repo.card("bob", f.experienceId, f.ids[0], "follower", "carol"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.repo.card("bob", f.experienceId, f.ids[0], "follower", "carol"), { code: "GROUP_PERSPECTIVE_FORBIDDEN" });
   for (const actor of ["creator", "outsider"]) {
     await assert.rejects(f.repo.get(actor, f.experienceId), { code: "GROUP_FORBIDDEN" });
     await assert.rejects(f.repo.summary(actor, f.experienceId), { code: "GROUP_FORBIDDEN" });
@@ -110,15 +110,16 @@ test("active followers including an explicit dual-role admin count once and conf
   for (const actor of ["bob", "carol", "dave"]) await f.repo.writeLearning(actor, f.experienceId, f.ids[0], "personal", signal("a0", 2));
   for (const step of ["a0", "b0", "c0"]) await f.repo.writeLearning("bob", f.experienceId, f.ids[0], "personal", completion(step, "skipped"));
   const summary = await f.repo.summary("alice", f.experienceId);
-  assert.deepEqual(summary.followers, { total: 4, completed: 1, confidence: 4 });
+  assert.deepEqual(summary.followers, { activeTotal: 4, eligibleTotal: 3, doing: 0, done: 0, confidence: 4 });
   assert.deepEqual(summary.group, { completion: 0, confidence: null });
-  assert.equal(summary.cards[0].steps[0].followers.completed, 1);
+  assert.equal(summary.cards[0].steps[0].followers.done, 0);
+  assert.equal(summary.cards[0].steps[0].followers.eligibleTotal, 3);
 });
 test("zero followers and empty Deck retain null/empty semantics", async () => {
   const f = await groupFixture(client, { followers: [], cardCount: 0 });
   const summary = await f.repo.summary("alice", f.experienceId);
   assert.deepEqual(summary.group, { completion: null, confidence: null });
-  assert.deepEqual(summary.followers, { total: 0, completed: 0, confidence: null });
+  assert.deepEqual(summary.followers, { activeTotal: 0, eligibleTotal: 0, doing: 0, done: 0, confidence: null });
   assert.deepEqual(summary.cards, []); assert.equal((await f.repo.open("alice", f.experienceId, 0)).activeCardId, null);
 });
 test("member commands are idempotent, paginated and bound to current roles and structural revision", async () => {

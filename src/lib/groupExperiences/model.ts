@@ -6,6 +6,7 @@ export type GroupExperience = {
   experienceId: string; name: string; creatorUserId: string; operationId: string; creationHash: string;
   deckTemplateId: string; deckVersion: number; cardSelections: RetainedCardAssignment[];
   structureRevision: number; adoptionRevision: number; adminCount: number;
+  allowFollowerInspection?: boolean;
   createdAt: Date; updatedAt: Date;
 };
 export type GroupMember = {
@@ -13,6 +14,7 @@ export type GroupMember = {
   accessEpoch: number; writeFence: number; joinedAt: Date | null; removedAt: Date | null;
   activeCardId: string | null; openedAt: Date | null; retainedCardAssignments: RetainedCardAssignment[];
   rejoinedAt?: Date | null; latestRemoval?: RemovalManifest;
+  lastPerspective?: PerspectiveSelection;
 };
 export type RemovalManifest = { generation: string; snapshotAt: Date; deckVersion: number; cards: RetainedCardAssignment[] };
 export type RemovalLearning = LearningFields & { experienceId: string; userId: string; cardTemplateId: string; version: number; generation: string; snapshotAt: Date };
@@ -29,6 +31,7 @@ export type MemberCommand = { operationId: string; expectedStructureRevision: nu
 );
 export type LearningCommand = { accessEpoch: number; version: number; change: PersonalLearningChange };
 export type Perspective = "group" | "self" | "follower";
+export type PerspectiveSelection = { perspective: "group" } | { perspective: "self" } | { perspective: "follower"; subjectUserId: string };
 export type GroupUpdateCommand = {
   viewerUserId: string; experienceId: string; perspective: "group"; kind: "card" | "deck"; entityId: string;
   sourceVersion: number; targetVersion: number; expectedAdoptionRevision: number; expectedStructureRevision: number;

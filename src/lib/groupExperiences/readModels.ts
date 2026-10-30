@@ -1,15 +1,22 @@
-import { getProgressPercentage } from "../progress";
+import { classifyProgress, getProgressPercentage } from "../progress";
 import { getConfidenceScore } from "../signals";
 import type { LearningFields } from "../cards/learning";
 import type { GroupExperience, GroupMember } from "./model";
 import type { LearningProjection } from "./learningReads";
 
 export function metrics(cards: LearningFields[]) {
-  return { completion: getProgressPercentage(cards.flatMap(card => card.items)),
+  const steps = cards.flatMap(card => card.items);
+  return { completion: classifyProgress(steps).eligibleCount ? getProgressPercentage(steps) : null,
     confidence: getConfidenceScore(cards.flatMap(card => card.signalReadings.map(signal => signal.reading))) };
 }
 export function followerMetrics(followers: LearningFields[][]) {
-  return { completed: followers.filter(cards => metrics(cards).completion === 100).length, total: followers.length,
+  // Count people from exact selected statuses, never rounded personal percentages.
+  // All-skipped/empty scopes contribute no eligible progress observation. Raw
+  // confidence is independent: a skipped Step may still have a valid reading.
+  const classifications = followers.map(cards => classifyProgress(cards.flatMap(card => card.items)));
+  return { activeTotal: followers.length, eligibleTotal: classifications.filter(value => value.eligibleCount > 0).length,
+    doing: classifications.filter(value => value.status === "inProgress").length,
+    done: classifications.filter(value => value.isComplete).length,
     confidence: getConfidenceScore(followers.flatMap(cards => cards.flatMap(card => card.signalReadings.map(signal => signal.reading)))) };
 }
 export function aggregateLearning(group: LearningProjection[], followers: LearningProjection[][]) {

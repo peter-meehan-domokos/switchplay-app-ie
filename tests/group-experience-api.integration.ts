@@ -21,7 +21,8 @@ before(async () => {
   for (const path of ["", "/[experienceId]", "/[experienceId]/members", "/[experienceId]/open", "/[experienceId]/summary",
     "/[experienceId]/cards/[cardTemplateId]", "/[experienceId]/cards/[cardTemplateId]/perspectives",
     "/[experienceId]/cards/[cardTemplateId]/personal-learning", "/[experienceId]/cards/[cardTemplateId]/group-learning",
-    "/[experienceId]/updates", "/[experienceId]/members/[userId]/snapshot"]) {
+    "/[experienceId]/updates", "/[experienceId]/members/[userId]/snapshot", "/[experienceId]/settings", "/[experienceId]/navigation", "/[experienceId]/perspectives",
+    "/[experienceId]/presentation", "/[experienceId]/aggregates", "/tiles"]) {
     const bundle = await build({ entryPoints: [`src/app/api/group-experiences${path}/route.ts`], bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
       plugins: [{ name: "group-auth-and-disposable-db", setup(builder) {
         builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: "export async function getCurrentUser() { return globalThis.__groupApi.actor; }", loader: "ts" }));
@@ -100,6 +101,24 @@ test("Update APIs require the actual admin/group perspective and return an actio
   const exact = { operationId: "api-latest", review: refreshed.latestReview.review.command };
   assert.equal((await updates.POST(req("/x", "POST", exact), context())).status, 200);
   assert.equal((await (await updates.POST(req("/x", "POST", exact), context())).json()).outcome, "already-adopted");
+});
+test("policy and navigation APIs bind actual actors and permit only the selected active peer scope", async () => {
+  fixture = await groupFixture(state.client!); state.db = fixture.cards.db;
+  const settings = routes["/[experienceId]/settings"], navigation = routes["/[experienceId]/navigation"];
+  const policy = { operationId: "allow-peers", expectedStructureRevision: 0, allowFollowerInspection: true };
+  state.actor = { id: "bob" }; assert.equal((await settings.PATCH(req("/x", "PATCH", policy), context())).status, 403);
+  state.actor = { id: "alice" }; assert.equal((await settings.PATCH(req("/x", "PATCH", { ...policy, actor: "alice" }), context())).status, 400);
+  assert.equal((await settings.PATCH(req("/x", "PATCH", policy), context())).status, 200);
+  state.actor = { id: "bob" };
+  const selected = { accessEpoch: 0, expectedStructureRevision: 1, selection: { perspective: "follower", subjectUserId: "carol" } };
+  const saved = await navigation.PATCH(req("/x", "PATCH", selected), context()); assert.equal(saved.status, 200);
+  assert.equal(saved.headers.get("Cache-Control"), "private, no-store");
+  assert.equal((await routes["/[experienceId]/cards/[cardTemplateId]"].GET(req("/x?perspective=follower&subjectUserId=carol"), context())).status, 200);
+  assert.equal((await routes["/[experienceId]/members/[userId]/snapshot"].GET(req("/x"), { params: Promise.resolve({ experienceId: fixture.experienceId, userId: "carol" }) })).status, 403);
+  state.actor = { id: "alice" }; await settings.PATCH(req("/x", "PATCH", { ...policy, operationId: "deny-peers", expectedStructureRevision: 1, allowFollowerInspection: false }), context());
+  state.actor = { id: "bob" };
+  assert.equal((await routes["/[experienceId]/cards/[cardTemplateId]"].GET(req("/x?perspective=follower&subjectUserId=carol"), context())).status, 403);
+  assert.deepEqual((await (await routes["/[experienceId]/perspectives"].GET(req("/x"), context())).json()).followers.map((row: { userId: string }) => row.userId), ["bob"]);
 });
 test("removal and rejoin APIs revoke every fresh group grant, expose frozen snapshots only to admins and reject old epochs", async () => {
   fixture = await groupFixture(state.client!); state.db = fixture.cards.db;

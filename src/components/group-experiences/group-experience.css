@@ -1,0 +1,38 @@
+.group-step-learning { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.group-step-learning > .step-progress-strip { flex: 0 0 24px; }
+.group-step-learning > .step-progress-hit-area { flex-shrink: 0; margin: 0; }
+/* The legacy focused strip is raised 4px in a bar-only row. Group counts share
+   its centre line, so neither that offset nor the negative hit-area margin applies. */
+.group-experience .group-step-learning .step-progress-strip { top: 0; }
+.group-step-counts { font-size: 8px; font-weight: 400; line-height: 1.3; color: rgba(239,224,191,.6); white-space: nowrap; }
+.group-confidence-pair { display: inline-flex; align-items: baseline; justify-content: center; gap: 12px; white-space: nowrap; }
+.group-confidence-pair sup { position: relative; top: -.2em; margin-left: 2px; font-size: .55em; font-weight: 400; opacity: .7; }
+.group-private-mark { font-size: 7px; opacity: .65; }
+.group-back-heading { display: flex; align-items: center; gap: 7px; width: 100%; }
+.group-back-heading > .step-progress-strip { flex: 0 0 24px; }
+.group-back-heading .group-back-confidence { margin-left: auto; font-size: 11px; }
+.group-back-signals { top: 17%; }
+.group-verification { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 150; font-size: 11px; }
+.group-picker { position: fixed; right: max(14px,env(safe-area-inset-right)); bottom: max(14px,env(safe-area-inset-bottom)); z-index: 125; }
+.group-picker-current { width: 116px; min-height: 58px; padding: 7px 10px; border: 1px solid rgba(239,224,191,.3); border-radius: 9px; background: #191b20; box-shadow: 0 5px 20px #0006; color: #efe0bf; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.group-identity-avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 26px; width: 26px; height: 26px; border-radius: 50%; background: #efe0bf12; font-size: 10px; }
+.group-identity-avatar svg { width: 26px; height: 26px; }
+.group-identity-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-perspective-list { position: absolute; right: 0; bottom: calc(100% + 7px); width: 185px; max-height: min(40dvh,320px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; background: #191b20; border: 1px solid #efe0bf40; border-radius: 10px; padding: 5px; box-shadow: 0 8px 25px #0008; }
+.group-perspective-list button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; border-radius: 6px; padding: 9px; background: transparent; color: #efe0bf; font-size: 12px; text-align: left; }
+.group-perspective-list button[aria-pressed=true] { background: #efe0bf20; }
+.group-perspective-exchange { will-change: transform; transform-style: preserve-3d; }
+.group-perspective-exchange--focused { position: absolute; inset: 0; }
+.group-perspective-exchange--deck { transform-style: preserve-3d; }
+.group-comparison-panel { position: fixed; z-index: 115; left: max(12px,env(safe-area-inset-left)); right: max(12px,env(safe-area-inset-right)); bottom: 0; height: 38dvh; box-sizing: border-box; display: flex; flex-direction: column; padding: 8px 10px max(10px,env(safe-area-inset-bottom)); border: 1px solid #efe0bf25; border-bottom: 0; border-radius: 14px 14px 0 0; background: #13161cf5; box-shadow: 0 -6px 30px #0004; }
+.group-comparison-panel > header { display: flex; align-items: center; justify-content: space-between; min-height: 29px; font-size: 10px; color: #efe0bfaa; }
+.group-comparison-panel > header > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-comparison-panel > header button { flex-shrink: 0; min-width: 34px; min-height: 30px; color: #efe0bf; background: transparent; border: 0; font-size: 19px; }
+.group-comparison-scroll { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; flex: 1; min-height: 0; }
+.group-comparison-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; padding: 4px 1px 8px; }
+.group-identity-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 77px; padding: 8px 4px; border: 1px solid #efe0bf30; border-radius: 8px; background: #262831; color: #efe0bf; opacity: .72; font-size: 10px; }
+.group-identity-card .group-identity-name { max-width: 100%; }
+.group-identity-card[aria-pressed=true] { opacity: 1; border-color: #e8d3a9a0; background: #36343a; box-shadow: 0 2px 8px #0006; }
+.group-picker button:focus-visible, .group-identity-card:focus-visible, .group-comparison-panel button:focus-visible { outline: 2px solid #eed5a5; outline-offset: 2px; }
+@media(min-width: 760px) { .group-comparison-panel { width: 420px; left: 50%; right: auto; margin-left: -210px; } }
+@media(prefers-reduced-motion: reduce) { .group-experience .step-progress-strip { transition: none; } }
