@@ -14,7 +14,7 @@ type Options = Readonly<{ learner: string; store?: VisualOutboxStore; fetch?: ty
 // The original account-named export remains compatible; both principal kinds
 // use this one actor-bound IndexedDB, request and event/snapshot implementation.
 export const createVisualPersistence = createAccountVisualPersistence;
-export type VisualPersistenceClient = VisualPersistence & { dispose: () => void; drain: () => Promise<void>; drainAttemptCommands: () => Promise<void> };
+export type VisualPersistenceClient = VisualPersistence & { dispose: () => void; settleLocal: () => Promise<void>; drain: () => Promise<void>; drainAttemptCommands: () => Promise<void> };
 export function createAccountVisualPersistence(options: Options): VisualPersistenceClient {
   const store = options.store ?? createBrowserVisualStore(), send = options.fetch ?? fetch, uuid = options.uuid ?? (() => crypto.randomUUID());
   const keys = new Map<string, string>(), listeners = new Map<string, Set<(status: string) => void>>();
@@ -170,6 +170,10 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
   const saves = new Map<string, Promise<void>>();
   return {
     statusLabel: "Changes pending",
+    async settleLocal() {
+      await ready; await Promise.all(saves.values());
+      requireVisual(!disposed && localFailures.size === 0 && localPending.size === 0, "VISUAL_CLAIM_PENDING_WORK");
+    },
     async drain() {
       await ready; await Promise.all(saves.values()); requireVisual(!disposed && localFailures.size === 0 && localPending.size === 0, "VISUAL_CLAIM_PENDING_WORK");
       const rows = await store.list(options.learner);

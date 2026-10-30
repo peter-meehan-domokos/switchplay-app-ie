@@ -3,6 +3,9 @@
 .shell { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); box-sizing: border-box; }
 .header, .footer { display: flex; gap: 12px; align-items: center; background: #f7f8f3; position: relative; z-index: 2; min-height: 56px; }
 .header h2 { font-size: 1rem; margin: 0; flex: 1; }
+.header { flex-wrap: wrap; }
+.header h2 { min-width: 0; }
+.signInError { flex-basis: 100%; font-size: .8rem; margin: 0 0 8px; }
 .header button, .footer button { min-width: 44px; min-height: 44px; padding: 8px 12px; border: 1px solid #9daea4; border-radius: 8px; color: inherit; background: white; cursor: pointer; font: inherit; }
 .header button:focus-visible, .footer button:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
 .footer button:disabled { opacity: .45; cursor: default; }

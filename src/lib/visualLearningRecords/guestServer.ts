@@ -5,11 +5,19 @@ import { authenticateVisualGuest, VISUAL_GUEST_DURATION_SECONDS } from "./guestC
 import { createVisualRequestBudget } from "./requestBudget";
 import { VisualLearningRecordRepository } from "./repository";
 import { VisualRecordError } from "./contracts";
+import { findVisualGuestLoginContext } from "./guestLoginContext";
 
 export const visualGuestCookieName = () => process.env.NODE_ENV === "production" ? "__Host-switchplay_visual_guest" : "switchplay_visual_guest";
 const issuanceBudget = createVisualRequestBudget(() => Date.now(), 30, 1), sessionBudget = createVisualRequestBudget();
 const bootstrapBudget = createVisualRequestBudget(() => Date.now(), 180, 1), verificationBudget = createVisualRequestBudget(() => Date.now(), 2400, 1);
 export async function readVisualGuestCookie() { return (await cookies()).get(visualGuestCookieName())?.value; }
+export async function visualGuestLoginContext(accountId: string, claimId?: string) {
+  if (process.env.SWITCHPLAY_PLUGGED_IN_VISUALS !== "1") return;
+  try {
+    const credential = await readVisualGuestCookie(); if (!credential && !claimId) return;
+    return await findVisualGuestLoginContext(await getDatabase(), accountId, credential, claimId);
+  } catch { /* Account login remains valid if progress discovery needs retry. */ }
+}
 export async function writeVisualGuestCookie(credential: string, maxAge = VISUAL_GUEST_DURATION_SECONDS) {
   (await cookies()).set(visualGuestCookieName(), credential, { httpOnly: true, secure: process.env.NODE_ENV === "production", path: "/", sameSite: "lax", maxAge });
 }

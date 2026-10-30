@@ -15,7 +15,7 @@ export async function rememberVisualGuestClaim(input: { guestLearner: string; ac
   const existing = await store.findClaim(input.guestLearner);
   if (existing) {
     assertVisualClaimJournal(existing);
-    if (existing.phase === "awaiting-login" && !existing.accountLearner) {
+    if (existing.phase === "awaiting-login") {
       return store.writeClaim({ ...existing, activityId: input.activityId, foregroundAttemptId: input.foregroundAttemptId });
     }
     requireVisual(existing.foregroundAttemptId === input.foregroundAttemptId && existing.activityId === input.activityId, "VISUAL_CLAIM_LOCAL_CONFLICT"); return existing;

@@ -12,6 +12,7 @@ import { initialVisualOutbox, newAttemptOutbox } from "../src/lib/visualLearning
 import { createRootsHostedState, rootsSnapshot } from "../src/app/step-visuals/activities/roots-factors/hostState";
 import type { LearnerPrincipal, VisualClaimRequest } from "../src/lib/visualLearningRecords/model";
 import { assertVisualSnapshot } from "../src/lib/visualLearningRecords/contracts";
+import { findVisualGuestLoginContext } from "../src/lib/visualLearningRecords/guestLoginContext";
 
 let server: MongoMemoryReplSet, client: MongoClient;
 const account: LearnerPrincipal = { kind: "account", id: "account-one" };
@@ -32,6 +33,26 @@ async function save(repo: VisualLearningRecordRepository, actor: LearnerPrincipa
       clientOccurredAt: new Date().toISOString(), activityVersion: 1, eventSchema: 1, type: event.type, payload: event }] });
 }
 const command = (previous: string, commandId = randomUUID()) => ({ commandId, attemptId: randomUUID(), expectedActiveAttemptId: previous });
+
+test("login discovers only existing guest handles and owned claims without allocating or leaking state", async () => {
+  const { db, repo, guest, claims } = await fixture();
+  assert.equal(await findVisualGuestLoginContext(db, account.id), undefined);
+  assert.equal(await findVisualGuestLoginContext(db, account.id, guest.credential), undefined);
+  assert.equal(await repo.attempts().countDocuments(), 0);
+  const opened = await open(repo, guest.principal); await save(repo, guest.principal, opened);
+  const expected = { guestLearner: `guest:${guest.principal.id}`, activityId: "roots-and-factors", foregroundAttemptId: opened.attempt.attemptId };
+  assert.deepEqual(await findVisualGuestLoginContext(db, account.id, guest.credential), expected);
+  const request = { claimId: randomUUID(), foregroundAttemptId: opened.attempt.attemptId };
+  await claims.claim(account, guest.credential, request);
+  const context = await findVisualGuestLoginContext(db, account.id, undefined, request.claimId);
+  assert.deepEqual(context, { ...expected, claimId: request.claimId, createdAt: (await db.collection(VISUAL_GUEST_CLAIMS_COLLECTION).findOne({ claimId: request.claimId }))!.createdAt.toISOString() });
+  assert.equal(await findVisualGuestLoginContext(db, "other-account", undefined, request.claimId), undefined);
+  assert.equal(await findVisualGuestLoginContext(db, "other-account", guest.credential, request.claimId), undefined);
+  assert.equal(await repo.attempts().countDocuments(), 1);
+  const expired = await issueVisualGuest(db); await open(repo, expired.principal);
+  await db.collection(VISUAL_GUEST_COLLECTION).updateOne({ guestId: expired.principal.id }, { $set: { expiresAt: new Date(0) } });
+  assert.equal(await findVisualGuestLoginContext(db, account.id, expired.credential), undefined);
+});
 
 test("claim retains account and guest attempts, snapshots, events and contexts while foreground guest wins exactly once", async () => {
   const { repo, guest, claims, db } = await fixture();

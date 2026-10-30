@@ -9,9 +9,10 @@ import { buildInteractiveVisualHostLayout } from "./interactiveVisualHostLayout"
 import styles from "./InteractiveVisualHost.module.css";
 import VisualRenderBoundary from "./VisualRenderBoundary";
 
-export default function InteractiveVisualHost({ title, opened, persistence, Visual, onClose, returnFocus }: {
+export default function InteractiveVisualHost({ title, opened, persistence, Visual, onClose, returnFocus, onSignIn }: {
   title: string; opened: OpenVisual; persistence: VisualPersistence; Visual: ComponentType<HostedVisualProps>;
   onClose: () => void; returnFocus: HTMLElement;
+  onSignIn?: (opened: OpenVisual) => Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null), content = useRef<HTMLDivElement>(null), close = useRef<HTMLButtonElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -19,6 +20,7 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   const [status, setStatus] = useState(persistence.statusLabel);
   const [active, setActive] = useState(opened), [creating, setCreating] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
+  const [signingIn, setSigningIn] = useState(false), [signInFailed, setSignInFailed] = useState(false);
   const creatingRef = useRef(false);
   const reduced = useReducedMotion();
   const recovery = active.restoration?.status === "new-attempt-required";
@@ -55,14 +57,21 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   }, [controls, persistence, active, recovery, unavailable]);
   const layout = buildInteractiveVisualHostLayout(title, unavailable || recovery ? null : controls, status, !!persistence.startNewAttempt);
   return createPortal(<dialog ref={dialog} className={styles.dialog} aria-label={layout.title} aria-modal="true"
-    onCancel={(event) => { event.preventDefault(); closeHost(); }} onClick={(event) => event.stopPropagation()}
+    onCancel={(event) => { event.preventDefault(); if (!signingIn) closeHost(); }} onClick={(event) => event.stopPropagation()}
     onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()}
     onKeyDown={(event) => event.stopPropagation()}>
     <motion.div className={styles.shell} initial={reduced ? false : { x: "100%" }} animate={{ x: 0 }} transition={{ duration: .2 }}>
       <header className={styles.header} data-visual-host-header="">
-        <h2>{layout.title}</h2><button ref={close} type="button" onClick={closeHost} aria-label="Close interactive visual">Close</button>
+        <h2>{layout.title}</h2>
+        {onSignIn && !unavailable && (controls?.hasMeaningfulProgress || controls?.completed) ? <button type="button" disabled={signingIn || creating}
+          aria-label="Sign in to keep progress across devices" onClick={() => {
+            setSigningIn(true); setSignInFailed(false);
+            void onSignIn(active).catch(() => { setSignInFailed(true); setSigningIn(false); });
+          }} aria-busy={signingIn}>Sign in</button> : null}
+        <button ref={close} type="button" disabled={signingIn} onClick={closeHost} aria-label="Close interactive visual">Close</button>
+        {signInFailed ? <p className={styles.signInError} role="status">Unable to open sign in. Your work is kept.</p> : null}
       </header>
-      <div ref={content} className={styles.content} data-visual-host-content="" data-visual-stage={layout.stageId} inert={creating || undefined}>
+      <div ref={content} className={styles.content} data-visual-host-content="" data-visual-stage={layout.stageId} inert={creating || signingIn || undefined}>
         {unavailable ? <p role="alert">Interactive visual unavailable. Your saved work is kept.</p> : recovery ?
           <p role="status">This saved attempt cannot be restored. Its history is kept. You can start a new attempt to continue.</p> :
           <VisualRenderBoundary key={active.attemptId} onFailure={() => setRenderFailed(true)}>
@@ -72,11 +81,11 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
           </VisualRenderBoundary>}
       </div>
       <footer className={styles.footer} data-visual-host-footer="">
-        {layout.previous ? <button className={styles.previous} type="button" disabled={creating || !layout.previous.enabled} onClick={layout.previous.run}>Previous</button> : null}
-        {layout.backToStart ? <button type="button" onClick={layout.backToStart}>Back to Start</button> : null}
-        {!unavailable && (recovery && persistence.startNewAttempt || layout.showStartNewAttempt) ? <button type="button" disabled={creating || !recovery && controls?.canStartNewAttempt === false || persistence.canStartNewAttempt?.(active.attemptId) === false} onClick={() => { void startNewAttempt(); }}>Start New Attempt</button> : null}
+        {layout.previous ? <button className={styles.previous} type="button" disabled={creating || signingIn || !layout.previous.enabled} onClick={layout.previous.run}>Previous</button> : null}
+        {layout.backToStart ? <button type="button" disabled={signingIn} onClick={layout.backToStart}>Back to Start</button> : null}
+        {!unavailable && (recovery && persistence.startNewAttempt || layout.showStartNewAttempt) ? <button type="button" disabled={creating || signingIn || !recovery && controls?.canStartNewAttempt === false || persistence.canStartNewAttempt?.(active.attemptId) === false} onClick={() => { void startNewAttempt(); }}>Start New Attempt</button> : null}
         <p className={styles.status} role="status">{layout.status}</p>
-        {layout.next ? <button className={styles.next} type="button" disabled={creating || !layout.next.enabled} onClick={layout.next.run}>{layout.next.label ?? "Next"}</button> : null}
+        {layout.next ? <button className={styles.next} type="button" disabled={creating || signingIn || !layout.next.enabled} onClick={layout.next.run}>{layout.next.label ?? "Next"}</button> : null}
       </footer>
     </motion.div>
   </dialog>, document.body);

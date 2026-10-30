@@ -42,6 +42,7 @@ export default function HostedIntegration({ attemptId, attemptNumber = 1, initia
   useLayoutEffect(() => {
     const navigation = integrationHostNavigation(current.current);
     onControls({ stageId: navigation.stageId, atStart: navigation.atStart, completed: navigation.completed,
+      hasMeaningfulProgress: navigation.hasMeaningfulProgress,
       canStartNewAttempt: navigation.atStart && !current.current.state.edit,
       ...(navigation.completed ? { backToStart } : {}),
       ...(navigation.previous ? { previous: { enabled: navigation.previous.enabled, run: () => dispatch({ type: "previous", revision: state.revision }) } } : {}),

@@ -45,6 +45,7 @@ export default function HostedRootsFactors({ attemptId, attemptNumber = 1, initi
   useLayoutEffect(() => {
     const capability = rootsHostNavigation(current.current);
     onControls({ stageId: capability.stageId, atStart: capability.atStart, completed: capability.completed,
+      hasMeaningfulProgress: capability.hasMeaningfulProgress,
       canStartNewAttempt: capability.atStart && !current.current.recorded.learning.manipulation.edit,
       ...(capability.completed ? { backToStart } : {}),
       ...(capability.next ? { next: { enabled: capability.next.enabled,

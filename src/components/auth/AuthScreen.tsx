@@ -32,6 +32,14 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
       return;
     }
 
+    const result = await response.json();
+    if (result.user?.id && result.visualGuest) {
+      // Progress association runs independently of successful account login and
+      // retains its journal across the existing internal return navigation.
+      void import("@/lib/visualLearningRecords/loginHandoff").then(({ startVisualGuestLoginHandoff }) =>
+        startVisualGuestLoginHandoff(result.user.id, result.visualGuest)).catch(() => {});
+    }
+
     startTransition(() => {
       if (redirectTo) {
         router.replace(redirectTo);

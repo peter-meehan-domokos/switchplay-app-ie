@@ -128,6 +128,7 @@ export function integrationBackToStart(hosted: IntegrationHostedState): Integrat
 }
 export function integrationHostNavigation({ state }: IntegrationHostedState) {
   return { stageId: stageId(state.stage), atStart: state.stage === 1, completed: state.part === "finished",
+    hasMeaningfulProgress: state.stage > 1 || state.nextPanels.length > 0,
     previous: state.stage > 1 && state.part !== "finished" ? { enabled: canGoPrevious(state), action: "previous" as const } : null,
     next: state.part === "finished" ? null : state.stage === 7 ? { enabled: canFinish(state), action: "finish" as const, label: "Finish" as const }
       : { enabled: canAdvance(state), action: "next" as const, label: "Next" as const } };

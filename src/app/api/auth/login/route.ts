@@ -1,4 +1,5 @@
 import { authenticateUser, setSession } from "@/lib/auth";
+import { visualGuestLoginContext } from "@/lib/visualLearningRecords/guestServer";
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
 
     await setSession(user);
 
-    return Response.json({ user });
+    const visualGuest = await visualGuestLoginContext(user.id);
+    return Response.json({ user, ...(visualGuest ? { visualGuest } : {}) }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return Response.json({ error: "Invalid request body." }, { status: 400 });

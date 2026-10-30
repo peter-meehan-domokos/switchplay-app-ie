@@ -187,6 +187,7 @@ export function acknowledgeRootsEvents(state: RootsHostedState, throughSequence:
 export function rootsHostNavigation(state: RootsHostedState) {
   const { lesson, manipulation } = state.recorded.learning;
   return { stageId: lesson.stage, atStart: lesson.stage === "orientation", completed: lesson.stage === "completed",
+    hasMeaningfulProgress: Object.keys(state.visited).some(stage => stage !== "orientation"),
     previous: false,
     next: lesson.stage === "orientation" ? { enabled: manipulation.hasChangedPlacement && !manipulation.edit, action: "ready" as const }
       : lesson.stage === "reveal-explanation" ? { enabled: !manipulation.edit, action: "continue" as const } : null };

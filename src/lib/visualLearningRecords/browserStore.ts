@@ -13,6 +13,7 @@ export interface VisualOutboxStore {
 export interface VisualClaimStore extends VisualOutboxStore {
   readClaim(claimId: string): Promise<VisualClaimJournal | undefined>;
   findClaim(guestLearner: string): Promise<VisualClaimJournal | undefined>;
+  claimsForAccount(accountLearner: string): Promise<VisualClaimJournal[]>;
   writeClaim(journal: VisualClaimJournal): Promise<VisualClaimJournal>;
   installClaim(claimId: string, receipt: VisualClaimReceipt): Promise<VisualClaimJournal>;
 }
@@ -50,13 +51,17 @@ export function createBrowserVisualStore(databaseName = "switchplay-visual-learn
   return {
     readClaim: claimId => operation("claims", false, (store, done) => { const request = store.get(claimId); request.onsuccess = () => done(request.result); }),
     findClaim: guestLearner => operation("claims", false, (store, done) => { const request = store.index("guestLearner").get(guestLearner); request.onsuccess = () => done(request.result); }),
+    claimsForAccount: accountLearner => operation("claims", false, (store, done) => {
+      const request = store.getAll(); request.onsuccess = () => done(request.result.filter((journal: VisualClaimJournal) => journal.accountLearner === accountLearner));
+    }),
     writeClaim: journal => operation("claims", true, (store, done, fail) => {
       try { assertVisualClaimJournal(journal); requireVisual(journal.phase !== "installed", "VISUAL_CLAIM_LOCAL_CONFLICT"); } catch (error) { fail(error); return; }
       const request = store.get(journal.claimId);
       request.onsuccess = () => {
         try {
           const previous: VisualClaimJournal | undefined = request.result;
-          const preparing = previous?.phase === "awaiting-login" && journal.phase === "awaiting-login" && !previous.accountLearner && !journal.accountLearner;
+          const preparing = previous?.phase === "awaiting-login" && journal.phase === "awaiting-login"
+            && (!previous.accountLearner || previous.accountLearner === journal.accountLearner);
           requireVisual(!previous || previous.guestLearner === journal.guestLearner
             && (preparing || previous.foregroundAttemptId === journal.foregroundAttemptId && previous.activityId === journal.activityId)
             && previous.createdAt === journal.createdAt && previous.phase !== "installed"
