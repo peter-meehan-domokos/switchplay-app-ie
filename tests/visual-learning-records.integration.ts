@@ -7,6 +7,7 @@ import { createVisualLearningRecordIndexes, VisualLearningRecordRepository } fro
 import { createRootsHostedState, rootsSnapshot, reduceRootsHostedState } from "../src/app/step-visuals/activities/roots-factors/hostState";
 import type { LearnerPrincipal, VisualBatch, VisualEventInput } from "../src/lib/visualLearningRecords/model";
 import { rootsMigration, testVersions } from "./helpers/visual-versions";
+import { VISUAL_GUEST_COLLECTION, visualGuestExpiry } from "../src/lib/visualLearningRecords/guestCredentials";
 
 let server: MongoMemoryReplSet, client: MongoClient;
 before(async () => { server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(server.getUri()).connect(); });
@@ -15,6 +16,8 @@ const actor: LearnerPrincipal = { kind: "account", id: "learner-one" };
 async function fixture(name: string, principal = actor) {
   const db = client.db(`visual_${name}`); await createVisualLearningRecordIndexes(db);
   const repo = new VisualLearningRecordRepository(db, client);
+  if (principal.kind === "guest") await db.collection(VISUAL_GUEST_COLLECTION).insertOne({ guestId: principal.id, credentialHash: "repository-fixture-only", status: "active",
+    createdAt: new Date(), lastActiveAt: new Date(), expiresAt: visualGuestExpiry(new Date()), useCount: 0 });
   const opened = await repo.open(principal, "roots-and-factors", randomUUID(), { kind: "direct" });
   const state = createRootsHostedState(opened.attempt.attemptId);
   const events: VisualEventInput[] = state.recorded.records.events.map(e => ({ eventId: randomUUID(), writerId: randomUUID(), clientSequence: e.sequence,

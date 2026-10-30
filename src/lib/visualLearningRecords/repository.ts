@@ -7,9 +7,11 @@ import type { BatchAcknowledgement, LearnerPrincipal, NewVisualAttempt, Recovery
 import { inspectVisualRestoration, storedVisualSnapshotValid } from "./restoration";
 import { compiledVisualCodecs, visualCodec } from "./codecs";
 import { compiledVisualMigrations, convertVisualSnapshot, findVisualMigration, type VisualVersionPolicy } from "./migrations";
+import { VISUAL_GUEST_INDEXES, touchVisualGuest } from "./guestCredentials";
 
 export const VISUAL_COLLECTIONS = { records: "visualRecords", attempts: "visualAttempts", events: "visualEvents", visits: "visualVisits", checkpoints: "visualSnapshotCheckpoints" } as const;
 export const VISUAL_INDEXES = [
+  ...VISUAL_GUEST_INDEXES,
   { collection: VISUAL_COLLECTIONS.records, key: { recordId: 1 }, name: "visual_record_id", unique: true },
   { collection: VISUAL_COLLECTIONS.records, key: { principalKey: 1, activityId: 1 }, name: "visual_learner_activity", unique: true },
   { collection: VISUAL_COLLECTIONS.attempts, key: { attemptId: 1 }, name: "visual_attempt_id", unique: true },
@@ -68,6 +70,7 @@ export class VisualLearningRecordRepository {
     return withMongoTransaction(this.client, operation);
   }
   private async ownedRecord(actor: LearnerPrincipal, recordId: string, session: ClientSession) {
+    await touchVisualGuest(this.db, actor, session);
     const record = await this.records().findOne({ recordId, principalKey: principalKey(actor) }, { session });
     requireVisual(record, "VISUAL_RECORD_FORBIDDEN"); return record;
   }
@@ -126,6 +129,7 @@ export class VisualLearningRecordRepository {
     for (let retry = 0; ; retry++) {
       try {
         return await this.transaction(async session => {
+          await touchVisualGuest(this.db, actor, session);
           const existingVisit = await this.visits().findOne({ visitId }, { session });
           if (existingVisit) {
             const owned = await this.ownedAttempt(actor, existingVisit.attemptId, session);

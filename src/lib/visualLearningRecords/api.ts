@@ -14,6 +14,11 @@ export type VisualApiDependencies = Readonly<{
   authorizeSource: (actor: LearnerPrincipal, activityId: string, source: VisualSource) => Promise<VisualSource>;
 }>;
 const privateHeaders = { "Cache-Control": "private, no-store", Vary: "Cookie, X-Visual-Learner" };
+export function assertVisualMutationOrigin(request: Request, expectedOrigin?: string) {
+  const internal = new URL(request.url), host = request.headers.get("Host");
+  const expected = expectedOrigin ? new URL(expectedOrigin).origin : new URL(host ? `${internal.protocol}//${host}` : internal.origin).origin;
+  requireVisual(request.headers.get("Origin") === expected && request.headers.get("Sec-Fetch-Site") !== "cross-site", "VISUAL_ORIGIN_FORBIDDEN");
+}
 export async function readVisualJson(request: Request, maxBytes = 256 * 1024): Promise<unknown> {
   requireVisual(request.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() === "application/json", "INVALID_VISUAL_CONTENT_TYPE");
   const size = request.headers.get("Content-Length");
@@ -46,9 +51,7 @@ export function createVisualApi(deps: VisualApiDependencies) {
         // Next may construct request.url with its internal hostname (localhost), even when
         // the browser used 127.0.0.1 or a public host. HTTP Host is the browser authority;
         // never accept an arbitrary X-Forwarded-Host. A deployment may pin its public origin.
-        const internal = new URL(request.url), host = request.headers.get("Host");
-        const expected = deps.expectedOrigin ? new URL(deps.expectedOrigin).origin : new URL(host ? `${internal.protocol}//${host}` : internal.origin).origin;
-        requireVisual(request.headers.get("Origin") === expected && request.headers.get("Sec-Fetch-Site") !== "cross-site", "VISUAL_ORIGIN_FORBIDDEN");
+        assertVisualMutationOrigin(request, deps.expectedOrigin);
       }
       const actor = await deps.authenticate();
       if (!actor) return Response.json({ code: "UNAUTHENTICATED" }, { status: 401, headers: privateHeaders });
@@ -61,9 +64,9 @@ export function createVisualApi(deps: VisualApiDependencies) {
     } catch (error) {
       const code = error instanceof VisualRecordError || error instanceof CardArchitectureError ? error.code
         : error instanceof SyntaxError || error instanceof TypeError ? "INVALID_VISUAL_JSON" : "VISUAL_REQUEST_FAILED";
-      const status = code.includes("FORBIDDEN") ? 403 : code.includes("CONFLICT") || code.includes("MISMATCH") || code.includes("RESTORATION_REQUIRED") ? 409
+      const status = code === "VISUAL_RATE_LIMIT" ? 429 : code.includes("FORBIDDEN") ? 403 : code.includes("CONFLICT") || code.includes("MISMATCH") || code.includes("RESTORATION_REQUIRED") ? 409
         : code.includes("LIMIT") ? 413 : code === "VISUAL_UNAVAILABLE" ? 404 : code === "VISUAL_REQUEST_FAILED" || code.includes("SETUP_REQUIRED") ? 503 : 400;
-      return Response.json({ code }, { status, headers: { ...privateHeaders, ...(learner ? { "X-Visual-Learner": learner } : {}) } });
+      return Response.json({ code }, { status, headers: { ...privateHeaders, ...(status === 429 ? { "Retry-After": "60" } : {}), ...(learner ? { "X-Visual-Learner": learner } : {}) } });
     }
   }
   return {

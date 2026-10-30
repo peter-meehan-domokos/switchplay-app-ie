@@ -33,7 +33,7 @@ function FailingMock(): never { throw new Error("Development visual render failu
 
 export default function HostReview({ databaseReviewEnabled = false }: { databaseReviewEnabled?: boolean }) {
   const [persistence] = useState(createDevelopmentVisualPersistence);
-  const [mode, setMode] = useState<"menu" | "card" | "preview" | "integration-preview" | "database">("menu");
+  const [mode, setMode] = useState<"menu" | "card" | "preview" | "integration-preview" | "database" | "guest-database">("menu");
   const [mockSource, setMockSource] = useState<HTMLElement | null>(null);
   const [failingSource, setFailingSource] = useState<HTMLElement | null>(null);
   return <main className={styles.review}>
@@ -45,6 +45,7 @@ export default function HostReview({ databaseReviewEnabled = false }: { database
       <button type="button" onClick={() => setMode("preview")}>Render inert initial preview</button>
       <button type="button" onClick={() => setMode("integration-preview")}>Render inert Integration preview</button>
       {databaseReviewEnabled ? <button type="button" onClick={() => setMode("database")}>Open database review</button> : null}
+      {databaseReviewEnabled ? <button type="button" onClick={() => setMode("guest-database")}>Open guest database review</button> : null}
     </nav> : null}
     {mode === "card" ? <FocusedCardView card={card} deckTemplateId="host-review-deck" cardIndex={0} totalCards={1} isDeckFlipped={false}
       onClose={() => setMode("menu")} onNext={() => {}} onPrevious={() => {}} traversalDirection="next" transition={{ duration: 0 }}
@@ -52,6 +53,7 @@ export default function HostReview({ databaseReviewEnabled = false }: { database
     {mode === "preview" ? <div data-inert-preview="" className={styles.initialPreview}><RootsInitialPreview /></div> : null}
     {mode === "integration-preview" ? <div data-inert-preview="" className={styles.initialPreview}><IntegrationInitialPreview /></div> : null}
     {mode === "database" && databaseReviewEnabled ? <DatabaseReview /> : null}
+    {mode === "guest-database" && databaseReviewEnabled ? <DatabaseReview guest /> : null}
     {mockSource ? <InteractiveVisualHost title="Development responsive mock" Visual={ResponsiveMock} persistence={persistence}
       opened={{ activityId: "development-only", attemptId: "mock", snapshot: null }} returnFocus={mockSource} onClose={() => setMockSource(null)} /> : null}
     {failingSource ? <InteractiveVisualHost title="Development failing mock" Visual={FailingMock} persistence={persistence}

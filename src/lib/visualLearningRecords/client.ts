@@ -11,6 +11,9 @@ class VisualTransportError extends Error {
   constructor(readonly status: number, readonly code: string, readonly retryAfter = 0) { super(code); }
 }
 type Options = Readonly<{ learner: string; store?: VisualOutboxStore; fetch?: typeof fetch; uuid?: () => string }>;
+// The original account-named export remains compatible; both principal kinds
+// use this one actor-bound IndexedDB, request and event/snapshot implementation.
+export const createVisualPersistence = createAccountVisualPersistence;
 export function createAccountVisualPersistence(options: Options): VisualPersistence & { dispose: () => void } {
   const store = options.store ?? createBrowserVisualStore(), send = options.fetch ?? fetch, uuid = options.uuid ?? (() => crypto.randomUUID());
   const keys = new Map<string, string>(), listeners = new Map<string, Set<(status: string) => void>>();
