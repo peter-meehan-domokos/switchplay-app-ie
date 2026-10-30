@@ -13,7 +13,7 @@ export type InteractiveVisualRelease = Readonly<{
 // Preview assets are added with the host slice, before any new creator selection UI.
 export const interactiveVisualCatalogue: readonly InteractiveVisualRelease[] = Object.freeze([
   Object.freeze({ id: "roots-and-factors", title: "Roots and Factors", status: "published" as const,
-    activityVersion: 1, snapshotSchema: 1, eventSchema: 1, preview: null }),
+    activityVersion: 1, snapshotSchema: 1, eventSchema: 1, preview: "/interactive-visuals/roots-and-factors-v1.png" }),
   Object.freeze({ id: "integration-area", title: "Integration", status: "published" as const,
     activityVersion: 2, snapshotSchema: 1, eventSchema: 2, preview: null }),
 ]);

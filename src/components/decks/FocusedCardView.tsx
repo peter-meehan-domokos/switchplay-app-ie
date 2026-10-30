@@ -1,4 +1,7 @@
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
+import type { VisualPersistence } from "@/lib/interactiveVisuals/persistence";
+import { stepMediaItems } from "@/lib/stepMedia";
+import InteractiveVisualPreview from "@/components/interactiveVisuals/InteractiveVisualPreview";
 import { cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import type { Transition } from "motion/react";
@@ -37,6 +40,8 @@ import {
 } from "@/constants/cardStack";
 
 export type FocusedCardViewProps = {
+  /** Supplied only by the internal vertical slice until authenticated persistence is available. */
+  interactiveVisualPersistence?: VisualPersistence;
   onOpenMedia?: OpenCardMedia;
   mediaViewerOpen?: boolean;
   card: PresentedCard;
@@ -219,6 +224,7 @@ function CardBackSlot({ content, onNext, onPrevious, onOpenMedia }: {
 }
 
 export default function FocusedCardView({
+  interactiveVisualPersistence,
   onOpenMedia, mediaViewerOpen = false,
   card,
   deckTemplateId,
@@ -351,7 +357,14 @@ export default function FocusedCardView({
       ? Math.min(stepViewState.itemIndex, stepViewSequence.length - 1)
       : null;
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
-  const stepActivity = stepViewItem ? renderStepActivity?.(stepViewItem) : null;
+  const stepDestination = stepViewItem?.type === "intro" ? card.intro : stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex] : null;
+  const firstAttachment = stepDestination ? stepMediaItems(stepDestination)[0] : null;
+  const stepActivity = (stepViewItem ? renderStepActivity?.(stepViewItem) : null) ??
+    (interactiveVisualPersistence && firstAttachment?.kind === "activity" ? <InteractiveVisualPreview
+      activityId={firstAttachment.activityId} persistence={interactiveVisualPersistence}
+      origin={{ kind: "card", cardId: card.cardTemplateId ?? card.id, cardVersion: playbackVersion, deckId: deckTemplateId,
+        stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: firstAttachment.id }}
+      onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
   const attachmentCount = infoCards !== undefined ? infoCards.length : card.infoCardIds?.length ?? 0;
   const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);

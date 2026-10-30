@@ -23,8 +23,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S00 plan, review and handoff | Complete | `ff330b4` |
 | S01 registry and Framework references | Complete | `86780c8` |
 | S02 canonical step media | Complete | `2c5d300` |
-| S03 Roots restore/adapter | Complete, this checkpoint | Commit recorded by next checkpoint |
-| S04 early card preview/host | Pending | Not implemented |
+| S03 Roots restore/adapter | Complete | `a2667c2` |
+| S04 early card preview/host | Complete | Host, generated preview and development card integration; commit recorded at next checkpoint |
 | S05 Integration restore/adapter | Pending | Not implemented |
 | S06 records repository | Pending | Not implemented |
 | S07 account API/offline autosave | Pending | Not implemented |
@@ -59,6 +59,12 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Commit S03, then implement S04: generic fullscreen host with stable control/content regions, activity-owned hosted rendering, generated inert preview and an internal card-step opening/return example. Expose measured dimensions without changing existing mathematical CSS. Keep execution development-only until durable persistence and guest authorization slices. Use an explicit temporary persistence service reporting local-only status, not Saved. Add browser checks for origin/focus return and host bounds before continuing S05.
+Begin S05 Integration restoration and hosted adapter. Inspect `integration-area/learning.ts`, records, presentation and stage renderers; preserve mathematical rules and keep Check/function/curve controls inside the visual. Hydration must not emit attempt-started or reuse event IDs. Keep snapshot state separate from event history and exclude pointer/animation frames. Then continue S06 records repository.
+
+S04 completed: generic modal host reserves header/content/footer, exposes measured content dimensions, places Next bottom-right, restores origin focus and isolates keyboard/pointer propagation. Roots preview is generated from the inert initial view; no attempt is created by preview rendering. A real development card opens and restores Roots through injected development-only persistence. No production UI claims durable saving. The development mock independently verifies host sizing without changing mathematical layout.
+
+S04 verification: TypeScript passed; focused lint passed; 12 targeted Node tests passed; 157 existing visual tests passed; browser host tests passed **2/2 Chromium and 2/2 WebKit**, including 320 CSS pixels, resize, focus return, real card opening, mathematical input and same-session restore. Generated PNG visually reviewed. Physical iPhone testing remains unperformed. Existing visual layout may overflow the correctly bounded host; responsive repair remains separate scope.
+
+An existing user development server runs at `http://localhost:3001`; do not kill it. Use localhost, not 127.0.0.1 (Next development-origin checks block the latter). Preview command: `VISUAL_PREVIEW_ORIGIN=http://localhost:3001 node scripts/generate-interactive-visual-previews.mjs`. Browser command: `SPV_TEST_BASE_URL=http://localhost:3001 node_modules/.bin/playwright test tests/interactive-visual-host.spec.ts --workers=1 --reporter=list --output=/private/tmp/plugged-in-host-tests`; repeat with `--browser=webkit`. Keep generated test output outside tracked files.
 
 Do not push, deploy, merge, switch branches, run live migrations/provider changes, implement demo decks/general file picker or redesign mathematical responsiveness. Use the last successful commit as the recovery checkpoint. Pending work must never be reported as Saved or complete.

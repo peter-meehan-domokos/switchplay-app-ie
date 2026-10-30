@@ -113,3 +113,10 @@ export const guidedPresentation = (lesson: Lesson, eligible: boolean, editing: b
     ...(stage === "retrieval" ? { task: rootTaskLayout(retrievalTarget) } : {}),
   });
 };
+
+/** Move only generic navigation to the outer host. Check remains mathematical content. */
+export function hostedRootsPresentation(lesson: Lesson, eligible: boolean, editing: boolean, active: boolean): RootsFactorsPresentation {
+  const presentation = guidedPresentation(lesson, eligible, editing, active);
+  return presentation.prompt.navigation && ["ready", "continue", "start-again"].includes(presentation.prompt.navigation.id)
+    ? immutable({ ...presentation, prompt: { ...presentation.prompt, navigation: null } }) : presentation;
+}
