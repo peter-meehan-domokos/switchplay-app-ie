@@ -188,3 +188,100 @@ test("a new account session retries pending work without reopening that visual",
     await expect(page.getByRole("dialog")).toHaveCount(0);
   } finally { await client.close(); }
 });
+
+test("Start New Attempt requires confirmation and double activation creates one retained attempt", async ({ page }) => {
+  const { client, db, learner } = await fixture(page);
+  try {
+    const dialog = await open(page), slider = dialog.getByRole("slider"), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
+    await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(status).toHaveText("Saved");
+    const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+    const button = dialog.getByRole("button", { name: "Start New Attempt", exact: true });
+    page.once("dialog", async confirmation => { expect(confirmation.message()).toContain("history will be kept"); await confirmation.dismiss(); });
+    await button.click(); await expect(slider).toHaveAttribute("aria-valuenow", "4");
+    expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(1);
+    await page.evaluate(() => { window.confirm = () => true; });
+    await button.evaluate(element => { (element as HTMLButtonElement).click(); (element as HTMLButtonElement).click(); });
+    await expect(slider).toHaveAttribute("aria-valuenow", "3"); await expect(status).toHaveText("Saved");
+    const current = (await db.collection("visualRecords").findOne({ recordId: record.recordId }))!;
+    expect(current.activeAttemptId).not.toBe(record.activeAttemptId);
+    expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
+    expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
+    expect((await db.collection("visualAttempts").findOne({ attemptId: current.activeAttemptId }))!.snapshot.attemptNumber).toBe(2);
+    expect(await db.collection("visualEvents").countDocuments({ attemptId: current.activeAttemptId, type: "attempt-started" })).toBe(1);
+    // Same Stage1 controls also fit the supported narrow multimedia host.
+    await page.setViewportSize({ width: 320, height: 568 });
+    const next = await dialog.getByRole("button", { name: "Next", exact: true }).boundingBox();
+    const start = await button.boundingBox();
+    expect(next!.x + next!.width).toBeLessThanOrEqual(308.1); expect(start!.x).toBeGreaterThanOrEqual(11.9);
+  } finally { await client.close(); }
+});
+
+test("multiple confirmed offline attempts survive reload and register in order without losing earlier work", async ({ page }) => {
+  const { client, db, learner } = await fixture(page); let offline = false;
+  await page.route("**/api/visual-**", route => offline ? route.abort("internetdisconnected") : route.continue());
+  try {
+    let dialog = await open(page), slider = dialog.getByRole("slider");
+    const status = () => dialog.locator("[data-visual-host-footer]").getByRole("status");
+    await expect(status()).toHaveText("Saved");
+    const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+    offline = true; await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(status()).toContainText("pending");
+    for (let i = 0; i < 2; i++) {
+      page.once("dialog", confirmation => confirmation.accept());
+      await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+      await expect(slider).toHaveAttribute("aria-valuenow", "3");
+      await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
+      await expect(status()).toContainText("pending");
+    }
+    dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
+    await expect(status()).not.toHaveText("Saved"); offline = false; await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(status()).toHaveText("Saved");
+    const attempts = await db.collection("visualAttempts").find({ recordId: record.recordId }).sort({ attemptNumber: 1 }).toArray();
+    expect(attempts.map(a => a.attemptNumber)).toEqual([1, 2, 3]);
+    expect(attempts.map(a => a.snapshot.state.root)).toEqual([4, 4, 4]);
+    expect((await db.collection("visualRecords").findOne({ recordId: record.recordId }))!.activeAttemptId).toBe(attempts[2].attemptId);
+    for (const attempt of attempts) expect(await db.collection("visualEvents").countDocuments({ attemptId: attempt.attemptId, type: "attempt-started" })).toBe(1);
+  } finally { await client.close(); }
+});
+
+test("a lost new-attempt command response retries identically after reload", async ({ page }) => {
+  const { client, db, learner } = await fixture(page), commands: string[] = []; let dropped = false;
+  await page.route("**/api/visual-records/*/attempts", async route => {
+    commands.push(route.request().postData()!);
+    if (!dropped) { dropped = true; await route.fetch(); await route.abort("connectionreset"); } else await route.continue();
+  });
+  try {
+    let dialog = await open(page); await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    page.once("dialog", confirmation => confirmation.accept());
+    await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toContainText("Waiting to reconnect");
+    dialog = await open(page); await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    expect(commands.length).toBeGreaterThanOrEqual(2); expect(commands[0]).toBe(commands[1]);
+    const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+    expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
+    expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.attemptNumber).toBe(2);
+  } finally { await client.close(); }
+});
+
+test("a local transition failure cannot partially archive or replace the current attempt", async ({ page }) => {
+  const { client, db, learner } = await fixture(page);
+  try {
+    const dialog = await open(page), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
+    await expect(status).toHaveText("Saved");
+    const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+    await page.evaluate(() => { IDBObjectStore.prototype.put = () => { throw new DOMException("Injected transition quota", "QuotaExceededError"); }; });
+    page.once("dialog", confirmation => confirmation.accept());
+    await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+    await expect(status).toContainText("Unable to start"); await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3");
+    const count = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+      const request = indexedDB.open("switchplay-visual-learning-records", 1);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const transaction = request.result.transaction("outboxes"), rows = transaction.objectStore("outboxes").getAll();
+        rows.onsuccess = () => resolve(rows.result.length); rows.onerror = () => reject(rows.error);
+        transaction.oncomplete = () => request.result.close();
+      };
+    }));
+    expect(count).toBe(1); expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(1);
+    expect((await db.collection("visualRecords").findOne({ recordId: record.recordId }))!.activeAttemptId).toBe(record.activeAttemptId);
+  } finally { await client.close(); }
+});

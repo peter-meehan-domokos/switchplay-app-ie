@@ -9,6 +9,11 @@ import { createRootsHostedState, reduceRootsHostedState, rootsSnapshot } from ".
 function memoryStore() {
   const rows = new Map<string, VisualOutbox>(), opens = new Map(); let fail = false;
   const store: VisualOutboxStore = {
+    async transition(key, attemptId, create) {
+      if (fail) throw new Error("Storage quota");
+      const previous = rows.get(key); if (!previous || previous.session.attemptId !== attemptId) throw new Error("VISUAL_ACTIVE_ATTEMPT_CONFLICT");
+      const next = create(structuredClone(previous)); rows.set(next.command!.predecessorKey, { ...structuredClone(previous), key: next.command!.predecessorKey }); rows.set(key, structuredClone(next)); return structuredClone(next);
+    },
     async list(learner) { return structuredClone([...rows.values()].filter(row => row.learner === learner)); },
     async read(key) { return structuredClone(rows.get(key)); },
     async update(key, change) { if (fail) throw new Error("Storage quota"); const next = change(structuredClone(rows.get(key))); rows.set(key, structuredClone(next)); return structuredClone(next); },
@@ -17,21 +22,36 @@ function memoryStore() {
   return { store, rows, quota: (value: boolean) => { fail = value; } };
 }
 function transport() {
-  const session: VisualSession = { learner: "account:one", recordId: randomUUID(), activityId: "roots-and-factors", activeAttemptId: randomUUID(),
-    attemptId: randomUUID(), attemptNumber: 1, stateRevision: 0, activityVersion: 1, snapshotSchema: 1, snapshot: null, visitId: randomUUID() };
-  const bodies: string[] = []; let delayed: (() => void) | undefined, delay = false, lose = false;
+  const attemptId = randomUUID();
+  let session: VisualSession = { learner: "account:one", recordId: randomUUID(), activityId: "roots-and-factors", activeAttemptId: attemptId,
+    attemptId, attemptNumber: 1, stateRevision: 0, activityVersion: 1, snapshotSchema: 1, snapshot: null, visitId: randomUUID() };
+  const receipts = new Map<string, VisualSession>();
+  const bodies: string[] = [], commands: string[] = []; let delayed: (() => void) | undefined, delay = false, lose = false, loseCommand = false, offline = false;
   const fetcher: typeof fetch = async (_input, init) => {
     const body = JSON.parse(String(init?.body));
     assert.equal(new Headers(init?.headers).get("X-Visual-Learner"), "account:one");
     const json = (body: unknown) => Response.json(body, { headers: { "X-Visual-Learner": "account:one" } });
+    if (offline) throw new TypeError("Offline");
     if (String(_input).endsWith("/open")) return json({ ...session, visitId: body.visitId });
+    if (String(_input).endsWith("/attempts")) {
+      commands.push(String(init?.body));
+      const previous = receipts.get(body.commandId);
+      if (previous) return json({ ...previous, activeAttemptId: session.activeAttemptId });
+      assert.equal(body.expectedActiveAttemptId, session.attemptId);
+      session = { ...session, attemptId: body.attemptId, activeAttemptId: body.attemptId, attemptNumber: session.attemptNumber + 1, stateRevision: 0, snapshot: null };
+      receipts.set(body.commandId, session);
+      if (loseCommand) { loseCommand = false; throw new TypeError("Command response lost"); }
+      return json(session);
+    }
     bodies.push(String(init?.body));
     const ack = { writeId: body.writeId, acceptedEventIds: body.events.map((e: { eventId: string }) => e.eventId), snapshotAccepted: true, conflict: false, stateRevision: body.expectedStateRevision + 1 };
     if (delay) { delay = false; await new Promise<void>(resolve => { delayed = resolve; }); }
+    session = { ...session, snapshot: body.snapshot, stateRevision: ack.stateRevision };
     if (lose) { lose = false; throw new TypeError("Response lost after server commit"); }
     return json(ack);
   };
-  return { fetcher, bodies, session, hold: () => { delay = true; }, drop: () => { lose = true; }, release: () => delayed?.() };
+  return { fetcher, bodies, commands, hold: () => { delay = true; }, drop: () => { lose = true; }, dropCommand: () => { loseCommand = true; },
+    offline: (value: boolean) => { offline = value; }, release: () => delayed?.() };
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 test("client serializes sends and an older response cannot falsely mark newer state saved", async t => {
@@ -89,4 +109,42 @@ test("unknown first open offline creates no provisional attempt and retries the 
   const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: fetcher }); t.after(service.dispose);
   await assert.rejects(service.open("roots-and-factors", { kind: "direct" }), /Offline/); assert.equal(memory.rows.size, 0);
   offline = false; await service.open("roots-and-factors", { kind: "direct" }); assert.equal(ids[0], ids[1]); assert.equal(memory.rows.size, 1);
+});
+
+test("new attempts archive pending work atomically and reject a second request from a stale host", async t => {
+  const memory = memoryStore(), wire = transport();
+  const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(service.dispose);
+  const opened = await service.open("roots-and-factors", { kind: "direct" }), initial = createRootsHostedState(opened.attemptId);
+  await service.save(opened, rootsSnapshot(initial), initial.recorded.records.events); wire.offline(true);
+  const next = await service.startNewAttempt!(opened);
+  assert.equal(next.attemptNumber, 2); assert.notEqual(next.attemptId, opened.attemptId); assert.equal(memory.rows.size, 2);
+  const old = [...memory.rows.values()].find(row => row.session.attemptId === opened.attemptId)!;
+  assert.equal(old.events.length, 1); assert.equal(old.snapshot?.sequence, 1);
+  const fresh = createRootsHostedState(next.attemptId, next.attemptNumber);
+  await service.save(next, rootsSnapshot(fresh), fresh.recorded.records.events);
+  await assert.rejects(service.startNewAttempt!(opened), /ACTIVE_ATTEMPT_CONFLICT/); assert.equal(memory.rows.size, 2);
+  assert.equal([...memory.rows.values()].find(row => row.session.attemptId === next.attemptId)!.command?.request.expectedActiveAttemptId, opened.attemptId);
+});
+
+test("a lost new-attempt response retries the same command and registers before its events", async t => {
+  const memory = memoryStore(), wire = transport();
+  const first = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher });
+  const opened = await first.open("roots-and-factors", { kind: "direct" }), initial = createRootsHostedState(opened.attemptId);
+  await first.save(opened, rootsSnapshot(initial), initial.recorded.records.events); await first.flush!(opened.attemptId);
+  wire.dropCommand(); const next = await first.startNewAttempt!(opened), fresh = createRootsHostedState(next.attemptId, next.attemptNumber);
+  await first.save(next, rootsSnapshot(fresh), fresh.recorded.records.events); await first.flush!(next.attemptId); first.dispose();
+  assert.equal(wire.commands.length, 1);
+  const second = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(second.dispose);
+  const restored = await second.open("roots-and-factors", { kind: "direct" });
+  assert.equal(restored.attemptId, next.attemptId); assert.equal(restored.attemptNumber, 2);
+  assert.equal(wire.commands.length, 2); assert.equal(wire.commands[0], wire.commands[1]);
+  assert.equal(JSON.parse(wire.bodies.at(-1)!).snapshot.attemptNumber, 2);
+});
+
+test("a failed local new-attempt transition preserves the original row", async t => {
+  const memory = memoryStore(), wire = transport();
+  const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(service.dispose);
+  const opened = await service.open("roots-and-factors", { kind: "direct" }); memory.quota(true);
+  await assert.rejects(service.startNewAttempt!(opened), /quota/);
+  assert.equal(memory.rows.size, 1); assert.equal([...memory.rows.values()][0].session.attemptId, opened.attemptId);
 });

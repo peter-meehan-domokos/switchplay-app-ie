@@ -14,7 +14,7 @@ export type VisualAttempt = {
   startedRelease: number; activityVersion: number; snapshotSchema: number;
   snapshot: VisualSnapshot | null; stateRevision: number;
   lastAcceptedWrite: { id: string; hash: string; revision: number } | null;
-  command?: { id: string; hash: string };
+  command?: { id: string; hash: string; previousAttemptId?: string };
   createdAt: Date; updatedAt: Date; firstCompletedAt?: Date;
 };
 export type VisualEventInput = Readonly<{

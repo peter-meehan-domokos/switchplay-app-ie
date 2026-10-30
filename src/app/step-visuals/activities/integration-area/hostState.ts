@@ -85,8 +85,9 @@ export function integrationSnapshot({ state, sequence }: IntegrationHostedState)
     panel: panelSnapshot(state), previousPanels: state.previousPanels.map(panelSnapshot), nextPanels: state.nextPanels.map(panelSnapshot),
     evidence: { assistanceRequested: current.assistanceRequested, predictions: boundedPredictions(current.predictions), lastCheck: current.checks.at(-1) ?? null } });
 }
-export function createIntegrationHostedState(attemptId: string): IntegrationHostedState {
-  return immutable({ state: initialIntegration(attemptId), sequence: 1 });
+export function createIntegrationHostedState(attemptId: string, attemptNumber = 1): IntegrationHostedState {
+  if (!Number.isSafeInteger(attemptNumber) || attemptNumber < 1) throw new RangeError("Invalid attempt number.");
+  return immutable({ state: initialIntegration(attemptId, attemptNumber), sequence: 1 });
 }
 /** No constructor, notification, completion replay or event allocation on hydration. */
 export function restoreIntegrationHostedState(value: unknown): IntegrationHostedState {

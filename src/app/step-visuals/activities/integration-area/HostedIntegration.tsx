@@ -10,9 +10,9 @@ import IntroStages from "./intro-stages";
 import LaterStages from "./later-stages";
 import styles from "./integration.module.css";
 
-export default function HostedIntegration({ attemptId, initialSnapshot, dimensions, onControls, onChange }: HostedVisualProps) {
+export default function HostedIntegration({ attemptId, attemptNumber = 1, initialSnapshot, dimensions, onControls, onChange }: HostedVisualProps) {
   const [hosted, setHosted] = useState(() => {
-    const initial = initialSnapshot === null ? createIntegrationHostedState(attemptId) : restoreIntegrationHostedState(initialSnapshot);
+    const initial = initialSnapshot === null ? createIntegrationHostedState(attemptId, attemptNumber) : restoreIntegrationHostedState(initialSnapshot);
     if (initial.state.records.current.attemptId !== attemptId) throw new RangeError("Attempt snapshot identity mismatch.");
     return initial;
   });
@@ -42,6 +42,7 @@ export default function HostedIntegration({ attemptId, initialSnapshot, dimensio
   useLayoutEffect(() => {
     const navigation = integrationHostNavigation(current.current);
     onControls({ stageId: navigation.stageId, atStart: navigation.atStart, completed: navigation.completed,
+      canStartNewAttempt: navigation.atStart && !current.current.state.edit,
       ...(navigation.completed ? { backToStart } : {}),
       ...(navigation.previous ? { previous: { enabled: navigation.previous.enabled, run: () => dispatch({ type: "previous", revision: state.revision }) } } : {}),
       ...(navigation.next ? { next: { enabled: navigation.next.enabled, label: navigation.next.label, run: () => dispatch({ type: navigation.next!.action, revision: state.revision }) } } : {}) });

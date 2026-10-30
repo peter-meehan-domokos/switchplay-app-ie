@@ -2,6 +2,7 @@
 export type VisualContentDimensions = Readonly<{ width: number; height: number }>;
 export type VisualHostControls = Readonly<{
   stageId: string; atStart: boolean; completed: boolean;
+  canStartNewAttempt?: boolean;
   previous?: Readonly<{ enabled: boolean; run: () => void }>;
   next?: Readonly<{ enabled: boolean; run: () => void; label?: "Next" | "Finish" }>;
   backToStart?: () => void;
@@ -10,6 +11,7 @@ export type VisualHostControls = Readonly<{
 export type VisualHostEvent = Readonly<{ eventId: string; sequence: number; type: string }>;
 export type HostedVisualProps = Readonly<{
   attemptId: string;
+  attemptNumber?: number;
   initialSnapshot: unknown | null;
   dimensions: VisualContentDimensions;
   onControls: (controls: VisualHostControls) => void;

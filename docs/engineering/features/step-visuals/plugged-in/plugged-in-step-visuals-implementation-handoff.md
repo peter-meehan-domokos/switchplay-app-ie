@@ -29,8 +29,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S06 records repository | Complete | `66a48e9` |
 | S07a authenticated API/context | Complete | `45ed657` |
 | S07b offline outbox/host autosave | Complete | `5f3e712` |
-| S08a same-attempt Back to Start | Complete | Commit recorded at next checkpoint |
-| S08b confirmed new attempts | Pending | Not implemented |
+| S08a same-attempt Back to Start | Complete | `94e4b91` |
+| S08b confirmed new attempts | Complete | Commit recorded at next checkpoint |
 | S09 release compatibility | Pending | Not implemented |
 | S10 creator modal | Pending | Not implemented |
 | S11 learner multimedia | Pending | Not implemented |
@@ -61,7 +61,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S08b confirmed new-attempt commands and offline transition. Add the Stage1 secondary action with confirmation; only this allocates a fresh attempt. Pass attemptNumber through host/fresh constructors (currently default1) and keep both visuals activity-owned. Atomically archive the prior local row and install the new current row plus stable command/attempt ID. Drain predecessor work before registering commands and later batches. Retain old server attempts and ensure command retries cannot reactivate an older attempt. Test cancel/double activation, offline confirmation/reload/reconnect, lost command response and previous attempt retention. Then continue S09 release compatibility/recovery.
+Begin S09 current-release compatibility and non-destructive recovery. Inspect registry, API DTOs, codec validation, host error boundaries and outbox version handling. Preserve unsafe/corrupt historical attempts and pending queues; never silently reset them. Add explicit confirmed new-attempt recovery when restoration is unsafe, distinguish retirement from emergency disable, and reject old clients that cannot understand the current release. Register only real compiled releases; use synthetic test policy fixtures rather than inventing a curriculum release. Keep compatibility migration hooks activity-owned and checkpoint any actual state migration. Then continue S10 creator multimedia management.
+
+S08b completed: Stage1 secondary Start New Attempt uses a native browser confirmation. The visual declares state permission (including no live drag); host disables other interaction while the local transition is pending. IndexedDB atomically archives the prior attempt row and installs the fresh row plus stable command/attempt IDs. Predecessor writes and commands drain before the new attempt registers and its events upload. Multiple offline attempts survive reload in separate rows. Double/stale activation is rejected, failed local transitions abort both writes, command retries cannot reactivate older attempts, and server command metadata retains previousAttemptId. Both constructors receive the correct attempt number. Saved requires command, visit, event and latest snapshot acknowledgement.
+
+S08b verification: **478 unit tests passed**, **157 existing pure visual tests passed**, **10 disposable repository integration tests passed**. Full WebKit autosave/lifecycle suite passed **11/11**; final Chromium confirmation/command/rollback checks passed **4/4**. Tests include native Cancel, double activation, two successive offline attempts with earlier work intact, byte-identical lost command retry, and an IndexedDB failure after the archive operation that leaves only the original row. TypeScript and focused lint passed after correcting React Compiler callback dependencies; no lint rule was disabled. Physical iPhone validation remains unperformed.
+
+Guest-claim ordering note for S15: register queued guest new-attempt commands before freezing/claiming the guest. Otherwise an account with existing attempts may allocate a different attempt number than a pending guest snapshot. After login, the still-valid explicit guest credential may finish its own queue until claim starts; never retarget writes to the account implicitly. Existing registered attempt IDs/numbers and event payloads remain unchanged when claimed. Test this with several offline attempts and an existing account history.
 
 S08a completed: generic Back to Start delegates to each visual. Integration retains all seven panels and its checked draft, returns to Stage1 and requires an explicit Finish on later arrival. Roots separates aggregate attempt evidence from stage presentation, restores its last valid orientation placement and retains earlier retrieval work only when prediction prerequisites match. Changed work clears dependent current feedback; earlier events remain. Check numbering and assistance classification remain cumulative in the same attempt. Old Roots snapshots remain readable; returned earlier-stage snapshots cannot omit later aggregate evidence. Card completion and mathematical layout remain unchanged.
 

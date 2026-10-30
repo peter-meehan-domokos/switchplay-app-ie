@@ -8,9 +8,9 @@ import { learningInputPolicy, type LearningAction } from "./learning";
 import { hostedRootsPresentation } from "./presentationLayouts";
 import RootsFactorsView from "./RootsFactorsView";
 
-export default function HostedRootsFactors({ attemptId, initialSnapshot, dimensions, onControls, onChange }: HostedVisualProps) {
+export default function HostedRootsFactors({ attemptId, attemptNumber = 1, initialSnapshot, dimensions, onControls, onChange }: HostedVisualProps) {
   const [state, setState] = useState(() => {
-    const initial = initialSnapshot === null ? createRootsHostedState(attemptId) : restoreRootsHostedState(initialSnapshot);
+    const initial = initialSnapshot === null ? createRootsHostedState(attemptId, attemptNumber) : restoreRootsHostedState(initialSnapshot);
     if (initial.recorded.records.current.attemptId !== attemptId) throw new RangeError("Attempt snapshot identity mismatch.");
     return initial;
   });
@@ -45,6 +45,7 @@ export default function HostedRootsFactors({ attemptId, initialSnapshot, dimensi
   useLayoutEffect(() => {
     const capability = rootsHostNavigation(current.current);
     onControls({ stageId: capability.stageId, atStart: capability.atStart, completed: capability.completed,
+      canStartNewAttempt: capability.atStart && !current.current.recorded.learning.manipulation.edit,
       ...(capability.completed ? { backToStart } : {}),
       ...(capability.next ? { next: { enabled: capability.next.enabled,
         run: () => dispatch({ type: capability.next!.action, revision }) } } : {}) });

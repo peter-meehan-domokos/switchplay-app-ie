@@ -105,8 +105,8 @@ export function rootsSnapshot(state: RootsHostedState): RootsSnapshot {
     attemptEvidence: { prediction: current.prediction, checkAttempts: current.checkAttempts, incorrectChecks: current.incorrectChecks, assistanceRequested: current.assistanceRequested } });
 }
 
-export function createRootsHostedState(attemptId: string): RootsHostedState {
-  const recorded = initialRecordedLearning(attemptId);
+export function createRootsHostedState(attemptId: string, attemptNumber = 1): RootsHostedState {
+  const recorded = initialRecordedLearning(attemptId, attemptNumber);
   return immutable({ recorded, sequence: 1, visited: { orientation: stageSnapshot(recorded) } });
 }
 

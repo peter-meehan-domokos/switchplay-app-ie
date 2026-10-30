@@ -79,6 +79,7 @@ test("new attempts are idempotent, retain history and late batches or retries ne
   const command = { commandId: randomUUID(), attemptId: randomUUID(), expectedActiveAttemptId: opened.attempt.attemptId };
   const next = await repo.newAttempt(actor, opened.record.recordId, command);
   assert.equal(next.attemptNumber, 2);
+  assert.equal(next.command?.previousAttemptId, opened.attempt.attemptId);
   const later = await repo.newAttempt(actor, opened.record.recordId, { commandId: randomUUID(), attemptId: randomUUID(), expectedActiveAttemptId: next.attemptId });
   assert.equal((await repo.newAttempt(actor, opened.record.recordId, command)).attemptId, next.attemptId);
   await repo.append(actor, opened.attempt.attemptId, batch);

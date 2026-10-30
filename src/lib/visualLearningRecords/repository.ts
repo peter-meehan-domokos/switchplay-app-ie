@@ -127,7 +127,8 @@ export class VisualLearningRecordRepository {
       if (previous) { requireVisual(previous.command?.hash === commandHash, "VISUAL_COMMAND_ID_CONFLICT"); return previous; }
       requireVisual(record.activeAttemptId === command.expectedActiveAttemptId, "VISUAL_ACTIVE_ATTEMPT_CONFLICT");
       requireVisual(!(await this.attempts().findOne({ attemptId: command.attemptId }, { session })), "VISUAL_ATTEMPT_ID_CONFLICT");
-      const now = new Date(), attempt = this.attempt({ ...record, attemptCount: record.attemptCount + 1 }, command.attemptId, now, { id: command.commandId, hash: commandHash });
+      const now = new Date(), attempt = this.attempt({ ...record, attemptCount: record.attemptCount + 1 }, command.attemptId, now,
+        { id: command.commandId, hash: commandHash, previousAttemptId: command.expectedActiveAttemptId });
       await this.attempts().insertOne(attempt, { session });
       const updated = await this.records().updateOne({ recordId, principalKey: principalKey(actor), activeAttemptId: command.expectedActiveAttemptId },
         { $set: { activeAttemptId: attempt.attemptId, updatedAt: now }, $inc: { attemptCount: 1, revision: 1 } }, { session });

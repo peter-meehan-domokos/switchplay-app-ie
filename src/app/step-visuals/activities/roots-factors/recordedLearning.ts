@@ -26,8 +26,9 @@ const appendEvents = (records: Card1SessionRecords, attempt: Card1AttemptSnapsho
   return Object.freeze([...records.events, ...additions]);
 };
 
-export const initialRecordedLearning = (attemptId: string): RecordedLearningState => {
-  const current = newAttempt(attemptId, 1);
+export const initialRecordedLearning = (attemptId: string, attemptNumber = 1): RecordedLearningState => {
+  if (!Number.isSafeInteger(attemptNumber) || attemptNumber < 1) throw new RangeError("Invalid attempt number.");
+  const current = newAttempt(attemptId, attemptNumber);
   const empty: Card1SessionRecords = immutable({ schemaVersion: 1, exited: false, current, completedAttempts: [], partialAttempts: [], events: [] });
   return stateWith(initialLearning(), Object.freeze({ ...empty, events: appendEvents(empty, current, [{ type: "attempt-started", root: 3 }]) }));
 };

@@ -1,7 +1,7 @@
 import type { VisualHostEvent } from "../../app/step-visuals/core/host";
 import { getInteractiveVisual } from "../interactiveVisuals/catalogue";
 import { assertBoundedJson, assertVisualBatch, assertVisualSnapshot, requireVisual } from "./contracts";
-import type { BatchAcknowledgement, VisualBatch, VisualEventInput, VisualSnapshot, VisualSource } from "./model";
+import type { BatchAcknowledgement, NewVisualAttempt, VisualBatch, VisualEventInput, VisualSnapshot, VisualSource } from "./model";
 
 export type VisualSession = Readonly<{
   learner: string; recordId: string; activityId: string; activeAttemptId: string;
@@ -16,17 +16,28 @@ export type VisualOutbox = Readonly<{
   events: readonly QueuedEvent[]; visits: readonly PendingVisualVisit[];
   flight: Readonly<{ batch: VisualBatch; generation: number }> | null;
   conflict: boolean;
+  source?: VisualSource;
+  command?: Readonly<{ request: NewVisualAttempt; predecessorKey: string }>;
 }>;
 export const visualOutboxKey = (learner: string, activityId: string) => `${learner}|${activityId}`;
-export function initialVisualOutbox(session: VisualSession, writerId: string): VisualOutbox {
+export function initialVisualOutbox(session: VisualSession, writerId: string, source: VisualSource = { kind: "direct" }): VisualOutbox {
   const release = getInteractiveVisual(session.activityId);
   requireVisual(release && release.activityVersion === session.activityVersion && release.snapshotSchema === session.snapshotSchema, "VISUAL_RELEASE_MISMATCH");
   if (session.snapshot) assertVisualSnapshot(session.snapshot, session.activityId, session.attemptId);
   return { key: visualOutboxKey(session.learner, session.activityId), learner: session.learner, session, writerId,
     snapshot: session.snapshot, generation: 0, savedGeneration: 0, throughSequence: session.snapshot?.sequence ?? 0,
-    events: [], visits: [], flight: null, conflict: false };
+    events: [], visits: [], flight: null, conflict: false, source };
 }
-export const hasPendingVisualWork = (row: VisualOutbox) => row.generation !== row.savedGeneration || row.events.length > 0 || !!row.flight || row.visits.length > 0;
+export const hasPendingVisualWork = (row: VisualOutbox) => row.generation !== row.savedGeneration || row.events.length > 0 || !!row.flight || row.visits.length > 0 || !!row.command;
+export function newAttemptOutbox(previous: VisualOutbox, ids: { attemptId: string; commandId: string; visitId: string; writerId: string }): VisualOutbox {
+  requireVisual(!previous.conflict, "VISUAL_ACTIVE_ATTEMPT_CONFLICT");
+  const session: VisualSession = { ...previous.session, attemptId: ids.attemptId, activeAttemptId: ids.attemptId,
+    attemptNumber: previous.session.attemptNumber + 1, snapshot: null, stateRevision: 0, visitId: ids.visitId };
+  const source = previous.source ?? { kind: "direct" as const };
+  return { ...initialVisualOutbox(session, ids.writerId, source), visits: [{ visitId: ids.visitId, source }],
+    command: { request: { commandId: ids.commandId, attemptId: ids.attemptId, expectedActiveAttemptId: previous.session.attemptId },
+      predecessorKey: `${previous.key}|${previous.session.attemptId}` } };
+}
 
 /** All UUID/timestamp allocation happens inside the same local transaction as its snapshot. */
 export function enqueueVisualChange(row: VisualOutbox, snapshot: unknown, events: readonly VisualHostEvent[], uuid: () => string, now: string): VisualOutbox {
@@ -57,7 +68,7 @@ export function enqueueVisualChange(row: VisualOutbox, snapshot: unknown, events
   return next;
 }
 export function freezeVisualBatch(row: VisualOutbox, writeId: string): VisualOutbox {
-  if (row.flight || row.conflict || !hasPendingVisualWork(row) || !row.snapshot || row.visits.length) return row;
+  if (row.flight || row.conflict || row.command || !hasPendingVisualWork(row) || !row.snapshot || row.visits.length) return row;
   const visitId = row.events[0]?.visitId ?? row.session.visitId;
   let selected = row.events.filter(e => e.visitId === visitId).slice(0, 100).map(e => ({ eventId: e.eventId, writerId: e.writerId,
     clientSequence: e.clientSequence, clientOccurredAt: e.clientOccurredAt, activityVersion: e.activityVersion, eventSchema: e.eventSchema, type: e.type, payload: e.payload }));

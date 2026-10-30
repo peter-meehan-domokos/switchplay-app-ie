@@ -648,6 +648,8 @@ S08 execution boundaries (refined after durable queue verification):
 - **Commit:** `feat: claim guest visual attempts without losing history`.
 - **Rollback/continue:** never unclaim or duplicate histories; keep compatible ownership reader. Continue S16.
 
+S15 queue ordering clarification: finish registration of already-confirmed guest attempt commands before the server freezes the guest for claim. A signed-in account cookie must not implicitly retarget an explicitly guest-bound request with a still-valid guest credential. Reparent registered attempts with their existing numbers/IDs; account aggregate attempt counts cannot be substituted into already-created guest snapshots. Include multiple offline attempts plus existing account attempts in claim/retry tests. This is sequencing within the approved common record architecture, not concurrent-device reconciliation.
+
 ### S16 — Minimal guest entry and contextual sign-in return
 
 - **Deliverable/dependencies:** S09/S14/S15; production route for allowed visual IDs with same host, meaningful-progress invitation and preserved foreground state.
