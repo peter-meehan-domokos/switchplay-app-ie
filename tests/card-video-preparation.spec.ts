@@ -281,6 +281,18 @@ for(const engine of ["chromium","webkit"]) for(const paused of [true,false]) tes
     }
     await expect(poster).toHaveCount(0);expect((await renderedPixel(page))[1]).toBeGreaterThan(130);
     await page.screenshot({path:`/tmp/switchplay-handoff-${engine}-${paused?"paused":"playing"}.png`});
+    if (paused) {
+      // Real decoded metadata/seek/frame handling, rather than controlled media
+      // properties, proves that a nonzero session position becomes visible.
+      await video.evaluate((element: HTMLVideoElement) => { element.currentTime = 0.4; });
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => !element.seeking && Math.abs(element.currentTime - 0.4) < 0.05)).toBe(true);
+      await page.getByRole("region", { name: "STEP 1 detail", exact: true }).getByRole("button", { name: "Previous", exact: true }).click();
+      await expect(page.getByRole("region", { name: "STEP 1 detail", exact: true })).toHaveCount(0);
+      await expect(video).toBeVisible();
+      await page.getByRole("region", { name: "INTRO detail", exact: true }).getByRole("button", { name: "Next", exact: true }).click();
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => !element.seeking && Math.abs(element.currentTime - 0.4) < 0.05)).toBe(true);
+      await expect(video).toBeVisible(); expect(await video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
+    }
   } finally {if(browser)await browser.close();}
 });
 type Harness = { mountCard(actor?: string, version?: number): void; unmountCard(): void; setHidden(hidden: boolean): void };

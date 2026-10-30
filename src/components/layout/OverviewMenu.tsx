@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { activateVideoSession } from "@/lib/videoSessionPositions";
 
 type OverviewMenuProps = { username: string; userId: string };
 export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
@@ -24,6 +25,7 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
     }
 
     workingCardStore.clearUser(userId);
+    activateVideoSession(undefined);
     startTransition(() => {
       router.refresh();
     });
