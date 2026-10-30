@@ -122,6 +122,25 @@ export class VisualLearningRecordRepository {
     }
     return completed;
   }
+  private async replayVisit(actor: LearnerPrincipal, activityId: string, visit: VisualVisit, source: VisualSource, session: ClientSession) {
+    const owned = await this.ownedAttempt(actor, visit.attemptId, session);
+    // Working-card source authorization originally filled the adopted deck
+    // version. Only that omitted field may be recovered from the accepted visit.
+    const comparable = source.kind === "card" && source.mode === "working" && source.deckVersion === undefined
+      ? { ...source, deckVersion: visit.source.deckVersion } : source;
+    requireVisual(owned.record.activityId === activityId && hash(visit.source) === hash(comparable), "VISUAL_VISIT_ID_CONFLICT");
+    const attempt = owned.record.activeAttemptId === owned.attempt.attemptId ? await this.migrateForOpen(owned.attempt, session) : owned.attempt;
+    return { ...owned, attempt, visit };
+  }
+  /** Retry only an already accepted, exactly matching, currently owned visit.
+   * This returns learner data, never card/media access or a new visit grant. */
+  async replayOpen(actor: LearnerPrincipal, activityId: string, visitId: string, source: VisualSource) {
+    principalKey(actor); assertUuid(visitId); assertVisualSource(source); this.release(activityId);
+    return this.transaction(async session => {
+      const visit = await this.visits().findOne({ visitId }, { session });
+      return visit ? this.replayVisit(actor, activityId, visit, source, session) : null;
+    });
+  }
   /** Caller must authorize source against stored card/framework content before calling. Source never grants record access. */
   async open(actor: LearnerPrincipal, activityId: string, visitId: string, source: VisualSource) {
     const key = principalKey(actor); assertUuid(visitId); assertVisualSource(source); this.release(activityId);
@@ -131,12 +150,7 @@ export class VisualLearningRecordRepository {
         return await this.transaction(async session => {
           await touchVisualGuest(this.db, actor, session);
           const existingVisit = await this.visits().findOne({ visitId }, { session });
-          if (existingVisit) {
-            const owned = await this.ownedAttempt(actor, existingVisit.attemptId, session);
-            requireVisual(owned.record.activityId === activityId && hash(existingVisit.source) === hash(source), "VISUAL_VISIT_ID_CONFLICT");
-            const attempt = owned.record.activeAttemptId === owned.attempt.attemptId ? await this.migrateForOpen(owned.attempt, session) : owned.attempt;
-            return { ...owned, attempt, visit: existingVisit };
-          }
+          if (existingVisit) return this.replayVisit(actor, activityId, existingVisit, source, session);
           const now = new Date();
           let record = await this.records().findOne({ principalKey: key, activityId }, { session });
           if (!record) {

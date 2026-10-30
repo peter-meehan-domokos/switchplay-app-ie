@@ -65,14 +65,17 @@ test("public preview is inert and contextual sign-in restores foreground guest o
 });
 
 test("successful login survives interrupted claim and the explicit return retries retained work", async ({ page }) => {
-  const account = await fixture(); await page.goto("/interactive-visuals/roots-and-factors"); await open(page); await progress(page); await expect(status(page)).toHaveText("Saved");
+  const account = await fixture(); await page.goto("/interactive-visuals/roots-and-factors"); await open(page);
+  let holdSaves = true;
+  await page.route("**/api/visual-attempts/*/batches", route => holdSaves ? route.abort("internetdisconnected") : route.continue());
+  await progress(page); await expect(status(page)).toContainText("pending");
   let blocked = true;
   await page.route("**/api/visual-guests/claim", route => blocked ? route.abort("internetdisconnected") : route.continue());
   await page.getByRole("button", { name: "Sign in to keep progress across devices" }).click(); await login(page, account.username);
   await expect(page).toHaveURL(/\/interactive-visuals\/roots-and-factors\?claimId=/);
   await expect(page.getByRole("status")).toContainText("Your existing work is kept");
   expect((await (await page.request.get("/api/auth/me")).json()).user.id).toBe(account.learner.slice(8));
-  blocked = false; await page.getByRole("button", { name: "Retry", exact: true }).click();
+  blocked = false; holdSaves = false; await page.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.locator("[data-visual-host-content]")).toHaveAttribute("data-visual-stage", "prediction"); await expect(status(page)).toHaveText("Saved");
 });
 
@@ -85,4 +88,13 @@ test("ordinary login associates existing guest progress without changing default
   await expect.poll(async () => (await db().collection("visualRecords").findOne({ principalKey: account.learner }))?.activeAttemptId).toBe(before.activeAttemptId);
   expect(await db().collection("visualAttempts").countDocuments({ recordId: before.recordId })).toBe(1);
   await page.goto("/interactive-visuals/not-a-visual"); await expect(page.getByRole("button", { name: /Open Roots/ })).toHaveCount(0);
+});
+
+test("unowned return handles never open or create an account attempt", async ({ page }) => {
+  const account = await fixture();
+  await page.request.post("/api/auth/login", { data: { identifier: account.username, password: "local-test-only" } });
+  await page.goto(`/interactive-visuals/roots-and-factors?claimId=${randomUUID()}`);
+  await expect(page.getByRole("button", { name: "Open Roots and Factors", exact: true })).toBeEnabled();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await db().collection("visualRecords").countDocuments({ principalKey: account.learner })).toBe(0);
 });

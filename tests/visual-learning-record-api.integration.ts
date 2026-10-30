@@ -11,6 +11,7 @@ import { createVisualLearningRecordIndexes, VisualLearningRecordRepository } fro
 import { authorizeVisualSource } from "../src/lib/visualLearningRecords/sourceAccess";
 import { createRootsHostedState, rootsSnapshot } from "../src/app/step-visuals/activities/roots-factors/hostState";
 import type { LearnerPrincipal, VisualSource } from "../src/lib/visualLearningRecords/model";
+import { VisualRecordError } from "../src/lib/visualLearningRecords/contracts";
 
 let server: MongoMemoryReplSet, client: MongoClient, cards: CardRepository, records: VisualLearningRecordRepository;
 const actor: LearnerPrincipal = { kind: "account", id: "learner" };
@@ -36,6 +37,29 @@ function request(body?: unknown, headers: Record<string, string> = {}) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 }
 const openBody = (source: VisualSource = { kind: "direct" }) => ({ activityId: "roots-and-factors", visitId: randomUUID(), source });
+test("accepted Open replay retains owned visit provenance after source removal without authorizing new visits", async () => {
+  let available = true, checks = 0;
+  const owner: LearnerPrincipal = { kind: "account", id: "replay-owner" };
+  const endpoint = (actor = owner) => createVisualApi({ enabled: true, authenticate: async () => actor, repository: async () => records,
+    authorizeSource: async (_actor, _activityId, source) => { checks++; if (!available) throw new VisualRecordError("VISUAL_SOURCE_FORBIDDEN");
+      return source.kind === "card" ? { ...source, deckVersion: 1 } : source; } });
+  const send = (body: unknown, actor = owner) => request(body, { "X-Visual-Learner": `${actor.kind}:${actor.id}` });
+  for (const source of [{ kind: "card", mode: "working", cardId: "retired-card", cardVersion: 1, deckId: "adopted-deck", stepId: "intro", attachmentId: "visual" },
+    { kind: "framework", frameworkId: "prior-framework", frameworkItemId: "prior-item" }] as VisualSource[]) {
+    available = true;
+    const body = openBody(source), initial = await (await endpoint().open(send(body))).json();
+    assert.ok(initial.attemptId); available = false; const previousChecks = checks;
+    const replay = await endpoint().open(send(body)); assert.equal(replay.status, 200);
+    const restored = await replay.json(); assert.equal(restored.attemptId, initial.attemptId); assert.equal(restored.visitId, initial.visitId);
+    assert.equal(checks, previousChecks); assert.equal(restored.source, undefined); assert.equal(restored.content, undefined);
+    assert.equal((await endpoint().open(send({ ...body, visitId: randomUUID() }))).status, 403);
+    const other = { kind: "account", id: "not-owner" } as const;
+    assert.equal((await endpoint(other).open(send(body, other))).status, 403);
+    assert.equal((await endpoint().open(send({ ...body, source: { ...source, ...(source.kind === "card" ? { deckVersion: 2 } : { frameworkItemId: "changed" }) } }))).status, 409);
+    const visit = (await records.visits().findOne({ visitId: initial.visitId }))!;
+    assert.deepEqual(visit.source, source.kind === "card" ? { ...source, deckVersion: 1 } : source);
+  }
+});
 test("authentication, actor binding, same-origin, feature gate and body limits fail closed", async () => {
   assert.equal((await api(null).open(request(openBody()))).status, 401);
   assert.equal((await api(actor, false).open(request(openBody()))).status, 404);

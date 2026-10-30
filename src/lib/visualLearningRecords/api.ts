@@ -74,6 +74,8 @@ export function createVisualApi(deps: VisualApiDependencies) {
       const body = await readVisualJson(request, 8192);
       requireVisual(recordObject(body) && exactFields(body, ["activityId", "visitId", "source"]), "INVALID_VISUAL_OPEN");
       requireVisual(typeof body.activityId === "string" && resolveInteractiveVisual(body.activityId), "VISUAL_UNAVAILABLE"); assertUuid(body.visitId); assertVisualSource(body.source);
+      const replay = await repo.replayOpen(actor, body.activityId, body.visitId, body.source);
+      if (replay) return visualSessionDto(actor, replay.record, replay.attempt, replay.visit.visitId, repo.disabledIds);
       const source = await deps.authorizeSource(actor, body.activityId, body.source);
       const opened = await repo.open(actor, body.activityId, body.visitId, source);
       return visualSessionDto(actor, opened.record, opened.attempt, opened.visit.visitId, repo.disabledIds);

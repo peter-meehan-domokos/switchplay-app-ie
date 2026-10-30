@@ -29,8 +29,10 @@ export class VisualGuestClaims {
       const foreground = roots.find(root => root.activeAttemptId === request.foregroundAttemptId);
       requireVisual(foreground && !foreground.claimArchive, "VISUAL_CLAIM_FOREGROUND_CONFLICT");
       requireVisual(await this.records.attempts().findOne({ attemptId: request.foregroundAttemptId, recordId: foreground.recordId }, { session }), "VISUAL_CLAIM_FOREGROUND_CONFLICT");
+      const accountForeground = await this.records.records().findOne({ principalKey: principalKey(account), activityId: foreground.activityId }, { session });
       const claim: VisualGuestClaim = { claimId: request.claimId, accountId: account.id, guestId: guest.guestId,
-        foregroundAttemptId: request.foregroundAttemptId, recordIds: [foreground.recordId, ...roots.filter(root => root !== foreground).map(root => root.recordId)], mappings: [], createdAt: now };
+        foregroundAttemptId: request.foregroundAttemptId, foregroundAccountAttemptId: accountForeground?.activeAttemptId ?? null,
+        recordIds: [foreground.recordId, ...roots.filter(root => root !== foreground).map(root => root.recordId)], mappings: [], createdAt: now };
       const frozen = await this.guests().updateOne({ guestId: guest.guestId, status: "active", expiresAt: { $gt: now } },
         { $set: { status: "claiming", claimId: claim.claimId, claimedBy: account.id }, $inc: { useCount: 1 } }, { session });
       requireVisual(frozen.modifiedCount === 1, "VISUAL_CLAIM_CONFLICT");
@@ -49,6 +51,9 @@ export class VisualGuestClaims {
       const count = await this.records.attempts().countDocuments({ recordId }, { session });
       requireVisual(count === guestRoot.attemptCount && count > 0, "VISUAL_STORAGE_INCONSISTENT");
       let accountRoot = await this.records.records().findOne({ principalKey: `account:${accountId}`, activityId: guestRoot.activityId }, { session });
+      if (guestRoot.activeAttemptId === claim.foregroundAttemptId) {
+        requireVisual(claim.foregroundAccountAttemptId !== undefined && claim.foregroundAccountAttemptId === (accountRoot?.activeAttemptId ?? null), "VISUAL_CLAIM_FOREGROUND_CONFLICT");
+      }
       const now = new Date();
       if (!accountRoot) {
         await this.records.records().updateOne({ recordId, principalKey: guestRoot.principalKey },

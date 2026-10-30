@@ -5,7 +5,7 @@ export async function GET() {
   const user = await getCurrentUser();
 
   if (!user) {
-    return Response.json({ user: null }, { status: 401 });
+    return Response.json({ user: null }, { status: 401, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
   }
 
   const visualGuest = await visualGuestLoginContext(user.id);

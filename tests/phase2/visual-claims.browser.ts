@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 import { VisualLearningRecordRepository } from "../../src/lib/visualLearningRecords/repository";
 import { createRootsHostedState, reduceRootsHostedState, rootsSnapshot } from "../../src/app/step-visuals/activities/roots-factors/hostState";
@@ -8,12 +8,16 @@ import { createRootsHostedState, reduceRootsHostedState, rootsSnapshot } from ".
 test("real claim endpoint retains account history, restores foreground guest and allocates the next attempt from the merged count", async ({ page }) => {
   assertDisposableDatabase(); const client = await new MongoClient(process.env.MONGODB_URI!).connect();
   try {
-    const repo = new VisualLearningRecordRepository(client.db(process.env.MONGODB_DB!), client), account = { kind: "account" as const, id: process.env.PHASE2_USER_ID! };
+    const database = client.db(process.env.MONGODB_DB!), seed = (await database.collection("users").findOne({ username: "phase2" }))!;
+    const id = new ObjectId(), username = `claim-endpoint-${randomUUID()}`, now = new Date();
+    await database.collection("users").insertOne({ _id: id, username, email: `${username}@example.invalid`, passwordHash: seed.passwordHash, cardsData: [], decksData: [], createdAt: now, updatedAt: now });
+    const repo = new VisualLearningRecordRepository(database, client), account = { kind: "account" as const, id: id.toHexString() };
     const existing = await repo.open(account, "roots-and-factors", randomUUID(), { kind: "direct" });
     const state = reduceRootsHostedState(createRootsHostedState(existing.attempt.attemptId), { type: "root", action: { type: "place", root: 5, revision: 0 } });
-    await repo.append(account, existing.attempt.attemptId, { writeId: randomUUID(), expectedStateRevision: 0, visitId: existing.visit.visitId, activityVersion: 1, snapshotSchema: 1,
+    const accepted = await repo.append(account, existing.attempt.attemptId, { writeId: randomUUID(), expectedStateRevision: 0, visitId: existing.visit.visitId, activityVersion: 1, snapshotSchema: 1,
       snapshot: rootsSnapshot(state), events: state.recorded.records.events.map(event => ({ eventId: randomUUID(), writerId: randomUUID(), clientSequence: event.sequence,
         clientOccurredAt: new Date().toISOString(), activityVersion: 1, eventSchema: 1, type: event.type, payload: event })) });
+    expect(accepted.snapshotAccepted).toBe(true);
     await page.goto("/dev/interactive-visual-host"); await page.getByRole("button", { name: "Open guest database review", exact: true }).click();
     await page.getByRole("button", { name: "Open Roots and Factors", exact: true }).click();
     let host = page.getByRole("dialog", { name: "Roots and Factors", exact: true });
@@ -23,7 +27,7 @@ test("real claim endpoint retains account history, restores foreground guest and
     const guestRoot = (await repo.records().findOne({ principalKey: guestLearner }))!, foreground = guestRoot.activeAttemptId;
     const payload = { claimId: randomUUID(), foregroundAttemptId: foreground }, headers = { Origin: process.env.PHASE2_BASE_URL!, "X-Visual-Learner": `account:${account.id}` };
     expect((await page.request.post("/api/visual-guests/claim", { data: payload, headers })).status()).toBe(401);
-    expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).ok()).toBe(true);
+    expect((await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } })).ok()).toBe(true);
     expect((await page.request.post("/api/visual-guests/claim", { data: payload, headers: { ...headers, Origin: "https://attacker.invalid" } })).status()).toBe(403);
     const response = await page.request.post("/api/visual-guests/claim", { data: payload, headers }); expect(response.ok()).toBe(true);
     const receipt = await response.json(); expect(receipt.mappings[0].nextAttemptNumber).toBe(3);

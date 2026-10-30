@@ -162,6 +162,26 @@ test("an interrupted multi-record claim retries its remaining transaction withou
   assert.equal(await repo.attempts().countDocuments(), 5);
 });
 
+test("an unfinished foreground transfer cannot silently replace a newer account attempt on retry", async () => {
+  const { repo, guest, db } = await fixture(), existing = await open(repo, account), foreground = await open(repo, guest.principal);
+  let fail = true;
+  class InterruptedRepository extends VisualLearningRecordRepository {
+    override attempts() {
+      const collection = super.attempts(), update = collection.updateMany.bind(collection);
+      collection.updateMany = (async (...args: Parameters<typeof update>) => { if (fail) throw new Error("Interrupted before foreground transfer"); return update(...args); }) as typeof collection.updateMany;
+      return collection;
+    }
+  }
+  const claims = new VisualGuestClaims(new InterruptedRepository(db, client)), request = { claimId: randomUUID(), foregroundAttemptId: foreground.attempt.attemptId };
+  await assert.rejects(claims.claim(account, guest.credential, request), /Interrupted/);
+  const newer = command(existing.attempt.attemptId); await repo.newAttempt(account, existing.record.recordId, newer); fail = false;
+  await assert.rejects(claims.claim(account, undefined, request), /VISUAL_CLAIM_FOREGROUND_CONFLICT/);
+  assert.equal((await repo.current(account, existing.record.recordId)).attempt.attemptId, newer.attemptId);
+  assert.equal((await repo.attempts().findOne({ attemptId: foreground.attempt.attemptId }))!.recordId, foreground.record.recordId);
+  assert.equal(await repo.attempts().countDocuments(), 3);
+  assert.equal((await db.collection(VISUAL_GUEST_CLAIMS_COLLECTION).findOne({ claimId: request.claimId }))!.mappings.length, 0);
+});
+
 test("claim API requires account identity and guest proof for a new claim, validates origin/body and denies cross-account receipt access", async () => {
   const { repo, guest, claims, db } = await fixture(), anonymous = await open(repo, guest.principal);
   const body: VisualClaimRequest = { claimId: randomUUID(), foregroundAttemptId: anonymous.attempt.attemptId };

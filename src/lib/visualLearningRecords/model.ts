@@ -19,6 +19,9 @@ export type VisualClaimMapping = Readonly<{
 export type VisualGuestClaim = {
   claimId: string; guestId: string; accountId: string; foregroundAttemptId: string;
   recordIds: string[]; mappings: VisualClaimMapping[]; createdAt: Date; completedAt?: Date;
+  /** Null means the account had no record at freeze. Missing old partial claims
+   * fail closed before any uncompleted foreground activation. */
+  foregroundAccountAttemptId?: string | null;
 };
 export type VisualClaimReceipt = Readonly<{ claimId: string; learner: string; guestLearner: string; foregroundAttemptId: string; mappings: readonly VisualClaimMapping[] }>;
 export type VisualAttempt = {
