@@ -3,7 +3,7 @@ import { initialManipulation } from "./manipulation";
 import { createCard1Math, type RootInteger } from "./model";
 import type { LearningAction, Lesson } from "./learning";
 import { initialRecordedLearning, recordedLearningReducer, type RecordedLearningState } from "./recordedLearning";
-import type { Card1AttemptSnapshot, Card1LearningStage, Card1PredictionRecord } from "./learningRecords";
+import type { Card1AttemptSnapshot, Card1LearningEvent, Card1LearningStage, Card1PredictionRecord } from "./learningRecords";
 
 type Evidence = Readonly<{
   prediction: Card1PredictionRecord | null;
@@ -17,6 +17,8 @@ export type RootsSnapshot = Readonly<{
   attemptId: string; attemptNumber: number; sequence: number;
   state: RootsStageSnapshot;
   visited: Readonly<Partial<Record<Card1LearningStage, RootsStageSnapshot>>>;
+  /** Aggregate evidence survives visiting an earlier stage. Optional for pre-host snapshots. */
+  attemptEvidence?: Evidence;
 }>;
 export type RootsHostedState = Readonly<{
   recorded: RecordedLearningState;
@@ -26,7 +28,8 @@ export type RootsHostedState = Readonly<{
 
 const stages = ["orientation", "prediction", "reveal-position", "reveal-explanation", "retrieval", "completed"] as const;
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
-const fields = (value: Record<string, unknown>, names: readonly string[]) => Object.keys(value).length === names.length && names.every((name) => Object.hasOwn(value, name));
+const fields = (value: Record<string, unknown>, names: readonly string[], optional: readonly string[] = []) =>
+  Object.keys(value).every(name => names.includes(name) || optional.includes(name)) && names.every(name => Object.hasOwn(value, name));
 const count = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) < Number.MAX_SAFE_INTEGER - 100;
 const root = (value: unknown): value is RootInteger => Number.isInteger(value) && Number(value) >= -5 && Number(value) <= 5;
 const prediction = (value: unknown): value is Card1PredictionRecord => object(value)
@@ -65,7 +68,6 @@ function validStage(value: unknown): value is RootsStageSnapshot {
   }
   if (lesson.stage !== "retrieval" || !fields(lesson, ["stage", "prediction", "panel", "evidence", "feedback"])
     || !["challenge", "explanation"].includes(String(lesson.panel)) || progress.checkAttempts !== progress.incorrectChecks
-    || (progress.assistanceRequested && progress.incorrectChecks === 0)
     || (lesson.panel === "explanation" && !progress.assistanceRequested)) return false;
   return lesson.feedback === null || object(lesson.feedback) && fields(lesson.feedback, ["checkedRoot", "attempt"])
     && lesson.feedback.checkedRoot === value.root && value.root !== -4
@@ -74,26 +76,33 @@ function validStage(value: unknown): value is RootsStageSnapshot {
 
 /** Validate safe reducer invariants; historical assessment outcomes remain learner-reported. */
 export function isRootsSnapshot(value: unknown): value is RootsSnapshot {
-  return object(value) && fields(value, ["snapshotSchema", "activityId", "activityVersion", "attemptId", "attemptNumber", "sequence", "state", "visited"])
+  if (!(object(value) && fields(value, ["snapshotSchema", "activityId", "activityVersion", "attemptId", "attemptNumber", "sequence", "state", "visited"], ["attemptEvidence"])
     && value.snapshotSchema === 1 && value.activityId === "roots-and-factors" && value.activityVersion === 1
     && typeof value.attemptId === "string" && value.attemptId.trim().length > 0 && value.attemptId.length <= 200
     && count(value.attemptNumber) && value.attemptNumber >= 1 && count(value.sequence) && validStage(value.state)
     && object(value.visited) && Object.hasOwn(value.visited, "orientation") && Object.entries(value.visited).every(([stage, saved]) => stages.includes(stage as Card1LearningStage)
-      && validStage(saved) && saved.lesson.stage === stage);
+      && validStage(saved) && saved.lesson.stage === stage))) return false;
+  const aggregate = value.attemptEvidence === undefined ? value.state.evidence : value.attemptEvidence;
+  return evidence(aggregate) && [value.state, ...Object.values(value.visited)].every(saved => validStage(saved)
+    && aggregate.checkAttempts >= saved.evidence.checkAttempts && aggregate.incorrectChecks >= saved.evidence.incorrectChecks
+    && (!saved.evidence.assistanceRequested || aggregate.assistanceRequested));
 }
 
 function stageSnapshot(state: RecordedLearningState): RootsStageSnapshot {
-  const { prediction, checkAttempts, incorrectChecks, assistanceRequested } = state.records.current;
+  const lesson = state.learning.lesson, current = state.records.current;
+  const progress = "evidence" in lesson ? lesson.evidence : null;
   return immutable({ root: state.learning.manipulation.math.movingRoot,
-    hasChangedPlacement: state.learning.manipulation.hasChangedPlacement, lesson: state.learning.lesson,
-    evidence: { prediction, checkAttempts, incorrectChecks, assistanceRequested } });
+    hasChangedPlacement: state.learning.manipulation.hasChangedPlacement, lesson,
+    evidence: { prediction: "prediction" in lesson ? current.prediction : null,
+      checkAttempts: progress?.checkAttempts ?? 0, incorrectChecks: progress?.incorrectChecks ?? 0, assistanceRequested: progress?.assistanceViewed ?? false } });
 }
 
 export function rootsSnapshot(state: RootsHostedState): RootsSnapshot {
   const current = state.recorded.records.current;
   return immutable({ snapshotSchema: 1, activityId: "roots-and-factors", activityVersion: 1,
     attemptId: current.attemptId, attemptNumber: current.attemptNumber, sequence: state.sequence,
-    state: stageSnapshot(state.recorded), visited: state.visited });
+    state: stageSnapshot(state.recorded), visited: state.visited,
+    attemptEvidence: { prediction: current.prediction, checkAttempts: current.checkAttempts, incorrectChecks: current.incorrectChecks, assistanceRequested: current.assistanceRequested } });
 }
 
 export function createRootsHostedState(attemptId: string): RootsHostedState {
@@ -105,11 +114,13 @@ export function createRootsHostedState(attemptId: string): RootsHostedState {
 export function restoreRootsHostedState(value: unknown): RootsHostedState {
   if (!isRootsSnapshot(value)) throw new RangeError("Invalid Roots and Factors snapshot.");
   const snapshot = structuredClone(value), saved = snapshot.state;
+  const aggregate = snapshot.attemptEvidence ?? saved.evidence;
   const manipulation = { ...initialManipulation(createCard1Math(saved.root), "guided"), hasChangedPlacement: saved.hasChangedPlacement };
   const current: Card1AttemptSnapshot = { schemaVersion: 1, activityVersion: 1, activityId: "roots-and-factors",
     attemptId: snapshot.attemptId, attemptNumber: snapshot.attemptNumber, stage: saved.lesson.stage,
     status: saved.lesson.stage === "completed" ? "completed" : "in-progress", settledRoot: saved.root,
-    ...saved.evidence, successMode: saved.lesson.stage === "completed" ? saved.lesson.successMode : null,
+    ...aggregate, prediction: "prediction" in saved.lesson ? saved.evidence.prediction : aggregate.prediction,
+    successMode: saved.lesson.stage === "completed" ? saved.lesson.successMode : null,
     placements: [], checks: [] };
   return immutable({ sequence: snapshot.sequence, visited: snapshot.visited,
     recorded: { learning: { manipulation, lesson: saved.lesson }, records: { schemaVersion: 1, exited: false,
@@ -122,10 +133,21 @@ export function restoreRootsHostedState(value: unknown): RootsHostedState {
  */
 export function reduceRootsHostedState(state: RootsHostedState, action: LearningAction, active = true): RootsHostedState {
   if (action.type === "start-again") return state; // Host owns explicit attempt allocation.
+  const { lesson, manipulation } = state.recorded.learning;
+  const retained = state.visited.retrieval, selected = state.recorded.records.current.prediction;
+  if (action.type === "continue" && active && action.revision === manipulation.revision && !manipulation.edit && lesson.stage === "reveal-explanation"
+    && retained && retained.lesson.stage === "retrieval" && retained.lesson.prediction === lesson.prediction
+    && selected?.chosenFactorRoot === retained.evidence.prediction?.chosenFactorRoot && selected?.rootAtSubmission === retained.evidence.prediction?.rootAtSubmission) {
+    return visitRootsStage(state, retained);
+  }
   const input: RecordedLearningState = { learning: state.recorded.learning, records: { ...state.recorded.records,
     current: { ...state.recorded.records.current, placements: [], checks: [] }, events: [], completedAttempts: [], partialAttempts: [] } };
-  const next = recordedLearningReducer(input, { type: "lesson", action }, active);
+  let next = recordedLearningReducer(input, { type: "lesson", action }, active);
   if (next.learning === state.recorded.learning && next.records === input.records) return state;
+  // Assistance belongs to the attempt, even if a changed earlier answer starts a new retrieval pass.
+  if (next.learning.lesson.stage === "retrieval" && next.records.current.assistanceRequested && !next.learning.lesson.evidence.assistanceViewed) {
+    next = { ...next, learning: { ...next.learning, lesson: { ...next.learning.lesson, evidence: { ...next.learning.lesson.evidence, assistanceViewed: true } } } };
+  }
   const events = next.records.events.map((event, index) => ({ ...event, sequence: state.sequence + index + 1,
     eventId: `${event.attemptId}:${state.sequence + index + 1}` }));
   const recorded = { learning: next.learning, records: { ...next.records, events: [...state.recorded.records.events, ...events] } };
@@ -133,6 +155,26 @@ export function reduceRootsHostedState(state: RootsHostedState, action: Learning
   return immutable({ recorded, sequence: state.sequence + events.length,
     visited: meaningful ? { ...state.visited, [state.recorded.learning.lesson.stage]: stageSnapshot(state.recorded),
       [next.learning.lesson.stage]: stageSnapshot(recorded) } : state.visited });
+}
+
+function visitRootsStage(state: RootsHostedState, destination: RootsStageSnapshot): RootsHostedState {
+  const previous = state.recorded, old = previous.learning.manipulation;
+  let saved = destination;
+  if (saved.lesson.stage === "retrieval" && previous.records.current.assistanceRequested) {
+    saved = { ...saved, evidence: { ...saved.evidence, assistanceRequested: true }, lesson: { ...saved.lesson, evidence: { ...saved.lesson.evidence, assistanceViewed: true } } };
+  }
+  const snapshot = rootsSnapshot(state);
+  const restored = restoreRootsHostedState({ ...snapshot, state: saved,
+    visited: { ...snapshot.visited, [previous.learning.lesson.stage]: stageSnapshot(previous), [saved.lesson.stage]: saved } });
+  const sequence = state.sequence + 1, current = restored.recorded.records.current;
+  const event: Card1LearningEvent = { schemaVersion: 1, activityVersion: 1, activityId: "roots-and-factors", attemptId: current.attemptId,
+    attemptNumber: current.attemptNumber, eventId: `${current.attemptId}:${sequence}`, sequence, type: "stage-changed", from: previous.learning.lesson.stage, to: saved.lesson.stage };
+  return immutable({ ...restored, sequence, recorded: { learning: { ...restored.recorded.learning,
+    manipulation: { ...restored.recorded.learning.manipulation, revision: old.revision + 1, lastSessionId: old.lastSessionId } },
+    records: { ...restored.recorded.records, events: [...previous.records.events, event] } } });
+}
+export function rootsBackToStart(state: RootsHostedState): RootsHostedState {
+  return state.recorded.learning.lesson.stage === "completed" && state.visited.orientation ? visitRootsStage(state, state.visited.orientation) : state;
 }
 
 /** Call only after the host has durably queued these events; network acknowledgements are separate. */

@@ -52,6 +52,11 @@ test("Integration keeps mathematical controls local and restores the unchecked c
   await content.getByRole("button", { name: "Check calculation", exact: true }).click();
   await expect(finish).toBeEnabled(); await finish.click();
   await expect(content.locator("[data-integration-part]")).toHaveAttribute("data-integration-part", "finished");
+  await dialog.getByRole("button", { name: "Back to Start", exact: true }).click();
+  await expect(content.locator("[data-integration-stage]")).toHaveAttribute("data-integration-stage", "1");
+  for (let i = 0; i < 6; i++) await next.click();
+  await expect(answer).toHaveValue("12.3"); await expect(finish).toBeEnabled();
+  await expect(content.locator("[data-integration-part]")).toHaveAttribute("data-integration-part", "calculate");
 });
 
 test("card attachment opens the real visual and returns with state retained", async ({ page }) => {

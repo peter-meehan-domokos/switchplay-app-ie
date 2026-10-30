@@ -113,6 +113,18 @@ export function acknowledgeIntegrationEvents(hosted: IntegrationHostedState, thr
   if (!count(through) || through > hosted.sequence) throw new RangeError("Invalid event acknowledgement.");
   return immutable({ ...hosted, state: { ...hosted.state, records: { ...hosted.state.records, events: hosted.state.records.events.filter(e => e.sequence > through) } } });
 }
+export function integrationBackToStart(hosted: IntegrationHostedState): IntegrationHostedState {
+  const previous = hosted.state;
+  if (previous.part !== "finished" || previous.previousPanels.length !== 6) return hosted;
+  const first = previous.previousPanels[0], sequence = hosted.sequence + 1, current = previous.records.current;
+  const last: IntegrationPanel = { ...panelSnapshot(previous), part: "calculate" };
+  return immutable({ sequence, state: { ...previous, ...first, edit: null, revision: previous.revision + 1,
+    previousPanels: [], nextPanels: [...previous.previousPanels.slice(1), last],
+    records: { ...previous.records, current: { ...current, stage: 1, stageId: stageId(1), region: first.region, status: "in-progress", successMode: null },
+      events: [...previous.records.events, { schemaVersion: 2, activityVersion: 2, activityId: "integration-area", attemptId: current.attemptId,
+        attemptNumber: current.attemptNumber, eventId: `${current.attemptId}:${sequence}`, sequence, stage: 1, stageId: stageId(1), type: "stage-changed",
+        from: 7, to: 1, part: first.part, direction: "previous", view: { region: first.region } }] } } });
+}
 export function integrationHostNavigation({ state }: IntegrationHostedState) {
   return { stageId: stageId(state.stage), atStart: state.stage === 1, completed: state.part === "finished",
     previous: state.stage > 1 && state.part !== "finished" ? { enabled: canGoPrevious(state), action: "previous" as const } : null,

@@ -28,8 +28,9 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S05 Integration restore/adapter | Complete | `a0a6f6a` |
 | S06 records repository | Complete | `66a48e9` |
 | S07a authenticated API/context | Complete | `45ed657` |
-| S07b offline outbox/host autosave | Complete | Commit recorded at next checkpoint |
-| S08 attempt lifecycle | Pending | Not implemented |
+| S07b offline outbox/host autosave | Complete | `5f3e712` |
+| S08a same-attempt Back to Start | Complete | Commit recorded at next checkpoint |
+| S08b confirmed new attempts | Pending | Not implemented |
 | S09 release compatibility | Pending | Not implemented |
 | S10 creator modal | Pending | Not implemented |
 | S11 learner multimedia | Pending | Not implemented |
@@ -60,7 +61,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S08a activity-owned same-attempt Back to Start, then S08b confirmed new-attempt command/offline queue. Preserve attempt IDs, historical events, prior stage work and global check numbering. Integration must unlock completed navigation while retaining the Stage7 checked draft without auto-completing on arrival. Roots must restore a valid positive Stage1 placement, retain stage memories and keep aggregate check/assistance evidence separate from local stage presentation. Add activity tests and browser completion/return tests. Then implement explicit new-attempt confirmation at Stage1 with idempotent persisted commands; no routine owner gate.
+Begin S08b confirmed new-attempt commands and offline transition. Add the Stage1 secondary action with confirmation; only this allocates a fresh attempt. Pass attemptNumber through host/fresh constructors (currently default1) and keep both visuals activity-owned. Atomically archive the prior local row and install the new current row plus stable command/attempt ID. Drain predecessor work before registering commands and later batches. Retain old server attempts and ensure command retries cannot reactivate an older attempt. Test cancel/double activation, offline confirmation/reload/reconnect, lost command response and previous attempt retention. Then continue S09 release compatibility/recovery.
+
+S08a completed: generic Back to Start delegates to each visual. Integration retains all seven panels and its checked draft, returns to Stage1 and requires an explicit Finish on later arrival. Roots separates aggregate attempt evidence from stage presentation, restores its last valid orientation placement and retains earlier retrieval work only when prediction prerequisites match. Changed work clears dependent current feedback; earlier events remain. Check numbering and assistance classification remain cumulative in the same attempt. Old Roots snapshots remain readable; returned earlier-stage snapshots cannot omit later aggregate evidence. Card completion and mathematical layout remain unchanged.
+
+S08a verification: **22 targeted Node tests passed**, including repeat completion, changed prerequisites, prior snapshot compatibility, counters and event envelopes; **157 existing pure visual tests passed**. Disposable browser suite passed **7/7 Chromium**, plus **2/2 focused WebKit** lifecycle tests for both visuals. First completion date remains unchanged across two explicit Integration completions. TypeScript and focused lint passed. One test initially tried to delete an immutable snapshot property; its fixture now constructs a separate plain object.
+
+Additional visual backlog: Roots mathematical Check is below the viewport at **900×1100**, preventing pointer activation in that layout. The browser test records this annotation and uses its normal keyboard focus/Enter action to verify learning/persistence. This is not reported as pointer-layout success, and no CSS or targeted scrolling workaround was added. Physical phone and enlarged-text limitations remain separate review items.
 
 S07b completed: IndexedDB stores each snapshot and newly allocated external event UUIDs in one transaction; internal event sequences deduplicate repeated effects. A serial sender freezes batches through retry, splits large queues, coalesces only snapshots, and waits for every event/latest generation before Saved. Pending visits retain offline source context and are authorized before their batches. Known attempts work offline; unknown first offline opens create no provisional attempt. Conflicts preserve the local candidate/frozen request and stop futile retries. Actor-bound requests cannot retarget a queue. Storage failures stay visible even after an older network success. Startup retries all owned pending queues without reopening every visual. The database host probe is development-only; production learner wiring remains S11.
 

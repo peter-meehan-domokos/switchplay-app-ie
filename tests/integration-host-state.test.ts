@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { acknowledgeIntegrationEvents, createIntegrationHostedState, integrationHostNavigation, integrationSnapshot, isIntegrationSnapshot, reduceIntegrationHostedState, restoreIntegrationHostedState, type IntegrationHostedState } from "../src/app/step-visuals/activities/integration-area/hostState";
+import { acknowledgeIntegrationEvents, createIntegrationHostedState, integrationBackToStart, integrationHostNavigation, integrationSnapshot, isIntegrationSnapshot, reduceIntegrationHostedState, restoreIntegrationHostedState, type IntegrationHostedState } from "../src/app/step-visuals/activities/integration-area/hostState";
 import type { IntegrationAction } from "../src/app/step-visuals/activities/integration-area/learning";
 import { analyseRegion } from "../src/app/step-visuals/activities/integration-area/model";
 import { integrationPresentation } from "../src/app/step-visuals/activities/integration-area/presentation";
@@ -48,6 +48,23 @@ test("all seven stages, functions, subsections and previous panels round trip wi
   for (let i = 0; i < 6; i++) s = roundtrip(act(s, { type: "previous" }));
   for (let i = 0; i < 6; i++) s = roundtrip(act(s, { type: "next" }));
   assert.equal(s.state.stage, 7);
+});
+
+test("Back to Start retains seven-stage work and permits explicit completion again in the same attempt", () => {
+  let s = stage7(); s = act(s, { type: "draft", value: "12.34" }); s = act(s, { type: "check" }); s = act(s, { type: "finish" });
+  const completed = integrationSnapshot(s), previousSequence = s.sequence;
+  s = integrationBackToStart(s);
+  assert.equal(s.state.stage, 1); assert.equal(s.sequence, previousSequence + 1);
+  assert.equal(s.state.records.current.attemptId, completed.attemptId); assert.equal(s.state.nextPanels.length, 6);
+  s = roundtrip(s);
+  for (let i = 0; i < 6; i++) s = roundtrip(act(s, { type: "next" }));
+  assert.equal(s.state.stage, 7); assert.equal(s.state.part, "calculate"); assert.equal(s.state.draft, "12.34");
+  assert.equal(s.state.checked?.number, 1); assert.equal(integrationHostNavigation(s).next?.enabled, true);
+  assert.equal(s.state.records.events.filter(e => e.type === "attempt-completed").length, 0);
+  s = act(s, { type: "check" }); assert.equal(s.state.checked?.number, 2);
+  s = act(s, { type: "finish" }); roundtrip(s);
+  assert.equal(s.state.records.events.filter(e => e.type === "attempt-completed").length, 1);
+  assert.equal(s.state.records.events.some(e => e.type === "attempt-started"), false);
 });
 
 test("unfinished animation and pointer candidates do not fabricate semantic completion", () => {

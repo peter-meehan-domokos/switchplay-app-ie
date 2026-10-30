@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HostedVisualProps } from "../../core/host";
-import { acknowledgeIntegrationEvents, createIntegrationHostedState, integrationHostNavigation, integrationSnapshot, reduceIntegrationHostedState, restoreIntegrationHostedState, type IntegrationHostedState } from "./hostState";
+import { acknowledgeIntegrationEvents, createIntegrationHostedState, integrationBackToStart, integrationHostNavigation, integrationSnapshot, reduceIntegrationHostedState, restoreIntegrationHostedState, type IntegrationHostedState } from "./hostState";
 import type { IntegrationAction } from "./learning";
 import { integrationPresentation } from "./presentation";
 import { useStageMotion } from "./use-stage-motion";
@@ -34,12 +34,18 @@ export default function HostedIntegration({ attemptId, initialSnapshot, dimensio
     if (next.sequence !== previous.sequence || action.type === "draft" || action.type === "check") persist(next);
   }, [persist]);
   const state = hosted.state;
+  const backToStart = useCallback(() => {
+    const previous = current.current, next = integrationBackToStart(previous);
+    if (next === previous) return;
+    current.current = next; setHosted(next); persist(next);
+  }, [persist]);
   useLayoutEffect(() => {
     const navigation = integrationHostNavigation(current.current);
     onControls({ stageId: navigation.stageId, atStart: navigation.atStart, completed: navigation.completed,
+      ...(navigation.completed ? { backToStart } : {}),
       ...(navigation.previous ? { previous: { enabled: navigation.previous.enabled, run: () => dispatch({ type: "previous", revision: state.revision }) } } : {}),
       ...(navigation.next ? { next: { enabled: navigation.next.enabled, label: navigation.next.label, run: () => dispatch({ type: navigation.next!.action, revision: state.revision }) } } : {}) });
-  }, [onControls, dispatch, state.revision, state.stage, state.part, state.edit]);
+  }, [onControls, dispatch, state.revision, state.stage, state.part, state.edit, backToStart]);
   useStageMotion(state, true, dispatch);
   const presentation = useMemo(() => integrationPresentation(state), [state]);
   const props = { state, presentation, active: true, dispatch, headingRef: heading, hosted: true };

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { HostedVisualProps } from "../../core/host";
-import { acknowledgeRootsEvents, createRootsHostedState, reduceRootsHostedState, restoreRootsHostedState, rootsHostNavigation, rootsSnapshot, type RootsHostedState } from "./hostState";
+import { acknowledgeRootsEvents, createRootsHostedState, reduceRootsHostedState, restoreRootsHostedState, rootsBackToStart, rootsHostNavigation, rootsSnapshot, type RootsHostedState } from "./hostState";
 import { effectiveMath, type ManipulationAction } from "./manipulation";
 import { learningInputPolicy, type LearningAction } from "./learning";
 import { hostedRootsPresentation } from "./presentationLayouts";
@@ -36,13 +36,19 @@ export default function HostedRootsFactors({ attemptId, initialSnapshot, dimensi
     if (next.sequence !== previous.sequence) persist(next);
   }, [persist]);
   const navigation = rootsHostNavigation(state);
+  const backToStart = useCallback(() => {
+    const previous = current.current, next = rootsBackToStart(previous);
+    if (next === previous) return;
+    current.current = next; setState(next); persist(next);
+  }, [persist]);
   const revision = state.recorded.learning.manipulation.revision;
   useLayoutEffect(() => {
     const capability = rootsHostNavigation(current.current);
     onControls({ stageId: capability.stageId, atStart: capability.atStart, completed: capability.completed,
+      ...(capability.completed ? { backToStart } : {}),
       ...(capability.next ? { next: { enabled: capability.next.enabled,
         run: () => dispatch({ type: capability.next!.action, revision }) } } : {}) });
-  }, [onControls, dispatch, revision, navigation.stageId, navigation.next?.enabled]);
+  }, [onControls, dispatch, revision, navigation.stageId, navigation.next?.enabled, backToStart, state.recorded.learning.manipulation.edit]);
   const rootDispatch = useCallback((action: ManipulationAction) => dispatch({ type: "root", action }), [dispatch]);
   const { manipulation, lesson } = state.recorded.learning;
   const presentation = useMemo(() => hostedRootsPresentation(lesson, manipulation.hasChangedPlacement, !!manipulation.edit, true), [lesson, manipulation.hasChangedPlacement, manipulation.edit]);

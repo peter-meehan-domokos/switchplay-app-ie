@@ -129,6 +129,49 @@ test("Integration saves an unchecked draft without inventing a calculation event
     await page.reload(); await page.getByRole("button", { name: "Open database review", exact: true }).click();
     await page.getByRole("button", { name: "Open Integration", exact: true }).click();
     await expect(content.getByRole("textbox", { name: "Your answer", exact: true })).toHaveValue("12.34");
+    await content.getByRole("button", { name: "Check calculation", exact: true }).click();
+    await dialog.getByRole("button", { name: "Finish", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Back to Start", exact: true })).toBeVisible();
+    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    const completedAt = (await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.firstCompletedAt;
+    await dialog.getByRole("button", { name: "Back to Start", exact: true }).click();
+    for (let i = 0; i < 6; i++) await next.click();
+    await expect(content.getByRole("textbox", { name: "Your answer", exact: true })).toHaveValue("12.34");
+    await expect(content.locator("[data-integration-part]")).toHaveAttribute("data-integration-part", "calculate");
+    await dialog.getByRole("button", { name: "Finish", exact: true }).click();
+    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    expect(await db.collection("visualEvents").countDocuments({ attemptId: record!.activeAttemptId, type: "attempt-completed" })).toBe(2);
+    expect((await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.firstCompletedAt).toEqual(completedAt);
+  } finally { await client.close(); }
+});
+
+test("Roots Back to Start preserves its attempt and stored return state", async ({ page }) => {
+  const { client, db, learner } = await fixture(page);
+  try {
+    await page.setViewportSize({ width: 900, height: 1100 });
+    let dialog = await open(page), slider = dialog.getByRole("slider");
+    await slider.focus(); await page.keyboard.press("ArrowRight");
+    await dialog.getByRole("button", { name: "Next", exact: true }).click();
+    await dialog.getByRole("button", { name: "(x + 3)", exact: true }).click();
+    await slider.focus(); await page.keyboard.press("Home"); await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowRight");
+    await dialog.getByRole("button", { name: "Next", exact: true }).click();
+    await slider.focus(); await page.keyboard.press("ArrowLeft");
+    const check = dialog.getByRole("button", { name: "Check", exact: true });
+    // Existing Roots layout places Check below this viewport. Verify its keyboard
+    // action and persistence; do not disguise this visual-specific layout limitation.
+    const checkBox = await check.boundingBox();
+    test.info().annotations.push({ type: "visual-layout-backlog", description: `Roots Check at 900x1100: top=${checkBox?.y}, height=${checkBox?.height}; pointer overflow remains outside this project.` });
+    await check.focus(); await page.keyboard.press("Enter");
+    await expect(dialog.getByRole("button", { name: "Back to Start", exact: true })).toBeVisible();
+    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+    await dialog.getByRole("button", { name: "Back to Start", exact: true }).click();
+    await expect(slider).toHaveAttribute("aria-valuenow", "4");
+    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
+    expect((await db.collection("visualRecords").findOne({ recordId: record.recordId }))!.activeAttemptId).toBe(record.activeAttemptId);
+    expect(await db.collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "attempt-started" })).toBe(1);
+    expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.attemptEvidence.checkAttempts).toBe(1);
   } finally { await client.close(); }
 });
 
