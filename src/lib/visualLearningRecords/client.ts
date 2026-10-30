@@ -14,19 +14,22 @@ type Options = Readonly<{ learner: string; store?: VisualOutboxStore; fetch?: ty
 // The original account-named export remains compatible; both principal kinds
 // use this one actor-bound IndexedDB, request and event/snapshot implementation.
 export const createVisualPersistence = createAccountVisualPersistence;
-export function createAccountVisualPersistence(options: Options): VisualPersistence & { dispose: () => void } {
+export type VisualPersistenceClient = VisualPersistence & { dispose: () => void; drain: () => Promise<void>; drainAttemptCommands: () => Promise<void> };
+export function createAccountVisualPersistence(options: Options): VisualPersistenceClient {
   const store = options.store ?? createBrowserVisualStore(), send = options.fetch ?? fetch, uuid = options.uuid ?? (() => crypto.randomUUID());
   const keys = new Map<string, string>(), listeners = new Map<string, Set<(status: string) => void>>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>(), sending = new Map<string, Promise<void>>();
   const errors = new Map<string, string>(), dirtySince = new Map<string, number>(), failures = new Map<string, number>();
   const retryAt = new Map<string, number>();
   const localFailures = new Map<string, string>(), stopped = new Set<string>(), generations = new Map<string, number>();
+  const localPending = new Set<string>();
   const stopCodes = new Map<string, string>();
   const paused = new Set<string>(), conflicts = new Set<string>();
   const unavailable = new Set<string>();
   const controller = new AbortController(); let disposed = false;
   const label = (row: VisualOutbox) => localFailures.has(row.session.attemptId) ? localFailures.get(row.session.attemptId)!
     : row.conflict ? "Saving conflict. Your pending work is kept on this device."
+    : localPending.has(row.session.attemptId) ? "Changes pending"
     : unavailable.has(row.session.attemptId) || row.session.restoration?.status === "unavailable"
       ? hasPendingVisualWork(row) ? "Interactive visual unavailable. Pending work is kept on this device." : "Interactive visual unavailable. Saved work is kept."
     : row.session.restoration?.status === "new-attempt-required" ? hasPendingVisualWork(row) ? "Previous attempt pending backup" : "Previous attempt kept"
@@ -167,6 +170,20 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
   const saves = new Map<string, Promise<void>>();
   return {
     statusLabel: "Changes pending",
+    async drain() {
+      await ready; await Promise.all(saves.values()); requireVisual(!disposed && localFailures.size === 0 && localPending.size === 0, "VISUAL_CLAIM_PENDING_WORK");
+      const rows = await store.list(options.learner);
+      for (const row of rows) { requireVisual(row.learner === options.learner, "VISUAL_SESSION_CONFLICT"); keys.set(row.session.attemptId, row.key); await flush(row.session.attemptId); }
+      requireVisual((await store.list(options.learner)).every(row => !hasPendingVisualWork(row) && !row.conflict) && localPending.size === 0, "VISUAL_CLAIM_PENDING_WORK");
+    },
+    async drainAttemptCommands() {
+      await ready; await Promise.all(saves.values()); requireVisual(!disposed, "VISUAL_SESSION_CLOSED");
+      const rows = await store.list(options.learner);
+      for (const row of rows) if (row.command) { keys.set(row.session.attemptId, row.key); await flush(row.session.attemptId); }
+      // Account ordinary pending events can be archived intact. Its already
+      // confirmed attempt commands must register before claim changes the count.
+      requireVisual((await store.list(options.learner)).every(row => !row.command), "VISUAL_CLAIM_PENDING_ACCOUNT_ATTEMPT");
+    },
     subscribe(attemptId, listener) {
       const group = listeners.get(attemptId) ?? new Set(); group.add(listener); listeners.set(attemptId, group);
       const key = keys.get(attemptId); if (key) void store.read(key).then(row => { if (row && group.has(listener)) listener(label(row)); })
@@ -225,6 +242,9 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
     },
     save(opened, snapshot, events) {
       const key = keys.get(opened.attemptId); requireVisual(key, "VISUAL_SESSION_CONFLICT");
+      localPending.add(opened.attemptId);
+      listeners.get(opened.attemptId)?.forEach(listener => listener(localFailures.get(opened.attemptId)
+        ?? (conflicts.has(opened.attemptId) ? "Saving conflict. Your pending work is kept on this device." : "Changes pending")));
       const task = (saves.get(opened.attemptId) ?? Promise.resolve()).catch(() => {}).then(async () => {
         try {
           const row = await store.update(key, previous => {
@@ -233,9 +253,11 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
             return enqueueVisualChange(previous, snapshot, events, uuid, new Date().toISOString(), opened.visitId);
           });
           generations.set(opened.attemptId, row.generation);
+          if (saves.get(opened.attemptId) === task) localPending.delete(opened.attemptId);
           localFailures.delete(opened.attemptId); if (!stopped.has(opened.attemptId)) errors.delete(opened.attemptId); notify(row);
           if (hasPendingVisualWork(row) && !row.conflict) schedule(opened.attemptId, events.some(e => ["stage-changed", "answer-checked", "calculation-checked", "attempt-completed"].includes(e.type)) ? 0 : 1500);
         } catch (error) {
+          if (saves.get(opened.attemptId) === task) localPending.delete(opened.attemptId);
           const message = error instanceof Error && error.message === "VISUAL_LOCAL_REVISION_CONFLICT"
             ? "Another tab changed this attempt. These changes are not safely stored."
             : "Saving failed. Changes are not safely stored on this device.";

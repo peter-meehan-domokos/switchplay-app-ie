@@ -39,8 +39,9 @@ test("anonymous browser uses the common DB and IndexedDB pipeline through offlin
   expect(await db().collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "root-placed" })).toBe(2);
   // Login does not implicitly retarget an explicit guest outbox. S15 claims it.
   expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).ok()).toBe(true);
-  await host.getByRole("slider").focus(); await page.keyboard.press("ArrowLeft"); await expect(status(page)).toHaveText("Saved");
-  expect((await db().collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
+  await host.getByRole("slider").focus(); await page.keyboard.press("ArrowLeft"); await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "4");
+  await expect(status(page)).toHaveText("Saved");
+  await expect.poll(async () => (await db().collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
   expect(await db().collection("visualRecords").find({ principalKey: `account:${process.env.PHASE2_USER_ID}` }).sort({ recordId: 1 }).toArray()).toEqual(accountRecordsBefore);
   expect(await db().collection("users").countDocuments()).toBe(userCount);
   const visit = (await db().collection("visualVisits").findOne({ attemptId: record.activeAttemptId }))!;

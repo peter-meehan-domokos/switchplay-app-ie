@@ -77,6 +77,24 @@ test("client serializes sends and an older response cannot falsely mark newer st
   assert.equal(wire.bodies.length, 2); assert.equal(statuses.at(-1), "Saved");
   assert.equal(JSON.parse(wire.bodies[1]).expectedStateRevision, 1);
 });
+test("a queued local write becomes pending synchronously and an older acknowledgement cannot report Saved before it reaches storage", async t => {
+  const memory = memoryStore(), wire = transport();
+  const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(service.dispose);
+  const opened = await service.open("roots-and-factors", { kind: "direct" }), state = createRootsHostedState(opened.attemptId);
+  let status = ""; service.subscribe!(opened.attemptId, next => { status = next; });
+  await service.save(opened, rootsSnapshot(state), state.recorded.records.events); wire.hold(); const flushing = service.flush!(opened.attemptId); await tick();
+  const update = memory.store.update.bind(memory.store); let block = true, release!: () => void;
+  memory.store.update = async (...args) => { if (block) { block = false; await new Promise<void>(resolve => { release = resolve; }); } return update(...args); };
+  t.after(() => release?.());
+  const changed = reduceRootsHostedState(state, { type: "root", action: { type: "place", root: 4, revision: 0 } });
+  const saving = service.save(opened, rootsSnapshot(changed), changed.recorded.records.events); await tick();
+  wire.release(); await flushing;
+  assert.equal(status, "Changes pending");
+  release(); await saving; await service.flush!(opened.attemptId); assert.equal(status, "Saved");
+  const final = reduceRootsHostedState(changed, { type: "root", action: { type: "place", root: 5, revision: 1 } });
+  const finalSave = service.save(opened, rootsSnapshot(final), final.recorded.records.events);
+  assert.equal(status, "Changes pending"); await finalSave; await service.flush!(opened.attemptId); assert.equal(status, "Saved");
+});
 test("a lost response retries the identical persisted body after a new client instance opens", async t => {
   const memory = memoryStore(), wire = transport();
   const first = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher });

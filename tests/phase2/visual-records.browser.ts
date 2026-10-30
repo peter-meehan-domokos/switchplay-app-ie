@@ -272,7 +272,7 @@ test("a local transition failure cannot partially archive or replace the current
     await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
     await expect(status).toContainText("Unable to start"); await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3");
     const count = await page.evaluate(() => new Promise<number>((resolve, reject) => {
-      const request = indexedDB.open("switchplay-visual-learning-records", 1);
+      const request = indexedDB.open("switchplay-visual-learning-records");
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         const transaction = request.result.transaction("outboxes"), rows = transaction.objectStore("outboxes").getAll();
