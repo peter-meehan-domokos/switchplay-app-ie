@@ -2,6 +2,7 @@ import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import type { VisualPersistence } from "@/lib/interactiveVisuals/persistence";
 import { stepMediaItems } from "@/lib/stepMedia";
 import InteractiveVisualPreview from "@/components/interactiveVisuals/InteractiveVisualPreview";
+import { useVisualLearningRecords } from "@/components/interactiveVisuals/VisualLearningRecordsProvider";
 import { cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import type { Transition } from "motion/react";
@@ -40,7 +41,7 @@ import {
 } from "@/constants/cardStack";
 
 export type FocusedCardViewProps = {
-  /** Supplied only by the internal vertical slice until authenticated persistence is available. */
+  /** Explicit override for the internal review; production uses the account-scoped provider. */
   interactiveVisualPersistence?: VisualPersistence;
   onOpenMedia?: OpenCardMedia;
   mediaViewerOpen?: boolean;
@@ -48,6 +49,7 @@ export type FocusedCardViewProps = {
   playbackViewerUserId?: string;
   cardIndex: number;
   deckTemplateId: string;
+  deckVersion?: number;
   isDeckFlipped: boolean;
   totalCards: number;
   onClose: () => void;
@@ -228,6 +230,7 @@ export default function FocusedCardView({
   onOpenMedia, mediaViewerOpen = false,
   card,
   deckTemplateId,
+  deckVersion,
   cardIndex,
   isDeckFlipped: requestedDeckFlip,
   totalCards,
@@ -250,6 +253,8 @@ export default function FocusedCardView({
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
+  const visualRecords = useVisualLearningRecords();
+  const visualPersistence = interactiveVisualPersistence ?? visualRecords.service;
   const isPresent = useIsPresent();
   const consultationId = useId();
   const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
@@ -308,6 +313,9 @@ export default function FocusedCardView({
   const videoPlayerRef = useRef<CloudflareHlsVideoPlayerHandle | null>(null);
   const stepViewStateRef = useRef<StepViewState | null>(null);
   const videoPlaybackIntentRef = useRef<VideoPlaybackIntent>("idle");
+  const updateVideoPlaybackIntent = useCallback((intent: VideoPlaybackIntent) => {
+    videoPlaybackIntentRef.current = intent;
+  }, []);
   const activeVideoAssetIdRef = useRef<string | null>(null);
   const focusedCardScale = useFocusedCardScale();
   const deckSideFlipState: FocusedFlipState = {
@@ -360,9 +368,10 @@ export default function FocusedCardView({
   const stepDestination = stepViewItem?.type === "intro" ? card.intro : stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex] : null;
   const firstAttachment = stepDestination ? stepMediaItems(stepDestination)[0] : null;
   const stepActivity = (stepViewItem ? renderStepActivity?.(stepViewItem) : null) ??
-    (interactiveVisualPersistence && firstAttachment?.kind === "activity" ? <InteractiveVisualPreview
-      activityId={firstAttachment.activityId} persistence={interactiveVisualPersistence}
+    (firstAttachment?.kind === "activity" ? !interactiveVisualPersistence && visualRecords.unavailable ? <p>Interactive visual unavailable.</p> : <InteractiveVisualPreview
+      activityId={firstAttachment.activityId} persistence={visualPersistence}
       origin={{ kind: "card", cardId: card.cardTemplateId ?? card.id, cardVersion: playbackVersion, mode: playbackMode, deckId: deckTemplateId,
+        ...(deckVersion !== undefined ? { deckVersion } : {}),
         stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: firstAttachment.id }}
       onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
@@ -434,9 +443,6 @@ export default function FocusedCardView({
       focusedGestureLockTimeoutRef.current = null;
     }, durationMs);
   };
-  const updateVideoPlaybackIntent = useCallback((intent: VideoPlaybackIntent) => {
-    videoPlaybackIntentRef.current = intent;
-  }, []);
   const resetVideoDisplayState = useCallback(() => {
     setDecodedVideoAssetId(null);
     setRenderableVideoAssetId(null);

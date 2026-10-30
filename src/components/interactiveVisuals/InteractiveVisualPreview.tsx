@@ -8,14 +8,15 @@ import { interactiveVisualComponent } from "./registry";
 import styles from "./InteractiveVisualHost.module.css";
 
 export default function InteractiveVisualPreview({ activityId, origin, persistence, onOpen }: {
-  activityId: string; origin: VisualOrigin; persistence: VisualPersistence; onOpen?: () => void;
+  activityId: string; origin: VisualOrigin; persistence?: VisualPersistence | null; onOpen?: () => void;
 }) {
   const visual = getInteractiveVisual(activityId), Visual = interactiveVisualComponent(activityId);
   const [session, setSession] = useState<{ opened: OpenVisual; source: HTMLElement } | null>(null);
   const [pending, setPending] = useState(false), [failed, setFailed] = useState("");
   if (!visual || !Visual) return <p>Interactive visual unavailable.</p>;
   return <>
-    <button type="button" className={styles.preview} disabled={pending} aria-label={`Open ${visual.title}`} onClick={async (event) => {
+    <button type="button" className={styles.preview} disabled={pending || !persistence} aria-label={`Open ${visual.title}`} onClick={async (event) => {
+      if (!persistence) return;
       const source = event.currentTarget;
       setPending(true); setFailed(""); onOpen?.();
       try { const opened = await persistence.open(activityId, origin); setSession({ opened, source }); }
@@ -28,7 +29,7 @@ export default function InteractiveVisualPreview({ activityId, origin, persisten
       {visual.preview ? <img src={visual.preview} alt={`${visual.title}: initial view`} /> : null}
       <span>{pending ? "Opening…" : failed || `Open ${visual.title}`}</span>
     </button>
-    {session ? <InteractiveVisualHost title={visual.title} opened={session.opened} persistence={persistence} Visual={Visual}
+    {session && persistence ? <InteractiveVisualHost title={visual.title} opened={session.opened} persistence={persistence} Visual={Visual}
       returnFocus={session.source} onClose={() => setSession(null)} /> : null}
   </>;
 }

@@ -33,10 +33,12 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S08b confirmed new attempts | Complete | `e36a5f3` |
 | S09a restore validation/recovery shell | Complete | `82fc0df` |
 | S09b migration/checkpoint/pending recovery | Complete | `0e15974` |
-| S10 creator modal | Complete | Commit recorded at next checkpoint |
-| S11 learner multimedia | Pending | Not implemented |
+| S10 creator modal | Complete | `2c75931` |
+| S11a account-scoped Card visual entry | Complete | Commit recorded at next checkpoint |
+| S11b learner multimedia tabs | Pending | Not implemented |
 | S12 video continuation/position/expansion | Pending | Not implemented |
-| S13 contextual image delivery | Pending | Not implemented |
+| S13a contextual image delivery | Pending | Next, before S11b |
+| S13b image expansion/cache | Pending | After S11b |
 | S14 guest identity/persistence | Pending | Not implemented |
 | S15 account claim | Pending | Not implemented |
 | S16 guest entry | Pending | Not implemented |
@@ -62,7 +64,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S11 learner multimedia presentation. Reinspect `FocusedCardView` and `StepView` before editing: active videos, preparation and navigation still read legacy `mediaItem`, and the early activity preview only selects the first attachment through injected development persistence. Implement stable attachment selection with first-tab reset on genuine step entry and retention on overlay Close, zero/one-item preservation, mixed/repeated media, authenticated Visual Learning Records service lifetime and canonical deck-version source context. Source-aware tab transitions must call the existing player path synchronously and clear continuation on non-video sources; preserve ended/stalled/rapid-Next legacy cases. S12 adds session positions and approved expansion; inspect its dependencies before splitting changes that would temporarily regress autoplay. Instructional images need the S13 exact-context authorization/delivery boundary before a publicly enabled learner image path; reorder that foundation if needed rather than expose restricted URLs.
+Begin **S13a exact-context instructional image delivery**, now explicitly ordered before S11b. Reuse the existing protected R2 reader, authenticate the viewer and resolve only the requested stored card/version/mode/deck/destination/attachment. Never use a client URL/key or the broad protected-media version scan. Existing `src/lib/cards/protectedMedia.ts` supplies `readProtectedImage`/`r2Location`; `cardMediaFile.ts` shows private byte delivery but authorizes personal CardData and cannot be reused for instructional ownership. `visualLearningRecords/sourceAccess.ts` shows the exact working/canonical source checks; keep card/deck/private-era/attachment rules consistent. Suggested new API/service paths are in plan S13a, not present yet. No guest Card/media access, gallery, provider changes or live migration. Test disposable authorization and injected provider bytes before wiring images in S11b.
+
+Then S11b: active videos, preparation and navigation still read legacy `mediaItem`; only the first activity attachment is currently exposed. Implement stable attachment selection with first-tab reset on genuine step entry and retention on overlay Close, zero/one-item preservation and mixed/repeated media. Source-aware tab transitions must call the existing player path synchronously and clear continuation on non-video sources; preserve ended/stalled/rapid-Next legacy cases. S12 adds session positions and approved expansion; avoid a commit that silently changes legacy autoplay. S13b supplies image expansion/cache after the secure embedded path.
+
+S11a completed: an effect-owned account-scoped provider survives focused-Card changes within the Deck and disposes requests/listeners on account/unmount. Initialization stays out of render, including Strict Mode. The original generated preview remains inert; Open waits for a ready service and uses the real durable API. Working and canonical origins now carry the actual adopted/published Deck version through `DeckScene`; canonical context is no longer guessed or omitted. Internal review can still inject its explicit persistence. The only player-related code motion was moving the existing stable intent callback before its preview reference for React Compiler ordering; no timing/rule change.
+
+S11a verification: **490 unit tests passed**, **2/2 Chromium production Card-entry journeys**, **21/21 WebKit Card-entry plus records regression journeys**, and **23/23 existing card/deck video browser tests passed**, including actual decoded-frame Chromium/WebKit cases. TypeScript, focused lint and whitespace/diff review passed. Records are shared across two Cards; previews create no attempt; source visits retain exact card/deck versions; canonical execution creates no CardData/DeckData; step completion stays unchanged. Existing standalone esbuild video harnesses initially lacked loaders for current component font assets; their local font loaders now embed the real assets and all video tests run. This is not a physical iPhone claim. Full multimedia tabs, images, session position, guests and production rollout are still incomplete.
 
 Important S11 layout finding: the focused card uses a **252px authored baseline**, scaled to fit the viewport, not an unscaled 320px content box. `StepMediaTabs.module.css` has `--step-media-scale`; set that variable from the actual `focusedCardScale` on the learner media container so the visible tab font remains 14 CSS px and gaps/padding do not scale unintentionally. Creator measurement uses the same classes with scale1 and a conservative **250px physical budget** for a normal 320px viewport (existing outer allowance18px, internal padding20px per side and card border). Verify actual learner bounds at 320px before final acceptance; do not restore the initial naive280px assumption. No scrolling/truncation/font miniaturization fallback is authorised.
 

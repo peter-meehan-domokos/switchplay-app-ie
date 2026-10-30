@@ -483,9 +483,11 @@ S00 plan/authority
  -> S08 attempt controls and same-attempt lifecycle
  -> S09 release compatibility/recovery
  -> S10 creator modal/uploads
- -> S11 learner mixed media/origin
+ -> S11a account-scoped Card visual entry/origin
+ -> S13a exact-context image delivery foundation
+ -> S11b learner mixed media/origin
  -> S12 video position/autoplay/expansion
- -> S13 contextual instructional images
+ -> S13b instructional image expansion/cache
  -> S14 guest credential and DB access
  -> S15 non-destructive account claim
  -> S16 guest entry/sign-in return
@@ -625,6 +627,11 @@ S10 execution notes: creator uses the existing actor-bound coordinator and one p
 - **Commit:** `feat: present ordered mixed media in Step View`.
 - **Rollback/continue:** compatible renderer retained for stored arrays; no destructive flatten. Continue S12.
 
+S11 execution boundaries:
+
+- **S11a — account-scoped durable Card entry.** Depends on S09/S10. Add a cancellable effect-owned records provider across focused Cards in a Deck, preserve the internal explicit persistence override, carry the actual canonical/adopted Deck version and connect the existing first-attachment preview to real persistence. No tab/video source changes in this checkpoint. Files: `VisualLearningRecordsProvider`, `DeckScene`, `FocusedCardView`, `InteractiveVisualPreview`; browser fixtures use real private disposable records. Acceptance: inert previews create no attempt; working Cards share one record; close returns to the same step; canonical context uses the real Deck version; no visual interaction ticks Card steps or creates personal state in canonical mode; account unmount disposes its service. Run real Chromium/WebKit entry tests, records regressions and existing video tests. Commit `feat: connect Card visual entries to durable records`. No migration; rollback removes public wiring while retaining records. Continue automatically to S13a.
+- **S11b — ordered mixed-media selection.** Depends on S11a and the S13a secure image boundary. Implement selected attachment identity, accessible 2–4 tabs, no one-item tabs, first-item reset on real entry, stable close return, all-media preparation and exact first-video Introduction projection. Supply actual focused-card scale to shared label typography and verify physical bounds at320px. Tab navigation must invoke the existing video source path synchronously and clear continuation on non-video sources; S12 adds session position and expansion without changing the approved source rule. Test complete type/order/entry matrix plus legacy paused/ended/stalled/rapid navigation, image error, missing visual and exact origin. Commit `feat: present ordered mixed media in Step View`. No destructive migration; compatible reader remains necessary for stored arrays. Continue automatically to S12 only after relevant tests and diff/handoff checks.
+
 ### S12 — Preserve HLS continuation, session position and expansion
 
 - **Deliverable/dependencies:** S11 and baseline S01; video tabs/steps preserve existing chain and position with approved expansion wiring.
@@ -636,12 +643,15 @@ S10 execution notes: creator uses the existing actor-bound coordinator and one p
 
 ### S13 — Exact-context instructional image access and expansion
 
-- **Deliverable/dependencies:** S11; embedded/expanded images use authorized exact context without global version scans.
+- **Deliverable/dependencies:** S13a depends on S02/S09 and precedes S11b; S13b depends on S11b. Embedded/expanded images use authorized exact context without global version scans.
 - **Areas/tasks:** new narrow route/service modeled on authorizeCardPlayback, trusted attachment lookup and existing protected image renderer/fit primitive. Reuse actor-scoped decoded/object URL during mounted session, revoke on account change/unmount. No gallery or download UI added.
 - **Tests/acceptance:** current accessible card/version/attachment allowed; foreign, private-era, cross-version substitution, arbitrary URL/key and Info Card asset denied; opening tab remains embedded; explicit expansion returns exact origin; cached bytes cannot be selected by another actor; source failure leaves step navigation usable.
 - **Manual:** provider origin/CORS/security not changed; document release audit and real upload/download checks relevant to existing flows.
 - **Commit:** `feat: authorize instructional images by card context`.
 - **Rollback/continue:** disable new image entry if needed, preserve references and old routes. Continue S14.
+
+- **S13a — exact image delivery foundation (ordered before S11b).** Proposed modules: `src/lib/instructionalImages.ts`, `src/app/api/media/instructional-image/route.ts`. Provide the narrow immutable card/version/mode/deck/destination/attachment request contract, actor-bound authorization, trusted R2 lookup and bounded private response. Reuse `readProtectedImage`; never fetch an arbitrary client URL or scan unrelated versions. Tests cover accessible working/canonical context, private-era/foreign/cross-deck/version/attachment substitutions, Info Card assets, unsupported origin/type, missing bytes and unauthenticated/actor-switched requests. No gallery, caching UI, guest-card access, live provider changes or schema migration. Commit `feat: authorize instructional images by card context`. Entry: current canonical media contracts; exit: real disposable authorization and injectable delivery tests, reviewed errors/cache headers and handoff. Rollback disables the new endpoint without deleting assets. Automatic continuation to S11b.
+- **S13b — image expansion and mounted-session byte reuse.** After embedded tabs work, reuse the exact-context URL/owned decoded resource for explicit optional expansion, preserve origin/tab/focus and revoke cached resources on account/unmount. The image tab itself stays embedded. Test failure/retry, source change, actor isolation and close behavior on narrow/desktop viewports. Commit `feat: expand instructional images with origin-aware return`. Continue S14 after the common gate; provider/device/privacy release checks remain outstanding.
 
 ### S14 — Guest credential and shared DB persistence
 

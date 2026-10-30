@@ -23,7 +23,8 @@ test.beforeAll(async () => {
           <FocusedCardView {...props} playbackViewerUserId={actor}/></>}/>:null;
     }
     createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
-  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", define: {
+  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic",
+    loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" }, define: {
     "process.env.NODE_ENV": JSON.stringify("test"), "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1"),
     "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": JSON.stringify("0"), "process.env": "{}",
   } });
