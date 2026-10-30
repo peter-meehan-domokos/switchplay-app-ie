@@ -2,6 +2,7 @@ import type { InteractiveVisualRelease } from "../interactiveVisuals/catalogue";
 import type { VisualRestoration } from "../interactiveVisuals/persistence";
 import { assertVisualSnapshot } from "./contracts";
 import type { VisualAttempt } from "./model";
+import { compiledVisualCodecs, visualCodec } from "./codecs";
 
 /** Never hydrate unknown state or rewrite history as an implicit fresh attempt. */
 export function inspectVisualRestoration(attempt: VisualAttempt, release: InteractiveVisualRelease | undefined): VisualRestoration {
@@ -18,4 +19,13 @@ export function inspectVisualRestoration(attempt: VisualAttempt, release: Intera
     catch { return recovery("invalid-state"); }
   }
   return { status: "ready" };
+}
+
+/** A retained older codec can still validate an in-flight older session safely. */
+export function storedVisualSnapshotValid(attempt: VisualAttempt, codecs = compiledVisualCodecs): boolean {
+  const codec = visualCodec(attempt.activityId, attempt.activityVersion, attempt.snapshotSchema, codecs);
+  if (!codec) return false;
+  if (attempt.snapshot === null) return true;
+  try { assertVisualSnapshot(attempt.snapshot, attempt.activityId, attempt.attemptId, codec); return attempt.snapshot.attemptNumber === attempt.attemptNumber; }
+  catch { return false; }
 }

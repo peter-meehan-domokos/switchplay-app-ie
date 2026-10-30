@@ -22,12 +22,13 @@ test("validated current and legacy optional-field snapshots remain restorable wi
 });
 test("unknown releases, schema mismatch, corrupt state and wrong identity require safe recovery", () => {
   const attempt = fixture(), release = getInteractiveVisual(attempt.activityId)!;
+  const snapshot = rootsSnapshot(createRootsHostedState(attempt.attemptId));
   assert.deepEqual(inspectVisualRestoration(attempt, undefined), { status: "unavailable" });
   for (const [changed, reason] of [
     [{ ...attempt, activityVersion: 0 }, "version"], [{ ...attempt, snapshotSchema: 9 }, "schema"],
     [{ ...attempt, snapshot: { wrong: true } }, "invalid-state"],
-    [{ ...attempt, snapshot: { ...attempt.snapshot, attemptId: randomUUID() } }, "invalid-state"],
-    [{ ...attempt, snapshot: { ...attempt.snapshot, attemptNumber: 2 } }, "invalid-state"],
+    [{ ...attempt, snapshot: { ...snapshot, attemptId: randomUUID() } }, "invalid-state"],
+    [{ ...attempt, snapshot: { ...snapshot, attemptNumber: 2 } }, "invalid-state"],
   ] as const) {
     const before = structuredClone(changed);
     const result = inspectVisualRestoration(changed as VisualAttempt, release);

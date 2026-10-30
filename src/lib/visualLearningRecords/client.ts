@@ -2,10 +2,10 @@
 
 import type { VisualPersistence, OpenVisual, VisualOrigin } from "../interactiveVisuals/persistence";
 import { createBrowserVisualStore, type VisualOutboxStore } from "./browserStore";
-import { acknowledgeVisualBatch, enqueueVisualChange, freezeVisualBatch, hasPendingVisualWork, initialVisualOutbox, newAttemptOutbox, visualOutboxKey,
+import { acknowledgeVisualBatch, acknowledgeVisualRecovery, enqueueVisualChange, freezeVisualBatch, hasPendingVisualWork, initialVisualOutbox, newAttemptOutbox, upgradeVisualOutbox, visualOutboxKey,
   type VisualOutbox, type VisualSession } from "./outbox";
 import { requireVisual } from "./contracts";
-import type { BatchAcknowledgement } from "./model";
+import type { BatchAcknowledgement, RecoveryAcknowledgement } from "./model";
 
 class VisualTransportError extends Error {
   constructor(readonly status: number, readonly code: string, readonly retryAfter = 0) { super(code); }
@@ -18,6 +18,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
   const errors = new Map<string, string>(), dirtySince = new Map<string, number>(), failures = new Map<string, number>();
   const retryAt = new Map<string, number>();
   const localFailures = new Map<string, string>(), stopped = new Set<string>(), generations = new Map<string, number>();
+  const stopCodes = new Map<string, string>();
   const paused = new Set<string>(), conflicts = new Set<string>();
   const unavailable = new Set<string>();
   const controller = new AbortController(); let disposed = false;
@@ -25,12 +26,20 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
     : row.conflict ? "Saving conflict. Your pending work is kept on this device."
     : unavailable.has(row.session.attemptId) || row.session.restoration?.status === "unavailable"
       ? hasPendingVisualWork(row) ? "Interactive visual unavailable. Pending work is kept on this device." : "Interactive visual unavailable. Saved work is kept."
-    : row.session.restoration?.status === "new-attempt-required" ? "Previous attempt kept"
+    : row.session.restoration?.status === "new-attempt-required" ? hasPendingVisualWork(row) ? "Previous attempt pending backup" : "Previous attempt kept"
     : errors.get(row.session.attemptId) ?? (hasPendingVisualWork(row) || row.snapshot === null ? "Changes pending" : "Saved");
   function notify(row: VisualOutbox) {
     const generation = generations.get(row.session.attemptId);
     if (generation !== undefined && generation !== row.generation) localFailures.set(row.session.attemptId, "Another tab changed this attempt. Reload before editing.");
     listeners.get(row.session.attemptId)?.forEach(listener => listener(label(row)));
+  }
+  function allowRecovery(row: VisualOutbox) {
+    // A successful authorized Open may resolve a version/restore refusal. It
+    // cannot clear authorization failures or a genuine stale-writer conflict.
+    if (row.session.restoration?.status === "new-attempt-required"
+      && ["VISUAL_RESTORATION_REQUIRED", "VISUAL_RELEASE_MISMATCH", "INVALID_VISUAL_SNAPSHOT", "INVALID_VISUAL_EVENT"].includes(stopCodes.get(row.session.attemptId) ?? "")) {
+      stopped.delete(row.session.attemptId); stopCodes.delete(row.session.attemptId); errors.delete(row.session.attemptId);
+    }
   }
   async function request<T>(path: string, body: unknown): Promise<T> {
     requireVisual(!disposed, "VISUAL_SESSION_CLOSED");
@@ -92,15 +101,26 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
             requireVisual(session.learner === options.learner, "VISUAL_SESSION_CONFLICT");
             row = await store.update(key, latest => {
               requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT");
-              return session.attemptId === attemptId ? { ...latest, visits: latest.visits.filter(v => v.visitId !== visit.visitId) } : { ...latest, conflict: true };
+              return session.attemptId === attemptId ? { ...latest, visits: latest.visits.filter(v => v.visitId !== visit.visitId),
+                session: { ...latest.session, restoration: session.restoration, release: session.release } } : { ...latest, conflict: true };
             });
             if (row.conflict) conflicts.add(attemptId);
             errors.delete(attemptId); failures.delete(attemptId); retryAt.delete(attemptId); notify(row); continue;
           }
+          if (row.migrationCheckpoints?.length) {
+            const checkpoint = row.migrationCheckpoints[0];
+            const ack = await request<{ checkpointId: string; checkpointAccepted: boolean }>(`/api/visual-attempts/${attemptId}/checkpoints`, checkpoint);
+            requireVisual(ack.checkpointId === checkpoint.checkpointId && ack.checkpointAccepted === true, "INVALID_VISUAL_ACKNOWLEDGEMENT");
+            row = await store.update(key, latest => { requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT");
+              return { ...latest, migrationCheckpoints: latest.migrationCheckpoints?.filter(c => c.checkpointId !== ack.checkpointId) }; });
+            notify(row); continue;
+          }
           row = await store.update(key, latest => { requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT"); return freezeVisualBatch(latest, uuid()); });
           if (!row.flight) break;
-          const ack = await request<BatchAcknowledgement>(`/api/visual-attempts/${attemptId}/batches`, row.flight.batch);
-          row = await store.update(key, latest => { requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT"); return acknowledgeVisualBatch(latest, ack); });
+          const recovering = row.session.restoration?.status === "new-attempt-required";
+          const ack = await request<BatchAcknowledgement | RecoveryAcknowledgement>(`/api/visual-attempts/${attemptId}/${recovering ? "recovery-batches" : "batches"}`, row.flight.batch);
+          row = await store.update(key, latest => { requireVisual(latest && latest.session.attemptId === attemptId, "VISUAL_SESSION_CONFLICT");
+            return recovering ? acknowledgeVisualRecovery(latest, ack as RecoveryAcknowledgement) : acknowledgeVisualBatch(latest, ack as BatchAcknowledgement); });
           if (row.conflict) conflicts.add(attemptId);
           errors.delete(attemptId); failures.delete(attemptId); retryAt.delete(attemptId); notify(row);
         }
@@ -110,7 +130,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
         const terminal = error instanceof VisualTransportError && [400, 401, 403, 404, 409, 413].includes(error.status)
           || error instanceof Error && /VISUAL_SESSION_CONFLICT/.test(error.message);
         errors.set(attemptId, terminal ? "Saving stopped. Your pending work is kept on this device." : "Changes pending. Waiting to reconnect.");
-        if (terminal) stopped.add(attemptId);
+        if (terminal) { stopped.add(attemptId); if (error instanceof VisualTransportError) stopCodes.set(attemptId, error.code); }
         if (error instanceof VisualTransportError && ["VISUAL_UNAVAILABLE", "VISUAL_FEATURE_DISABLED"].includes(error.code)) unavailable.add(attemptId);
         const latest = await store.read(key); if (latest) notify(latest);
         if (!terminal) {
@@ -131,9 +151,10 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
   const reconnect = () => { for (const attemptId of keys.keys()) { if (!stopped.has(attemptId)) errors.delete(attemptId); if (!failures.has(attemptId)) retryAt.delete(attemptId); void flush(attemptId); } };
   const leaving = () => { for (const attemptId of keys.keys()) void flush(attemptId); };
   if (typeof window !== "undefined") { window.addEventListener("online", reconnect); window.addEventListener("pagehide", leaving); }
-  const ready = store.list(options.learner).then(rows => {
+  const ready = store.list(options.learner).then(async rows => {
     if (disposed) return;
-    for (const row of rows) {
+    for (const stored of rows) {
+      const row = await store.update(stored.key, previous => { requireVisual(previous, "VISUAL_SESSION_CONFLICT"); return upgradeVisualOutbox(previous, uuid); });
       requireVisual(row.learner === options.learner, "VISUAL_SESSION_CONFLICT");
       keys.set(row.session.attemptId, row.key);
       if (row.conflict) conflicts.add(row.session.attemptId);
@@ -194,6 +215,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
         });
         await store.opening(key, null);
       }
+      allowRecovery(row);
       keys.set(row.session.attemptId, key); generations.set(row.session.attemptId, row.generation); if (row.conflict) conflicts.add(row.session.attemptId); notify(row); if (hasPendingVisualWork(row)) schedule(row.session.attemptId);
       return { activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, visitId: row.session.visitId,
         snapshot: row.session.restoration && row.session.restoration.status !== "ready" ? null : structuredClone(row.snapshot), restoration: row.session.restoration };

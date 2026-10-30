@@ -104,8 +104,7 @@ test("stale state reports conflict and preserves the local candidate across relo
     blocked = false; await page.evaluate(() => window.dispatchEvent(new Event("online")));
     await expect(status()).toContainText("conflict");
     const serverSnapshot = (await repo.attempts().findOne({ attemptId: attempt.attemptId }))!.snapshot!;
-    if (serverSnapshot.activityId !== "roots-and-factors") throw new Error("Unexpected activity snapshot.");
-    expect(serverSnapshot.state.root).toBe(5);
+    expect(restoreRootsHostedState(serverSnapshot).recorded.learning.manipulation.math.movingRoot).toBe(5);
     dialog = await open(page); await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "4"); await expect(status()).toContainText("conflict");
     expect(await repo.events().countDocuments({ attemptId: attempt.attemptId, type: "root-placed" })).toBe(2);
   } finally { await client.close(); }
@@ -306,6 +305,52 @@ for (const kind of ["version", "schema", "invalid-state"] as const) {
       const historical = await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId });
       expect(historical!.snapshot).toEqual(before!.snapshot); expect(historical!.activityVersion).toBe(before!.activityVersion); expect(historical!.snapshotSchema).toBe(before!.snapshotSchema);
       expect(await db.collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "attempt-started" })).toBe(1);
+    } finally { await client.close(); }
+  });
+}
+
+for (const kind of ["invalid-state", "version"] as const) {
+  test(`pending ${kind} recovery backs up offline work before registering the confirmed next attempt`, async ({ page }) => {
+    const { client, db, learner } = await fixture(page);
+    let offline = false, allowBackupAck = false, dropped = false;
+    const bodies: string[] = [];
+    await page.route("**/api/visual-**", async route => {
+      if (offline) return route.abort("internetdisconnected");
+      if (route.request().url().includes("/recovery-batches")) {
+        bodies.push(route.request().postData()!);
+        if (!allowBackupAck) {
+          if (!dropped) { const response = await route.fetch(); expect(response.ok()).toBe(true); dropped = true; }
+          return route.abort("connectionreset");
+        }
+      }
+      return route.continue();
+    });
+    try {
+      let dialog = await open(page);
+      const status = () => dialog.locator("[data-visual-host-footer]").getByRole("status");
+      await expect(status()).toHaveText("Saved");
+      const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+      offline = true; await dialog.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
+      await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "4"); await expect(status()).toContainText("pending");
+      await db.collection("visualAttempts").updateOne({ attemptId: record.activeAttemptId }, { $set: kind === "version" ? { activityVersion: 99 } : { snapshot: { cannotHydrate: true } } });
+      const unsafe = (await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!;
+      offline = false; dialog = await open(page);
+      await expect(dialog.getByRole("slider")).toHaveCount(0);
+      await expect(status()).toContainText("pending backup");
+      await expect.poll(() => dropped).toBe(true);
+      await expect.poll(() => db.collection("visualSnapshotCheckpoints").countDocuments({ attemptId: record.activeAttemptId, reason: "restore-recovery" })).toBe(1);
+      page.once("dialog", confirmation => confirmation.accept()); await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+      await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); await expect(status()).not.toHaveText("Saved");
+      allowBackupAck = true; dialog = await open(page);
+      await expect(status()).toHaveText("Saved");
+      expect(bodies.length).toBeGreaterThanOrEqual(2); expect(bodies.every(body => body === bodies[0])).toBe(true);
+      expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
+      expect(await db.collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "root-placed" })).toBe(1);
+      const backup = (await db.collection("visualSnapshotCheckpoints").findOne({ attemptId: record.activeAttemptId, reason: "restore-recovery" }))!;
+      expect(backup.snapshot.state.root).toBe(4);
+      const historical = (await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!;
+      expect(historical.snapshot).toEqual(unsafe.snapshot); expect(historical.activityVersion).toBe(unsafe.activityVersion);
+      expect((await db.collection("visualRecords").findOne({ recordId: record.recordId }))!.activeAttemptId).not.toBe(record.activeAttemptId);
     } finally { await client.close(); }
   });
 }

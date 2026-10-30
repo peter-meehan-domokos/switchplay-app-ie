@@ -1,9 +1,6 @@
-import { isIntegrationSnapshot } from "../../app/step-visuals/activities/integration-area/hostState";
-import { isRootsSnapshot } from "../../app/step-visuals/activities/roots-factors/hostState";
 import { resolveInteractiveVisual } from "../interactiveVisuals/catalogue";
-import { isHostedRootsEvent } from "../../app/step-visuals/activities/roots-factors/eventValidation";
-import { isHostedIntegrationEvent } from "../../app/step-visuals/activities/integration-area/eventValidation";
-import type { LearnerPrincipal, NewVisualAttempt, VisualBatch, VisualSnapshot, VisualSource } from "./model";
+import { compiledVisualCodecs, visualCodec, visualEventCodec, type VisualCodec } from "./codecs";
+import type { LearnerPrincipal, NewVisualAttempt, ValidatedVisualBatch, VisualBatch, VisualSnapshot, VisualSource } from "./model";
 
 export class VisualRecordError extends Error {
   constructor(readonly code: string) { super(code); this.name = "VisualRecordError"; }
@@ -45,23 +42,24 @@ export function assertVisualSource(v: unknown): asserts v is VisualSource {
   if (v.kind === "card") requireVisual(safeId(v.cardId) && safeId(v.stepId) && safeId(v.attachmentId) && safeCount(v.cardVersion) && v.cardVersion >= 1, "INVALID_VISUAL_SOURCE");
   if (v.kind === "framework") requireVisual(safeId(v.frameworkId) && safeId(v.frameworkItemId), "INVALID_VISUAL_SOURCE");
 }
-export function assertVisualSnapshot(v: unknown, activityId: string, attemptId: string): asserts v is VisualSnapshot {
+export function assertVisualSnapshot(v: unknown, activityId: string, attemptId: string, codec?: VisualCodec): asserts v is VisualSnapshot {
   assertBoundedJson(v, 128 * 1024);
-  requireVisual((isRootsSnapshot(v) || isIntegrationSnapshot(v)) && v.activityId === activityId, "INVALID_VISUAL_SNAPSHOT");
+  const release = resolveInteractiveVisual(activityId);
+  codec ??= release ? visualCodec(activityId, release.activityVersion, release.snapshotSchema) : undefined;
+  requireVisual(codec && codec.isSnapshot(v) && recordObject(v) && v.snapshotSchema === codec.snapshotSchema && v.activityVersion === codec.activityVersion
+    && safeCount(v.sequence) && safeCount(v.attemptNumber) && v.attemptNumber > 0, "INVALID_VISUAL_SNAPSHOT");
   requireVisual(v.activityId === activityId && v.attemptId === attemptId, "VISUAL_SNAPSHOT_IDENTITY_MISMATCH");
 }
-const eventTypes: Readonly<Record<string, readonly string[]>> = {
-  "roots-and-factors": ["attempt-started", "root-placed", "prediction-submitted", "prediction-tested", "stage-changed", "answer-checked", "assistance-requested", "attempt-completed"],
-  "integration-area": ["attempt-started", "boundary-committed", "function-selected", "division-mode-selected", "division-rule-viewed", "comparison-demonstrated", "refinement-changed", "prediction-submitted", "prediction-tested", "region-selected", "interval-selected", "stage-changed", "assistance-requested", "calculation-checked", "attempt-completed"],
-};
-export function assertVisualBatch(v: unknown, activityId: string, attemptId: string): asserts v is VisualBatch {
+/** Recovery can preserve an unknown old format, but it remains non-executable opaque history. */
+export function assertVisualRecoveryEnvelope(v: unknown, activityId: string, attemptId: string): asserts v is VisualBatch {
   assertBoundedJson(v);
   requireVisual(recordObject(v) && exactFields(v, ["writeId", "expectedStateRevision", "visitId", "activityVersion", "snapshotSchema", "events", "snapshot"]), "INVALID_VISUAL_BATCH");
   assertUuid(v.writeId); assertUuid(v.visitId);
-  const release = resolveInteractiveVisual(activityId);
-  requireVisual(release && v.activityVersion === release.activityVersion && v.snapshotSchema === release.snapshotSchema, "VISUAL_RELEASE_MISMATCH");
+  requireVisual(safeCount(v.activityVersion) && safeCount(v.snapshotSchema), "VISUAL_RELEASE_MISMATCH");
   requireVisual(safeCount(v.expectedStateRevision) && Array.isArray(v.events) && v.events.length <= 100, "INVALID_VISUAL_BATCH");
-  assertVisualSnapshot(v.snapshot, activityId, attemptId);
+  assertBoundedJson(v.snapshot, 128 * 1024);
+  if (recordObject(v.snapshot)) requireVisual((v.snapshot.attemptId === undefined || v.snapshot.attemptId === attemptId)
+    && (v.snapshot.activityId === undefined || v.snapshot.activityId === activityId), "VISUAL_SNAPSHOT_IDENTITY_MISMATCH");
   const ids = new Set<string>();
   for (const e of v.events) {
     requireVisual(recordObject(e) && exactFields(e, ["eventId", "writerId", "clientSequence", "clientOccurredAt", "activityVersion", "eventSchema", "type", "payload"]), "INVALID_VISUAL_EVENT");
@@ -69,13 +67,23 @@ export function assertVisualBatch(v: unknown, activityId: string, attemptId: str
     requireVisual(!ids.has(e.eventId), "DUPLICATE_VISUAL_EVENT"); ids.add(e.eventId);
     requireVisual(safeCount(e.clientSequence) && e.clientSequence > 0 && typeof e.clientOccurredAt === "string"
       && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(e.clientOccurredAt) && Number.isFinite(Date.parse(e.clientOccurredAt))
-      && e.activityVersion === release.activityVersion && e.eventSchema === release.eventSchema
-      && typeof e.type === "string" && eventTypes[activityId]?.includes(e.type) && recordObject(e.payload)
-      && e.payload.type === e.type && e.payload.activityId === activityId && e.payload.activityVersion === release.activityVersion
-      && e.payload.schemaVersion === release.eventSchema && e.payload.attemptId === attemptId
-      && safeCount(e.payload.sequence) && e.payload.sequence > 0 && typeof e.payload.eventId === "string"
+      && safeCount(e.activityVersion) && safeCount(e.eventSchema)
+      && typeof e.type === "string" && /^[a-z][a-z-]{0,79}$/.test(e.type) && recordObject(e.payload)
+      && e.payload.type === e.type && e.payload.activityId === activityId && e.payload.activityVersion === e.activityVersion
+      && e.payload.schemaVersion === e.eventSchema && e.payload.attemptId === attemptId
+      && safeCount(e.payload.sequence) && e.payload.sequence === e.clientSequence && typeof e.payload.eventId === "string"
       && e.payload.eventId === `${attemptId}:${e.payload.sequence}`, "INVALID_VISUAL_EVENT");
-    requireVisual(activityId === "roots-and-factors" ? isHostedRootsEvent(e.payload) : isHostedIntegrationEvent(e.payload), "INVALID_VISUAL_EVENT");
+  }
+}
+export function assertVisualBatch(v: unknown, activityId: string, attemptId: string, codecs = compiledVisualCodecs): asserts v is ValidatedVisualBatch {
+  assertVisualRecoveryEnvelope(v, activityId, attemptId);
+  const codec = visualCodec(activityId, v.activityVersion, v.snapshotSchema, codecs);
+  requireVisual(codec, "VISUAL_RELEASE_MISMATCH");
+  assertVisualSnapshot(v.snapshot, activityId, attemptId, codec);
+  for (const event of v.events) {
+    const decoder = visualEventCodec(activityId, event.activityVersion, event.eventSchema, codecs);
+    requireVisual(decoder && decoder.isEvent(event.payload) && event.payload.attemptNumber === v.snapshot.attemptNumber
+      && event.clientSequence <= v.snapshot.sequence, "INVALID_VISUAL_EVENT");
   }
 }
 export function assertNewVisualAttempt(v: unknown): asserts v is NewVisualAttempt {

@@ -79,6 +79,8 @@ export function createVisualApi(deps: VisualApiDependencies) {
       const current = await repo.current(actor, recordId); return visualSessionDto(actor, current.record, current.attempt, undefined, repo.disabledIds);
     }),
     batch: (request: Request, attemptId: string) => boundary(request, async (actor, repo) => repo.append(actor, attemptId, await readVisualJson(request) as VisualBatch)),
+    recovery: (request: Request, attemptId: string) => boundary(request, async (actor, repo) => repo.preserveRecovery(actor, attemptId, await readVisualJson(request) as VisualBatch)),
+    checkpoint: (request: Request, attemptId: string) => boundary(request, async (actor, repo) => repo.preserveMigration(actor, attemptId, await readVisualJson(request))),
     newAttempt: (request: Request, recordId: string) => boundary(request, async (actor, repo) => {
       const body = await readVisualJson(request, 4096); assertNewVisualAttempt(body);
       const attempt = await repo.newAttempt(actor, recordId, body);

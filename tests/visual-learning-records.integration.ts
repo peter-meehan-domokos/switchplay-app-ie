@@ -6,6 +6,7 @@ import { MongoClient } from "mongodb";
 import { createVisualLearningRecordIndexes, VisualLearningRecordRepository } from "../src/lib/visualLearningRecords/repository";
 import { createRootsHostedState, rootsSnapshot, reduceRootsHostedState } from "../src/app/step-visuals/activities/roots-factors/hostState";
 import type { LearnerPrincipal, VisualBatch, VisualEventInput } from "../src/lib/visualLearningRecords/model";
+import { rootsMigration, testVersions } from "./helpers/visual-versions";
 
 let server: MongoMemoryReplSet, client: MongoClient;
 before(async () => { server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(server.getUri()).connect(); });
@@ -69,7 +70,7 @@ test("owner, visit, snapshot identity and disabled visual checks reject unauthor
   await assert.rejects(repo.append(other, opened.attempt.attemptId, batch), /FORBIDDEN/);
   await assert.rejects(repo.open(other, "roots-and-factors", opened.visit.visitId, { kind: "direct" }), /FORBIDDEN/);
   await assert.rejects(repo.append(actor, opened.attempt.attemptId, { ...batch, visitId: randomUUID() }), /VISIT_FORBIDDEN/);
-  await assert.rejects(repo.append(actor, opened.attempt.attemptId, { ...batch, snapshot: { ...batch.snapshot, attemptId: randomUUID() } }), /IDENTITY_MISMATCH/);
+  await assert.rejects(repo.append(actor, opened.attempt.attemptId, { ...batch, snapshot: { ...rootsSnapshot(createRootsHostedState(opened.attempt.attemptId)), attemptId: randomUUID() } }), /IDENTITY_MISMATCH/);
   const disabled = new VisualLearningRecordRepository(repo.db, client, ["roots-and-factors"]);
   await assert.rejects(disabled.append(actor, opened.attempt.attemptId, batch), /VISUAL_UNAVAILABLE/);
   assert.equal(await repo.events().countDocuments(), 0);
@@ -129,4 +130,99 @@ test("real completed activity records preserve first completion without replayin
   assert.equal(await repo.events().countDocuments(), events.length);
   assert.equal(await repo.db.collection("users").countDocuments(), 0);
   assert.equal(await repo.db.collection("cardTemplates").countDocuments(), 0);
+});
+
+async function legacyFixture(name: string) {
+  const base = await fixture(name), id = base.opened.attempt.attemptId;
+  await base.repo.attempts().updateOne({ attemptId: id }, { $set: { activityVersion: 0, startedRelease: 0 } });
+  const batch: VisualBatch = { ...base.batch, activityVersion: 0, snapshot: { ...rootsSnapshot(base.state), activityVersion: 0 },
+    events: base.batch.events.map(e => ({ ...e, activityVersion: 0, payload: { ...e.payload, activityVersion: 0 } })) };
+  const old = new VisualLearningRecordRepository(base.repo.db, client, [], { codecs: testVersions.codecs, migrations: [] });
+  await old.append(actor, id, batch);
+  return { ...base, batch, repo: new VisualLearningRecordRepository(base.repo.db, client, [], testVersions) };
+}
+test("compatible publication checkpoints and converts once while exact old response retries stay idempotent", async () => {
+  const { repo, opened, batch } = await legacyFixture("migration_open");
+  const converted = await repo.open(actor, "roots-and-factors", randomUUID(), { kind: "direct" });
+  assert.equal(converted.attempt.attemptId, opened.attempt.attemptId); assert.equal(converted.attempt.startedRelease, 0);
+  assert.equal(converted.attempt.activityVersion, 1); assert.equal(converted.attempt.stateRevision, 2);
+  assert.deepEqual(converted.attempt.snapshot, { ...batch.snapshot as object, activityVersion: 1 });
+  await repo.open(actor, "roots-and-factors", converted.visit.visitId, { kind: "direct" });
+  assert.equal(await repo.checkpoints().countDocuments(), 1); assert.equal(await repo.events().countDocuments(), 1);
+  assert.deepEqual((await repo.checkpoints().findOne())!.snapshot, batch.snapshot);
+  const retry = await repo.append(actor, opened.attempt.attemptId, batch);
+  assert.equal(retry.snapshotAccepted, true); assert.equal(retry.stateRevision, 2);
+  assert.equal((await repo.current(actor, opened.record.recordId)).attempt.stateRevision, 2);
+});
+test("format-only revision bridges retain pending old facts but never rebase a stale learner write", async () => {
+  const { repo, opened, batch, state } = await legacyFixture("migration_bridge");
+  await repo.open(actor, "roots-and-factors", randomUUID(), { kind: "direct" });
+  const moved = reduceRootsHostedState(state, { type: "root", action: { type: "place", root: 4, revision: 0 } });
+  const e = moved.recorded.records.events.at(-1)!;
+  const pending = { ...batch, writeId: randomUUID(), expectedStateRevision: 1, snapshot: { ...rootsSnapshot(moved), activityVersion: 0 },
+    events: [{ ...batch.events[0], eventId: randomUUID(), clientSequence: e.sequence, type: e.type, payload: { ...e, activityVersion: 0 } }] };
+  const accepted = await repo.append(actor, opened.attempt.attemptId, pending);
+  assert.equal(accepted.snapshotAccepted, true); assert.equal(accepted.stateRevision, 3);
+  assert.equal((await repo.current(actor, opened.record.recordId)).attempt.activityVersion, 1);
+  assert.equal(await repo.checkpoints().countDocuments(), 2); // source before Open + received old candidate
+  assert.deepEqual(await repo.append(actor, opened.attempt.attemptId, pending), accepted);
+  const stale = await repo.append(actor, opened.attempt.attemptId, { ...pending, writeId: randomUUID(), events: [{ ...pending.events[0], eventId: randomUUID() }] });
+  assert.equal(stale.snapshotAccepted, false); assert.equal(stale.stateRevision, 3);
+  assert.equal(await repo.events().countDocuments(), 3);
+});
+test("client migration checkpoints are owner-scoped and idempotent without installing raw snapshots", async () => {
+  const { repo, opened, batch } = await legacyFixture("migration_client");
+  const body = { checkpointId: randomUUID(), activityVersion: 0, snapshotSchema: 1, targetActivityVersion: 1, targetSnapshotSchema: 1,
+    stateRevision: 1, visitId: opened.visit.visitId, snapshot: batch.snapshot };
+  await repo.preserveMigration(actor, opened.attempt.attemptId, body); await repo.preserveMigration(actor, opened.attempt.attemptId, body);
+  assert.equal(await repo.checkpoints().countDocuments(), 1);
+  assert.equal((await repo.current(actor, opened.record.recordId)).attempt.stateRevision, 1);
+  await assert.rejects(repo.preserveMigration({ kind: "account", id: "other" }, opened.attempt.attemptId, body), /FORBIDDEN/);
+  await assert.rejects(repo.preserveMigration(actor, opened.attempt.attemptId, { ...body, stateRevision: 2 }), /CHECKPOINT_CONFLICT/);
+  await assert.rejects(repo.preserveMigration(actor, opened.attempt.attemptId, { ...body, checkpointId: randomUUID(), visitId: randomUUID() }), /VISIT_FORBIDDEN/);
+});
+test("invalid activity conversions retain historical attempts for explicit recovery", async () => {
+  const { repo, batch } = await legacyFixture("migration_bad");
+  const broken = new VisualLearningRecordRepository(repo.db, client, [], { ...testVersions,
+    migrations: [{ ...rootsMigration, convert: () => ({ ...batch.snapshot as object, activityVersion: 1, attemptNumber: 2 }) }] });
+  const returned = await broken.open(actor, "roots-and-factors", randomUUID(), { kind: "direct" });
+  assert.equal(returned.attempt.activityVersion, 0); assert.deepEqual(returned.attempt.snapshot, batch.snapshot);
+  assert.equal(await repo.checkpoints().countDocuments(), 0); assert.equal(await repo.events().countDocuments(), 1);
+});
+test("recovery backs up pending facts and snapshots exactly once without overwriting unsafe state", async () => {
+  const { repo, opened, batch, state } = await fixture("recovery_backup"); await repo.append(actor, opened.attempt.attemptId, batch);
+  const moved = reduceRootsHostedState(state, { type: "root", action: { type: "place", root: 4, revision: 0 } }), e = moved.recorded.records.events.at(-1)!;
+  const pending = { ...batch, writeId: randomUUID(), expectedStateRevision: 1, snapshot: rootsSnapshot(moved),
+    events: [{ ...batch.events[0], eventId: randomUUID(), clientSequence: e.sequence, type: e.type, payload: e }] };
+  await assert.rejects(repo.preserveRecovery(actor, opened.attempt.attemptId, pending), /RECOVERY_NOT_REQUIRED/);
+  const unsafe = { cannotHydrate: true };
+  await repo.attempts().updateOne({ attemptId: opened.attempt.attemptId }, { $set: { snapshot: unsafe } });
+  await assert.rejects(repo.append(actor, opened.attempt.attemptId, pending), /RESTORATION_REQUIRED/);
+  const ack = await repo.preserveRecovery(actor, opened.attempt.attemptId, pending);
+  assert.equal(ack.validation, "known-codec"); assert.equal(ack.checkpointAccepted, true);
+  assert.deepEqual(await repo.preserveRecovery(actor, opened.attempt.attemptId, pending), ack);
+  assert.equal(await repo.events().countDocuments(), 2); assert.equal(await repo.checkpoints().countDocuments(), 1);
+  assert.deepEqual((await repo.current(actor, opened.record.recordId)).attempt.snapshot, unsafe);
+  assert.equal((await repo.current(actor, opened.record.recordId)).attempt.stateRevision, 1);
+  await assert.rejects(repo.preserveRecovery(actor, opened.attempt.attemptId, { ...pending, expectedStateRevision: 2 }), /CHECKPOINT_CONFLICT/);
+  await assert.rejects(repo.preserveRecovery({ kind: "account", id: "other" }, opened.attempt.attemptId, pending), /FORBIDDEN/);
+  await assert.rejects(repo.preserveRecovery(actor, opened.attempt.attemptId, { ...pending, writeId: randomUUID(), visitId: randomUUID() }), /VISIT_FORBIDDEN/);
+  const next = await repo.newAttempt(actor, opened.record.recordId, { commandId: randomUUID(), attemptId: randomUUID(), expectedActiveAttemptId: opened.attempt.attemptId });
+  assert.equal(next.attemptNumber, 2); assert.equal(await repo.events().countDocuments(), 2);
+  await repo.attempts().updateOne({ attemptId: opened.attempt.attemptId }, { $set: { snapshot: batch.snapshot } });
+  assert.deepEqual(await repo.preserveRecovery(actor, opened.attempt.attemptId, pending), ack);
+  assert.equal((await repo.current(actor, opened.record.recordId)).attempt.attemptId, next.attemptId);
+});
+test("unknown old formats are bounded opaque history and cannot fabricate a known completion summary", async () => {
+  const { repo, opened, batch } = await fixture("recovery_opaque");
+  await repo.attempts().updateOne({ attemptId: opened.attempt.attemptId }, { $set: { activityVersion: 99 } });
+  const payload = { ...batch.events[0].payload, activityVersion: 99, type: "attempt-completed" };
+  const raw = { ...batch, activityVersion: 99, snapshot: { olderFormat: "kept" },
+    events: [{ ...batch.events[0], activityVersion: 99, type: payload.type, payload }] };
+  const ack = await repo.preserveRecovery(actor, opened.attempt.attemptId, raw);
+  assert.equal(ack.validation, "opaque-history"); assert.equal((await repo.events().findOne())!.validation, "opaque-history");
+  assert.equal((await repo.current(actor, opened.record.recordId)).attempt.firstCompletedAt, undefined);
+  await assert.rejects(repo.preserveRecovery(actor, opened.attempt.attemptId, { ...raw, writeId: randomUUID(), snapshot: { value: "x".repeat(4097) } }), /PAYLOAD_LIMIT/);
+  await assert.rejects(repo.preserveRecovery(actor, opened.attempt.attemptId, { ...raw, writeId: randomUUID(), snapshot: { attemptId: randomUUID() } }), /IDENTITY_MISMATCH/);
+  await assert.rejects(repo.preserveRecovery(actor, opened.attempt.attemptId, { ...raw, writeId: randomUUID(), events: [{ ...raw.events[0], clientSequence: 2 }] }), /INVALID_VISUAL_EVENT/);
 });

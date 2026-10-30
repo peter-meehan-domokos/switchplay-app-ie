@@ -1,9 +1,8 @@
-import type { IntegrationSnapshot } from "../../app/step-visuals/activities/integration-area/hostState";
-import type { RootsSnapshot } from "../../app/step-visuals/activities/roots-factors/hostState";
 import type { VisualOrigin } from "../interactiveVisuals/persistence";
 
 export type LearnerPrincipal = Readonly<{ kind: "account" | "guest"; id: string }>;
-export type VisualSnapshot = RootsSnapshot | IntegrationSnapshot;
+/** Only the activity codec knows fields beyond this versioned identity envelope. */
+export type VisualSnapshot = Readonly<{ snapshotSchema: number; activityId: string; activityVersion: number; attemptId: string; attemptNumber: number; sequence: number }>;
 export type VisualSource = VisualOrigin & Readonly<{ frameworkId?: string; journeyId?: string }>;
 export type VisualRecord = {
   recordId: string; principalKey: string; activityId: string; activeAttemptId: string;
@@ -12,7 +11,7 @@ export type VisualRecord = {
 export type VisualAttempt = {
   attemptId: string; recordId: string; activityId: string; attemptNumber: number;
   startedRelease: number; activityVersion: number; snapshotSchema: number;
-  snapshot: VisualSnapshot | null; stateRevision: number;
+  snapshot: unknown; stateRevision: number;
   lastAcceptedWrite: { id: string; hash: string; revision: number } | null;
   command?: { id: string; hash: string; previousAttemptId?: string };
   createdAt: Date; updatedAt: Date; firstCompletedAt?: Date;
@@ -23,6 +22,7 @@ export type VisualEventInput = Readonly<{
 }>;
 export type StoredVisualEvent = VisualEventInput & {
   attemptId: string; visitId: string; serverReceivedAt: Date; hash: string;
+  validation?: "known-codec" | "opaque-history";
 };
 export type VisualVisit = {
   visitId: string; attemptId: string; principalKindAtAccess: LearnerPrincipal["kind"];
@@ -30,7 +30,20 @@ export type VisualVisit = {
 };
 export type VisualBatch = Readonly<{
   writeId: string; expectedStateRevision: number; visitId: string;
-  activityVersion: number; snapshotSchema: number; events: readonly VisualEventInput[]; snapshot: VisualSnapshot;
+  activityVersion: number; snapshotSchema: number; events: readonly VisualEventInput[]; snapshot: unknown;
+}>;
+export type ValidatedVisualBatch = VisualBatch & Readonly<{ snapshot: VisualSnapshot }>;
+export type RecoveryAcknowledgement = Readonly<{ writeId: string; acceptedEventIds: readonly string[]; checkpointAccepted: true; validation: "known-codec" | "opaque-history" }>;
+export type VisualCheckpoint = {
+  checkpointId: string; attemptId: string; activityId: string; reason: "pre-migration" | "restore-recovery";
+  sourceActivityVersion: number; sourceSnapshotSchema: number; sourceStateRevision: number;
+  targetActivityVersion: number; targetSnapshotSchema: number; targetStateRevision?: number;
+  snapshot: unknown; hash: string; createdAt: Date; migrationOnly: boolean;
+  visitId?: string; eventIds?: readonly string[]; validation?: "known-codec" | "opaque-history";
+};
+export type ClientMigrationCheckpoint = Readonly<{
+  checkpointId: string; activityVersion: number; snapshotSchema: number; targetActivityVersion: number; targetSnapshotSchema: number;
+  stateRevision: number; visitId: string; snapshot: unknown;
 }>;
 export type BatchAcknowledgement = Readonly<{
   writeId: string; acceptedEventIds: readonly string[]; snapshotAccepted: boolean;
