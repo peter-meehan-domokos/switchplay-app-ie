@@ -1,0 +1,26 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createVisualApi, readVisualJson } from "../src/lib/visualLearningRecords/api";
+import { createVisualRequestBudget } from "../src/lib/visualLearningRecords/requestBudget";
+
+test("streamed bodies are bounded even without a Content-Length header", async () => {
+  const body = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('"' + 'x'.repeat(3000) + '"')); controller.close(); } });
+  const request = new Request("https://app.example/api", { method: "POST", headers: { "Content-Type": "application/json" }, body, duplex: "half" } as RequestInit);
+  await assert.rejects(readVisualJson(request, 1000), /VISUAL_PAYLOAD_LIMIT/);
+});
+test("process-local request budget has bounded identity storage and recovers after expiry", () => {
+  let time = 0; const budget = createVisualRequestBudget(() => time, 2, 2);
+  assert.equal(budget("one"), true); assert.equal(budget("one"), true); assert.equal(budget("one"), false);
+  assert.equal(budget("two"), true); assert.equal(budget("three"), false);
+  time = 60000; assert.equal(budget("three"), true); assert.equal(budget("one"), true);
+});
+test("disabled, unauthenticated and throttled APIs do not call repositories", async () => {
+  let reads = 0;
+  const dependencies = { enabled: false, authenticate: async () => { reads++; return { kind: "account" as const, id: "one" }; },
+    repository: async (): Promise<never> => { throw new Error("Repository must not run"); }, authorizeSource: async (): Promise<never> => { throw new Error("Source must not run"); } };
+  const request = () => new Request("https://app.example/api", { method: "POST", headers: { Origin: "https://app.example", "X-Visual-Learner": "account:one" } });
+  assert.equal((await createVisualApi(dependencies).open(request())).status, 404); assert.equal(reads, 0);
+  assert.equal((await createVisualApi({ ...dependencies, enabled: true, authenticate: async () => null }).open(request())).status, 401);
+  const throttled = await createVisualApi({ ...dependencies, enabled: true, consumeBudget: () => false }).open(request());
+  assert.equal(throttled.status, 429); assert.equal(throttled.headers.get("Retry-After"), "60");
+});

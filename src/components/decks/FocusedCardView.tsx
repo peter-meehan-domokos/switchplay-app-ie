@@ -362,7 +362,7 @@ export default function FocusedCardView({
   const stepActivity = (stepViewItem ? renderStepActivity?.(stepViewItem) : null) ??
     (interactiveVisualPersistence && firstAttachment?.kind === "activity" ? <InteractiveVisualPreview
       activityId={firstAttachment.activityId} persistence={interactiveVisualPersistence}
-      origin={{ kind: "card", cardId: card.cardTemplateId ?? card.id, cardVersion: playbackVersion, deckId: deckTemplateId,
+      origin={{ kind: "card", cardId: card.cardTemplateId ?? card.id, cardVersion: playbackVersion, mode: playbackMode, deckId: deckTemplateId,
         stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: firstAttachment.id }}
       onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);

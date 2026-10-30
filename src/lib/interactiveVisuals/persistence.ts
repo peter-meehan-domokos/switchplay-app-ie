@@ -2,7 +2,8 @@ import type { VisualHostEvent } from "../../app/step-visuals/core/host";
 
 export type VisualOrigin = Readonly<{
   kind: "card" | "direct" | "framework";
-  cardId?: string; cardVersion?: number; deckId?: string; stepId?: string; attachmentId?: string; frameworkItemId?: string;
+  cardId?: string; cardVersion?: number; mode?: "working" | "canonical"; deckId?: string; deckVersion?: number;
+  stepId?: string; attachmentId?: string; frameworkId?: string; frameworkItemId?: string;
 }>;
 export type OpenVisual = Readonly<{ activityId: string; attemptId: string; snapshot: unknown | null }>;
 export type VisualPersistence = Readonly<{

@@ -1,6 +1,6 @@
 # Plugged-in Step Visuals implementation handoff
 
-Updated: 29 October 2026. Implementation authorised by the final owner instruction; production release is not authorised.
+Updated: 30 October 2026. Implementation authorised by the final owner instruction; production release is not authorised.
 
 ## Baseline and authority
 
@@ -26,8 +26,9 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S03 Roots restore/adapter | Complete | `a2667c2` |
 | S04 early card preview/host | Complete | `ac92b75` |
 | S05 Integration restore/adapter | Complete | `a0a6f6a` |
-| S06 records repository | Complete | Commit recorded at next checkpoint |
-| S07 account API/offline autosave | Pending | Not implemented |
+| S06 records repository | Complete | `66a48e9` |
+| S07a authenticated API/context | Complete | Commit recorded at next checkpoint |
+| S07b offline outbox/host autosave | Pending | Not implemented |
 | S08 attempt lifecycle | Pending | Not implemented |
 | S09 release compatibility | Pending | Not implemented |
 | S10 creator modal | Pending | Not implemented |
@@ -59,7 +60,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S07a authenticated API/context boundary, then S07b IndexedDB outbox/client integration. S07 is split into these independently tested commits; S07a alone must not enable production host UI or claim offline saving. Verify exact card/version/destination/activity context and principal headers, same-origin mutations, body limits, no-store DTOs and disabled-feature behavior. Use injected auth/repositories in API tests, disposable DB only. Then implement and browser-test atomic offline queues, serialized retries and truthful host status.
+Begin S07b durable IndexedDB outbox/client integration. Implement stable external event UUIDs once per accepted internal event, atomic pending event+snapshot writes, frozen retry batches and snapshot CAS acknowledgement. Keep Saved conditional on latest snapshot and all events, retain conflicts, isolate accounts and handle storage failures truthfully. Use the existing disposable `scripts/test-phase2.ts` server workflow for actual API/browser testing rather than changing the user development server. Add an opt-in visual test mode with local indexes and the server flag; do not enable live providers. Then continue S08 lifecycle controls.
+
+S07a completed: account-authenticated open/current/batch/new-attempt routes, server-only feature gate `SWITCHPLAY_PLUGGED_IN_VISUALS`, emergency ID disable configuration, exact initiating learner header, same-origin JSON mutations, streamed byte limits, private/no-store responses and explicit DTOs. Card context verifies immutable access, destination and attachment identity; working context derives adopted deck version, canonical deck context requires an explicit verified deck version. Framework references are independently validated. Guest card access and caller-supplied demo journey IDs are denied. Public host execution remains disabled; guest authentication is S14.
+
+S07a verification: **15 combined disposable API/repository integration tests passed**, plus five targeted HTTP/contract unit tests; TypeScript, focused lint and diff whitespace checks passed. Tests cover unauthorized/actor-switched requests, body limits without trusting Content-Length, private-era versions, cross-deck membership, stored snapshot roundtrip and retry acknowledgements. A bounded 120-request/minute/principal process-local limiter returns Retry-After; it is not claimed as fleet-wide abuse protection. Production review must resolve deployment-wide limits. Index-readiness checks are shared per Mongo client/database to avoid repeated index queries on every autosave.
+
+Integration note for S11: the internal FocusedCardView now includes working/canonical mode in origin. A canonical deck-origin production caller must also supply its actual immutable deck version (or an explicitly card-only origin); no version should be guessed. Current development persistence bypasses server context checks and is labelled development-only.
 
 S06 completed: additive first-class record/attempt/event/visit collections; common account/guest principal keys; shared learner/activity identity; transactional event deduplication and snapshot CAS; exact latest-write retry including snapshot-only changes; explicit new-attempt idempotency and ownership checks. Late batches never reactivate older attempts. First completion survives retries. Activity-owned event validators reject unknown payload fields and malformed facts without re-grading. Source authorization is deliberately the API responsibility in S07a; no guest credential or public access is enabled yet.
 

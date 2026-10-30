@@ -37,9 +37,11 @@ export function assertBoundedJson(value: unknown, maxBytes = 256 * 1024) {
 }
 export function assertVisualSource(v: unknown): asserts v is VisualSource {
   requireVisual(recordObject(v) && ["direct", "card", "framework"].includes(String(v.kind)), "INVALID_VISUAL_SOURCE");
-  const allowed = v.kind === "card" ? ["kind", "cardId", "cardVersion", "deckId", "stepId", "attachmentId", "journeyId"]
+  const allowed = v.kind === "card" ? ["kind", "cardId", "cardVersion", "mode", "deckId", "deckVersion", "stepId", "attachmentId", "journeyId"]
     : v.kind === "framework" ? ["kind", "frameworkId", "frameworkItemId", "journeyId"] : ["kind", "journeyId"];
-  requireVisual(Object.keys(v).every(k => allowed.includes(k)) && Object.entries(v).every(([k, val]) => k === "kind" || k === "cardVersion" ? true : safeId(val)), "INVALID_VISUAL_SOURCE");
+  requireVisual(Object.keys(v).every(k => allowed.includes(k)) && Object.entries(v).every(([k, val]) => ["kind", "cardVersion", "deckVersion", "mode"].includes(k) || safeId(val)), "INVALID_VISUAL_SOURCE");
+  if (v.deckVersion !== undefined) requireVisual(safeCount(v.deckVersion) && v.deckVersion >= 1 && safeId(v.deckId), "INVALID_VISUAL_SOURCE");
+  if (v.mode !== undefined) requireVisual(v.mode === "working" || v.mode === "canonical", "INVALID_VISUAL_SOURCE");
   if (v.kind === "card") requireVisual(safeId(v.cardId) && safeId(v.stepId) && safeId(v.attachmentId) && safeCount(v.cardVersion) && v.cardVersion >= 1, "INVALID_VISUAL_SOURCE");
   if (v.kind === "framework") requireVisual(safeId(v.frameworkId) && safeId(v.frameworkItemId), "INVALID_VISUAL_SOURCE");
 }

@@ -28,23 +28,28 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 const hash = (value: unknown) => createHash("sha256").update(canonical(value)).digest("hex");
+const readiness = new WeakMap<MongoClient, Map<string, Promise<void>>>();
 
 export class VisualLearningRecordRepository {
-  private ready?: Promise<void>;
   constructor(readonly db: Db, readonly client: MongoClient, readonly disabledIds: readonly string[] = []) {}
   records() { return this.db.collection<VisualRecord>(VISUAL_COLLECTIONS.records); }
   attempts() { return this.db.collection<VisualAttempt>(VISUAL_COLLECTIONS.attempts); }
   events() { return this.db.collection<StoredVisualEvent>(VISUAL_COLLECTIONS.events); }
   visits() { return this.db.collection<VisualVisit>(VISUAL_COLLECTIONS.visits); }
   async assertIndexesReady() {
-    this.ready ??= (async () => {
+    let databases = readiness.get(this.client);
+    if (!databases) { databases = new Map(); readiness.set(this.client, databases); }
+    let ready = databases.get(this.db.databaseName);
+    if (!ready) { ready = (async () => {
       for (const index of VISUAL_INDEXES) {
         const installed = await this.db.collection(index.collection).listIndexes().toArray();
         requireVisual(installed.some(i => i.name === index.name && canonical(i.key) === canonical(index.key)
           && !!i.unique === index.unique && !i.sparse && !i.partialFilterExpression), "VISUAL_INDEX_SETUP_REQUIRED");
       }
-    })().catch(() => { this.ready = undefined; throw new VisualRecordError("VISUAL_INDEX_SETUP_REQUIRED"); });
-    await this.ready;
+    })().catch(() => { databases!.delete(this.db.databaseName); throw new VisualRecordError("VISUAL_INDEX_SETUP_REQUIRED"); });
+      databases.set(this.db.databaseName, ready);
+    }
+    await ready;
   }
   private release(activityId: string) {
     const release = resolveInteractiveVisual(activityId, { disabledIds: this.disabledIds });
