@@ -4,10 +4,12 @@ import { acknowledgeIntegrationEvents, createIntegrationHostedState, integration
 import type { IntegrationAction } from "../src/app/step-visuals/activities/integration-area/learning";
 import { analyseRegion } from "../src/app/step-visuals/activities/integration-area/model";
 import { integrationPresentation } from "../src/app/step-visuals/activities/integration-area/presentation";
+import { isHostedIntegrationEvent } from "../src/app/step-visuals/activities/integration-area/eventValidation";
 
 type Action = IntegrationAction extends infer A ? A extends { revision: number } ? Omit<A, "revision"> : A : never;
 function act(s: IntegrationHostedState, a: Action): IntegrationHostedState { return reduceIntegrationHostedState(s, { ...a, revision: s.state.revision } as IntegrationAction); }
 function roundtrip(s: IntegrationHostedState) {
+  for (const event of s.state.records.events) assert.ok(isHostedIntegrationEvent(event), `Event rejected: ${event.type}`);
   const snapshot = integrationSnapshot(s);
   assert.ok(isIntegrationSnapshot(snapshot), `Invalid stage ${s.state.stage} ${s.state.part}`);
   const restored = restoreIntegrationHostedState(JSON.parse(JSON.stringify(snapshot)));

@@ -25,8 +25,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S02 canonical step media | Complete | `2c5d300` |
 | S03 Roots restore/adapter | Complete | `a2667c2` |
 | S04 early card preview/host | Complete | `ac92b75` |
-| S05 Integration restore/adapter | Complete | Commit recorded at next checkpoint |
-| S06 records repository | Pending | Not implemented |
+| S05 Integration restore/adapter | Complete | `a0a6f6a` |
+| S06 records repository | Complete | Commit recorded at next checkpoint |
 | S07 account API/offline autosave | Pending | Not implemented |
 | S08 attempt lifecycle | Pending | Not implemented |
 | S09 release compatibility | Pending | Not implemented |
@@ -59,7 +59,11 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S06 Visual Learning Records repository, common account/guest principal, explicit indexes and disposable replica-set integrity tests. No production APIs or durable-saving claim yet. Implement shared learner/activity records, attempts, events and context visits; transactional event dedupe with snapshot CAS, exact lost-response retry and owner checks. Keep historical attempts independent of card/deck progress. Then continue S07 authenticated APIs and IndexedDB outbox.
+Begin S07a authenticated API/context boundary, then S07b IndexedDB outbox/client integration. S07 is split into these independently tested commits; S07a alone must not enable production host UI or claim offline saving. Verify exact card/version/destination/activity context and principal headers, same-origin mutations, body limits, no-store DTOs and disabled-feature behavior. Use injected auth/repositories in API tests, disposable DB only. Then implement and browser-test atomic offline queues, serialized retries and truthful host status.
+
+S06 completed: additive first-class record/attempt/event/visit collections; common account/guest principal keys; shared learner/activity identity; transactional event deduplication and snapshot CAS; exact latest-write retry including snapshot-only changes; explicit new-attempt idempotency and ownership checks. Late batches never reactivate older attempts. First completion survives retries. Activity-owned event validators reject unknown payload fields and malformed facts without re-grading. Source authorization is deliberately the API responsibility in S07a; no guest credential or public access is enabled yet.
+
+S06 verification: **10 disposable MongoDB integration tests passed**, including racing initial opens and concurrent revision writes, rollback after an inserted event, changed immutable IDs, cross-principal denial, retained attempts and real completed Roots data. **458 unit tests passed**; TypeScript and focused lint passed. Offline index-plan command passed; no live database connection or migration. An initial setup-script test exposed CommonJS top-level-await incompatibility; wrapping its entry in an async function fixed it. `scripts/prepare-visual-learning-records.ts --plan` is offline by default; `--apply-local` refuses anything except an explicitly named disposable localhost database. Production index preparation remains a separately approved deployment operation.
 
 S05 completed: activity-owned Integration codec/hosted adapter, inert generated preview and registry import. Seven-stage state, previous/next panels, draft/feedback/hints and bounded evidence restore without events. Check numbering continues from the last check, not the truncated history length. Hosted generic Next/Previous/Finish comes from activity capabilities; mathematical controls remain in existing renderers. Lab navigation remains unchanged. Hosted targeted scrolling is suppressed; no CSS/math layout changes. Hosted calculation drafts have a 4096-character storage bound; neither numeric parsing nor assessment rules changed.
 

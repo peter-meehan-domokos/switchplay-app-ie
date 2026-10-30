@@ -566,6 +566,11 @@ Automatic progression is authorised for every core slice after this common gate.
 - **Commit:** `feat: autosave visual state with a durable offline outbox`.
 - **Rollback/continue:** preserve queues and compatible readers; disable new opens if write service unavailable. Continue S08.
 
+S07 execution boundaries (refined after S06):
+
+- **S07a — authenticated API and source boundary.** Depends on S06. Add gated open/current/batch/new-attempt HTTP handlers, explicit principal header binding, same-origin/body limits, no-store DTOs and stored card/framework source verification. Test with injected authentication and disposable repositories: forged source, other account, mismatched viewer, private-version access, malformed/oversized body, idempotent responses and disabled flag. Acceptance: APIs reject untrusted context and preserve repository acknowledgements; production host remains disabled. Suggested commit `feat: authorize Visual Learning Records API requests`. Rollback: disable server feature gate, retain collections. Continue automatically to S07b after tests/diff review/handoff.
+- **S07b — durable client queue and host integration.** Depends on S07a. Implement IndexedDB atomic event/snapshot acceptance, stable transport UUIDs, serialized frozen requests, snapshot coalescing, reconnect retry, local pending/conflict state and account partitioning. Connect account host only behind the settled feature gate. Run the S07 browser/API scenarios above, including actual reload and disconnect. Acceptance: newest state and all event acknowledgements required for Saved, no account retargeting, no data loss on retries. Suggested commit remains `feat: autosave visual state with a durable offline outbox`. Rollback preserves pending queues; continue S08 automatically when verified.
+
 ### S08 — Same-attempt navigation and explicit new attempts
 
 - **Deliverable/dependencies:** S03/S05/S07; Back to Start retains stage work/history, completed attempts editable, Stage 1 confirmed Start New Attempt.

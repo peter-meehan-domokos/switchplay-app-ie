@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { acknowledgeRootsEvents, createRootsHostedState, isRootsSnapshot, reduceRootsHostedState, restoreRootsHostedState, rootsHostNavigation, rootsSnapshot, type RootsHostedState } from "../src/app/step-visuals/activities/roots-factors/hostState";
 import type { LearningAction } from "../src/app/step-visuals/activities/roots-factors/learning";
+import { isHostedRootsEvent } from "../src/app/step-visuals/activities/roots-factors/eventValidation";
 
 const place = (state: RootsHostedState, root: number) => reduceRootsHostedState(state, { type: "root", action: { type: "place", revision: state.recorded.learning.manipulation.revision, root } });
 const action = (state: RootsHostedState, type: "ready" | "continue" | "check" | "explanation") => reduceRootsHostedState(state, { type, revision: state.recorded.learning.manipulation.revision });
@@ -15,6 +16,7 @@ function journey() {
 
 test("every reachable stage including incorrect feedback restores exactly without emitting learning events", () => {
   for (const state of journey()) {
+    for (const event of state.recorded.records.events) assert.ok(isHostedRootsEvent(event), `Event rejected: ${event.type}`);
     const snapshot = rootsSnapshot(state);
     assert.equal(isRootsSnapshot(snapshot), true, state.recorded.learning.lesson.stage);
     const restored = restoreRootsHostedState(JSON.parse(JSON.stringify(snapshot)));
