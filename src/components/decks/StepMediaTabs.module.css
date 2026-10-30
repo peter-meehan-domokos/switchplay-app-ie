@@ -1,0 +1,32 @@
+.tabs {
+  display: flex;
+  gap: calc(4px / var(--step-media-scale, 1));
+  width: 100%;
+  min-width: 0;
+  font: 600 14px/20px Arial, Helvetica, sans-serif;
+  font-size: calc(14px / var(--step-media-scale, 1));
+  line-height: calc(20px / var(--step-media-scale, 1));
+}
+.tab {
+  flex: 1 1 0;
+  min-width: max-content;
+  border: calc(1px / var(--step-media-scale, 1)) solid #cbd5da;
+  border-radius: 6px;
+  padding: calc(8px / var(--step-media-scale, 1)) calc(3px / var(--step-media-scale, 1));
+  font: inherit;
+  white-space: nowrap;
+  color: #24434e;
+  background: #f5f8f7;
+}
+.tab[aria-selected="true"] { border-color: #345e67; background: #dfebe8; }
+.tab:focus-visible { outline: 2px solid #345e67; outline-offset: 2px; }
+.probe {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Measure required widths before flex distributes spare room. Summing expanded
+   thirds can otherwise reject valid labels due to subpixel rounding. */
+.probe .tab { flex: 0 0 auto; }

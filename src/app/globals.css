@@ -1037,6 +1037,12 @@ input {
   min-width: 0;
   max-width: 100%;
   cursor: pointer;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
 }
 
 .creator-media-upload-slot--intro {

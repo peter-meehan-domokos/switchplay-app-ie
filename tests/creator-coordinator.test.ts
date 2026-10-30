@@ -245,10 +245,12 @@ test("Publish and leave keeps earlier successes and retries only outstanding wor
   failDeck = false; assert.equal(await c.publishAndLeave({}, async () => true), true);
   assert.equal(h.calls.filter((call) => call.method === "PATCH" && call.body.type === "publish").length, 2);
 });
-test("Creator has no top-level Save Draft and stable Card keys/upload/edit identity", () => {
+test("Creator has no top-level Save Draft and stable Card keys/edit identity", () => {
   const source = readFileSync(new URL("../src/components/creator/CreatorDragLab.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, />Save Draft</); assert.match(source, /key=\{column.cardId \?\? column.id\}/);
-  assert.match(source, /uploadIntroMedia\(column.cardId!/); assert.match(source, /type: "card-title"; cardTemplateId: string/);
+  // Upload target identity is verified by the actual transfer/detachment browser
+  // tests, independently of the name of the current upload handler.
+  assert.match(source, /type: "card-title"; cardTemplateId: string/);
 });
 
 test("lost save response followed by unavailable reconciliation is read before any replay", async (t) => {

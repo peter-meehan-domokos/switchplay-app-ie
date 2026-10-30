@@ -1,4 +1,5 @@
 import { confirmArchive } from "./deck-menu-helpers";
+import { uploadCreatorIntroVideo } from "./helpers/creatorMedia";
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import { randomUUID } from "node:crypto";
@@ -135,19 +136,18 @@ for (const succeeds of [true, false]) test(`switching waits for an attached uplo
     started = true; await pause.promise;
     if (failed) await route.fulfill({ status: 500, body: "Fixture upload failure" }); else await route.continue();
   });
-  const input = column(page, cardId).locator('.creator-card-intro-media-slot input[type="file"]');
   const file = { name: "navigation.mp4", mimeType: "video/mp4", buffer: Buffer.from("local fixture video") };
-  await input.setInputFiles(file); await expect.poll(() => started).toBe(true);
+  await uploadCreatorIntroVideo(page, column(page, cardId), file); await expect.poll(() => started).toBe(true);
   await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
   await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); pause.resolve();
   if (!succeeds) {
     await expect(popup(page).getByRole("alert")).toContainText("save or upload errors"); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
-    await popup(page).getByRole("button", { name: "Close", exact: true }).click(); failed = false; await input.setInputFiles(file);
-    await expect.poll(async () => (await cardRoot(cardId))?.draft?.intro.mediaItem?.description).toBe("navigation.mp4");
+    await popup(page).getByRole("button", { name: "Close", exact: true }).click(); failed = false; await uploadCreatorIntroVideo(page, column(page, cardId), file);
+    await expect.poll(async () => (await cardRoot(cardId))?.draft?.intro.mediaItems?.[0]?.media.description).toBe("navigation.mp4");
     await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
   }
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}(?:[?]|$)`));
-  expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("navigation.mp4");
+  expect((await cardRoot(cardId))!.draft.intro.mediaItems[0].media.description).toBe("navigation.mp4");
 });
 
 test("zero-Card working Deck publishes, reloads, archives/restores and keeps its cadence anchor after later Add", async ({ page }) => {
@@ -217,16 +217,16 @@ for (const succeeds of [true, false]) test(`return waits for attached upload/sav
     started = true; await pause.promise;
     if (succeeds) await route.continue(); else await route.fulfill({ status: 500, body: "Fixture upload failure" });
   });
-  await column(page, cardId).locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({ name: "leave.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
+  await uploadCreatorIntroVideo(page, column(page, cardId), { name: "leave.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
   await expect.poll(() => started).toBe(true); await page.locator(".creator-back-link").click();
   await expect(page.locator(".creator-navigation-status")).toContainText("Finishing saves and uploads");
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
   pause.resolve();
   if (succeeds) {
     await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toBeVisible();
-    expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("leave.mp4");
+    expect((await cardRoot(cardId))!.draft.intro.mediaItems[0].media.description).toBe("leave.mp4");
     await page.getByRole("button", { name: "Leave without publishing", exact: true }).click();
-    await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); expect((await cardRoot(cardId))!.draft.intro.mediaItem.description).toBe("leave.mp4");
+    await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); expect((await cardRoot(cardId))!.draft.intro.mediaItems[0].media.description).toBe("leave.mp4");
   } else {
     await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();

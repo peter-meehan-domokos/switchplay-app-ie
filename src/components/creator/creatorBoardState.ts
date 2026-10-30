@@ -2,7 +2,7 @@ import type { DeckIntroduction, DeckTemplate, StepDescriptionSpan } from "@/comp
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import { normalizeDeckIntroductionForRuntime } from "@/lib/deckApiTransforms";
 import type { MediaItem } from "@/lib/media";
-import type { StepMediaItem } from "@/lib/stepMedia";
+import { stepMediaItems, type StepMediaItem } from "@/lib/stepMedia";
 import { clientId } from "@/lib/clientId";
 import { createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_DECK_CADENCE_DAYS, defaultCreatorThemeTitle, restoreCreatorCardTitle } from "@/lib/cards/creatorDefaults";
 
@@ -85,6 +85,10 @@ export function getStepDisplayText(pair: Pair) {
 }
 
 export function getStepMediaDisplayText(pair: Pair) {
+  if (pair.stepMediaItems !== undefined) {
+    const items = stepMediaItems({ mediaItems: pair.stepMediaItems });
+    return items.length === 1 && items[0].kind !== "activity" ? items[0].media.description : items.map(item => item.label).join(" · ") || VIDEO_PLACEHOLDER_TEXT;
+  }
   return isStepMediaEmpty(pair) ? VIDEO_PLACEHOLDER_TEXT : pair.stepMediaItem?.description ?? VIDEO_PLACEHOLDER_TEXT;
 }
 

@@ -18,10 +18,13 @@ export function validStepMediaLabel(value: unknown): value is string {
     && !/[\p{Cc}\p{Zl}\p{Zp}]/u.test(value) && graphemes(value) <= 12;
 }
 /** Structural bounds only. The creator measures actual combined tab widths at 320 CSS px. */
+export function validStepMediaLabels(labels: readonly string[]): boolean {
+  return labels.length <= MAX_STEP_MEDIA && labels.every(validStepMediaLabel) && labels.reduce((sum, label) => sum + graphemes(label), 0) <= 32;
+}
 export function validStepMediaItems(value: unknown): value is StepMediaItem[] {
   if (!Array.isArray(value) || value.length > MAX_STEP_MEDIA) return false;
   if (!value.every((item) => record(item) && identifier(item.id) && validStepMediaLabel(item.label))) return false;
-  if (new Set(value.map((item) => item.id)).size !== value.length || value.reduce((sum, item) => sum + graphemes(item.label), 0) > 32) return false;
+  if (new Set(value.map((item) => item.id)).size !== value.length || !validStepMediaLabels(value.map(item => item.label))) return false;
   return value.every((item) => {
     const fields = item.kind === "activity" ? ["id", "label", "kind", "activityId"]
       : item.kind === "image" ? ["id", "label", "kind", "media", "alt"] : ["id", "label", "kind", "media"];

@@ -614,6 +614,8 @@ S09 execution boundaries (refined during restore validation):
 - **Commit:** `feat: manage step multimedia through creator drafts`.
 - **Rollback/continue:** disable new modal edits, retain modern reader. Continue S11.
 
+S10 execution notes: creator uses the existing actor-bound coordinator and one pending upload per destination; valid metadata edits enter its draft lane immediately. The native modal has an explicit original focus target, including through foreign-card confirmation. Failed replacements preserve prior items; a sign-in change after transfer prevents attachment. The shared label probe measures required browser-rendered widths before flex growth (WebKit otherwise rounds three expanded thirds beyond the nominal width). The learner's focused card is a252px authored baseline scaled to the viewport: use a conservative250px physical label budget at a normal320px viewport, and S11 must supply the shared `--step-media-scale` so14px visible typography stays stable. Verify the actual learner geometry before enabling multimedia; creator-only success does not prove Step View fit.
+
 ### S11 — Complete mixed-media learner presentation
 
 - **Deliverable/dependencies:** S04/S09/S10; all four destinations render 0/1/2–4 mixed/repeated media and correct origin semantics.
