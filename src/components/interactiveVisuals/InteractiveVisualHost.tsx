@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useLayoutEffect, useRef, useState, type ComponentType } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import type { HostedVisualProps, VisualHostControls } from "@/app/step-visuals/core/host";
@@ -17,6 +17,8 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   const [controls, setControls] = useState<VisualHostControls | null>(null);
   const [status, setStatus] = useState(persistence.statusLabel);
   const reduced = useReducedMotion();
+  useEffect(() => persistence.subscribe?.(opened.attemptId, setStatus), [persistence, opened.attemptId]);
+  const closeHost = useCallback(() => { void persistence.flush?.(opened.attemptId); onClose(); }, [persistence, opened.attemptId, onClose]);
   useLayoutEffect(() => {
     const element = dialog.current!;
     element.showModal(); close.current?.focus({ preventScroll: true });
@@ -34,17 +36,17 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
     return () => { observer.disconnect(); window.visualViewport?.removeEventListener("resize", measure); };
   }, []);
   const onChange = useCallback<HostedVisualProps["onChange"]>(async (snapshot, events) => {
-    try { await persistence.save(opened, snapshot, events); setStatus(persistence.statusLabel); }
+    try { await persistence.save(opened, snapshot, events); if (!persistence.subscribe) setStatus(persistence.statusLabel); }
     catch (error) { setStatus("Changes are pending. Saving failed."); throw error; }
   }, [opened, persistence]);
   const layout = buildInteractiveVisualHostLayout(title, controls, status);
   return createPortal(<dialog ref={dialog} className={styles.dialog} aria-label={layout.title} aria-modal="true"
-    onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => event.stopPropagation()}
+    onCancel={(event) => { event.preventDefault(); closeHost(); }} onClick={(event) => event.stopPropagation()}
     onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()}
     onKeyDown={(event) => event.stopPropagation()}>
     <motion.div className={styles.shell} initial={reduced ? false : { x: "100%" }} animate={{ x: 0 }} transition={{ duration: .2 }}>
       <header className={styles.header} data-visual-host-header="">
-        <h2>{layout.title}</h2><button ref={close} type="button" onClick={onClose} aria-label="Close interactive visual">Close</button>
+        <h2>{layout.title}</h2><button ref={close} type="button" onClick={closeHost} aria-label="Close interactive visual">Close</button>
       </header>
       <div ref={content} className={styles.content} data-visual-host-content="" data-visual-stage={layout.stageId}>
         <Suspense fallback={<p role="status">Opening interactive visual…</p>}>

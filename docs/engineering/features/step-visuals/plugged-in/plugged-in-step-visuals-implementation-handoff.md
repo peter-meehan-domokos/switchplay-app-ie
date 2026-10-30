@@ -27,8 +27,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S04 early card preview/host | Complete | `ac92b75` |
 | S05 Integration restore/adapter | Complete | `a0a6f6a` |
 | S06 records repository | Complete | `66a48e9` |
-| S07a authenticated API/context | Complete | Commit recorded at next checkpoint |
-| S07b offline outbox/host autosave | Pending | Not implemented |
+| S07a authenticated API/context | Complete | `45ed657` |
+| S07b offline outbox/host autosave | Complete | Commit recorded at next checkpoint |
 | S08 attempt lifecycle | Pending | Not implemented |
 | S09 release compatibility | Pending | Not implemented |
 | S10 creator modal | Pending | Not implemented |
@@ -60,7 +60,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S07b durable IndexedDB outbox/client integration. Implement stable external event UUIDs once per accepted internal event, atomic pending event+snapshot writes, frozen retry batches and snapshot CAS acknowledgement. Keep Saved conditional on latest snapshot and all events, retain conflicts, isolate accounts and handle storage failures truthfully. Use the existing disposable `scripts/test-phase2.ts` server workflow for actual API/browser testing rather than changing the user development server. Add an opt-in visual test mode with local indexes and the server flag; do not enable live providers. Then continue S08 lifecycle controls.
+Begin S08a activity-owned same-attempt Back to Start, then S08b confirmed new-attempt command/offline queue. Preserve attempt IDs, historical events, prior stage work and global check numbering. Integration must unlock completed navigation while retaining the Stage7 checked draft without auto-completing on arrival. Roots must restore a valid positive Stage1 placement, retain stage memories and keep aggregate check/assistance evidence separate from local stage presentation. Add activity tests and browser completion/return tests. Then implement explicit new-attempt confirmation at Stage1 with idempotent persisted commands; no routine owner gate.
+
+S07b completed: IndexedDB stores each snapshot and newly allocated external event UUIDs in one transaction; internal event sequences deduplicate repeated effects. A serial sender freezes batches through retry, splits large queues, coalesces only snapshots, and waits for every event/latest generation before Saved. Pending visits retain offline source context and are authorized before their batches. Known attempts work offline; unknown first offline opens create no provisional attempt. Conflicts preserve the local candidate/frozen request and stop futile retries. Actor-bound requests cannot retarget a queue. Storage failures stay visible even after an older network success. Startup retries all owned pending queues without reopening every visual. The database host probe is development-only; production learner wiring remains S11.
+
+S07b verification: **471 unit tests passed**, TypeScript and focused lint passed. The initial five disposable browser scenarios passed in both Chromium and WebKit; the final WebKit run passed **6/6**, adding retry of unopened queues after a new session. Scenarios cover actual DB/IndexedDB reload, offline edits/reconnect, lost response with byte-identical retry, quota failure, stale-write local preservation and unchecked Integration drafts without fabricated Check events. Physical iPhone remains unperformed. A real Next test exposed internal `localhost` URL normalization despite browser `127.0.0.1`: origin validation now uses HTTP Host with the request protocol, ignores arbitrary X-Forwarded-Host, and permits an explicitly configured `SWITCHPLAY_APP_ORIGIN` for deployment. The temporary diagnostic was removed. No live flags/provider/DB changes.
+
+S08 implementation note: current outboxes are keyed by learner/activity. An offline new attempt must atomically archive the previous attempt row under a learner/activity/attempt key and store its new-attempt command with the new current row; never overwrite a pending old row. Extend the local store with an atomic multi-row transition and drain predecessor batches/commands in order. Avoid an embedded unbounded chain of old attempts. S06 server commands already retain old attempts and guard expectedActiveAttemptId.
 
 S07a completed: account-authenticated open/current/batch/new-attempt routes, server-only feature gate `SWITCHPLAY_PLUGGED_IN_VISUALS`, emergency ID disable configuration, exact initiating learner header, same-origin JSON mutations, streamed byte limits, private/no-store responses and explicit DTOs. Card context verifies immutable access, destination and attachment identity; working context derives adopted deck version, canonical deck context requires an explicit verified deck version. Framework references are independently validated. Guest card access and caller-supplied demo journey IDs are denied. Public host execution remains disabled; guest authentication is S14.
 

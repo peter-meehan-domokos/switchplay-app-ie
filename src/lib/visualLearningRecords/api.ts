@@ -6,6 +6,7 @@ import type { VisualLearningRecordRepository } from "./repository";
 
 export type VisualApiDependencies = Readonly<{
   enabled: boolean;
+  expectedOrigin?: string;
   authenticate: () => Promise<LearnerPrincipal | null>;
   consumeBudget?: (principal: string) => boolean;
   repository: () => Promise<VisualLearningRecordRepository>;
@@ -38,8 +39,14 @@ export function createVisualApi(deps: VisualApiDependencies) {
     let learner: string | undefined;
     try {
       if (!deps.enabled) return Response.json({ code: "VISUAL_FEATURE_DISABLED" }, { status: 404, headers: privateHeaders });
-      if (request.method !== "GET") requireVisual(request.headers.get("Origin") === new URL(request.url).origin
-        && request.headers.get("Sec-Fetch-Site") !== "cross-site", "VISUAL_ORIGIN_FORBIDDEN");
+      if (request.method !== "GET") {
+        // Next may construct request.url with its internal hostname (localhost), even when
+        // the browser used 127.0.0.1 or a public host. HTTP Host is the browser authority;
+        // never accept an arbitrary X-Forwarded-Host. A deployment may pin its public origin.
+        const internal = new URL(request.url), host = request.headers.get("Host");
+        const expected = deps.expectedOrigin ? new URL(deps.expectedOrigin).origin : new URL(host ? `${internal.protocol}//${host}` : internal.origin).origin;
+        requireVisual(request.headers.get("Origin") === expected && request.headers.get("Sec-Fetch-Site") !== "cross-site", "VISUAL_ORIGIN_FORBIDDEN");
+      }
       const actor = await deps.authenticate();
       if (!actor) return Response.json({ code: "UNAUTHENTICATED" }, { status: 401, headers: privateHeaders });
       learner = principalKey(actor);

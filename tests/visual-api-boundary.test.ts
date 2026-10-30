@@ -24,3 +24,13 @@ test("disabled, unauthenticated and throttled APIs do not call repositories", as
   const throttled = await createVisualApi({ ...dependencies, enabled: true, consumeBudget: () => false }).open(request());
   assert.equal(throttled.status, 429); assert.equal(throttled.headers.get("Retry-After"), "60");
 });
+
+test("origin checks use the browser Host through Next internal hostname normalization and reject forwarding spoofing", async () => {
+  const deps = { enabled: true, authenticate: async () => null, repository: async (): Promise<never> => { throw new Error("Must not connect"); },
+    authorizeSource: async (): Promise<never> => { throw new Error("Must not connect"); } };
+  const request = (origin: string, extra: Record<string, string> = {}) => new Request("http://localhost:3171/api/visual-sessions/open", {
+    method: "POST", headers: { Host: "127.0.0.1:3171", Origin: origin, ...extra } });
+  assert.equal((await createVisualApi(deps).open(request("http://127.0.0.1:3171"))).status, 401);
+  assert.equal((await createVisualApi(deps).open(request("https://elsewhere.example", { "X-Forwarded-Host": "elsewhere.example" }))).status, 403);
+  assert.equal((await createVisualApi({ ...deps, expectedOrigin: "https://app.example" }).open(request("http://127.0.0.1:3171"))).status, 403);
+});

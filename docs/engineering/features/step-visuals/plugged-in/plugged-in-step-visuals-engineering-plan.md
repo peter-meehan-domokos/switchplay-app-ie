@@ -580,6 +580,11 @@ S07 execution boundaries (refined after S06):
 - **Commit:** `feat: preserve visual attempts across return to start`.
 - **Rollback/continue:** disable new command if needed, retain data/old attempts. Continue S09.
 
+S08 execution boundaries (refined after durable queue verification):
+
+- **S08a — same-attempt return.** Depends on S07. Add activity-owned Back to Start and retained forward state, global evidence independent of earlier-stage presentation, no completion replay and no card-step mutation. Test repeated completions, changed-answer invalidation, hydrate after return and the real host control. Commit `feat: retain visual work when returning to start`. Continue automatically after relevant tests, diff review and handoff.
+- **S08b — explicit new attempts.** Depends on S08a. Add Stage1 secondary confirmation and persist one command/attempt ID before new state/events. Atomically archive a pending prior local row and install the new current row plus command; keep predecessor work in separate local rows, serialize registration/batches and retain server histories. Test cancel, double click, lost response, offline confirmation/reload/reconnect, old attempt retention and concurrent active conflict. Commit `feat: create confirmed visual attempts with durable commands`. Saved requires command acknowledgement as well as events/snapshot. Rollback hides the control while preserving rows and commands. Continue S09 automatically when verified.
+
 ### S09 — Current release adoption and safe recovery
 
 - **Deliverable/dependencies:** S06–S08; compatible resume, validated migration checkpoints, retired/disabled/missing handling and incompatible explicit recovery.

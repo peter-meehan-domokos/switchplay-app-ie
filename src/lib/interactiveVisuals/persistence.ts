@@ -8,6 +8,8 @@ export type VisualOrigin = Readonly<{
 export type OpenVisual = Readonly<{ activityId: string; attemptId: string; snapshot: unknown | null }>;
 export type VisualPersistence = Readonly<{
   statusLabel: string;
+  subscribe?: (attemptId: string, listener: (status: string) => void) => () => void;
+  flush?: (attemptId: string) => Promise<void>;
   open: (activityId: string, origin: VisualOrigin) => Promise<OpenVisual>;
   save: (opened: OpenVisual, snapshot: unknown, events: readonly VisualHostEvent[]) => Promise<void>;
 }>;
