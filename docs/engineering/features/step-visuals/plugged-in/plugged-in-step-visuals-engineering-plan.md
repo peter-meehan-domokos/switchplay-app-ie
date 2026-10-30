@@ -1,8 +1,8 @@
 # Plugged-in Step Visuals — Final Engineering Plan
 
-**Status: Stage A revision under the owner-approved implementation contract; autonomous implementation may proceed after the consistency gate in §14. Production release is not authorised.**
+**Status: Stage A gate passed; core local implementation and supported automated verification completed through S17. Production release is not authorised and remains subject to the explicit device, image-security, privacy and operational gates in the handoff.**
 
-Date: **29 October 2026**, Europe/Dublin. This document supersedes the earlier draft in this same location. The owner's “Finalise and Autonomously Implement Plugged-in Step Visuals” instruction, including the subsequent confirmation of the feature branch, authorises implementation, local verification and meaningful commits. It does not authorise push, merge, deployment, live migrations/provider changes, demo decks or responsive redesign of existing mathematical visuals.
+Revised: **30 October 2026**, Europe/Dublin (original Stage A revision29October). This document supersedes the earlier draft in this same location. The owner's “Finalise and Autonomously Implement Plugged-in Step Visuals” instruction, including the subsequent confirmation of the feature branch, authorises implementation, local verification and meaningful commits. It does not authorise push, merge, deployment, live migrations/provider changes, demo decks or responsive redesign of existing mathematical visuals.
 
 Inputs: [product specification](../../../../design/features/step-visuals/plugged-in/plugged-in-step-visuals-specification.md), [independent review](plugged-in-step-visuals-independent-review.md), and the final owner decisions transcribed into §2. The specification remains authoritative except where those final decisions explicitly supersede it. [Implementation handoff](plugged-in-step-visuals-implementation-handoff.md) records actual completion, commits, tests and the next slice. This plan describes intended work; it is not proof that a slice has shipped.
 
