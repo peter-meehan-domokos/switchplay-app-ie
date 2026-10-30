@@ -594,6 +594,11 @@ S08 execution boundaries (refined after durable queue verification):
 - **Commit:** `feat: handle visual release compatibility and recovery`.
 - **Rollback/continue:** current release/availability changes never delete data. Continue S10.
 
+S09 execution boundaries (refined during restore validation):
+
+- **S09a — validated restore and safe shell.** Completed internal checkpoint: withhold incompatible/corrupt state from execution; preserve historical attempts; confirmed fresh-attempt recovery; render failure containment and emergency disable; old-client metadata checks. Include first-snapshot Saved race and basic local revision checks. No compatible cross-release migration is claimed by this increment.
+- **S09b — migrations and pending recovery.** Required before S09 exits. Register immutable known codecs and explicit activity-owned migration functions; validate identity and event sequence, checkpoint conversions once and retain historical release metadata. Preserve exact frozen requests and old-version meaningful events while installing a compatible new-version candidate under a revision check. An unsafe restore with pending local work needs a bounded owner-only history/checkpoint backup before confirmed new-attempt registration; never deadlock on a predecessor that ordinary writes rightly reject. Unrecognized raw legacy state may be preserved as non-executable history only, never auto-graded, rendered or called a normal saved active snapshot. Test synthetic injected migrations without publishing a fake curriculum release, retry/double-open, offline candidate upgrade, pending/corrupt recovery, rollback and genuine stale revisions. Commit `feat: checkpoint visual migrations and recovery history`. Continue automatically to S10 once tests/diff review/handoff pass. Production rollout remains gated until this increment and later hardening are complete.
+
 ### S10 — Creator multimedia management using existing draft lanes
 
 - **Deliverable/dependencies:** S02/S09; existing header/step controls manage up to four videos/images/visuals.

@@ -1,12 +1,15 @@
 import type { VisualHostEvent } from "../../app/step-visuals/core/host";
 import { getInteractiveVisual } from "../interactiveVisuals/catalogue";
-import { assertBoundedJson, assertVisualBatch, assertVisualSnapshot, requireVisual } from "./contracts";
+import type { InteractiveVisualRelease } from "../interactiveVisuals/catalogue";
+import type { VisualRestoration } from "../interactiveVisuals/persistence";
+import { assertBoundedJson, assertUuid, assertVisualBatch, assertVisualSnapshot, requireVisual, safeCount } from "./contracts";
 import type { BatchAcknowledgement, NewVisualAttempt, VisualBatch, VisualEventInput, VisualSnapshot, VisualSource } from "./model";
 
 export type VisualSession = Readonly<{
   learner: string; recordId: string; activityId: string; activeAttemptId: string;
   attemptId: string; attemptNumber: number; stateRevision: number;
   activityVersion: number; snapshotSchema: number; snapshot: VisualSnapshot | null; visitId: string;
+  release?: InteractiveVisualRelease; restoration?: VisualRestoration;
 }>;
 export type PendingVisualVisit = Readonly<{ visitId: string; source: VisualSource }>;
 type QueuedEvent = VisualEventInput & Readonly<{ visitId: string }>;
@@ -21,9 +24,17 @@ export type VisualOutbox = Readonly<{
 }>;
 export const visualOutboxKey = (learner: string, activityId: string) => `${learner}|${activityId}`;
 export function initialVisualOutbox(session: VisualSession, writerId: string, source: VisualSource = { kind: "direct" }): VisualOutbox {
+  assertUuid(session.recordId); assertUuid(session.attemptId); assertUuid(session.activeAttemptId); assertUuid(session.visitId); assertUuid(writerId);
+  requireVisual(safeCount(session.attemptNumber) && session.attemptNumber > 0 && safeCount(session.stateRevision), "INVALID_VISUAL_SESSION");
   const release = getInteractiveVisual(session.activityId);
-  requireVisual(release && release.activityVersion === session.activityVersion && release.snapshotSchema === session.snapshotSchema, "VISUAL_RELEASE_MISMATCH");
-  if (session.snapshot) assertVisualSnapshot(session.snapshot, session.activityId, session.attemptId);
+  requireVisual(release && (!session.release || release.id === session.release.id && release.activityVersion === session.release.activityVersion && release.snapshotSchema === session.release.snapshotSchema), "VISUAL_RELEASE_MISMATCH");
+  const recovering = session.restoration && session.restoration.status !== "ready";
+  requireVisual(recovering || release.activityVersion === session.activityVersion && release.snapshotSchema === session.snapshotSchema, "VISUAL_RELEASE_MISMATCH");
+  if (recovering) session = { ...session, snapshot: null, activityVersion: release.activityVersion, snapshotSchema: release.snapshotSchema };
+  else if (session.snapshot !== null) {
+    assertVisualSnapshot(session.snapshot, session.activityId, session.attemptId);
+    requireVisual(session.snapshot.attemptNumber === session.attemptNumber, "INVALID_VISUAL_SESSION");
+  }
   return { key: visualOutboxKey(session.learner, session.activityId), learner: session.learner, session, writerId,
     snapshot: session.snapshot, generation: 0, savedGeneration: 0, throughSequence: session.snapshot?.sequence ?? 0,
     events: [], visits: [], flight: null, conflict: false, source };
@@ -32,7 +43,7 @@ export const hasPendingVisualWork = (row: VisualOutbox) => row.generation !== ro
 export function newAttemptOutbox(previous: VisualOutbox, ids: { attemptId: string; commandId: string; visitId: string; writerId: string }): VisualOutbox {
   requireVisual(!previous.conflict, "VISUAL_ACTIVE_ATTEMPT_CONFLICT");
   const session: VisualSession = { ...previous.session, attemptId: ids.attemptId, activeAttemptId: ids.attemptId,
-    attemptNumber: previous.session.attemptNumber + 1, snapshot: null, stateRevision: 0, visitId: ids.visitId };
+    attemptNumber: previous.session.attemptNumber + 1, snapshot: null, stateRevision: 0, visitId: ids.visitId, restoration: { status: "ready" } };
   const source = previous.source ?? { kind: "direct" as const };
   return { ...initialVisualOutbox(session, ids.writerId, source), visits: [{ visitId: ids.visitId, source }],
     command: { request: { commandId: ids.commandId, attemptId: ids.attemptId, expectedActiveAttemptId: previous.session.attemptId },
@@ -40,7 +51,7 @@ export function newAttemptOutbox(previous: VisualOutbox, ids: { attemptId: strin
 }
 
 /** All UUID/timestamp allocation happens inside the same local transaction as its snapshot. */
-export function enqueueVisualChange(row: VisualOutbox, snapshot: unknown, events: readonly VisualHostEvent[], uuid: () => string, now: string): VisualOutbox {
+export function enqueueVisualChange(row: VisualOutbox, snapshot: unknown, events: readonly VisualHostEvent[], uuid: () => string, now: string, visitId = row.session.visitId): VisualOutbox {
   assertVisualSnapshot(snapshot, row.session.activityId, row.session.attemptId);
   requireVisual(snapshot.attemptNumber === row.session.attemptNumber && snapshot.sequence >= row.throughSequence, "VISUAL_SEQUENCE_REGRESSION");
   const release = getInteractiveVisual(row.session.activityId)!;
@@ -52,7 +63,7 @@ export function enqueueVisualChange(row: VisualOutbox, snapshot: unknown, events
     requireVisual(event.sequence === through + 1, "VISUAL_EVENT_SEQUENCE_GAP");
     additions.push({ eventId: uuid(), writerId: row.writerId, clientSequence: event.sequence, clientOccurredAt: now,
       activityVersion: release.activityVersion, eventSchema: release.eventSchema, type: event.type,
-      payload: structuredClone(event) as unknown as Record<string, unknown>, visitId: row.session.visitId });
+      payload: structuredClone(event) as unknown as Record<string, unknown>, visitId });
     through = event.sequence;
   }
   requireVisual(snapshot.sequence === through, "VISUAL_EVENT_SEQUENCE_GAP");

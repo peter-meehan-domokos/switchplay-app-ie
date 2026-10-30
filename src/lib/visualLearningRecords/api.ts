@@ -3,6 +3,7 @@ import { resolveInteractiveVisual } from "../interactiveVisuals/catalogue";
 import { assertNewVisualAttempt, assertUuid, assertVisualSource, exactFields, principalKey, recordObject, requireVisual, VisualRecordError } from "./contracts";
 import type { LearnerPrincipal, VisualAttempt, VisualBatch, VisualRecord, VisualSource } from "./model";
 import type { VisualLearningRecordRepository } from "./repository";
+import { inspectVisualRestoration } from "./restoration";
 
 export type VisualApiDependencies = Readonly<{
   enabled: boolean;
@@ -28,11 +29,13 @@ export async function readVisualJson(request: Request, maxBytes = 256 * 1024): P
     text += decoder.decode(); return JSON.parse(text);
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
-export function visualSessionDto(actor: LearnerPrincipal, record: VisualRecord, attempt: VisualAttempt, visitId?: string) {
+export function visualSessionDto(actor: LearnerPrincipal, record: VisualRecord, attempt: VisualAttempt, visitId?: string, disabledIds: readonly string[] = []) {
+  const release = resolveInteractiveVisual(record.activityId, { disabledIds });
+  const restoration = inspectVisualRestoration(attempt, release);
   return { learner: principalKey(actor), recordId: record.recordId, activityId: record.activityId, activeAttemptId: record.activeAttemptId,
     attemptId: attempt.attemptId, attemptNumber: attempt.attemptNumber, stateRevision: attempt.stateRevision,
-    activityVersion: attempt.activityVersion, snapshotSchema: attempt.snapshotSchema, snapshot: attempt.snapshot,
-    ...(visitId ? { visitId } : {}), release: resolveInteractiveVisual(record.activityId) };
+    activityVersion: attempt.activityVersion, snapshotSchema: attempt.snapshotSchema, snapshot: restoration.status === "ready" ? attempt.snapshot : null,
+    ...(visitId ? { visitId } : {}), release, restoration };
 }
 export function createVisualApi(deps: VisualApiDependencies) {
   async function boundary(request: Request, run: (actor: LearnerPrincipal, repo: VisualLearningRecordRepository) => Promise<unknown>) {
@@ -58,7 +61,7 @@ export function createVisualApi(deps: VisualApiDependencies) {
     } catch (error) {
       const code = error instanceof VisualRecordError || error instanceof CardArchitectureError ? error.code
         : error instanceof SyntaxError || error instanceof TypeError ? "INVALID_VISUAL_JSON" : "VISUAL_REQUEST_FAILED";
-      const status = code.includes("FORBIDDEN") ? 403 : code.includes("CONFLICT") || code.includes("MISMATCH") ? 409
+      const status = code.includes("FORBIDDEN") ? 403 : code.includes("CONFLICT") || code.includes("MISMATCH") || code.includes("RESTORATION_REQUIRED") ? 409
         : code.includes("LIMIT") ? 413 : code === "VISUAL_UNAVAILABLE" ? 404 : code === "VISUAL_REQUEST_FAILED" || code.includes("SETUP_REQUIRED") ? 503 : 400;
       return Response.json({ code }, { status, headers: { ...privateHeaders, ...(learner ? { "X-Visual-Learner": learner } : {}) } });
     }
@@ -70,17 +73,17 @@ export function createVisualApi(deps: VisualApiDependencies) {
       requireVisual(typeof body.activityId === "string" && resolveInteractiveVisual(body.activityId), "VISUAL_UNAVAILABLE"); assertUuid(body.visitId); assertVisualSource(body.source);
       const source = await deps.authorizeSource(actor, body.activityId, body.source);
       const opened = await repo.open(actor, body.activityId, body.visitId, source);
-      return visualSessionDto(actor, opened.record, opened.attempt, opened.visit.visitId);
+      return visualSessionDto(actor, opened.record, opened.attempt, opened.visit.visitId, repo.disabledIds);
     }),
     current: (request: Request, recordId: string) => boundary(request, async (actor, repo) => {
-      const current = await repo.current(actor, recordId); return visualSessionDto(actor, current.record, current.attempt);
+      const current = await repo.current(actor, recordId); return visualSessionDto(actor, current.record, current.attempt, undefined, repo.disabledIds);
     }),
     batch: (request: Request, attemptId: string) => boundary(request, async (actor, repo) => repo.append(actor, attemptId, await readVisualJson(request) as VisualBatch)),
     newAttempt: (request: Request, recordId: string) => boundary(request, async (actor, repo) => {
       const body = await readVisualJson(request, 4096); assertNewVisualAttempt(body);
       const attempt = await repo.newAttempt(actor, recordId, body);
       const { record } = await repo.current(actor, recordId);
-      return visualSessionDto(actor, record, attempt);
+      return visualSessionDto(actor, record, attempt, undefined, repo.disabledIds);
     }),
   };
 }

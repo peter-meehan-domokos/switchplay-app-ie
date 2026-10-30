@@ -30,8 +30,9 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S07a authenticated API/context | Complete | `45ed657` |
 | S07b offline outbox/host autosave | Complete | `5f3e712` |
 | S08a same-attempt Back to Start | Complete | `94e4b91` |
-| S08b confirmed new attempts | Complete | Commit recorded at next checkpoint |
-| S09 release compatibility | Pending | Not implemented |
+| S08b confirmed new attempts | Complete | `e36a5f3` |
+| S09a restore validation/recovery shell | Complete | Commit recorded at next checkpoint |
+| S09b migration/checkpoint/pending recovery | Pending | Not implemented |
 | S10 creator modal | Pending | Not implemented |
 | S11 learner multimedia | Pending | Not implemented |
 | S12 video continuation/position/expansion | Pending | Not implemented |
@@ -61,7 +62,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S09 current-release compatibility and non-destructive recovery. Inspect registry, API DTOs, codec validation, host error boundaries and outbox version handling. Preserve unsafe/corrupt historical attempts and pending queues; never silently reset them. Add explicit confirmed new-attempt recovery when restoration is unsafe, distinguish retirement from emergency disable, and reject old clients that cannot understand the current release. Register only real compiled releases; use synthetic test policy fixtures rather than inventing a curriculum release. Keep compatibility migration hooks activity-owned and checkpoint any actual state migration. Then continue S10 creator multimedia management.
+Begin S09b activity-owned version migrations, historical codec ingestion and recovery checkpoints. S09 is not complete yet. Add an explicit known-codec/migration registry, checkpoint successful conversions transactionally and preserve identity/sequence/history. Current first durable releases are Roots1/Integration2; do not invent a curriculum publication to test plumbing. Use a synthetic injected migration only in tests. Preserve frozen request bodies while upgrading a local candidate and never turn a genuine stale-write conflict into an automatic rebase.
+
+Critical S09b gap: if a legitimate local queue is pending when the stored server snapshot becomes unsafe/incompatible, ordinary append now correctly refuses to overwrite it. That queue must be preserved as history/checkpoint before confirmed recovery can create the next attempt. Add an owner-scoped bounded recovery-backup path; known-codec events remain immutable facts, unsupported raw state must never execute or be reported as a normal active Saved snapshot. Keep this recovery limited to unsafe restoration/version transitions, not V1 concurrent-writer reconciliation. Complete compatible migration, idempotent checkpoint and pending-recovery tests before S10/rollout.
+
+S09a completed: server validates restore metadata, identity and reducer invariants before returning executable state; unsafe state is withheld and retained in the historical attempt. Generic host offers the approved confirmed recovery, keeps Close on rendering failure, and halts unsafe execution on emergency unavailability. Previously clean local copies are retained for recovery, and published IDs remain in metadata after retirement. Current client checks release compatibility before executing; mismatches request an app reload. Normal append cannot overwrite an unsafe stored snapshot.
+
+S09a verification: **483 unit tests passed**, **6 disposable API integration tests passed**, **6 focused Chromium browser tests passed**. The final complete WebKit suite passed **17/17** (offline queues, lifecycle, three recovery reasons, emergency disable, error boundary and two actual tabs). TypeScript and focused lint passed. WebKit uncovered a transient false Saved state before the first snapshot had queued; fresh null snapshots now remain pending until acknowledged. Added a local generation check so a stale tab cannot borrow another tab's newer server revision; this is ordinary optimistic concurrency, without leases/branches/merging. Visit IDs are bound to each opening rather than whichever tab most recently touched a shared row. A rejected stale-tab edit remains in memory with an explicit not-safely-stored status; simultaneous editing remains unsupported. Physical iPhone remains unperformed.
 
 S08b completed: Stage1 secondary Start New Attempt uses a native browser confirmation. The visual declares state permission (including no live drag); host disables other interaction while the local transition is pending. IndexedDB atomically archives the prior attempt row and installs the fresh row plus stable command/attempt IDs. Predecessor writes and commands drain before the new attempt registers and its events upload. Multiple offline attempts survive reload in separate rows. Double/stale activation is rejected, failed local transitions abort both writes, command retries cannot reactivate older attempts, and server command metadata retains previousAttemptId. Both constructors receive the correct attempt number. Saved requires command, visit, event and latest snapshot acknowledgement.
 

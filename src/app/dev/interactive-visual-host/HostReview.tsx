@@ -29,16 +29,19 @@ function ResponsiveMock({ dimensions, onControls }: HostedVisualProps) {
     <p>Stage {stage}</p><p>{Math.round(dimensions.width)} × {Math.round(dimensions.height)}</p>
   </div>;
 }
+function FailingMock(): never { throw new Error("Development visual render failure"); }
 
 export default function HostReview({ databaseReviewEnabled = false }: { databaseReviewEnabled?: boolean }) {
   const [persistence] = useState(createDevelopmentVisualPersistence);
   const [mode, setMode] = useState<"menu" | "card" | "preview" | "integration-preview" | "database">("menu");
   const [mockSource, setMockSource] = useState<HTMLElement | null>(null);
+  const [failingSource, setFailingSource] = useState<HTMLElement | null>(null);
   return <main className={styles.review}>
     {mode === "menu" ? <nav className={styles.menu} aria-label="Development review">
       <h1>Interactive Visual host</h1><p>Development session storage only. Existing mathematical overflow is a separate backlog.</p>
       <button type="button" onClick={() => setMode("card")}>Open test card</button>
       <button type="button" onClick={(event) => setMockSource(event.currentTarget)}>Open responsive mock</button>
+      <button type="button" onClick={(event) => setFailingSource(event.currentTarget)}>Open failing mock</button>
       <button type="button" onClick={() => setMode("preview")}>Render inert initial preview</button>
       <button type="button" onClick={() => setMode("integration-preview")}>Render inert Integration preview</button>
       {databaseReviewEnabled ? <button type="button" onClick={() => setMode("database")}>Open database review</button> : null}
@@ -51,5 +54,7 @@ export default function HostReview({ databaseReviewEnabled = false }: { database
     {mode === "database" && databaseReviewEnabled ? <DatabaseReview /> : null}
     {mockSource ? <InteractiveVisualHost title="Development responsive mock" Visual={ResponsiveMock} persistence={persistence}
       opened={{ activityId: "development-only", attemptId: "mock", snapshot: null }} returnFocus={mockSource} onClose={() => setMockSource(null)} /> : null}
+    {failingSource ? <InteractiveVisualHost title="Development failing mock" Visual={FailingMock} persistence={persistence}
+      opened={{ activityId: "development-failure", attemptId: "failing-mock", snapshot: null }} returnFocus={failingSource} onClose={() => setFailingSource(null)} /> : null}
   </main>;
 }

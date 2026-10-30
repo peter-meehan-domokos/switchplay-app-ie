@@ -54,6 +54,16 @@ function transport() {
     offline: (value: boolean) => { offline = value; }, release: () => delayed?.() };
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+test("a fresh empty attempt is pending until its initial snapshot is actually acknowledged", async t => {
+  const memory = memoryStore(), wire = transport();
+  const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(service.dispose);
+  const opened = await service.open("roots-and-factors", { kind: "direct" });
+  let status = ""; service.subscribe!(opened.attemptId, next => { status = next; }); await tick();
+  assert.equal(status, "Changes pending");
+  const state = createRootsHostedState(opened.attemptId);
+  await service.save(opened, rootsSnapshot(state), state.recorded.records.events); await service.flush!(opened.attemptId);
+  assert.equal(status, "Saved");
+});
 test("client serializes sends and an older response cannot falsely mark newer state saved", async t => {
   const memory = memoryStore(), wire = transport();
   const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(service.dispose);
@@ -147,4 +157,18 @@ test("a failed local new-attempt transition preserves the original row", async t
   const opened = await service.open("roots-and-factors", { kind: "direct" }); memory.quota(true);
   await assert.rejects(service.startNewAttempt!(opened), /quota/);
   assert.equal(memory.rows.size, 1); assert.equal([...memory.rows.values()][0].session.attemptId, opened.attemptId);
+});
+
+test("a stale tab cannot borrow a newer local revision to overwrite the server", async t => {
+  const memory = memoryStore(), wire = transport();
+  const first = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(first.dispose);
+  const opened = await first.open("roots-and-factors", { kind: "direct" }), initial = createRootsHostedState(opened.attemptId);
+  await first.save(opened, rootsSnapshot(initial), initial.recorded.records.events); await first.flush!(opened.attemptId);
+  const second = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(second.dispose);
+  const reopened = await second.open("roots-and-factors", { kind: "direct" });
+  const newer = reduceRootsHostedState(initial, { type: "root", action: { type: "place", root: 5, revision: 0 } });
+  await second.save(reopened, rootsSnapshot(newer), newer.recorded.records.events); await second.flush!(reopened.attemptId);
+  const stale = reduceRootsHostedState(initial, { type: "root", action: { type: "place", root: 4, revision: 0 } });
+  await assert.rejects(first.save(opened, rootsSnapshot(stale), stale.recorded.records.events), /LOCAL_REVISION_CONFLICT/);
+  assert.equal(JSON.parse(wire.bodies.at(-1)!).snapshot.state.root, 5);
 });

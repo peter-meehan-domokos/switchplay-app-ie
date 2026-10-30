@@ -4,6 +4,7 @@ import { withMongoTransaction } from "../mongodb";
 import { resolveInteractiveVisual } from "../interactiveVisuals/catalogue";
 import { assertNewVisualAttempt, assertUuid, assertVisualBatch, assertVisualSource, principalKey, requireVisual, VisualRecordError } from "./contracts";
 import type { BatchAcknowledgement, LearnerPrincipal, NewVisualAttempt, StoredVisualEvent, VisualAttempt, VisualBatch, VisualRecord, VisualSource, VisualVisit } from "./model";
+import { inspectVisualRestoration } from "./restoration";
 
 export const VISUAL_COLLECTIONS = { records: "visualRecords", attempts: "visualAttempts", events: "visualEvents", visits: "visualVisits" } as const;
 export const VISUAL_INDEXES = [
@@ -143,6 +144,7 @@ export class VisualLearningRecordRepository {
       requireVisual(batch.snapshot.attemptNumber === attempt.attemptNumber && batch.events.every(e => e.payload.attemptNumber === attempt.attemptNumber
         && Number(e.payload.sequence) <= batch.snapshot.sequence), "VISUAL_SNAPSHOT_IDENTITY_MISMATCH");
       requireVisual(attempt.activityVersion === release.activityVersion && attempt.snapshotSchema === release.snapshotSchema, "VISUAL_RELEASE_MISMATCH");
+      requireVisual(inspectVisualRestoration(attempt, release).status === "ready", "VISUAL_RESTORATION_REQUIRED");
       requireVisual(await this.visits().findOne({ visitId: batch.visitId, attemptId }, { session }), "VISUAL_VISIT_FORBIDDEN");
       const writeHash = hash(batch), last = attempt.lastAcceptedWrite;
       if (last?.id === batch.writeId) requireVisual(last.hash === writeHash, "VISUAL_WRITE_ID_CONFLICT");

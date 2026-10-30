@@ -10,6 +10,8 @@ export type InteractiveVisualRelease = Readonly<{
 }>;
 
 // Each code release owns its immutable metadata. Cards and Frameworks store stable IDs.
+// Keep published IDs after retirement so existing immutable cards and history stay valid.
+// Retirement removes new selection; server emergency disabling also prevents execution.
 // Preview assets are added with the host slice, before any new creator selection UI.
 export const interactiveVisualCatalogue: readonly InteractiveVisualRelease[] = Object.freeze([
   Object.freeze({ id: "roots-and-factors", title: "Roots and Factors", status: "published" as const,

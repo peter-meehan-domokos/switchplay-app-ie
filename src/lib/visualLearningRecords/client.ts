@@ -17,13 +17,21 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
   const timers = new Map<string, ReturnType<typeof setTimeout>>(), sending = new Map<string, Promise<void>>();
   const errors = new Map<string, string>(), dirtySince = new Map<string, number>(), failures = new Map<string, number>();
   const retryAt = new Map<string, number>();
-  const localFailures = new Set<string>(), stopped = new Set<string>();
+  const localFailures = new Map<string, string>(), stopped = new Set<string>(), generations = new Map<string, number>();
   const paused = new Set<string>(), conflicts = new Set<string>();
+  const unavailable = new Set<string>();
   const controller = new AbortController(); let disposed = false;
-  const label = (row: VisualOutbox) => localFailures.has(row.session.attemptId) ? "Saving failed. Changes are not safely stored on this device."
+  const label = (row: VisualOutbox) => localFailures.has(row.session.attemptId) ? localFailures.get(row.session.attemptId)!
     : row.conflict ? "Saving conflict. Your pending work is kept on this device."
-    : errors.get(row.session.attemptId) ?? (hasPendingVisualWork(row) ? "Changes pending" : "Saved");
-  function notify(row: VisualOutbox) { listeners.get(row.session.attemptId)?.forEach(listener => listener(label(row))); }
+    : unavailable.has(row.session.attemptId) || row.session.restoration?.status === "unavailable"
+      ? hasPendingVisualWork(row) ? "Interactive visual unavailable. Pending work is kept on this device." : "Interactive visual unavailable. Saved work is kept."
+    : row.session.restoration?.status === "new-attempt-required" ? "Previous attempt kept"
+    : errors.get(row.session.attemptId) ?? (hasPendingVisualWork(row) || row.snapshot === null ? "Changes pending" : "Saved");
+  function notify(row: VisualOutbox) {
+    const generation = generations.get(row.session.attemptId);
+    if (generation !== undefined && generation !== row.generation) localFailures.set(row.session.attemptId, "Another tab changed this attempt. Reload before editing.");
+    listeners.get(row.session.attemptId)?.forEach(listener => listener(label(row)));
+  }
   async function request<T>(path: string, body: unknown): Promise<T> {
     requireVisual(!disposed, "VISUAL_SESSION_CLOSED");
     const abort = new AbortController(), cancel = () => abort.abort();
@@ -103,6 +111,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
           || error instanceof Error && /VISUAL_SESSION_CONFLICT/.test(error.message);
         errors.set(attemptId, terminal ? "Saving stopped. Your pending work is kept on this device." : "Changes pending. Waiting to reconnect.");
         if (terminal) stopped.add(attemptId);
+        if (error instanceof VisualTransportError && ["VISUAL_UNAVAILABLE", "VISUAL_FEATURE_DISABLED"].includes(error.code)) unavailable.add(attemptId);
         const latest = await store.read(key); if (latest) notify(latest);
         if (!terminal) {
           const count = (failures.get(attemptId) ?? 0) + 1; failures.set(attemptId, count);
@@ -114,7 +123,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
       }
     })().catch(() => {
       // Storage reads can fail before the transport loop or while recording its acknowledgement.
-      localFailures.add(attemptId);
+      localFailures.set(attemptId, "Saving failed. Device storage is unavailable.");
       listeners.get(attemptId)?.forEach(listener => listener("Saving failed. Device storage is unavailable."));
     }).finally(() => sending.delete(attemptId));
     sending.set(attemptId, task); return task;
@@ -144,7 +153,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
       await ready;
       const key = visualOutboxKey(options.learner, activityId);
       const cached = await store.read(key);
-      if (cached) { keys.set(cached.session.attemptId, key); await flush(cached.session.attemptId); }
+      if (cached) { keys.set(cached.session.attemptId, key); await saves.get(cached.session.attemptId)?.catch(() => {}); await flush(cached.session.attemptId); }
       const pending = cached ? await store.read(key) : undefined;
       if (pending?.command) {
         // This attempt already has a durable command on a known record. Until it is
@@ -152,8 +161,8 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
         const visit = { visitId: uuid(), source };
         const row = await store.update(key, previous => { requireVisual(previous, "VISUAL_CONNECTION_REQUIRED");
           return { ...previous, source, session: { ...previous.session, visitId: visit.visitId }, visits: [...previous.visits, visit] }; });
-        keys.set(row.session.attemptId, key); notify(row); schedule(row.session.attemptId);
-        return { activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, snapshot: structuredClone(row.snapshot) };
+        keys.set(row.session.attemptId, key); generations.set(row.session.attemptId, row.generation); notify(row); schedule(row.session.attemptId);
+        return { activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, visitId: row.session.visitId, snapshot: structuredClone(row.snapshot), restoration: row.session.restoration };
       }
       const previousOpening = await store.opening(key);
       const opening = previousOpening && JSON.stringify(previousOpening.source) === JSON.stringify(source) ? previousOpening : { visitId: uuid(), source };
@@ -163,9 +172,16 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
         const session = await request<VisualSession>("/api/visual-sessions/open", { activityId, ...opening });
         requireVisual(session.learner === options.learner && session.activityId === activityId, "VISUAL_SESSION_CONFLICT");
         row = await store.update(key, previous => {
-          if (!previous || !hasPendingVisualWork(previous) && !previous.conflict) return initialVisualOutbox(session, previous?.writerId ?? uuid(), source);
+          const incoming = initialVisualOutbox(session, previous?.writerId ?? uuid(), source);
+          if (!previous || !hasPendingVisualWork(previous) && !previous.conflict) {
+            // A clean local copy can still help recover from server corruption. Retain
+            // it in the archived row when recovery is confirmed, without executing it.
+            return previous && previous.session.attemptId === session.attemptId && session.restoration?.status === "new-attempt-required"
+              ? { ...previous, source, session: incoming.session } : previous
+                ? { ...incoming, generation: previous.generation + 1, savedGeneration: previous.generation + 1 } : incoming;
+          }
           if (previous.session.attemptId !== session.attemptId) return { ...previous, conflict: true };
-          return { ...previous, source, session: { ...previous.session, visitId: session.visitId } };
+          return { ...previous, source, session: { ...previous.session, visitId: session.visitId, restoration: session.restoration, release: session.release } };
         });
         await store.opening(key, null);
       } catch (error) {
@@ -178,8 +194,9 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
         });
         await store.opening(key, null);
       }
-      keys.set(row.session.attemptId, key); if (row.conflict) conflicts.add(row.session.attemptId); notify(row); if (hasPendingVisualWork(row)) schedule(row.session.attemptId);
-      return { activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, snapshot: structuredClone(row.snapshot) };
+      keys.set(row.session.attemptId, key); generations.set(row.session.attemptId, row.generation); if (row.conflict) conflicts.add(row.session.attemptId); notify(row); if (hasPendingVisualWork(row)) schedule(row.session.attemptId);
+      return { activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, visitId: row.session.visitId,
+        snapshot: row.session.restoration && row.session.restoration.status !== "ready" ? null : structuredClone(row.snapshot), restoration: row.session.restoration };
     },
     save(opened, snapshot, events) {
       const key = keys.get(opened.attemptId); requireVisual(key, "VISUAL_SESSION_CONFLICT");
@@ -187,19 +204,25 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
         try {
           const row = await store.update(key, previous => {
             requireVisual(previous && previous.learner === options.learner && previous.session.attemptId === opened.attemptId, "VISUAL_SESSION_CONFLICT");
-            return enqueueVisualChange(previous, snapshot, events, uuid, new Date().toISOString());
+            requireVisual(previous.generation === generations.get(opened.attemptId), "VISUAL_LOCAL_REVISION_CONFLICT");
+            return enqueueVisualChange(previous, snapshot, events, uuid, new Date().toISOString(), opened.visitId);
           });
+          generations.set(opened.attemptId, row.generation);
           localFailures.delete(opened.attemptId); if (!stopped.has(opened.attemptId)) errors.delete(opened.attemptId); notify(row);
           if (hasPendingVisualWork(row) && !row.conflict) schedule(opened.attemptId, events.some(e => ["stage-changed", "answer-checked", "calculation-checked", "attempt-completed"].includes(e.type)) ? 0 : 1500);
         } catch (error) {
-          localFailures.add(opened.attemptId);
-          listeners.get(opened.attemptId)?.forEach(listener => listener("Saving failed. Changes are not safely stored on this device.")); throw error;
+          const message = error instanceof Error && error.message === "VISUAL_LOCAL_REVISION_CONFLICT"
+            ? "Another tab changed this attempt. These changes are not safely stored."
+            : "Saving failed. Changes are not safely stored on this device.";
+          localFailures.set(opened.attemptId, message);
+          listeners.get(opened.attemptId)?.forEach(listener => listener(message)); throw error;
         }
       });
       saves.set(opened.attemptId, task); return task;
     },
     async flush(attemptId) { await saves.get(attemptId)?.catch(() => {}); await flush(attemptId); },
     canStartNewAttempt: attemptId => !conflicts.has(attemptId) && !stopped.has(attemptId) && !localFailures.has(attemptId),
+    isAvailable: attemptId => !unavailable.has(attemptId),
     async startNewAttempt(opened) {
       const key = keys.get(opened.attemptId); requireVisual(key === visualOutboxKey(options.learner, opened.activityId)
         && !conflicts.has(opened.attemptId) && !stopped.has(opened.attemptId), "VISUAL_ACTIVE_ATTEMPT_CONFLICT");
@@ -207,11 +230,14 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
       paused.add(opened.attemptId);
       try {
         await sending.get(opened.attemptId);
-        const row = await store.transition(key, opened.attemptId, previous => newAttemptOutbox(previous,
-          { attemptId: uuid(), commandId: uuid(), visitId: uuid(), writerId: uuid() }));
+        const row = await store.transition(key, opened.attemptId, previous => {
+          requireVisual(previous.generation === generations.get(opened.attemptId), "VISUAL_LOCAL_REVISION_CONFLICT");
+          return newAttemptOutbox(previous, { attemptId: uuid(), commandId: uuid(), visitId: uuid(), writerId: uuid() });
+        });
         keys.set(opened.attemptId, row.command!.predecessorKey); keys.set(row.session.attemptId, key);
+        generations.set(row.session.attemptId, row.generation);
         schedule(row.session.attemptId, 0);
-        return { activityId: row.session.activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, snapshot: null };
+        return { activityId: row.session.activityId, attemptId: row.session.attemptId, attemptNumber: row.session.attemptNumber, visitId: row.session.visitId, snapshot: null };
       } finally { paused.delete(opened.attemptId); }
     },
     dispose() {

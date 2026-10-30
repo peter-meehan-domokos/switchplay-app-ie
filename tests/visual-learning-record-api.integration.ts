@@ -94,3 +94,18 @@ test("working deck context derives the adopted version and rejects cross-deck or
   await cards.cards().updateOne({ cardTemplateId: "private-card" }, { $set: { visibility: "public" } });
   assert.equal((await api().open(request(openBody({ ...source, mode: "canonical", cardId: "private-card", deckId: undefined })))).status, 403);
 });
+
+test("unsafe saved state is withheld from execution and preserved through explicit recovery", async () => {
+  const record = (await records.records().findOne({ principalKey: "account:learner", activityId: "roots-and-factors" }))!;
+  const attempt = (await records.attempts().findOne({ attemptId: record.activeAttemptId }))!;
+  const damaged = { cannotHydrate: true };
+  await records.db.collection("visualAttempts").updateOne({ attemptId: attempt.attemptId }, { $set: { snapshot: damaged } });
+  const opened = await api().open(request(openBody())); assert.equal(opened.status, 200);
+  const dto = await opened.json(); assert.equal(dto.restoration.status, "new-attempt-required"); assert.equal(dto.snapshot, null);
+  const historyBefore = await records.events().countDocuments({ attemptId: attempt.attemptId });
+  const command = { commandId: randomUUID(), attemptId: randomUUID(), expectedActiveAttemptId: attempt.attemptId };
+  const fresh = await api().newAttempt(request(command), record.recordId); assert.equal(fresh.status, 200);
+  const result = await fresh.json(); assert.equal(result.restoration.status, "ready"); assert.equal(result.attemptNumber, attempt.attemptNumber + 1);
+  assert.deepEqual((await records.db.collection("visualAttempts").findOne({ attemptId: attempt.attemptId }))!.snapshot, damaged);
+  assert.equal(await records.events().countDocuments({ attemptId: attempt.attemptId }), historyBefore);
+});
