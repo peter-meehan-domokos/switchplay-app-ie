@@ -24,8 +24,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S01 registry and Framework references | Complete | `86780c8` |
 | S02 canonical step media | Complete | `2c5d300` |
 | S03 Roots restore/adapter | Complete | `a2667c2` |
-| S04 early card preview/host | Complete | Host, generated preview and development card integration; commit recorded at next checkpoint |
-| S05 Integration restore/adapter | Pending | Not implemented |
+| S04 early card preview/host | Complete | `ac92b75` |
+| S05 Integration restore/adapter | Complete | Commit recorded at next checkpoint |
 | S06 records repository | Pending | Not implemented |
 | S07 account API/offline autosave | Pending | Not implemented |
 | S08 attempt lifecycle | Pending | Not implemented |
@@ -59,7 +59,13 @@ S03 tests: **7 new Node tests passed** (all stages, correct/incorrect prediction
 
 ## Exact next step
 
-Begin S05 Integration restoration and hosted adapter. Inspect `integration-area/learning.ts`, records, presentation and stage renderers; preserve mathematical rules and keep Check/function/curve controls inside the visual. Hydration must not emit attempt-started or reuse event IDs. Keep snapshot state separate from event history and exclude pointer/animation frames. Then continue S06 records repository.
+Begin S06 Visual Learning Records repository, common account/guest principal, explicit indexes and disposable replica-set integrity tests. No production APIs or durable-saving claim yet. Implement shared learner/activity records, attempts, events and context visits; transactional event dedupe with snapshot CAS, exact lost-response retry and owner checks. Keep historical attempts independent of card/deck progress. Then continue S07 authenticated APIs and IndexedDB outbox.
+
+S05 completed: activity-owned Integration codec/hosted adapter, inert generated preview and registry import. Seven-stage state, previous/next panels, draft/feedback/hints and bounded evidence restore without events. Check numbering continues from the last check, not the truncated history length. Hosted generic Next/Previous/Finish comes from activity capabilities; mathematical controls remain in existing renderers. Lab navigation remains unchanged. Hosted targeted scrolling is suppressed; no CSS/math layout changes. Hosted calculation drafts have a 4096-character storage bound; neither numeric parsing nor assessment rules changed.
+
+S05 verification: five new Node tests passed covering all stages/functions/subsections, previous/next stacks, pending events, corrupt snapshots, unfinished animation, pointer candidates, hints and valid incorrect Finish. TypeScript and focused lint passed. All **157** existing pure visual tests passed. Host browser suite passed **3/3 Chromium and 3/3 WebKit** including a full Integration journey, unchecked draft restore and Check/Finish. Initial browser test failed because its slider locator matched both existing graph and range controls; an exact selector corrected the test. Generated preview visually reviewed.
+
+Measured separate backlog: at **320×568**, generic content top56/height456/bottom512 and footer top512/height56/bottom568; Integration Stage3 panel top56/height700/bottom756. This existing visual overflows the reserved region by244px. Keyboard and enlarged-text/physical iPhone checks remain unperformed; no responsive redesign was attempted.
 
 S04 completed: generic modal host reserves header/content/footer, exposes measured content dimensions, places Next bottom-right, restores origin focus and isolates keyboard/pointer propagation. Roots preview is generated from the inert initial view; no attempt is created by preview rendering. A real development card opens and restores Roots through injected development-only persistence. No production UI claims durable saving. The development mock independently verifies host sizing without changing mathematical layout.
 

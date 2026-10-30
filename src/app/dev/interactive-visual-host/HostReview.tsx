@@ -7,13 +7,14 @@ import InteractiveVisualHost from "@/components/interactiveVisuals/InteractiveVi
 import { createDevelopmentVisualPersistence } from "@/lib/interactiveVisuals/developmentPersistence";
 import type { HostedVisualProps } from "@/app/step-visuals/core/host";
 import RootsInitialPreview from "@/app/step-visuals/activities/roots-factors/RootsInitialPreview";
+import IntegrationInitialPreview from "@/app/step-visuals/activities/integration-area/IntegrationInitialPreview";
 import styles from "./review.module.css";
 
 const card: CanonicalCardPresentation = { surface: "canonical", id: "host-review-card", cardTemplateId: "host-review-card", version: 1, label: "Card 1",
   intro: { title: "Interactive Visual host review", description: null, mediaItem: null },
   steps: [
     { stepId: "explore", title: "Explore", description: "Explore roots and factors.", mediaItems: [{ id: "roots", label: "Explore", kind: "activity", activityId: "roots-and-factors" }] },
-    { stepId: "two", title: "Second step", description: "An ordinary step.", mediaItem: null },
+    { stepId: "two", title: "Integration", description: "Explore area.", mediaItems: [{ id: "integration", label: "Area", kind: "activity", activityId: "integration-area" }] },
     { stepId: "three", title: "Third step", description: "An ordinary step.", mediaItem: null },
   ] };
 
@@ -30,7 +31,7 @@ function ResponsiveMock({ dimensions, onControls }: HostedVisualProps) {
 
 export default function HostReview() {
   const [persistence] = useState(createDevelopmentVisualPersistence);
-  const [mode, setMode] = useState<"menu" | "card" | "preview">("menu");
+  const [mode, setMode] = useState<"menu" | "card" | "preview" | "integration-preview">("menu");
   const [mockSource, setMockSource] = useState<HTMLElement | null>(null);
   return <main className={styles.review}>
     {mode === "menu" ? <nav className={styles.menu} aria-label="Development review">
@@ -38,11 +39,13 @@ export default function HostReview() {
       <button type="button" onClick={() => setMode("card")}>Open test card</button>
       <button type="button" onClick={(event) => setMockSource(event.currentTarget)}>Open responsive mock</button>
       <button type="button" onClick={() => setMode("preview")}>Render inert initial preview</button>
+      <button type="button" onClick={() => setMode("integration-preview")}>Render inert Integration preview</button>
     </nav> : null}
     {mode === "card" ? <FocusedCardView card={card} deckTemplateId="host-review-deck" cardIndex={0} totalCards={1} isDeckFlipped={false}
       onClose={() => setMode("menu")} onNext={() => {}} onPrevious={() => {}} traversalDirection="next" transition={{ duration: 0 }}
       interactiveVisualPersistence={persistence} /> : null}
     {mode === "preview" ? <div data-inert-preview="" className={styles.initialPreview}><RootsInitialPreview /></div> : null}
+    {mode === "integration-preview" ? <div data-inert-preview="" className={styles.initialPreview}><IntegrationInitialPreview /></div> : null}
     {mockSource ? <InteractiveVisualHost title="Development responsive mock" Visual={ResponsiveMock} persistence={persistence}
       opened={{ activityId: "development-only", attemptId: "mock", snapshot: null }} returnFocus={mockSource} onClose={() => setMockSource(null)} /> : null}
   </main>;

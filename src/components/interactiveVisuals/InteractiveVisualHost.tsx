@@ -56,7 +56,7 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
         {layout.backToStart ? <button type="button" onClick={layout.backToStart}>Back to Start</button> : null}
         {layout.startNewAttempt ? <button type="button" onClick={layout.startNewAttempt}>Start New Attempt</button> : null}
         <p className={styles.status} role="status">{layout.status}</p>
-        {layout.next ? <button className={styles.next} type="button" disabled={!layout.next.enabled} onClick={layout.next.run}>Next</button> : null}
+        {layout.next ? <button className={styles.next} type="button" disabled={!layout.next.enabled} onClick={layout.next.run}>{layout.next.label ?? "Next"}</button> : null}
       </footer>
     </motion.div>
   </dialog>, document.body);

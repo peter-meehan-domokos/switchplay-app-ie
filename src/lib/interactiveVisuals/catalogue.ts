@@ -15,7 +15,7 @@ export const interactiveVisualCatalogue: readonly InteractiveVisualRelease[] = O
   Object.freeze({ id: "roots-and-factors", title: "Roots and Factors", status: "published" as const,
     activityVersion: 1, snapshotSchema: 1, eventSchema: 1, preview: "/interactive-visuals/roots-and-factors-v1.png" }),
   Object.freeze({ id: "integration-area", title: "Integration", status: "published" as const,
-    activityVersion: 2, snapshotSchema: 1, eventSchema: 2, preview: null }),
+    activityVersion: 2, snapshotSchema: 1, eventSchema: 2, preview: "/interactive-visuals/integration-area-v2.png" }),
 ]);
 
 export function getInteractiveVisual(id: string): InteractiveVisualRelease | undefined {

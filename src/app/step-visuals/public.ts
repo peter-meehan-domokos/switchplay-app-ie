@@ -11,6 +11,8 @@ export type {
   Card1AttemptSnapshot, Card1PredictionRecord, Card1CheckRecord, Card1RootPlacement, Card1LearningStage,
 } from "./activities/roots-factors/learningRecords";
 export { default as IntegrationActivity } from "./activities/integration-area/integration-activity";
+export { createIntegrationHostedState, restoreIntegrationHostedState, reduceIntegrationHostedState, acknowledgeIntegrationEvents, integrationSnapshot, isIntegrationSnapshot, integrationHostNavigation } from "./activities/integration-area/hostState";
+export type { IntegrationHostedState, IntegrationSnapshot } from "./activities/integration-area/hostState";
 export { default as Tooltip } from "./platform/web/tooltip";
 export type { TooltipProps } from "./platform/web/tooltip";
 export type { IntegrationActivityProps } from "./activities/integration-area/integration-activity";

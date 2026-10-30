@@ -26,9 +26,9 @@ export default function CalculationStage(props: StageProps & { presentation: Int
     <section className={styles.setupSection}><h2>Calculate the area</h2><Integral integral={presentation.integral!} />
       <form onSubmit={event => { event.preventDefault(); if (!active) return; dispatch({ ...context, type: "check" }); if (parseCalculation(state.draft) !== null) answer.current?.blur(); }} className={styles.calculation}>
         <label htmlFor={`${id}-answer`}>Your answer</label>
-        <div className={styles.answerRow}><input ref={answer} id={`${id}-answer`} className={styles.answer} type="text" inputMode="decimal" enterKeyHint="done" autoComplete="off" value={state.draft} disabled={!active}
+        <div className={styles.answerRow}><input ref={answer} id={`${id}-answer`} className={styles.answer} type="text" inputMode="decimal" enterKeyHint="done" autoComplete="off" value={state.draft} disabled={!active} maxLength={props.hosted ? 4096 : undefined}
           aria-invalid={state.feedback === "incorrect" || state.feedback === "invalid" || state.feedback === "empty" || undefined} aria-describedby={state.feedback ? `${id}-feedback` : undefined}
-          onFocus={event => { const target = event.currentTarget; requestAnimationFrame(() => { const view = window.visualViewport; const box = target.getBoundingClientRect(); if (view && box.bottom > view.offsetTop + view.height - 56) target.scrollIntoView({ block: "center", behavior: "instant" }); }); }}
+          onFocus={event => { if (props.hosted) return; const target = event.currentTarget; requestAnimationFrame(() => { const view = window.visualViewport; const box = target.getBoundingClientRect(); if (view && box.bottom > view.offsetTop + view.height - 56) target.scrollIntoView({ block: "center", behavior: "instant" }); }); }}
           onChange={event => dispatch({ ...context, type: "draft", value: event.target.value })} />
           <button type="submit" disabled={!active}>Check calculation</button>
         </div>

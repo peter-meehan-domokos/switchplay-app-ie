@@ -25,6 +25,35 @@ test("development mock proves host dimensions, stable controls and origin focus 
   await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0); await expect(trigger).toBeFocused();
 });
 
+test("Integration keeps mathematical controls local and restores the unchecked calculation", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 1200 });
+  await page.goto(`${origin}/dev/interactive-visual-host`);
+  await page.getByRole("button", { name: "Open test card" }).click();
+  await page.getByRole("button", { name: "IntegrationExplore area.", exact: true }).click();
+  const preview = page.getByRole("button", { name: "Open Integration", exact: true });
+  await preview.click();
+  const dialog = page.getByRole("dialog", { name: "Integration", exact: true });
+  const content = dialog.locator("[data-visual-host-content]");
+  const next = dialog.locator("[data-visual-host-footer]").getByRole("button", { name: "Next", exact: true });
+  await expect(content.getByRole("slider", { name: "Right boundary", exact: true })).toBeVisible();
+  await expect(content.getByRole("button", { name: "Next", exact: true })).toHaveCount(0);
+  await next.click();
+  await content.getByRole("button", { name: "y = x", exact: true }).click();
+  await next.click();
+  await content.getByRole("group", { name: /area/i }).getByRole("button").first().click();
+  for (let stage = 4; stage <= 7; stage++) { await next.click(); await expect(content.locator("[data-integration-stage]")).toHaveAttribute("data-integration-stage", String(stage)); }
+  const finish = dialog.locator("[data-visual-host-footer]").getByRole("button", { name: "Finish", exact: true });
+  await expect(finish).toBeDisabled();
+  const answer = content.getByRole("textbox", { name: "Your answer", exact: true });
+  await answer.fill("12.3");
+  await dialog.getByRole("button", { name: "Close interactive visual" }).click();
+  await expect(preview).toBeFocused(); await preview.click();
+  await expect(answer).toHaveValue("12.3"); await expect(finish).toBeDisabled();
+  await content.getByRole("button", { name: "Check calculation", exact: true }).click();
+  await expect(finish).toBeEnabled(); await finish.click();
+  await expect(content.locator("[data-integration-part]")).toHaveAttribute("data-integration-part", "finished");
+});
+
 test("card attachment opens the real visual and returns with state retained", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 1100 });
   await page.goto(`${origin}/dev/interactive-visual-host`);
