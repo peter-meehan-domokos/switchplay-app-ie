@@ -634,6 +634,8 @@ S11 execution boundaries:
 
 ### S12 — Preserve HLS continuation, session position and expansion
 
+S11b execution evidence: the ordered learner renderer now uses stable attachment IDs and a shared synchronous source transition for tabs and outer navigation. Zero/one-item surfaces retain their prior structure. Selection resets only on genuine step entry; full-screen visual Close retains the selected tab and focus. The existing decoded frame remains visible when the next attachment shares its source. Preparation includes each destination's first video plus the selected item's immediate neighbours, deduplicated to at most seven sources, while single-media navigation retains its original preparation-pool identity. Real320px geometry validates readable14px tab text; images use only the exact-context endpoint, still production-gated by Q14. Session positions/expansion remain S12/S13b, and no physical iPhone result is inferred from WebKit tests.
+
 - **Deliverable/dependencies:** S11 and baseline S01; video tabs/steps preserve existing chain and position with approved expansion wiring.
 - **Areas/tasks:** FocusedCardView navigation, CloudflareHlsVideoPlayer narrow getter/startAt, session map, existing expansion callbacks. Preserve native controls, poster pipeline, protected grant and pause/source guards. No new async hop before loadMedia invocation.
 - **Tests/acceptance:** host-driven play/pause/ended/stalled/rapid-next in both protected/direct modes; nonvideo breaks chain; blocked Play; pause while grant waits; seek after metadata; stale source/grant/frame/seek ignored; no background sound; same element during video-to-video and expansion; fresh visit may reset.

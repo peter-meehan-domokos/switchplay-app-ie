@@ -1,6 +1,9 @@
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import type { VisualPersistence } from "@/lib/interactiveVisuals/persistence";
 import { stepMediaItems } from "@/lib/stepMedia";
+import { selectedStepMedia, stepVideoPreparations } from "@/lib/stepMediaPresentation";
+import StepMediaTabs from "./StepMediaTabs";
+import InstructionalImage from "./InstructionalImage";
 import InteractiveVisualPreview from "@/components/interactiveVisuals/InteractiveVisualPreview";
 import { useVisualLearningRecords } from "@/components/interactiveVisuals/VisualLearningRecordsProvider";
 import { cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
@@ -84,6 +87,7 @@ type FocusedFlipState = {
 type StepViewState = {
   cardId: string;
   itemIndex: number;
+  attachmentId?: string;
 };
 
 type VideoHostRect = {
@@ -117,8 +121,9 @@ function getStepViewSequence(card: PresentedCard): StepViewItem[] {
   ];
 }
 
-function getStepViewMediaItem(card: PresentedCard, item: StepViewItem): MediaItem | null {
-  return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
+function getStepViewMediaItem(card: PresentedCard, item: StepViewItem, attachmentId?: string): MediaItem | null {
+  const attachment = selectedStepMedia(item.type === "intro" ? card.intro : card.steps[item.stepIndex], attachmentId);
+  return attachment && attachment.kind !== "activity" ? attachment.media : null;
 }
 
 function toVideoHostRect(rect: DOMRect): VideoHostRect {
@@ -257,6 +262,7 @@ export default function FocusedCardView({
   const visualPersistence = interactiveVisualPersistence ?? visualRecords.service;
   const isPresent = useIsPresent();
   const consultationId = useId();
+  const mediaId = useId();
   const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
   const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement;
     status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest } | null>(null);
@@ -325,8 +331,14 @@ export default function FocusedCardView({
   };
   const cardFlipState = flipState.cardId === card.id ? flipState : deckSideFlipState;
   const isFlipped = cardFlipState.side === "back";
-  const instructionalVideos = useMemo(() => [card.intro.mediaItem, ...card.steps.map(step => step.mediaItem)]
-    .filter(isCloudflareStreamVideoMediaItem), [card.intro.mediaItem, card.steps]);
+  const preparationDestination = stepViewState?.cardId === card.id ? [card.intro, ...card.steps][stepViewState.itemIndex] : undefined;
+  const preparationAttachments = preparationDestination ? stepMediaItems(preparationDestination) : [];
+  const preparationIndex = preparationAttachments.length > 1 && preparationAttachments.some(item => item.kind === "video") ? stepViewState?.itemIndex : undefined;
+  const preparationAttachmentId = preparationIndex === undefined ? undefined : stepViewState?.attachmentId;
+  // A legacy/single-media step change keeps the exact existing preparation pool
+  // and must not abort pending grant/thumbnail work merely because state moved.
+  const instructionalVideos = useMemo(() => stepVideoPreparations([card.intro, ...card.steps], preparationIndex === undefined
+    ? undefined : { index: preparationIndex, attachmentId: preparationAttachmentId }), [card.intro, card.steps, preparationIndex, preparationAttachmentId]);
   useEffect(() => {
     if (isFlipped) { preparePlayback.current = () => {}; return; }
     let preparation: AbortController | null = null, preparing = false, live = true;
@@ -366,14 +378,21 @@ export default function FocusedCardView({
       : null;
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
   const stepDestination = stepViewItem?.type === "intro" ? card.intro : stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex] : null;
-  const firstAttachment = stepDestination ? stepMediaItems(stepDestination)[0] : null;
+  const attachments = stepDestination ? stepMediaItems(stepDestination) : [];
+  const selectedAttachment = selectedStepMedia(stepDestination ?? undefined, stepViewState?.attachmentId);
+  const mediaPanelId = `${mediaId}-${stepViewItemIndex}`;
   const stepActivity = (stepViewItem ? renderStepActivity?.(stepViewItem) : null) ??
-    (firstAttachment?.kind === "activity" ? !interactiveVisualPersistence && visualRecords.unavailable ? <p>Interactive visual unavailable.</p> : <InteractiveVisualPreview
-      activityId={firstAttachment.activityId} persistence={visualPersistence}
+    (selectedAttachment?.kind === "activity" ? !interactiveVisualPersistence && visualRecords.unavailable ? <p>Interactive visual unavailable.</p> : <InteractiveVisualPreview
+      key={`${contentIdentity}:${stepViewItemIndex}:${selectedAttachment.id}`} activityId={selectedAttachment.activityId} persistence={visualPersistence}
       origin={{ kind: "card", cardId: card.cardTemplateId ?? card.id, cardVersion: playbackVersion, mode: playbackMode, deckId: deckTemplateId,
         ...(deckVersion !== undefined ? { deckVersion } : {}),
-        stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: firstAttachment.id }}
-      onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} /> : null);
+        stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id }}
+      onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} />
+      : selectedAttachment?.kind === "image" ? <InstructionalImage key={`${contentIdentity}:${stepViewItemIndex}:${selectedAttachment.id}`}
+        alt={selectedAttachment.alt} context={playbackActor && playbackVersion && deckVersion && card.cardTemplateId ? {
+          viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId, version: playbackVersion, mode: playbackMode,
+          deckTemplateId, deckVersion, stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id,
+        } : undefined} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
   const attachmentCount = infoCards !== undefined ? infoCards.length : card.infoCardIds?.length ?? 0;
   const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);
@@ -393,7 +412,7 @@ export default function FocusedCardView({
     }).finally(() => clearTimeout(timer));
     return () => { clearTimeout(timer); abort.abort(); };
   }, [consultationRequest, consultationIdentity]);
-  const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem) : null;
+  const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem, stepViewState?.attachmentId) : null;
   const activeCloudflareVideoMediaItem =
     activeStepViewMediaItem && isCloudflareStreamVideoMediaItem(activeStepViewMediaItem)
       ? activeStepViewMediaItem
@@ -491,7 +510,7 @@ export default function FocusedCardView({
       return;
     }
 
-    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.steps[stepIndex]?.mediaItem));
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(getStepViewMediaItem(card, { type: "step", stepIndex })));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -509,7 +528,7 @@ export default function FocusedCardView({
       return;
     }
 
-    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.intro.mediaItem));
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(getStepViewMediaItem(card, { type: "intro" })));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -533,6 +552,36 @@ export default function FocusedCardView({
     setVideoAnchorElement(null);
     setStepViewState(null);
   };
+  function transitionStepViewMedia(nextMediaItem: MediaItem | null) {
+    const video = isCloudflareStreamVideoMediaItem(nextMediaItem) ? nextMediaItem : null;
+    const shouldContinuePlayback = videoPlaybackIntentRef.current === "continue";
+    setIsVideoExpanded(false);
+    if (video) {
+      preparationManager?.setVideoOpen(true);
+      const sameSource = activeVideoAssetIdRef.current === video.assetId;
+      activeVideoAssetIdRef.current = video.assetId;
+      // The player deliberately reuses an identical source. Clearing its display
+      // here would wait for a new decoded callback that need not happen.
+      if (!sameSource) resetVideoDisplayState();
+      videoPlayerRef.current?.loadMedia(video, { shouldPlay: shouldContinuePlayback });
+    } else {
+      activeVideoAssetIdRef.current = null;
+      videoPlayerRef.current?.pauseAndReset();
+      resetVideoDisplayState(); updateVideoPlaybackIntent("idle");
+      preparationManager?.setVideoOpen(false);
+    }
+  }
+  function selectStepMedia(attachmentId: string) {
+    const current = stepViewStateRef.current;
+    if (!current || current.cardId !== card.id || consultationOpen) return;
+    const item = stepViewSequence[current.itemIndex];
+    const destination = item?.type === "intro" ? card.intro : item?.type === "step" ? card.steps[item.stepIndex] : undefined;
+    const attachment = destination && stepMediaItems(destination).find(entry => entry.id === attachmentId);
+    if (!attachment || selectedStepMedia(destination, current.attachmentId)?.id === attachmentId) return;
+    transitionStepViewMedia(attachment.kind === "activity" ? null : attachment.media);
+    const next = { ...current, attachmentId };
+    stepViewStateRef.current = next; setStepViewState(next);
+  }
   const goToStepViewItem = (direction: -1 | 1) => {
     const currentStepViewState = stepViewStateRef.current;
 
@@ -551,27 +600,12 @@ export default function FocusedCardView({
 
     const nextStepViewItem = stepViewSequence[nextItemIndex];
     const nextMediaItem = nextStepViewItem ? getStepViewMediaItem(card, nextStepViewItem) : null;
-    const nextCloudflareVideoMediaItem =
-      nextMediaItem && isCloudflareStreamVideoMediaItem(nextMediaItem) ? nextMediaItem : null;
-    const shouldContinuePlayback = videoPlaybackIntentRef.current === "continue";
     const nextStepViewState = {
       ...currentStepViewState,
       itemIndex: nextItemIndex,
+      attachmentId: undefined,
     };
-
-    setIsVideoExpanded(false);
-
-    if (nextCloudflareVideoMediaItem) {
-      preparationManager?.setVideoOpen(true);
-      activeVideoAssetIdRef.current = nextCloudflareVideoMediaItem.assetId;
-      resetVideoDisplayState();
-      videoPlayerRef.current?.loadMedia(nextCloudflareVideoMediaItem, { shouldPlay: shouldContinuePlayback });
-    } else {
-      activeVideoAssetIdRef.current = null;
-      videoPlayerRef.current?.pauseAndReset();
-      resetVideoDisplayState();
-      updateVideoPlaybackIntent("idle");
-    }
+    transitionStepViewMedia(nextMediaItem);
 
     stepViewStateRef.current = nextStepViewState;
     setStepViewState(nextStepViewState);
@@ -880,6 +914,11 @@ export default function FocusedCardView({
                   infoCards={attachmentCount ? { count: attachmentCount, expanded: consultationOpen && consultation?.status === "ready", controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
                   mediaPreview={stepViewMediaPreview}
                   activity={stepActivity}
+                  selectedMedia={selectedAttachment}
+                  mediaTabs={attachments.length > 1 && selectedAttachment ? <StepMediaTabs items={attachments} selectedId={selectedAttachment.id} panelId={mediaPanelId} onSelect={selectStepMedia} /> : undefined}
+                  mediaPanelId={mediaPanelId}
+                  mediaTabIndex={attachments.findIndex(attachment => attachment.id === selectedAttachment?.id)}
+                  mediaScale={focusedCardScale}
                 />
               ) : null}
             </AnimatePresence>
