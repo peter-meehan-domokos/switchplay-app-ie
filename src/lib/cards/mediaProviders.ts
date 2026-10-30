@@ -1,6 +1,8 @@
 import { assertDisposableDatabase } from "./localDatabase";
 import { createCloudflareR2DirectUpload, createCloudflareR2UserCardImageDirectUpload } from "../cloudflareR2";
 import { createCloudflareStreamDirectUpload, getCloudflareStreamVideoStatus } from "../cloudflareStream";
+import { readProtectedImage, r2Location } from "./protectedMedia";
+import type { ImageMediaItem } from "../media";
 
 // An explicit, loopback-only provider boundary for the real browser integration suite.
 // Authentication, context authorization, object-key generation and metadata validation stay real.
@@ -32,4 +34,11 @@ export async function videoStatus(assetId: string) {
   const response = await fetch(`${origin}/status/${encodeURIComponent(assetId)}`);
   if (!response.ok) throw new Error("Local media fixture failed");
   return response.json() as ReturnType<typeof getCloudflareStreamVideoStatus>;
+}
+/** The same explicit disposable boundary used by upload tests, never a live URL override. */
+export async function instructionalImageBytes(item: ImageMediaItem, signal: AbortSignal) {
+  const origin = fixtureOrigin();
+  if (!origin) return readProtectedImage(item, signal);
+  const { key } = r2Location(item);
+  return fetch(`${origin}/assets/${key.split("/").map(encodeURIComponent).join("/")}`, { signal, cache: "no-store" });
 }
