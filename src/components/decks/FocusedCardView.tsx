@@ -3,6 +3,7 @@ import type { VisualPersistence } from "@/lib/interactiveVisuals/persistence";
 import { stepMediaItems } from "@/lib/stepMedia";
 import { selectedStepMedia, stepVideoPreparations } from "@/lib/stepMediaPresentation";
 import { activateVideoSession, readVideoSessionPosition, saveVideoSessionPosition, videoPositionKey } from "@/lib/videoSessionPositions";
+import { createInstructionalImageResources } from "@/lib/instructionalImageResources";
 import StepMediaTabs from "./StepMediaTabs";
 import InstructionalImage from "./InstructionalImage";
 import InteractiveVisualPreview from "@/components/interactiveVisuals/InteractiveVisualPreview";
@@ -274,6 +275,10 @@ export default function FocusedCardView({
   const playbackActor = hasPersonalCard(card) ? card.dataOwnerUserId : playbackViewerUserId;
   const playbackVersion = hasPersonalCard(card) ? card.adoptedVersion : card.version;
   const playbackMode = hasPersonalCard(card) ? "working" : "canonical";
+  const instructionalImages = useMemo(() => createInstructionalImageResources(playbackActor, {
+    ...(card.cardTemplateId && playbackVersion ? { owner: { cardTemplateId: card.cardTemplateId, version: playbackVersion, mode: playbackMode } } : {}),
+  }), [playbackActor, card.cardTemplateId, playbackVersion, playbackMode]);
+  useEffect(() => () => instructionalImages.clear(), [instructionalImages]);
   const sharedPreparation = useDeckVideoResource(card);
   const sharedResource = sharedPreparation.resource;
   const preparationManager = sharedPreparation.manager;
@@ -391,7 +396,7 @@ export default function FocusedCardView({
         stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id }}
       onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} />
       : selectedAttachment?.kind === "image" ? <InstructionalImage key={`${contentIdentity}:${stepViewItemIndex}:${selectedAttachment.id}`}
-        alt={selectedAttachment.alt} context={playbackActor && playbackVersion && deckVersion && card.cardTemplateId ? {
+        alt={selectedAttachment.alt} resources={instructionalImages} context={playbackActor && playbackVersion && deckVersion && card.cardTemplateId ? {
           viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId, version: playbackVersion, mode: playbackMode,
           deckTemplateId, deckVersion, stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id,
         } : undefined} /> : null);

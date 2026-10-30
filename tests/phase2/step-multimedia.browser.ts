@@ -108,3 +108,44 @@ for (const count of [1, 2, 3] as const) {
     }
   });
 }
+
+test("image expansion reuses exact-context bytes, keeps its selected tab and revokes resources when the Card closes", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 760 });
+  await page.addInitScript(() => {
+    const revoke = URL.revokeObjectURL;
+    (window as unknown as { revokedImageUrls: string[] }).revokedImageUrls = [];
+    URL.revokeObjectURL = url => { (window as unknown as { revokedImageUrls: string[] }).revokedImageUrls.push(url); revoke.call(URL, url); };
+  });
+  const requests: string[] = []; page.on("request", request => { if (request.url().includes("/api/media/instructional-image?")) requests.push(request.url()); });
+  const f = await fixture(page), step = await openIntro(page, f.url), image = step.getByRole("img", { name: "A mathematical diagram", exact: true });
+  await expect(image).toBeVisible(); await expect(step.getByRole("button", { name: "Expand image", exact: true })).toBeEnabled();
+  const initialRequests = requests.length; // Development Strict Mode can cancel its first setup request.
+  const source = await image.getAttribute("src"); expect(source).toMatch(/^blob:/);
+  await step.getByRole("button", { name: "Expand image", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Expanded instructional image", exact: true }); await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("img", { name: "A mathematical diagram", exact: true })).toHaveAttribute("src", source!);
+  await expect(dialog.getByRole("button", { name: "Close expanded image", exact: true })).toBeFocused();
+  await dialog.getByRole("button", { name: "Zoom in", exact: true }).click(); await expect(dialog.getByLabel("Zoom level", { exact: true })).toHaveText("150%");
+  await expect(dialog.getByRole("button", { name: "Next", exact: true })).toHaveCount(0);
+  expect(await dialog.evaluate(element => ({ width: element.getBoundingClientRect().width, scroll: element.scrollHeight > element.clientHeight }))).toEqual({ width: 320, scroll: false });
+  await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0); await expect(step.getByRole("button", { name: "Expand image", exact: true })).toBeFocused();
+  await expect(step.getByRole("tab", { name: "Image", exact: true })).toHaveAttribute("aria-selected", "true");
+  await step.getByRole("tab", { name: "Explore", exact: true }).click(); await step.getByRole("tab", { name: "Image", exact: true }).click();
+  await expect(image).toHaveAttribute("src", source!); expect(requests).toHaveLength(initialRequests);
+  await step.getByRole("button", { name: "Close step view" }).click(); await expect(step).toHaveCount(0);
+  await page.locator(".focused-card-surface--front .active-card-identity").click(); await expect(image).toHaveAttribute("src", source!); expect(requests).toHaveLength(initialRequests);
+  await step.getByRole("button", { name: "Close step view" }).click(); await expect(step).toHaveCount(0);
+  await page.getByRole("button", { name: "Close focused card", exact: true }).focus(); await page.keyboard.press("Enter"); await expect(page.locator(".focused-card-layer")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { revokedImageUrls: string[] }).revokedImageUrls)).toContain(source);
+});
+
+test("denied image bytes have no provider fallback, and explicit Retry recovers without changing the tab or Card state", async ({ page }) => {
+  const f = await fixture(page); let requests = 0, allowed = false;
+  await page.route("**/api/media/instructional-image?**", route => { requests++; return allowed ? route.continue() : route.fulfill({ status: 403, json: { code: "FORBIDDEN" } }); });
+  const step = await openIntro(page, f.url); await expect(step).toContainText("Image unavailable."); await expect(step.getByRole("img")).toHaveCount(0);
+  await expect(step.getByRole("button", { name: "Expand image", exact: true })).toHaveCount(0);
+  const deniedRequests = requests; allowed = true;
+  await step.getByRole("button", { name: "Retry image", exact: true }).click();
+  await expect(step.getByRole("img", { name: "A mathematical diagram", exact: true })).toBeVisible(); await expect(step.getByRole("button", { name: "Expand image", exact: true })).toBeEnabled();
+  await expect(step.getByRole("tab", { name: "Image", exact: true })).toHaveAttribute("aria-selected", "true"); expect(requests).toBe(deniedRequests + 1);
+});

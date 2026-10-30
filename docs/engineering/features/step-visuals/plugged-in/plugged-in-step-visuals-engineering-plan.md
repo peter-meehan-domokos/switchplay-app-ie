@@ -661,6 +661,8 @@ S13a security boundary: exact context reuses the existing consultation/working-c
 
 ### S14 — Guest credential and shared DB persistence
 
+S13b execution evidence: optional native-modal image expansion reuses the existing fit/zoom renderer and expansion icon, without gallery navigation/download controls. Selection stays embedded and return preserves tab/focus. Actor/Card/version ownership encloses exact-context object URLs; the byte store retains at most two idle entries/12MiB, admits at most four leases and caps each response at10MiB actual raster bytes. Abort/timeout/retry and revocation on scope/unmount are explicit; no raw-provider or persistent/public cache exists. Browser decoded-memory overhead and already-delivered-byte revocation limitations remain. Chromium/WebKit real-endpoint journeys verify reuse, close/revoke,403 retry and320px bounds. Q14 still blocks production delivery; no privacy policy, provenance registry or provider configuration was changed.
+
 - **Deliverable/dependencies:** S06/S07; accessible visual can establish pseudonymous guest and use identical record/attempt service.
 - **Areas/tasks:** guest cookie/hash service, principal resolver, bootstrap/access route, expiry/rate limits and explicit status validation. Bind outbox to opaque principal; no users-directory entries. Local test/config fixtures only.
 - **Tests/acceptance:** no-cookie bootstrap then persisted return; no start login; expiry/lost/forged token denied appropriately; guessed guest/attempt ID not auth; 90-day sliding inactivity calculation; ordinary account behavior unchanged; no guest card/media privileges; CSRF/limits and test-only DB assertions.
