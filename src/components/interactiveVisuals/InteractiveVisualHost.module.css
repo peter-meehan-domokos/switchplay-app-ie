@@ -1,19 +1,29 @@
 .dialog { position: fixed; inset: 0; margin: 0; padding: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; border: 0; overflow: visible; color: #24332f; background: #f7f8f3; }
 .dialog::backdrop { background: rgba(10, 20, 16, .65); }
 /* Preserve the pre-9ee7184 visual bounds independently of the compact controls. */
-.shell { position: relative; width: 100%; height: 100%; display: grid; grid-template-rows: 56px minmax(0, 1fr) 56px; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); box-sizing: border-box; --usable-width: calc(var(--visual-viewport-width, 100%) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 16px); }
+.shell { position: relative; width: 100%; height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(12px, env(safe-area-inset-left)); box-sizing: border-box; }
+.titleRow { grid-row: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; min-height: 56px; position: relative; z-index: 2; }
+.titleRow h2 { font-size: 1rem; margin: 0; flex: 1; min-width: 0; }
+.titleReservation { visibility: hidden; flex: 0 0 auto; min-width: 44px; min-height: 44px; box-sizing: border-box; padding: 8px 12px; border: 1px solid transparent; font: inherit; }
+.signInReservation { visibility: hidden; flex-basis: 100%; font-size: .8rem; margin: 0 0 8px; }
+.footerReservation { grid-row: 3; display: flex; gap: 12px; align-items: center; justify-content: space-between; min-height: 56px; visibility: hidden; pointer-events: none; }
+.reservationButton { min-width: 44px; min-height: 44px; box-sizing: border-box; padding: 8px 12px; border: 1px solid transparent; font: inherit; text-align: center; align-self: flex-end; margin-bottom: 6px; }
+.reservationPrevious { margin-right: auto; }
+.reservationNext { margin-left: auto; }
+.reservationStatus { font-size: .75rem; margin: 0; min-width: 0; flex: 1; }
+.reservationStatus::before { content: attr(data-label); }
 .content { grid-row: 2; position: relative; min-width: 0; min-height: 0; overflow: visible; isolation: isolate; }
 /* Visible-viewport offsets apply only to controls, never to mathematical layout. */
-.corner { position: absolute; z-index: 10; right: calc(100% - var(--visual-viewport-left, 0px) - var(--visual-viewport-width, 100%) + env(safe-area-inset-right, 0px) + 8px); width: max-content; max-width: calc(var(--usable-width) * .35); box-sizing: border-box; display: flex; align-items: center; gap: 2px; background: transparent; border: 0; box-shadow: none; }
-.topRight { top: calc(var(--visual-viewport-top, 0px) + env(safe-area-inset-top, 0px) + 8px); justify-content: flex-end; flex-wrap: wrap; }
-.bottomRight { bottom: calc(100% - var(--visual-viewport-top, 0px) - var(--visual-viewport-height, 100%) + env(safe-area-inset-bottom, 0px) + 8px); flex-direction: column; align-items: flex-end; }
-.navigation { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 2px; max-width: 100%; background: transparent; border: 0; box-shadow: none; }
-.corner button { flex: 0 0 auto; min-width: 44px; min-height: 44px; box-sizing: border-box; padding: 6px 4px; border: 1px solid #9daea4; border-radius: 8px; color: #24332f; background: #fff; cursor: pointer; font: 600 14px/1.2 Arial, sans-serif; touch-action: manipulation; }
+.corner { position: absolute; z-index: 10; right: calc(100% - var(--visual-viewport-left, 0px) - var(--visual-viewport-width, 100%) + max(12px, env(safe-area-inset-right, 0px))); width: 35%; max-width: 35%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; background: transparent; border: 0; box-shadow: none; }
+.topRight { top: calc(var(--visual-viewport-top, 0px) + env(safe-area-inset-top, 0px) + 6px); justify-content: flex-end; }
+.bottomRight { bottom: calc(100% - var(--visual-viewport-top, 0px) - var(--visual-viewport-height, 100%) + env(safe-area-inset-bottom, 0px) + 6px); flex-direction: column; align-items: flex-end; }
+.navigation { display: flex; justify-content: flex-end; gap: 8px; width: 100%; background: transparent; border: 0; box-shadow: none; }
+.corner button { flex: 1 1 0; min-width: 44px; min-height: 44px; box-sizing: border-box; padding: 6px 4px; border: 1px solid #9daea4; border-radius: 8px; color: #24332f; background: #fff; cursor: pointer; font: 600 14px/1.2 Arial, sans-serif; touch-action: manipulation; }
+.topRight > button:only-child, .navigation > button:only-child, .bottomRight > button { flex: 0 0 auto; min-width: 64px; }
 .corner button:focus-visible { outline: 3px solid #28634f; outline-offset: 2px; }
 .corner button:disabled { color: #68766e; cursor: default; }
 .status { font: 12px/1.35 Arial, sans-serif; margin: 0 0 4px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; color: #4b5f56; }
 .warning { color: #8b2a16; font-weight: 600; }
-.srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .preview { display: block; width: 100%; height: 100%; min-height: 44px; padding: 0; position: relative; border: 0; border-radius: 12px; overflow: hidden; cursor: pointer; background: #f7f8f3; color: #24332f; }
 .preview img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .preview::after { content: ""; position: absolute; inset: 0; background: rgba(255,255,255,.12); pointer-events: none; }

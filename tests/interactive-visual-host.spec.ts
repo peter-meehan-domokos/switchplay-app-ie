@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const origin = process.env.SPV_TEST_BASE_URL ?? "http://127.0.0.1:3171";
 test.use({ viewport: { width: 320, height: 568 } });
 
-for (const width of [320, 375, 390]) test(`development mock proves transparent fixed corners and original visual bounds at ${width} CSS pixels`, async ({ page }) => {
+for (const width of [320, 375, 390, 430]) test(`development mock proves transparent fixed corners and original visual bounds at ${width} CSS pixels`, async ({ page }) => {
   await page.setViewportSize({ width, height: 844 });
   await page.goto(`${origin}/dev/interactive-visual-host`);
   const trigger = page.getByRole("button", { name: "Open responsive mock" });
@@ -12,17 +12,17 @@ for (const width of [320, 375, 390]) test(`development mock proves transparent f
   await expect(dialog).toBeVisible();
   const next = dialog.getByRole("button", { name: "Next", exact: true });
   await expect(next).toBeEnabled();
-  await expect.poll(async () => (await next.boundingBox())!.x + (await next.boundingBox())!.width).toBeLessThanOrEqual(width - 7.9);
+  await expect.poll(async () => (await next.boundingBox())!.x + (await next.boundingBox())!.width).toBeLessThanOrEqual(width - 11.9);
   const content = await dialog.locator("[data-visual-host-content]").boundingBox();
   const mock = await dialog.locator("[data-responsive-mock]").boundingBox();
   const button = await next.boundingBox();
   expect(content!.x).toBeCloseTo(12, 1); expect(content!.y).toBeCloseTo(56, 1); expect(content!.height).toBeCloseTo(732, 1); expect(content!.width).toBeCloseTo(width - 24, 1); expect(mock!.width).toBeCloseTo(content!.width, 1); expect(mock!.height).toBeCloseTo(content!.height, 1);
-  expect(button!.x + button!.width).toBeLessThanOrEqual(width - 7.9); expect(button!.x).toBeGreaterThan(width * .65);
-  expect(button!.y + button!.height).toBeLessThanOrEqual(836.1);
+  expect(button!.x + button!.width).toBeLessThanOrEqual(width - 11.9); expect(button!.x).toBeGreaterThan(width * .65);
+  expect(button!.y + button!.height).toBeLessThanOrEqual(838.1);
   for (const selector of ["[data-visual-host-header]", "[data-visual-host-footer]"]) {
     const corner = dialog.locator(selector), rect = await corner.boundingBox();
-    expect(rect!.width).toBeLessThanOrEqual((width - 16) * .35 + .1);
-    expect(rect!.x).toBeGreaterThanOrEqual(width * .65);
+    expect(rect!.width).toBeLessThanOrEqual(width * .35 + .1);
+    expect(rect!.x + rect!.width).toBeCloseTo(width - 12, 1);
     expect(await corner.evaluate(node => { const css = getComputedStyle(node); return [css.backgroundColor, css.borderWidth, css.boxShadow]; })).toEqual(["rgba(0, 0, 0, 0)", "0px", "none"]);
     for (const control of await corner.getByRole("button").all()) {
       const box = await control.boundingBox(); expect(box!.width).toBeGreaterThanOrEqual(44); expect(box!.height).toBeGreaterThanOrEqual(44);
@@ -32,7 +32,7 @@ for (const width of [320, 375, 390]) test(`development mock proves transparent f
   await next.click(); await expect(dialog.locator("[data-responsive-mock]")).toContainText("Stage 2");
   const backBox = await dialog.getByRole("button", { name: "Back", exact: true }).boundingBox();
   const nextBox = await next.boundingBox();
-  expect(backBox!.y).toBeCloseTo(nextBox!.y, 1); expect(backBox!.x + backBox!.width).toBeLessThanOrEqual(nextBox!.x);
+  expect(backBox!.y).toBeCloseTo(nextBox!.y, 1); expect(nextBox!.x - backBox!.x - backBox!.width).toBeCloseTo(8, 1); expect(backBox!.width).toBeCloseTo(nextBox!.width, 1);
   await page.screenshot({ path: `/private/tmp/visual-ux-corners-${width}.png` });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(dialog.locator("[data-responsive-mock]")).toContainText("366");
@@ -79,9 +79,9 @@ test("Integration keeps mathematical controls local and restores the unchecked c
     expect(bounds!.width).toBeCloseTo(width - 24, 1); expect(bounds!.height).toBeCloseTo(732, 1);
     expect(graph!.width).toBeCloseTo(width - 24, 1);
     const corner = dialog.locator("[data-visual-host-footer]");
-    await expect.poll(async () => (await corner.boundingBox())!.width).toBeLessThanOrEqual((width - 16) * .35 + .1);
+    await expect.poll(async () => (await corner.boundingBox())!.width).toBeLessThanOrEqual(width * .35 + .1);
     await expect(rewind).toBeVisible();
-    const box = await rewind.boundingBox(); expect(box!.y + box!.height).toBeLessThanOrEqual(836.1);
+    const box = await rewind.boundingBox(); expect(box!.y + box!.height).toBeLessThanOrEqual(838.1);
     await page.screenshot({ path: `/private/tmp/visual-layout-integration-rewind-${width}.png` });
   }
   await rewind.click();

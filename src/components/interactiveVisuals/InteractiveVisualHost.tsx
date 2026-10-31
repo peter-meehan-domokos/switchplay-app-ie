@@ -72,7 +72,13 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
     onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()}
     onKeyDown={(event) => event.stopPropagation()}>
     <motion.div className={styles.shell} initial={reduced ? false : { x: "100%" }} animate={{ x: 0 }} transition={{ duration: .2 }}>
-      <h2 className={styles.srOnly}>{layout.title}</h2>
+      <header className={styles.titleRow}>
+        <h2>{layout.title}</h2>
+        {/* Preserve the original title allocation; actual controls stay out of flow. */}
+        {onSignIn && !unavailable && (controls?.hasMeaningfulProgress || controls?.completed) ? <span className={styles.titleReservation} aria-hidden="true">Sign in</span> : null}
+        <span className={styles.titleReservation} aria-hidden="true">Close</span>
+        {signInFailed ? <p className={styles.signInReservation} aria-hidden="true">Unable to open sign in. Your work is kept.</p> : null}
+      </header>
       <nav ref={topRight} className={`${styles.corner} ${styles.topRight}`} data-visual-host-header="" aria-label="Attempt and close controls">
         {showNew ? <button type="button" disabled={creating || signingIn || persistence.canStartNewAttempt?.(active.attemptId) === false} onClick={() => { void startNewAttempt(); }}>New</button> : null}
         <button ref={close} type="button" onClick={closeHost} aria-label="Close interactive visual">Close</button>
@@ -85,6 +91,14 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
               <Visual attemptId={active.attemptId} attemptNumber={active.attemptNumber} initialSnapshot={active.snapshot} dimensions={dimensions} onControls={setControls} onChange={onChange} />
             </Suspense>
           </VisualRenderBoundary>}
+      </div>
+      {/* Keep the original intrinsic footer sizing, without old interactive controls or panels. */}
+      <div className={styles.footerReservation} aria-hidden="true">
+        {layout.previous ? <span className={`${styles.reservationButton} ${styles.reservationPrevious}`}>Previous</span> : null}
+        {layout.backToStart ? <span className={styles.reservationButton}>Back to Start</span> : null}
+        {!unavailable && (recovery && persistence.startNewAttempt || layout.showStartNewAttempt) ? <span className={styles.reservationButton}>Start New Attempt</span> : null}
+        <p className={styles.reservationStatus} data-label={layout.status} />
+        {layout.next ? <span className={`${styles.reservationButton} ${styles.reservationNext}`}>{layout.next.label ?? "Next"}</span> : null}
       </div>
       <div ref={bottomRight} className={`${styles.corner} ${styles.bottomRight}`} data-visual-host-footer="">
         {onSignIn && !unavailable && (controls?.hasMeaningfulProgress || controls?.completed) ? <button type="button" disabled={signingIn || creating}

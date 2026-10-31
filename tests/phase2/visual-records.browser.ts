@@ -208,14 +208,15 @@ test("New requires confirmation and double activation creates one retained attem
     expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
     expect((await db.collection("visualAttempts").findOne({ attemptId: current.activeAttemptId }))!.snapshot.attemptNumber).toBe(2);
     expect(await db.collection("visualEvents").countDocuments({ attemptId: current.activeAttemptId, type: "attempt-started" })).toBe(1);
-    for (const width of [320, 375, 390]) {
+    for (const width of [320, 375, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       const header = dialog.locator("[data-visual-host-header]");
-      await expect.poll(async () => (await header.boundingBox())!.width).toBeLessThanOrEqual((width - 16) * .35 + .1);
+      await expect.poll(async () => (await header.boundingBox())!.width).toBeLessThanOrEqual(width * .35 + .1);
       const next = await dialog.getByRole("button", { name: "Next", exact: true }).boundingBox();
       const start = await button.boundingBox(), close = await dialog.getByRole("button", { name: "Close interactive visual" }).boundingBox();
       expect(next!.x + next!.width).toBeLessThanOrEqual(width - 7.9);
-      expect(start!.y).toBeCloseTo(close!.y, 1); expect(start!.x + start!.width).toBeLessThanOrEqual(close!.x);
+      expect(start!.y).toBeCloseTo(close!.y, 1); expect(close!.x - start!.x - start!.width).toBeCloseTo(8, 1);
+      expect(start!.width).toBeCloseTo(close!.width, 1); expect(close!.x + close!.width).toBeCloseTo(width - 12, 1);
       expect(start!.width).toBeGreaterThanOrEqual(44); expect(close!.height).toBeGreaterThanOrEqual(44);
       await page.screenshot({ path: `/private/tmp/visual-ux-new-close-${width}.png` });
     }
