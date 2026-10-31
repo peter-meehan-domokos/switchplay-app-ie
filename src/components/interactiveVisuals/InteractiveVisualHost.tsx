@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import type { HostedVisualProps, VisualContentDimensions, VisualHostControls } from "@/app/step-visuals/core/host";
 import type { OpenVisual, VisualPersistence } from "@/lib/interactiveVisuals/persistence";
-import { buildInteractiveVisualHostLayout } from "./interactiveVisualHostLayout";
+import { buildInteractiveVisualHostLayout, visualPersistenceNotice } from "./interactiveVisualHostLayout";
 import styles from "./InteractiveVisualHost.module.css";
 import VisualRenderBoundary from "./VisualRenderBoundary";
 
@@ -64,7 +64,7 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
     finally { creatingRef.current = false; setCreating(false); }
   }, [controls, persistence, active, recovery, unavailable]);
   const layout = buildInteractiveVisualHostLayout(title, unavailable || recovery ? null : controls, status, !!persistence.startNewAttempt);
-  const notice = layout.status === "Saved" || layout.status === "Development session only" ? null : layout.status;
+  const notice = visualPersistenceNotice(layout.status);
   const warning = !!notice && /fail|conflict|not safely|unavailable|unable|stopped|offline|reconnect/i.test(notice);
   const showNew = !unavailable && !!persistence.startNewAttempt && (recovery || layout.showStartNewAttempt && controls?.canStartNewAttempt !== false);
   return createPortal(<dialog ref={dialog} className={styles.dialog} aria-label={layout.title} aria-modal="true" data-visual-save-status={layout.status}
