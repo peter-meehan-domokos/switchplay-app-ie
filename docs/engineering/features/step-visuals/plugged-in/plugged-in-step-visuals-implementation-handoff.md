@@ -46,6 +46,8 @@ Passed documentation consistency review: all final decisions incorporated, compl
 | S17a persistence/entry retry hardening | Complete | `cab2778` |
 | S17b final player/rollout verification | Automated scope complete | `7b15da1`; external release gates remain |
 | UX1 media entry and fullscreen corners | Complete | `9ee7184`; focused verification and investigation below |
+| UX2 Integration container responsiveness | Complete within documented limits | `27990f2`; owner approved separate follow-up for dense short-screen panels |
+| UX3 darker active media tab | Complete | Independent checkpoint titled Darken the selected media tab background |
 
 ## Verification and limitations
 
@@ -66,6 +68,10 @@ S03: added activity-local `roots-factors/hostState.ts` and public exports. Snaps
 S03 tests: **7 new Node tests passed** (all stages, correct/incorrect predictions, assisted/independent completion, corrupt state, transient pointer exclusion and pending-event acknowledgements); **157 existing activity tests passed**; TypeScript and focused lint passed. No live persistence is claimed yet.
 
 ## Exact next step
+
+### Independent selected-tab colour checkpoint — 31 October 2026
+
+Integration responsiveness is committed in `27990f2`. This separate checkpoint changes only the selected background in `StepMediaTabs.module.css`, from `#c2d9df` to `#a6bdc3`. Inactive tabs, text, borders, shadow, spacing, dimensions, selection and media behaviour are unchanged. The dedicated `tests/step-media-tab-colour.spec.ts` passed in Chromium and WebKit: expected active/inactive colours, four untruncated labels at320px, keyboard End/focus/selection, and identical tab rectangles after selection. Run it with `node_modules/.bin/playwright test tests/step-media-tab-colour.spec.ts --browser=webkit --workers=1` (or chromium); no database/server is needed. TypeScript, focused lint and whitespace review passed. The preserved review URL below remains the next owner action. Dense short-screen layouts and Roots container responsiveness are documented follow-ups, not additional implementation scope.
 
 ### Integration container responsiveness — 31 October 2026
 

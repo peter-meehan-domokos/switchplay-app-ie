@@ -18,7 +18,7 @@
   color: #24434e;
   background: #f5f8f7;
 }
-.tab[aria-selected="true"] { border-color: #244f5d; background: #c2d9df; color: #102f3b; box-shadow: inset 0 0 0 calc(1px / var(--step-media-scale, 1)) #244f5d; }
+.tab[aria-selected="true"] { border-color: #244f5d; background: #a6bdc3; color: #102f3b; box-shadow: inset 0 0 0 calc(1px / var(--step-media-scale, 1)) #244f5d; }
 .tab:focus-visible { outline: 2px solid #345e67; outline-offset: 2px; }
 .probe {
   position: fixed;
