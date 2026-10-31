@@ -96,7 +96,7 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
         {notice ? <p className={`${styles.status}${warning ? ` ${styles.warning}` : ""}`} role={warning ? "alert" : "status"}>{notice}</p> : null}
         <nav className={styles.navigation} aria-label="Stage navigation">
           {layout.previous ? <button type="button" disabled={creating || signingIn || !layout.previous.enabled} onClick={layout.previous.run}>Back</button> : null}
-          {layout.backToStart ? <button type="button" disabled={creating || signingIn} onClick={layout.backToStart}>Restart</button>
+          {layout.backToStart ? <button type="button" disabled={creating || signingIn} onClick={layout.backToStart}>Rewind</button>
             : layout.next ? <button type="button" disabled={creating || signingIn || !layout.next.enabled} onClick={layout.next.run}>{layout.next.label ?? "Next"}</button> : null}
         </nav>
       </div>

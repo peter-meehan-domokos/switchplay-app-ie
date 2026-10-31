@@ -131,10 +131,10 @@ test("Integration saves an unchecked draft without inventing a calculation event
     await expect(content.getByRole("textbox", { name: "Your answer", exact: true })).toHaveValue("12.34");
     await content.getByRole("button", { name: "Check calculation", exact: true }).click();
     await dialog.getByRole("button", { name: "Finish", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "Restart", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Rewind", exact: true })).toBeVisible();
     await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const completedAt = (await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.firstCompletedAt;
-    await dialog.getByRole("button", { name: "Restart", exact: true }).click();
+    await dialog.getByRole("button", { name: "Rewind", exact: true }).click();
     for (let i = 0; i < 6; i++) await next.click();
     await expect(content.getByRole("textbox", { name: "Your answer", exact: true })).toHaveValue("12.34");
     await expect(content.locator("[data-integration-part]")).toHaveAttribute("data-integration-part", "calculate");
@@ -145,7 +145,7 @@ test("Integration saves an unchecked draft without inventing a calculation event
   } finally { await client.close(); }
 });
 
-test("Roots Restart preserves its attempt and stored return state", async ({ page }) => {
+test("Roots Rewind preserves its attempt and stored return state", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
     await page.setViewportSize({ width: 900, height: 1100 });
@@ -162,10 +162,10 @@ test("Roots Restart preserves its attempt and stored return state", async ({ pag
     const checkBox = await check.boundingBox();
     test.info().annotations.push({ type: "visual-layout-backlog", description: `Roots Check at 900x1100: top=${checkBox?.y}, height=${checkBox?.height}; pointer overflow remains outside this project.` });
     await check.focus(); await page.keyboard.press("Enter");
-    await expect(dialog.getByRole("button", { name: "Restart", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Rewind", exact: true })).toBeVisible();
     await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
-    await dialog.getByRole("button", { name: "Restart", exact: true }).click();
+    await dialog.getByRole("button", { name: "Rewind", exact: true }).click();
     await expect(slider).toHaveAttribute("aria-valuenow", "4");
     await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
