@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { HostedVisualProps } from "../../core/host";
 import { acknowledgeRootsEvents, createRootsHostedState, reduceRootsHostedState, restoreRootsHostedState, rootsBackToStart, rootsHostNavigation, rootsSnapshot, type RootsHostedState } from "./hostState";
 import { effectiveMath, type ManipulationAction } from "./manipulation";
@@ -59,8 +59,9 @@ export default function HostedRootsFactors({ attemptId, attemptNumber = 1, initi
     if (id === "check" || id === "explanation") dispatch({ type: id, revision });
     if (id === "predict-minus" || id === "predict-plus") dispatch({ type: "predict", revision, choice: id === "predict-minus" ? "minus" : "plus" });
   };
-  // Dimensions are exposed without redesigning the existing mathematical layout.
-  return <div data-visual-content-width={dimensions.width} data-visual-content-height={dimensions.height}>
+  // Use the supplied rectangle in the existing frame sizing, without changing its layout.
+  return <div data-visual-content-width={dimensions.width} data-visual-content-height={dimensions.height}
+    style={dimensions.height > 0 ? { "--spv-surface-height": `${dimensions.height}px` } as CSSProperties : undefined}>
     <RootsFactorsView math={effectiveMath(manipulation)} presentation={presentation}
       manipulation={{ state: manipulation, policy, dispatch: rootDispatch }} onPromptAction={onAction}
       stageKey={lesson.stage} promptKey={lesson.stage === "retrieval" ? `retrieval-${lesson.panel}` : lesson.stage}

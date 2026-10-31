@@ -2,6 +2,14 @@
 
 Updated: 31 October 2026. Implementation authorised by the final owner instruction and subsequent UX refinement amendment; production release is not authorised.
 
+## Roots Check sizing correction — 31 October 2026
+
+The normal-phone Roots blocker recorded in the preflight is corrected by passing a positive supplied container height into the existing `--spv-surface-height` variable on `HostedRootsFactors` only. The existing frame previously used its `100dvh` fallback despite receiving a smaller content rectangle. No Roots view/CSS, host, Integration, mathematical content, navigation or persistence code changed. At390×844, Check moved from top856/bottom900 to top744/bottom788 (WebKit743.98/787.98). Ordinary touch now activates it.
+
+Verification: six complete pointer/touch journeys passed in Chromium/WebKit at375×667,390×844 and430×932, including incorrect Check, Show explanation, completion, close/reopen and same-attempt Rewind. Two320×568 diagnostic cases also ran; Check can still extend about6–11px below the viewport because the existing graph/content minima are retained. No edge-case redesign. Thirteen focused Roots/host unit tests, two existing Integration resize browser cases, isolated-output TypeScript, lint and diff checks passed. Whole-screen mobile screenshots were inspected. Test persistence is explicitly in-memory; no database/phone-review progress was accessed. Physical iPhone verification remains outstanding. The separate recovery-error precedence finding remains unresolved and outside this fix.
+
+Commit subject: `Fix hosted Roots Check sizing`. New regression: `tests/roots-container.spec.ts`. Existing review processes/ports were preserved; no push, merge or deployment. Pre-existing uncommitted audit/preflight and recovery-test changes are excluded from this commit.
+
 ## Baseline and authority
 
 - Worktree: `/Users/peterdomokos/projects/step-visuals`.
