@@ -33,8 +33,9 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
     : localPending.has(row.session.attemptId) ? "Changes pending"
     : unavailable.has(row.session.attemptId) || row.session.restoration?.status === "unavailable"
       ? hasPendingVisualWork(row) ? "Interactive visual unavailable. Pending work is kept on this device." : "Interactive visual unavailable. Saved work is kept."
-    : row.session.restoration?.status === "new-attempt-required" ? hasPendingVisualWork(row) ? "Previous attempt pending backup" : "Previous attempt kept"
-    : errors.get(row.session.attemptId) ?? (hasPendingVisualWork(row) || row.snapshot === null ? "Changes pending" : "Saved");
+    : errors.get(row.session.attemptId) ?? (row.session.restoration?.status === "new-attempt-required"
+      ? hasPendingVisualWork(row) ? "Previous attempt pending backup" : "Previous attempt kept"
+      : hasPendingVisualWork(row) || row.snapshot === null ? "Changes pending" : "Saved");
   function notify(row: VisualOutbox) {
     const generation = generations.get(row.session.attemptId);
     if (generation !== undefined && generation !== row.generation) localFailures.set(row.session.attemptId, "Another tab changed this attempt. Reload before editing.");

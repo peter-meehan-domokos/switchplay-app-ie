@@ -2,6 +2,12 @@
 
 Updated: 31 October 2026. Implementation authorised by the final owner instruction and subsequent UX refinement amendment; production release is not authorised.
 
+## Recovery error precedence correction — 31 October 2026
+
+The preflight Section9 recovery-error masking defect is corrected locally in `visualLearningRecords/client.ts`: recorded transport errors now precede routine restoration labels, after the unchanged local-storage/conflict/local-write-pending/unavailable priorities. No error wording, host UI, retry/backoff, queue, request identity, acknowledgement, auth, API, attempt or mathematical code changed. Both503 and403 were reproduced as failing real-client tests before the correction.503 now displays the existing reconnect warning and clears after the existing automatic retry acknowledges the identical frozen batch;403 retains its stopped classification, pending work and visible warning without retrying. Local storage, conflict and unavailable priorities are preserved. Routine pending/saving/recovery/success remains silent.
+
+Verification:21 focused Node tests;12 Chromium/WebKit host/status cases (including real-client recovery503/403, normal recovery and storage failures); three existing repository recovery/retry integration cases; eight existing API integration cases; two existing full API/IndexedDB/disposable-Mongo recovery browser journeys; TypeScript, lint and diff checks passed. An initial filtered API recovery test lacked the record created by an earlier test in that file; the complete eight-test file passed without a test/runtime workaround. Existing pending-backup browser corrections remain, now also requiring the genuine lost-acknowledgement warning. Checkpoints, immutable retry payloads and retained historical attempts are still asserted. Only newly owned isolated test databases/processes were used; phone-review servers/progress were preserved. No push, merge, deployment or physical iPhone claim.
+
 ## Roots Check sizing correction — 31 October 2026
 
 The normal-phone Roots blocker recorded in the preflight is corrected by passing a positive supplied container height into the existing `--spv-surface-height` variable on `HostedRootsFactors` only. The existing frame previously used its `100dvh` fallback despite receiving a smaller content rectangle. No Roots view/CSS, host, Integration, mathematical content, navigation or persistence code changed. At390×844, Check moved from top856/bottom900 to top744/bottom788 (WebKit743.98/787.98). Ordinary touch now activates it.

@@ -344,10 +344,10 @@ for (const kind of ["invalid-state", "version"] as const) {
       const unsafe = (await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!;
       offline = false; dialog = await open(page);
       await expect(dialog.getByRole("slider")).toHaveCount(0);
-      // Recovery remains queued internally; routine backup progress is silent.
-      await expect(dialog).toHaveAttribute("data-visual-save-status", "Previous attempt pending backup");
+      // Routine backup progress is silent; the deliberately lost acknowledgement is a real error.
       await expect(dialog.locator("[data-visual-host-footer]")).not.toContainText("pending backup");
       await expect.poll(() => dropped).toBe(true);
+      await expect(status()).toHaveText("Changes pending. Waiting to reconnect.");
       await expect.poll(() => db.collection("visualSnapshotCheckpoints").countDocuments({ attemptId: record.activeAttemptId, reason: "restore-recovery" })).toBe(1);
       page.once("dialog", confirmation => confirmation.accept()); await dialog.getByRole("button", { name: "New", exact: true }).click();
       await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); await expect(dialog).not.toHaveAttribute("data-visual-save-status", "Saved");

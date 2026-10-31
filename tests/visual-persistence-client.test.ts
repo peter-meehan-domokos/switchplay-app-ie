@@ -5,6 +5,7 @@ import { createAccountVisualPersistence } from "../src/lib/visualLearningRecords
 import type { VisualOutboxStore } from "../src/lib/visualLearningRecords/browserStore";
 import type { VisualOutbox, VisualSession } from "../src/lib/visualLearningRecords/outbox";
 import { createRootsHostedState, reduceRootsHostedState, rootsSnapshot } from "../src/app/step-visuals/activities/roots-factors/hostState";
+import { visualPersistenceNotice } from "../src/components/interactiveVisuals/interactiveVisualHostLayout";
 
 function memoryStore() {
   const rows = new Map<string, VisualOutbox>(), opens = new Map(); let fail = false;
@@ -54,6 +55,46 @@ function transport() {
     offline: (value: boolean) => { offline = value; }, release: () => delayed?.() };
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+for (const statusCode of [503, 403]) test(`recovery ${statusCode} reaches the existing error presentation and retains its retry classification`, async t => {
+  const memory = memoryStore(), wire = transport(), bodies: string[] = [];
+  let succeed = false;
+  const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: async (input, init) => {
+    if (!String(input).endsWith("/recovery-batches")) return wire.fetcher(input, init);
+    bodies.push(String(init?.body));
+    if (!succeed) return Response.json({ code: statusCode === 403 ? "VISUAL_RECORD_FORBIDDEN" : "VISUAL_REQUEST_FAILED" }, { status: statusCode });
+    const batch = JSON.parse(String(init?.body));
+    return Response.json({ writeId: batch.writeId, acceptedEventIds: batch.events.map((e: { eventId: string }) => e.eventId),
+      checkpointAccepted: true, validation: "known-codec" }, { headers: { "X-Visual-Learner": "account:one" } });
+  } }); t.after(service.dispose);
+  const opened = await service.open("roots-and-factors", { kind: "direct" }), state = createRootsHostedState(opened.attemptId);
+  await service.save(opened, rootsSnapshot(state), state.recorded.records.events);
+  const row = [...memory.rows.values()][0];
+  memory.rows.set(row.key, { ...row, session: { ...row.session, restoration: { status: "new-attempt-required", reason: "version", storedActivityVersion: 99, storedSnapshotSchema: 1 } } });
+  let status = ""; service.subscribe!(opened.attemptId, value => { status = value; }); await tick();
+  assert.equal(status, "Previous attempt pending backup"); assert.equal(visualPersistenceNotice(status), null);
+  await service.flush!(opened.attemptId);
+  const error = statusCode === 503 ? "Changes pending. Waiting to reconnect." : "Saving stopped. Your pending work is kept on this device.";
+  assert.equal(status, error); assert.equal(visualPersistenceNotice(status), error);
+  const pending = structuredClone([...memory.rows.values()][0]);
+  assert.ok(pending.flight); assert.deepEqual(pending.snapshot, row.snapshot); assert.deepEqual(pending.events, row.events);
+  succeed = true; await new Promise(resolve => setTimeout(resolve, 1400)); await service.flush!(opened.attemptId);
+  if (statusCode === 503) {
+    assert.equal(bodies.length, 2); assert.equal(bodies[0], bodies[1]);
+    const saved = [...memory.rows.values()][0]; assert.equal(saved.flight, null); assert.equal(saved.events.length, 0);
+    assert.equal(saved.generation, saved.savedGeneration); assert.deepEqual(saved.snapshot, row.snapshot);
+    assert.equal(status, "Previous attempt kept"); assert.equal(visualPersistenceNotice(status), null);
+  } else {
+    assert.equal(bodies.length, 1); assert.deepEqual([...memory.rows.values()][0], pending); assert.equal(status, error);
+    // Preserve the established conflict/unavailable/local-storage priority over transport errors.
+    memory.rows.set(row.key, { ...pending, conflict: true }); service.subscribe!(opened.attemptId, value => { status = value; }); await tick();
+    assert.equal(status, "Saving conflict. Your pending work is kept on this device.");
+    memory.rows.set(row.key, { ...pending, session: { ...pending.session, restoration: { status: "unavailable" } } });
+    service.subscribe!(opened.attemptId, value => { status = value; }); await tick();
+    assert.equal(status, "Interactive visual unavailable. Pending work is kept on this device.");
+    memory.quota(true); await assert.rejects(service.save(opened, rootsSnapshot(state), []), /quota/);
+    assert.equal(status, "Saving failed. Changes are not safely stored on this device."); assert.equal(visualPersistenceNotice(status), status);
+  }
+});
 test("preview lookup is read-only, coalesces reads and does not cache absence across tab returns", async t => {
   const memory = memoryStore(); let exists = false, requests = 0;
   const fetcher: typeof fetch = async (input, init) => {
