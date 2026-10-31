@@ -9,6 +9,7 @@ import { useStageMotion } from "./use-stage-motion";
 import IntroStages from "./intro-stages";
 import LaterStages from "./later-stages";
 import styles from "./integration.module.css";
+import { integrationContainerStyle } from "./container-layout";
 
 export default function HostedIntegration({ attemptId, attemptNumber = 1, initialSnapshot, dimensions, onControls, onChange }: HostedVisualProps) {
   const [hosted, setHosted] = useState(() => {
@@ -51,7 +52,7 @@ export default function HostedIntegration({ attemptId, attemptNumber = 1, initia
   useStageMotion(state, true, dispatch);
   const presentation = useMemo(() => integrationPresentation(state), [state]);
   const props = { state, presentation, active: true, dispatch, headingRef: heading, hosted: true };
-  return <section className={styles.activity} aria-label="Integration" data-integration-stage={state.stage} data-integration-part={state.part}
+  return <section className={`${styles.activity} ${styles.container}`} style={integrationContainerStyle(dimensions)} aria-label="Integration" data-integration-stage={state.stage} data-integration-part={state.part}
     data-visual-content-width={dimensions.width} data-visual-content-height={dimensions.height}>
     {state.stage <= 2 ? <IntroStages {...props} /> : <LaterStages {...props} />}
     <span className={styles.status} role="status" aria-live="polite" aria-atomic="true">{presentation.announcement}</span>

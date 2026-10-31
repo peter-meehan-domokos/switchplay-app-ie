@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import IntegrationActivity from "../activities/integration-area/integration-activity";
 import type { IntegrationEvent, IntegrationRecords, IntegrationResult } from "../activities/integration-area/records";
 import LearningRecordPreview from "./LearningRecordPreview";
+import MeasuredContentSlot from "./MeasuredContentSlot";
 
 /** A host consuming the same public deliveries as Puckle; it owns no mathematical state. */
 export default function IntegrationLabSession({ exitKey, onExit }: { exitKey: number; onExit: () => void }) {
@@ -29,8 +30,7 @@ export default function IntegrationLabSession({ exitKey, onExit }: { exitKey: nu
     received.current = [];
     setRecords(snapshot);
   }, []);
-  return <>
-    <IntegrationActivity exitKey={exitKey} onExit={onExit} onEvent={onEvent} onComplete={onComplete} onRecordsChange={onRecordsChange} />
-    <LearningRecordPreview records={records} events={events} completed={completed} />
-  </>;
+  return <MeasuredContentSlot footer={<LearningRecordPreview records={records} events={events} completed={completed} />}>
+    {dimensions => <IntegrationActivity dimensions={dimensions} exitKey={exitKey} onExit={onExit} onEvent={onEvent} onComplete={onComplete} onRecordsChange={onRecordsChange} />}
+  </MeasuredContentSlot>;
 }

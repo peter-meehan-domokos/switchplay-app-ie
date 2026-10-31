@@ -8,6 +8,7 @@ import type { Bounds, CoordinatePlaneScene, FunctionPlotScene, Point, Positioned
 import { analyseRegion, curveLabel, evaluateFunction, formatValue, functionPolynomial, polynomialZeros, validateRegion } from "./model";
 import type { BoundaryId, GrowthFunction, IntegrationFunction, IntegrationRegion, IntegrationStage, RegionSelection, RegionAnalysis } from "./model";
 import { stageOneReadout } from "./display-policy";
+import { minimumIntegrationGraphHeight } from "./container-layout";
 
 export const explorationDomains = immutable({ x: [-0.5, 4.5] as Bounds, y: [-3, 5] as Bounds });
 export const calculationDomains = immutable({ x: [-0.2, 2.3] as Bounds, y: [-1, 14] as Bounds });
@@ -37,13 +38,15 @@ export type IntegrationGraphInput = Readonly<RegionSelection & {
 }>;
 
 export const integrationPlaneLayout = (size: Size, stage: IntegrationStage, comparison: GrowthFunction = "rising"): CoordinatePlaneScene => {
-  if (size.height < 200) throw new RangeError("Integration graphs need at least 200 pixels in height.");
+  if (size.height < minimumIntegrationGraphHeight) throw new RangeError(`Integration graphs need at least ${minimumIntegrationGraphHeight} pixels in height.`);
   const profile = frameProfile(stage, comparison);
   const domains = domainsFor(profile);
-  const base = coordinatePlaneLayout(size, domains.x, domains.y);
+  // The shared plane retains its existing 160px minimum. Only Integration adapts
+  // its projection to smaller physical rectangles; mathematical domains do not change.
+  const base = coordinatePlaneLayout({ ...size, height: Math.max(160, size.height) }, domains.x, domains.y);
   const later = profile === "later" || profile === "calculation";
-  const plot = later ? { ...base.projection.plot, height: size.height - 76 } : base.projection.plot;
-  const projection: ProjectionSpec = later ? { ...base.projection, plot, yRange: [plot.y + plot.height, plot.y] } : base.projection;
+  const plot = { ...base.projection.plot, height: size.height - (later ? 76 : 52) };
+  const projection: ProjectionSpec = { ...base.projection, plot, yRange: [plot.y + plot.height, plot.y] };
   const x = scaleLinear(projection.xDomain, projection.xRange), y = scaleLinear(projection.yDomain, projection.yRange);
   const xTicks = stage === 7 ? [0, 1, 2] : stage === 4 ? [0, 1, 2, 3] : [0, 1, 2, 3, 4];
   const yTicks = profile === "growth-square" ? [0, 4, 8, 12, 16] : profile === "division-line" ? [0, 1, 2, 3] : profile === "division-square" ? [0, 3, 6, 9] : y.ticks(Math.max(2, Math.floor(plot.height / 55)));

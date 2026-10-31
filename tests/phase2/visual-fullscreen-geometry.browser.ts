@@ -5,7 +5,7 @@ import baseline from "../fixtures/interactive-visual-fullscreen-baseline/geometr
 test.use({ ...devices["iPhone 13"], deviceScaleFactor: 1, contextOptions: { reducedMotion: "reduce" } });
 const reference = "tests/fixtures/interactive-visual-fullscreen-baseline/";
 for (const [width, height] of [[320, 568], [375, 667], [390, 844], [390, 600]]) {
-  test(`whole-screen mathematical geometry matches pre-redesign host at ${width}x${height}`, async ({ page, browserName }) => {
+  test(`host and Roots geometry retain the pre-redesign bounds at ${width}x${height}`, async ({ page, browserName }) => {
     test.skip(process.platform !== "darwin" || browserName !== "webkit", "Reference pixels are macOS WebKit; portable host assertions run separately.");
     await page.setViewportSize({ width, height });
     await page.goto("/dev/interactive-visual-host"); await page.getByRole("button", { name: "Open guest database review", exact: true }).click();
@@ -25,7 +25,12 @@ for (const [width, height] of [[320, 568], [375, 667], [390, 844], [390, 600]]) 
           passed: [...content.querySelectorAll("[data-visual-content-width]")].map(element => ({ width: element.getAttribute("data-visual-content-width"), height: element.getAttribute("data-visual-content-height") })),
           math: [...content.querySelectorAll("h1,h2,h3,p,label,input,select,button,svg,[role=slider],[role=group]")].map(measure) };
       });
-      for (const key of ["dialog", "shell", "padding", "rows", "hostTitle", "content", "graphParents", "passed", "math"] as const) expect(actual[key], `${activity} ${stage}: ${key} absolute geometry`).toEqual(expected[key]);
+      for (const key of ["dialog", "shell", "padding", "rows", "hostTitle", "content", "passed"] as const) expect(actual[key], `${activity} ${stage}: ${key} absolute geometry`).toEqual(expected[key]);
+      // Integration now owns a container-responsive layout. Its historical mathematical
+      // pixels are intentionally superseded by integration-container.spec.ts; host
+      // geometry and unchanged Roots still use the original immutable references.
+      if (activity === "Integration") return;
+      for (const key of ["graphParents", "math"] as const) expect(actual[key], `${activity} ${stage}: ${key} absolute geometry`).toEqual(expected[key]);
       await page.screenshot({ path: test.info().outputPath(`${activity}-${stage}-actual.png`), animations: "disabled", scale: "css" });
       const suppression = await page.addStyleTag({ content: '[data-visual-host-header], [data-visual-host-footer] { background: transparent !important; } [data-visual-host-header] button, [data-visual-host-footer] button, [data-visual-host-footer] p { visibility: hidden !important; }' });
       const png = await page.screenshot({ animations: "disabled", scale: "css" }); await suppression.evaluate(node => node.parentNode?.removeChild(node));
