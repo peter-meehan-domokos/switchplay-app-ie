@@ -54,6 +54,27 @@ function transport() {
     offline: (value: boolean) => { offline = value; }, release: () => delayed?.() };
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+test("preview lookup is read-only, coalesces reads and does not cache absence across tab returns", async t => {
+  const memory = memoryStore(); let exists = false, requests = 0;
+  const fetcher: typeof fetch = async (input, init) => {
+    requests++; assert.equal(init?.method, "GET"); assert.equal(init?.body, undefined);
+    assert.match(String(input), /\/api\/visual-sessions\/existing\?activityId=roots-and-factors$/);
+    await tick(); return Response.json({ hasAttempt: exists }, { headers: { "X-Visual-Learner": "account:one" } });
+  };
+  const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: fetcher }); t.after(service.dispose);
+  assert.deepEqual(await Promise.all([service.hasAttempt("roots-and-factors"), service.hasAttempt("roots-and-factors")]), [false, false]);
+  assert.equal(requests, 1); assert.equal(memory.rows.size, 0);
+  exists = true; assert.equal(await service.hasAttempt("roots-and-factors"), true); assert.equal(requests, 2);
+});
+test("known local attempts remain Continue offline without opening a visit or issuing a request", async t => {
+  const memory = memoryStore(), wire = transport();
+  const first = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher });
+  await first.open("roots-and-factors", { kind: "direct" }); first.dispose();
+  const before = structuredClone([...memory.rows.values()]);
+  const second = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: async () => { throw new Error("Preview must not fetch for a known local attempt"); } }); t.after(second.dispose);
+  assert.equal(await second.hasAttempt("roots-and-factors"), true);
+  assert.deepEqual([...memory.rows.values()], before);
+});
 test("a fresh empty attempt is pending until its initial snapshot is actually acknowledged", async t => {
   const memory = memoryStore(), wire = transport();
   const service = createAccountVisualPersistence({ learner: "account:one", store: memory.store, fetch: wire.fetcher }); t.after(service.dispose);

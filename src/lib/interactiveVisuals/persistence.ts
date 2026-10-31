@@ -11,6 +11,8 @@ export type VisualRestoration = Readonly<{ status: "ready" }>
 export type OpenVisual = Readonly<{ activityId: string; attemptId: string; attemptNumber?: number; visitId?: string; snapshot: unknown | null; restoration?: VisualRestoration }>;
 export type VisualPersistence = Readonly<{
   statusLabel: string;
+  /** Read-only existence check; must never create an attempt or access visit. */
+  hasAttempt: (activityId: string) => Promise<boolean>;
   subscribe?: (attemptId: string, listener: (status: string) => void) => () => void;
   flush?: (attemptId: string) => Promise<void>;
   startNewAttempt?: (opened: OpenVisual) => Promise<OpenVisual>;

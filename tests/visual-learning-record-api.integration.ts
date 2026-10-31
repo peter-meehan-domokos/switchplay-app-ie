@@ -37,6 +37,21 @@ function request(body?: unknown, headers: Record<string, string> = {}) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 }
 const openBody = (source: VisualSource = { kind: "direct" }) => ({ activityId: "roots-and-factors", visitId: randomUUID(), source });
+test("preview existence is owner-scoped and read-only, including completed attempts", async () => {
+  const principal = { kind: "account", id: "preview-owner" } as const;
+  const check = (actor = principal, query = "activityId=roots-and-factors") => api(actor).existing(new Request(`https://app.example/api/visual-sessions/existing?${query}`, { headers: { "X-Visual-Learner": `account:${actor.id}` } }));
+  const counts = async () => Promise.all([records.records().countDocuments(), records.attempts().countDocuments(), records.visits().countDocuments(), records.events().countDocuments()]);
+  const before = await counts(); assert.deepEqual(await (await check()).json(), { hasAttempt: false }); assert.deepEqual(await counts(), before);
+  const opened = await records.open(principal, "roots-and-factors", randomUUID(), { kind: "direct" });
+  await records.attempts().updateOne({ attemptId: opened.attempt.attemptId }, { $set: { firstCompletedAt: new Date() } });
+  const afterOpen = await counts(), record = await records.records().findOne({ recordId: opened.record.recordId });
+  const response = await check(); assert.equal(response.headers.get("Cache-Control"), "private, no-store"); assert.deepEqual(await response.json(), { hasAttempt: true });
+  assert.deepEqual(await counts(), afterOpen); assert.deepEqual(await records.records().findOne({ recordId: opened.record.recordId }), record);
+  const other = { kind: "account", id: "preview-other" } as const;
+  assert.deepEqual(await (await api(other).existing(new Request("https://app.example/api/visual-sessions/existing?activityId=roots-and-factors", { headers: { "X-Visual-Learner": "account:preview-other" } }))).json(), { hasAttempt: false });
+  assert.equal((await check(principal, "activityId=roots-and-factors&learner=preview-owner")).status, 400);
+  assert.equal((await check(principal, "activityId=roots-and-factors&activityId=integration-area")).status, 400);
+});
 test("accepted Open replay retains owned visit provenance after source removal without authorizing new visits", async () => {
   let available = true, checks = 0;
   const owner: LearnerPrincipal = { kind: "account", id: "replay-owner" };

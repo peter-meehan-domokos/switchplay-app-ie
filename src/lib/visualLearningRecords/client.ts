@@ -48,14 +48,14 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
       stopped.delete(row.session.attemptId); stopCodes.delete(row.session.attemptId); errors.delete(row.session.attemptId);
     }
   }
-  async function request<T>(path: string, body: unknown): Promise<T> {
+  async function request<T>(path: string, body: unknown, method = "POST"): Promise<T> {
     requireVisual(!disposed, "VISUAL_SESSION_CLOSED");
     const abort = new AbortController(), cancel = () => abort.abort();
     controller.signal.addEventListener("abort", cancel, { once: true });
     const timeout = setTimeout(cancel, 12000);
     try {
-      const response = await send(path, { method: "POST", credentials: "same-origin", cache: "no-store", signal: abort.signal,
-        headers: { "Content-Type": "application/json", "X-Visual-Learner": options.learner }, body: JSON.stringify(body) });
+      const response = await send(path, { method, credentials: "same-origin", cache: "no-store", signal: abort.signal,
+        headers: { "Content-Type": "application/json", "X-Visual-Learner": options.learner }, ...(method === "GET" ? {} : { body: JSON.stringify(body) }) });
       const value = await response.json();
       if (!response.ok) throw new VisualTransportError(response.status, typeof value.code === "string" ? value.code : "VISUAL_REQUEST_FAILED", Number(response.headers.get("Retry-After")) * 1000 || 0);
       requireVisual(response.headers.get("X-Visual-Learner") === options.learner, "VISUAL_SESSION_CONFLICT");
@@ -169,8 +169,19 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
     }
   }).catch(() => { /* Open/save will report storage errors; never switch to volatile Saved. */ });
   const saves = new Map<string, Promise<void>>();
+  const existence = new Map<string, Promise<boolean>>();
   return {
     statusLabel: "Changes pending",
+    async hasAttempt(activityId) {
+      await ready; requireVisual(!disposed, "VISUAL_SESSION_CLOSED");
+      // Pending/offline attempts are still attempts. Never call Open to label a preview.
+      if (await store.read(visualOutboxKey(options.learner, activityId))) return true;
+      const previous = existence.get(activityId); if (previous) return previous;
+      const query = request<{ hasAttempt: boolean }>(`/api/visual-sessions/existing?activityId=${encodeURIComponent(activityId)}`, undefined, "GET")
+        .then(value => { requireVisual(typeof value.hasAttempt === "boolean", "INVALID_VISUAL_SESSION"); return value.hasAttempt; })
+        .finally(() => existence.delete(activityId));
+      existence.set(activityId, query); return query;
+    },
     async settleLocal() {
       await ready; await Promise.all(saves.values());
       requireVisual(!disposed && localFailures.size === 0 && localPending.size === 0, "VISUAL_CLAIM_PENDING_WORK");

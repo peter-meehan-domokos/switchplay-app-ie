@@ -7,7 +7,7 @@ import type { BatchAcknowledgement, LearnerPrincipal, NewVisualAttempt, Recovery
 import { inspectVisualRestoration, storedVisualSnapshotValid } from "./restoration";
 import { compiledVisualCodecs, visualCodec } from "./codecs";
 import { compiledVisualMigrations, convertVisualSnapshot, findVisualMigration, type VisualVersionPolicy } from "./migrations";
-import { VISUAL_GUEST_INDEXES, touchVisualGuest } from "./guestCredentials";
+import { VISUAL_GUEST_COLLECTION, VISUAL_GUEST_INDEXES, touchVisualGuest } from "./guestCredentials";
 
 export const VISUAL_COLLECTIONS = { records: "visualRecords", attempts: "visualAttempts", events: "visualEvents", visits: "visualVisits", checkpoints: "visualSnapshotCheckpoints" } as const;
 export const VISUAL_INDEXES = [
@@ -173,6 +173,11 @@ export class VisualLearningRecordRepository {
         throw error;
       }
     }
+  }
+  async hasAttempt(actor: LearnerPrincipal, activityId: string) {
+    const key = principalKey(actor); this.release(activityId); await this.assertIndexesReady();
+    if (actor.kind === "guest") requireVisual(await this.db.collection(VISUAL_GUEST_COLLECTION).findOne({ guestId: actor.id, status: "active", expiresAt: { $gt: new Date() } }), "VISUAL_GUEST_FORBIDDEN");
+    return !!await this.records().findOne({ principalKey: key, activityId }, { projection: { _id: 0, recordId: 1 } });
   }
   async current(actor: LearnerPrincipal, recordId: string) {
     assertUuid(recordId);

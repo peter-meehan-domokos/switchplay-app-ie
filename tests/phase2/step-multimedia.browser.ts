@@ -56,20 +56,31 @@ test("mixed tabs preserve the Introduction video thumbnail, embedded image, visu
   await expect.poll(() => f.thumbnails.some(url => url.includes("/fixture-a/"))).toBe(true);
   await expect(step.getByRole("tab")).toHaveCount(4); await expect(step.getByRole("tab", { name: "Image", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(step.getByRole("img", { name: "A mathematical diagram", exact: true })).toBeVisible();
+  expect(await step.getByRole("img", { name: "A mathematical diagram", exact: true }).evaluate(node => getComputedStyle(node).objectFit)).toBe("contain");
   await expect.poll(() => step.getByRole("img", { name: "A mathematical diagram", exact: true }).evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await step.getByRole("tab", { name: "Explore", exact: true }).click();
-  const preview = step.getByRole("button", { name: "Open Roots and Factors", exact: true }); await expect(preview).toBeEnabled(); await preview.click();
+  const preview = step.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }); await expect(preview).toBeEnabled();
+  await expect(preview).toHaveAccessibleName("Start: Roots and Factors");
+  expect(await client.db(process.env.MONGODB_DB!).collection("visualRecords").countDocuments({ principalKey: `account:${f.actor}` })).toBe(0);
+  expect(await client.db(process.env.MONGODB_DB!).collection("visualVisits").countDocuments({ "source.cardId": f.card.cardTemplateId })).toBe(0);
+  const previewBox = await preview.boundingBox(), panelBox = await step.getByRole("tabpanel").boundingBox(), labelBox = await preview.getByText("Start", { exact: true }).boundingBox();
+  expect(previewBox!.width).toBeCloseTo(panelBox!.width, 1);
+  expect(labelBox!.x + labelBox!.width / 2).toBeCloseTo(previewBox!.x + previewBox!.width / 2, 1);
+  expect(labelBox!.y + labelBox!.height / 2).toBeCloseTo(previewBox!.y + previewBox!.height / 2, 1);
+  await step.screenshot({ path: "/private/tmp/visual-ux-preview-start-320.png" });
+  await preview.click({ position: { x: 5, y: 5 } });
   const host = page.getByRole("dialog", { name: "Roots and Factors", exact: true }); await host.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
-  await expect(host.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+  await expect(host).toHaveAttribute("data-visual-save-status", "Saved");
   await host.getByRole("button", { name: "Close interactive visual" }).click(); await expect(preview).toBeFocused();
+  await expect(preview).toHaveAccessibleName("Continue: Roots and Factors");
   await expect(step.getByRole("tab", { name: "Explore", exact: true })).toHaveAttribute("aria-selected", "true");
   await navigate(page, "Next");
   await expect(step.getByRole("tab", { name: "Watch", exact: true })).toHaveAttribute("aria-selected", "true");
   await step.getByRole("tab", { name: "Image", exact: true }).click(); await navigate(page, "Previous");
   await expect(step.getByRole("tab", { name: "Image", exact: true })).toHaveAttribute("aria-selected", "true");
   await navigate(page, "Next"); await navigate(page, "Next");
-  await expect(step.getByRole("tablist")).toHaveCount(0); await expect(step.getByRole("button", { name: "Open Roots and Factors", exact: true })).toBeVisible();
+  await expect(step.getByRole("tablist")).toHaveCount(0); await expect(step.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ })).toBeVisible();
   await navigate(page, "Next"); await expect(step.getByRole("tablist")).toHaveCount(0); await expect(step).toContainText("Video placeholder");
   const after = await f.repo.getPersonalUser(f.actor); expect(after!.cardsData[0].items).toEqual(before!.cardsData[0].items);
 });
@@ -90,6 +101,8 @@ test("four untruncated Explore labels fit together at 320px with stable readable
   for (const tab of bounds.tabs) { expect(tab.y).toBeCloseTo(bounds.tabs[0].y, 1); expect(tab.right).toBeLessThanOrEqual(bounds.right + 0.2); expect(tab.textX).toBeGreaterThanOrEqual(tab.x); expect(tab.textRight).toBeLessThanOrEqual(tab.right); expect(tab.font).toBeCloseTo(14, 1); }
   await tabs.first().focus(); await page.keyboard.press("ArrowRight"); await expect(tabs.nth(1)).toBeFocused(); await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("End"); await expect(tabs.last()).toBeFocused(); await expect(tabs.last()).toHaveAttribute("aria-selected", "true");
+  const colours = await tabs.evaluateAll(nodes => nodes.map(node => { const css = getComputedStyle(node); return { selected: node.getAttribute("aria-selected"), background: css.backgroundColor, colour: css.color, shadow: css.boxShadow }; }));
+  expect(colours[3].background).not.toBe(colours[0].background); expect(colours[3].colour).not.toBe(colours[0].colour); expect(colours[3].shadow).not.toBe("none");
   await step.screenshot({ path: "/private/tmp/plugged-in-learner-tabs-320.png" });
 });
 
@@ -99,11 +112,14 @@ for (const count of [1, 2, 3] as const) {
     const f = await fixture(page, { introCount: count, videoFirst: true }), step = await openIntro(page, f.url);
     await expect(page.locator(".switchplay-video-host video")).toHaveCount(1);
     await expect(page.locator(".switchplay-video-host video")).toHaveAttribute("controls", "");
+    // Interactive Visual cover/cropping styles must never reach legacy video geometry.
+    expect(await step.locator(".step-view-video-placeholder").evaluate(node => ({ aspect: getComputedStyle(node).aspectRatio, padding: getComputedStyle(node).padding }))).toEqual({ aspect: "16 / 9", padding: "0px" });
     await expect(step.getByRole("tab")).toHaveCount(count === 1 ? 0 : count);
     if (count > 1) {
       await expect(step.getByRole("tab", { name: "Watch", exact: true })).toHaveAttribute("aria-selected", "true");
       await step.getByRole("tab", { name: "Image", exact: true }).click();
       await expect(step.getByRole("img", { name: "A mathematical diagram", exact: true })).toBeVisible(); await expect(page.locator(".switchplay-video-host video")).toHaveCount(0);
+      expect(await step.getByRole("img", { name: "A mathematical diagram", exact: true }).evaluate(node => getComputedStyle(node).objectFit)).toBe("contain");
       await expect(page.getByRole("dialog")).toHaveCount(0);
     }
   });

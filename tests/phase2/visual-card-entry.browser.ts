@@ -37,7 +37,7 @@ async function focus(page: Page) {
 }
 async function intro(page: Page) {
   await page.locator(".focused-card-surface--front .active-card-identity[role=button]").click();
-  const preview = page.getByRole("button", { name: "Open Roots and Factors", exact: true });
+  const preview = page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ });
   await expect(preview).toBeEnabled(); return preview;
 }
 
@@ -51,7 +51,7 @@ test("real working Card visual shares durable progress across Cards and restores
   await preview.click();
   let dialog = page.getByRole("dialog", { name: "Roots and Factors", exact: true });
   await dialog.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
-  await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+  await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
   await dialog.getByRole("button", { name: "Close interactive visual" }).click(); await expect(preview).toBeFocused();
   await expect(page.locator(".step-view-layer")).toHaveAttribute("data-step-view-item", "intro");
   await page.goto(`/decks?openDeck=${deck.deckTemplateId}&openCard=${cards[1].cardTemplateId}`); await focus(page);
@@ -73,10 +73,10 @@ test("canonical Card entry carries its actual deck version and creates no person
   const { repo, actor, deck } = await fixture(page, false), before = await repo.getPersonalUser(actor);
   await page.goto(`/library/${deck.deckTemplateId}`); await focus(page);
   await page.getByRole("button", { name: "IntegrationExplore area.", exact: true }).click();
-  const preview = page.getByRole("button", { name: "Open Integration", exact: true }); await expect(preview).toBeEnabled(); await preview.click();
+  const preview = page.getByRole("button", { name: /^(Start|Continue): Integration$/ }); await expect(preview).toBeEnabled(); await preview.click();
   const dialog = page.getByRole("dialog", { name: "Integration", exact: true });
   await expect(dialog.getByRole("slider", { name: "Right boundary", exact: true })).toBeVisible();
-  await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+  await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
   await dialog.getByRole("button", { name: "Close interactive visual" }).click(); await expect(preview).toBeFocused();
   const record = (await repo.db.collection("visualRecords").findOne({ principalKey: `account:${actor}`, activityId: "integration-area" }))!;
   const visit = (await repo.db.collection("visualVisits").findOne({ attemptId: record.activeAttemptId }))!;

@@ -1,5 +1,9 @@
 /** Platform-neutral boundary. Only the visual decides whether a transition is legal. */
-export type VisualContentDimensions = Readonly<{ width: number; height: number }>;
+export type VisualControlRegion = Readonly<{ x: number; y: number; width: number; height: number }>;
+export type VisualContentDimensions = Readonly<{ width: number; height: number;
+  /** Regions relative to the content viewport. Existing visuals may ignore them. */
+  reservedCorners?: Readonly<{ topRight: VisualControlRegion; bottomRight: VisualControlRegion }>;
+}>;
 export type VisualHostControls = Readonly<{
   stageId: string; atStart: boolean; completed: boolean;
   hasMeaningfulProgress?: boolean;

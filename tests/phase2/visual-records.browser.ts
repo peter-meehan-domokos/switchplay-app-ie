@@ -18,7 +18,7 @@ async function fixture(page: Page) {
 async function open(page: Page) {
   await page.goto("/dev/interactive-visual-host");
   await page.getByRole("button", { name: "Open database review", exact: true }).click();
-  await page.getByRole("button", { name: "Open Roots and Factors", exact: true }).click();
+  await page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }).click();
   const dialog = page.getByRole("dialog", { name: "Roots and Factors", exact: true });
   await expect(dialog).toBeVisible(); return dialog;
 }
@@ -30,8 +30,8 @@ test("real IndexedDB and API restore across reload and offline reconnect without
   try {
     let dialog = await open(page), slider = dialog.getByRole("slider");
     await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
-    const status = () => dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status()).toHaveText("Saved");
+    const status = () => dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = await db.collection("visualRecords").findOne({ principalKey: learner }); expect(record).toBeTruthy();
     const originalAttempt = record!.activeAttemptId;
     dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
@@ -39,9 +39,9 @@ test("real IndexedDB and API restore across reload and offline reconnect without
     await slider.focus(); await page.keyboard.press("ArrowLeft"); await expect(slider).toHaveAttribute("aria-valuenow", "3");
     await expect(status()).toContainText("pending");
     dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "3");
-    await expect(status()).not.toHaveText("Saved");
+    await expect(dialog).not.toHaveAttribute("data-visual-save-status", "Saved");
     offline = false; await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect(status()).toHaveText("Saved");
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const attempt = await db.collection("visualAttempts").findOne({ attemptId: originalAttempt });
     expect(attempt!.snapshot.state.root).toBe(3);
     const events = await db.collection("visualEvents").find({ attemptId: originalAttempt }).toArray();
@@ -63,9 +63,9 @@ test("lost server response retries the frozen batch after reload without duplica
   });
   try {
     let dialog = await open(page);
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toContainText("Waiting to reconnect");
+    await expect(dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]')).toContainText("Waiting to reconnect");
     dialog = await open(page);
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     expect(bodies.length).toBeGreaterThanOrEqual(2); expect(bodies[0]).toBe(bodies[1]);
     const record = await db.collection("visualRecords").findOne({ principalKey: learner });
     expect(await db.collection("visualEvents").countDocuments({ attemptId: record!.activeAttemptId, type: "attempt-started" })).toBe(1);
@@ -75,12 +75,13 @@ test("lost server response retries the frozen batch after reload without duplica
 test("quota failure never displays Saved and leaves the server snapshot unchanged", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
-    const dialog = await open(page), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status).toHaveText("Saved");
+    const dialog = await open(page), status = dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
+    await expect(dialog.getByText("Saved", { exact: true })).toHaveCount(0);
     const record = await db.collection("visualRecords").findOne({ principalKey: learner });
     await page.evaluate(() => { IDBObjectStore.prototype.put = () => { throw new DOMException("Injected test quota", "QuotaExceededError"); }; });
     await dialog.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
-    await expect(status).toContainText("failed"); await expect(status).not.toHaveText("Saved");
+    await expect(status).toContainText("failed"); await expect(dialog).not.toHaveAttribute("data-visual-save-status", "Saved");
     expect((await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.snapshot.state.root).toBe(3);
   } finally { await client.close(); }
 });
@@ -89,8 +90,8 @@ test("stale state reports conflict and preserves the local candidate across relo
   const { client, db, learner } = await fixture(page); let blocked = false;
   await page.route("**/api/visual-attempts/*/batches", route => blocked ? route.abort("internetdisconnected") : route.continue());
   try {
-    let dialog = await open(page); const status = () => dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status()).toHaveText("Saved");
+    let dialog = await open(page); const status = () => dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const repo = new VisualLearningRecordRepository(db, client), actor = { kind: "account" as const, id: learner.split(":")[1] };
     const record = (await repo.records().findOne({ principalKey: learner }))!, attempt = (await repo.attempts().findOne({ attemptId: record.activeAttemptId }))!;
     const visit = (await repo.visits().findOne({ attemptId: attempt.attemptId }))!;
@@ -115,36 +116,36 @@ test("Integration saves an unchecked draft without inventing a calculation event
   try {
     await page.setViewportSize({ width: 1000, height: 1200 }); await page.goto("/dev/interactive-visual-host");
     await page.getByRole("button", { name: "Open database review", exact: true }).click();
-    await page.getByRole("button", { name: "Open Integration", exact: true }).click();
+    await page.getByRole("button", { name: /^(Start|Continue): Integration$/ }).click();
     const dialog = page.getByRole("dialog", { name: "Integration", exact: true }), content = dialog.locator("[data-visual-host-content]");
     const next = dialog.locator("[data-visual-host-footer]").getByRole("button", { name: "Next", exact: true });
     await next.click(); await next.click(); await content.getByRole("group", { name: /area/i }).getByRole("button").first().click();
     for (let i = 0; i < 4; i++) await next.click();
     await content.getByRole("textbox", { name: "Your answer", exact: true }).fill("12.34");
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = await db.collection("visualRecords").findOne({ principalKey: learner, activityId: "integration-area" });
     expect((await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.snapshot.panel.draft).toBe("12.34");
     expect(await db.collection("visualEvents").countDocuments({ attemptId: record!.activeAttemptId, type: "calculation-checked" })).toBe(0);
     await page.reload(); await page.getByRole("button", { name: "Open database review", exact: true }).click();
-    await page.getByRole("button", { name: "Open Integration", exact: true }).click();
+    await page.getByRole("button", { name: /^(Start|Continue): Integration$/ }).click();
     await expect(content.getByRole("textbox", { name: "Your answer", exact: true })).toHaveValue("12.34");
     await content.getByRole("button", { name: "Check calculation", exact: true }).click();
     await dialog.getByRole("button", { name: "Finish", exact: true }).click();
-    await expect(dialog.getByRole("button", { name: "Back to Start", exact: true })).toBeVisible();
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(dialog.getByRole("button", { name: "Restart", exact: true })).toBeVisible();
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const completedAt = (await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.firstCompletedAt;
-    await dialog.getByRole("button", { name: "Back to Start", exact: true }).click();
+    await dialog.getByRole("button", { name: "Restart", exact: true }).click();
     for (let i = 0; i < 6; i++) await next.click();
     await expect(content.getByRole("textbox", { name: "Your answer", exact: true })).toHaveValue("12.34");
     await expect(content.locator("[data-integration-part]")).toHaveAttribute("data-integration-part", "calculate");
     await dialog.getByRole("button", { name: "Finish", exact: true }).click();
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     expect(await db.collection("visualEvents").countDocuments({ attemptId: record!.activeAttemptId, type: "attempt-completed" })).toBe(2);
     expect((await db.collection("visualAttempts").findOne({ attemptId: record!.activeAttemptId }))!.firstCompletedAt).toEqual(completedAt);
   } finally { await client.close(); }
 });
 
-test("Roots Back to Start preserves its attempt and stored return state", async ({ page }) => {
+test("Roots Restart preserves its attempt and stored return state", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
     await page.setViewportSize({ width: 900, height: 1100 });
@@ -161,12 +162,12 @@ test("Roots Back to Start preserves its attempt and stored return state", async 
     const checkBox = await check.boundingBox();
     test.info().annotations.push({ type: "visual-layout-backlog", description: `Roots Check at 900x1100: top=${checkBox?.y}, height=${checkBox?.height}; pointer overflow remains outside this project.` });
     await check.focus(); await page.keyboard.press("Enter");
-    await expect(dialog.getByRole("button", { name: "Back to Start", exact: true })).toBeVisible();
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(dialog.getByRole("button", { name: "Restart", exact: true })).toBeVisible();
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
-    await dialog.getByRole("button", { name: "Back to Start", exact: true }).click();
+    await dialog.getByRole("button", { name: "Restart", exact: true }).click();
     await expect(slider).toHaveAttribute("aria-valuenow", "4");
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
     expect((await db.collection("visualRecords").findOne({ recordId: record.recordId }))!.activeAttemptId).toBe(record.activeAttemptId);
     expect(await db.collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "attempt-started" })).toBe(1);
@@ -178,8 +179,8 @@ test("a new account session retries pending work without reopening that visual",
   const { client, db, learner } = await fixture(page); let blocked = false;
   await page.route("**/api/visual-attempts/*/batches", route => blocked ? route.abort("internetdisconnected") : route.continue());
   try {
-    const dialog = await open(page), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status).toHaveText("Saved");
+    const dialog = await open(page), status = dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
     blocked = true; await dialog.getByRole("slider").focus(); await page.keyboard.press("ArrowRight"); await expect(status).toContainText("pending");
     blocked = false; await page.reload(); await page.getByRole("button", { name: "Open database review", exact: true }).click();
@@ -188,30 +189,36 @@ test("a new account session retries pending work without reopening that visual",
   } finally { await client.close(); }
 });
 
-test("Start New Attempt requires confirmation and double activation creates one retained attempt", async ({ page }) => {
+test("New requires confirmation and double activation creates one retained attempt", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
-    const dialog = await open(page), slider = dialog.getByRole("slider"), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(status).toHaveText("Saved");
+    const dialog = await open(page), slider = dialog.getByRole("slider");
+    await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
-    const button = dialog.getByRole("button", { name: "Start New Attempt", exact: true });
+    const button = dialog.getByRole("button", { name: "New", exact: true });
     page.once("dialog", async confirmation => { expect(confirmation.message()).toContain("history will be kept"); await confirmation.dismiss(); });
     await button.click(); await expect(slider).toHaveAttribute("aria-valuenow", "4");
     expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(1);
     await page.evaluate(() => { window.confirm = () => true; });
     await button.evaluate(element => { (element as HTMLButtonElement).click(); (element as HTMLButtonElement).click(); });
-    await expect(slider).toHaveAttribute("aria-valuenow", "3"); await expect(status).toHaveText("Saved");
+    await expect(slider).toHaveAttribute("aria-valuenow", "3"); await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const current = (await db.collection("visualRecords").findOne({ recordId: record.recordId }))!;
     expect(current.activeAttemptId).not.toBe(record.activeAttemptId);
     expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
     expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
     expect((await db.collection("visualAttempts").findOne({ attemptId: current.activeAttemptId }))!.snapshot.attemptNumber).toBe(2);
     expect(await db.collection("visualEvents").countDocuments({ attemptId: current.activeAttemptId, type: "attempt-started" })).toBe(1);
-    // Same Stage1 controls also fit the supported narrow multimedia host.
-    await page.setViewportSize({ width: 320, height: 568 });
-    const next = await dialog.getByRole("button", { name: "Next", exact: true }).boundingBox();
-    const start = await button.boundingBox();
-    expect(next!.x + next!.width).toBeLessThanOrEqual(308.1); expect(start!.x).toBeGreaterThanOrEqual(11.9);
+    for (const width of [320, 375, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      const header = dialog.locator("[data-visual-host-header]");
+      await expect.poll(async () => (await header.boundingBox())!.width).toBeLessThanOrEqual((width - 16) * .35 + .1);
+      const next = await dialog.getByRole("button", { name: "Next", exact: true }).boundingBox();
+      const start = await button.boundingBox(), close = await dialog.getByRole("button", { name: "Close interactive visual" }).boundingBox();
+      expect(next!.x + next!.width).toBeLessThanOrEqual(width - 7.9);
+      expect(start!.y).toBeCloseTo(close!.y, 1); expect(start!.x + start!.width).toBeLessThanOrEqual(close!.x);
+      expect(start!.width).toBeGreaterThanOrEqual(44); expect(close!.height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({ path: `/private/tmp/visual-ux-new-close-${width}.png` });
+    }
   } finally { await client.close(); }
 });
 
@@ -220,20 +227,20 @@ test("multiple confirmed offline attempts survive reload and register in order w
   await page.route("**/api/visual-**", route => offline ? route.abort("internetdisconnected") : route.continue());
   try {
     let dialog = await open(page), slider = dialog.getByRole("slider");
-    const status = () => dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status()).toHaveText("Saved");
+    const status = () => dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
     offline = true; await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(status()).toContainText("pending");
     for (let i = 0; i < 2; i++) {
       page.once("dialog", confirmation => confirmation.accept());
-      await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+      await dialog.getByRole("button", { name: "New", exact: true }).click();
       await expect(slider).toHaveAttribute("aria-valuenow", "3");
       await slider.focus(); await page.keyboard.press("ArrowRight"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
       await expect(status()).toContainText("pending");
     }
     dialog = await open(page); slider = dialog.getByRole("slider"); await expect(slider).toHaveAttribute("aria-valuenow", "4");
-    await expect(status()).not.toHaveText("Saved"); offline = false; await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect(status()).toHaveText("Saved");
+    await expect(dialog).not.toHaveAttribute("data-visual-save-status", "Saved"); offline = false; await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const attempts = await db.collection("visualAttempts").find({ recordId: record.recordId }).sort({ attemptNumber: 1 }).toArray();
     expect(attempts.map(a => a.attemptNumber)).toEqual([1, 2, 3]);
     expect(attempts.map(a => a.snapshot.state.root)).toEqual([4, 4, 4]);
@@ -249,11 +256,11 @@ test("a lost new-attempt command response retries identically after reload", asy
     if (!dropped) { dropped = true; await route.fetch(); await route.abort("connectionreset"); } else await route.continue();
   });
   try {
-    let dialog = await open(page); await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    let dialog = await open(page); await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     page.once("dialog", confirmation => confirmation.accept());
-    await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
-    await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toContainText("Waiting to reconnect");
-    dialog = await open(page); await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await dialog.getByRole("button", { name: "New", exact: true }).click();
+    await expect(dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]')).toContainText("Waiting to reconnect");
+    dialog = await open(page); await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     expect(commands.length).toBeGreaterThanOrEqual(2); expect(commands[0]).toBe(commands[1]);
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
     expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
@@ -264,12 +271,12 @@ test("a lost new-attempt command response retries identically after reload", asy
 test("a local transition failure cannot partially archive or replace the current attempt", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
-    const dialog = await open(page), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status).toHaveText("Saved");
+    const dialog = await open(page), status = dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
     await page.evaluate(() => { IDBObjectStore.prototype.put = () => { throw new DOMException("Injected transition quota", "QuotaExceededError"); }; });
     page.once("dialog", confirmation => confirmation.accept());
-    await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+    await dialog.getByRole("button", { name: "New", exact: true }).click();
     await expect(status).toContainText("Unable to start"); await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3");
     const count = await page.evaluate(() => new Promise<number>((resolve, reject) => {
       const request = indexedDB.open("switchplay-visual-learning-records");
@@ -289,18 +296,18 @@ for (const kind of ["version", "schema", "invalid-state"] as const) {
   test(`unsafe ${kind} restore preserves the historical attempt and requires confirmed recovery`, async ({ page }) => {
     const { client, db, learner } = await fixture(page);
     try {
-      let dialog = await open(page); await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+      let dialog = await open(page); await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
       const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
       const changes = kind === "version" ? { activityVersion: 0 } : kind === "schema" ? { snapshotSchema: 99 } : { snapshot: { cannotHydrate: true } };
       await db.collection("visualAttempts").updateOne({ attemptId: record.activeAttemptId }, { $set: changes });
       const before = await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId });
       dialog = await open(page); await expect(dialog.getByRole("slider")).toHaveCount(0);
       await expect(dialog.getByText(/saved attempt cannot be restored/)).toBeVisible();
-      page.once("dialog", confirmation => confirmation.dismiss()); await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+      page.once("dialog", confirmation => confirmation.dismiss()); await dialog.getByRole("button", { name: "New", exact: true }).click();
       expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(1);
-      page.once("dialog", confirmation => confirmation.accept()); await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
+      page.once("dialog", confirmation => confirmation.accept()); await dialog.getByRole("button", { name: "New", exact: true }).click();
       await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3");
-      await expect(dialog.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+      await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
       expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
       const historical = await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId });
       expect(historical!.snapshot).toEqual(before!.snapshot); expect(historical!.activityVersion).toBe(before!.activityVersion); expect(historical!.snapshotSchema).toBe(before!.snapshotSchema);
@@ -327,8 +334,8 @@ for (const kind of ["invalid-state", "version"] as const) {
     });
     try {
       let dialog = await open(page);
-      const status = () => dialog.locator("[data-visual-host-footer]").getByRole("status");
-      await expect(status()).toHaveText("Saved");
+      const status = () => dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+      await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
       const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
       offline = true; await dialog.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
       await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "4"); await expect(status()).toContainText("pending");
@@ -339,10 +346,10 @@ for (const kind of ["invalid-state", "version"] as const) {
       await expect(status()).toContainText("pending backup");
       await expect.poll(() => dropped).toBe(true);
       await expect.poll(() => db.collection("visualSnapshotCheckpoints").countDocuments({ attemptId: record.activeAttemptId, reason: "restore-recovery" })).toBe(1);
-      page.once("dialog", confirmation => confirmation.accept()); await dialog.getByRole("button", { name: "Start New Attempt", exact: true }).click();
-      await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); await expect(status()).not.toHaveText("Saved");
+      page.once("dialog", confirmation => confirmation.accept()); await dialog.getByRole("button", { name: "New", exact: true }).click();
+      await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); await expect(dialog).not.toHaveAttribute("data-visual-save-status", "Saved");
       allowBackupAck = true; dialog = await open(page);
-      await expect(status()).toHaveText("Saved");
+      await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
       expect(bodies.length).toBeGreaterThanOrEqual(2); expect(bodies.every(body => body === bodies[0])).toBe(true);
       expect(await db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(2);
       expect(await db.collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "root-placed" })).toBe(1);
@@ -358,16 +365,16 @@ for (const kind of ["invalid-state", "version"] as const) {
 test("emergency unavailability stops rendering and keeps the pending local change", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
-    const dialog = await open(page), status = dialog.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(status).toHaveText("Saved"); const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
+    const dialog = await open(page), status = dialog.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
+    await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved"); const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
     await page.route("**/api/visual-attempts/*/batches", route => route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ code: "VISUAL_UNAVAILABLE" }) }));
     await dialog.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
-    await expect(dialog.getByRole("alert")).toContainText("unavailable"); await expect(dialog.getByRole("slider")).toHaveCount(0);
+    await expect(dialog.locator("[data-visual-host-content]").getByRole("alert")).toContainText("unavailable"); await expect(dialog.getByRole("slider")).toHaveCount(0);
     await expect(status).toContainText("Pending work is kept on this device");
-    await expect(dialog.getByRole("button", { name: "Start New Attempt", exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
     expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(3);
     await dialog.getByRole("button", { name: "Close interactive visual" }).click();
-    await expect(page.getByRole("button", { name: "Open Roots and Factors", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ })).toBeFocused();
   } finally { await client.close(); }
 });
 
@@ -375,20 +382,20 @@ test("a visual render failure leaves the generic Close action and origin focus a
   await page.goto("/dev/interactive-visual-host");
   const trigger = page.getByRole("button", { name: "Open failing mock", exact: true }); await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Development failing mock", exact: true });
-  await expect(dialog.getByRole("alert")).toContainText("unavailable");
+  await expect(dialog.locator("[data-visual-host-content]").getByRole("alert")).toContainText("unavailable");
   await dialog.getByRole("button", { name: "Close interactive visual" }).click(); await expect(trigger).toBeFocused();
 });
 
 test("a stale browser tab cannot overwrite progress through the shared local outbox", async ({ page }) => {
   const { client, db, learner } = await fixture(page), other = await page.context().newPage();
   try {
-    const first = await open(page); await expect(first.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
-    const second = await open(other), secondStatus = second.locator("[data-visual-host-footer]").getByRole("status");
-    await expect(secondStatus).toHaveText("Saved");
+    const first = await open(page); await expect(first).toHaveAttribute("data-visual-save-status", "Saved");
+    const second = await open(other);
+    await expect(second).toHaveAttribute("data-visual-save-status", "Saved");
     await second.getByRole("slider").focus(); await other.keyboard.press("ArrowRight"); await other.keyboard.press("ArrowRight");
-    await expect(second.getByRole("slider")).toHaveAttribute("aria-valuenow", "5"); await expect(secondStatus).toHaveText("Saved");
+    await expect(second.getByRole("slider")).toHaveAttribute("aria-valuenow", "5"); await expect(second).toHaveAttribute("data-visual-save-status", "Saved");
     await first.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
-    await expect(first.locator("[data-visual-host-footer]").getByRole("status")).toContainText("Another tab changed");
+    await expect(first.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]')).toContainText("Another tab changed");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;
     expect((await db.collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(5);
     expect(await db.collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "root-placed" })).toBe(2);

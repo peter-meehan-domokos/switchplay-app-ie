@@ -9,10 +9,10 @@ test.afterAll(async () => { await client?.close(); });
 const db = () => client.db(process.env.MONGODB_DB!);
 async function open(page: Page) {
   await page.goto("/dev/interactive-visual-host"); await page.getByRole("button", { name: "Open guest database review", exact: true }).click();
-  const preview = page.getByRole("button", { name: "Open Roots and Factors", exact: true }); await expect(preview).toBeEnabled(); await preview.click();
+  const preview = page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }); await expect(preview).toBeEnabled(); await preview.click();
   const host = page.getByRole("dialog", { name: "Roots and Factors", exact: true }); await expect(host).toBeVisible(); return host;
 }
-const status = (page: Page) => page.locator("[data-visual-host-footer]").getByRole("status");
+const status = (page: Page) => page.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
 async function identity(page: Page) {
   const cookie = (await page.context().cookies()).find(cookie => cookie.name === "switchplay_visual_guest")!;
   expect(cookie).toBeTruthy(); expect(cookie.httpOnly).toBe(true); expect(cookie.path).toBe("/"); expect(cookie.sameSite).toBe("Lax");
@@ -23,24 +23,24 @@ test("anonymous browser uses the common DB and IndexedDB pipeline through offlin
   const userCount = await db().collection("users").countDocuments(); let offline = false;
   const accountRecordsBefore = await db().collection("visualRecords").find({ principalKey: `account:${process.env.PHASE2_USER_ID}` }).sort({ recordId: 1 }).toArray();
   await page.route("**/api/visual-attempts/*/batches", route => offline ? route.abort("internetdisconnected") : route.continue());
-  let host = await open(page); await expect(status(page)).toHaveText("Saved");
+  let host = await open(page); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   const { learner, cookie, guestId } = await identity(page);
   expect(await page.evaluate(() => document.cookie)).not.toContain(cookie.name);
   const credential = (await db().collection(VISUAL_GUEST_COLLECTION).findOne({ guestId }))!;
   expect(credential.credentialHash).toMatch(/^[a-f0-9]{64}$/); expect(JSON.stringify(credential)).not.toContain(cookie.value.split(".")[1]);
-  await host.getByRole("slider").focus(); await page.keyboard.press("ArrowRight"); await expect(status(page)).toHaveText("Saved");
+  await host.getByRole("slider").focus(); await page.keyboard.press("ArrowRight"); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   const record = (await db().collection("visualRecords").findOne({ principalKey: learner }))!;
   offline = true; await host.getByRole("slider").focus(); await page.keyboard.press("ArrowRight"); await expect(status(page)).toContainText("pending");
-  host = await open(page); await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "5"); await expect(status(page)).not.toHaveText("Saved");
+  host = await open(page); await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "5"); await expect(page.locator("dialog[data-visual-save-status]")).not.toHaveAttribute("data-visual-save-status", "Saved");
   expect((await identity(page)).learner).toBe(learner);
-  offline = false; await page.evaluate(() => window.dispatchEvent(new Event("online"))); await expect(status(page)).toHaveText("Saved");
+  offline = false; await page.evaluate(() => window.dispatchEvent(new Event("online"))); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   expect((await db().collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(5);
   expect(await db().collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "attempt-started" })).toBe(1);
   expect(await db().collection("visualEvents").countDocuments({ attemptId: record.activeAttemptId, type: "root-placed" })).toBe(2);
   // Login does not implicitly retarget an explicit guest outbox. S15 claims it.
   expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).ok()).toBe(true);
   await host.getByRole("slider").focus(); await page.keyboard.press("ArrowLeft"); await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "4");
-  await expect(status(page)).toHaveText("Saved");
+  await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   await expect.poll(async () => (await db().collection("visualAttempts").findOne({ attemptId: record.activeAttemptId }))!.snapshot.state.root).toBe(4);
   expect(await db().collection("visualRecords").find({ principalKey: `account:${process.env.PHASE2_USER_ID}` }).sort({ recordId: 1 }).toArray()).toEqual(accountRecordsBefore);
   expect(await db().collection("users").countDocuments()).toBe(userCount);
@@ -49,7 +49,7 @@ test("anonymous browser uses the common DB and IndexedDB pipeline through offlin
 });
 
 test("guessed guest or attempt IDs and forged credentials grant no access; guest Card contexts remain denied", async ({ page, browser }) => {
-  await open(page); await expect(status(page)).toHaveText("Saved"); const { learner, cookie } = await identity(page);
+  await open(page); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved"); const { learner, cookie } = await identity(page);
   const record = (await db().collection("visualRecords").findOne({ principalKey: learner }))!;
   const other = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL });
   try {
@@ -65,7 +65,7 @@ test("guessed guest or attempt IDs and forged credentials grant no access; guest
 });
 
 test("expired guest cookies clear without deleting prior histories or silently recovering them under a new principal", async ({ page }) => {
-  await open(page); await expect(status(page)).toHaveText("Saved"); const { learner, guestId } = await identity(page);
+  await open(page); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved"); const { learner, guestId } = await identity(page);
   const record = (await db().collection("visualRecords").findOne({ principalKey: learner }))!;
   await db().collection(VISUAL_GUEST_COLLECTION).updateOne({ guestId }, { $set: { expiresAt: new Date(0) } });
   const response = await page.request.post("/api/visual-guests/session", { headers: { Origin: process.env.PHASE2_BASE_URL! }, data: { activityId: "roots-and-factors" } });

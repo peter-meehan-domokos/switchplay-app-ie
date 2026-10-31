@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
-import type { HostedVisualProps, VisualHostControls } from "@/app/step-visuals/core/host";
+import type { HostedVisualProps, VisualContentDimensions, VisualHostControls } from "@/app/step-visuals/core/host";
 import type { OpenVisual, VisualPersistence } from "@/lib/interactiveVisuals/persistence";
 import { buildInteractiveVisualHostLayout } from "./interactiveVisualHostLayout";
 import styles from "./InteractiveVisualHost.module.css";
@@ -15,7 +15,8 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   onSignIn?: (opened: OpenVisual) => Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null), content = useRef<HTMLDivElement>(null), close = useRef<HTMLButtonElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const topRight = useRef<HTMLElement>(null), bottomRight = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState<VisualContentDimensions>({ width: 0, height: 0 });
   const [controls, setControls] = useState<VisualHostControls | null>(null);
   const [status, setStatus] = useState(persistence.statusLabel);
   const [active, setActive] = useState(opened), [creating, setCreating] = useState(false);
@@ -36,12 +37,19 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   }, [returnFocus]);
   useLayoutEffect(() => {
     const measure = () => {
+      const viewport = window.visualViewport, element = dialog.current!;
+      element.style.setProperty("--visual-viewport-height", `${viewport?.height ?? window.innerHeight}px`);
+      element.style.setProperty("--visual-viewport-width", `${viewport?.width ?? window.innerWidth}px`);
+      element.style.setProperty("--visual-viewport-top", `${viewport?.offsetTop ?? 0}px`);
+      element.style.setProperty("--visual-viewport-left", `${viewport?.offsetLeft ?? 0}px`);
       const rect = content.current!.getBoundingClientRect();
-      setDimensions((previous) => previous.width === rect.width && previous.height === rect.height ? previous : { width: rect.width, height: rect.height });
+      const region = (node: HTMLElement) => { const box = node.getBoundingClientRect(); return { x: box.x - rect.x, y: box.y - rect.y, width: box.width, height: box.height }; };
+      const next = { width: rect.width, height: rect.height, reservedCorners: { topRight: region(topRight.current!), bottomRight: region(bottomRight.current!) } };
+      setDimensions(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     };
-    const observer = new ResizeObserver(measure); observer.observe(content.current!); measure();
-    window.visualViewport?.addEventListener("resize", measure);
-    return () => { observer.disconnect(); window.visualViewport?.removeEventListener("resize", measure); };
+    const observer = new ResizeObserver(measure); [content.current!, topRight.current!, bottomRight.current!].forEach(node => observer.observe(node)); measure();
+    window.addEventListener("resize", measure); window.visualViewport?.addEventListener("resize", measure); window.visualViewport?.addEventListener("scroll", measure);
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("resize", measure); window.visualViewport?.removeEventListener("scroll", measure); };
   }, []);
   const onChange = useCallback<HostedVisualProps["onChange"]>(async (snapshot, events) => {
     try { await persistence.save(active, snapshot, events); if (!persistence.subscribe) setStatus(persistence.statusLabel); }
@@ -49,28 +57,26 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   }, [active, persistence]);
   const startNewAttempt = useCallback(async () => {
     if (creatingRef.current || unavailable || (!recovery && (!controls?.atStart || controls.canStartNewAttempt === false)) || !persistence.startNewAttempt) return;
-    if (!window.confirm("Start a new attempt? Your current attempt and its history will be kept.")) return;
+    if (!window.confirm("Start a new attempt? All previous attempts, answers and learning history will be kept.")) return;
     creatingRef.current = true; setCreating(true);
     try { const next = await persistence.startNewAttempt(active); setControls(null); setStatus(persistence.statusLabel); setRenderFailed(false); setActive(next); close.current?.focus({ preventScroll: true }); }
     catch { setStatus("Unable to start a new attempt. Your current work is kept."); }
     finally { creatingRef.current = false; setCreating(false); }
   }, [controls, persistence, active, recovery, unavailable]);
   const layout = buildInteractiveVisualHostLayout(title, unavailable || recovery ? null : controls, status, !!persistence.startNewAttempt);
-  return createPortal(<dialog ref={dialog} className={styles.dialog} aria-label={layout.title} aria-modal="true"
-    onCancel={(event) => { event.preventDefault(); if (!signingIn) closeHost(); }} onClick={(event) => event.stopPropagation()}
+  const notice = layout.status === "Saved" || layout.status === "Development session only" ? null : layout.status;
+  const warning = !!notice && /fail|conflict|not safely|unavailable|unable|stopped|offline|reconnect/i.test(notice);
+  const showNew = !unavailable && !!persistence.startNewAttempt && (recovery || layout.showStartNewAttempt && controls?.canStartNewAttempt !== false);
+  return createPortal(<dialog ref={dialog} className={styles.dialog} aria-label={layout.title} aria-modal="true" data-visual-save-status={layout.status}
+    onCancel={(event) => { event.preventDefault(); closeHost(); }} onClick={(event) => event.stopPropagation()}
     onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()}
     onKeyDown={(event) => event.stopPropagation()}>
     <motion.div className={styles.shell} initial={reduced ? false : { x: "100%" }} animate={{ x: 0 }} transition={{ duration: .2 }}>
-      <header className={styles.header} data-visual-host-header="">
-        <h2>{layout.title}</h2>
-        {onSignIn && !unavailable && (controls?.hasMeaningfulProgress || controls?.completed) ? <button type="button" disabled={signingIn || creating}
-          aria-label="Sign in to keep progress across devices" onClick={() => {
-            setSigningIn(true); setSignInFailed(false);
-            void onSignIn(active).catch(() => { setSignInFailed(true); setSigningIn(false); });
-          }} aria-busy={signingIn}>Sign in</button> : null}
-        <button ref={close} type="button" disabled={signingIn} onClick={closeHost} aria-label="Close interactive visual">Close</button>
-        {signInFailed ? <p className={styles.signInError} role="status">Unable to open sign in. Your work is kept.</p> : null}
-      </header>
+      <h2 className={styles.srOnly}>{layout.title}</h2>
+      <nav ref={topRight} className={`${styles.corner} ${styles.topRight}`} data-visual-host-header="" aria-label="Attempt and close controls">
+        {showNew ? <button type="button" disabled={creating || signingIn || persistence.canStartNewAttempt?.(active.attemptId) === false} onClick={() => { void startNewAttempt(); }}>New</button> : null}
+        <button ref={close} type="button" onClick={closeHost} aria-label="Close interactive visual">Close</button>
+      </nav>
       <div ref={content} className={styles.content} data-visual-host-content="" data-visual-stage={layout.stageId} inert={creating || signingIn || undefined}>
         {unavailable ? <p role="alert">Interactive visual unavailable. Your saved work is kept.</p> : recovery ?
           <p role="status">This saved attempt cannot be restored. Its history is kept. You can start a new attempt to continue.</p> :
@@ -80,13 +86,20 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
             </Suspense>
           </VisualRenderBoundary>}
       </div>
-      <footer className={styles.footer} data-visual-host-footer="">
-        {layout.previous ? <button className={styles.previous} type="button" disabled={creating || signingIn || !layout.previous.enabled} onClick={layout.previous.run}>Previous</button> : null}
-        {layout.backToStart ? <button type="button" disabled={signingIn} onClick={layout.backToStart}>Back to Start</button> : null}
-        {!unavailable && (recovery && persistence.startNewAttempt || layout.showStartNewAttempt) ? <button type="button" disabled={creating || signingIn || !recovery && controls?.canStartNewAttempt === false || persistence.canStartNewAttempt?.(active.attemptId) === false} onClick={() => { void startNewAttempt(); }}>Start New Attempt</button> : null}
-        <p className={styles.status} role="status">{layout.status}</p>
-        {layout.next ? <button className={styles.next} type="button" disabled={creating || signingIn || !layout.next.enabled} onClick={layout.next.run}>{layout.next.label ?? "Next"}</button> : null}
-      </footer>
+      <div ref={bottomRight} className={`${styles.corner} ${styles.bottomRight}`} data-visual-host-footer="">
+        {onSignIn && !unavailable && (controls?.hasMeaningfulProgress || controls?.completed) ? <button type="button" disabled={signingIn || creating}
+          aria-label="Sign in to keep progress across devices" onClick={() => {
+            setSigningIn(true); setSignInFailed(false);
+            void onSignIn(active).catch(() => { setSignInFailed(true); setSigningIn(false); });
+          }} aria-busy={signingIn}>Sign in</button> : null}
+        {signInFailed ? <p className={`${styles.status} ${styles.warning}`} role="alert">Unable to open sign in. Your work is kept.</p> : null}
+        {notice ? <p className={`${styles.status}${warning ? ` ${styles.warning}` : ""}`} role={warning ? "alert" : "status"}>{notice}</p> : null}
+        <nav className={styles.navigation} aria-label="Stage navigation">
+          {layout.previous ? <button type="button" disabled={creating || signingIn || !layout.previous.enabled} onClick={layout.previous.run}>Back</button> : null}
+          {layout.backToStart ? <button type="button" disabled={creating || signingIn} onClick={layout.backToStart}>Restart</button>
+            : layout.next ? <button type="button" disabled={creating || signingIn || !layout.next.enabled} onClick={layout.next.run}>{layout.next.label ?? "Next"}</button> : null}
+        </nav>
+      </div>
     </motion.div>
   </dialog>, document.body);
 }

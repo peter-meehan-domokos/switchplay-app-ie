@@ -152,7 +152,7 @@ export default function StepView({
   const mediaSurface = <div
     id={mediaTabs ? mediaPanelId : undefined} role={mediaTabs ? "tabpanel" : undefined}
     aria-labelledby={mediaTabs ? `${mediaPanelId}-tab-${mediaTabIndex}` : undefined}
-    className={`${videoPlaceholderClassName}${mediaPreview ? ` ${styles.mediaPreview}` : ""}`}
+    className={`${videoPlaceholderClassName}${mediaPreview ? ` ${styles.mediaPreview}` : ""}${selectedMedia?.kind === "activity" ? ` ${styles.interactiveThumbnail}` : ""}`}
     onClick={stopStepViewPropagation} onPointerDown={stopStepViewPropagation} onPointerMove={stopStepViewPropagation}
     onPointerUp={stopStepViewPropagation} onPointerCancel={stopStepViewPropagation}>
     {activity ?? mediaPreview ?? renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost, selectedMedia)}

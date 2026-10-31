@@ -32,12 +32,12 @@ async function fixture() {
 async function login(page: Page, username: string) { expect((await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } })).ok()).toBe(true); }
 async function open(page: Page, guest = false) {
   await page.goto("/dev/interactive-visual-host"); await page.getByRole("button", { name: guest ? "Open guest database review" : "Open database review", exact: true }).click();
-  await page.getByRole("button", { name: "Open Roots and Factors", exact: true }).click(); return page.getByRole("dialog", { name: "Roots and Factors", exact: true });
+  await page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }).click(); return page.getByRole("dialog", { name: "Roots and Factors", exact: true });
 }
-const status = (page: Page) => page.locator("[data-visual-host-footer]").getByRole("status");
+const status = (page: Page) => page.locator('[data-visual-host-footer] [role="status"], [data-visual-host-footer] [role="alert"]');
 async function inject(page: Page) { await page.addScriptTag({ content: bundle }); }
 async function menu(page: Page) { await page.goto("/dev/interactive-visual-host"); await inject(page); }
-async function newAttempt(page: Page) { page.once("dialog", dialog => dialog.accept()); await page.getByRole("button", { name: "Start New Attempt", exact: true }).click(); await expect(page.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); }
+async function newAttempt(page: Page) { page.once("dialog", dialog => dialog.accept()); await page.getByRole("button", { name: "New", exact: true }).click(); await expect(page.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); }
 async function changeRoot(page: Page, count = 1) { await page.getByRole("slider").focus(); for (let i = 0; i < count; i++) await page.keyboard.press("ArrowRight"); }
 async function guestLearner(page: Page) { return `guest:${(await page.context().cookies()).find(cookie => cookie.name === "switchplay_visual_guest")!.value.split(".")[0]}`; }
 async function rows(page: Page, learner: string) { return page.evaluate(learner => (window as unknown as Harness).claimRows(learner), learner); }
@@ -52,10 +52,10 @@ test("lost claim response reload preserves pending account history, multiple off
     return (actor === account.learner ? holdAccount : holdGuest) ? route.abort("internetdisconnected") : route.continue();
   });
   await page.route("**/api/visual-guests/claim", async route => { if (!dropped) { dropped = true; await route.fetch(); await route.abort("connectionreset"); } else await route.continue(); });
-  await open(page); await expect(status(page)).toHaveText("Saved"); holdAccount = true; await changeRoot(page, 2); await expect(status(page)).toContainText("pending");
+  await open(page); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved"); holdAccount = true; await changeRoot(page, 2); await expect(status(page)).toContainText("pending");
   await inject(page); await expect.poll(async () => (await rows(page, account.learner)).some(row => !!row.flight)).toBe(true);
   const pending = (await rows(page, account.learner)).find(row => row.key === `${account.learner}|roots-and-factors`)!;
-  await page.request.post("/api/auth/logout"); await open(page, true); await expect(status(page)).toHaveText("Saved");
+  await page.request.post("/api/auth/logout"); await open(page, true); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   const guest = await guestLearner(page); holdGuest = true; await changeRoot(page);
   await newAttempt(page); await changeRoot(page); await newAttempt(page); await changeRoot(page); await expect(status(page)).toContainText("pending");
   await menu(page); const before = await rows(page, guest), current = before.find(row => row.key === `${guest}|roots-and-factors`)!;
@@ -71,7 +71,7 @@ test("lost claim response reload preserves pending account history, multiple off
   const moved = await rows(page, account.learner), active = moved.find(row => row.key === `${account.learner}|roots-and-factors`)!;
   expect(active.session.attemptId).toBe(current.session.attemptId); expect(active.session.attemptNumber).toBe(3); expect(active.session.nextAttemptNumber).toBe(5);
   expect(moved.find(row => row.session.attemptId === pending.session.attemptId)!.flight).toEqual(pending.flight);
-  await open(page); await expect(page.getByRole("slider")).toHaveAttribute("aria-valuenow", "4"); await expect(status(page)).toHaveText("Saved");
+  await open(page); await expect(page.getByRole("slider")).toHaveAttribute("aria-valuenow", "4"); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   holdAccount = false; await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect.poll(async () => (await db().collection("visualAttempts").findOne({ attemptId: pending.session.attemptId }))!.snapshot.state.root).toBe(5);
   const root = (await db().collection("visualRecords").findOne({ principalKey: account.learner }))!;
@@ -83,10 +83,10 @@ test("lost claim response reload preserves pending account history, multiple off
 test("already-confirmed offline account attempts register before claim changes the merged allocation", async ({ page }) => {
   const account = await fixture(); await login(page, account.username); let held = false;
   await page.route("**/api/visual-attempts/*/batches", route => held && route.request().headers()["x-visual-learner"] === account.learner ? route.abort("internetdisconnected") : route.continue());
-  await open(page); await expect(status(page)).toHaveText("Saved"); held = true; await changeRoot(page);
+  await open(page); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved"); held = true; await changeRoot(page);
   await newAttempt(page); await changeRoot(page); await newAttempt(page); await changeRoot(page); await expect(status(page)).toContainText("pending");
   await menu(page); const accountRows = await rows(page, account.learner); expect(accountRows).toHaveLength(3); expect(accountRows.filter(row => row.command)).toHaveLength(2);
-  await page.request.post("/api/auth/logout"); await open(page, true); await changeRoot(page); await expect(status(page)).toHaveText("Saved");
+  await page.request.post("/api/auth/logout"); await open(page, true); await changeRoot(page); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved");
   const guest = await guestLearner(page); await menu(page); const journal = await remember(page, guest); await login(page, account.username); held = false;
   const installed = await complete(page, journal.claimId, account.learner); expect(installed.phase).toBe("installed");
   const root = (await db().collection("visualRecords").findOne({ principalKey: account.learner }))!; expect(root.attemptCount).toBe(4); expect(root.activeAttemptId).toBe(journal.foregroundAttemptId);
@@ -101,7 +101,7 @@ test("pending guest saves and a failed durable journal both stop before server c
   const account = await fixture(); let held = false, claims = 0;
   await page.route("**/api/visual-attempts/*/batches", route => held ? route.abort("internetdisconnected") : route.continue());
   await page.route("**/api/visual-guests/claim", route => { claims++; return route.continue(); });
-  await open(page, true); await expect(status(page)).toHaveText("Saved"); const guest = await guestLearner(page); held = true; await changeRoot(page); await expect(status(page)).toContainText("pending");
+  await open(page, true); await expect(page.locator("dialog[data-visual-save-status]")).toHaveAttribute("data-visual-save-status", "Saved"); const guest = await guestLearner(page); held = true; await changeRoot(page); await expect(status(page)).toContainText("pending");
   await menu(page); const journal = await remember(page, guest); await login(page, account.username);
   const tryClaim = () => page.evaluate(async ([id, learner]) => { try { await (window as unknown as Harness).completeClaim(id, learner); return "unexpected success"; } catch (error) { return String(error); } }, [journal.claimId, account.learner]);
   expect(await tryClaim()).toContain("PENDING_WORK"); expect(claims).toBe(0);

@@ -8,6 +8,7 @@ export function createDevelopmentVisualPersistence(): VisualPersistence {
   const guard = () => { if (process.env.NODE_ENV === "production") throw new Error("Development persistence is unavailable."); };
   return {
     statusLabel: "Development session only",
+    async hasAttempt(activityId) { guard(); return attempts.has(activityId); },
     async open(activityId) {
       guard();
       const previous = attempts.get(activityId);

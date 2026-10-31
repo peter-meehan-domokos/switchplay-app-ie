@@ -19,10 +19,10 @@ test("real claim endpoint retains account history, restores foreground guest and
         clientOccurredAt: new Date().toISOString(), activityVersion: 1, eventSchema: 1, type: event.type, payload: event })) });
     expect(accepted.snapshotAccepted).toBe(true);
     await page.goto("/dev/interactive-visual-host"); await page.getByRole("button", { name: "Open guest database review", exact: true }).click();
-    await page.getByRole("button", { name: "Open Roots and Factors", exact: true }).click();
+    await page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }).click();
     let host = page.getByRole("dialog", { name: "Roots and Factors", exact: true });
     await host.getByRole("slider").focus(); await page.keyboard.press("ArrowRight");
-    await expect(host.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    await expect(host).toHaveAttribute("data-visual-save-status", "Saved");
     const cookie = (await page.context().cookies()).find(cookie => cookie.name === "switchplay_visual_guest")!, guestLearner = `guest:${cookie.value.split(".")[0]}`;
     const guestRoot = (await repo.records().findOne({ principalKey: guestLearner }))!, foreground = guestRoot.activeAttemptId;
     const payload = { claimId: randomUUID(), foregroundAttemptId: foreground }, headers = { Origin: process.env.PHASE2_BASE_URL!, "X-Visual-Learner": `account:${account.id}` };
@@ -38,10 +38,10 @@ test("real claim endpoint retains account history, restores foreground guest and
     expect((await page.request.get(`/api/visual-records/${guestRoot.recordId}/current`, { headers: { "X-Visual-Learner": guestLearner } })).status()).toBe(401);
     // S15a proves the real account pipeline. S15b separately migrates local queues.
     await page.goto("/dev/interactive-visual-host"); await page.getByRole("button", { name: "Open database review", exact: true }).click();
-    await page.getByRole("button", { name: "Open Roots and Factors", exact: true }).click(); host = page.getByRole("dialog", { name: "Roots and Factors", exact: true });
+    await page.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }).click(); host = page.getByRole("dialog", { name: "Roots and Factors", exact: true });
     await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "4");
-    page.once("dialog", dialog => dialog.accept()); await host.getByRole("button", { name: "Start New Attempt", exact: true }).click();
-    await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); await expect(host.locator("[data-visual-host-footer]").getByRole("status")).toHaveText("Saved");
+    page.once("dialog", dialog => dialog.accept()); await host.getByRole("button", { name: "New", exact: true }).click();
+    await expect(host.getByRole("slider")).toHaveAttribute("aria-valuenow", "3"); await expect(host).toHaveAttribute("data-visual-save-status", "Saved");
     const next = await repo.current(account, existing.record.recordId); expect(next.attempt.attemptNumber).toBe(3); expect(next.attempt.attemptId).not.toBe(foreground);
     expect(await repo.attempts().countDocuments({ recordId: existing.record.recordId })).toBe(3);
     expect(await repo.events().countDocuments({ attemptId: foreground, type: "attempt-started" })).toBe(1);

@@ -70,6 +70,13 @@ export function createVisualApi(deps: VisualApiDependencies) {
     }
   }
   return {
+    existing: (request: Request) => boundary(request, async (actor, repo) => {
+      const query = new URL(request.url).searchParams;
+      requireVisual([...query.keys()].every(key => key === "activityId") && query.getAll("activityId").length === 1, "INVALID_VISUAL_QUERY");
+      const activityId = query.get("activityId")!;
+      requireVisual(!!resolveInteractiveVisual(activityId), "VISUAL_UNAVAILABLE");
+      return { hasAttempt: await repo.hasAttempt(actor, activityId) };
+    }),
     open: (request: Request) => boundary(request, async (actor, repo) => {
       const body = await readVisualJson(request, 8192);
       requireVisual(recordObject(body) && exactFields(body, ["activityId", "visitId", "source"]), "INVALID_VISUAL_OPEN");
