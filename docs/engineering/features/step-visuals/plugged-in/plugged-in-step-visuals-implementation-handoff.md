@@ -10,6 +10,14 @@ Verification: six complete pointer/touch journeys passed in Chromium/WebKit at37
 
 Commit subject: `Fix hosted Roots Check sizing`. New regression: `tests/roots-container.spec.ts`. Existing review processes/ports were preserved; no push, merge or deployment. Pre-existing uncommitted audit/preflight and recovery-test changes are excluded from this commit.
 
+## Authenticated trial preparation — 31 October 2026
+
+See [trial preflight](interactive-visuals-trial-preflight.md), following the [production-readiness audit](interactive-visuals-production-readiness-audit.md). Application HEAD remains `774fabb`; no runtime change or commit in this preparation task. Exact-HEAD isolated Webpack production build/TypeScript and seven anonymous/static production-start checks passed. Offline production configuration rejection/acceptance test passed;23 focused pure tests passed; two corrected recovery browser cases passed against a new disposable replica set. The test-only correction inspects internal recovery status and absence of routine wording in the footer instead of requiring the removed pending-backup notification.
+
+New evidence requiring separate runtime approval: Roots retrieval Check is below the viewport in Chromium/WebKit at320×568,375×667,390×844,430×932 and900×1100 (at390×844: top856,bottom900); ordinary touch fails. Fix belongs to the Roots-owned container-sizing contract, not the host. A real-client recovery503 diagnostic also confirms the routine restoration label masks its transport warning while retaining pending work; local save-storage failure remains visible. Do not certify both-visual completion/recovery feedback until the narrow proposed fixes and device check pass. Neither issue was fixed here.
+
+Next step: owner selects/authorises a new persistent loopback replica set or private HTTPS/isolated Atlas target, target read inspection followed by reviewed missing-index provisioning, and three ordinary trial accounts/UI acceptance writes. No approved persistent target established; existing `.env.local` passes the production DB guard but is not a trial authorisation and was never connected. All17 required visual indexes remain mandatory; no historical Card migration. Existing phone-review processes/progress and other worktrees were preserved. Preflight contains exact configuration, operator procedure, acceptance steps, measured blockers and requested permissions. No deployment, provider change, shared/live DB operation, push or merge.
+
 ## Baseline and authority
 
 - Worktree: `/Users/peterdomokos/projects/step-visuals`.
