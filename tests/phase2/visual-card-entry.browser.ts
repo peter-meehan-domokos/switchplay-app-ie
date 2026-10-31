@@ -83,3 +83,34 @@ test("canonical Card entry carries its actual deck version and creates no person
   expect(visit.source.mode).toBe("canonical"); expect(visit.source.deckId).toBe(deck.deckTemplateId); expect(visit.source.deckVersion).toBe(1);
   const after = await repo.getPersonalUser(actor); expect(after!.cardsData).toEqual(before!.cardsData); expect(after!.decksData).toEqual(before!.decksData);
 });
+
+test("real Card preview recovers failed status and opening requests without passive visits or duplicate attempts", async ({ page }) => {
+  const { repo, actor, deck, cards } = await fixture(page, true);
+  const counts = () => Promise.all([repo.db.collection("visualRecords").countDocuments(), repo.db.collection("visualAttempts").countDocuments(), repo.db.collection("visualVisits").countDocuments()]);
+  const before = await counts();
+  let failStatus = true, failOpen = true;
+  await page.route("**/api/visual-sessions/existing?**", route => failStatus
+    ? route.fulfill({ status: 503, json: { code: "VISUAL_REQUEST_FAILED" } }) : route.continue());
+  await page.route("**/api/visual-sessions/open", route => failOpen
+    ? route.fulfill({ status: 503, json: { code: "VISUAL_REQUEST_FAILED" } }) : route.continue());
+  await page.goto(`/decks?openDeck=${deck.deckTemplateId}&openCard=${cards[0].cardTemplateId}`); await focus(page);
+  await page.locator(".focused-card-surface--front .active-card-identity[role=button]").click();
+  const preview = page.locator("[data-interactive-visual-preview]");
+  await expect(preview).toHaveAccessibleName("Retry checking progress: Roots and Factors");
+  await expect(preview).toBeEnabled(); await expect(preview).not.toHaveAttribute("aria-busy", "true");
+  expect(await counts()).toEqual(before);
+  failStatus = false; await preview.click();
+  await expect(preview).toHaveAccessibleName(/^(Start|Continue): Roots and Factors$/);
+  expect(await counts()).toEqual(before);
+  await preview.click(); await expect(page.locator(".step-view-layer").getByRole("alert")).toContainText("Unable to open");
+  await expect(preview).toBeEnabled(); expect(await counts()).toEqual(before);
+  failOpen = false; await preview.click();
+  const host = page.getByRole("dialog", { name: "Roots and Factors", exact: true }); await expect(host).toBeVisible();
+  const record = (await repo.db.collection("visualRecords").findOne({ principalKey: `account:${actor}`, activityId: "roots-and-factors" }))!;
+  const attempts = await repo.db.collection("visualAttempts").countDocuments({ recordId: record.recordId });
+  await host.getByRole("button", { name: "Close interactive visual" }).click();
+  await expect(preview).toHaveAccessibleName("Continue: Roots and Factors"); await preview.click();
+  await expect(host).toBeVisible();
+  expect((await repo.db.collection("visualRecords").findOne({ recordId: record.recordId }))!.activeAttemptId).toBe(record.activeAttemptId);
+  expect(await repo.db.collection("visualAttempts").countDocuments({ recordId: record.recordId })).toBe(attempts);
+});
