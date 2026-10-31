@@ -20,6 +20,7 @@ import { shouldRecordPlaybackPause, type VideoPlaybackIntent } from "@/component
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { getCloudflareStreamHlsManifestUrl, getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import { isPhase2MockVideo, PHASE2_MOCK_VIDEO_NOTICE } from "@/lib/phase2MediaFixture";
+import { phase2VisualReviewMediaUrl } from "@/lib/phase2VisualReviewMedia";
 
 export type { VideoPlaybackIntent } from "@/components/media/videoPlaybackState";
 
@@ -353,7 +354,7 @@ const CloudflareHlsVideoPlayer = forwardRef<CloudflareHlsVideoPlayerHandle, Clou
         if (paintFrame !== null) cancelAnimationFrame(paintFrame);
       };
 
-      if (canPlayNativeHls(video)) {
+      if (phase2VisualReviewMediaUrl(nextMediaItem.assetId, "video") || canPlayNativeHls(video)) {
         video.src = nextManifestUrl;
         video.load();
       } else if (Hls.isSupported()) {

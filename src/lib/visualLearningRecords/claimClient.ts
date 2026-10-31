@@ -5,6 +5,7 @@ import { createVisualPersistence, type VisualPersistenceClient } from "./client"
 import { assertVisualClaimJournal, assertVisualClaimReceipt, type VisualClaimJournal } from "./claimOutbox";
 import { assertUuid, requireVisual } from "./contracts";
 import { hasPendingVisualWork, visualOutboxKey } from "./outbox";
+import { clientId } from "../clientId";
 
 export class VisualClaimTransportError extends Error {
   constructor(readonly status: number, readonly code: string) { super(code); }
@@ -20,7 +21,7 @@ export async function rememberVisualGuestClaim(input: { guestLearner: string; ac
     }
     requireVisual(existing.foregroundAttemptId === input.foregroundAttemptId && existing.activityId === input.activityId, "VISUAL_CLAIM_LOCAL_CONFLICT"); return existing;
   }
-  const journal: VisualClaimJournal = { ...input, claimId: crypto.randomUUID(), createdAt: new Date().toISOString(), phase: "awaiting-login" };
+  const journal: VisualClaimJournal = { ...input, claimId: clientId(), createdAt: new Date().toISOString(), phase: "awaiting-login" };
   assertVisualClaimJournal(journal); return store.writeClaim(journal);
 }
 

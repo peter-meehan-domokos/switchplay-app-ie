@@ -6,6 +6,7 @@ import { acknowledgeVisualBatch, acknowledgeVisualRecovery, enqueueVisualChange,
   type VisualOutbox, type VisualSession } from "./outbox";
 import { requireVisual } from "./contracts";
 import type { BatchAcknowledgement, RecoveryAcknowledgement } from "./model";
+import { clientId } from "../clientId";
 
 class VisualTransportError extends Error {
   constructor(readonly status: number, readonly code: string, readonly retryAfter = 0) { super(code); }
@@ -16,7 +17,7 @@ type Options = Readonly<{ learner: string; store?: VisualOutboxStore; fetch?: ty
 export const createVisualPersistence = createAccountVisualPersistence;
 export type VisualPersistenceClient = VisualPersistence & { dispose: () => void; settleLocal: () => Promise<void>; drain: () => Promise<void>; drainAttemptCommands: () => Promise<void> };
 export function createAccountVisualPersistence(options: Options): VisualPersistenceClient {
-  const store = options.store ?? createBrowserVisualStore(), send = options.fetch ?? fetch, uuid = options.uuid ?? (() => crypto.randomUUID());
+  const store = options.store ?? createBrowserVisualStore(), send = options.fetch ?? fetch, uuid = options.uuid ?? clientId;
   const keys = new Map<string, string>(), listeners = new Map<string, Set<(status: string) => void>>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>(), sending = new Map<string, Promise<void>>();
   const errors = new Map<string, string>(), dirtySince = new Map<string, number>(), failures = new Map<string, number>();
