@@ -1,9 +1,11 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import type { CompletionStatus } from "@/components/decks/types";
 
 type StepProgressStripProps = {
   completionStatus: CompletionStatus;
   onCycleStatus?: () => void;
+  layout?: "default" | "experience";
+  adornment?: ReactNode;
 };
 
 const progressByStatus: Record<StepProgressStripProps["completionStatus"], number> = {
@@ -13,10 +15,10 @@ const progressByStatus: Record<StepProgressStripProps["completionStatus"], numbe
   todo: 0,
 };
 
-export default function StepProgressStrip({ completionStatus, onCycleStatus }: StepProgressStripProps) {
+export default function StepProgressStrip({ completionStatus, onCycleStatus, layout = "default", adornment }: StepProgressStripProps) {
   const strip = (
     <span
-      className={`step-progress-strip step-progress-strip--${completionStatus}`}
+      className={`step-progress-strip step-progress-strip--${completionStatus}${layout === "experience" ? " step-progress-strip--experience" : ""}`}
       aria-hidden={onCycleStatus ? true : undefined}
       aria-label={onCycleStatus ? undefined : `Step progress: ${completionStatus}`}
     >
@@ -27,23 +29,28 @@ export default function StepProgressStrip({ completionStatus, onCycleStatus }: S
     </span>
   );
 
-  if (!onCycleStatus) {
-    return strip;
-  }
-
   function handleCycleStatus(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
     onCycleStatus?.();
   }
 
-  return (
+  const control = onCycleStatus ? (
     <button
       type="button"
       className="step-progress-hit-area"
       onClick={handleCycleStatus}
       aria-label={`Update step progress. Current status: ${completionStatus}`}
     >
-      {strip}
+      {layout === "default" ? strip : null}
     </button>
-  );
+  ) : null;
+  if (layout === "experience") {
+    // Reproduce main's visual slot independently of edit authority. Counts are
+    // an annotation on the 3px bar, not a second flow item that resizes Steps.
+    // The real button remains separate so tapping counts cannot edit progress.
+    return <span className="step-progress-experience">{control}
+      <span className="step-progress-experience-anchor">{strip}{adornment}</span>
+    </span>;
+  }
+  return onCycleStatus ? control : strip;
 }

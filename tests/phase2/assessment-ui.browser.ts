@@ -182,7 +182,11 @@ test("connected assessments, actual fork publication, archived Framework summari
     await open(forkDeck.draft!.title!); await page.locator(".deck-card.is-active").press("Enter"); await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
     await back.getByRole("button", { name: "Open assessment history" }).click();
     await dialog(page).getByRole("button", { name: "Delete test 2026-10-16 from Adopted source title", exact: true }).click(); await dialog(page).getByRole("button", { name: "Confirm delete", exact: true }).click();
-    await dialog(page).getByRole("button", { name: "Close", exact: true }).click(); await page.reload();
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    // Reload restores the URL-selected Deck through its normal POST/open path.
+    // Finish that legitimate recency write before taking a read-only baseline.
+    const reopened = page.waitForResponse(response => new URL(response.url()).pathname === "/api/decks-data" && response.request().method() === "POST");
+    await page.reload(); expect((await reopened).ok()).toBe(true);
     const retained = (await read<{ history: AssessmentHistory }>(historyUrl)).history;
     expect(retained.results).toHaveLength(2); expect(retained.results.some((result) => result.id === sourceEvent.id)).toBe(false);
     expect((await f.repo.getPersonalUser(bob))!.cardsData.find((card) => card.cardTemplateId === sourceId)!.tests).toEqual([privateResult]);
@@ -255,8 +259,9 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
           scoreSize: cs.fontSize, dateSize: ds.fontSize, weight: Number(cs.fontWeight), controlWidth: control.width, controlHeight: control.height,
           noCollision: label.right < visibleControl.x && control.right < c.x && c.right < date.getBoundingClientRect().x };
       });
-      expect(appearance.centerOffset).toBeLessThan(1); expect(appearance.scoreColor).toBe(appearance.dateColor);
-      expect(appearance.scoreSize).toBe(appearance.dateSize); expect(appearance.weight).toBe(600);
+      expect(appearance.centerOffset).toBeLessThan(1); expect(appearance.scoreColor).toBe("rgb(174, 181, 193)");
+      expect(appearance.scoreSize).toBe("10.24px"); expect(appearance.weight).toBe(500);
+      expect(appearance.dateColor).toBe("rgba(255, 250, 240, 0.42)"); expect(appearance.dateSize).toBe("10.24px");
       expect(appearance.controlWidth, JSON.stringify(appearance)).toBeGreaterThanOrEqual(40); expect(appearance.controlHeight).toBeGreaterThanOrEqual(40); expect(appearance.noCollision).toBe(true);
       await expect(page.locator(".focused-card-surface--back .back-card-media-carousel-item")).toHaveCount(mediaCount);
       if (mediaCount) {

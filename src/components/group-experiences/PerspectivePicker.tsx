@@ -14,13 +14,13 @@ export const Identity = memo(function Identity({ choice }: { choice: Perspective
 }, (previous, next) => previous.choice.key === next.choice.key && previous.choice.name === next.choice.name && previous.choice.group === next.choice.group);
 export default function PerspectivePicker({ choices, selected, ownKey, canCompare, focused, disabled, onSelect, onCompare }: {
   choices: PerspectiveChoice[]; selected: string; ownKey?: string; canCompare: boolean; focused: boolean; disabled: boolean;
-  onSelect(choice: PerspectiveChoice): void; onCompare(): void;
+  onSelect(choice: PerspectiveChoice): void; onCompare(expanded: boolean): void;
 }) {
   const [open, setOpen] = useState(false), [all, setAll] = useState(false);
   const controlsId = useId();
   const current = choices.find(choice => choice.key === selected) ?? choices[0];
   const visible = all || !canCompare ? choices : choices.filter(choice => choice.group || choice.key === ownKey);
-  const close = () => { setOpen(false); setAll(false); };
+  const close = () => { setOpen(false); setAll(false); onCompare(false); };
   if (choices.length === 1) return <div className="group-picker"><div className="group-picker-current group-picker-static" title={current.name}><Identity choice={current}/></div></div>;
   return <div className="group-picker" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
     onKeyDown={event => { if (event.key === "Escape") { close(); event.stopPropagation(); } }}>
@@ -28,9 +28,11 @@ export default function PerspectivePicker({ choices, selected, ownKey, canCompar
     {open && !disabled ? <div className="group-perspective-list" id={controlsId} aria-label={all ? "All followers" : "Choose perspective"}>
       {visible.map((choice, index) => <button type="button" key={choice.key} title={choice.name} data-perspective-key={choice.key} autoFocus={index === 0}
         aria-pressed={choice.key === selected} onClick={() => { onSelect(choice); close(); }}><Identity choice={choice}/></button>)}
-      {canCompare && !all ? <button type="button" onClick={() => { if (focused) { close(); onCompare(); } else setAll(true); }}>All followers</button> : null}
+      {/* Keep comparison intent in the scene while the ordinary list is open,
+          so focusing its Card promotes the list directly into the existing grid. */}
+      {canCompare && !all ? <button type="button" onClick={() => { if (focused) close(); else setAll(true); onCompare(true); }}>All followers</button> : null}
     </div> : null}
     <button className="group-picker-current" type="button" title={current.name} aria-label={`Choose perspective, ${current.name}`}
-      aria-expanded={open && !disabled} aria-controls={controlsId} disabled={disabled} onClick={() => { setOpen(value => !value); setAll(false); }}><Identity choice={current}/></button>
+      aria-expanded={open && !disabled} aria-controls={controlsId} disabled={disabled} onClick={() => { setOpen(value => !value); setAll(false); onCompare(false); }}><Identity choice={current}/></button>
   </div>;
 }

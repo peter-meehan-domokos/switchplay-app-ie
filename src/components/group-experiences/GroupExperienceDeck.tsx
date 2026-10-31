@@ -89,6 +89,6 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack }: { a
       setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />
       : <PerspectivePicker choices={choices} selected={selectedKey} ownKey={boot.isFollower ? actor : undefined} canCompare={boot.canInspectFollowers}
-        focused={focused} disabled={!state.verified} onSelect={select} onCompare={() => setExpanded(true)} />}
+        focused={focused} disabled={!state.verified} onSelect={select} onCompare={setExpanded} />}
   </main>;
 }

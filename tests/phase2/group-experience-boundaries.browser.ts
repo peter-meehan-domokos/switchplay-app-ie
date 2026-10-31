@@ -51,8 +51,8 @@ test("group and own edits use separate APIs, retain private learning, and front 
   await page.reload(); await expect(page.locator(".group-picker-current")).toBeEnabled();
   await page.locator(".deck-card.is-active").focus(); await page.locator(".deck-card.is-active").press("Enter");
   const row = page.locator(".focused-card-surface--front .group-step-learning").first();
-  const inline = await row.evaluate(element => { const bar = element.querySelector(".step-progress-strip")!.getBoundingClientRect(), hitArea = element.querySelector(".step-progress-hit-area")!.getBoundingClientRect(), text = element.querySelector(".group-step-counts")!.getBoundingClientRect();
-    return { barRight: hitArea.right, textLeft: text.left, centreDifference: Math.abs(bar.y+bar.height/2-text.y-text.height/2) }; });
+  const inline = await row.evaluate(element => { const bar = element.querySelector(".step-progress-strip")!.getBoundingClientRect(), text = element.querySelector(".group-step-counts")!.getBoundingClientRect();
+    return { barRight: bar.right, textLeft: text.left, centreDifference: Math.abs(bar.y+bar.height/2-text.y-text.height/2) }; });
   expect(inline.textLeft).toBeGreaterThanOrEqual(inline.barRight); expect(inline.centreDifference).toBeLessThan(2);
   const saved = page.waitForResponse(response => response.url().endsWith("/group-learning") && response.request().method() === "PATCH", { timeout: 15_000 });
   await row.getByRole("button").click(); expect((await saved).status()).toBe(200);

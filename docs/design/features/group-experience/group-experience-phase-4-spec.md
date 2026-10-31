@@ -73,9 +73,11 @@ Accessibility, reduced motion, keyboard use, mobile browser viewport changes and
 
 In Group perspective, every one of the three Steps shows the existing editable group progress bar followed immediately on its right by follower counts on **one horizontal line**:
 
-`[existing progress bar]  3/11 doing · 2/11 done`
+`[existing progress bar]  3  2`
 
 Centre counts vertically with the bar. Count text is secondary/subdued and approximately the size of creator attribution text at the bottom of the Card. Preserve the bar's normal dimensions; do not introduce two lines or redesign it. Individual perspective uses that person's normal progress; only the owner receives editing affordances.
+
+The approved iPhone-review refinement uses a 24px visible bar column and an initial 6px gap to counts, with the same row geometry in ordinary and Focused views. Keep the effective 52×24px editable target clear of the counts, instructional content and neighbouring controls. Counts use the existing neutral metadata colour `#aeb5c1`, compact sizing and regular weight, without a separate opacity or decorative treatment. The gap remains subject to physical iPhone review.
 
 For each Step, consider active followers only:
 
@@ -85,7 +87,7 @@ For each Step, consider active followers only:
 - `skipped` contributes to neither numerator **nor denominator**. It is neutral, never doing/completed.
 - Malformed state must not be silently classified as skipped or unstarted.
 
-For 12 followers with 3 doing, 2 done, 1 skipped and 6 unstarted, display `3/11 doing · 2/11 done`. Exclude admin-only users; count dual-role followers once. Existing personal completion counts even if acquired before group assignment.
+For 12 followers with 3 doing, 2 done, 1 skipped and 6 unstarted, display `3  2`: doing first, done second. Keep the existing eligible denominator of 11 in calculations, but do not display denominators, words, dots, icons, tooltips or explanations. The compact neutral numbers remain in the existing non-flowing annotation 6px to the right of the bar; progress geometry, hit targets and Step spacing are locked. Exclude admin-only users; count dual-role followers once. Existing personal completion counts even if acquired before group assignment.
 
 With no followers or all followers skipped for the Step, hide that Step's follower counts entirely; retain its group progress bar. Denominators may differ between Steps. The same neutral rule must govern Group Experience Card/Deck follower aggregates; exact multi-Step category derivation is an engineering policy to specify explicitly and consistently with existing personal neutral semantics, not infer from rounded percentages.
 
@@ -95,16 +97,20 @@ Correct the earlier engineering statements/tests that equate all-skipped with co
 
 In Group perspective, replace the single central confidence value with a collectively centred pair: group confidence with superscript `G`, follower confidence with superscript `F`. Do not use verbose labels or disturb the original confidence area.
 
-The follower value is a mean of underlying valid signal readings, each equally weighted, rounded only at the final result. It is not a mean of per-person means. Exclude unset/null readings. With active followers but no relevant readings, show a dash for F; missing is not zero. With zero followers omit F altogether. Individual perspective displays only that individual's normal value. Skipped completion is not itself a reason to discard an otherwise valid confidence reading.
+For both personal and Group Cards, Card-level confidence uses neutral metadata `#aeb5c1` and weight 500, preserving the existing `0.8rem` font size, location and superscript arrangement. Back confidence must not vary according to assessment-indicator presence; retain the back's existing overall scale. No change to readings, calculations or editing is implied.
+
+The follower value is a mean of underlying valid signal readings, each equally weighted, rounded only at the final result. It is not a mean of per-person means. Exclude unset/null readings. Both Group Card G/F positions remain present, including with zero followers; a missing value uses a very thin, quiet horizontal placeholder rather than a prominent typographic dash. Missing is not zero. G/F superscripts are significantly quieter than the actual values. Individual perspective displays only that individual's normal value. Skipped completion is not itself a reason to discard an otherwise valid confidence reading.
+
+The approved clarification retains existing centring, the 12px inter-slot gap and each state's existing intrinsic width; do not introduce fixed-width slots to equalise different numeric/missing states. All four set/unset combinations retain their current layout footprints. Quiet missing marks are paint only; actual numeric colour, font size, weight and positions remain unchanged. This treatment applies only to Group Card pairs, not personal confidence or individual Step readings/dashes.
 
 ## P9. Card back
 
 Preserve the existing back layout, hierarchy and symmetry with the front.
 
 - Add the existing style of progress marker beside each of the three Step titles. These markers are always read-only; progress editing stays on the front.
-- Group: after each group marker show abbreviated doing/done counts, e.g. `[marker]  3 · 2`, without denominator or labels. Hide counts when the Step has no eligible followers.
+- Group: after the Step title show the same raw doing/done pair, followed by the existing marker, e.g. `Prepare  3  2  [marker]`. No denominator, words or punctuation. Hide counts when the Step has no eligible followers. Reordering must preserve title positions, heading heights, signal graphics/controls and the established back layout/scaling; do not compensate for conflicts with extra layout CSS.
 - Individual: only that person's marker; no aggregate counts.
-- Each group signal uses a corresponding G/F pair with the same missing-value rules as the front. Individual signals show individual values only. Group signal editing is admin-only; own signal editing is owner-only.
+- The Card-level G/F pair appears only in the top header. Do not add Step-level G/F numbers beside individual Step headings. This approved iPhone-review correction supersedes the earlier per-signal aggregate requirement. Retain Step titles, progress markers, compact doing/done counts, existing signal graphics and existing signal-editing interactions. Group signal editing is admin-only; own signal editing is owner-only. Compact progress counts use the same neutral metadata treatment as the front.
 - Group test indicators represent group-scoped tests. Personal test indicators/history are owner-only, including counts. Foreign payloads must not reveal their existence. Group assessment implementation and group-context assessment integration belong to Phase 5; do not present fake zero group test totals in Phase 4.
 
 ## P10. Owner-private content and source identity

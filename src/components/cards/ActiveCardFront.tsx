@@ -47,6 +47,7 @@ export default function ActiveCardFront({
         steps={card.steps}
         showPersonalProgress={!staticSelection && (hasPersonalCard(card) || isExperienceCard(card))}
         followerProgress={isExperienceCard(card) ? card.aggregates?.steps : undefined}
+        experienceProgress={isExperienceCard(card) && !staticSelection}
         linksEnabled={interactive}
         onCycleStepStatus={interactive && (hasPersonalCard(card) || isExperienceCard(card) && card.canWriteLearning) ? onCycleStepStatus : undefined}
         onOpenStepView={interactive ? onOpenStepView : undefined}

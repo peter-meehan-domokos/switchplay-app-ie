@@ -51,8 +51,8 @@ export default function CardSemanticAnchors({
         ) : showProgress ? <div className="completion-strip personal-layout-slot" aria-hidden="true" /> : null}
       </div>
       {showText && (personal || experience) ? <span className="card-confidence">
-        {experience && card.aggregates ? <ConfidencePair group={confidence} follower={card.aggregates.followers.confidence} activeTotal={card.aggregates.followers.activeTotal} />
-          : <span aria-label={confidence === null ? "Confidence not set" : `Confidence ${confidence} out of 10`}>{confidence ?? (experience ? "—" : null)}</span>}
+        {experience && card.aggregates ? <ConfidencePair groupCard group={confidence} follower={card.aggregates.followers.confidence} activeTotal={card.aggregates.followers.activeTotal} />
+          : <span aria-label={confidence === null ? "Confidence not set" : `Confidence ${confidence} out of 10`}>{confidence}</span>}
       </span> : null}
       {showText ? (
         <div className={`deck-card-date-shell${hasDate ? "" : " personal-date-slot"}`} aria-hidden={hasDate ? undefined : true}>

@@ -3,7 +3,6 @@ import { FocusedSignalRow, PassiveSignalRow } from "@/components/decks/BackCardF
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import StepProgressStrip from "@/components/cards/StepProgressStrip";
 import { signalReadingToNormalized } from "@/lib/signals";
-import ConfidencePair from "./ConfidencePair";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
 
 // Deliberately learning-only. Private reflection/media/Info sources and group
@@ -21,9 +20,9 @@ export default function GroupCardBack({ card, focused = false, onChange, onSigna
         const aggregate = card.aggregates?.steps.find(row => row.stepId === step.stepId);
         const signal = { id: step.stepId, title: step.title ?? `Step ${i + 1}`, value: reading === null ? 0 : signalReadingToNormalized(reading), reading, rawReading: reading,
           variant: (["recovery", "movement", "load"] as const)[i % 3], unit: null, order: "increasing" as const };
-        const heading = <span className="group-back-heading"><span>{signal.title}</span><StepProgressStrip completionStatus={step.completionStatus} />
-          {aggregate && aggregate.followers.eligibleTotal > 0 ? <span className="group-step-counts" aria-label={`${aggregate.followers.doing} doing, ${aggregate.followers.done} done`}>{aggregate.followers.doing} · {aggregate.followers.done}</span> : null}
-          <span className="group-back-confidence">{aggregate ? <ConfidencePair group={reading === null ? null : Math.round(reading)} follower={aggregate.followers.confidence} activeTotal={aggregate.followers.activeTotal} /> : reading === null ? "—" : Math.round(reading)}</span>
+        const heading = <span className="group-back-heading"><span>{signal.title}</span>
+          {aggregate && aggregate.followers.eligibleTotal > 0 ? <span className="group-step-counts" aria-label={`${aggregate.followers.doing} doing, ${aggregate.followers.done} done`}>{`${aggregate.followers.doing}\u00a0\u00a0${aggregate.followers.done}`}</span> : null}
+          <StepProgressStrip completionStatus={step.completionStatus} />
         </span>;
         // Keep the same SVG/row through perspective changes. Security identity
         // resets gesture preview independently; foreign rows have no handlers,
