@@ -1,8 +1,17 @@
 import { requireCondition } from "../cards/domain";
 import type { GroupExperience, GroupMember, PerspectiveSelection } from "./model";
+import { authorize } from "./authorization";
 
 export function canInspectPeers(experience: GroupExperience, viewer: GroupMember) {
   return viewer.isAdmin || viewer.followerStatus === "active" && experience.allowFollowerInspection === true;
+}
+// One server-derived capability projection for every Group viewer. This does
+// not replace endpoint authority checks or grant ownership of player results.
+export function groupCapabilities(experience: GroupExperience, viewer: GroupMember) {
+  authorize(viewer, "member");
+  requireCondition(viewer.experienceId === experience.experienceId, "GROUP_FORBIDDEN");
+  return { canInspectFollowers: canInspectPeers(experience, viewer), canViewConfidenceExtrema: viewer.isAdmin,
+    canManageGroupAssessments: viewer.isAdmin, canManageMembers: viewer.isAdmin };
 }
 // Peer visibility grants active learning only. It never grants private sources,
 // foreign writes, management roles or access to removed-follower snapshots.
