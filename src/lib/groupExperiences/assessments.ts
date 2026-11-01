@@ -108,30 +108,29 @@ export async function mutateGroupAssessment(repo: GroupExperienceRepository, act
   });
 }
 
-// Combined histories are current-scope only. The exact source list endpoints
-// above independently provide the approved retained Admin management rights.
-export async function readGroupAssessmentHistory(repo: GroupExperienceRepository, actor: string, experienceId: string, source: AssessmentSource,
-  frameworks: readonly Framework[] = getFrameworks()) {
-  return repo.transaction(async session => {
-    const context = await currentGroupAssessmentContext(repo, actor, experienceId, source, "member", session, frameworks);
-    const states = new Map<string, GroupCardState>();
-    const ids = context.assessmentCards.map(card => card.cardTemplateId);
-    for (let offset = 0; offset < ids.length; offset += 100) {
-      const rows = await repo.states().find({ experienceId, cardTemplateId: { $in: ids.slice(offset, offset + 100) } }, { session,
-        projection: { _id: 0, cardTemplateId: 1, tests: 1, testsRevision: 1 } }).toArray();
-      for (const row of rows) states.set(row.cardTemplateId, row);
-    }
-    const sources: AssessmentSource[] = context.assessmentCards.map(card => ({ kind: "card", cardTemplateId: card.cardTemplateId }));
-    if (source.kind === "item") sources.push(source);
+// Bounded source loading is shared by current Progress summaries and lazy history.
+// Callers supply authorised scope Cards; this helper never discovers wider scope.
+export async function groupAssessmentHistoryReader(repo: GroupExperienceRepository, actor: string, experience: GroupExperience,
+  member: GroupMember, cards: Awaited<ReturnType<typeof currentGroupAssessmentContext>>["assessmentCards"], session: ClientSession) {
+  const states = new Map<string, GroupCardState>();
+  const ids = cards.map(card => card.cardTemplateId);
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const rows = await repo.states().find({ experienceId: experience.experienceId, cardTemplateId: { $in: ids.slice(offset, offset + 100) } }, { session,
+      projection: { _id: 0, cardTemplateId: 1, tests: 1, testsRevision: 1 } }).toArray();
+    for (const row of rows) states.set(row.cardTemplateId, row);
+  }
+  return async (cardIds: readonly string[], itemId?: string): Promise<AssessmentHistory> => {
+    const sources: AssessmentSource[] = [...new Set(cardIds)].map(cardTemplateId => ({ kind: "card", cardTemplateId }));
+    if (itemId !== undefined) sources.push({ kind: "item", itemId });
     const results: HistoryResult[] = [], dependencies: AssessmentHistory["sources"] = [], issues: AssessmentHistory["issues"] = [];
     for (const selected of sources) {
       try {
-        const saved = publicList((await storage(repo, actor, context.experience, context.member, selected, session, states)).list, context.experience);
-        dependencies.push({ source: selected, revision: saved.revision, canMutate: context.member.isAdmin });
+        const saved = publicList((await storage(repo, actor, experience, member, selected, session, states)).list, experience);
+        dependencies.push({ source: selected, revision: saved.revision, canMutate: member.isAdmin });
         for (const test of saved.tests) {
-          const rawTitle = selected.kind === "card" ? context.assessmentCards.find(card => card.cardTemplateId === selected.cardTemplateId)!.content.intro.title : null;
+          const rawTitle = selected.kind === "card" ? cards.find(card => card.cardTemplateId === selected.cardTemplateId)!.content.intro.title : null;
           const title = selected.kind === "item" ? "Item test" : nonblank(rawTitle) ? rawTitle : "Untitled Card";
-          results.push({ ...test, source: selected, sourceRevision: saved.revision, canMutate: context.member.isAdmin,
+          results.push({ ...test, source: selected, sourceRevision: saved.revision, canMutate: member.isAdmin,
             relationship: selected.kind === "item" ? "direct-item" : "own-card", sourceTitle: title,
             titleAvailability: selected.kind === "item" ? "not-applicable" : nonblank(rawTitle) ? "available" : "untitled", exposedThroughCardTemplateIds: selected.kind === "card" ? [selected.cardTemplateId] : [] });
         }
@@ -141,9 +140,20 @@ export async function readGroupAssessmentHistory(repo: GroupExperienceRepository
       }
     }
     const ordered = orderHistoryResults(results);
-    const history: AssessmentHistory = { state: issues.length ? "incomplete" : ordered.length ? "complete" : "empty", count: issues.length ? null : ordered.length,
+    return { state: issues.length ? "incomplete" : ordered.length ? "complete" : "empty", count: issues.length ? null : ordered.length,
       readableCount: ordered.length, results: ordered, latestThree: issues.length ? [] : ordered.slice(0, 3).reverse(), sources: dependencies, issues };
-    return { viewerUserId: actor, experienceId, owner: { kind: "group" as const, experienceId }, target: assessmentTarget(source), history,
+  };
+}
+
+// Combined histories are current-scope only. Exact source endpoints independently
+// retain the approved Admin management rights without restoring navigation.
+export async function readGroupAssessmentHistory(repo: GroupExperienceRepository, actor: string, experienceId: string, source: AssessmentSource,
+  frameworks: readonly Framework[] = getFrameworks()) {
+  return repo.transaction(async session => {
+    const context = await currentGroupAssessmentContext(repo, actor, experienceId, source, "member", session, frameworks);
+    const reader = await groupAssessmentHistoryReader(repo, actor, context.experience, context.member, context.assessmentCards, session);
+    return { viewerUserId: actor, experienceId, owner: { kind: "group" as const, experienceId }, target: assessmentTarget(source),
+      history: await reader(context.assessmentCards.map(card => card.cardTemplateId), source.kind === "item" ? source.itemId : undefined),
       groupCapabilities: groupCapabilities(context.experience, context.member) };
   });
 }
