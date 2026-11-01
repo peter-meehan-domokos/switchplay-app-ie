@@ -1,4 +1,5 @@
 "use client";
+import { groupFetch } from "@/components/group-experiences/groupClient";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import LibraryDialog from "@/components/library/LibraryDialog";
@@ -8,12 +9,12 @@ import DeckFrontContents from "@/components/decks/DeckFrontContents";
 import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
 import type { ItemCardDestination, ItemDeckContext, ItemDestinations } from "@/lib/frameworks/destinations";
 import { flushPersonalMutations } from "@/lib/deckMutations";
-import { progressLibraryHref, progressWorkingHref } from "./progressDeckSelection";
+import { progressExperienceHref, progressLibraryHref, progressWorkingHref } from "./progressDeckSelection";
 import styles from "./areaDialog.module.css";
 import cardStyles from "./itemDialog.module.css";
 
-export default function ItemCardDialog({ actor, frameworkId, itemId, title, onClose, onLeaving }: {
-  actor: string; frameworkId: string; itemId: string; title: string; onClose(): void; onLeaving(): void;
+export default function ItemCardDialog({ actor, frameworkId, itemId, title, onClose, onLeaving, group }: {
+  actor: string; frameworkId: string; itemId: string; title: string; onClose(): void; onLeaving(): void; group?: { experienceId: string; subjectUserId?: string };
 }) {
   const router = useRouter(), live = useRef(true), running = useRef(false), controller = useRef<AbortController | null>(null);
   const [data, setData] = useState<ItemDestinations>(), [error, setError] = useState("");
@@ -22,9 +23,15 @@ export default function ItemCardDialog({ actor, frameworkId, itemId, title, onCl
   const content = useRef<HTMLDivElement>(null), back = useRef<HTMLButtonElement>(null), selectedButton = useRef<HTMLButtonElement | null>(null);
   const scroll = useRef(0), wasSelected = useRef(false);
   const read = async (signal?: AbortSignal) => {
-    const value = await workingRequest<ItemDestinations>(actor,
+    const value = group
+      ? await groupFetch<ItemDestinations>(actor, `/api/group-experiences/${encodeURIComponent(group.experienceId)}/frameworks/${encodeURIComponent(frameworkId)}/destinations?itemId=${encodeURIComponent(itemId)}${group.subjectUserId ? `&subjectUserId=${encodeURIComponent(group.subjectUserId)}` : ""}`, signal)
+      : await workingRequest<ItemDestinations>(actor,
       `/api/frameworks/${encodeURIComponent(frameworkId)}/destinations?itemId=${encodeURIComponent(itemId)}`, "GET", undefined, signal);
     if (value.viewerUserId !== actor || value.frameworkId !== frameworkId || value.itemId !== itemId) throw new Error("Your Item context changed. Reload Progress before continuing.");
+    if (group) {
+      const scoped = value as typeof value & { experienceId?: string; perspective?: { kind: string; userId?: string } };
+      if (scoped.experienceId !== group.experienceId || (group.subjectUserId ? scoped.perspective?.kind !== "player" || scoped.perspective.userId !== group.subjectUserId : scoped.perspective?.kind !== "group")) throw Error("Group destination context changed. Reopen Progress.");
+    }
     return value;
   };
   const message = (cause: unknown) => cause instanceof WorkingRequestError && (cause.code === "UPDATE_SESSION_CONFLICT" || cause.code === "Unauthorized")
@@ -59,10 +66,13 @@ export default function ItemCardDialog({ actor, frameworkId, itemId, title, onCl
       await flushPersonalMutations();
       const latest = await read(abort.signal);
       const current = latest.cards.find((candidate) => candidate.cardTemplateId === card.cardTemplateId)?.contexts
-        .find((candidate) => candidate.kind === entry.kind && candidate.deckTemplateId === entry.deckTemplateId);
+        .find((candidate) => candidate.kind === entry.kind && candidate.deckTemplateId === entry.deckTemplateId
+          && (entry.kind !== "experience" || candidate.kind === "experience" && candidate.experienceId === entry.experienceId));
       if (!current) throw new Error("This Card is no longer available in the selected Deck. Refresh Cards before continuing.");
-      const href = entry.kind === "library"
-        ? await progressLibraryHref(actor, entry, frameworkId, data.areaId, abort.signal, card.cardTemplateId)
+      const href = entry.kind === "experience"
+        ? progressExperienceHref(actor, entry, current.kind === "experience" ? current : undefined, frameworkId, data.areaId, card.cardTemplateId, group ? group.subjectUserId ?? null : actor, group?.experienceId)
+        : entry.kind === "library"
+        ? await progressLibraryHref(actor, entry, frameworkId, data.areaId, abort.signal, card.cardTemplateId, group)
         : await progressWorkingHref(actor, entry, current, frameworkId, data.areaId, restore, card.cardTemplateId);
       if (!live.current || abort.signal.aborted) return;
       onLeaving(); router.push(href);
@@ -93,18 +103,18 @@ export default function ItemCardDialog({ actor, frameworkId, itemId, title, onCl
         </article>
         <p className={`${styles.notice} ${cardStyles.caption}`}>
           {card.contexts.length === 1
-            ? `${card.contexts[0].kind === "library" ? "Library" : card.contexts[0].kind === "archived" ? "Archived" : "My Decks"} · ${card.contexts[0].front.title}`
+            ? `${card.contexts[0].kind === "library" ? "Library" : card.contexts[0].kind === "archived" ? "Archived" : card.contexts[0].kind === "experience" ? "Group Experience" : "My Decks"} · ${card.contexts[0].front.title}`
             : "Choose a Deck"}
           {card.versionsDiffer ? " · Different versions available" : ""}</p>
       </div>)}</div>
       {selected ? <div>
         <button ref={back} className={cardStyles.back} type="button" disabled={pending} onClick={() => { setSelectedId(null); setArchived(null); }}>Back to Cards</button>
         <p className={styles.notice}>Choose a Deck for {selected.presentation.intro.title || "this Card"}.</p>
-        {(["active", "archived", "library"] as const).map((kind) => {
+        {(["active", "archived", "experience", "library"] as const).map((kind) => {
           const contexts = selected.contexts.filter((entry) => entry.kind === kind);
           if (!contexts.length) return null;
-          return <section className={styles.section} key={kind}><h3>{kind === "active" ? "My Decks" : kind === "archived" ? "Archived" : "Library"} <span className={styles.count}>{contexts.length}</span></h3>
-            <div className={styles.grid}>{contexts.map((entry) => <div key={entry.deckTemplateId} data-deck-template-id={entry.deckTemplateId} data-context={kind}>
+          return <section className={styles.section} key={kind}><h3>{kind === "active" ? "My Decks" : kind === "archived" ? "Archived" : kind === "experience" ? "Group Experiences" : "Library"} <span className={styles.count}>{contexts.length}</span></h3>
+            <div className={styles.grid}>{contexts.map((entry) => <div key={entry.kind === "experience" ? entry.experienceId : entry.deckTemplateId} data-deck-template-id={entry.deckTemplateId} data-context={kind}>
               <article className={`deck-tile ${styles.tile}`}><DeckFrontContents front={entry.front} />
                 <button type="button" className={styles.select} disabled={pending || loading || !!error}
                   aria-label={`${kind === "archived" ? "Select archived" : kind === "library" ? "Open Library" : "Open"} ${entry.front.title}`}

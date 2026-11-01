@@ -1,4 +1,6 @@
 "use client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { groupProgressHref, rememberGroupReturn, readGroupDeckReturn, readProgressReturn, progressReturnHref } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import DeckScene from "@/components/decks/DeckScene";
 import FocusedCardView from "@/components/decks/FocusedCardView";
@@ -18,12 +20,17 @@ const noSubscribe = () => () => {};
 const emptySnapshot = () => emptyState;
 
 export default function GroupExperienceDeck({ actor, experienceId, onBack, onAccessRemoved }: { actor: string; experienceId: string; onBack(): void; onAccessRemoved?(): void }) {
+  const router = useRouter(), entryQuery = useSearchParams();
+  // Router search params describe the incoming route before window.location
+  // commits during a soft navigation. Reading the latter loses return geometry.
+  const [restored] = useState(() => readGroupDeckReturn(entryQuery, experienceId));
+  const progressReturn = readProgressReturn(entryQuery);
   const [resource, setResource] = useState<ReturnType<typeof createGroupResource>>();
   const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, resource?.snapshot ?? emptySnapshot);
-  const [selection, setSelection] = useState<PerspectiveSelection>();
-  const [rotation, setRotation] = useState(0);
-  const [activeCardId, setActiveCardId] = useState<string>();
-  const [focused, setFocused] = useState(false);
+  const [selection, setSelection] = useState<PerspectiveSelection | undefined>(restored?.selection);
+  const [rotation, setRotation] = useState(restored?.rotation ?? 0);
+  const [activeCardId, setActiveCardId] = useState<string | undefined>(restored?.cardId);
+  const [focused, setFocused] = useState(restored?.focused ?? false);
   const [expanded, setExpanded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsPerspective = useRef<PerspectiveSelection | null>(null);
@@ -89,16 +96,20 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   return <main className="app-shell app-shell--deck group-experience" data-experience-id={experienceId} data-perspective-key={selectedKey}
     data-current-card={currentCardId} data-face={Math.abs(rotation % 360) === 180 ? "back" : "front"}>
     {!state.verified ? <p className="group-verification" role="status">Verifying current access… <button type="button" onClick={() => void resource.load()}>Retry</button></p> : null}
-    <DeckScene deck={deck} initialCardTemplateId={currentCardId}
-      deckActions={boot.isAdmin ? <DeckMenu deckId={experienceId} deckTemplateId={boot.deckTemplateId} showEdit={false}
-        groupAction={{ label: "Group…", disabled: !state.verified, onSelect: () => {
+    <DeckScene deck={deck} initialCardTemplateId={currentCardId} initiallyFocused={!!restored?.focused}
+      deckActions={<DeckMenu deckId={experienceId} deckTemplateId={boot.deckTemplateId} showEdit={false}
+        progressAction={{ disabled: !state.verified, onSelect: () => {
+          try { rememberGroupReturn(sessionStorage, actor, { experienceId, cardId: currentCardId, rotation, focused, selection: shown, returnToProgress: progressReturn ?? undefined }); } catch { /* Optional storage. */ }
+          router.push(groupProgressHref(experienceId));
+        } }}
+        groupAction={boot.isAdmin ? { label: "Group…", disabled: !state.verified, onSelect: () => {
           // Pin the displayed perspective before changing roles. A role-default
           // change after self-demotion must not replace a still-valid selection.
           settingsPerspective.current = shown; setSelection(shown); setSettingsOpen(true);
-        } }} /> : undefined}
+        } } : undefined} />}
       onFocusChange={value => { setFocused(value); if (!value) setExpanded(false); }}
       playbackViewerUserId={actor} isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation}
-      onToggleDeckFlip={(delta = 180) => setRotation(value => value + delta)} onBack={onBack} backLabel="Back to My Decks"
+      onToggleDeckFlip={(delta = 180) => setRotation(value => value + delta)} onBack={progressReturn ? () => router.push(progressReturnHref(progressReturn), { scroll: false }) : onBack} backLabel={progressReturn ? "Back to Progress" : "Back to My Decks"}
       transition={{ type: "spring", stiffness: 300, damping: 30 }} error={state.error ?? state.mutationError}
       onActiveCardChange={(_previous, next) => { const card = deck.cards[next]; if (card) { setActiveCardId(card.id); void resource.navigate(shown, card.id).catch(() => resource.invalidate()); } }}
       renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack card={card} focused={options.variant !== "preview"} /> : null}

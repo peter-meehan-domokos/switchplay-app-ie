@@ -1,4 +1,5 @@
 "use client";
+import { groupFetch } from "@/components/group-experiences/groupClient";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import LibraryDialog from "@/components/library/LibraryDialog";
@@ -7,7 +8,7 @@ import { workingRequest, WorkingRequestError } from "@/components/decks/updateCl
 import { LibraryRequestError } from "@/components/library/libraryClient";
 import { flushPersonalMutations } from "@/lib/deckMutations";
 import type { AreaDeckDestination, AreaDestinations, DestinationSection, LibraryDeckDestination } from "@/lib/frameworks/destinations";
-import { progressLibraryHref, progressWorkingHref } from "./progressDeckSelection";
+import { progressExperienceHref, progressLibraryHref, progressWorkingHref } from "./progressDeckSelection";
 import styles from "./areaDialog.module.css";
 
 function errorMessage(cause: unknown) {
@@ -20,8 +21,8 @@ function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : "Decks are unavailable.";
 }
 
-export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onClose, onLeaving }: {
-  actor: string; frameworkId: string; areaId: string; title: string; onClose(): void; onLeaving(): void;
+export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onClose, onLeaving, group }: {
+  actor: string; frameworkId: string; areaId: string; title: string; onClose(): void; onLeaving(): void; group?: { experienceId: string; subjectUserId?: string };
 }) {
   const router = useRouter(), running = useRef(false), live = useRef(true);
   const [data, setData] = useState<AreaDestinations>(), [error, setError] = useState("");
@@ -30,9 +31,15 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
   const libraryController = useRef<AbortController | null>(null);
   const [expanded, setExpanded] = useState({ active: true, archived: false, library: false });
   const load = async (signal?: AbortSignal) => {
-    const result = await workingRequest<AreaDestinations>(actor,
+    const result = group
+      ? await groupFetch<AreaDestinations>(actor, `/api/group-experiences/${encodeURIComponent(group.experienceId)}/frameworks/${encodeURIComponent(frameworkId)}/destinations?areaId=${encodeURIComponent(areaId)}${group.subjectUserId ? `&subjectUserId=${encodeURIComponent(group.subjectUserId)}` : ""}`, signal)
+      : await workingRequest<AreaDestinations>(actor,
       `/api/frameworks/${encodeURIComponent(frameworkId)}/destinations?areaId=${encodeURIComponent(areaId)}`, "GET", undefined, signal);
     if (result.viewerUserId !== actor || result.frameworkId !== frameworkId || result.areaId !== areaId) throw new Error("Area destinations changed. Please try again.");
+    if (group) {
+      const scoped = result as typeof result & { experienceId?: string; perspective?: { kind: string; userId?: string } };
+      if (scoped.experienceId !== group.experienceId || (group.subjectUserId ? scoped.perspective?.kind !== "player" || scoped.perspective.userId !== group.subjectUserId : scoped.perspective?.kind !== "group")) throw Error("Group destination context changed. Reopen Progress.");
+    }
     return result;
   };
   useEffect(() => {
@@ -56,7 +63,7 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
     running.current = true; setPending(entry.deckTemplateId); setError(""); setSelected(null);
     const controller = new AbortController(); libraryController.current = controller;
     try {
-      const href = await progressLibraryHref(actor, entry, frameworkId, areaId, controller.signal);
+      const href = await progressLibraryHref(actor, entry, frameworkId, areaId, controller.signal, undefined, group);
       if (!live.current || controller.signal.aborted) return;
       onLeaving(); router.push(href);
     } catch (cause) { if (live.current && !controller.signal.aborted) setError(errorMessage(cause)); }
@@ -110,6 +117,16 @@ export default function AreaDeckDialog({ actor, frameworkId, areaId, title, onCl
       <button type="button" disabled={pending !== null} onClick={() => void refresh()}>Refresh Decks</button> : null}
     {renderSection("active", "My Decks", data?.myDecks)}
     {renderSection("archived", "Archived", data?.archived)}
+    {data?.experiences?.entries.length ? <section className={styles.section}><h3>Group Experiences</h3><div className={styles.grid}>
+      {data.experiences.entries.map(entry => <article className={`deck-tile ${styles.tile}`} key={entry.experienceId} data-experience-id={entry.experienceId}>
+        <DeckFrontContents front={entry.front} /><button type="button" className={styles.select} disabled={pending !== null || loading || !!error}
+          aria-label={`Open ${entry.name}`} onClick={async () => {
+            if (running.current) return; running.current = true; setPending(entry.experienceId);
+            try { const latest = await load(); const current = latest.experiences?.entries.find(row => row.experienceId === entry.experienceId);
+              const href = progressExperienceHref(actor, entry, current, frameworkId, areaId, undefined, group ? group.subjectUserId ?? null : actor, group?.experienceId); if (live.current) { onLeaving(); router.push(href); }
+            } catch (cause) { if (live.current) setError(errorMessage(cause)); } finally { running.current = false; if (live.current) setPending(null); }
+          }} />
+      </article>)}</div></section> : null}
     <section className={styles.section}><h3><button type="button" className={styles.toggle} aria-expanded={expanded.library} aria-controls="area-decks-library"
       onClick={() => setExpanded((state) => ({ ...state, library: !state.library }))}>
       Library<span className={styles.count}>{data?.library.count ?? "—"}</span><span aria-hidden="true">{expanded.library ? "⌄" : "›"}</span>

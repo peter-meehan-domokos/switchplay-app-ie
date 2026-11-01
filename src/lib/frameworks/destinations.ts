@@ -20,6 +20,8 @@ import { deckFrontPresentation } from "../../components/decks/deckFrontPresentat
 import { publishedLibraryEntries } from "../cards/libraryReadModels";
 import type { LibraryPreviewManifest } from "../cards/libraryProjection";
 
+import { personalExperienceDestinations, type ExperienceDestination } from "../groupExperiences/progressDestinations";
+
 export type DestinationIssue = { code: string; deckTemplateId?: string; cardTemplateId?: string };
 export type AreaDeckDestination = { kind: "active" | "archived"; deckTemplateId: string; adoptedDeckVersion: number;
   membershipRevision: number; matchingCardCount: number; availability: "available" | "unavailable"; front: DeckFrontPresentation };
@@ -27,10 +29,10 @@ export type DestinationSection = { state: "complete" | "empty" | "incomplete"; c
 export type LibraryDeckDestination = { kind: "library"; deckTemplateId: string; matchingCardCount: number;
   manifest: LibraryPreviewManifest; front: DeckFrontPresentation };
 export type LibraryDestinationSection = Omit<DestinationSection, "entries"> & { entries: LibraryDeckDestination[] };
-export type AreaDestinations = { viewerUserId: string; frameworkId: string; areaId: string; myDecks: DestinationSection; archived: DestinationSection; library: LibraryDestinationSection };
-export type ItemDeckContext = (AreaDeckDestination | LibraryDeckDestination) & { cardVersion: number };
+export type AreaDestinations = { viewerUserId: string; frameworkId: string; areaId: string; myDecks: DestinationSection; archived: DestinationSection; library: LibraryDestinationSection; experiences?: { entries: ExperienceDestination[] } };
+export type ItemDeckContext = (AreaDeckDestination | LibraryDeckDestination | ExperienceDestination) & { cardVersion: number };
 export type ItemCardDestination = { cardTemplateId: string; presentation: CanonicalCardPresentation;
-  presentationContext: "active" | "archived" | "library"; versionsDiffer: boolean; contexts: ItemDeckContext[] };
+  presentationContext: "active" | "archived" | "library" | "experience"; versionsDiffer: boolean; contexts: ItemDeckContext[] };
 export type ItemDestinations = { viewerUserId: string; frameworkId: string; areaId: string; itemId: string;
   state: "complete" | "empty" | "incomplete"; count: number | null; cards: ItemCardDestination[]; issues: DestinationIssue[] };
 export function matchingAreaCards(framework: Framework, areaId: string, ids: readonly string[], graph: CanonicalAncestry) {
@@ -137,6 +139,9 @@ async function readDestinations(repo: CardRepository, actor: string, frameworkId
     result.library.entries = rankAreaDecks(result.library.entries);
     result.library.count = result.library.issues.length ? null : result.library.entries.length;
     result.library.state = result.library.issues.length ? "incomplete" : result.library.entries.length ? "complete" : "empty";
+    const experiences = await personalExperienceDestinations(repo, actor, frameworkId, itemId ? { itemId } : { areaId }, session, frameworks);
+    const experienceEntries = experiences.flatMap(value => value.entry ? [value.entry] : []);
+    if (experienceEntries.length) result.experiences = { entries: experienceEntries };
     const cardRoots = await batches<CardTemplateRoot>(repo.cards(), ids.map((cardTemplateId) => ({ cardTemplateId })), session,
       { _id: 0, cardTemplateId: 1, ownerUserId: 1, visibility: 1, forkedFrom: 1 });
     const personal = user.cardsData.filter((data) => isRecord(data) && nonblank(data.cardTemplateId));
@@ -198,6 +203,7 @@ async function readDestinations(repo: CardRepository, actor: string, frameworkId
           attach(cardContentPresentation(version, ref.label, creators.get(ref.cardTemplateId)!), { ...entry, cardVersion: version.version });
         }
       }
+      for (const experience of experiences) for (const card of experience.cards) attach(card.presentation, { ...card.context, cardVersion: card.version });
       for (const entry of result.library.entries) {
         const published = publicEntries.find((candidate) => candidate.deckTemplateId === entry.deckTemplateId)!;
         if (published.availability !== "available") continue;

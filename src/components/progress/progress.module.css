@@ -45,3 +45,16 @@
   .shell :global(.progress-item-row th) { padding-left: 57px; }
   .shell :global(.progress-tests-trigger) { padding: 9px 3px; gap: 3px; }
 }
+/* Only the Progress page relinquishes the shared horizontal scroll container;
+   Cards keep their existing shell geometry. Sticky controls follow the viewport. */
+.groupShell { overflow-x: clip; overflow-y: visible; }
+.groupShell :global(.group-progress-controls) { position: sticky; top: 0; z-index: 30; max-width: 900px; margin-inline: auto; background: #090b10; padding-block: 4px; }
+.groupShell :global(.progress-framework-selector) { margin-block: 4px 8px; gap: 2px; }
+.groupShell :global(.group-progress-perspective) { display: flex; align-items: center; gap: 6px; }
+.groupShell :global(.group-progress-perspective select) { flex: 1; }
+.groupShell :global(.group-progress-perspective button) { width: 40px; min-height: 44px; border: 0; background: none; color: #b5bdc9; font-size: 24px; }
+.groupShell :global(.group-progress-perspective button:disabled) { opacity: .25; }
+.groupShell :global(.group-progress-metadata) { margin: 5px 0 0; font-size: 12px; color: #b5bdc9; }
+.groupShell :global(.group-progress-mode-slot) { min-height: 36px; }
+.groupShell :global(.group-progress-loading) { min-height: 20px; max-width: 900px; margin-inline: auto; font-size: 12px; color: #b5bdc9; }
+.groupShell :global(.progress-back) { display: block; margin: 0 auto 8px; border: 0; background: none; color: #b5bdc9; min-height: 36px; }

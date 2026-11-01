@@ -18,7 +18,7 @@ for (const engine of ["chromium", "webkit"] as const) {
         page.on("pageerror", error => errors.push(error.message));
         page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/")) personalRequests.push(request.url()); });
         await page.goto(`${preview}/__group-progress-preview`);
-        await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "My Progress", exact: true })).toBeVisible();
         await expect(page.getByLabel("Framework", { exact: true })).toHaveValue("galway-progress-review");
         await expect(page.locator("tr[data-area-id]")).toHaveCount(3);
         await expect(page.locator("tr[data-item-id]")).toHaveCount(9);

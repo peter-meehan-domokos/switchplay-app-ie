@@ -9,13 +9,14 @@ function ItemHistoryModal({ context, onClose }: { context: AssessmentContext; on
   const history = useAssessmentHistory(context);
   return <AssessmentModal context={context} history={history} onClose={onClose} />;
 }
-export default function ItemTestsCell({ actor, itemId, title, assessments, unavailable = false }: {
-  actor: string; itemId: string; title: string; assessments: CompactAssessmentHistory; unavailable?: boolean;
+export default function ItemTestsCell({ actor, itemId, title, assessments, unavailable = false, context }: {
+  actor: string; itemId: string; title: string; assessments: CompactAssessmentHistory | ReturnType<typeof import("@/lib/groupExperiences/progressAssessments").compactScopedHistory>; unavailable?: boolean; context?: AssessmentContext;
 }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null), descriptionId = useId();
+  if (context?.group && unavailable && open) setOpen(false);
   const status = unavailable ? "unavailable" : assessments.state === "incomplete" ? "incomplete" : undefined;
-  const results = assessments.latestThree;
+  const results = unavailable && context?.group ? [] : assessments.latestThree;
   const label = `${title}: ${status ? "assessment history unavailable" : results.length ? "open assessment history" : "add first test"}`;
   return <td className="progress-tests-cell">
     <button ref={trigger} type="button" className="progress-tests-trigger" aria-label={label} aria-haspopup="dialog" aria-describedby={descriptionId}
@@ -26,7 +27,7 @@ export default function ItemTestsCell({ actor, itemId, title, assessments, unava
     <span id={descriptionId} className="progress-sr-only">{status ? "Some assessment history may be missing. Indicators show only the latest known results. " : ""}
       {results.length ? results.map((result) => `${result.date}: ${result.result ? "Pass" : "Fail"}`).join(", ")
         : status ? "No readable results are currently known." : "No tests recorded yet."}</span>
-    {open ? <ItemHistoryModal context={{ viewerUserId: actor, source: { kind: "item", itemId }, canCreate: true }}
+    {open && (!context?.group || !unavailable) ? <ItemHistoryModal context={context ?? { viewerUserId: actor, source: { kind: "item", itemId }, canCreate: true }}
       onClose={() => { setOpen(false); requestAnimationFrame(() => trigger.current?.focus()); }} /> : null}
   </td>;
 }

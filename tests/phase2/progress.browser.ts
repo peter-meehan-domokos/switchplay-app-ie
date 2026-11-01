@@ -56,7 +56,7 @@ async function form(page: Page, date: string, result: "Pass" | "Fail") {
 }
 
 test("Progress requires authentication and the shared menu opens the retained sample catalogue", async ({ page }) => {
-  await page.goto("/progress"); await expect(page.getByRole("heading", { name: "Progress", exact: true })).toHaveCount(0);
+  await page.goto("/progress"); await expect(page.getByRole("heading", { name: "My Progress", exact: true })).toHaveCount(0);
   await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
   await page.goto("/decks"); await page.getByRole("button", { name: "Overview menu" }).click(); await page.getByRole("menuitem", { name: "Progress", exact: true }).click();
   await expect(page.getByLabel("Framework", { exact: true })).toHaveValue("leaving-cert-hl");

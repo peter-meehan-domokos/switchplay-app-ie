@@ -34,6 +34,11 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
   const [groupRecords, setGroupRecords] = useState(groups);
   const [createdGroupId] = useState(() => search.get("createdGroup"));
   const [experienceId, setExperienceId] = useState<string | null>(() => groups ? search.get("openExperience") : null);
+  const [experienceRequest, setExperienceRequest] = useState(search.get("openExperience"));
+  if (experienceRequest !== search.get("openExperience")) {
+    setExperienceRequest(search.get("openExperience"));
+    if (groups) setExperienceId(search.get("openExperience"));
+  }
   const [selected, setSelected] = useState<Deck | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -233,7 +238,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
         setGroupRecords(next);
       })().catch(() => router.refresh());
   };
-  if (experienceId && groups) return <GroupExperienceDeck key={`${currentUserId}:${experienceId}`} actor={currentUserId} experienceId={experienceId}
+  if (experienceId && groups) return <GroupExperienceDeck key={JSON.stringify([currentUserId, experienceId, search.get("progressScene") === "1" ? [search.get("openCard"), search.get("progressFace"), search.get("progressFocused"), search.get("progressPerspective"), search.get("progressSubject")] : null])} actor={currentUserId} experienceId={experienceId}
     onBack={() => leaveGroup()} onAccessRemoved={() => leaveGroup(true)} />;
   return <main className={`app-shell${selected ? " app-shell--deck" : ""}`} data-working-ready={selected ? verified : undefined}>
     {selected && !verified ? <div className="working-entry-status">

@@ -46,10 +46,10 @@ export default function AssessmentModal({ context, history, onClose }: {
     if (pending.current && !pending.current.canDiscard) { setError("The save outcome is still uncertain. Retry to check the saved result before discarding."); return; }
     if (draft) setDiscard(target); else onClose();
   };
-  const start = (row?: HistoryResult, remove = false) => {
+  const start = (row?: HistoryResult | import("@/lib/groupExperiences/progressAssessments").ScopedHistoryResult, remove = false) => {
     if (draft || saving) return;
     const source = row?.source ?? context.source;
-    const revision = row?.sourceRevision ?? data?.sources.find((dependency) => sameAssessmentSource(dependency.source, source))?.revision;
+    const revision = row?.sourceRevision ?? data?.sources.find((dependency) => dependency.source !== null && sameAssessmentSource(dependency.source, source))?.revision;
     if (revision == null) { setError("This assessment source is unavailable. Refresh before editing."); return; }
     setError(""); setConflict(null);
     const cardIds = [...new Set([...(context.source.kind === "card" ? [context.source.cardTemplateId] : []),
@@ -108,7 +108,7 @@ export default function AssessmentModal({ context, history, onClose }: {
   };
   const current = draft && conflict?.tests.find((test) => test.id === draft.id);
   const canAdd = context.canCreate && (context.source.kind === "card" || history.data?.configured === true)
-    && data?.sources.some((dependency) => sameAssessmentSource(dependency.source, context.source) && dependency.canMutate && dependency.revision !== null);
+    && data?.sources.some((dependency) => dependency.source !== null && sameAssessmentSource(dependency.source, context.source) && dependency.canMutate && dependency.revision !== null);
   return createPortal(<LibraryDialog title="Assessment history" onCancel={() => close("modal")} className="assessment-dialog" isolateInteractions>
     <div className="assessment-toolbar"><button type="button" onClick={() => start()} disabled={!canAdd || !!draft || saving || history.loading || !!history.error}>Add test</button>
       <button type="button" onClick={() => close("modal")} disabled={saving}>Close</button></div>
@@ -121,7 +121,7 @@ export default function AssessmentModal({ context, history, onClose }: {
     {!history.loading && !history.error && data?.state === "empty" ? <p>No tests recorded yet.</p> : null}
     {data?.results.length ? <div className="assessment-table-scroll"><table className="assessment-table"><caption className="sr-only">Assessments, newest first</caption>
       <thead><tr><th scope="col">Date</th><th scope="col">Result</th><th scope="col">Card</th><th scope="col">Actions</th></tr></thead>
-      <tbody>{data.results.map((row) => <tr key={JSON.stringify([row.source, row.id])}>
+      <tbody>{data.results.map((row) => <tr key={"rowKey" in row ? row.rowKey : JSON.stringify([row.source, row.id])}>
         <td><time dateTime={row.date}>{dateFormat.format(dateOnlyToUtcDate(row.date))}</time></td>
         <td><span className={row.result ? "assessment-pass" : "assessment-fail"} aria-hidden="true">{row.result ? "✓" : "●"}</span><span className="sr-only">{row.result ? "Pass" : "Fail"}</span></td>
         <td className={row.relationship === "inherited-card" ? "assessment-source" : undefined}><span>{row.sourceTitle}</span>

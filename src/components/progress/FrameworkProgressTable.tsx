@@ -2,6 +2,8 @@
 import { Fragment, useId, useState } from "react";
 import type { CalculationResult } from "@/lib/frameworks/calculations";
 import { readAreaExpansion, writeAreaExpansion, type ProgressSummary } from "@/lib/frameworks/progressClient";
+import type { GroupDisplayFramework } from "./groupProgressDisplay";
+import type { AssessmentContext } from "@/components/assessments/useAssessmentHistory";
 import ItemTestsCell from "./ItemTestsCell";
 
 function Metric({ value, progress, unavailable, label }: { value: number | null; progress: CalculationResult; unavailable: boolean; label: "Completion" | "Confidence" }) {
@@ -10,15 +12,15 @@ function Metric({ value, progress, unavailable, label }: { value: number | null;
     {value !== null ? label === "Completion" ? `${value}%` : value : null}
   </td>;
 }
-export default function FrameworkProgressTable({ actor, framework, unavailable = false, onArea, onItem }: { actor: string; framework: ProgressSummary; unavailable?: boolean; onArea?: (id: string, title: string) => void; onItem?: (id: string, title: string) => void }) {
+export default function FrameworkProgressTable({ actor, framework, unavailable = false, onArea, onItem, assessmentContext, expansionScope }: { actor: string; framework: ProgressSummary | GroupDisplayFramework; assessmentContext?: (itemId: string) => AssessmentContext; expansionScope?: string; unavailable?: boolean; onArea?: (id: string, title: string) => void; onItem?: (id: string, title: string) => void }) {
   const prefix = useId();
   const [expansion, setExpansion] = useState(() => {
-    try { return readAreaExpansion(sessionStorage, actor, framework.id); } catch { return {}; }
+    try { return readAreaExpansion(sessionStorage, expansionScope ?? actor, framework.id); } catch { return {}; }
   });
   const toggle = (id: string) => {
     const next = { ...expansion, [id]: !(expansion[id] ?? true) };
     setExpansion(next);
-    try { writeAreaExpansion(sessionStorage, actor, framework.id, next); } catch { /* No storage in restricted browsers. */ }
+    try { writeAreaExpansion(sessionStorage, expansionScope ?? actor, framework.id, next); } catch { /* No storage in restricted browsers. */ }
   };
   return <>
     <table className="progress-table"><caption className="progress-sr-only">{framework.title}: learning progress and assessments</caption>
@@ -42,7 +44,7 @@ export default function FrameworkProgressTable({ actor, framework, unavailable =
             <th scope="row"><button type="button" className="progress-content-title" disabled={!onItem || !item.hasConfiguredCards} onClick={() => onItem?.(item.id, item.title)}>{item.title}</button></th>
             <Metric label="Completion" value={item.progress.completion} progress={item.progress} unavailable={unavailable} />
             <Metric label="Confidence" value={item.progress.confidence} progress={item.progress} unavailable={unavailable} />
-            <ItemTestsCell actor={actor} itemId={item.id} title={item.title} assessments={item.assessments} unavailable={unavailable} />
+            <ItemTestsCell key={JSON.stringify([item.id, assessmentContext?.(item.id).group])} actor={actor} itemId={item.id} title={item.title} assessments={item.assessments} unavailable={unavailable} context={assessmentContext?.(item.id)} />
           </tr>)}</tbody>
         </Fragment>;
       })}

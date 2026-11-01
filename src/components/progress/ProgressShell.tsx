@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import GroupProgressView from "./GroupProgressView";
 import OverviewMenu from "@/components/layout/OverviewMenu";
 import { readProgressMetadata, type ProgressMetadata } from "@/lib/frameworks/progressClient";
 import FrameworkProgressTable from "./FrameworkProgressTable";
@@ -9,7 +10,8 @@ import ItemCardDialog from "./ItemCardDialog";
 import AreaDeckDialog from "./AreaDeckDialog";
 import { readProgressPosition, rememberProgressPosition } from "@/lib/frameworks/progressNavigation";
 
-export default function ProgressShell({ currentUserId, userName }: { currentUserId: string; userName: string }) {
+export default function ProgressShell({ currentUserId, userName, experienceId }: { currentUserId: string; userName: string; experienceId?: string }) {
+  if (experienceId) return <GroupProgressView key={JSON.stringify([currentUserId, experienceId])} actor={currentUserId} experienceId={experienceId} userName={userName} />;
   return <ProgressSession key={currentUserId} actor={currentUserId} userName={userName} />;
 }
 function ProgressSession({ actor, userName }: { actor: string; userName: string }) {
@@ -55,7 +57,7 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
   }, [metadata]);
   return <main className={`app-shell ${styles.shell}`}>
     <OverviewMenu username={userName} userId={actor} />
-    <header className="overview-header"><p className="eyebrow">{userName}</p><h1>Progress</h1></header>
+    <header className="overview-header"><p className="eyebrow">{userName}</p><h1>My Progress</h1></header>
     {metadataError ? <p className="progress-notice" role="alert">{metadataError} <button type="button" onClick={() => setMetadataRequest((value) => value + 1)}>Retry configuration</button></p> : null}
     {!metadata && !metadataError ? <p role="status">Loading Frameworks…</p> : null}
     {metadata?.length === 0 ? <p className="progress-notice">No Frameworks are available yet.</p> : null}

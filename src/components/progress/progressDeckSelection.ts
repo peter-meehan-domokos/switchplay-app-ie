@@ -2,12 +2,13 @@ import { libraryFetch, workingDeckHref } from "@/components/library/libraryClien
 import { workingRequest } from "@/components/decks/updateClient";
 import type { LibraryEntry } from "@/lib/cards/libraryProjection";
 import type { AreaDeckDestination, LibraryDeckDestination, ItemDeckContext } from "@/lib/frameworks/destinations";
-import { withProgressReturn } from "@/lib/frameworks/progressNavigation";
+import type { ExperienceDestination } from "@/lib/groupExperiences/progressDestinations";
+import { groupDeckHref, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 
 // Shared Area/Item selection commands, with per-dialog state and actor-bound reads.
 // These are explicit navigation actions, never part of destination discovery.
 export async function progressLibraryHref(actor: string, entry: LibraryDeckDestination | ItemDeckContext,
-  frameworkId: string, areaId: string, signal: AbortSignal, cardTemplateId?: string) {
+  frameworkId: string, areaId: string, signal: AbortSignal, cardTemplateId?: string, returnGroup?: { experienceId: string; subjectUserId?: string }) {
   const auth = await libraryFetch<{ user: { id: string } | null }>("/api/auth/me", signal);
   if (auth.user?.id !== actor) throw new Error("Your sign-in changed. Reload Progress before continuing.");
   if (entry.kind !== "library") throw new Error("This is not a Library destination.");
@@ -17,12 +18,12 @@ export async function progressLibraryHref(actor: string, entry: LibraryDeckDesti
   if (cardTemplateId && !detail.manifest.cards.some((card) => card.cardTemplateId === cardTemplateId && "cardVersion" in entry && card.version === entry.cardVersion))
     throw new Error("This Card is no longer available in the selected publication. Refresh Cards before continuing.");
   const query = cardTemplateId && "cardVersion" in entry ? `?${new URLSearchParams({ openCard: cardTemplateId, cardVersion: String(entry.cardVersion) })}` : "";
-  return withProgressReturn(`/library/${encodeURIComponent(entry.deckTemplateId)}${query}`, { frameworkId, areaId });
+  return withProgressReturn(`/library/${encodeURIComponent(entry.deckTemplateId)}${query}`, { frameworkId, areaId, ...returnGroup });
 }
 
 export async function progressWorkingHref(actor: string, entry: AreaDeckDestination | ItemDeckContext,
   current: AreaDeckDestination | ItemDeckContext | undefined, frameworkId: string, areaId: string, restore: boolean, cardTemplateId?: string) {
-  if (entry.kind === "library" || !current || current.kind === "library" || current.availability !== "available" || current.kind !== entry.kind
+  if (entry.kind === "library" || entry.kind === "experience" || !current || current.kind === "library" || current.kind === "experience" || current.availability !== "available" || current.kind !== entry.kind
     || current.membershipRevision !== entry.membershipRevision || current.adoptedDeckVersion !== entry.adoptedDeckVersion
     || (cardTemplateId && (!("cardVersion" in entry) || !("cardVersion" in current) || entry.cardVersion !== current.cardVersion)))
     throw new Error(cardTemplateId ? "This Deck or Card changed or is unavailable. Refresh the list before opening it."
@@ -33,4 +34,13 @@ export async function progressWorkingHref(actor: string, entry: AreaDeckDestinat
   const href = workingDeckHref(entry.deckTemplateId, cardTemplateId);
   return withProgressReturn(cardTemplateId && "cardVersion" in entry ? `${href}&cardVersion=${entry.cardVersion}` : href,
     { frameworkId, areaId, restored: restore });
+}
+
+export function progressExperienceHref(actor: string, entry: ExperienceDestination, current: ExperienceDestination | undefined,
+  frameworkId: string, areaId: string, cardId?: string, subjectUserId: string | null = actor, fromExperience?: string) {
+  if (!current || current.experienceId !== entry.experienceId || current.adoptionRevision !== entry.adoptionRevision
+    || current.structureRevision !== entry.structureRevision) throw new Error("This Group changed. Refresh destinations before opening it.");
+  return withProgressReturn(groupDeckHref({ experienceId: entry.experienceId, cardId, rotation: 0, focused: false,
+    selection: subjectUserId === null ? { perspective: "group" } : subjectUserId === actor ? { perspective: "self" } : { perspective: "follower", subjectUserId } }),
+    { frameworkId, areaId, ...(fromExperience ? { experienceId: fromExperience, ...(subjectUserId ? { subjectUserId } : {}) } : {}) });
 }
