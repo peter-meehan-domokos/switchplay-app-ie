@@ -4626,7 +4626,7 @@ input {
   stroke-width: 1.5;
 }
 .creator-leave-modal .creator-modal-actions { flex-wrap: wrap; justify-content: flex-end; }
-.creator-navigation-status { font-size: 12px; padding: 0 16px; }
+.creator-navigation-status { font-size: 12px; }
 .creator-feedback .creator-save-message { position: static; width: auto; }
 .creator-entity-save-error {
   padding: 4px;

@@ -123,15 +123,15 @@ for (const status of [400, 409]) test(`failed/conflicted save ${status} prevents
   });
   await editStep(page, cardId, "Retained local content"); await expect(page.locator(".creator-entity-save-error")).toBeVisible();
   await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
-  await expect(popup(page).getByRole("alert")).toContainText("Current work could not be saved");
+  await expect(popup(page).getByRole("alert")).toContainText(status === 409 ? "Save conflict. Copy the local edits" : "Use Retry Save for the affected Card or Deck");
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); await popup(page).getByRole("button", { name: "Close", exact: true }).click();
   await expect(column(page, cardId).locator(".creator-pair-step").first()).toContainText("Retained local content");
   expect((await cardRoot(cardId))!.draft.steps[0].description).toBeNull();
 });
 
-for (const succeeds of [true, false]) test(`switching waits for an attached upload; upload ${succeeds ? "success saves before navigation" : "failure keeps Creator open"}`, async ({ page }) => {
+for (const succeeds of [true, false]) test(`switching waits for an attached upload; upload ${succeeds ? "success saves before navigation" : "failure permits navigation without an attachment"}`, async ({ page }) => {
   const other = await target(); await open(page); const id = await title(page, `Upload switch ${randomUUID()}`), cardId = await add(page), pause = gate();
-  let started = false, failed = !succeeds;
+  let started = false; const failed = !succeeds;
   await page.route(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload`, async (route) => {
     started = true; await pause.promise;
     if (failed) await route.fulfill({ status: 500, body: "Fixture upload failure" }); else await route.continue();
@@ -140,14 +140,9 @@ for (const succeeds of [true, false]) test(`switching waits for an attached uplo
   await uploadCreatorIntroVideo(page, column(page, cardId), file); await expect.poll(() => started).toBe(true);
   await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
   await expect(popup(page).getByRole("status")).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); pause.resolve();
-  if (!succeeds) {
-    await expect(popup(page).getByRole("alert")).toContainText("save or upload errors"); await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`));
-    await popup(page).getByRole("button", { name: "Close", exact: true }).click(); failed = false; await uploadCreatorIntroVideo(page, column(page, cardId), file);
-    await expect.poll(async () => (await cardRoot(cardId))?.draft?.intro.mediaItems?.[0]?.media.description).toBe("navigation.mp4");
-    await page.getByRole("button", { name: "My Drafts", exact: true }).click(); await popup(page).getByRole("button", { name: other.title, exact: true }).click();
-  }
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${other.id}(?:[?]|$)`));
-  expect((await cardRoot(cardId))!.draft.intro.mediaItems[0].media.description).toBe("navigation.mp4");
+  if (succeeds) expect((await cardRoot(cardId))!.draft.intro.mediaItems[0].media.description).toBe("navigation.mp4");
+  else expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();
 });
 
 test("zero-Card working Deck publishes, reloads, archives/restores and keeps its cadence anchor after later Add", async ({ page }) => {
@@ -211,7 +206,7 @@ test("publication controls distinguish defaults, blocked drafts and genuinely pu
   await deck.click(); await expect(deck).toHaveText("Published");
 });
 
-for (const succeeds of [true, false]) test(`return waits for attached upload/save; ${succeeds ? "success offers publication" : "failure stays"}`, async ({ page }) => {
+for (const succeeds of [true, false]) test(`return waits for attached upload/save; ${succeeds ? "success offers publication" : "failed unattached upload permits departure"}`, async ({ page }) => {
   await open(page); const id = await title(page, `Normal leave ${randomUUID()}`), cardId = await add(page), pause = gate(); let started = false;
   await page.route(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload`, async (route) => {
     started = true; await pause.promise;
@@ -228,8 +223,9 @@ for (const succeeds of [true, false]) test(`return waits for attached upload/sav
     await page.getByRole("button", { name: "Leave without publishing", exact: true }).click();
     await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); expect((await cardRoot(cardId))!.draft.intro.mediaItems[0].media.description).toBe("leave.mp4");
   } else {
-    await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();
+    await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toBeVisible();
+    await page.getByRole("button", { name: "Leave without publishing", exact: true }).click();
+    await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); expect((await cardRoot(cardId))!.draft.intro.mediaItem).toBeNull();
   }
   expect((await root(id))!.latestVersion).toBe(0);
 });
@@ -241,7 +237,7 @@ for (const status of [400, 409]) test(`normal leave retains failed/conflicted lo
   });
   await editStep(page, cardId, "Do not lose this"); await expect(page.locator(".creator-entity-save-error")).toBeVisible();
   await page.locator(".creator-back-link").click();
-  await expect(page.getByText("Current work could not be saved. Review the save or upload errors before leaving.")).toBeVisible();
+  await expect(page.locator(".creator-entity-save-error")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Leave Creator confirmation" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Publish and leave", exact: true })).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`/creator/edit/${id}(?:[?]|$)`)); await expect(column(page, cardId)).toContainText("Do not lose this");

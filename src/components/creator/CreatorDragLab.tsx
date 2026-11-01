@@ -63,7 +63,6 @@ import { MAX_STEP_MEDIA, withStepMedia, instructionalMedia, stepMediaItems, vali
 import { stepMediaLabelsFit } from "@/components/decks/measureStepMediaTabs";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
 import { useMediaUploadController, type CompletedMediaUpload } from "@/components/media/useMediaUploadController";
-import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { StepDescriptionSpan } from "@/components/decks/types";
 import type { ImageMediaItem, VideoMediaItem } from "@/lib/media";
@@ -116,7 +115,9 @@ type UploadSession = {
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 65;
-const SUPPORT_ERROR_MESSAGE = "support";
+const NAVIGATION_SAVE_ERROR_MESSAGE = "Your changes could not be saved. Try leaving again. If this repeats, keep this page open to preserve your edits.";
+const SAVE_RETRY_MESSAGE = "Your changes could not be saved. Select Retry Save to try again.";
+const SAVE_CONFLICT_MESSAGE = "Save conflict. Copy the local edits you need to keep before reloading.";
 
 function createStepLinkId() {
   return `step-link-${clientId()}`;
@@ -1007,7 +1008,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const boardRef = useRef<BoardState>(initialBoard);
   const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
   const introUploadSessionsRef = useRef<Map<string, UploadSession>>(new Map());
-  const uploadFailuresRef = useRef<Map<string, string | null>>(new Map());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -1051,7 +1051,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     prepareTarget: (kind) => persistence.prepareUploadTarget(undefined, kind),
     onUploadStarted: handleDeckIntroductionUploadStarted,
     onUploadCompleted: handleDeckIntroductionUploadCompleted,
-    onUploadFailed: (kind) => { uploadFailuresRef.current.set(`deck:${kind}`, null); },
   });
   const renderingColumns = useMemo(() => layoutCreatorColumns(board), [board]);
   const deckPresentation = deckPublicationPresentation(persistence.deck, persistence.publicationReferences());
@@ -1213,7 +1212,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       router.push(creatorDraftHref(id, kind, currentDraftOrigin(window.location)));
     } catch {
       switchingRef.current = null; setSwitchingTo(null);
-      setDraftsError("Current work could not be saved. Close My Drafts and review the save or upload errors before switching.");
+      const conflict = [persistence.deck, ...persistence.cards.values()].some(lane => lane.error?.kind === "conflict" || lane.error?.kind === "recovery");
+      setDraftsError(conflict ? SAVE_CONFLICT_MESSAGE : "Your changes could not be saved. Use Retry Save for the affected Card or Deck, then select the draft again.");
     }
   }
 
@@ -1223,8 +1223,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if (!anyPublishing && !navigationRef.current && !leaveConfirmationOpen) void leaveCreator(true);
   }
   async function prepareForNavigation() {
+    setPublishMessage(current => current === NAVIGATION_SAVE_ERROR_MESSAGE ? "" : current);
     await persistence.prepareToNavigate();
-    if ([...uploadFailuresRef.current.values()].some((id) => id === null || !persistence.cards.get(id)?.detached)) throw new Error("UPLOAD_INCOMPLETE");
   }
 
   function confirmDeckWarning(ids: string[], newer: import("@/lib/cards/model").DeckPublicationReview["cards"] = []) {
@@ -1272,7 +1272,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         navigateToReturnTarget();
       } catch {
         navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
-        setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");
+        setPublishMessage("You have new changes. Use Retry Save if shown, then select Publish and leave again.");
       }
     }
   }
@@ -1296,7 +1296,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
     catch {
       navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
-      setPublishMessage("Current work could not be saved. Review the save or upload errors before leaving.");
+      if (!persistence.deck.error && ![...persistence.cards.values()].some(lane => !lane.detached && lane.error)) setPublishMessage(NAVIGATION_SAVE_ERROR_MESSAGE);
     }
   }
   function handleDragStart(event: DragStartEvent) {
@@ -1595,8 +1595,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     const session = pairId ? createPairUploadSession(pairId) : createIntroUploadSession(cardTemplateId);
     session.cardTemplateId = cardTemplateId;
     const isActive = () => pairId ? isActivePairUpload(pairId, session) : isActiveIntroUpload(cardTemplateId, session);
-    const failureKey = pairId ?? `intro:${cardTemplateId}`;
-    uploadFailuresRef.current.delete(failureKey);
     const finishOperation = persistence.beginCardUpload(cardTemplateId);
     let uploaded = false;
     try {
@@ -1620,9 +1618,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       editDestinationMedia(cardTemplateId, stepId, items);
       await persistence.flushCard(cardTemplateId);
     } catch (error) {
-      if (!uploaded && !persistence.cards.get(cardTemplateId)?.error && !session.controller.signal.aborted && !isAbortError(error)) uploadFailuresRef.current.set(failureKey, cardTemplateId);
       if (!session.controller.signal.aborted && !isAbortError(error)) {
-        if (!persistence.cards.get(cardTemplateId)?.detached) { setPublishStatus("error"); setPublishMessage(SUPPORT_ERROR_MESSAGE); }
+        if (!uploaded && !persistence.cards.get(cardTemplateId)?.error) throw new Error(`${kind === "image" ? "Image" : "Video"} upload failed. You can try again or continue without the ${kind}.`);
         throw error;
       }
     } finally {
@@ -1632,7 +1629,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   async function uploadDeckIntroduction(kind: "image" | "video", file: File) {
-    uploadFailuresRef.current.delete(`deck:${kind}`);
     const finish = persistence.beginDeckUpload();
     try { if (kind === "image") await deckIntroductionUpload.uploadImage(file); else await deckIntroductionUpload.uploadVideo(file); }
     finally { finish(); }
@@ -1650,7 +1646,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   function removeDeckIntroductionImage() {
     updateBoardAndSaveDraft((currentBoard) => setBoardDeckIntroductionImage(currentBoard, null));
-    uploadFailuresRef.current.delete("deck:image");
     deckIntroductionUpload.clearImageError();
   }
 
@@ -1750,6 +1745,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   }
 
   const acknowledgedMediaContent = mediaSession ? persistence.cards.get(mediaSession.cardTemplateId)?.ack?.content : undefined;
+  const mediaSaveError = mediaSession ? persistence.cards.get(mediaSession.cardTemplateId)?.error : undefined;
   return (
     <main className="creator-lab" style={creatorGeometryStyle} data-creator-entry={mode}>
       <header className="creator-header" inert={navigationLocked}>
@@ -1759,7 +1755,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
             navigationRef.current = true; setNavigationPending(true);
             void prepareForNavigation().then(() => router.push("/creator/info-cards/new")).catch(() => {
               navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
-              setPublishMessage("Current work could not be saved. Review the save or upload errors before switching modes.");
+              if (!persistence.deck.error && ![...persistence.cards.values()].some(lane => !lane.detached && lane.error)) setPublishMessage(NAVIGATION_SAVE_ERROR_MESSAGE);
             });
           }} /> : <p className="creator-kicker">Edit Template</p>}
           <p className="creator-edit-hint">Tap text to edit</p>
@@ -1781,16 +1777,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
             {deckPresentation.visible ? <button className="creator-add-note" type="button" aria-label="Add note for Deck" disabled={publishStatus === "publishing"} onClick={() => setNoteSession({ key: "deck", label: "Deck", value: notes.deck ?? "" })}>Add note</button> : null}
           </div>
           <div className="creator-feedback">
+          {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
           {publishMessage ? (
-            publishStatus === "error" && publishMessage === SUPPORT_ERROR_MESSAGE ? (
-              <SupportErrorMessage className={`creator-save-message creator-save-message--${publishStatus}`} />
-            ) : (
               <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}</p>
-            )
           ) : null}
       {[{ id: "deck", label: "Deck", lane: persistence.deck }, ...getCardColumns(board.columns).map((column, index) => ({ id: column.cardId!, label: `Card ${index + 1}`, lane: persistence.cards.get(column.cardId!)! }))].filter(({ lane }) => lane.error).map(({ id, label, lane }) => (
         <p className="creator-entity-save-error" role="alert" key={id}>
-          {label}: {lane.error!.kind === "conflict" || lane.error!.kind === "recovery" ? "Save conflict. Local edits are retained; reload only after reviewing them." : "Changes could not be saved."}
+          {label}: {lane.error!.kind === "conflict" || lane.error!.kind === "recovery" ? SAVE_CONFLICT_MESSAGE : SAVE_RETRY_MESSAGE}
           {lane.error!.kind !== "conflict" && lane.error!.kind !== "recovery" ? <button type="button" aria-label={`Retry Save ${label}`} onClick={() => id === "deck" ? persistence.retryDeck() : persistence.retryCard(id)}>Retry Save</button> : null}
         </p>
       ))}
@@ -1805,7 +1798,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {copyConfirmation ? <CreatorCopyConfirmation entity={copyConfirmation.entity} onCancel={() => { copyConfirmation.resolve(false); setCopyConfirmation(null); }}
         onConfirm={() => { copyConfirmation.resolve(true); setCopyConfirmation(null); }} /> : null}
       {persistence.recovering ? <p role="status">Recovering your submitted edit…</p> : null}
-      {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
       {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
         destinationUnavailable={persistence.deck.ack?.root.latestVersion === 0 || resolvedCreatorReturnTarget.label === "Library" && persistence.deck.ack?.root.visibility !== "public"}
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
@@ -1946,7 +1938,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         returnFocus={mediaSession.trigger}
         uploading={mediaSession.pairId ? uploadingMediaPairIds.has(mediaSession.pairId) : uploadingIntroMediaCardIds.has(mediaSession.cardTemplateId)}
         disabled={anyPublishing || !!persistence.cards.get(mediaSession.cardTemplateId)?.locked}
-        saveError={!!persistence.cards.get(mediaSession.cardTemplateId)?.error}
+        saveError={mediaSaveError ? mediaSaveError.kind === "conflict" || mediaSaveError.kind === "recovery" ? SAVE_CONFLICT_MESSAGE : SAVE_RETRY_MESSAGE : undefined}
         onChange={items => editDestinationMedia(mediaSession.cardTemplateId, mediaSession.stepId, items)}
         onUpload={(kind, file, replacementId) => uploadDestinationMedia(mediaSession, kind, file, replacementId)}
         onCancelUpload={() => mediaSession.pairId ? cancelPairMediaUpload(mediaSession.pairId) : cancelIntroMediaUpload(mediaSession.cardTemplateId)}

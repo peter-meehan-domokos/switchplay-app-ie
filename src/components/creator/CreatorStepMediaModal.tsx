@@ -13,7 +13,7 @@ import { defaultStepMediaLabel, putStepMedia, selectedStepVisual } from "./creat
 import styles from "./CreatorStepMediaModal.module.css";
 
 type Props = {
-  title: string; items: readonly StepMediaItem[]; uploading: boolean; disabled: boolean; saveError?: boolean;
+  title: string; items: readonly StepMediaItem[]; uploading: boolean; disabled: boolean; saveError?: string;
   acknowledgedMedia: readonly MediaItem[];
   readinessTarget: MediaUploadTarget;
   returnFocus: HTMLElement;
@@ -118,6 +118,6 @@ export default function CreatorStepMediaModal(props: Props) {
     </ol>
     {uploadChoices()}
     {uploading ? <p role="status">Uploading… <button type="button" className="creator-modal-secondary" onClick={onCancelUpload}>Cancel upload</button></p> : null}
-    {error || saveError ? <p className={styles.error} role="alert">{error || "The card draft could not be saved. Your current media is kept for retry in Creator."}</p> : null}
+    {error || saveError ? <p className={styles.error} role="alert">{saveError || error}</p> : null}
   </dialog>;
 }
