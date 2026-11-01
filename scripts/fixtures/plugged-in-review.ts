@@ -1,3 +1,4 @@
+import { contentImages, recordImageAllocation, INSTRUCTIONAL_IMAGE_ALLOCATIONS } from "../../src/lib/cards/instructionalImageOwnership";
 import type { Db, MongoClient } from "mongodb";
 import { CardRepository } from "../../src/lib/cards/repository";
 import { createDefaultCardContent, createDefaultDeckContent } from "../../src/lib/cards/creatorDefaults";
@@ -46,6 +47,14 @@ export async function seedVisualReview(db: Db, client: MongoClient, actor: strin
   assertDisposableDatabase(disposableUri, db.databaseName);
   const repo = new CardRepository(db, client, "1"), contents = visualReviewContents(mediaOrigin);
   for (const [index, content] of contents.entries()) {
+    // Explicit disposable seed evidence for the fixed local provider files only.
+    // Never registers legacy/live media or writes an existing review database.
+    const unique = new Map(contentImages(content).flatMap(image => "assetId" in image ? [[image.assetId, image] as const] : []));
+    for (const image of unique.values()) {
+      if (!("assetId" in image)) continue;
+      await recordImageAllocation(db, actor, { scope: "card", targetId: VISUAL_REVIEW_CARDS[index] }, { assetId: image.assetId, deliveryUrl: image.src });
+      await db.collection(INSTRUCTIONAL_IMAGE_ALLOCATIONS).updateOne({ assetId: image.assetId, "destination.targetId": VISUAL_REVIEW_CARDS[index] }, { $set: { ready: true } });
+    }
     await repo.createCardDraft(actor, content, "public", VISUAL_REVIEW_CARDS[index]);
     await repo.publishCard(actor, VISUAL_REVIEW_CARDS[index], 0);
   }

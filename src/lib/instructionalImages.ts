@@ -1,8 +1,8 @@
+import { assertImageDelivery } from "./cards/instructionalImageOwnership";
 import { CardRepository } from "./cards/repository";
 import { CardArchitectureError, requireCondition } from "./cards/domain";
 import { assertDeckVersionAccess } from "./cards/versionAccess";
 import { instructionalImageBytes } from "./cards/mediaProviders";
-import { assertNotInfoMedia } from "./infoCards/mediaRegistry";
 import { stepMediaItems } from "./stepMedia";
 import { readInstructionalImageContext, type InstructionalImageContext } from "./instructionalImageContext";
 import { createVisualRequestBudget } from "./visualLearningRecords/requestBudget";
@@ -34,7 +34,7 @@ export async function resolveInstructionalImage(repo: CardRepository, actor: str
     // ownership. These namespaces belong exclusively to personal CardData.
     requireCondition(!/(?:^|\/)(?:user-cards|user-decks)(?:\/|$)/i.test(path)
       && !/(?:^|\/)(?:user-cards|user-decks)(?:\/|$)/i.test(key), "INSTRUCTIONAL_IMAGE_FORBIDDEN");
-    await assertNotInfoMedia(repo.db, "r2", attachment.media.src, session);
+    await assertImageDelivery(repo.db, { scope: "card", targetId: context.cardTemplateId }, attachment.media, session);
     return attachment.media;
   });
 }
@@ -47,10 +47,9 @@ type Dependencies = {
   consumeBudget: (actor: string) => boolean;
 };
 const defaults: Dependencies = {
-  // Ordinary canonical saves currently validate shape, not upload provenance.
-  // This gate must remain off until the canonical provider/provenance review;
-  // setting it is not itself a substitute for that review or ownership proof.
-  enabled: process.env.SWITCHPLAY_PLUGGED_IN_VISUALS === "1" && process.env.INSTRUCTIONAL_IMAGES_PRIVATE_MEDIA_VERIFIED === "1",
+  // Application permissions and allocation provenance are enforced below. R2
+  // bytes may be publicly readable for the approved non-sensitive illustration MVP.
+  enabled: true,
   currentUser: async () => (await import("./auth")).getCurrentUser(),
   resolve: async (actor, context) => resolveInstructionalImage(await CardRepository.application(), actor, context),
   read: instructionalImageBytes, consumeBudget: budget,

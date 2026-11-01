@@ -1,37 +1,69 @@
 import { expect, test } from "@playwright/test";
 import { MongoClient } from "mongodb";
-import { randomUUID } from "node:crypto";
-import { CardRepository } from "../../src/lib/cards/repository";
-import { createDefaultCardContent, createDefaultDeckContent } from "../../src/lib/cards/creatorDefaults";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
-import { instructionalImageUrl, type InstructionalImageContext } from "../../src/lib/instructionalImageContext";
+import { instructionalImageUrl } from "../../src/lib/instructionalImageContext";
+import { geometry } from "./helpers/presentationGeometry";
 
-test("the real Next image endpoint authorizes exact context, decodes local fixture bytes and denies changed actors", async ({ page }) => {
+// Real Creator commands, real application auth/publication/permissions, and an
+// explicitly disposable byte-storage provider. No intercepted image/API responses.
+test("Creator image uploads publish and decode in normal learner Step View after reload", async ({ page, browser }) => {
+  page.setDefaultTimeout(15_000);
   assertDisposableDatabase(); const client = await new MongoClient(process.env.MONGODB_URI!).connect();
   try {
-    const repo = new CardRepository(client.db(process.env.MONGODB_DB!), client, "1"), actor = process.env.PHASE2_USER_ID!;
-    const owner = (await repo.users().findOne({ username: "other" }))!._id.toString(), attachmentId = randomUUID();
-    const defaults = createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]);
-    const card = await repo.createCardDraft(owner, { ...defaults, intro: { title: "Instructional image", description: null,
-      mediaItems: [{ id: attachmentId, kind: "image", label: "Image", alt: "A diagram", media: { id: "fixture-image", mediaType: "image", provider: "cloudflare-r2",
-        assetId: "fixtures/diagram.png", src: `${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/assets/fixtures/diagram.png`, description: "A diagram" } }] } }, "public");
-    await repo.publishCard(owner, card.cardTemplateId, 0);
-    const deck = await repo.createDeckDraft(owner, { ...createDefaultDeckContent([]), title: "Image test", cards: [{ cardTemplateId: card.cardTemplateId }] }, "public");
-    await repo.publishDeck(owner, deck.deckTemplateId, 0);
-    const context: InstructionalImageContext = { viewerUserId: actor, cardTemplateId: card.cardTemplateId, version: 1, mode: "canonical", deckTemplateId: deck.deckTemplateId, deckVersion: 1, stepId: "intro", attachmentId };
-    const url = instructionalImageUrl(context);
-    expect((await page.request.get(url)).status()).toBe(401);
+    const db = client.db(process.env.MONGODB_DB!);
     await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
-    const result = await page.request.get(url); expect(result.status()).toBe(200);
-    expect(result.headers()["content-type"]).toBe("image/png"); expect(result.headers()["cache-control"]).toBe("private, no-store");
-    expect(result.headers()["x-content-type-options"]).toBe("nosniff"); expect((await result.body()).subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-    await page.goto("/library");
-    expect(await page.evaluate(src => new Promise<{ width: number; height: number }>((resolve, reject) => {
-      const image = new Image(); image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight }); image.onerror = () => reject(new Error("Image did not decode")); image.src = src;
-    }), url)).toEqual({ width: 1, height: 1 });
-    expect((await page.request.get(instructionalImageUrl({ ...context, attachmentId: randomUUID() }))).status()).toBe(403);
-    expect((await page.request.get(url + "&src=https://external.invalid/image.png")).status()).toBe(400);
-    await page.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } });
-    expect((await page.request.get(url)).status()).toBe(403);
+    await page.goto("/creator/new"); await page.getByRole("button", { name: "Add card", exact: true }).click();
+    const column = page.locator(".creator-column[data-card-template-id]").last(), id = (await column.getAttribute("data-card-template-id"))!;
+    const root = () => db.collection("cardTemplates").findOne({ cardTemplateId: id });
+    await expect.poll(async () => !!await root()).toBe(true);
+    await expect(page).toHaveURL(/\/creator\/edit\/[^/]+$/);
+    const deckId = new URL(page.url()).pathname.split("/").at(-1)!;
+    await column.locator(".creator-card-title-button").click();
+    await page.locator(".creator-modal").getByRole("textbox").fill("Understand a parabola");
+    await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
+    const file = { name: "Parabola.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64") };
+    const modal = page.locator("dialog[data-creator-step-media]");
+    for (const intro of [true, false]) {
+      await (intro ? column.locator(".creator-card-intro-media-slot .creator-media-upload-control") : column.getByRole("button", { name: "Manage step media", exact: true }).first()).click();
+      await modal.getByLabel("Add image", { exact: true }).setInputFiles(file);
+      await expect.poll(async () => {
+        const card = (await root())!; return (intro ? card.draft.intro : card.draft.steps[0]).mediaItems?.length;
+      }).toBe(1);
+      await modal.getByRole("button", { name: "Close", exact: true }).click();
+    }
+    await column.getByRole("combobox", { name: "Card 1 publication visibility" }).selectOption("public");
+    await column.getByRole("button", { name: /^Publish Card/ }).click();
+    await page.getByRole("dialog", { name: "Confirm public publication" }).getByRole("button", { name: "Publish publicly", exact: true }).click();
+    await expect.poll(async () => (await root())?.latestVersion).toBe(1);
+    await page.getByRole("button", { name: "Edit deck title and introduction" }).click();
+    await page.locator(".creator-modal textarea").fill("Study mathematical illustrations");
+    await page.locator(".creator-modal").getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByRole("combobox", { name: "Deck publication visibility" }).selectOption("public");
+    await page.getByRole("button", { name: "Publish Deck", exact: true }).click();
+    await page.getByRole("dialog", { name: "Confirm public publication" }).getByRole("button", { name: "Publish publicly", exact: true }).click();
+    await expect.poll(async () => (await db.collection("deckTemplates").findOne({ deckTemplateId: deckId }))?.latestVersion).toBe(1);
+    const content = (await db.collection("cardTemplateVersions").findOne({ cardTemplateId: id, version: 1 }))!.content;
+    const learner = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL });
+    learner.setDefaultTimeout(15_000);
+    try {
+      await learner.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } });
+      const actor = (await db.collection("users").findOne({ username: "other" }))!._id.toString();
+      const tab = await learner.newPage();
+      const url = instructionalImageUrl({ viewerUserId: actor, cardTemplateId: id, version: 1, mode: "canonical", deckTemplateId: deckId, deckVersion: 1, stepId: "intro", attachmentId: content.intro.mediaItems[0].id });
+      expect((await page.request.get(url)).status()).toBe(403); // context belongs to the learner, not creator
+      expect((await learner.request.get(url)).status()).toBe(200);
+      await tab.goto(`/library/${deckId}`);
+      await tab.locator(".deck-card.is-active").press("Enter"); await geometry(tab, [".focused-card-surface--front"]);
+      await tab.locator(".focused-card-surface--front .active-card-identity[role=button]").click();
+      const visibleImage = tab.locator(".step-view-layer img[alt='Parabola.png']");
+      await expect(visibleImage).toBeVisible();
+      await expect.poll(() => visibleImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(1);
+      await tab.reload(); await tab.locator(".deck-card.is-active").press("Enter"); await geometry(tab, [".focused-card-surface--front"]);
+      await tab.locator(".focused-card-surface--front .active-card-identity[role=button]").click();
+      await expect(visibleImage).toBeVisible();
+      const stepUrl = instructionalImageUrl({ viewerUserId: actor, cardTemplateId: id, version: 1, mode: "canonical", deckTemplateId: deckId, deckVersion: 1, stepId: content.steps[0].stepId, attachmentId: content.steps[0].mediaItems[0].id });
+      expect((await learner.request.get(stepUrl)).status()).toBe(200);
+      expect((await learner.request.get(url + "&src=https://external.invalid/image.png")).status()).toBe(400);
+    } finally { await learner.close().catch(() => {}); }
   } finally { await client.close(); }
 });

@@ -1,5 +1,5 @@
 import { assertDisposableDatabase } from "./localDatabase";
-import { createCloudflareR2DirectUpload, createCloudflareR2UserCardImageDirectUpload } from "../cloudflareR2";
+import { createCloudflareR2DirectUpload, createCloudflareR2UserCardImageDirectUpload, createInstructionalImageUpload, verifyInstructionalImageObject } from "../cloudflareR2";
 import { createCloudflareStreamDirectUpload, getCloudflareStreamVideoStatus } from "../cloudflareStream";
 import { readProtectedImage, r2Location } from "./protectedMedia";
 import type { ImageMediaItem } from "../media";
@@ -41,4 +41,16 @@ export async function instructionalImageBytes(item: ImageMediaItem, signal: Abor
   if (!origin) return readProtectedImage(item, signal);
   const { key } = r2Location(item);
   return fetch(`${origin}/assets/${key.split("/").map(encodeURIComponent).join("/")}`, { signal, cache: "no-store" });
+}
+
+export function instructionalImageUpload(options: Parameters<typeof createInstructionalImageUpload>[0]) {
+  const origin = fixtureOrigin();
+  return createInstructionalImageUpload({ ...options, ...(origin ? { signedUrlImpl: async (_client, command) =>
+    `${origin}/upload?key=${encodeURIComponent((command.input as { Key: string }).Key)}` } : {}) });
+}
+export async function instructionalImageReady(allocation: Parameters<typeof verifyInstructionalImageObject>[0]) {
+  const origin = fixtureOrigin();
+  if (!origin) return verifyInstructionalImageObject(allocation);
+  const response = await fetch(`${origin}/assets/${allocation.assetId.split("/").map(encodeURIComponent).join("/")}`, { method: "HEAD", cache: "no-store" });
+  if (!response.ok || response.headers.get("x-amz-meta-creator") !== allocation.ownerUserId) throw new Error("Fixture image is not ready");
 }

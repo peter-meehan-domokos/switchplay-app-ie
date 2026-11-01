@@ -17,12 +17,27 @@ import { createVisualReviewServer } from "./fixtures/plugged-in-review-server";
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
 let reviewHandler: Awaited<ReturnType<typeof createVisualReviewServer>> | undefined;
+const imageObjects = new Map<string, { bytes: Buffer; headers: Record<string, string> }>();
 const media = createServer(async (request, response) => {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "*");
   response.setHeader("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges");
   if (reviewHandler && await reviewHandler(request, response)) return;
+  if (request.method === "PUT" && request.url?.startsWith("/upload?key=")) {
+    const key = new URL(request.url, "http://fixture").searchParams.get("key")!;
+    if (imageObjects.has(key) && request.headers["if-none-match"] === "*") { request.resume(); response.writeHead(412); response.end(); return; }
+    const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    imageObjects.set(key, { bytes: Buffer.concat(chunks), headers: Object.fromEntries(Object.entries(request.headers)
+      .filter(([key, value]) => typeof value === "string" && (key.startsWith("x-amz-meta-") || key === "content-type"))) as Record<string, string> });
+    response.end(); return;
+  }
+  if (["GET", "HEAD"].includes(request.method ?? "") && request.url?.startsWith("/assets/instructional-images/")) {
+    const key = decodeURIComponent(request.url.slice("/assets/".length)), image = imageObjects.get(key);
+    if (!image) { response.writeHead(404); response.end(); return; }
+    response.writeHead(200, { ...image.headers, "Content-Length": image.bytes.length });
+    response.end(request.method === "HEAD" ? undefined : image.bytes); return;
+  }
   if (request.method === "OPTIONS" || request.method === "PUT") { request.resume(); response.end(); return; }
   if (request.method === "GET" && request.url?.startsWith("/assets/")) {
     response.setHeader("Content-Type", "image/png");
@@ -58,7 +73,7 @@ async function main() {
 try {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   const uri = mongo.getUri(), database = `switchplay_phase2_browser_${randomUUID().replaceAll("-", "")}`;
-  client = await new MongoClient(uri).connect(); const db = client.db(database); await createFoundationIndexes(db); await createInfoCardIndexes(db);
+  client = await new MongoClient(uri).connect(); const db = client.db(database); await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await createInfoCardIndexes(db);
   if (visuals) await createVisualLearningRecordIndexes(db);
   const now = new Date(); const userId = new ObjectId();
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
@@ -93,7 +108,6 @@ try {
   if (visualReview) reviewHandler = await createVisualReviewServer({ appOrigin: baseURL, appPort, hosts: ["localhost", "127.0.0.1", ...lanIPs], actor: userId.toHexString(), entryPath: entryPath!, deckPath: deckPath! });
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
     SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","), SWITCHPLAY_PLUGGED_IN_VISUALS: visuals ? "1" : "0",
-    INSTRUCTIONAL_IMAGES_PRIVATE_MEDIA_VERIFIED: visuals ? "1" : "0",
     SWITCHPLAY_STEP_MEDIA_WRITES: stepMediaWrites ? "1" : "0",
     NEXT_PUBLIC_PHASE2_VISUAL_REVIEW: visualReview ? "1" : "0", NEXT_PUBLIC_PHASE2_VISUAL_REVIEW_MEDIA_ORIGIN: reviewMediaOrigin ?? "",
     PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,

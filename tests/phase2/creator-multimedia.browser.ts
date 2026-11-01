@@ -109,13 +109,13 @@ test("image and video uploads attach once; failed replacement and cancelled uplo
   expect((await root(id))!.draft.intro.mediaItems).toEqual(before);
   await page.unroute(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload`);
   let started = false, release!: () => void; const paused = new Promise<void>(resolve => { release = resolve; });
-  await page.route(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload`, async route => { started = true; await paused; await route.continue(); });
+  await page.route(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload**`, async route => { started = true; await paused; await route.continue(); });
   await media(page).getByLabel("Add image", { exact: true }).setInputFiles(image); await expect.poll(() => started).toBe(true);
   await expect(media(page).getByRole("combobox", { name: "Add Interactive Visual", exact: true })).toBeDisabled();
   await media(page).getByRole("button", { name: "Cancel upload", exact: true }).click(); release();
   await expect(media(page).getByLabel("Add video", { exact: true })).toBeEnabled();
   expect((await root(id))!.draft.intro.mediaItems).toEqual(before);
-  await page.unroute(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload`);
+  await page.unroute(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/upload**`);
   await media(page).getByLabel("Replace Watch with image", { exact: true }).setInputFiles(image);
   await expect.poll(async () => (await root(id))?.draft.intro.mediaItems?.[1]?.kind).toBe("image");
   const after = (await root(id))!.draft.intro.mediaItems;

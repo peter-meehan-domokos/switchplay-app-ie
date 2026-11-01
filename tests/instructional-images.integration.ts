@@ -1,5 +1,7 @@
+import { S3Client } from "@aws-sdk/client-s3";
+import { recordImageAllocation } from "../src/lib/cards/instructionalImageOwnership";
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
+import { after, before, test, mock } from "node:test";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { MongoClient } from "mongodb";
 import { CardRepository, createFoundationIndexes } from "../src/lib/cards/repository";
@@ -9,12 +11,16 @@ import type { InstructionalImageContext } from "../src/lib/instructionalImageCon
 import type { ImageMediaItem } from "../src/lib/media";
 
 let server: MongoMemoryReplSet, client: MongoClient;
-before(async () => { server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(server.getUri()).connect(); });
+before(async () => {
+  Object.assign(process.env, { CLOUDFLARE_ACCOUNT_ID: "fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "fixture", CLOUDFLARE_R2_BUCKET_NAME: "fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: "https://r2.invalid" });
+  mock.method(S3Client.prototype, "send", async () => ({ ContentType: "image/png", ContentLength: 10, Metadata: { creator: "owner", "instructional-scope": "card", "instructional-target": "card" } }));
+  server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(server.getUri()).connect(); });
 after(async () => { await client?.close(); await server?.stop(); });
 async function fixture(name: string, privateEra = false) {
   const db = client.db(`switchplay_test_instructional_${name}`), repo = new CardRepository(db, client, "1");
-  await createFoundationIndexes(db); await repo.users().insertMany(["owner", "learner", "other"].map(_id => ({ _id, cardsData: [], decksData: [] })));
-  const image: ImageMediaItem = { id: "diagram", mediaType: "image", provider: "cloudflare-r2", src: "https://r2.invalid/deck/image.png", assetId: "deck/image.png", description: "Diagram" };
+  await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await repo.users().insertMany(["owner", "learner", "other"].map(_id => ({ _id, cardsData: [], decksData: [] })));
+  const image: ImageMediaItem = { id: "diagram", mediaType: "image", provider: "cloudflare-r2", src: "https://r2.invalid/instructional-images/owner/card/card/image.png", assetId: "instructional-images/owner/card/card/image.png", description: "Diagram" };
+  await recordImageAllocation(db, "owner", { scope: "card", targetId: "card" }, { assetId: image.assetId!, deliveryUrl: image.src });
   const base = createDefaultCardContent(["one", "two", "three"]);
   const content = { ...base, intro: { ...base.intro, title: "Image practice", mediaItem: image },
     steps: base.steps.map((step, index) => index === 0 ? { stepId: step.stepId, description: "Study the diagram.", mediaItems: [{ id: "attachment", label: "Image", kind: "image" as const, media: image, alt: "A diagram" }] } : step) };
