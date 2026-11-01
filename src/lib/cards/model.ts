@@ -2,6 +2,7 @@ import type { ObjectId } from "mongodb";
 import type { CompletionStatus, CardIntro, CardTemplateStep, DeckIntroduction, CardComment } from "../../components/decks/types";
 import type { MediaItem } from "../media";
 import type { RetainedCardAssignment } from "./retainedAssignments";
+import type { AssessmentProvenance } from "../assessments/provenance";
 
 export type Visibility = "private" | "public";
 export type AdoptedVersion = number; // Validated integer >= 1; personal data adopts immutable published content.
@@ -75,7 +76,7 @@ export type CardTemplateVersion = Version<CardContent> & { cardTemplateId: strin
 // its existing exact-append recovery; no workflow flags or receipt collection.
 export type CopyPublicationReceipt = { cardTemplateId: string; revision: number; contentHash: string; sourceVersion?: number };
 export type DeckTemplateVersion = Version<PublishedDeckContent> & { deckTemplateId: string; copyReceipt?: CopyPublicationReceipt; forkPublicationReceipt?: ForkPublicationReceipt };
-export type CardTest = { id: string; date: string; result: boolean; createdAt: Date };
+export type CardTest = { id: string; date: string; result: boolean; createdAt: Date; provenance?: AssessmentProvenance };
 export type CardData = {
   personalInfoCardIds?: string[];
   personalInfoCardAttachedAt?: Record<string, Date>;

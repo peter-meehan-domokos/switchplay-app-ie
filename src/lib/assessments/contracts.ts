@@ -1,8 +1,14 @@
 import { CardArchitectureError, isRecord, nonblank, requireCondition } from "../cards/domain";
 import { isIsoDateOnlyString } from "../dateOnly";
+import { manualAssessmentProvenance, sameAssessmentEntry, type AssessmentOrigin, type AssessmentProvenance } from "./provenance";
 
 export type AssessmentSource = { kind: "card"; cardTemplateId: string } | { kind: "item"; itemId: string };
-export type AssessmentResult = { id: string; date: string; result: boolean; createdAt: string };
+export type AssessmentTarget = { cardTemplateId: string; frameworkItemId?: never } | { frameworkItemId: string; cardTemplateId?: never };
+export function assessmentTarget(source: AssessmentSource): AssessmentTarget {
+  assertAssessmentSource(source);
+  return source.kind === "card" ? { cardTemplateId: source.cardTemplateId } : { frameworkItemId: source.itemId };
+}
+export type AssessmentResult = { id: string; date: string; result: boolean; createdAt: string; provenance?: AssessmentProvenance; origin?: AssessmentOrigin };
 export type AssessmentList = { viewerUserId: string; source: AssessmentSource; revision: number; tests: AssessmentResult[] };
 type CommandBase = { viewerUserId: string; source: AssessmentSource; expectedRevision: number; id: string };
 export type AssessmentCommand = CommandBase & (
@@ -49,6 +55,8 @@ export function reconcileAssessment(command: AssessmentCommand, list: Assessment
   if (list.revision <= command.expectedRevision) return null;
   const test = list.tests.find((test) => test.id === command.id);
   if (command.action === "delete") return test ? null : "already-absent";
+  if (command.action === "add" && test?.provenance && !sameAssessmentEntry(test.provenance,
+    manualAssessmentProvenance(command.viewerUserId, { groupExperienceId: null, deckTemplateId: command.deckTemplateId ?? null }))) return null;
   return test && test.date === command.date && test.result === command.result ? "already-present" : null;
 }
 export function newestAssessmentsFirst(tests: readonly AssessmentResult[]): AssessmentResult[] {

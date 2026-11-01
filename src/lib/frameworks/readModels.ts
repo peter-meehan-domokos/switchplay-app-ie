@@ -12,11 +12,15 @@ import { resolveEffectiveMapping, validateFrameworkAncestry, type CanonicalAnces
 import { readCanonicalAncestry } from "./mappingRepository";
 import { allowsVirtualPersonalCard, lifetimeEligibility, type LifetimeEligibility } from "./lifetimeEligibility";
 import { resolveProgressScope } from "./scope";
+import { authorisedAssessmentOriginNames } from "../assessments/provenanceReads";
 
 export function frameworkMetadata(frameworks: readonly Framework[] = getFrameworks()) {
   assertFrameworkConfiguration(frameworks);
   return frameworks.map(({ id, title, areas }) => ({ id, title,
     areas: areas.map(({ id, title, items }) => ({ id, title, items: items.map(({ id, title }) => ({ id, title })) })) }));
+}
+function ownerAssessmentEvents(user: PersonalUser) {
+  return [...user.cardsData.flatMap(card => Array.isArray(card.tests) ? card.tests : []), ...(Array.isArray(user.itemTests) ? user.itemTests : [])];
 }
 
 // All queries share one snapshot. Queries within a Mongo transaction remain
@@ -133,13 +137,14 @@ export async function readFrameworkSummaries(repo: CardRepository, actor: string
       for (const id of selection.cardIds) if (!histories.has(id)) histories.set(id, eligibleHistory(user, id, eligible));
     }
     const titles = await sourceTitles(repo, actor, user, [...histories.values()], session, eligible);
+    const originNames = await authorisedAssessmentOriginNames(repo, actor, ownerAssessmentEvents(user), session);
     return { viewerUserId: actor, frameworks: frameworks.map((framework) => ({ id: framework.id, title: framework.title,
       areas: framework.areas.map((area) => ({ id: area.id, title: area.title, hasConfiguredCards: hasConfiguredAreaCards(area),
         progress: calculateMappedProgress(framework, { areaId: area.id }, graph, eligible, calculations),
         items: area.items.map((item) => {
           const selection = selections.get(item.id)!;
           const history = projectAssessmentHistory(user, selection.cardIds.map((id) => histories.get(id)!), titles,
-            { itemId: item.id, ownCardIds: selection.cardIds, issues: selection.issues });
+            { itemId: item.id, ownCardIds: selection.cardIds, issues: selection.issues, originNames });
           return { id: item.id, title: item.title, hasConfiguredCards: hasConfiguredCards(item), progress: calculateMappedProgress(framework, { itemId: item.id }, graph, eligible, calculations),
             assessments: compactAssessmentHistory(history) };
         }) })) })) };
@@ -167,8 +172,9 @@ export async function readItemAssessmentHistory(repo: CardRepository, actor: str
     }
     const histories = selection.cardIds.map((id) => eligibleHistory(user, id, eligible));
     const titles = await sourceTitles(repo, actor, user, histories, session, eligible);
+    const originNames = await authorisedAssessmentOriginNames(repo, actor, ownerAssessmentEvents(user), session);
     return { viewerUserId: actor, itemId, configured: !!framework,
-      history: projectAssessmentHistory(user, histories, titles, { itemId, ownCardIds: selection.cardIds, issues: selection.issues }) };
+      history: projectAssessmentHistory(user, histories, titles, { itemId, ownCardIds: selection.cardIds, issues: selection.issues, originNames }) };
   });
 }
 export async function readCardAssessmentHistory(repo: CardRepository, actor: string, cardTemplateId: string) {
@@ -180,7 +186,8 @@ export async function readCardAssessmentHistory(repo: CardRepository, actor: str
     requireCondition(count === 1 || count === 0 && allowsVirtualPersonalCard(eligible, cardTemplateId), "CARD_CONTEXT_FORBIDDEN");
     const history = eligibleHistory(user, cardTemplateId, eligible);
     const titles = await sourceTitles(repo, actor, user, [history], session, eligible);
+    const originNames = await authorisedAssessmentOriginNames(repo, actor, ownerAssessmentEvents(user), session);
     return { viewerUserId: actor, cardTemplateId,
-      history: projectAssessmentHistory(user, [history], titles, { ownCardIds: [cardTemplateId] }) };
+      history: projectAssessmentHistory(user, [history], titles, { ownCardIds: [cardTemplateId], originNames }) };
   });
 }

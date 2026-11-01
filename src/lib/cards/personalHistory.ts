@@ -3,6 +3,7 @@ import { isIsoDateOnlyString } from "../dateOnly";
 import { isMediaItem, type MediaItem } from "../media";
 import type { CardData } from "./model";
 import { infoReferences } from "../infoCards/domain";
+import { readAssessmentProvenance } from "../assessments/provenance";
 
 // Read-boundary repair only: never rewrite stored events or relax new-upload
 // validation. A bad item/comment cannot invalidate other items or current state.
@@ -24,7 +25,8 @@ export function readablePersonalHistory(data: CardData) {
     const createdAt = value.createdAt instanceof Date ? value.createdAt
       : typeof value.createdAt === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value.createdAt) ? new Date(value.createdAt) : null;
     if (!createdAt || !Number.isFinite(createdAt.getTime())) return null;
-    return { id: value.id, date: value.date, result: value.result, createdAt };
+    const provenance = readAssessmentProvenance(value.provenance);
+    return { id: value.id, date: value.date, result: value.result, createdAt, ...(provenance ? { provenance } : {}) };
   });
   const chats = validItems<CardData["chats"][number]>(data.chats, (value) => {
     if (!isRecord(value) || !nonblank(value.id) || !nonblank(value.deckTemplateId)) return null;

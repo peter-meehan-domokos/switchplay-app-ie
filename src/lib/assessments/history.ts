@@ -4,6 +4,7 @@ import { readablePersonalHistory } from "../cards/personalHistory";
 import type { CardData, PersonalUser } from "../cards/model";
 import { assessmentRevision, type AssessmentResult, type AssessmentSource } from "./contracts";
 import { assertStoredAssessmentTests } from "./repository";
+import { assessmentOrigin } from "./provenance";
 
 export type SourceTitle = { title: string; availability: "available" | "untitled" | "unavailable" };
 export const unavailableCardTitle: SourceTitle = { title: "Card title unavailable", availability: "unavailable" };
@@ -55,7 +56,7 @@ export function collectCardHistory(records: CardData[], cardTemplateId: string):
 // The existing walker is the only personal ancestry traversal. Inputs are always
 // the authenticated actor's own records; canonical ancestry is never consulted.
 export function projectAssessmentHistory(user: PersonalUser, histories: readonly CardHistoryInput[], titles: ReadonlyMap<string, SourceTitle>,
-  options: { itemId?: string; ownCardIds: readonly string[]; issues?: readonly HistoryIssue[] }): AssessmentHistory {
+  options: { itemId?: string; ownCardIds: readonly string[]; issues?: readonly HistoryIssue[]; originNames?: ReadonlyMap<string, string> }): AssessmentHistory {
   const issues = [...(options.issues ?? []), ...histories.flatMap((history) => history.issues)];
   const dependencies = new Map<string, AssessmentDependency>(), events = new Map<string, HistoryResult>();
   const ownIds = new Set(options.ownCardIds);
@@ -71,7 +72,7 @@ export function projectAssessmentHistory(user: PersonalUser, histories: readonly
   const add = (test: AssessmentResult, dependency: AssessmentDependency, exposedThroughCardTemplateId?: string) => {
     const { source, revision, canMutate } = dependency;
     const direct = source.kind === "item", title = direct ? null : titles.get(source.cardTemplateId) ?? unavailableCardTitle;
-    const row: HistoryResult = { ...test, source, sourceRevision: revision, canMutate,
+    const row: HistoryResult = { ...test, origin: assessmentOrigin(test.provenance, options.originNames), source, sourceRevision: revision, canMutate,
       relationship: direct ? "direct-item" : ownIds.has(source.cardTemplateId) ? "own-card" : "inherited-card",
       sourceTitle: direct ? "Item test" : title!.title, titleAvailability: direct ? "not-applicable" : title!.availability,
       exposedThroughCardTemplateIds: exposedThroughCardTemplateId ? [exposedThroughCardTemplateId] : [] };

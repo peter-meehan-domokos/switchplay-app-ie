@@ -7,6 +7,8 @@ import { getFrameworks, assertFrameworkConfiguration, type Framework } from "../
 import { AssessmentConflict, assessmentRevision, assertAssessmentCommand, assertAssessmentId, assertAssessmentSource,
   newestAssessmentsFirst, reconcileAssessment, type AssessmentCommand, type AssessmentList, type AssessmentSource,
   type AssessmentMutationResult } from "./contracts";
+import { assessmentOrigin, manualAssessmentProvenance, readAssessmentProvenance } from "./provenance";
+import { authorisedAssessmentOriginNames } from "./provenanceReads";
 
 export function assertStoredAssessmentTests(value: unknown, item = false): asserts value is (CardTest | ItemTest)[] {
   requireCondition(Array.isArray(value), "INVALID_STORED_ASSESSMENTS");
@@ -18,6 +20,7 @@ export function assertStoredAssessmentTests(value: unknown, item = false): asser
       : typeof test.createdAt === "string" && /^\d{4}-\d{2}-\d{2}T/.test(test.createdAt) ? new Date(test.createdAt) : null;
     requireCondition(createdAt && Number.isFinite(createdAt.getTime()), "INVALID_STORED_ASSESSMENTS");
     assertAssessmentId(test.id); if (item) assertAssessmentId(test.itemId);
+    requireCondition(test.provenance === undefined || readAssessmentProvenance(test.provenance), "INVALID_STORED_ASSESSMENT_PROVENANCE");
     requireCondition(!seen.has(test.id), "DUPLICATE_ASSESSMENT_ID_CONFLICT"); seen.add(test.id);
   }
 }
@@ -35,8 +38,10 @@ async function assessmentStorage(repo: CardRepository, actor: string, source: As
   assertStoredAssessmentTests(tests, !card);
   const revision = assessmentRevision(card ? card.testsRevision : user.itemTestsRevision);
   const visible = source.kind === "card" ? tests : tests.filter((test) => (test as ItemTest).itemId === source.itemId);
+  const originNames = await authorisedAssessmentOriginNames(repo, actor, visible, session);
   const list: AssessmentList = { viewerUserId: actor, source, revision, tests: newestAssessmentsFirst(visible.map((test) => ({
-    id: test.id, date: test.date, result: test.result, createdAt: new Date(test.createdAt).toISOString() }))) };
+    id: test.id, date: test.date, result: test.result, createdAt: new Date(test.createdAt).toISOString(),
+    ...(test.provenance ? { provenance: readAssessmentProvenance(test.provenance) } : {}), origin: assessmentOrigin(test.provenance, originNames) }))) };
   return { user, card, tests, list };
 }
 export async function readAssessmentList(repo: CardRepository, actor: string, source: AssessmentSource): Promise<AssessmentList> {
@@ -74,6 +79,7 @@ export async function mutateAssessment(repo: CardRepository, actor: string, comm
     const next = command.action === "delete" ? tests.filter((test) => test.id !== command.id)
       : command.action === "update" ? tests.map((test) => test.id === command.id ? { ...test, date: command.date, result: command.result } : test)
       : [...tests, { id: command.id, date: command.date, result: command.result, createdAt: now,
+        provenance: manualAssessmentProvenance(actor, { groupExperienceId: null, deckTemplateId: command.source.kind === "card" ? command.deckTemplateId! : null }),
         ...(command.source.kind === "item" ? { itemId: command.source.itemId } : {}) }];
     // Narrow fields only. Mongo retries re-read the list; the CAS also explicitly
     // accepts absent legacy counters as zero. Never replace User or CardData.
