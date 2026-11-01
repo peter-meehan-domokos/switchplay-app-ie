@@ -188,7 +188,7 @@ test("claim API requires account identity and guest proof for a new claim, valid
   const request = (value: unknown = body, headers: Record<string, string> = {}) => new Request("https://app.example/api/visual-guests/claim", { method: "POST",
     headers: { Origin: "https://app.example", "Content-Type": "application/json", "X-Visual-Learner": "account:account-one", ...headers }, body: JSON.stringify(value) });
   let retired = false;
-  const deps = { enabled: true, authenticateAccount: async () => account, readCredential: async () => guest.credential, claims: async () => claims, retireCredential: async () => { retired = true; } };
+  const deps = { authenticateAccount: async () => account, readCredential: async () => guest.credential, claims: async () => claims, retireCredential: async () => { retired = true; } };
   assert.equal((await createVisualClaimApi({ ...deps, authenticateAccount: async () => null })(request())).status, 401);
   assert.equal((await createVisualClaimApi(deps)(request(body, { Origin: "https://attacker.example" }))).status, 403);
   assert.equal((await createVisualClaimApi({ ...deps, readCredential: async () => undefined })(request())).status, 403);

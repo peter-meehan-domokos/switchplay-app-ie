@@ -8,7 +8,6 @@ export default async function InteractiveVisualPage({ params, searchParams }: {
   params: Promise<{ activityId: string }>;
   searchParams: Promise<{ claimId?: string | string[] }>;
 }) {
-  if (process.env.SWITCHPLAY_PLUGGED_IN_VISUALS !== "1") notFound();
   const { activityId } = await params;
   const visual = resolveInteractiveVisual(activityId, { disabledIds: (process.env.SWITCHPLAY_DISABLED_INTERACTIVE_VISUAL_IDS ?? "").split(",").map(id => id.trim()) });
   if (!visual) notFound();

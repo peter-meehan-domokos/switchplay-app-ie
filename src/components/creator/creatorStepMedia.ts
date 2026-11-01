@@ -1,13 +1,8 @@
 import { getInteractiveVisual } from "@/lib/interactiveVisuals/catalogue";
-import { MAX_STEP_MEDIA, validStepMediaItems, withStepMedia, type StepMediaDestination, type StepMediaItem } from "@/lib/stepMedia";
+import { MAX_STEP_MEDIA, validStepMediaItems, type StepMediaItem } from "@/lib/stepMedia";
 import type { ImageMediaItem, VideoMediaItem } from "@/lib/media";
 
 export const defaultStepMediaLabel = (kind: StepMediaItem["kind"]) => kind === "video" ? "Watch" : kind === "image" ? "Image" : "Explore";
-export function withCreatorStepMedia<T extends StepMediaDestination>(destination: T, items: StepMediaItem[], multimediaEnabled: boolean) {
-  if (multimediaEnabled) return withStepMedia(destination, items);
-  if (destination.mediaItems !== undefined || items.length > 1 || items.some(item => item.kind !== "video")) throw new Error("Multimedia editing is unavailable. Your existing media is kept.");
-  return { ...destination, mediaItem: items[0]?.kind === "video" ? items[0].media : null };
-}
 export function putStepMedia(items: readonly StepMediaItem[], item: StepMediaItem, replacementId?: string): StepMediaItem[] {
   if (replacementId !== undefined && !items.some(existing => existing.id === replacementId)) throw new Error("The media being replaced has changed. Reopen the media manager.");
   if (replacementId === undefined && items.length >= MAX_STEP_MEDIA) throw new Error("Each introduction or step supports up to four media items.");

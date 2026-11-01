@@ -13,7 +13,6 @@ import { defaultStepMediaLabel, putStepMedia, selectedStepVisual } from "./creat
 import styles from "./CreatorStepMediaModal.module.css";
 
 type Props = {
-  multimediaEnabled: boolean;
   title: string; items: readonly StepMediaItem[]; uploading: boolean; disabled: boolean; saveError?: boolean;
   acknowledgedMedia: readonly MediaItem[];
   readinessTarget: MediaUploadTarget;
@@ -82,36 +81,36 @@ export default function CreatorStepMediaModal(props: Props) {
     catch (failure) { setError(failure instanceof Error ? failure.message : "Upload failed. Your existing media is kept."); }
   }
   const uploadChoices = (previous?: StepMediaItem) => <div className={styles.actions}>
-    {(props.multimediaEnabled ? ["video", "image"] as const : ["video"] as const).map(kind => <label className="creator-modal-secondary" key={kind}>
+    {(["video", "image"] as const).map(kind => <label className="creator-modal-secondary" key={kind}>
       {previous ? `Replace with ${kind}` : `Add ${kind}`}
-      <input type="file" accept={`${kind}/*`} aria-label={previous ? `Replace ${previous.label} with ${kind}` : `Add ${kind}`} disabled={blocked || !previous && items.length >= (props.multimediaEnabled ? MAX_STEP_MEDIA : 1)}
+      <input type="file" accept={`${kind}/*`} aria-label={previous ? `Replace ${previous.label} with ${kind}` : `Add ${kind}`} disabled={blocked || !previous && items.length >= MAX_STEP_MEDIA}
         onChange={event => void upload(kind, event, previous)} />
     </label>)}
-    {props.multimediaEnabled ? <label className={styles.field}>{previous ? "Replace with Interactive Visual" : "Add Interactive Visual"}
+    <label className={styles.field}>{previous ? "Replace with Interactive Visual" : "Add Interactive Visual"}
       <select aria-label={previous ? `Replace ${previous.label} with Interactive Visual` : "Add Interactive Visual"} value="" disabled={blocked || !previous && items.length >= MAX_STEP_MEDIA}
         onChange={event => visual(event.currentTarget.value, previous)}>
         <option value="">Choose a published visual</option>
         {interactiveVisualCatalogue.filter(entry => entry.status === "published").map(entry => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
       </select>
-    </label> : null}
+    </label>
   </div>;
   return <dialog ref={dialog} className={styles.dialog} aria-label={title} data-creator-pan-exempt data-creator-step-media
     onCancel={event => { event.preventDefault(); close.current(); }} onClick={event => event.stopPropagation()}
     onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
     <header className={styles.header}><h2>{title}</h2><button type="button" className="creator-modal-close" onClick={onClose}>Close</button></header>
-    <p className={styles.description}>{props.multimediaEnabled ? "Up to four media items. " : ""}Valid changes save to the card draft; publish with the existing card controls.</p>
+    <p className={styles.description}>Up to four media items. Valid changes save to the card draft; publish with the existing card controls.</p>
     <ol className={styles.list}>
       {items.map((item, index) => <li className={styles.item} key={item.id} data-attachment-id={item.id}>
         <strong>{index + 1}. {item.kind === "activity" ? getInteractiveVisual(item.activityId)?.title ?? "Interactive Visual unavailable" : item.media.description}</strong>
-        {props.multimediaEnabled ? <MediaLabel item={item} items={items} disabled={blocked} onChange={change} /> : null}
-        {props.multimediaEnabled && item.kind === "image" ? <label className={styles.field}>Image description
+        <MediaLabel item={item} items={items} disabled={blocked} onChange={change} />
+        {item.kind === "image" ? <label className={styles.field}>Image description
           <input value={item.alt} maxLength={1000} disabled={blocked} onChange={event => change(items.map(existing => existing.id === item.id ? { ...item, alt: event.currentTarget.value } : existing))} />
         </label> : null}
         {item.kind === "video" ? <VideoStatus key={item.media.id} item={item} target={readinessTarget}
           acknowledged={props.acknowledgedMedia.some(media => isCloudflareStreamVideoMediaItem(media) && isCloudflareStreamVideoMediaItem(item.media) && media.assetId === item.media.assetId)} /> : null}
         <div className={styles.actions}>
-          {props.multimediaEnabled ? <><button type="button" className="creator-modal-secondary" disabled={blocked || index === 0} onClick={() => { const next = [...items]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; change(next); }}>Move up</button>
-          <button type="button" className="creator-modal-secondary" disabled={blocked || index === items.length - 1} onClick={() => { const next = [...items]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; change(next); }}>Move down</button></> : null}
+          <button type="button" className="creator-modal-secondary" disabled={blocked || index === 0} onClick={() => { const next = [...items]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; change(next); }}>Move up</button>
+          <button type="button" className="creator-modal-secondary" disabled={blocked || index === items.length - 1} onClick={() => { const next = [...items]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; change(next); }}>Move down</button>
           <button type="button" className="creator-modal-secondary" disabled={blocked} onClick={() => change(items.filter(existing => existing.id !== item.id))}>Remove</button>
         </div>
         {uploadChoices(item)}

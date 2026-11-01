@@ -6,7 +6,6 @@ import type { VisualLearningRecordRepository } from "./repository";
 import { inspectVisualRestoration } from "./restoration";
 
 export type VisualApiDependencies = Readonly<{
-  enabled: boolean;
   expectedOrigin?: string;
   authenticate: () => Promise<LearnerPrincipal | null>;
   consumeBudget?: (principal: string) => boolean;
@@ -46,7 +45,6 @@ export function createVisualApi(deps: VisualApiDependencies) {
   async function boundary(request: Request, run: (actor: LearnerPrincipal, repo: VisualLearningRecordRepository) => Promise<unknown>) {
     let learner: string | undefined;
     try {
-      if (!deps.enabled) return Response.json({ code: "VISUAL_FEATURE_DISABLED" }, { status: 404, headers: privateHeaders });
       if (request.method !== "GET") {
         // Next may construct request.url with its internal hostname (localhost), even when
         // the browser used 127.0.0.1 or a public host. HTTP Host is the browser authority;

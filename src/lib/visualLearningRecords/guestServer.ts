@@ -12,7 +12,6 @@ const issuanceBudget = createVisualRequestBudget(() => Date.now(), 30, 1), sessi
 const bootstrapBudget = createVisualRequestBudget(() => Date.now(), 180, 1), verificationBudget = createVisualRequestBudget(() => Date.now(), 2400, 1);
 export async function readVisualGuestCookie() { return (await cookies()).get(visualGuestCookieName())?.value; }
 export async function visualGuestLoginContext(accountId: string, claimId?: string) {
-  if (process.env.SWITCHPLAY_PLUGGED_IN_VISUALS !== "1") return;
   try {
     const credential = await readVisualGuestCookie(); if (!credential && !claimId) return;
     return await findVisualGuestLoginContext(await getDatabase(), accountId, credential, claimId);
@@ -32,7 +31,7 @@ export async function authenticateGuestRequest() {
   return actor;
 }
 export function visualGuestApi() {
-  return createVisualGuestApi({ enabled: process.env.SWITCHPLAY_PLUGGED_IN_VISUALS === "1", expectedOrigin: process.env.SWITCHPLAY_APP_ORIGIN,
+  return createVisualGuestApi({ expectedOrigin: process.env.SWITCHPLAY_APP_ORIGIN,
     disabledIds: (process.env.SWITCHPLAY_DISABLED_INTERACTIVE_VISUAL_IDS ?? "").split(",").map(id => id.trim()).filter(Boolean),
     database: async () => {
       const db = await getDatabase(); await new VisualLearningRecordRepository(db, await getMongoClient()).assertIndexesReady(); return db;

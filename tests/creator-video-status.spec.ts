@@ -10,7 +10,7 @@ test("acknowledged videos keep checking while a new attachment waits for its own
     const old=video('Old'), fresh=video('New');
     function App(){const [source,setSource]=useState(null),[saved,setSaved]=useState([old.media]); window.acknowledgeVideoSave=()=>setSaved([old.media,fresh.media]);
       return <><button onClick={e=>setSource(e.currentTarget)}>Open</button>{source&&<Modal title="Step media" items={[old,fresh]} acknowledgedMedia={saved}
-        multimediaEnabled uploading disabled={false} readinessTarget={{scope:'card-template',deckTemplateId:'deck',cardTemplateId:'card'}} returnFocus={source}
+        uploading disabled={false} readinessTarget={{scope:'card-template',deckTemplateId:'deck',cardTemplateId:'card'}} returnFocus={source}
         onChange={()=>{}} onUpload={async()=>{}} onCancelUpload={()=>{}} onClose={()=>setSource(null)}/>}</>;}
     createRoot(document.getElementById('root')).render(<App/>);
   ` }, bundle: true, write: false, outfile: "creator-status.js", jsx: "automatic", define: { "process.env.NODE_ENV": '"test"', "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": '"0"' } });

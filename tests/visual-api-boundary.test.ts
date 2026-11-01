@@ -14,19 +14,19 @@ test("process-local request budget has bounded identity storage and recovers aft
   assert.equal(budget("two"), true); assert.equal(budget("three"), false);
   time = 60000; assert.equal(budget("three"), true); assert.equal(budget("one"), true);
 });
-test("disabled, unauthenticated and throttled APIs do not call repositories", async () => {
+test("unauthenticated and throttled APIs do not call repositories", async () => {
   let reads = 0;
-  const dependencies = { enabled: false, authenticate: async () => { reads++; return { kind: "account" as const, id: "one" }; },
+  const dependencies = { authenticate: async () => { reads++; return { kind: "account" as const, id: "one" }; },
     repository: async (): Promise<never> => { throw new Error("Repository must not run"); }, authorizeSource: async (): Promise<never> => { throw new Error("Source must not run"); } };
   const request = () => new Request("https://app.example/api", { method: "POST", headers: { Origin: "https://app.example", "X-Visual-Learner": "account:one" } });
-  assert.equal((await createVisualApi(dependencies).open(request())).status, 404); assert.equal(reads, 0);
-  assert.equal((await createVisualApi({ ...dependencies, enabled: true, authenticate: async () => null }).open(request())).status, 401);
-  const throttled = await createVisualApi({ ...dependencies, enabled: true, consumeBudget: () => false }).open(request());
+  assert.equal((await createVisualApi({ ...dependencies, authenticate: async () => null }).open(request())).status, 401);
+  assert.equal(reads, 0);
+  const throttled = await createVisualApi({ ...dependencies, consumeBudget: () => false }).open(request());
   assert.equal(throttled.status, 429); assert.equal(throttled.headers.get("Retry-After"), "60");
 });
 
 test("origin checks use the browser Host through Next internal hostname normalization and reject forwarding spoofing", async () => {
-  const deps = { enabled: true, authenticate: async () => null, repository: async (): Promise<never> => { throw new Error("Must not connect"); },
+  const deps = { authenticate: async () => null, repository: async (): Promise<never> => { throw new Error("Must not connect"); },
     authorizeSource: async (): Promise<never> => { throw new Error("Must not connect"); } };
   const request = (origin: string, extra: Record<string, string> = {}) => new Request("http://localhost:3171/api/visual-sessions/open", {
     method: "POST", headers: { Host: "127.0.0.1:3171", Origin: origin, ...extra } });

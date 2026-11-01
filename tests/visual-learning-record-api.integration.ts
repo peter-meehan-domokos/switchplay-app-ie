@@ -27,8 +27,8 @@ before(async () => {
   }
 });
 after(async () => { await client?.close(); await server?.stop(); });
-function api(principal: LearnerPrincipal | null = actor, enabled = true) {
-  return createVisualApi({ enabled, authenticate: async () => principal, repository: async () => records,
+function api(principal: LearnerPrincipal | null = actor) {
+  return createVisualApi({ authenticate: async () => principal, repository: async () => records,
     authorizeSource: (actor, activityId, source) => authorizeVisualSource(cards, actor, activityId, source) });
 }
 function request(body?: unknown, headers: Record<string, string> = {}) {
@@ -39,7 +39,7 @@ function request(body?: unknown, headers: Record<string, string> = {}) {
 const openBody = (source: VisualSource = { kind: "direct" }) => ({ activityId: "roots-and-factors", visitId: randomUUID(), source });
 test("missing visual indexes fail closed and authoritative setup restores lookup and opening", async () => {
   const db = client.db("switchplay_test_visual_index_setup"), repo = new VisualLearningRecordRepository(db, client);
-  const endpoint = createVisualApi({ enabled: true, authenticate: async () => actor, repository: async () => repo,
+  const endpoint = createVisualApi({ authenticate: async () => actor, repository: async () => repo,
     authorizeSource: async (_actor, _activityId, source) => source });
   const existing = () => endpoint.existing(new Request("https://app.example/api/visual-sessions/existing?activityId=integration-area", { headers: { "X-Visual-Learner": "account:learner" } }));
   const missing = await existing(); assert.equal(missing.status, 503); assert.equal((await missing.json()).code, "VISUAL_INDEX_SETUP_REQUIRED");
@@ -68,7 +68,7 @@ test("preview existence is owner-scoped and read-only, including completed attem
 test("accepted Open replay retains owned visit provenance after source removal without authorizing new visits", async () => {
   let available = true, checks = 0;
   const owner: LearnerPrincipal = { kind: "account", id: "replay-owner" };
-  const endpoint = (actor = owner) => createVisualApi({ enabled: true, authenticate: async () => actor, repository: async () => records,
+  const endpoint = (actor = owner) => createVisualApi({ authenticate: async () => actor, repository: async () => records,
     authorizeSource: async (_actor, _activityId, source) => { checks++; if (!available) throw new VisualRecordError("VISUAL_SOURCE_FORBIDDEN");
       return source.kind === "card" ? { ...source, deckVersion: 1 } : source; } });
   const send = (body: unknown, actor = owner) => request(body, { "X-Visual-Learner": `${actor.kind}:${actor.id}` });
@@ -88,9 +88,8 @@ test("accepted Open replay retains owned visit provenance after source removal w
     assert.deepEqual(visit.source, source.kind === "card" ? { ...source, deckVersion: 1 } : source);
   }
 });
-test("authentication, actor binding, same-origin, feature gate and body limits fail closed", async () => {
+test("authentication, actor binding, same-origin and body limits fail closed", async () => {
   assert.equal((await api(null).open(request(openBody()))).status, 401);
-  assert.equal((await api(actor, false).open(request(openBody()))).status, 404);
   assert.equal((await api().open(request(openBody(), { Origin: "https://elsewhere.example" }))).status, 403);
   assert.equal((await api().open(request(openBody(), { "X-Visual-Learner": "account:other" }))).status, 409);
   assert.equal((await api().open(request({ ...openBody(), padding: "x".repeat(9000) }))).status, 413);

@@ -1,5 +1,7 @@
 # Interactive Visuals — first authenticated trial preflight
 
+> **Current configuration — 1 November 2026:** Interactive Visuals and step-media authoring are always available. `SWITCHPLAY_PLUGGED_IN_VISUALS` and `SWITCHPLAY_STEP_MEDIA_WRITES` have been removed; neither variable is required or read. Historical enablement/rollback instructions below are superseded. Authentication, source permissions, protocol validation, database/index prerequisites and existing media security still apply. See the current implementation handoff.
+
 31 October 2026. **Preparation only: no trial deployment, shared database access, real trial account creation or runtime fixes authorised/performed.** Starting evidence: [production-readiness audit](interactive-visuals-production-readiness-audit.md). This document adds measurements and operational preparation; it does not supersede approved product behaviour.
 
 ## 1. Readiness verdict
@@ -108,8 +110,8 @@ No trial was started. The quickest autonomous next preparation after owner choic
 | `MONGODB_URI`, `MONGODB_DB`, `SWITCHPLAY_ATLAS_HOST` | Atlas: exact database `switchplay` and host-bound TLS SRV configuration. Local: loopback URI/name contract above; its independently configured replica set must survive app restart. No live URI is included here. |
 | `SESSION_SECRET` | Independent strong trial secret, stable across restarts/deployments; normal bcrypt/JWT authentication,30-day HttpOnly session cookie. No fixture credentials/auto-login. Do not reuse production signing secrets with an isolated trial database. |
 | `SWITCHPLAY_APP_ORIGIN` | Exact externally used canonical origin including scheme/host/port. Visual POST Origin equality and Sec-Fetch-Site checks remain enforced. Pin after choosing a stable trial URL; avoid alternate deployment aliases during pending work. Reverse proxy preserves canonical authority and forwards cookies/Origin without broad CORS or header-based identity substitution. |
-| `SWITCHPLAY_PLUGGED_IN_VISUALS=1` | Enables normal account APIs **and guest entry/session/claim**. Enable only behind verified access protection. |
-| `SWITCHPLAY_STEP_MEDIA_WRITES=1` | Additionally enables creator multimedia selection/writes; current client supplies `X-Step-Media-Protocol:1`. Both flags are required for authoring. Compatible media readers must be the only application readers/writers of this trial DB. |
+| Interactive Visual availability | Normal account APIs and guest entry/session/claim are always available; no runtime enablement variable. Private trial exposure, if required, still needs existing deployment access protection. |
+| Creator media protocol | Multimedia selection/writes are always available; current clients supply `X-Step-Media-Protocol:1`. Preserve compatible readers/writers and reject unsupported modern writes. |
 | `NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA=1` | Required by production database guard; set at build **and** runtime. IV-only trial needs no Stream/R2 credentials or new uploads. Do not copy dummy provider values into the trial. |
 | `INSTRUCTIONAL_IMAGES_PRIVATE_MEDIA_VERIFIED` | Keep unset/off. Image provenance issue remains unresolved. Do not select image/video uploads in the trial. |
 | `SWITCHPLAY_DISABLED_INTERACTIVE_VISUAL_IDS` | No disabled trial target, unless deliberately restricting the trial to Integration pending Roots repair. Same registry/availability rules apply; record any restriction. |

@@ -9,9 +9,9 @@ import { authenticateGuestRequest } from "./guestServer";
 
 const consumeBudget = createVisualRequestBudget();
 
-// Independent server gate; neither preview imports nor public metadata enable persistence routes.
+// Authentication, source permissions and repository prerequisites apply to every request.
 export function visualApi(request: Request) {
-  return createVisualApi({ enabled: process.env.SWITCHPLAY_PLUGGED_IN_VISUALS === "1", consumeBudget, expectedOrigin: process.env.SWITCHPLAY_APP_ORIGIN,
+  return createVisualApi({ consumeBudget, expectedOrigin: process.env.SWITCHPLAY_APP_ORIGIN,
     authenticate: async () => {
       // A newly signed-in account must not silently retarget its still-pending
       // guest queue. Claim explicitly changes ownership in the following slice.

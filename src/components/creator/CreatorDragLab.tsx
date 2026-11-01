@@ -58,8 +58,8 @@ import {
 } from "@/components/creator/creatorBoardState";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import CreatorStepMediaModal from "./CreatorStepMediaModal";
-import { putStepMedia, uploadedStepMedia, withCreatorStepMedia } from "./creatorStepMedia";
-import { MAX_STEP_MEDIA, hasModernStepMedia, instructionalMedia, stepMediaItems, validStepMediaItems, validStepMediaLabels, type StepMediaItem } from "@/lib/stepMedia";
+import { putStepMedia, uploadedStepMedia } from "./creatorStepMedia";
+import { MAX_STEP_MEDIA, withStepMedia, instructionalMedia, stepMediaItems, validStepMediaItems, validStepMediaLabels, type StepMediaItem } from "@/lib/stepMedia";
 import { stepMediaLabelsFit } from "@/components/decks/measureStepMediaTabs";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
 import { useMediaUploadController, type CompletedMediaUpload } from "@/components/media/useMediaUploadController";
@@ -954,7 +954,6 @@ function BoardCell({
 
 type CreatorDragLabProps = {
   canPreviewOutput: boolean;
-  multimediaEnabled?: boolean;
   creatorReturnTarget?: {
     label: "Library" | "My Decks";
     href: string;
@@ -968,7 +967,7 @@ type CreatorDragLabProps = {
   navigation?: CreatorNavigation;
 };
 
-export default function CreatorDragLab({ canPreviewOutput, multimediaEnabled = false, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode, navigation }: CreatorDragLabProps) {
+export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, initialBoard, initialCreator, initialSession, currentUserId, mode, navigation }: CreatorDragLabProps) {
   const router = useRouter();
   const [board, setBoard] = useState<BoardState>(() => initialBoard);
   const [canonical, setCanonical] = useState<CreatorBoardDTO | null>(initialCreator ?? null);
@@ -1556,17 +1555,15 @@ export default function CreatorDragLab({ canPreviewOutput, multimediaEnabled = f
     const lane = persistence.cards.get(cardTemplateId);
     if (!lane || !mediaDestination(cardTemplateId, stepId) || lane.locked && !lane.publishing) throw new Error("This media destination is no longer editable.");
     if (!validStepMediaItems(items) || !stepMediaLabelsFit(items.map(item => item.label))) throw new Error("Use short labels that fit together on a 320px screen.");
-    if (!multimediaEnabled && hasModernStepMedia(lane.desired)) throw new Error("Multimedia editing is unavailable. Your existing media is kept.");
-    persistence.editCard(cardTemplateId, stepId === "intro" ? { ...lane.desired, intro: withCreatorStepMedia(lane.desired.intro, items, multimediaEnabled) }
-      : { ...lane.desired, steps: lane.desired.steps.map(step => step.stepId === stepId ? withCreatorStepMedia(step, items, multimediaEnabled) : step) });
+    persistence.editCard(cardTemplateId, stepId === "intro" ? { ...lane.desired, intro: withStepMedia(lane.desired.intro, items) }
+      : { ...lane.desired, steps: lane.desired.steps.map(step => step.stepId === stepId ? withStepMedia(step, items) : step) });
     const current = boardRef.current;
     const column = current.columns.find(column => column.cardId === cardTemplateId);
     if (!column) return; // Detached authorized uploads still save their original Card.
     const pairId = current.rows.map(row => current.cells[getCreatorCellId(column.id, row)]?.pairId)
       .find(id => id && current.pairs[id]?.stepId === stepId);
-    const legacyMedia = items[0]?.kind === "video" ? items[0].media : null;
-    const next = stepId === "intro" ? { ...current, columns: current.columns.map(value => value.cardId === cardTemplateId ? { ...value, introMediaItem: multimediaEnabled ? null : legacyMedia, introMediaItems: multimediaEnabled ? items : undefined } : value) }
-      : pairId ? { ...current, pairs: { ...current.pairs, [pairId]: { ...current.pairs[pairId], stepMediaItem: multimediaEnabled ? null : legacyMedia, stepMediaItems: multimediaEnabled ? items : undefined } } } : current;
+    const next = stepId === "intro" ? { ...current, columns: current.columns.map(value => value.cardId === cardTemplateId ? { ...value, introMediaItem: null, introMediaItems: items } : value) }
+      : pairId ? { ...current, pairs: { ...current.pairs, [pairId]: { ...current.pairs[pairId], stepMediaItem: null, stepMediaItems: items } } } : current;
     boardRef.current = next; setBoard(next);
   }
   async function openDestinationMedia(cardTemplateId: string, stepId: string, trigger: HTMLButtonElement, pairId?: PairId) {
@@ -1585,7 +1582,6 @@ export default function CreatorDragLab({ canPreviewOutput, multimediaEnabled = f
     const { cardTemplateId, stepId, pairId } = target;
     const destination = mediaDestination(cardTemplateId, stepId), lane = persistence.cards.get(cardTemplateId);
     if (!destination || !lane || lane.locked || (pairId ? pairUploadSessionsRef.current.has(pairId) : introUploadSessionsRef.current.has(cardTemplateId))) throw new Error("This media destination is busy or has changed.");
-    if (!multimediaEnabled && (kind !== "video" || hasModernStepMedia(lane.desired))) throw new Error("Multimedia editing is unavailable. Your existing media is kept.");
     const validation = kind === "image" ? validateImageUploadFile(file) : validateVideoUploadFile(file);
     if (validation) throw new Error(validation);
     const before = stepMediaItems(destination), previous = before.find(item => item.id === replacementId);
@@ -1942,11 +1938,10 @@ export default function CreatorDragLab({ canPreviewOutput, multimediaEnabled = f
         title={mediaSession.stepId === "intro" ? "Introduction media" : "Step media"}
         items={stepMediaItems(mediaDestination(mediaSession.cardTemplateId, mediaSession.stepId)!)}
         acknowledgedMedia={acknowledgedMediaContent ? [...instructionalMedia(acknowledgedMediaContent), ...(acknowledgedMediaContent.mediaItem ? [acknowledgedMediaContent.mediaItem] : [])] : []}
-        multimediaEnabled={multimediaEnabled}
         readinessTarget={persistence.uploadTarget(mediaSession.cardTemplateId, mediaSession.stepId)}
         returnFocus={mediaSession.trigger}
         uploading={mediaSession.pairId ? uploadingMediaPairIds.has(mediaSession.pairId) : uploadingIntroMediaCardIds.has(mediaSession.cardTemplateId)}
-        disabled={anyPublishing || !!persistence.cards.get(mediaSession.cardTemplateId)?.locked || !multimediaEnabled && hasModernStepMedia(persistence.cards.get(mediaSession.cardTemplateId)?.desired)}
+        disabled={anyPublishing || !!persistence.cards.get(mediaSession.cardTemplateId)?.locked}
         saveError={!!persistence.cards.get(mediaSession.cardTemplateId)?.error}
         onChange={items => editDestinationMedia(mediaSession.cardTemplateId, mediaSession.stepId, items)}
         onUpload={(kind, file, replacementId) => uploadDestinationMedia(mediaSession, kind, file, replacementId)}

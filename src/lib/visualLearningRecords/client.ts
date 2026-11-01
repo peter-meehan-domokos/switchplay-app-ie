@@ -139,7 +139,7 @@ export function createAccountVisualPersistence(options: Options): VisualPersiste
           || error instanceof Error && /VISUAL_SESSION_CONFLICT/.test(error.message);
         errors.set(attemptId, terminal ? "Saving stopped. Your pending work is kept on this device." : "Changes pending. Waiting to reconnect.");
         if (terminal) { stopped.add(attemptId); if (error instanceof VisualTransportError) stopCodes.set(attemptId, error.code); }
-        if (error instanceof VisualTransportError && ["VISUAL_UNAVAILABLE", "VISUAL_FEATURE_DISABLED"].includes(error.code)) unavailable.add(attemptId);
+        if (error instanceof VisualTransportError && error.code === "VISUAL_UNAVAILABLE") unavailable.add(attemptId);
         const latest = await store.read(key); if (latest) notify(latest);
         if (!terminal) {
           const count = (failures.get(attemptId) ?? 0) + 1; failures.set(attemptId, count);

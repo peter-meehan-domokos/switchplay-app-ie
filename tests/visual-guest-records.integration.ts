@@ -21,7 +21,7 @@ async function fixture() {
 }
 test("guest bootstrap returns a stable public handle and secure hash-backed return identity without a users entry", async () => {
   const { db } = await fixture(); let cookie: string | undefined;
-  const api = createVisualGuestApi({ enabled: true, database: async () => db, readCredential: async () => cookie,
+  const api = createVisualGuestApi({ database: async () => db, readCredential: async () => cookie,
     writeCredential: async (value, age) => { cookie = value; assert.ok(age > 0); }, consumeIssuanceBudget: () => true });
   const first = await api(request()); assert.equal(first.status, 200); assert.equal(first.headers.get("Cache-Control"), "private, no-store");
   const dto = await first.json(), original = cookie!; assert.match(dto.learner, /^guest:/);
@@ -36,8 +36,7 @@ test("guest bootstrap returns a stable public handle and secure hash-backed retu
 });
 test("bootstrap validates origin, body, availability and issuance budget before allocating a credential", async () => {
   const { db } = await fixture(); let reads = 0;
-  const deps = { enabled: true, database: async () => { reads++; return db; }, readCredential: async () => undefined, writeCredential: async () => {}, consumeIssuanceBudget: () => false };
-  assert.equal((await createVisualGuestApi({ ...deps, enabled: false })(request())).status, 404);
+  const deps = { database: async () => { reads++; return db; }, readCredential: async () => undefined, writeCredential: async () => {}, consumeIssuanceBudget: () => false };
   assert.equal((await createVisualGuestApi(deps)(request(undefined, { Origin: "https://attacker.example" }))).status, 403);
   assert.equal((await createVisualGuestApi(deps)(request({ activityId: "missing" }))).status, 404);
   assert.equal((await createVisualGuestApi(deps)(request({ activityId: "roots-and-factors", token: "forged" }))).status, 400);
@@ -55,7 +54,7 @@ test("expiry is sliding but expired, lost and disabled credentials cannot recove
   assert.equal(await authenticateVisualGuest(db, guest.credential), null);
   await assert.rejects(repo.current(guest.principal, opened.record.recordId), /VISUAL_GUEST_FORBIDDEN/);
   let cleared = false;
-  const response = await createVisualGuestApi({ enabled: true, database: async () => db, readCredential: async () => guest.credential,
+  const response = await createVisualGuestApi({ database: async () => db, readCredential: async () => guest.credential,
     writeCredential: async (value, age) => { cleared = value === "" && age === 0; }, consumeIssuanceBudget: () => true })(request());
   assert.equal(response.status, 401); assert.equal(cleared, true); assert.equal(await repo.attempts().countDocuments(), 1);
   const replacement = await issueVisualGuest(db); await assert.rejects(repo.current(replacement.principal, opened.record.recordId), /VISUAL_RECORD_FORBIDDEN/);
@@ -68,7 +67,7 @@ test("guest meaningful events use the common repository and a revoked authentica
     snapshot: rootsSnapshot(state), events: [{ eventId: randomUUID(), writerId: randomUUID(), clientSequence: event.sequence, clientOccurredAt: new Date().toISOString(), activityVersion: 1, eventSchema: 1, type: event.type, payload: event }] };
   const first = await repo.append(guest.principal, opened.attempt.attemptId, batch); assert.equal(first.snapshotAccepted, true);
   assert.deepEqual(await repo.append(guest.principal, opened.attempt.attemptId, batch), first); assert.equal(await repo.events().countDocuments(), 1);
-  const api = createVisualApi({ enabled: true, authenticate: async () => {
+  const api = createVisualApi({ authenticate: async () => {
     const authenticated = await authenticateVisualGuest(db, guest.credential);
     await db.collection(VISUAL_GUEST_COLLECTION).updateOne({ guestId: guest.principal.id }, { $set: { status: "claimed" } });
     return authenticated;

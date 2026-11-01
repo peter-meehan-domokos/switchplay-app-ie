@@ -5,7 +5,7 @@ import { exactFields, principalKey, recordObject, requireVisual, VisualRecordErr
 import { authenticateVisualGuest, issueVisualGuest, touchVisualGuest, VISUAL_GUEST_DURATION_SECONDS } from "./guestCredentials";
 
 export function createVisualGuestApi(deps: {
-  enabled: boolean; expectedOrigin?: string; disabledIds?: readonly string[];
+  expectedOrigin?: string; disabledIds?: readonly string[];
   database: () => Promise<Db>; readCredential: () => Promise<string | undefined>;
   writeCredential: (credential: string, maxAge: number) => Promise<void>;
   consumeIssuanceBudget: () => boolean; consumeSessionBudget?: (learner: string) => boolean;
@@ -14,7 +14,6 @@ export function createVisualGuestApi(deps: {
   return async (request: Request) => {
     const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
     try {
-      if (!deps.enabled) return Response.json({ code: "VISUAL_FEATURE_DISABLED" }, { status: 404, headers });
       assertVisualMutationOrigin(request, deps.expectedOrigin);
       const body = await readVisualJson(request, 4096);
       requireVisual(recordObject(body) && exactFields(body, ["activityId"]) && typeof body.activityId === "string", "INVALID_VISUAL_GUEST_SESSION");

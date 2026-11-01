@@ -4,7 +4,6 @@ import { isDeepStrictEqual } from "node:util";
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { getDatabase, getMongoClient, withMongoTransaction } from "../mongodb";
 import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, assertStepMediaWrite, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
-import { stepMediaWriteProtocol } from "../stepMediaRollout";
 import type { AdoptedVersion, CardContent, CardTemplateRoot, CardTemplateVersion, CreateAndAttachCardCommand, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility, DeckPublicationReview, CopyPublicationReceipt } from "./model";
 import type { CompletionStatus } from "../../components/decks/types";
 import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
@@ -55,7 +54,7 @@ export async function createFoundationIndexes(db: Db) {
 
 export class CardRepository {
   constructor(readonly db: Db, readonly client: MongoClient, readonly stepMediaProtocol?: string | null) {}
-  static async application(stepMediaProtocol?: string | null) { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient(), stepMediaWriteProtocol(stepMediaProtocol)); }
+  static async application(stepMediaProtocol?: string | null) { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient(), stepMediaProtocol); }
   cards() { return this.db.collection<CardTemplateRoot>(COLLECTIONS.cards); }
   cardVersions() { return this.db.collection<CardTemplateVersion>(COLLECTIONS.cardVersions); }
   decks() { return this.db.collection<DeckTemplateRoot>(COLLECTIONS.decks); }

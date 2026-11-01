@@ -5,14 +5,13 @@ import type { LearnerPrincipal } from "./model";
 import { parseVisualGuestCredential } from "./guestCredentials";
 
 export function createVisualClaimApi(deps: {
-  enabled: boolean; expectedOrigin?: string; authenticateAccount: () => Promise<LearnerPrincipal | null>;
+  expectedOrigin?: string; authenticateAccount: () => Promise<LearnerPrincipal | null>;
   readCredential: () => Promise<string | undefined>; claims: () => Promise<VisualGuestClaims>; consumeBudget?: (learner: string) => boolean;
   retireCredential?: () => Promise<void>;
 }) {
   return async (request: Request) => {
     const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, X-Visual-Learner" }; let learner: string | undefined;
     try {
-      if (!deps.enabled) return Response.json({ code: "VISUAL_FEATURE_DISABLED" }, { status: 404, headers });
       assertVisualMutationOrigin(request, deps.expectedOrigin);
       const account = await deps.authenticateAccount();
       if (!account || account.kind !== "account") return Response.json({ code: "UNAUTHENTICATED" }, { status: 401, headers });

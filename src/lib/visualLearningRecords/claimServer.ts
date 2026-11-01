@@ -8,7 +8,7 @@ import { createVisualRequestBudget } from "./requestBudget";
 
 const consumeBudget = createVisualRequestBudget(() => Date.now(), 20);
 export function visualClaimApi() {
-  return createVisualClaimApi({ enabled: process.env.SWITCHPLAY_PLUGGED_IN_VISUALS === "1", expectedOrigin: process.env.SWITCHPLAY_APP_ORIGIN, consumeBudget,
+  return createVisualClaimApi({ expectedOrigin: process.env.SWITCHPLAY_APP_ORIGIN, consumeBudget,
     authenticateAccount: async () => { const user = await getCurrentUser(); return user ? { kind: "account", id: user.id } : null; },
     readCredential: readVisualGuestCookie,
     retireCredential: () => writeVisualGuestCookie("", 0),
