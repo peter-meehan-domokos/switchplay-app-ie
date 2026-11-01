@@ -1,6 +1,9 @@
 import type { LearningFields, PersonalLearningChange } from "../cards/learning";
 import type { LibraryPreviewManifest } from "../cards/libraryProjection";
 import type { RetainedCardAssignment } from "../cards/retainedAssignments";
+import type { CardTest } from "../cards/model";
+
+export type GroupItemTest = CardTest & { frameworkItemId: string };
 
 export type GroupExperience = {
   experienceId: string; name: string; creatorUserId: string; operationId: string; creationHash: string;
@@ -8,6 +11,10 @@ export type GroupExperience = {
   structureRevision: number; adoptionRevision: number; adminCount: number;
   allowFollowerInspection?: boolean;
   createdAt: Date; updatedAt: Date;
+  itemTests?: GroupItemTest[]; itemTestsRevision?: number;
+  // Content-free exact source identity survives deleting its final event. This
+  // supports retained-source authority and retry; it is not a historical browser.
+  itemAssessmentSourceIds?: string[];
 };
 export type GroupMember = {
   experienceId: string; userId: string; isAdmin: boolean; followerStatus: "never" | "active" | "removed";
@@ -20,6 +27,7 @@ export type RemovalManifest = { generation: string; snapshotAt: Date; deckVersio
 export type RemovalLearning = LearningFields & { experienceId: string; userId: string; cardTemplateId: string; version: number; generation: string; snapshotAt: Date };
 export type GroupCardState = LearningFields & {
   experienceId: string; cardTemplateId: string; revision: number; createdAt: Date; updatedAt: Date;
+  tests?: CardTest[]; testsRevision?: number;
 };
 export type GroupReceipt = {
   experienceId: string; actor: string; operationId: string; commandHash: string;

@@ -189,7 +189,9 @@ export class GroupExperienceRepository {
   async groupLearning(experienceId: string, cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession) {
     const rows: GroupCardState[] = [];
     for (let start = 0; start < cards.length; start += 100) rows.push(...await this.states().find({ experienceId,
-      cardTemplateId: { $in: cards.slice(start, start + 100).map(card => card.cardTemplateId) } }, { session }).toArray());
+      cardTemplateId: { $in: cards.slice(start, start + 100).map(card => card.cardTemplateId) } }, {
+      session, projection: { _id: 0, cardTemplateId: 1, items: 1, signalReadings: 1 },
+    }).toArray());
     return cards.map(card => ({ cardTemplateId: card.cardTemplateId, version: card.version,
       ...projectLearning(card.content, rows.find(row => row.cardTemplateId === card.cardTemplateId) ?? { items: [], signalReadings: [] }) }));
   }

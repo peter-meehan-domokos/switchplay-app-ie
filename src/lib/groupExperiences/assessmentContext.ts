@@ -13,6 +13,7 @@ export async function currentGroupAssessmentContext(repo: GroupExperienceReposit
   assertAssessmentSource(source); assertFrameworkConfiguration(frameworks);
   const { experience, member } = await repo.access(actor, experienceId, role, session);
   const selected = await selectedContent(repo.cards, experience, session);
+  let assessmentCards = selected.cards;
   if (source.kind === "card") requireCondition(selected.cards.some(card => card.cardTemplateId === source.cardTemplateId), "GROUP_ASSESSMENT_SOURCE_FORBIDDEN");
   else {
     const framework = frameworks.find(f => (frameworkId === undefined || f.id === frameworkId)
@@ -20,7 +21,11 @@ export async function currentGroupAssessmentContext(repo: GroupExperienceReposit
     requireCondition(framework, "GROUP_ASSESSMENT_SOURCE_FORBIDDEN");
     const graph = await readCanonicalAncestry(repo.cards, [framework], selected.cards.map(card => card.cardTemplateId), session);
     const scope = resolveProgressScope(framework, { kind: "group", experienceId }, selected.cards.map(({ cardTemplateId, version }) => ({ cardTemplateId, version })), graph);
-    requireCondition(scope.areas.flatMap(area => area.items).some(item => item.frameworkItemId === source.itemId && item.coverage === "inside"), "GROUP_ASSESSMENT_SOURCE_FORBIDDEN");
+    const item = scope.areas.flatMap(area => area.items).find(item => item.frameworkItemId === source.itemId)!;
+    requireCondition(item.coverage !== "unknown", "GROUP_ASSESSMENT_SCOPE_UNAVAILABLE");
+    requireCondition(item.coverage === "inside", "GROUP_ASSESSMENT_SOURCE_FORBIDDEN");
+    assessmentCards = selected.cards.filter(card => item.cardTemplateIds.includes(card.cardTemplateId));
   }
-  return { experience, member, ...selected };
+  if (source.kind === "card") assessmentCards = selected.cards.filter(card => card.cardTemplateId === source.cardTemplateId);
+  return { experience, member, ...selected, assessmentCards };
 }
