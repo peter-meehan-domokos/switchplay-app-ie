@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import LibraryDialog from "@/components/library/LibraryDialog";
 import type { LibraryPreviewManifest } from "@/lib/cards/libraryProjection";
+import { clientId } from "@/lib/clientId";
 import { groupFetch, GroupRequestError } from "./groupClient";
 import { ensureUserDirectory, useUserDirectory } from "./userDirectory";
 import { loadGroupSettings, type GroupSettings, type ManagementResult } from "./groupManagementClient";
@@ -33,22 +34,30 @@ export default function GroupManagementForm({ actor, manifest, experienceId, onC
   async function submit() {
     if (!values || running.current) return;
     running.current = true; setSaving(true); setError("");
-    if (!attempt.current) {
-      const { expectedStructureRevision, ...fields } = values;
-      attempt.current = { method: editing ? "PATCH" : "POST", url: editing ? `/api/group-experiences/${encodeURIComponent(experienceId!)}/management` : "/api/group-experiences",
-        body: { ...fields, operationId: crypto.randomUUID(), ...(editing ? { expectedStructureRevision } : { manifest }) } };
-    }
+    const hadAttempt = attempt.current !== null;
+    let submitted = false;
     try {
+      if (!attempt.current) {
+        const { expectedStructureRevision, ...fields } = values;
+        attempt.current = { method: editing ? "PATCH" : "POST", url: editing ? `/api/group-experiences/${encodeURIComponent(experienceId!)}/management` : "/api/group-experiences",
+          body: { ...fields, operationId: clientId(), ...(editing ? { expectedStructureRevision } : { manifest }) } };
+      }
       const request = attempt.current;
       // Even a confirmed commit may be followed by a failed refresh or another
       // Admin revoking access. Exact replay rechecks the current actor/access;
       // never reuse an old success object to bypass that boundary on Retry.
+      submitted = true;
       const result = await groupFetch<ManagementResult>(actor, request.url, undefined, request.method, request.body);
       committed.current = result;
       if (live.current) await onSaved(result);
     } catch (cause) {
       if (!live.current) return;
-      if (!committed.current && cause instanceof GroupRequestError && cause.status < 500) {
+      if (!submitted && !hadAttempt && !committed.current) {
+        // Preparation failed before transport was invoked: nothing can have
+        // committed. Keep the draft editable, unlike an uncertain sent request.
+        attempt.current = null; setUncertain(false);
+        setError("Unable to prepare this request. Your selections are kept. Please try again.");
+      } else if (!committed.current && cause instanceof GroupRequestError && cause.status < 500) {
         attempt.current = null; setUncertain(false);
         const message = cause.status === 401 || cause.code === "GROUP_SESSION_CONFLICT" ? "Your sign-in changed. Sign in again before retrying."
           : cause.status === 409 ? "Group settings or the publication changed. Your selections are kept. Reload the current Group or Library preview before submitting again."

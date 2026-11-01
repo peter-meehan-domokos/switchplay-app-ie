@@ -19,6 +19,91 @@ async function settings(page: Page, id: string) {
   await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
   return dialog;
 }
+for (const mode of ["create", "settings"] as const) test(`${mode} preparation failure clears Saving without submitting or freezing the draft`, async ({ page }) => {
+  let groupId: string | undefined;
+  if (mode === "settings") { groupId = (await create(page)).experienceId; await settings(page, groupId); }
+  else {
+    await page.goto(`/library/${fixture!.deckId}`); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Add as Group", exact: true }).click();
+  }
+  const dialog = page.getByRole("dialog", { name: mode === "create" ? "Create Group" : "Group settings", exact: true });
+  await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
+  await dialog.getByLabel("Group name", { exact: true }).fill("Preparation retry draft");
+  const payloads: { operationId: string }[] = [];
+  page.on("request", request => {
+    if (request.method() === (mode === "create" ? "POST" : "PATCH") && request.url().endsWith(mode === "create" ? "/api/group-experiences" : `/${groupId}/management`)) payloads.push(request.postDataJSON());
+  });
+  await page.evaluate(() => {
+    const original = crypto.getRandomValues.bind(crypto); let fail = true;
+    Object.defineProperty(crypto, "getRandomValues", { configurable: true, value: (bytes: Uint8Array) => {
+      if (fail) { fail = false; throw Error("Injected operation-ID preparation failure"); }
+      return original(bytes);
+    } });
+  });
+  const action = mode === "create" ? "Create" : "Save";
+  await dialog.getByRole("button", { name: action, exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Unable to prepare this request");
+  await expect(dialog.getByRole("button", { name: action, exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeEnabled();
+  await expect(dialog.getByLabel("Group name", { exact: true })).toHaveValue("Preparation retry draft");
+  await expect(dialog.getByRole("button", { name: "Retry Save", exact: true })).toHaveCount(0); expect(payloads).toHaveLength(0);
+  await dialog.getByRole("button", { name: action, exact: true }).click();
+  await expect(dialog).toHaveCount(0); expect(payloads).toHaveLength(1);
+  expect(payloads[0].operationId).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
+  if (groupId) expect((await (await page.request.get(`/api/group-experiences/${groupId}`)).json()).structureRevision).toBe(1);
+});
+test("LAN HTTP creation and settings work without secure-context randomUUID", async ({ browser }) => {
+  const lanBase = process.env.PHASE2_LAN_BASE_URL;
+  test.skip(!lanBase, "Requires the existing --dev --lan review server");
+  const context = await browser.newContext({ baseURL: lanBase, viewport: { width: 390, height: 844 } });
+  try {
+    await context.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+    const page = await context.newPage(); await page.goto(`/library/${fixture!.deckId}`);
+    expect(await page.evaluate(() => ({ secure: isSecureContext, uuid: typeof crypto.randomUUID, random: typeof crypto.getRandomValues })))
+      .toEqual({ secure: false, uuid: "undefined", random: "function" });
+    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Add as Group", exact: true }).click();
+    let dialog = page.getByRole("dialog", { name: "Create Group", exact: true });
+    await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
+    await dialog.getByLabel("Group name", { exact: true }).fill("LAN HTTP creation verified");
+    const created = page.waitForResponse(response => response.url().endsWith("/api/group-experiences") && response.request().method() === "POST");
+    await dialog.getByRole("button", { name: "Create", exact: true }).click();
+    const response = await created; expect(response.status()).toBe(200); const result = await response.json();
+    await expect(page).toHaveURL(new RegExp(`/decks\\?createdGroup=${result.experienceId}`));
+    await page.locator(`[data-collection-item-id="${result.experienceId}"] .deck-tile-open-action`).click();
+    await expect(page.locator(".group-picker-current")).toBeVisible();
+    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group…", exact: true }).click();
+    dialog = page.getByRole("dialog", { name: "Group settings", exact: true });
+    await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
+    await dialog.getByLabel("Group name", { exact: true }).fill("LAN HTTP settings verified");
+    await dialog.getByRole("button", { name: "Save", exact: true }).click(); await expect(dialog).toHaveCount(0);
+    const meta = await (await context.request.get(`/api/group-experiences/${result.experienceId}`)).json();
+    expect(meta.name).toBe("LAN HTTP settings verified"); expect(meta.structureRevision).toBe(1);
+  } finally { await context.close(); }
+});
+test("uncertain creation reuses its operation ID even if fresh ID preparation would fail", async ({ page }) => {
+  await page.goto(`/library/${fixture!.deckId}`); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Add as Group", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create Group", exact: true });
+  await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
+  await dialog.getByLabel("Group name", { exact: true }).fill("Creation lost-response recovery");
+  const payloads: string[] = []; let committedId = "";
+  await page.route("**/api/group-experiences", async route => {
+    if (route.request().method() !== "POST") { await route.continue(); return; }
+    payloads.push(route.request().postData()!);
+    if (payloads.length === 1) {
+      const response = await route.fetch(); expect(response.status()).toBe(200); committedId = (await response.json()).experienceId;
+      await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Lost creation acknowledgement" }) });
+    } else await route.continue();
+  });
+  await dialog.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Save has not been confirmed");
+  await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
+  await page.evaluate(() => Object.defineProperty(crypto, "getRandomValues", { configurable: true, value: () => { throw Error("Retry must not generate another ID"); } }));
+  await dialog.getByRole("button", { name: "Retry Save", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/decks\\?createdGroup=${committedId}`));
+  expect(payloads).toHaveLength(2); expect(payloads[0]).toBe(payloads[1]);
+  await expect(page.locator(`[data-collection-item-id="${committedId}"]`)).toHaveCount(1);
+});
 test("Library Create/Cancel uses a cached alphabetical directory, explicit dual roles and preserves My Decks ordering", async ({ page }) => {
   await page.goto("/decks");
   const prior = await page.locator("[data-collection-item-id]").evaluateAll(nodes => nodes.map(node => node.getAttribute("data-collection-item-id")));
