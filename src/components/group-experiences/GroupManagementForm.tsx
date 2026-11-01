@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import LibraryDialog from "@/components/library/LibraryDialog";
 import type { LibraryPreviewManifest } from "@/lib/cards/libraryProjection";
 import { clientId } from "@/lib/clientId";
@@ -9,6 +10,28 @@ import { loadGroupSettings, type GroupSettings, type ManagementResult } from "./
 import { Identity } from "./PerspectivePicker";
 import "./group-management.css";
 
+function SelectedMembersArea({ children, animate, reduced }: { children: ReactNode; animate: boolean; reduced: boolean }) {
+  const content = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number>();
+  useLayoutEffect(() => {
+    const node = content.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      // The native dialog can initially be closed. Do not collapse the area
+      // using that zero measurement before its first visible layout.
+      if (entry.contentRect.height > 0) setHeight(entry.contentRect.height);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  // Animate real flow height, not a scale/FLIP transform: the users list and
+  // footer move together while every identity Card retains its exact geometry.
+  return <motion.div className="group-management-selected" aria-label="Selected identities" initial={false}
+    animate={{ height: height ?? "auto" }} transition={{ duration: animate && !reduced ? .18 : 0, ease: "easeOut" }} style={{ overflow: "hidden" }}>
+    <div ref={content}>{children}</div>
+  </motion.div>;
+}
+
 export default function GroupManagementForm({ actor, manifest, experienceId, onCancel, onSaved }: {
   actor: string; manifest?: LibraryPreviewManifest; experienceId?: string; onCancel(): void; onSaved(result: ManagementResult): void | Promise<void>;
 }) {
@@ -16,6 +39,8 @@ export default function GroupManagementForm({ actor, manifest, experienceId, onC
   const [values, setValues] = useState<GroupSettings | null>(() => editing ? null : { name: "", adminIds: [actor], followerIds: [], allowFollowerInspection: false, expectedStructureRevision: 0 });
   const [error, setError] = useState(""), [loading, setLoading] = useState(editing), [saving, setSaving] = useState(false), [uncertain, setUncertain] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [animateMembers, setAnimateMembers] = useState(false);
+  const reduced = Boolean(useReducedMotion());
   const running = useRef(false), live = useRef(true);
   const attempt = useRef<{ method: string; url: string; body: unknown } | null>(null);
   const committed = useRef<ManagementResult | null>(null);
@@ -29,8 +54,11 @@ export default function GroupManagementForm({ actor, manifest, experienceId, onC
   }, [actor, experienceId, loadAttempt]);
   const locked = saving || uncertain;
   const cancel = () => { if (!running.current && !uncertain) onCancel(); };
-  const toggle = (field: "adminIds" | "followerIds", id: string) => setValues(previous => previous ? { ...previous,
-    [field]: previous[field].includes(id) ? previous[field].filter(value => value !== id) : [...previous[field], id] } : previous);
+  const toggle = (field: "adminIds" | "followerIds", id: string) => {
+    setAnimateMembers(true);
+    setValues(previous => previous ? { ...previous,
+      [field]: previous[field].includes(id) ? previous[field].filter(value => value !== id) : [...previous[field], id] } : previous);
+  };
   async function submit() {
     if (!values || running.current) return;
     running.current = true; setSaving(true); setError("");
@@ -81,18 +109,20 @@ export default function GroupManagementForm({ actor, manifest, experienceId, onC
         <label>Group name<input name="groupName" value={values.name} maxLength={120} required onChange={event => setValues({ ...values, name: event.target.value })} /></label>
         <label className="group-management-policy"><input type="checkbox" role="switch" checked={values.allowFollowerInspection}
           onChange={event => setValues({ ...values, allowFollowerInspection: event.target.checked })} />Can followers view each other&apos;s Cards?</label>
-        <div className="group-management-selected" aria-label="Selected identities">
+        <SelectedMembersArea animate={animateMembers} reduced={reduced}>
           {([{ title: "Admins", ids: values.adminIds }, { title: "Followers", ids: values.followerIds }] as const)
             .filter(section => section.title === "Admins" || section.ids.length > 0)
             .map(section => <section className="group-management-role-section" aria-label={section.title} key={section.title}>
               <h3>{section.title}</h3>
               <div className="group-management-selected-grid">
-                {users.filter(user => section.ids.includes(user.id)).map(user => <div className="group-management-identity" key={user.id}>
+                {users.filter(user => section.ids.includes(user.id)).map(user => <motion.div className="group-management-identity" key={user.id}
+                  initial={animateMembers && !reduced ? { opacity: 0 } : false} animate={{ opacity: 1 }}
+                  transition={{ duration: reduced ? 0 : .06, delay: animateMembers && !reduced ? .15 : 0 }}>
                   <Identity choice={{ key: user.id, name: user.name, selection: { perspective: "self" } }} />
-                </div>)}
+                </motion.div>)}
               </div>
             </section>)}
-        </div>
+        </SelectedMembersArea>
         <section className="group-management-users" aria-label="Registered users">
           <div className="group-management-user-head"><span>Registered users</span><span>Admin</span><span>Follower</span></div>
           {directory.loading ? <p role="status">Loading registered users…</p> : null}

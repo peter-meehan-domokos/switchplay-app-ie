@@ -19,6 +19,80 @@ async function settings(page: Page, id: string) {
   await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
   return dialog;
 }
+async function traceMemberChange(page: Page, role: string, name: string, checked: boolean) {
+  const trace = await page.evaluateHandle(({ role, name }) => {
+    const dialog = document.querySelector<HTMLDialogElement>(".group-management-dialog")!;
+    const users = dialog.querySelector<HTMLElement>(".group-management-users")!;
+    const footer = dialog.querySelector<HTMLElement>(".group-management-actions")!;
+    const checkbox = Array.from(dialog.querySelectorAll<HTMLInputElement>('.group-management-user input')).find(input => input.getAttribute("aria-label") === `${name}, ${role}`)!;
+    let start = 0;
+    const read = () => {
+      const section = dialog.querySelector(`[aria-label="${role}s"]`);
+      const card = Array.from(section?.querySelectorAll<HTMLElement>(".group-management-identity") ?? []).find(card => card.querySelector(".group-identity-name")?.textContent === name);
+      return { t: performance.now() - start, list: users.getBoundingClientRect().top + dialog.scrollTop,
+        footer: footer.getBoundingClientRect().top + dialog.scrollTop, opacity: card ? Number(getComputedStyle(card).opacity) : null };
+    };
+    const state = { before: read(), samples: [] as ReturnType<typeof read>[], done: false };
+    checkbox.addEventListener("change", () => {
+      start = performance.now(); state.before = read();
+      const sample = () => { state.samples.push(read()); if (performance.now() - start < 400) requestAnimationFrame(sample); else state.done = true; };
+      requestAnimationFrame(sample);
+    }, { once: true });
+    return state;
+  }, { role, name });
+  await page.getByLabel(`${name}, ${role}`, { exact: true }).setChecked(checked);
+  await expect.poll(() => trace.evaluate(value => value.done)).toBe(true);
+  const result = await trace.evaluate(value => ({ before: value.before, samples: value.samples })); await trace.dispose(); return result;
+}
+for (const role of ["Admin", "Follower"] as const) test(`${role} row growth and removal move content smoothly before revealing the new Card`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(`/library/${fixture!.deckId}`); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Add as Group", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create Group", exact: true }), area = dialog.getByLabel("Selected identities");
+  await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
+  for (const name of role === "Admin" ? ["Alice", "Bob"] : ["Alice", "Bob", "Carla"]) await dialog.getByLabel(`${name}, ${role}`, { exact: true }).check();
+  const settled = () => expect.poll(() => area.evaluate(element => Math.abs(element.getBoundingClientRect().height - element.firstElementChild!.getBoundingClientRect().height))).toBeLessThan(.5);
+  await settled();
+  const first = dialog.getByRole("region", { name: `${role}s`, exact: true }).locator(".group-management-identity").first();
+  const beforeDimensions = await first.boundingBox();
+  const name = role === "Admin" ? "Carla" : "Daniel";
+  const added = await traceMemberChange(page, role, name, true), end = added.samples.at(-1)!;
+  const growth = end.list - added.before.list;
+  expect(growth).toBeGreaterThan(60);
+  expect(added.samples.filter(sample => sample.list > added.before.list + 1 && sample.list < end.list - 1).length).toBeGreaterThanOrEqual(2);
+  expect(added.samples.some(sample => sample.t < 110 && sample.opacity === 0)).toBe(true);
+  const revealed = added.samples.find(sample => sample.opacity !== null && sample.opacity > .02)!;
+  expect(revealed).toBeTruthy(); expect((revealed.list - added.before.list) / growth).toBeGreaterThan(.8);
+  expect(end.opacity).toBe(1); expect(end.footer - added.before.footer).toBeCloseTo(growth, 0);
+  const afterDimensions = await first.boundingBox();
+  expect(afterDimensions!.width).toBeCloseTo(beforeDimensions!.width, 1); expect(afterDimensions!.height).toBeCloseTo(beforeDimensions!.height, 1);
+  const removed = await traceMemberChange(page, role, name, false), contracted = removed.samples.at(-1)!;
+  expect(contracted.list - removed.before.list).toBeCloseTo(-growth, 0);
+  expect(removed.samples.filter(sample => sample.list < removed.before.list - 1 && sample.list > contracted.list + 1).length).toBeGreaterThanOrEqual(2);
+  expect(contracted.opacity).toBeNull();
+  if (role === "Follower") {
+    await dialog.getByLabel("Bob, Follower", { exact: true }).uncheck(); await dialog.getByLabel("Carla, Follower", { exact: true }).uncheck(); await settled();
+    const last = await traceMemberChange(page, role, "Alice", false), collapsed = last.samples.at(-1)!;
+    expect(last.samples.filter(sample => sample.list < last.before.list - 1 && sample.list > collapsed.list + 1).length).toBeGreaterThanOrEqual(2);
+    await expect(dialog.getByRole("region", { name: "Followers", exact: true })).toHaveCount(0);
+  }
+  console.log(JSON.stringify({ role, rowHeightDelta: growth, firstVisibleAtMs: revealed.t, layoutCompleteAtReveal: (revealed.list - added.before.list) / growth }));
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+});
+test("reduced motion reveals selected members immediately without a delayed height transition", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(`/library/${fixture!.deckId}`); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Add as Group", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create Group", exact: true }), area = dialog.getByLabel("Selected identities");
+  await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
+  await dialog.getByLabel("Alice, Follower", { exact: true }).check();
+  const card = area.getByRole("region", { name: "Followers", exact: true }).locator(".group-management-identity");
+  expect(await card.evaluate(element => getComputedStyle(element).opacity)).toBe("1");
+  await expect.poll(() => area.evaluate(element => Math.abs(element.getBoundingClientRect().height - element.firstElementChild!.getBoundingClientRect().height))).toBeLessThan(.5);
+  expect(await area.evaluate(element => element.getAnimations({ subtree: true }).filter(animation => animation.playState === "running").length)).toBe(0);
+  await dialog.getByLabel("Alice, Follower", { exact: true }).uncheck(); await expect(card).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+});
 for (const mode of ["create", "settings"] as const) test(`${mode} preparation failure clears Saving without submitting or freezing the draft`, async ({ page }) => {
   let groupId: string | undefined;
   if (mode === "settings") { groupId = (await create(page)).experienceId; await settings(page, groupId); }
@@ -210,8 +284,10 @@ test("85-percent user list preserves inner scrolling and leaves a native outer-s
   await page.getByRole("menuitem", { name: "Add as Group", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Create Group", exact: true });
   await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
-  // Populate only the local draft so the outer form has room to scroll.
-  for (const checkbox of await dialog.locator('.group-management-user input[aria-label$=", Follower"]').all()) await checkbox.check({ force: true });
+  // Populate only the local draft. Normal actionability waits for the approved
+  // row-height transition instead of force-clicking a moving checkbox target.
+  for (const checkbox of await dialog.locator('.group-management-user input[aria-label$=", Follower"]').all()) await checkbox.check();
+  await expect.poll(() => dialog.getByLabel("Selected identities").evaluate(element => Math.abs(element.getBoundingClientRect().height - element.firstElementChild!.getBoundingClientRect().height))).toBeLessThan(.5);
   const inner = dialog.locator(".group-management-directory");
   const setup = async () => dialog.evaluate(element => {
     const list = element.querySelector<HTMLElement>(".group-management-directory")!;
