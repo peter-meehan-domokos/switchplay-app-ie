@@ -2,6 +2,20 @@
 
 Updated: 1 November 2026. Implementation and the specific Atlas collection/index operations below are owner-authorised; deployment/production release is not authorised.
 
+## Mobile Creator media overlap correction — 1 November 2026
+
+Baseline: clean `feat/step-visuals-pluggedin` at `885a99b`. The owner approved the necessary internal text-row reduction and upward handle/media adjustment after reviewing the measured conflict. This checkpoint resolves the mobile Creator blocker recorded in the final integrated verification below; that earlier section remains historical evidence.
+
+Reproduced through the normal Creator interface in touch-enabled WebKit at375×667: create a Card titled “Graphs, factors and area”, add four Introduction attachments, then try the first step media control. Its button occupied y340–356 while the next cell started at347.328125; normal tap failed because the next cell intercepted it. The pair was113.328125px high, but its tracks were72px/34px/0px and the last row's contents still needed18px. This was track overflow, not a stacking-order defect.
+
+The only runtime change is a local `max-width:640px` rule in `src/app/globals.css`. The text row can shrink and the media row reserves its existing18px control-plus-padding height. The existing text preview is also bounded by the shorter row, retaining its original four-line maximum, font and complete editable text. This prevents long previews from overflowing upward. No grid/cell dimensions, external spacing, button sizes/styles, drag-handle size, desktop/tablet rules, media logic, mathematical visuals, host, persistence or permissions changed.
+
+At375×667 WebKit, the tracks are now51.328125px/34px/18px. The media button remains81.796875×16px and moves to y319.328125–335.328125, fully above the unchanged next-cell boundary347.328125. The first cell remains x201/y221,170×126.328125px; its pair remains x207/y227,158×113.328125px. At390×844 the vertical positions and track sizes are unchanged. At1280×1000 all measured cell, pair and button geometry is unchanged; whole-screen PNG comparison differs only in72 focus-marker pixels from tapping different controls, with all other pixels identical.
+
+Added `tests/phase2/creator-media-overlap.browser.ts`. The existing disposable runner creates the test Card through the UI, checks nine hit-test points on each of the three media controls, normally taps every control at375×667,390×844 and1280×1000, opens/closes the attachment modal, edits a populated long step, attaches Integration, waits for its real draft save, reloads and reopens the saved attachment. All populated-step controls must remain inside their cell. Both Chromium and WebKit pass; TypeScript (`npx tsc --noEmit --incremental false`), focused ESLint and diff whitespace checks pass. The original reproduction failed before the fix as expected. The broad integrated test only has its obsolete mobile-blocker comment updated; the full integration programme was not repeated.
+
+Full viewport screenshots and measurements were inspected under `/private/tmp/creator-overlap-before-webkit-*`, `/private/tmp/creator-overlap-after-{webkit,chromium}*` and `/private/tmp/creator-overlap-populated-{webkit,chromium}.png`. These are temporary diagnostics, not committed assets. Browser touch emulation is not physical iPhone verification. Existing development/review servers, Atlas data, environment files, learner progress and other worktrees remain untouched. No push, merge, deployment or provider changes.
+
 ## Final integrated regression verification — 1 November 2026
 
 Baseline: clean `feat/step-visuals-pluggedin` at `23d6ebd` (includes `16856ef`). Existing disposable runner/provider fixtures were used throughout. No Atlas writes/index changes, live uploads, provider/CORS changes, environment edits, deployment, branch switches or existing-server restarts. iPhone/LAN R2 CORS was explicitly excluded from investigation.

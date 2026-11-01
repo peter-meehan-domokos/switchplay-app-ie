@@ -48,8 +48,8 @@ test("desktop Creator publication and two mobile learners retain independent mix
     const users = ["creator", "a", "b"].map(role => ({ _id: new ObjectId(), username: `integrated-${role}-${randomUUID()}`, email: `${role}-${randomUUID()}@example.invalid`, passwordHash, cardsData: [], decksData: [], createdAt: new Date(), updatedAt: new Date() }));
     await db.collection("users").insertMany(users);
     const [creator, a, b] = await Promise.all(contexts.map(c => c.newPage()));
-    // The existing Creator grid clips step-media hit targets at 375x667 WebKit.
-    // Do not force-click or alter its CSS: author on desktop; learners stay mobile.
+    // Keep this broad journey desktop-authored with mobile learners; the focused
+    // creator-media-overlap test covers phone authoring and touch hit targets.
     await creator.setViewportSize({ width: 1280, height: 1000 });
     for (const [index, page] of [creator, a, b].entries()) { page.setDefaultTimeout(20_000); await login(page, users[index].username); }
     await creator.goto("/creator/new");
