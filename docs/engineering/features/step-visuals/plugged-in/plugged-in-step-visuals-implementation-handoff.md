@@ -1,6 +1,32 @@
 # Plugged-in Step Visuals implementation handoff
 
-Updated: 31 October 2026. Implementation authorised by the final owner instruction and subsequent UX refinement amendment; production release is not authorised.
+Updated: 1 November 2026. Implementation and the specific Atlas index operation below are owner-authorised; deployment/production release is not authorised.
+
+## Current Atlas index setup — operational change, 1 November 2026
+
+The owner explicitly authorised installing the missing Visual Learning Records indexes in the existing application database. Verified target: **`switchplay` on `cluster0.oc5abhg.mongodb.net`**, matching the existing environment, database guard and Step Visuals server on port3001 (PID17545, correct worktree). Preflight found all17 definitions missing, no conflicting indexes, and all seven visual collections absent/empty. Used the existing `createVisualLearningRecordIndexes(db)` export with its unchanged `VISUAL_INDEXES`; no new migration/production CLI or application setup bypass. The helper created the empty collections implicitly with their indexes. All17 names, ordered keys and uniqueness settings then matched;10 are unique. Runtime `assertIndexesReady` passed. No server restart.
+
+Created indexes, grouped by collection:
+
+- `visualGuests`: `visual_guest_id`, `visual_guest_credential`, `visual_guest_retention`.
+- `visualGuestClaims`: `visual_guest_claim_id`, `visual_guest_claim_guest`, `visual_guest_claim_account`.
+- `visualRecords`: `visual_record_id`, `visual_learner_activity`.
+- `visualAttempts`: `visual_attempt_id`, `visual_attempt_history`, `visual_attempt_command`.
+- `visualEvents`: `visual_event_identity`, `visual_event_history`.
+- `visualVisits`: `visual_visit_id`, `visual_visit_history`.
+- `visualSnapshotCheckpoints`: `visual_checkpoint_id`, `visual_checkpoint_history`.
+
+The monitored index operation issued17 `createIndexes` commands and only metadata/read commands otherwise: no insert/update/delete/drop/rename. Counts stayed11 users,159 Card roots,163 Card versions,42 Deck roots and42 Deck versions; all visual document counts stayed zero during index setup. No existing records, indexes, credentials, environment settings or provider configuration were changed. This is an operational database change, not a Git migration; do not drop the indexes on code rollback. Sanitised temporary receipt: `/private/tmp/current-visual-index-receipt.json` (may be evicted); the authoritative definitions and this checkpoint are durable evidence.
+
+Normal application verification used ordinary Daniel login and the existing APIs, without bypassing authentication. The exact previously failing Integration existence GET returned200/false (**Start**). One normal open through the actual adopted Card/Deck/Step/attachment context returned200 and restoration `ready`; this created a new initial visual record/attempt/visit, with no answers or snapshot changes. The next existence GET returned200/true (**Continue**). The working Card/Deck DTO was identical before and after. Existing learner attempts were not reset or edited. Both previously affected saved videos also returned200/`ready` through the normal authenticated status endpoint. No live uploads or media changes.
+
+## Video processing status after Card save — 1 November 2026
+
+Confirmed the race with a new disposable-browser regression: hold the attachment PATCH before saving, upload a non-fixture-prefix synthetic Stream UID, and observe the premature status requests before acknowledgement. Earlier mock-prefix fixtures deliberately skipped status polling and could not expose this. The real modal rendered desired media immediately, while the server correctly required the asset in saved Card content;403 then stopped that poll and save completion did not restart it.
+
+Minimal correction: `CreatorDragLab` passes media from the existing Card acknowledgement to `CreatorStepMediaModal`. Each real-video status poll enables only when that exact asset ID is acknowledged in the Card; existing authorised videos keep checking while another attachment is pending. A changed media identity remounts its status component so replacements do not retain the former asset status. The acknowledgement notification already rerenders the modal and enables the existing poller after save. No upload, provider, playback, authorisation, save/publication, attachment ordering, messages, styling or visual-learning-record logic changed.
+
+Verification:10 pure creator/step-media tests;19 existing/new upload and polling contract cases; saved/pending component browser test in Chromium and WebKit; all five creator multimedia API/browser journeys in a fresh disposable replica set; nine visual API integration tests including missing indexes503, authoritative setup, Start/Continue, successful Integration open and actor rejection; TypeScript, focused lint and diff checks passed. The held-save regression now makes no premature status request, reaches Video ready after acknowledgement, survives reopening, and denies a different account403. Provider failures retain the existing retry classification and interval. No physical iPhone result claimed. Existing port3000/3001/4182/4183 processes and review progress were preserved. Commit subject: `feat (step-visuals-pluggedin): Fix video processing status after Card save`. No push, merge or deployment.
 
 ## Recovery error precedence correction — 31 October 2026
 

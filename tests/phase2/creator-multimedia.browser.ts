@@ -21,6 +21,41 @@ async function setup(page: Page) {
 const video = { name: "watch.mp4", mimeType: "video/mp4", buffer: Buffer.from("local video fixture") };
 const image = { name: "diagram.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64") };
 
+test("video processing waits for its Card save acknowledgement and keeps permission failures denied", async ({ page, browser }) => {
+  const { column, id } = await setup(page), assetId = `status-${id}`;
+  // Exercise actual status authorization rather than the fixture-prefix display shortcut.
+  await page.route("**/api/media/stream/direct-upload", async route => {
+    const response = await route.fetch(); await route.fulfill({ response, json: { ...await response.json(), uid: assetId } });
+  });
+  let saving = false, acknowledged = false, release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route(`**/api/card-templates/${id}`, async route => {
+    if (route.request().method() === "PATCH" && route.request().postData()?.includes(assetId)) {
+      saving = true; await held; const response = await route.fetch(); acknowledged = response.ok(); await route.fulfill({ response });
+    } else await route.continue();
+  });
+  const early: string[] = [];
+  page.on("request", request => { if (request.url().includes("/api/media/stream/status?") && request.url().includes(assetId) && !acknowledged) early.push(request.url()); });
+  try {
+    await column.locator(".creator-card-intro-media-slot .creator-media-upload-control").click();
+    await media(page).getByLabel("Add video", { exact: true }).setInputFiles(video);
+    await expect.poll(() => saving).toBe(true); await expect(media(page).locator("li[data-attachment-id]")).toHaveCount(1);
+    await page.waitForTimeout(300); expect(early).toEqual([]);
+    release(); await expect(media(page).getByText("Video ready", { exact: true })).toBeVisible();
+    expect((await root(id))!.draft.intro.mediaItems[0].media.assetId).toBe(assetId);
+    await media(page).getByRole("button", { name: "Close", exact: true }).click();
+    await column.locator(".creator-card-intro-media-slot .creator-media-upload-control").click();
+    await expect(media(page).getByText("Video ready", { exact: true })).toBeVisible();
+    const outsider = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL });
+    try {
+      await outsider.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } });
+      const query = new URLSearchParams({ scope: "card-template", deckTemplateId: "unchanged-context", cardTemplateId: id, assetId });
+      const denied = await outsider.request.get(`/api/media/stream/status?${query}`);
+      expect(denied.status()).toBe(403); expect((await denied.json()).code).toBe("CARD_FORBIDDEN");
+    } finally { await outsider.close(); }
+  } finally { release(); }
+});
+
 test("four ordered visuals, actual label-width rejection, keyboard return and draft publication stay independent", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 760 });
   const { column, id } = await setup(page), trigger = column.locator(".creator-card-intro-media-slot .creator-media-upload-control");

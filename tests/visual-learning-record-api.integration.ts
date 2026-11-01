@@ -37,6 +37,19 @@ function request(body?: unknown, headers: Record<string, string> = {}) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 }
 const openBody = (source: VisualSource = { kind: "direct" }) => ({ activityId: "roots-and-factors", visitId: randomUUID(), source });
+test("missing visual indexes fail closed and authoritative setup restores lookup and opening", async () => {
+  const db = client.db("switchplay_test_visual_index_setup"), repo = new VisualLearningRecordRepository(db, client);
+  const endpoint = createVisualApi({ enabled: true, authenticate: async () => actor, repository: async () => repo,
+    authorizeSource: async (_actor, _activityId, source) => source });
+  const existing = () => endpoint.existing(new Request("https://app.example/api/visual-sessions/existing?activityId=integration-area", { headers: { "X-Visual-Learner": "account:learner" } }));
+  const missing = await existing(); assert.equal(missing.status, 503); assert.equal((await missing.json()).code, "VISUAL_INDEX_SETUP_REQUIRED");
+  await createVisualLearningRecordIndexes(db); await repo.assertIndexesReady();
+  const fresh = await existing(); assert.equal(fresh.status, 200); assert.deepEqual(await fresh.json(), { hasAttempt: false });
+  const opened = await endpoint.open(request({ ...openBody(), activityId: "integration-area" })); assert.equal(opened.status, 200);
+  assert.deepEqual(await (await existing()).json(), { hasAttempt: true });
+  const switched = await endpoint.existing(new Request("https://app.example/api/visual-sessions/existing?activityId=integration-area", { headers: { "X-Visual-Learner": "account:other" } }));
+  assert.equal(switched.status, 409);
+});
 test("preview existence is owner-scoped and read-only, including completed attempts", async () => {
   const principal = { kind: "account", id: "preview-owner" } as const;
   const check = (actor = principal, query = "activityId=roots-and-factors") => api(actor).existing(new Request(`https://app.example/api/visual-sessions/existing?${query}`, { headers: { "X-Visual-Learner": `account:${actor.id}` } }));

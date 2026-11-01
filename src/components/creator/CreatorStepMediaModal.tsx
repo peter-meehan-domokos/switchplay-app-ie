@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from "react";
 import { clientId } from "@/lib/clientId";
 import { getInteractiveVisual, interactiveVisualCatalogue } from "@/lib/interactiveVisuals/catalogue";
-import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
+import { isCloudflareStreamVideoMediaItem, type MediaItem } from "@/lib/media";
 import { isPhase2MockVideo, PHASE2_MOCK_VIDEO_NOTICE } from "@/lib/phase2MediaFixture";
 import { MAX_STEP_MEDIA, validStepMediaItems, validStepMediaLabels, type StepMediaItem } from "@/lib/stepMedia";
 import type { MediaUploadTarget } from "@/lib/mediaUploadClient";
@@ -15,6 +15,7 @@ import styles from "./CreatorStepMediaModal.module.css";
 type Props = {
   multimediaEnabled: boolean;
   title: string; items: readonly StepMediaItem[]; uploading: boolean; disabled: boolean; saveError?: boolean;
+  acknowledgedMedia: readonly MediaItem[];
   readinessTarget: MediaUploadTarget;
   returnFocus: HTMLElement;
   onChange: (items: StepMediaItem[]) => void;
@@ -23,10 +24,10 @@ type Props = {
 };
 const labelError = "Use short, single-line labels that fit together on a 320px screen (12 characters each, 32 altogether).";
 function validLabels(items: readonly StepMediaItem[]) { return validStepMediaItems(items) && stepMediaLabelsFit(items.map(item => item.label)); }
-function VideoStatus({ item, target }: { item: StepMediaItem & { kind: "video" }; target: MediaUploadTarget }) {
+function VideoStatus({ item, target, acknowledged }: { item: StepMediaItem & { kind: "video" }; target: MediaUploadTarget; acknowledged: boolean }) {
   const stream = isCloudflareStreamVideoMediaItem(item.media) ? item.media : null;
   const mock = stream && isPhase2MockVideo(stream.assetId);
-  const { state, retry } = useStreamVideoReadiness(target, stream?.assetId ?? "", !!stream && !mock);
+  const { state, retry } = useStreamVideoReadiness(target, stream?.assetId ?? "", acknowledged && !!stream && !mock);
   if (!stream) return <small>Video attached</small>;
   if (mock) return <small>{PHASE2_MOCK_VIDEO_NOTICE}</small>;
   const text = state.status === "ready" ? "Video ready" : state.status === "failed" ? "Video processing failed."
@@ -106,7 +107,8 @@ export default function CreatorStepMediaModal(props: Props) {
         {props.multimediaEnabled && item.kind === "image" ? <label className={styles.field}>Image description
           <input value={item.alt} maxLength={1000} disabled={blocked} onChange={event => change(items.map(existing => existing.id === item.id ? { ...item, alt: event.currentTarget.value } : existing))} />
         </label> : null}
-        {item.kind === "video" ? <VideoStatus item={item} target={readinessTarget} /> : null}
+        {item.kind === "video" ? <VideoStatus key={item.media.id} item={item} target={readinessTarget}
+          acknowledged={props.acknowledgedMedia.some(media => isCloudflareStreamVideoMediaItem(media) && isCloudflareStreamVideoMediaItem(item.media) && media.assetId === item.media.assetId)} /> : null}
         <div className={styles.actions}>
           {props.multimediaEnabled ? <><button type="button" className="creator-modal-secondary" disabled={blocked || index === 0} onClick={() => { const next = [...items]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; change(next); }}>Move up</button>
           <button type="button" className="creator-modal-secondary" disabled={blocked || index === items.length - 1} onClick={() => { const next = [...items]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; change(next); }}>Move down</button></> : null}

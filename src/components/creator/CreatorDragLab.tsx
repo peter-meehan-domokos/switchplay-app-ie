@@ -59,7 +59,7 @@ import {
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
 import CreatorStepMediaModal from "./CreatorStepMediaModal";
 import { putStepMedia, uploadedStepMedia, withCreatorStepMedia } from "./creatorStepMedia";
-import { MAX_STEP_MEDIA, hasModernStepMedia, stepMediaItems, validStepMediaItems, validStepMediaLabels, type StepMediaItem } from "@/lib/stepMedia";
+import { MAX_STEP_MEDIA, hasModernStepMedia, instructionalMedia, stepMediaItems, validStepMediaItems, validStepMediaLabels, type StepMediaItem } from "@/lib/stepMedia";
 import { stepMediaLabelsFit } from "@/components/decks/measureStepMediaTabs";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
 import { useMediaUploadController, type CompletedMediaUpload } from "@/components/media/useMediaUploadController";
@@ -1749,6 +1749,7 @@ export default function CreatorDragLab({ canPreviewOutput, multimediaEnabled = f
     event.stopPropagation();
   }
 
+  const acknowledgedMediaContent = mediaSession ? persistence.cards.get(mediaSession.cardTemplateId)?.ack?.content : undefined;
   return (
     <main className="creator-lab" style={creatorGeometryStyle} data-creator-entry={mode}>
       <header className="creator-header" inert={navigationLocked}>
@@ -1940,6 +1941,7 @@ export default function CreatorDragLab({ canPreviewOutput, multimediaEnabled = f
         key={`${mediaSession.cardTemplateId}:${mediaSession.stepId}`}
         title={mediaSession.stepId === "intro" ? "Introduction media" : "Step media"}
         items={stepMediaItems(mediaDestination(mediaSession.cardTemplateId, mediaSession.stepId)!)}
+        acknowledgedMedia={acknowledgedMediaContent ? [...instructionalMedia(acknowledgedMediaContent), ...(acknowledgedMediaContent.mediaItem ? [acknowledgedMediaContent.mediaItem] : [])] : []}
         multimediaEnabled={multimediaEnabled}
         readinessTarget={persistence.uploadTarget(mediaSession.cardTemplateId, mediaSession.stepId)}
         returnFocus={mediaSession.trigger}
