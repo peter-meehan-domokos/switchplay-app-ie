@@ -23,15 +23,20 @@ export type CalculationResult = {
 
 // Use only the actor's personal records. Canonical ancestry does not authorize
 // access to another user's CardData. Historical Step entries are not inputs.
-export function resolveAdoptedCardCalculation(actor: string, id: string, roots: readonly CardTemplateRoot[], versions: readonly CardTemplateVersion[], records: readonly CardData[]): CardCalculation {
+export function resolveAdoptedCardCalculation(actor: string, id: string, roots: readonly CardTemplateRoot[], versions: readonly CardTemplateVersion[], records: readonly CardData[],
+  options: { version?: number; allowUnstarted?: boolean } = {}): CardCalculation {
   const fail = (code: string): CardCalculation => ({ state: "incomplete", cardTemplateId: id, issues: [{ code, cardTemplateIds: [id] }] });
   const selectedRoots = roots.filter((root) => root.cardTemplateId === id);
   const selectedData = records.filter((data) => data.cardTemplateId === id);
   if (selectedRoots.length !== 1) return fail("MISSING_OR_AMBIGUOUS_CARD_ROOT");
-  if (selectedData.length !== 1) return fail("MISSING_OR_AMBIGUOUS_CARD_DATA");
-  const root = selectedRoots[0], data = selectedData[0];
-  if (!Number.isInteger(data.cardTemplateVersion) || data.cardTemplateVersion < 1) return fail("INVALID_ADOPTED_VERSION");
-  const selected = versions.filter((version) => version.cardTemplateId === id && version.version === data.cardTemplateVersion);
+  if (selectedData.length > 1 || !selectedData.length && !options.allowUnstarted) return fail("MISSING_OR_AMBIGUOUS_CARD_DATA");
+  if (selectedData.length && (!Number.isInteger(selectedData[0].cardTemplateVersion) || selectedData[0].cardTemplateVersion < 1)) return fail("INVALID_ADOPTED_VERSION");
+  const root = selectedRoots[0], data = selectedData[0] ?? { items: [], signalReadings: [] };
+  // Summary version is read-only assignment evidence, never a personal adoption
+  // write. Missing data defaults only for legitimate Group-only assignments.
+  const adoptedVersion = options.version ?? selectedData[0]?.cardTemplateVersion;
+  if (!Number.isInteger(adoptedVersion) || !(adoptedVersion! >= 1)) return fail("INVALID_ADOPTED_VERSION");
+  const selected = versions.filter((version) => version.cardTemplateId === id && version.version === adoptedVersion);
   if (selected.length !== 1) return fail("MISSING_OR_AMBIGUOUS_CARD_VERSION");
   const version = selected[0];
   try {

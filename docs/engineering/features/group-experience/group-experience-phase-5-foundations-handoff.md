@@ -2,7 +2,7 @@
 
 ## Resume here
 
-Implementation commission: complete and separately commit 5.1a, 5.1b, 5.2a, 5.2b and 5.3, then stop. Do not implement 5.4, navigation or visible Progress/Card changes. Current branch `feat/group-experience`; starting HEAD `a6f2e32`. 5.1a implementation and checks are complete; commit subject `feat (group experience): establish framework progress scope`. Verify its commit in Git log before starting 5.1b; do not duplicate it. Next task: lifetime/version evidence in personal Framework readers.
+Implementation commission: complete and separately commit 5.1a, 5.1b, 5.2a, 5.2b and 5.3, then stop. Do not implement 5.4, navigation or visible Progress/Card changes. Current branch `feat/group-experience`; starting HEAD `a6f2e32`. 5.1a committed as `26e43ed31b9dec6a36b3f3a94ce35fc4e3495ad2`. 5.1b is implemented and verified; commit subject `feat (group experience): retain lifetime framework learning`. Confirm its commit in Git log before beginning 5.2a provenance; no later checkpoint has started.
 
 Before resuming, inspect Git status/log and this record. Do not repeat completed commits. Pre-existing uncommitted work includes both engineering plans, the independent review and the completed 5.0 scripts/fixtures/browser tests. Keep those out of implementation commits. The authoritative plan receives the two newly approved decision updates in the working tree; preserve its earlier uncommitted content.
 
@@ -19,10 +19,18 @@ Read installed Next route-handler documentation: async params and private/no-sto
 - `npx eslint src/lib/frameworks/scope.ts src/lib/frameworks/progressState.ts src/lib/groupExperiences/policy.ts tests/framework-progress-scope.test.ts` — passed.
 - `git diff --check` — passed.
 
+5.1b final verification:
+
+- Initial three-file integration run: 26 passed, 1 failed. The failure correctly identified that a missing unmapped personal Card record poisoned unrelated metrics; fixed by keeping known composition separate from invalid selected Card data.
+- Six new lifetime integration scenarios rerun after the stored-adoption integrity guard: 6 passed, 0 failed.
+- `node --import tsx --test --test-concurrency=1 tests/framework-lifetime.integration.ts tests/framework-readers.integration.ts tests/frameworks.integration.ts` — final rerun 27 passed, 0 failed; log `/tmp/group-experience-5-1b-tests-final.log`.
+- `node --import tsx --test tests/frameworks.test.ts tests/framework-progress-scope.test.ts` — 24 passed, 0 failed.
+- TypeScript and targeted lint passed after the final fix. An earlier unused-import lint warning was removed.
+
 ## Checkpoint log
 
 - 5.1a: complete; pure current-composition/Framework scope, live assessment-only evidence closure, distinct progress states and all-member capabilities. Files: `frameworks/{scope,progressState}.ts`, `groupExperiences/policy.ts`, `tests/framework-progress-scope.test.ts`, this handoff. Scope is not yet connected to Group Progress APIs/UI (5.4+).
-- 5.1b: not started.
+- 5.1b: complete. New `frameworks/lifetimeEligibility.ts`; explicit selected version/default inputs in `calculations.ts`; owner summary/Item/Card histories and source titles in `readModels.ts`; six new scenarios in `tests/framework-lifetime.integration.ts`. No source/adoption/private writes. Current and retained own membership evidence are read in the same snapshot. The sandbox socket setup failure was rerun using approved disposable replica-set escalation.
 - 5.2a: not started.
 - 5.2b: not started.
 - 5.3: not started.

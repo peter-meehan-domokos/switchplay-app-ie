@@ -6,10 +6,12 @@ import { assertCardVersionAccess } from "../cards/versionAccess";
 import { assertAssessmentId } from "../assessments/contracts";
 import { collectCardHistory, compactAssessmentHistory, projectAssessmentHistory, unavailableCardTitle, type HistoryIssue, type SourceTitle } from "../assessments/history";
 import { assertFrameworkConfiguration, getFrameworks, hasConfiguredCards, hasConfiguredAreaCards, type Framework } from "./configuration";
-import { collectPersonalEligibility, type PersonalEligibility } from "./eligibility";
+import { collectPersonalEligibility } from "./eligibility";
 import { calculateMappedProgress, resolveAdoptedCardCalculation } from "./calculations";
 import { resolveEffectiveMapping, validateFrameworkAncestry, type CanonicalAncestry } from "./mapping";
 import { readCanonicalAncestry } from "./mappingRepository";
+import { allowsVirtualPersonalCard, lifetimeEligibility, type LifetimeEligibility } from "./lifetimeEligibility";
+import { resolveProgressScope } from "./scope";
 
 export function frameworkMetadata(frameworks: readonly Framework[] = getFrameworks()) {
   assertFrameworkConfiguration(frameworks);
@@ -34,18 +36,21 @@ async function personalUser(repo: CardRepository, actor: string, session: Client
   // Cards still resolve as missing/incomplete, without breaking unrelated Items.
   return { ...user, cardsData: user.cardsData.filter((data) => isRecord(data) && nonblank(data.cardTemplateId)) };
 }
-async function adoptedCards(repo: CardRepository, user: PersonalUser, ids: readonly string[], session: ClientSession, titlesOnly = false) {
+async function adoptedCards(repo: CardRepository, user: PersonalUser, ids: readonly string[], session: ClientSession, titlesOnly = false, eligible?: LifetimeEligibility) {
   const distinct = [...new Set(ids)];
   const roots = await batches<CardTemplateRoot>(repo.cards(), distinct.map((cardTemplateId) => ({ cardTemplateId })), session,
     { _id: 0, cardTemplateId: 1, ownerUserId: 1, visibility: 1 });
-  const selected = new Set(distinct);
-  const clauses = user.cardsData.filter((data) => selected.has(data.cardTemplateId) && Number.isInteger(data.cardTemplateVersion) && data.cardTemplateVersion > 0)
-    .map((data) => ({ cardTemplateId: data.cardTemplateId, version: data.cardTemplateVersion }));
+  const clauses = distinct.flatMap(cardTemplateId => {
+    const assignment = eligible?.assignments.find(ref => ref.cardTemplateId === cardTemplateId);
+    return assignment ? [{ cardTemplateId, version: assignment.version }]
+      : user.cardsData.filter(data => data.cardTemplateId === cardTemplateId && Number.isInteger(data.cardTemplateVersion) && data.cardTemplateVersion > 0)
+        .map(data => ({ cardTemplateId, version: data.cardTemplateVersion }));
+  });
   const versions = await batches<CardTemplateVersion>(repo.cardVersions(), clauses, session, titlesOnly
     ? { _id: 0, cardTemplateId: 1, version: 1, visibility: 1, "content.intro.title": 1 } : { _id: 0 });
   return { roots, versions };
 }
-async function eligibility(repo: CardRepository, actor: string, user: PersonalUser, session: ClientSession): Promise<PersonalEligibility> {
+async function eligibility(repo: CardRepository, actor: string, user: PersonalUser, session: ClientSession): Promise<LifetimeEligibility> {
   const valid = user.decksData.filter((data) => isRecord(data) && nonblank(data.deckTemplateId));
   const roots = await batches<DeckTemplateRoot>(repo.decks(), valid.map(({ deckTemplateId }) => ({ deckTemplateId })), session,
     { _id: 0, deckTemplateId: 1, ownerUserId: 1, visibility: 1 });
@@ -53,14 +58,23 @@ async function eligibility(repo: CardRepository, actor: string, user: PersonalUs
     .map((data) => ({ deckTemplateId: data.deckTemplateId, version: data.deckTemplateVersion })), session, { _id: 0 });
   const result = collectPersonalEligibility(actor, valid as DeckData[], roots, versions);
   if (valid.length !== user.decksData.length) { result.issues.push({ code: "INVALID_DECK_MEMBERSHIP" }); result.unknownComposition = true; }
-  return result;
+  return lifetimeEligibility(repo, actor, user, result, session);
+}
+
+function eligibleHistory(user: PersonalUser, id: string, eligible: LifetimeEligibility) {
+  return !user.cardsData.some(row => row.cardTemplateId === id) && allowsVirtualPersonalCard(eligible, id)
+    ? { cardTemplateId: id, segments: [], issues: [] } : collectCardHistory(user.cardsData, id);
 }
 
 type HistorySelection = { cardIds: string[]; issues: HistoryIssue[] };
-function selectItemHistory(framework: Framework, itemId: string, graph: CanonicalAncestry, eligible: PersonalEligibility): HistorySelection {
+function selectItemHistory(framework: Framework, itemId: string, graph: CanonicalAncestry, eligible: LifetimeEligibility): HistorySelection {
   const item = framework.areas.flatMap((area) => area.items).find((item) => item.id === itemId)!;
   // Unmapped Items have only direct tests: canonical content cannot contribute.
   if (!hasConfiguredCards(item)) return { cardIds: [], issues: [] };
+  const scope = resolveProgressScope(framework, { kind: "personal" }, eligible.assignments, graph,
+    { unknownComposition: eligible.unknownComposition, issues: eligible.issues });
+  if (!scope.issues.length && !eligible.unknownComposition && eligible.cardTemplateIds.every(id => eligible.assignments.some(ref => ref.cardTemplateId === id))) return {
+    cardIds: scope.areas.flatMap(area => area.items).find(item => item.frameworkItemId === itemId)!.cardTemplateIds, issues: [] };
   // Explicit mapping validation identifies the Items implicated by that chain.
   // Framework-wide diagnostics remain on the unchanged progress calculations.
   const configurationIssues = validateFrameworkAncestry(framework, graph)
@@ -81,13 +95,14 @@ function selectItemHistory(framework: Framework, itemId: string, graph: Canonica
   }
   return { cardIds, issues };
 }
-async function sourceTitles(repo: CardRepository, actor: string, user: PersonalUser, histories: readonly ReturnType<typeof collectCardHistory>[], session: ClientSession) {
+async function sourceTitles(repo: CardRepository, actor: string, user: PersonalUser, histories: readonly ReturnType<typeof collectCardHistory>[], session: ClientSession, eligible?: LifetimeEligibility) {
   const ids = [...new Set(histories.flatMap((history) => history.segments.map((segment) => segment.cardTemplateId)))];
-  const { roots, versions } = await adoptedCards(repo, user, ids, session, true);
+  const { roots, versions } = await adoptedCards(repo, user, ids, session, true, eligible);
   const titles = new Map<string, SourceTitle>();
   for (const id of ids) {
     const data = user.cardsData.filter((data) => data.cardTemplateId === id), foundRoots = roots.filter((root) => root.cardTemplateId === id);
-    const foundVersions = versions.filter((version) => version.cardTemplateId === id && version.version === data[0]?.cardTemplateVersion);
+    const selectedVersion = eligible?.assignments.find(ref => ref.cardTemplateId === id)?.version ?? data[0]?.cardTemplateVersion;
+    const foundVersions = versions.filter((version) => version.cardTemplateId === id && version.version === selectedVersion);
     let title = unavailableCardTitle;
     if (data.length === 1 && foundRoots.length === 1 && foundVersions.length === 1) {
       try {
@@ -109,14 +124,15 @@ export async function readFrameworkSummaries(repo: CardRepository, actor: string
     if (!frameworks.length) return { viewerUserId: actor, frameworks: [] };
     const eligible = await eligibility(repo, actor, user, session);
     const graph = await readCanonicalAncestry(repo, frameworks, eligible.cardTemplateIds, session);
-    const { roots, versions } = await adoptedCards(repo, user, eligible.cardTemplateIds, session);
-    const calculations = new Map(eligible.cardTemplateIds.map((id) => [id, resolveAdoptedCardCalculation(actor, id, roots, versions, user.cardsData)]));
+    const { roots, versions } = await adoptedCards(repo, user, eligible.cardTemplateIds, session, false, eligible);
+    const calculations = new Map(eligible.cardTemplateIds.map((id) => [id, resolveAdoptedCardCalculation(actor, id, roots, versions, user.cardsData,
+      { version: eligible.assignments.find(ref => ref.cardTemplateId === id)?.version, allowUnstarted: allowsVirtualPersonalCard(eligible, id) })]));
     const selections = new Map<string, HistorySelection>(), histories = new Map<string, ReturnType<typeof collectCardHistory>>();
     for (const framework of frameworks) for (const area of framework.areas) for (const item of area.items) {
       const selection = selectItemHistory(framework, item.id, graph, eligible); selections.set(item.id, selection);
-      for (const id of selection.cardIds) if (!histories.has(id)) histories.set(id, collectCardHistory(user.cardsData, id));
+      for (const id of selection.cardIds) if (!histories.has(id)) histories.set(id, eligibleHistory(user, id, eligible));
     }
-    const titles = await sourceTitles(repo, actor, user, [...histories.values()], session);
+    const titles = await sourceTitles(repo, actor, user, [...histories.values()], session, eligible);
     return { viewerUserId: actor, frameworks: frameworks.map((framework) => ({ id: framework.id, title: framework.title,
       areas: framework.areas.map((area) => ({ id: area.id, title: area.title, hasConfiguredCards: hasConfiguredAreaCards(area),
         progress: calculateMappedProgress(framework, { areaId: area.id }, graph, eligible, calculations),
@@ -144,13 +160,13 @@ export async function readItemAssessmentHistory(repo: CardRepository, actor: str
     const user = await personalUser(repo, actor, session);
     requireCondition(framework || Array.isArray(user.itemTests) && user.itemTests.some((test) => isRecord(test) && test.itemId === itemId), "ITEM_CONTEXT_FORBIDDEN");
     let selection: HistorySelection = { cardIds: [], issues: [] };
+    const eligible = await eligibility(repo, actor, user, session);
     if (framework) {
-      const eligible = await eligibility(repo, actor, user, session);
       const graph = await readCanonicalAncestry(repo, [framework], eligible.cardTemplateIds, session);
       selection = selectItemHistory(framework, itemId, graph, eligible);
     }
-    const histories = selection.cardIds.map((id) => collectCardHistory(user.cardsData, id));
-    const titles = await sourceTitles(repo, actor, user, histories, session);
+    const histories = selection.cardIds.map((id) => eligibleHistory(user, id, eligible));
+    const titles = await sourceTitles(repo, actor, user, histories, session, eligible);
     return { viewerUserId: actor, itemId, configured: !!framework,
       history: projectAssessmentHistory(user, histories, titles, { itemId, ownCardIds: selection.cardIds, issues: selection.issues }) };
   });
@@ -159,9 +175,11 @@ export async function readCardAssessmentHistory(repo: CardRepository, actor: str
   assertAssessmentId(cardTemplateId);
   return repo.transaction(async (session) => {
     const user = await personalUser(repo, actor, session);
-    requireCondition(user.cardsData.filter((data: CardData) => data.cardTemplateId === cardTemplateId).length === 1, "CARD_CONTEXT_FORBIDDEN");
-    const history = collectCardHistory(user.cardsData, cardTemplateId);
-    const titles = await sourceTitles(repo, actor, user, [history], session);
+    const eligible = await eligibility(repo, actor, user, session);
+    const count = user.cardsData.filter((data: CardData) => data.cardTemplateId === cardTemplateId).length;
+    requireCondition(count === 1 || count === 0 && allowsVirtualPersonalCard(eligible, cardTemplateId), "CARD_CONTEXT_FORBIDDEN");
+    const history = eligibleHistory(user, cardTemplateId, eligible);
+    const titles = await sourceTitles(repo, actor, user, [history], session, eligible);
     return { viewerUserId: actor, cardTemplateId,
       history: projectAssessmentHistory(user, [history], titles, { ownCardIds: [cardTemplateId] }) };
   });
