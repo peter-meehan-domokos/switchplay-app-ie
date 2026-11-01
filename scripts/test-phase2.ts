@@ -13,9 +13,11 @@ import { forkCardContent } from "../src/lib/cards/forks";
 import { networkInterfaces } from "node:os";
 import { loadEnvConfig } from "@next/env";
 import { seedGroupReview } from "../tests/helpers/groupReviewFixture";
+import { seedGroupProgressReview, startGroupProgressPreview } from "../tests/helpers/groupProgressReview";
 
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
+let progressPreview: Awaited<ReturnType<typeof startGroupProgressPreview>> | undefined;
 const media = createServer((request, response) => {
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
@@ -29,7 +31,8 @@ const output: string[] = [];
 const interactive = process.argv.includes("--dev");
 const lan = interactive && process.argv.includes("--lan");
 const infoCards = process.argv.includes("--info-cards");
-const groupExperiences = process.argv.includes("--group-experiences");
+const groupProgress = process.argv.includes("--group-progress");
+const groupExperiences = process.argv.includes("--group-experiences") || groupProgress;
 const optimized = process.argv.includes("--optimized");
 // Opt-in provider checks still own a disposable database. Never forward an
 // environment database URI; only the provider credentials are used live.
@@ -160,7 +163,13 @@ try {
     if (groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: other / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
-    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--optimized"].includes(arg))], { env, stdio: "inherit" });
+    if (groupProgress) {
+      const progress = await seedGroupProgressReview(new CardRepository(db, client), uri, userId.toHexString(),
+        (await db.collection("users").findOne({ username: "other" }))!._id.toString());
+      progressPreview = await startGroupProgressPreview(progress.data, baseURL);
+      Object.assign(env, { PHASE5_PROGRESS_PREVIEW_URL: progressPreview.baseURL, PHASE5_PROGRESS_EXPERIENCE: progress.data.experienceId });
+    }
+    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--optimized"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));
@@ -169,6 +178,7 @@ try {
 } finally {
   await mkdir("phase2-test-results", { recursive: true });
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));
+  if (progressPreview) await new Promise<void>((resolve, reject) => progressPreview!.server.close(error => error ? reject(error) : resolve()));
   await stop(app); await client?.close(); await mongo?.stop();
   await new Promise<void>((resolve) => media.close(() => resolve()));
 }
