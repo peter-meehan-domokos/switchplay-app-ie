@@ -20,6 +20,7 @@ import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/li
 import { flushPersonalMutations } from "@/lib/deckMutations";
 import { useLibraryNavigation } from "./useLibraryNavigation";
 import CollectionReturnHighlight from "./CollectionReturnHighlight";
+import GroupManagementForm from "@/components/group-experiences/GroupManagementForm";
 
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 const LibraryView = forwardRef<HTMLDivElement, { children: ReactNode; detail: boolean }>(function LibraryView({ children, detail }, ref) {
@@ -31,8 +32,8 @@ const LibraryView = forwardRef<HTMLDivElement, { children: ReactNode; detail: bo
     {present || !detail ? children : null}
   </motion.div>;
 });
-export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName, publishedId }: {
-  initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string; publishedId?: string;
+export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName, publishedId, groupsEnabled = false }: {
+  initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string; publishedId?: string; groupsEnabled?: boolean;
 }) {
   const router = useRouter();
   const search = useSearchParams(), progressReturn = readProgressReturn(search);
@@ -42,6 +43,7 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [stale, setStale] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const [previewGeneration, setPreviewGeneration] = useState(0);
   const [chooser, setChooser] = useState<{ cardId: string; destinations: LibraryCardDestination[] } | null>(null);
   const controller = useRef<AbortController | null>(null);
@@ -192,6 +194,8 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
         }} cardActions={cardAction}
         deckActions={<DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
           showEdit={!!membership?.canEditInCreator && navigation.verified}
+          groupAction={groupsEnabled ? { label: "Add as Group", disabled: pending !== null || !navigation.verified || navigation.checking,
+            onSelect: () => setCreatingGroup(true) } : undefined}
           membershipAction={{ label: pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state),
             disabled: !membership || pending !== null || !navigation.verified || navigation.checking, onSelect: () => void primaryAction() }}
           editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?${new URLSearchParams({ returnTo: "library", returnDeckId: active.deckTemplateId,
@@ -213,6 +217,8 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
     </>}
     </LibraryView>
     </AnimatePresence>
+    {creatingGroup && active ? <GroupManagementForm actor={currentUserId} manifest={active.manifest}
+      onCancel={() => setCreatingGroup(false)} onSaved={result => router.push(`/decks?createdGroup=${encodeURIComponent(result.experienceId)}`)} /> : null}
     {stale && <LibraryDialog title="Preview has changed" onCancel={() => { if (!pending) setStale(false); }}>{error && <p role="alert">{error}</p>}<p>This Deck or one of its Cards has a newer publication. Refresh the preview before adding.</p><button type="button" disabled={pending !== null} onClick={() => void refreshPreview()}>Refresh preview</button><button type="button" disabled={pending !== null} onClick={() => setStale(false)}>Cancel</button></LibraryDialog>}
     {chooser && <LibraryDialog title="Open Card in My Decks" onCancel={() => { if (!pending) setChooser(null); }}>{error && <p role="alert">{error}</p>}<p>Choose the Deck to open.</p>{chooser.destinations.map((deck) => <button className="library-destination" data-deck-template-id={deck.deckTemplateId} key={deck.deckTemplateId} type="button" disabled={pending !== null} onClick={() => void openCard(chooser.cardId, deck.deckTemplateId)}>
       {deck.introduction?.image && <span className="library-destination-cover" style={{ backgroundImage: `url(${JSON.stringify(imageDeliveryUrl(deck.introduction.image.src))})` }} role="img" aria-label={deck.introduction.image.description || "Deck cover"} />}

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { isRecord, nonblank, requireCondition } from "../cards/domain";
 import { assertPreviewManifest } from "../cards/libraryEntry";
-import type { CreateExperience, GroupUpdateCommand, LearningCommand, MemberCommand } from "./model";
+import type { CreateExperience, GroupUpdateCommand, LearningCommand, MemberCommand, ManagementCommand } from "./model";
 
 export function id(value: unknown): asserts value is string {
   requireCondition(nonblank(value) && value.length <= 200 && value === value.trim(), "INVALID_GROUP_ID");
@@ -18,13 +18,27 @@ export function hash(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 export function createCommand(value: unknown): CreateExperience {
-  exact(value, ["operationId", "name", "adminIds", "followerIds", "manifest"]); id(value.operationId);
+  exact(value, ["operationId", "name", "adminIds", "followerIds", "manifest", "allowFollowerInspection"]); id(value.operationId);
+  requireCondition(value.allowFollowerInspection === undefined || typeof value.allowFollowerInspection === "boolean", "INVALID_GROUP_POLICY");
   requireCondition(nonblank(value.name) && value.name.trim().length <= 120, "INVALID_GROUP_NAME");
   requireCondition(Array.isArray(value.adminIds) && Array.isArray(value.followerIds), "INVALID_GROUP_MEMBERS");
   for (const user of [...value.adminIds, ...value.followerIds]) id(user);
   assertPreviewManifest(value.manifest);
   return { operationId: value.operationId, name: value.name.trim(), adminIds: [...new Set(value.adminIds as string[])].sort(),
-    followerIds: [...new Set(value.followerIds as string[])].sort(), manifest: value.manifest };
+    followerIds: [...new Set(value.followerIds as string[])].sort(), manifest: value.manifest,
+    // Preserve historical creation hashes when the optional field was omitted.
+    ...(value.allowFollowerInspection === undefined ? {} : { allowFollowerInspection: value.allowFollowerInspection }) };
+}
+export function managementCommand(value: unknown): ManagementCommand {
+  exact(value, ["operationId", "expectedStructureRevision", "name", "adminIds", "followerIds", "allowFollowerInspection"]);
+  id(value.operationId); revision(value.expectedStructureRevision);
+  requireCondition(nonblank(value.name) && value.name.trim().length <= 120, "INVALID_GROUP_NAME");
+  requireCondition(typeof value.allowFollowerInspection === "boolean", "INVALID_GROUP_POLICY");
+  requireCondition(Array.isArray(value.adminIds) && Array.isArray(value.followerIds), "INVALID_GROUP_MEMBERS");
+  for (const userId of [...value.adminIds, ...value.followerIds]) id(userId);
+  return { operationId: value.operationId, expectedStructureRevision: value.expectedStructureRevision, name: value.name.trim(),
+    adminIds: [...new Set(value.adminIds as string[])].sort(), followerIds: [...new Set(value.followerIds as string[])].sort(),
+    allowFollowerInspection: value.allowFollowerInspection };
 }
 export function memberCommand(value: unknown): MemberCommand {
   exact(value, ["operationId", "expectedStructureRevision", "targetUserId", "kind", "isAdmin"]);

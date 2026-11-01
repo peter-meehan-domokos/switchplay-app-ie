@@ -1,0 +1,23 @@
+/* Full-screen management is isolated from every physical Card/Deck selector. */
+.library-dialog.group-management-dialog { box-sizing: border-box; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; border: 0; border-radius: 0; padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); overflow-y: auto; color: #302d28; }
+.group-management-dialog form { max-width: 720px; margin: 0 auto; }
+.group-management-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.group-management-fields > label:first-child { display: grid; gap: 6px; }
+.group-management-fields input[name="groupName"] { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px; font: inherit; }
+.group-management-policy { display: flex; align-items: center; gap: 10px; margin: 18px 0; }
+.group-management-dialog input[type="checkbox"] { width: 22px; height: 22px; margin: 8px; flex-shrink: 0; }
+.group-management-selected { margin: 16px 0; }
+.group-management-selected-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.group-management-role-section + .group-management-role-section { margin-top: 10px; }
+.group-management-role-section > h3 { margin: 0 0 6px; font-size: 13px; font-weight: 500; line-height: 20px; }
+.group-management-identity { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 64px; padding: 4px 8px; border: 1px solid #c5c2bb; border-radius: 8px; text-align: center; min-width: 0; }
+.group-management-identity .group-identity-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-management-identity .group-identity-avatar { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid currentColor; border-radius: 50%; }
+.group-management-users { width: 85%; }
+.group-management-user-head, .group-management-user { display: grid; grid-template-columns: minmax(0, 1fr) 66px 76px; align-items: center; gap: 4px; }
+.group-management-user-head { font-size: 12px; padding: 8px 0; }
+.group-management-directory { max-height: 42dvh; overflow-y: auto; overscroll-behavior: contain; }
+.group-management-user { border-bottom: 1px solid #dedbd5; min-height: 44px; }
+.group-management-user > span { overflow-wrap: anywhere; }
+.group-management-actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 20px; }
+.group-management-actions button { min-height: 44px; min-width: 80px; font: inherit; }

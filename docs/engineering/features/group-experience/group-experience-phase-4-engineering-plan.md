@@ -2,11 +2,11 @@
 
 **Date:** 30 October 2026  
 **Branch inspected:** `feat/group-experience`  
-**Status:** Initial slice implemented. Checkpoints 1–7 and 9 passed automated verification; iPhone visual/interaction acceptance remains pending. Checkpoint 8 is excluded. Q1–Q3 are resolved. The investigation findings below describe the pre-implementation baseline.  
+**Status:** Initial slice and subsequent iPhone refinements accepted. Checkpoint 8 atomic creation/settings is implemented and automated verification passed; its form awaits physical iPhone review. Q1–Q3 are resolved. The investigation findings below describe the pre-implementation baseline.
 **Product authority:** [Phase 4 UX and Product Specification](../../../design/features/group-experience/group-experience-phase-4-spec.md), requirements P1–P15, created before this detailed plan. References to P-numbers below refer to that specification.  
 **Project context:** [Overarching engineering plan](group-experience-engineering-plan.md), [Phase 1 handoff](group-experience-phase-1-handoff.md), [Phases 2–3 handoff](group-experience-phases-2-3-handoff.md). This document supplements rather than replaces that plan.
 
-The supplied Phase 4 product decisions supersede conflicting older policies. Sections A–J preserve the planning baseline; the implementation record below identifies actual changes and verification. Section J/Q1–Q3 is resolved by the subsequent authorisation and specification P15. Checkpoint 8 is excluded until a new instruction after the first iPhone review.
+The supplied Phase 4 product decisions supersede conflicting older policies. Sections A–J preserve the planning baseline; the implementation record below identifies actual changes and verification. Section J/Q1–Q3 is resolved by the subsequent authorisation and specification P15. The accepted initial iPhone review is followed by the explicitly authorised Checkpoint 8 atomic creation/settings implementation; older exclusions describe the initial slice only.
 
 ## A. Executive assessment
 
@@ -249,14 +249,14 @@ The checkpoint contracts below define the implementation gates. The subsequent c
 6. **Acceptance:** main Card moves continuously and stays readable; selected perspective survives all permitted transitions; no extra scene mount; warm interaction-to-next-paint p95 target ≤100 ms over 50 switches (animation may finish later).
 7. **Risk:** small viewport/keyboard and hosted video layering; verify geometry and suspend conflicting gestures without blanket pointer suppression.
 
-### Checkpoint 8 — Conditional creation/settings entry work (Q2)
+### Checkpoint 8 — Creation/settings entry work (authorised follow-up)
 
-1. **Purpose/behaviour:** if explicitly included, implement the full agreed Add as Group/Group… modal, zero-follower creation and return to My Decks. Otherwise fixtures exercise settings API and this checkpoint is deferred to a separately authorised Phase 4 entry/settings follow-up.
+1. **Purpose/behaviour:** implement the approved full Add as Group/Group… modal, zero-follower creation, atomic Save and return to My Decks. This follow-up supersedes the earlier seeded-slice deferral of this checkpoint only.
 2. **Files:** `LibraryShell.tsx`, `DeckMenu.tsx`, proposed group modal/directory resource; `/api/users`; settings route/name command; creation harness/browser cases.
 3. **Dependencies:** Q2 approval; existing public manifest creation and role lifecycle operations. Never use all registered users as current perspective choices.
-4. **Approach:** one full-screen modal with name/Admins/Followers/peer setting. A small `ensureUserDirectory` plus subscribing hook reuses cached/in-flight minimal user data; load on modal open now, allow later shell prefetch through the same function. No photos assumed. Use structural commands in safe sequence; no destructive bulk replacement of membership state. Persisted role changes must preserve final-admin protection and describe partial-save failures honestly if multiple commands are needed.
-5. **Tests:** public-only creation, exact retries, zero followers, equal admins/final-admin races, wrong user/session, selection search/cache/retry, no implicit current-user follower role, tile placement and return path, setting revocation.
-6. **Acceptance:** agreed entry/copy/modal only; no management dashboard; no direct auto-open after create. Explicitly decide save orchestration before coding rather than adding an unapproved bulk-management API.
+4. **Approved atomic contract:** one full-screen modal with name/Admins/Followers/peer setting. A small `ensureUserDirectory` plus subscribing hook reuses cached/in-flight minimal user data; load on modal open now, allow later shell prefetch through the same function. Alphabetical directory and selected-identity Card grid, without search or photos. `PATCH /:id/management` submits the complete desired state, operation ID and expected structure revision. One MongoDB transaction validates final roles, applies narrow member changes and removal snapshots, updates name/policy, increments the revision once and records the receipt. No independent member/settings requests from Save. Creation includes visibility in its existing transaction. Creator is always Admin, never implicitly Follower.
+5. **Tests:** public-only creation, exact/lost-response retries including self-removal, injected rollback at each write stage, zero followers, dual roles, equal admins/final-admin races, stale edits/adoption, wrong user/session, directory cache/retry, Cancel with no writes, tile placement and return path, setting revocation.
+6. **Acceptance:** all requested changes commit or none do. An uncertain network outcome retains the exact command for retry, never claims failure/success prematurely. An actor may acknowledge only their own exact committed operation after losing access; this exposes no Group content or renewed authority. Access retained: preserve the mounted Deck and valid Card/face/perspective. Final access removed: return to My Decks and remove the assignment. Creation returns to My Decks with the new Group first, preserving other entries' relative order. Explicit Create/Save and Cancel; no management dashboard or direct auto-open.
 7. **Risk:** this is substantial extra scope compared with the seeded slice. Removed-history section remains Phase 5 presentation; all normal pickers stay active-only.
 
 ### Checkpoint 9 — Regression gate and review handoff
@@ -461,7 +461,7 @@ The final client uses persistent signal rows with read-only capabilities and sep
 
 The 50-switch paint gate uses native trusted-input Event Timing after five fixed warm-up inputs/initial-geometry settling, retaining the ≤100 ms limit. It passed at 72 ms p95 with the same scene/stack/Card/signal DOM nodes and zero identity-tile players. The optimized mode is a local disposable build, isolated in `.next-phase2-optimized`; it does not modify production auth/cookie policy, database/provider settings or feature enablement. Diagnostic tracing is off for the motion file; other functional cases keep traces. The LAN review server uses normal development mode, so absolute development timing is not a production latency claim.
 
-Checkpoint 8, real-participant enablement, Group creation/settings UI, removed-history presentation, assessments/Framework integration and later contribution phases remain deferred. Next is the explicitly requested iPhone review; implementation of the already-designed creation/settings workflow requires a new instruction after that review.
+At the initial-slice handoff, Checkpoint 8 was deferred pending iPhone acceptance. The subsequent explicit instruction now authorises and implements the atomic creation/settings workflow described in Checkpoint 8 above. The new form has passed automated verification and awaits its physical iPhone review. See the dedicated Checkpoint 8 section of the [handoff](group-experience-phase-4-handoff.md) for the API contract, exact file inventory, test commands/results and review URL. Real-participant enablement, removed-history presentation, assessments/Framework integration and later contribution phases remain deferred.
 
 ### Approved Card visual refinements — 31 October 2026
 

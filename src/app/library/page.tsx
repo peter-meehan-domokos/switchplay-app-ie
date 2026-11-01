@@ -17,5 +17,5 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
   // actor's highlight into the new session. Check only an already-public row.
   const publishedId = query.published && collection.entries.some(item => item.deckTemplateId === query.published)
     && await repo.decks().findOne({ deckTemplateId: query.published, ownerUserId: user.id }, { projection: { _id: 1 } }) ? query.published : undefined;
-  return <LibraryShell key={user.id} initialCollection={collection} currentUserId={user.id} userName={user.username} publishedId={publishedId} />;
+  return <LibraryShell key={user.id} initialCollection={collection} currentUserId={user.id} userName={user.username} publishedId={publishedId} groupsEnabled={process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1"} />;
 }

@@ -2,7 +2,7 @@
 
 **Product:** Switchplay  
 **Date:** 30 October 2026  
-**Status:** Approved product requirements; the subsequent initial-slice authorisation is recorded in P15. Creation/settings and later-phase work remain deferred.  
+**Status:** Approved product requirements; the initial slice and iPhone refinements are accepted. Checkpoint 8 creation/settings is authorised as recorded in P12. Later phases remain deferred.
 **Source:** The Phase 4 Read-Only Implementation Plan commission and its documentation amendment. These requirements supersede conflicting earlier Group Experience UX/aggregation statements.  
 **Companion:** `docs/engineering/features/group-experience/group-experience-phase-4-engineering-plan.md`. The overarching engineering plan remains in place.
 
@@ -137,7 +137,9 @@ Agreed entry points are `Add as Group` on a publicly published Library Deck, and
 
 Creation permits zero followers and returns to My Decks, not directly into the new Deck. The informal experience name appears in the tile's existing top-right attribution position; normal category remains top-left. My Decks summaries always use admin-controlled group progress/confidence, regardless of the remembered individual perspective. Restore perspective only when opening the experience. Personal and multiple group entries for the same Deck remain distinct; a dual-role member gets one experience entry.
 
-The original Phase 4 is a seeded early slice. Full creation/settings workflow placement is not automatically authorised by these agreed conventions. The engineering plan must propose explicit scope for creation, role management, the visibility control and removed-history access; preserve their agreed design even if deferred. The previously investigated lightweight registered-user directory is a potential creation/settings dependency; identity tiles in this phase use initials, not an assumed profile-photo system.
+The original Phase 4 was a seeded early slice; the subsequent creation/settings commission now authorises the full workflow below. Removed-history access remains deferred. Registered-user selection reuses the lightweight username directory; identity tiles use initials, not an assumed profile-photo system.
+
+Checkpoint 8 is now authorised following accepted iPhone review. The full-screen form uses an alphabetical registered-user directory without search and a selected-identity Card grid. Admin and Follower selections are independent; the creator starts selected as Admin, not Follower. Keep all edits local until explicit Create/Save; Cancel discards unsaved edits. Visibility defaults Off. Creation returns to My Decks with the new Group first without reordering other entries or opening it. Editing uses one atomic Save for name, visibility and all roles: all changes commit or none do. Preserve draft selections on failure/conflict and resolve uncertain requests by exact retry. Successful self-removal is permitted if another Admin remains: return to My Decks if access is lost; otherwise preserve the existing mounted Deck context and valid Card, face and perspective. Removed-follower history remains deferred.
 
 ## P13. Data readiness, changes and failures
 

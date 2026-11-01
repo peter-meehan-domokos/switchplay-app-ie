@@ -20,6 +20,7 @@ import { canInspectPeers, assertSelection } from "./policy";
 import { restoredPerspective, saveNavigation, saveSettings } from "./navigation";
 import { activeIdentities } from "./identities";
 import { bootstrap, perspectivePage, cardAggregates, collectionTiles } from "./presentationReads";
+import { manageExperience } from "./management";
 
 export class GroupExperienceRepository {
   constructor(readonly cards: CardRepository) {}
@@ -62,22 +63,28 @@ export class GroupExperienceRepository {
     const run = () => this.transaction(async session => {
       const prior = await this.experiences().findOne({ creatorUserId: actor, operationId: command.operationId }, { session });
       if (prior) {
-        const { member } = await this.access(actor, prior.experienceId, "member", session);
         requireCondition(prior.creationHash === creationHash, "GROUP_OPERATION_CONFLICT");
-        return { ...entry(actor, prior, member), outcome: "already-created" as const };
+        const member = await this.members().findOne({ experienceId: prior.experienceId, userId: actor }, { session });
+        if (!member || !member.isAdmin && member.followerStatus !== "active") {
+          // A lost creation response can be acknowledged after another Admin
+          // removed the creator. This receipt grants no access or current data.
+          return { viewerUserId: actor, experienceId: prior.experienceId, hasAccess: false, outcome: "already-created" as const };
+        }
+        return { ...entry(actor, prior, member), hasAccess: true, outcome: "already-created" as const };
       }
       const admins = [...new Set([actor, ...command.adminIds])], users = [...new Set([...admins, ...command.followerIds])].sort();
       await this.registered(users, session); await validateCreationManifest(this.cards, command.manifest, session);
       const experience: GroupExperience = { experienceId, name: command.name, creatorUserId: actor, operationId: command.operationId, creationHash,
         deckTemplateId: command.manifest.deckTemplateId, deckVersion: command.manifest.deckVersion, cardSelections: command.manifest.cards,
-        structureRevision: 0, adoptionRevision: 0, adminCount: admins.length, createdAt: now, updatedAt: now };
+        structureRevision: 0, adoptionRevision: 0, adminCount: admins.length, allowFollowerInspection: command.allowFollowerInspection ?? false, createdAt: now, updatedAt: now };
       await this.experiences().insertOne(experience, { session });
       const members = users.map(userId => this.newMember(experienceId, userId, admins.includes(userId), command.followerIds.includes(userId), command.manifest.cards, now));
       await this.members().insertMany(members, { session });
-      return { ...entry(actor, experience, members.find(member => member.userId === actor)!), outcome: "created" as const };
+      return { ...entry(actor, experience, members.find(member => member.userId === actor)!), hasAccess: true, outcome: "created" as const };
     });
     try { return await run(); } catch (error) { if (error instanceof MongoServerError && error.code === 11000) return run(); throw error; }
   }
+  manage(actor: string, experienceId: string, input: unknown) { return manageExperience(this, actor, experienceId, input); }
   async list(actor: string, after?: string, limit?: number) {
     id(actor); const paging = page(after, limit);
     return this.transaction(async session => {

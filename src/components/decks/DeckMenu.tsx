@@ -13,9 +13,10 @@ type DeckMenuProps = {
   onArchive?: () => Promise<boolean>;
   archiveDisabled?: boolean;
   membershipAction?: { label: string; disabled: boolean; onSelect: () => void };
+  groupAction?: { label: "Add as Group" | "Group…"; disabled: boolean; onSelect: () => void };
 };
 
-export default function DeckMenu({ deckId, deckTemplateId, editHref, showEdit = true, deckTitle, onArchive, archiveDisabled = false, membershipAction }: DeckMenuProps) {
+export default function DeckMenu({ deckId, deckTemplateId, editHref, showEdit = true, deckTitle, onArchive, archiveDisabled = false, membershipAction, groupAction }: DeckMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -54,6 +55,8 @@ export default function DeckMenu({ deckId, deckTemplateId, editHref, showEdit = 
             onClick={() => { setIsOpen(false); setError(""); trigger.current?.focus(); setConfirmArchive(true); }}>Archive</button> : null}
           {membershipAction ? <button className="deck-menu-item deck-menu-button" type="button" role="menuitem" disabled={membershipAction.disabled}
             onClick={() => { setIsOpen(false); trigger.current?.focus(); membershipAction.onSelect(); }}>{membershipAction.label}</button> : null}
+          {groupAction ? <button className="deck-menu-item deck-menu-button" type="button" role="menuitem" disabled={groupAction.disabled}
+            onClick={() => { setIsOpen(false); trigger.current?.focus(); groupAction.onSelect(); }}>{groupAction.label}</button> : null}
         </div>
       ) : null}
       {confirmArchive && onArchive ? <LibraryDialog title={`Archive ${deckTitle ?? deckTemplateId}`} isolateInteractions

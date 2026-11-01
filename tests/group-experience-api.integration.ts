@@ -22,7 +22,7 @@ before(async () => {
     "/[experienceId]/cards/[cardTemplateId]", "/[experienceId]/cards/[cardTemplateId]/perspectives",
     "/[experienceId]/cards/[cardTemplateId]/personal-learning", "/[experienceId]/cards/[cardTemplateId]/group-learning",
     "/[experienceId]/updates", "/[experienceId]/members/[userId]/snapshot", "/[experienceId]/settings", "/[experienceId]/navigation", "/[experienceId]/perspectives",
-    "/[experienceId]/presentation", "/[experienceId]/aggregates", "/tiles"]) {
+    "/[experienceId]/presentation", "/[experienceId]/aggregates", "/[experienceId]/management", "/tiles"]) {
     const bundle = await build({ entryPoints: [`src/app/api/group-experiences${path}/route.ts`], bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
       plugins: [{ name: "group-auth-and-disposable-db", setup(builder) {
         builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: "export async function getCurrentUser() { return globalThis.__groupApi.actor; }", loader: "ts" }));
@@ -39,6 +39,23 @@ function req(path = "", method = "GET", body?: unknown, headers?: Record<string,
   return new Request(`http://local/api/group-experiences${path}`, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 function context(cardTemplateId = fixture.ids[0]): Context { return { params: Promise.resolve({ experienceId: fixture.experienceId, cardTemplateId }) }; }
+test("management route validates complete commands, binds actors and acknowledges only their committed self-removal", async t => {
+  const original = fixture;
+  t.after(() => { fixture = original; state.db = original.cards.db; });
+  fixture = await groupFixture(state.client!); state.db = fixture.cards.db;
+  const route = routes["/[experienceId]/management"];
+  const body = { operationId: "form", expectedStructureRevision: 0, name: "Edited", adminIds: ["dave"], followerIds: [], allowFollowerInspection: true };
+  state.actor = null; assert.equal((await route.PATCH(req("/x", "PATCH", body), context())).status, 401);
+  state.actor = { id: "bob" }; assert.equal((await route.PATCH(req("/x", "PATCH", body), context())).status, 403);
+  state.actor = { id: "alice" };
+  assert.equal((await route.PATCH(req("/x", "PATCH", body, { "X-Group-Viewer": "bob" }), context())).status, 409);
+  assert.equal((await route.PATCH(req("/x", "PATCH", { ...body, extra: true }), context())).status, 400);
+  const saved = await route.PATCH(req("/x", "PATCH", body), context()); assert.equal(saved.status, 200); assert.equal((await saved.json()).hasAccess, false);
+  const retry = await route.PATCH(req("/x", "PATCH", body), context()); assert.equal(retry.status, 200);
+  assert.deepEqual(await retry.json(), { viewerUserId: "alice", experienceId: fixture.experienceId, structureRevision: 1, outcome: "already-applied", hasAccess: false });
+  assert.equal(retry.headers.get("Cache-Control"), "private, no-store");
+  assert.equal((await routes["/[experienceId]"].GET(req("/x"), context())).status, 403);
+});
 test("new APIs are disabled by default and all responses are private and uncached", async () => {
   delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
   const disabled = await routes[""].GET(req()); assert.equal(disabled.status, 503);

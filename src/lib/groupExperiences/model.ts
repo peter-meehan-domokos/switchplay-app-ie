@@ -25,7 +25,9 @@ export type GroupReceipt = {
   experienceId: string; actor: string; operationId: string; commandHash: string;
   structureRevision: number; createdAt: Date;
 };
-export type CreateExperience = { operationId: string; name: string; adminIds: string[]; followerIds: string[]; manifest: LibraryPreviewManifest };
+export type CreateExperience = { operationId: string; name: string; adminIds: string[]; followerIds: string[]; manifest: LibraryPreviewManifest; allowFollowerInspection?: boolean };
+export type ManagementCommand = { operationId: string; expectedStructureRevision: number; name: string;
+  adminIds: string[]; followerIds: string[]; allowFollowerInspection: boolean };
 export type MemberCommand = { operationId: string; expectedStructureRevision: number; targetUserId: string } & (
   { kind: "add-follower" | "remove-follower" } | { kind: "set-admin"; isAdmin: boolean }
 );

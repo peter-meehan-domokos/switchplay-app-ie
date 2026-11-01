@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import DeckScene from "@/components/decks/DeckScene";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import { createGroupResource, type GroupResourceState } from "./groupResource";
@@ -11,11 +11,13 @@ import type { PersonalLearningChange } from "@/lib/cards/learning";
 import "./group-experience.css";
 import PerspectivePicker, { type PerspectiveChoice } from "./PerspectivePicker";
 import PerspectiveGrid from "./PerspectiveGrid";
+import DeckMenu from "@/components/decks/DeckMenu";
+import GroupManagementForm from "./GroupManagementForm";
 const emptyState: GroupResourceState = { verified: false, loading: true };
 const noSubscribe = () => () => {};
 const emptySnapshot = () => emptyState;
 
-export default function GroupExperienceDeck({ actor, experienceId, onBack }: { actor: string; experienceId: string; onBack(): void }) {
+export default function GroupExperienceDeck({ actor, experienceId, onBack, onAccessRemoved }: { actor: string; experienceId: string; onBack(): void; onAccessRemoved?(): void }) {
   const [resource, setResource] = useState<ReturnType<typeof createGroupResource>>();
   const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, resource?.snapshot ?? emptySnapshot);
   const [selection, setSelection] = useState<PerspectiveSelection>();
@@ -23,6 +25,8 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack }: { a
   const [activeCardId, setActiveCardId] = useState<string>();
   const [focused, setFocused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsPerspective = useRef<PerspectiveSelection | null>(null);
   useEffect(() => {
     // Effect lifetime owns transport resources, including Strict Mode's trial
     // mount. A disposed controller must never be reused by the next mount.
@@ -39,8 +43,20 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack }: { a
     return () => { clearInterval(timer); window.removeEventListener("focus", hidden); window.removeEventListener("pageshow", hidden); document.removeEventListener("visibilitychange", hidden); resource.dispose(); };
   }, [actor, experienceId]);
   const data = "data" in state ? state.data : undefined;
+  // Keep the form mounted even if authority polling observes a committed
+  // self-removal before its HTTP acknowledgement reaches this browser.
+  const settings = settingsOpen ? <GroupManagementForm key="management" actor={actor} experienceId={experienceId} onCancel={() => setSettingsOpen(false)}
+    onSaved={async result => {
+      if (!result.hasAccess) { resource?.dispose(); (onAccessRemoved ?? onBack)(); return; }
+      resource?.invalidate(); await resource?.load();
+      if (!resource?.snapshot().verified) throw Error("Saved; current access could not be refreshed.");
+      // Structural revalidation temporarily purges peer rows. Restore only
+      // after verification; the existing permission check rejects removed peers.
+      if (settingsPerspective.current) setSelection(settingsPerspective.current);
+      setSettingsOpen(false);
+    }} /> : null;
   if (!data || !resource) return <main className="app-shell"><button type="button" onClick={onBack}>Back to My Decks</button>
-    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void resource?.load()}>Retry</button></p> : <p role="status">Loading experience…</p>}</main>;
+    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void resource?.load()}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
   const boot = data.bootstrap;
   const chosen = selection ?? boot.selection;
   const permitted = chosen.perspective === "group" || chosen.perspective === "self" && boot.isFollower
@@ -74,6 +90,12 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack }: { a
     data-current-card={currentCardId} data-face={Math.abs(rotation % 360) === 180 ? "back" : "front"}>
     {!state.verified ? <p className="group-verification" role="status">Verifying current access… <button type="button" onClick={() => void resource.load()}>Retry</button></p> : null}
     <DeckScene deck={deck} initialCardTemplateId={currentCardId}
+      deckActions={boot.isAdmin ? <DeckMenu deckId={experienceId} deckTemplateId={boot.deckTemplateId} showEdit={false}
+        groupAction={{ label: "Group…", disabled: !state.verified, onSelect: () => {
+          // Pin the displayed perspective before changing roles. A role-default
+          // change after self-demotion must not replace a still-valid selection.
+          settingsPerspective.current = shown; setSelection(shown); setSettingsOpen(true);
+        } }} /> : undefined}
       onFocusChange={value => { setFocused(value); if (!value) setExpanded(false); }}
       playbackViewerUserId={actor} isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation}
       onToggleDeckFlip={(delta = 180) => setRotation(value => value + delta)} onBack={onBack} backLabel="Back to My Decks"
@@ -90,5 +112,6 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack }: { a
     }} />
       : <PerspectivePicker choices={choices} selected={selectedKey} ownKey={boot.isFollower ? actor : undefined} canCompare={boot.canInspectFollowers}
         focused={focused} disabled={!state.verified} onSelect={select} onCompare={setExpanded} />}
+    {settings}
   </main>;
 }

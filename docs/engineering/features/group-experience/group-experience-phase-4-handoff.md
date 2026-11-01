@@ -1,10 +1,10 @@
-# Group Experiences — Phase 4 initial slice handoff
+# Group Experiences — Phase 4 implementation handoff
 
 **Date:** 30 October 2026  
 **Branch:** `feat/group-experience`  
-**Status:** Initial slice implemented and automated gates passed; awaiting physical iPhone review. The user committed the implementation in `39aa33aaba824c550cbe82fc8efe9e422157a94e`; the subsequent Organisations planning commit is preserved. This handoff was revalidated on 31 October 2026.
+**Status:** Initial slice and iPhone refinements accepted and committed in baseline `cccb0ba`. Checkpoint 8 creation/settings is implemented, uncommitted, and automated verification passed; its form awaits physical iPhone review. See the Checkpoint 8 handoff below. Earlier sections preserve the initial-slice execution record, including `39aa33aaba824c550cbe82fc8efe9e422157a94e`. Organisations planning work remains untouched.
 
-**Authority:** [Phase 4 product specification](../../../design/features/group-experience/group-experience-phase-4-spec.md), especially P15, and [dedicated engineering plan](group-experience-phase-4-engineering-plan.md). Checkpoints 1–7 and 9 only. Checkpoint 8 and Phases 5–10 remain excluded.
+**Authority:** [Phase 4 product specification](../../../design/features/group-experience/group-experience-phase-4-spec.md), especially P12/P15, and [dedicated engineering plan](group-experience-phase-4-engineering-plan.md). The original record covers checkpoints 1–7 and 9. The separately authorised atomic creation/settings follow-up covers Checkpoint 8. Phases 5–10 remain excluded.
 
 ## Implemented architecture and checkpoints
 
@@ -481,3 +481,166 @@ The complete current working tree has **19 files**: the ten listed for this task
 ## QUESTIONS and stopping point
 
 No unresolved product decision is currently required for the authorised slice. Stop for iPhone visual/interaction review, then seek the subsequent creation/settings instruction. No commits or later-phase implementation are authorised.
+
+## Checkpoint 8 — Atomic Group creation and settings handoff
+
+This section supersedes earlier Checkpoint 8 deferrals and sequential/partial-save recommendations. The accepted Card/perspective implementation is baseline `cccb0ba`; this follow-up is uncommitted on `feat/group-experience`. Automated verification is complete. Physical iPhone review of the new form remains for the user. No Phase 5 or later feature was implemented.
+
+### Implemented workflow
+
+- Published, available Library Decks expose **Add as Group** only when the existing server feature flag is enabled. Existing Edit and personal Add/Open actions keep their relative order and behaviour.
+- One isolated full-screen native modal handles creation and editing. It contains Group name, independent Admin/Follower selections, an alphabetical registered-user directory without search, selected-identity Cards, and the default-Off peer-visibility switch. The creator is initially and obligatorily an Admin on creation, never implicitly a Follower. Zero followers and dual roles are supported.
+- All selections remain local until Create/Save; Cancel performs no mutation. The directory reuses the existing authenticated `/api/users` minimal identity projection. A per-actor resource deduplicates in-flight requests, reuses successful results, checks the current session and supports explicit retry. Later shells can preload the same resource without changing the form.
+- Creation returns to My Decks, without opening the Group. A verified assigned Group ID in `createdGroup` promotes only that new entry; every other personal/Group entry retains its relative order. The promotion persists within the mounted My Decks shell, without a new global sorting policy or database ordering field.
+- Admins receive **Group…** in the existing Group Deck menu. Initial metadata, every roster page and a final metadata read must share a structure revision. Removed memberships are not displayed as a history browser; only current roles populate the form.
+- Confirmed Save revalidates the existing Group resource and keeps the same Deck scene, valid Card, face and perspective. A settings-specific perspective capture survives transient peer-cache purging and a changed role default. Existing picker, grid, Card rendering and animation code is unchanged.
+- Confirmed loss of final access disposes Group resources, immediately removes its cached tile and returns to My Decks, then refreshes assignments. Lost acknowledgements keep the modal mounted even if authority polling notices self-removal first.
+
+### Atomic API and persistence contract
+
+New `PATCH /api/group-experiences/:experienceId/management` requires:
+
+```json
+{
+  "operationId": "unique-per-submitted-intent",
+  "expectedStructureRevision": 0,
+  "name": "Galway U18",
+  "adminIds": ["registered-user-id"],
+  "followerIds": [],
+  "allowFollowerInspection": false
+}
+```
+
+Unknown/missing fields, invalid names/IDs/booleans and unavailable selected users are rejected. ID lists are deduplicated and sorted before hashing. At least one final Admin is required. Creator status supplies no implicit authority when editing.
+
+`manageExperience` owns one existing snapshot/majority MongoDB transaction. It authenticates the actual Admin, checks the expected structural revision, computes role differences, fences the actor/affected memberships (and active followers when policy changes), then applies narrow role changes and existing lifecycle rules. Removal snapshots, retained assignment references, rejoin metadata, name/policy/admin count, one revision increment and one operation receipt all share the same session. An error at any stage aborts everything. Existing public membership/settings methods are not called from inside this transaction because they each own an independent transaction.
+
+Existing collections, unique indexes and `GroupExperience.allowFollowerInspection` are reused. No new collection/index, destructive migration, provider call, personal CardData migration, background job or whole-roster deletion is introduced. Existing member/settings/adoption API contracts remain unchanged.
+
+Creation accepts optional `allowFollowerInspection` in its existing transaction, defaulting to false. Omitted policy retains the historical creation-command hash, so legacy retries remain valid. Creator union into Admins and explicit Follower selection are preserved. Responses add `hasAccess`; an exact old creation acknowledgement after loss of access returns only actor/experience/outcome/access information.
+
+Management receipt replay is deliberately separate from the existing replay helper. After HTTP session/actor binding, it looks up only this actor's exact operation and verifies its management-specific command hash **before** requiring current Group authority. It returns only `viewerUserId`, `experienceId`, the original committed `structureRevision`, `outcome` and current `hasAccess`. This allows recovery after self-demotion/removal without returning Group content, roster or renewed permission. A new operation still requires current Admin authority; another actor cannot acknowledge this receipt. Later mutations do not cause the old operation to execute again or masquerade as current Group state.
+
+The client sends one POST or PATCH, never a sequence of independently committed commands. Network errors/5xx are uncertain outcomes, not proof of rollback. Freeze the exact submitted command and operation ID for Retry; do not navigate or allow edits/Cancel to pretend it was unsubmitted. Every Retry goes back through authenticated receipt acknowledgement, including after a confirmed commit followed by a failed refresh or later revocation. Definitive validation/revision errors leave draft selections intact. No automatic rebasing or overwrite of newer Admin edits occurs.
+
+### Verification — commands and actual results
+
+All database work below used owned local disposable replica sets. The original LAN review process was retained, not restarted or reseeded. Temporary Groups created by browser tests remain disposable; Galway U18 and the existing named fixtures were preserved.
+
+```sh
+node --import tsx --test --test-concurrency=1 tests/group-experience-management.integration.ts tests/group-experience-api.integration.ts
+```
+
+**24 passed, 0 failed** (`/tmp/group-checkpoint8-db.log`). Includes whole-form success; failure injection at member/snapshot/experience/receipt stages; creation rollback; invalid/incomplete commands; zero final Admin rejection; competing Admin edits; stale adoption; self-demotion/removal; exact parallel retries; lost creation acknowledgement; rejoin/live learning preservation; both deterministic removal-versus-learning orderings; real HTTP authentication, actor binding and restricted receipt replay.
+
+The earlier broader command also executed the unchanged repository/lifecycle/projection suites:
+
+```sh
+node --import tsx --test --test-concurrency=1 tests/group-experience-management.integration.ts tests/group-experience-api.integration.ts tests/group-experience.integration.ts tests/group-experience-lifecycle.integration.ts tests/group-experience-perspectives.integration.ts
+```
+
+The three existing suites contributed **38 passing checks**. That initial overall run was **58 passed / 2 failed**: the new API test changed a shared fixture before existing API tests used it. Its fixture is now restored after the test; the complete API suite passed in the final 24-check run above. One initial management fixture attempted to publish unchanged content (`NO_UNPUBLISHED_CHANGES`); it now publishes an actual reordered-Step version and passes. An earlier broad run needed forced teardown of an owned Mongo child after its graceful timeout; no application database was involved.
+
+```sh
+node --import tsx --test tests/group-management-client.test.ts tests/group-experience-client.test.ts tests/group-experience-perspectives.test.ts tests/library-ui.test.ts tests/library-entry.test.ts tests/library-read-models.test.ts tests/presentation-foundation.test.ts
+```
+
+**40 passed, 0 failed** (`/tmp/group-checkpoint8-unit.log`). Directory coalescing/cache/session/retry, complete/mixed-revision roster loading and isolated entry promotion supplement the existing resource, privacy, confidence and presentation assertions.
+
+```sh
+node --import tsx scripts/test-phase2.ts --group-experiences group-management.browser.ts group-experience-perspectives.browser.ts group-experience-motion.browser.ts library-entry.browser.ts deck-menu.browser.ts --grep-invert '50 loaded comparisons'
+```
+
+**22 passed, 0 failed** (`/tmp/group-checkpoint8-browser-final.log`). Includes the new form workflow plus existing picker entry/exit, Group/self policy, stack/face/traversal continuity, personal archive, touch menu and Library add/restore behaviour. The loaded-comparison performance benchmark was not rerun; no animation code changed. The exact Library menu expectations now include Add as Group when the flag is enabled; the original expectations remain exact with the flag Off.
+
+The final additional workflow/geometry run used the preserved disposable review server:
+
+```sh
+PHASE2_GROUP_FIXTURE="$(node -p 'JSON.stringify(require("./phase2-test-results/review-server.json").groupReview)')" PHASE2_BASE_URL=http://127.0.0.1:4181 node node_modules/@playwright/test/cli.js test --config playwright.phase2.config.ts group-management.browser.ts group-progress-main-geometry.browser.ts
+```
+
+**33 passed, 0 failed** (`/tmp/group-checkpoint8-continuity.log`): nine current workflow cases and all **24 unchanged main-reference geometry cases across Chromium/WebKit**. Covers directory failure/retry retaining the draft; whole-form creation and cancellation; zero followers; dual roles; stale draft preservation; non-default follower/Card 2/back-face/physical-scene retention; self-demotion with valid Group perspective; exact lost-response recovery; and later revocation between commit and refresh. No geometry expectation or tolerance was changed.
+
+```sh
+node --import tsx scripts/test-phase2.ts deck-menu.browser.ts library-entry.browser.ts
+```
+
+**7 passed, 0 failed** with Group Experiences disabled (`/tmp/group-checkpoint8-feature-off.log`). Confirms the existing personal menu and Library contracts remain intact.
+
+```sh
+PHASE2_GROUP_FIXTURE="$(node -p 'JSON.stringify(require("./phase2-test-results/review-server.json").groupReview)')" PHASE2_BASE_URL=http://127.0.0.1:4181 node node_modules/@playwright/test/cli.js test --config playwright.phase2.config.ts --browser webkit group-management.browser.ts --grep 'Library Create|zero-follower Group|lost Save response'
+```
+
+**3 passed, 0 failed** (`/tmp/group-checkpoint8-webkit.log`): creation/Cancel/cache/order, atomic settings/context retention, and lost-response self-removal. This supplements, rather than replaces, physical Safari review.
+
+An initial attempt to run DB-dependent Library/menu files directly against the review URL was refused by `assertDisposableDatabase` because their owning database environment was absent: 14 passed, 2 setup failures, 5 not run. They were rerun using the owning harness above. A subsequent flag-On menu run initially retained the old two-item expectation; the assertion was updated specifically for the approved third action and passed, with flag-Off coverage unchanged. Final verification has no unexplained failures. Browser logs contain the existing NO_COLOR/FORCE_COLOR environment warning.
+
+```sh
+env SWITCHPLAY_DATABASE_MODE=disposable MONGODB_URI= MONGODB_DB= SWITCHPLAY_GROUP_EXPERIENCES_ENABLED=0 PHASE2_BROWSER_TEST=0 PHASE2_OPTIMIZED=0 npm run build
+npx tsc --noEmit --incremental false
+```
+
+**Production build passed**, database access cleared and Group flag Off (`/tmp/group-checkpoint8-build-final.log`). **Standalone TypeScript passed** after the build (`/tmp/group-checkpoint8-types.log`). Targeted ESLint passed for all **19 changed TypeScript files**, with no warnings/errors. `git diff --check` passed. No production configuration, deployment, provider access or feature enablement was performed.
+
+### Complete changed-file inventory — Checkpoint 8 only
+
+Documentation:
+
+- `docs/design/features/group-experience/group-experience-phase-4-spec.md`
+- `docs/engineering/features/group-experience/group-experience-phase-4-engineering-plan.md`
+- `docs/engineering/features/group-experience/group-experience-phase-4-handoff.md`
+
+Backend:
+
+- `src/app/api/group-experiences/[experienceId]/management/route.ts` (new)
+- `src/lib/groupExperiences/management.ts` (new)
+- `src/lib/groupExperiences/contracts.ts`
+- `src/lib/groupExperiences/model.ts`
+- `src/lib/groupExperiences/repository.ts`
+
+UI and client resources:
+
+- `src/app/library/page.tsx`
+- `src/app/library/[deckTemplateId]/page.tsx`
+- `src/components/library/LibraryShell.tsx`
+- `src/components/decks/DeckMenu.tsx`
+- `src/components/layout/AppShell.tsx`
+- `src/components/group-experiences/GroupExperienceDeck.tsx`
+- `src/components/group-experiences/GroupManagementForm.tsx` (new)
+- `src/components/group-experiences/group-management.css` (new, modal-only selectors)
+- `src/components/group-experiences/groupManagementClient.ts` (new)
+- `src/components/group-experiences/userDirectory.ts` (new)
+
+Tests:
+
+- `tests/group-experience-management.integration.ts` (new)
+- `tests/group-management-client.test.ts` (new)
+- `tests/group-experience-api.integration.ts`
+- `tests/phase2/group-management.browser.ts` (new)
+- `tests/phase2/deck-menu.browser.ts`
+
+No Card front/back, progress/confidence, existing global CSS, perspective picker/grid, learning arithmetic, gesture/animation, media, Info Card, assessment, reflection or Organisations source file changed. Existing commits, branch and other worktrees were preserved. No staging or commit was performed.
+
+### iPhone review and remaining boundaries
+
+Verified LAN creation entry (HTTP 200):
+
+`http://192.168.1.38:4181/library/b0d10e0f-17b9-4a90-b3fb-7aafd6fbe4a3`
+
+My Decks: `http://192.168.1.38:4181/decks`. Sign in as **phase2 / local-test-only** (Admin); **other / local-test-only** remains the follower review account. This is the original disposable process, PID **64754**, with its existing named fixtures. Stop it when finished with `kill -INT 64754`.
+
+Physical review should assess the full-screen modal, keyboard/name field, touch comfort of independent role checkboxes and the visibility switch, alphabetical-directory and selected-Card scrolling, Create-to-My-Decks transition, and Group… Save/Cancel closing back into the existing Card context. Mathematical, permission, persistence, concurrency and retry checks above do not need manual repetition.
+
+Directory caching and drafts/pending commands are in-memory, not a cross-tab/offline outbox. A revision conflict deliberately retains the draft and rejects Save; Cancel/reopen loads a fresh baseline rather than silently merging another Admin's edits. Removal cost scales with removed followers × selected Cards inside one transaction; no split commits or background cleanup were added. Existing group index provisioning and the feature flag remain operational prerequisites. No real participant enablement is authorised. Removed-follower history UI and all Phase 5–10 features remain deferred. No material product question remains; review Checkpoint 8 on iPhone before any subsequent phase.
+
+Reproducible targeted lint command (19 TypeScript files; no output errors or warnings):
+
+```sh
+node --input-type=module <<'NODE'
+import {execFileSync} from 'node:child_process';
+const files=[...new Set(execFileSync('git',['ls-files','--modified','--others','--exclude-standard'],{encoding:'utf8'}).trim().split('\n'))].filter(file=>/\.tsx?$/.test(file));
+execFileSync('node',['node_modules/eslint/bin/eslint.js',...files],{stdio:'inherit'});
+console.log(`Lint passed for ${files.length} changed TypeScript files.`);
+NODE
+git diff --check
+```

@@ -20,6 +20,7 @@ import GroupExperienceDeck from "@/components/group-experiences/GroupExperienceD
 import { presentGroupTile } from "@/components/group-experiences/groupPresentation";
 import { groupFetch } from "@/components/group-experiences/groupClient";
 import type { GroupTiles } from "@/lib/groupExperiences/presentationReads";
+import { promoteCreatedGroup } from "@/components/group-experiences/groupManagementClient";
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 type AppShellProps = { memberships: MembershipDTO[]; currentUserId: string; userName: string; groups?: GroupTiles };
 export default function AppShell(props: AppShellProps) {
@@ -31,6 +32,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
   const progressReturn = readProgressReturn(search);
   const [records, setRecords] = useState(memberships);
   const [groupRecords, setGroupRecords] = useState(groups);
+  const [createdGroupId] = useState(() => search.get("createdGroup"));
   const [experienceId, setExperienceId] = useState<string | null>(() => groups ? search.get("openExperience") : null);
   const [selected, setSelected] = useState<Deck | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -219,8 +221,9 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     }
     catch (error) { if (live.current && actorRef.current === currentUserId && generation === refreshGeneration.current) setError(error instanceof Error ? error.message : "Some changes could not be saved"); }
   }
-  if (experienceId && groups) return <GroupExperienceDeck key={`${currentUserId}:${experienceId}`} actor={currentUserId} experienceId={experienceId}
-    onBack={() => { setExperienceId(null); window.history.replaceState(null, "", "/decks");
+  const leaveGroup = (accessRemoved = false) => {
+      if (accessRemoved) setGroupRecords(current => current ? { ...current, entries: current.entries.filter(row => row.experienceId !== experienceId) } : current);
+      setExperienceId(null); window.history.replaceState(null, "", "/decks");
       void (async () => {
         let next = await groupFetch<GroupTiles>(currentUserId, "/api/group-experiences/tiles");
         while (next.nextCursor) {
@@ -228,7 +231,10 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
           next = { ...page, entries: [...next.entries, ...page.entries] };
         }
         setGroupRecords(next);
-      })().catch(() => router.refresh()); }} />;
+      })().catch(() => router.refresh());
+  };
+  if (experienceId && groups) return <GroupExperienceDeck key={`${currentUserId}:${experienceId}`} actor={currentUserId} experienceId={experienceId}
+    onBack={() => leaveGroup()} onAccessRemoved={() => leaveGroup(true)} />;
   return <main className={`app-shell${selected ? " app-shell--deck" : ""}`} data-working-ready={selected ? verified : undefined}>
     {selected && !verified ? <div className="working-entry-status">
       {pending ? <span role="status">Checking Deck… You can browse while editing is prepared.</span> : <span>Editing is paused until this Deck is verified.</span>}
@@ -248,7 +254,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     </> : <>
       <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My Decks</h1></header>
       <CollectionReturnHighlight id={search.get("reveal")} ready={decks.some(deck => deck.id === search.get("reveal"))} scroll />
-      <DeckGrid decks={[...decks, ...(groupRecords?.entries.map(presentGroupTile) ?? [])]} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null}
+      <DeckGrid decks={promoteCreatedGroup([...decks, ...(groupRecords?.entries.map(presentGroupTile) ?? [])], groupRecords?.entries.some(row => row.experienceId === createdGroupId) ? createdGroupId : null)} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null}
         onSelectDeck={(id) => { if (groupRecords?.entries.some(row => row.experienceId === id)) { setExperienceId(id); window.history.replaceState(null, "", `/decks?openExperience=${encodeURIComponent(id)}`); }
           else void open(id); }} transition={transition} />
       {active.filter((item) => item.availability === "unavailable").map((item) => <p key={item.deckTemplateId}>
