@@ -2,7 +2,7 @@
 
 ## Resume here
 
-Implementation commission: complete and separately commit 5.1a, 5.1b, 5.2a, 5.2b and 5.3, then stop. Do not implement 5.4, navigation or visible Progress/Card changes. Current branch `feat/group-experience`; starting HEAD `a6f2e32`. 5.1a committed as `26e43ed31b9dec6a36b3f3a94ce35fc4e3495ad2`. 5.1b committed as `80a622713ad11deaad7ae759f1abef78a7e49a14`. 5.2a is complete and verified; commit subject `feat (group experience): preserve assessment provenance`. Confirm that commit before starting 5.2b Group-context personal commands/transport.
+Implementation commission: complete and separately commit 5.1a, 5.1b, 5.2a, 5.2b and 5.3, then stop. Do not implement 5.4, navigation or visible Progress/Card changes. Current branch `feat/group-experience`; starting HEAD `a6f2e32`. 5.1a committed as `26e43ed31b9dec6a36b3f3a94ce35fc4e3495ad2`. 5.1b committed as `80a622713ad11deaad7ae759f1abef78a7e49a14`. 5.2a committed as `51d7b1b1e6d055995b2c3fa460bc1086578bcd9a`. 5.2b is complete and verified; commit subject `feat (group experience): enable personal assessments in groups`. Confirm its commit before starting 5.3 Group-owned persistence/APIs. No 5.4+ work is authorised.
 
 Before resuming, inspect Git status/log and this record. Do not repeat completed commits. Pre-existing uncommitted work includes both engineering plans, the independent review and the completed 5.0 scripts/fixtures/browser tests. Keep those out of implementation commits. The authoritative plan receives the two newly approved decision updates in the working tree; preserve its earlier uncommitted content.
 
@@ -32,7 +32,7 @@ Read installed Next route-handler documentation: async params and private/no-sto
 - 5.1a: complete; pure current-composition/Framework scope, live assessment-only evidence closure, distinct progress states and all-member capabilities. Files: `frameworks/{scope,progressState}.ts`, `groupExperiences/policy.ts`, `tests/framework-progress-scope.test.ts`, this handoff. Scope is not yet connected to Group Progress APIs/UI (5.4+).
 - 5.1b: complete. New `frameworks/lifetimeEligibility.ts`; explicit selected version/default inputs in `calculations.ts`; owner summary/Item/Card histories and source titles in `readModels.ts`; six new scenarios in `tests/framework-lifetime.integration.ts`. No source/adoption/private writes. Current and retained own membership evidence are read in the same snapshot. The sandbox socket setup failure was rerun using approved disposable replica-set escalation.
 - 5.2a: complete. Additive provenance/conceptual target adapter; server-stamped personal writes, immutable edit/retry origin, provenance-preserving personal/live history, authorised origin-name resolution and safe no-raw-origin projection. Name lookup reuses current membership validation. No UI or foreign read endpoints; raw owner source-list provenance remains owner-only. Files: `assessments/{provenance,provenanceReads,contracts,repository,history}.ts`, `cards/{model,personalHistory}.ts`, `frameworks/readModels.ts`, two provenance test files and this handoff.
-- 5.2b: not started.
+- 5.2b: complete. In-session personal assessment core, current Group source adapter, self-only personal-tests HTTP routes for Cards/Items and context-bound client transport reusing the existing personal queue. GET of a legitimate absent Group-only Card is empty/read-only; Add checks ordinary-row integrity, fences membership and materialises with null date in the same transaction. Tests cover direct APIs, A/B storage, rollback and deterministic removal/adoption races. No UI changes.
 - 5.3: not started.
 
 ## Integration boundary
@@ -46,3 +46,11 @@ Later 5.4 adds scoped Group/player metrics and foreign assessment read endpoints
 - Final membership-validation refinement: `node --import tsx --test --test-concurrency=1 tests/assessment-provenance.integration.ts` — 3 passed, 0 failed, including corrupt membership epoch denial.
 - `npx tsc --noEmit --incremental false` — passed after final changes.
 - Targeted eslint across the eight changed source files and two provenance test files — passed. Final two-file refinement lint and `git diff --check` passed.
+
+5.2b final verification:
+
+- Existing plus new assessment backend run: 20 passed, 0 failed; one disposable Mongo shutdown needed its own SIGKILL fallback (test infrastructure warning, no review service touched).
+- Focused client/contract/provenance run: 19 passed, 0 failed after correcting a test-only use of a nonexistent PersonalWork method.
+- `node --import tsx --test --test-concurrency=1 tests/group-personal-assessments.integration.ts` — final run 8 passed, 0 failed; log `/tmp/group-experience-5-2b-final.log`.
+- Initial type/lint checks identified test-only implicit parameter types and the reserved module variable name; corrected. Final TypeScript and targeted lint over all 12 code/test/route files passed, with `git diff --check` clean.
+- New routes are `/api/group-experiences/:experienceId/cards/:cardTemplateId/personal-tests` and `/frameworks/:frameworkId/items/:frameworkItemId/personal-tests`, plus `/:testId` edits/deletes. Legacy source shape is adapted to explicit conceptual target and personal owner in responses. Current Group authority remains required; ordinary owner routes retain retained-source rights.

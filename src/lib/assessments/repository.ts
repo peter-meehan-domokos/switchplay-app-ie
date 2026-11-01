@@ -7,7 +7,7 @@ import { getFrameworks, assertFrameworkConfiguration, type Framework } from "../
 import { AssessmentConflict, assessmentRevision, assertAssessmentCommand, assertAssessmentId, assertAssessmentSource,
   newestAssessmentsFirst, reconcileAssessment, type AssessmentCommand, type AssessmentList, type AssessmentSource,
   type AssessmentMutationResult } from "./contracts";
-import { assessmentOrigin, manualAssessmentProvenance, readAssessmentProvenance } from "./provenance";
+import { assessmentOrigin, manualAssessmentProvenance, readAssessmentProvenance, type AssessmentEntryContext } from "./provenance";
 import { authorisedAssessmentOriginNames } from "./provenanceReads";
 
 export function assertStoredAssessmentTests(value: unknown, item = false): asserts value is (CardTest | ItemTest)[] {
@@ -45,29 +45,46 @@ async function assessmentStorage(repo: CardRepository, actor: string, source: As
   return { user, card, tests, list };
 }
 export async function readAssessmentList(repo: CardRepository, actor: string, source: AssessmentSource): Promise<AssessmentList> {
-  return repo.transaction(async (session) => (await assessmentStorage(repo, actor, source, session)).list);
+  return repo.transaction((session) => readAssessmentListInSession(repo, actor, source, session));
+}
+export async function readAssessmentListInSession(repo: CardRepository, actor: string, source: AssessmentSource, session: ClientSession) {
+  requireCondition(session.inTransaction(), "ASSESSMENT_TRANSACTION_REQUIRED");
+  return (await assessmentStorage(repo, actor, source, session)).list;
 }
 
 export async function mutateAssessment(repo: CardRepository, actor: string, command: AssessmentCommand,
   frameworks: readonly Framework[] = getFrameworks()): Promise<AssessmentMutationResult> {
   assertAssessmentCommand(command); requireCondition(command.viewerUserId === actor, "ASSESSMENT_SESSION_CONFLICT");
   assertFrameworkConfiguration(frameworks);
-  return repo.transaction(async (session) => {
+  return repo.transaction(session => mutateAssessmentInSession(repo, actor, command, frameworks, session));
+}
+
+// Internal transaction primitive. A Group caller must resolve/fence the actual
+// active owner and current source before passing its server-derived context.
+// HTTP commands cannot set provenance or bypass personal working authority.
+export async function mutateAssessmentInSession(repo: CardRepository, actor: string, command: AssessmentCommand,
+  frameworks: readonly Framework[], session: ClientSession, groupContext?: AssessmentEntryContext): Promise<AssessmentMutationResult> {
+    requireCondition(session.inTransaction(), "ASSESSMENT_TRANSACTION_REQUIRED");
+    assertAssessmentCommand(command); requireCondition(command.viewerUserId === actor, "ASSESSMENT_SESSION_CONFLICT");
+    assertFrameworkConfiguration(frameworks);
+    const entryContext = groupContext ?? { groupExperienceId: null, deckTemplateId: command.action === "add" && command.source.kind === "card" ? command.deckTemplateId! : null };
+    if (groupContext) requireCondition(groupContext.groupExperienceId !== null && (command.action !== "add" || command.source.kind !== "card"
+      || command.deckTemplateId === groupContext.deckTemplateId), "ASSESSMENT_SOURCE_CONFLICT");
     const { user, tests, list } = await assessmentStorage(repo, actor, command.source, session);
     const existing = tests.find((test) => test.id === command.id);
     // An Item test ID is unique across the user's entire direct Item list.
     requireCondition(command.source.kind !== "item" || !existing || (existing as ItemTest).itemId === command.source.itemId,
       "ASSESSMENT_SOURCE_CONFLICT");
     if (list.revision !== command.expectedRevision) {
-      const outcome = reconcileAssessment(command, list);
+      const outcome = reconcileAssessment(command, list, entryContext);
       if (outcome) return { ...list, outcome };
       throw new AssessmentConflict(list);
     }
     if (command.action === "add") {
       // Reconciliation above is read-only; a previously committed Add can still
       // be acknowledged after archival or configuration removal.
-      if (command.source.kind === "card") await repo.assessmentWorkingCard(actor, command.deckTemplateId!, command.source.cardTemplateId, session);
-      else {
+      if (!groupContext && command.source.kind === "card") await repo.assessmentWorkingCard(actor, command.deckTemplateId!, command.source.cardTemplateId, session);
+      else if (!groupContext && command.source.kind === "item") {
         const itemId = command.source.itemId;
         requireCondition(frameworks.some((framework) => framework.areas.some((area) => area.items.some((item) => item.id === itemId))),
           "ITEM_ASSESSMENT_CONTEXT_REQUIRED");
@@ -79,7 +96,7 @@ export async function mutateAssessment(repo: CardRepository, actor: string, comm
     const next = command.action === "delete" ? tests.filter((test) => test.id !== command.id)
       : command.action === "update" ? tests.map((test) => test.id === command.id ? { ...test, date: command.date, result: command.result } : test)
       : [...tests, { id: command.id, date: command.date, result: command.result, createdAt: now,
-        provenance: manualAssessmentProvenance(actor, { groupExperienceId: null, deckTemplateId: command.source.kind === "card" ? command.deckTemplateId! : null }),
+        provenance: manualAssessmentProvenance(actor, entryContext),
         ...(command.source.kind === "item" ? { itemId: command.source.itemId } : {}) }];
     // Narrow fields only. Mongo retries re-read the list; the CAS also explicitly
     // accepts absent legacy counters as zero. Never replace User or CardData.
@@ -92,5 +109,4 @@ export async function mutateAssessment(repo: CardRepository, actor: string, comm
         { $set: { itemTests: next as ItemTest[], itemTestsRevision: list.revision + 1 } }, { session });
     requireCondition(update.matchedCount === 1, "ASSESSMENT_REVISION_CONFLICT");
     return { ...(await assessmentStorage(repo, actor, command.source, session)).list, outcome: "changed" };
-  });
 }

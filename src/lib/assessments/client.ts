@@ -2,27 +2,42 @@ import { enqueuePersonalMutation } from "../deckMutations";
 import { personalWork } from "../cards/personalWork";
 import { workingCardStore } from "../cards/workingCardStore";
 import { requireCondition } from "../cards/domain";
-import { AssessmentConflict, assertAssessmentCommand, sameAssessmentSource, reconcileAssessment,
+import { AssessmentConflict, assertAssessmentCommand, assertAssessmentId, assessmentTarget, sameAssessmentSource, reconcileAssessment,
   type AssessmentCommand, type AssessmentList, type AssessmentMutationResult, type AssessmentSource } from "./contracts";
 
-function listUrl(source: AssessmentSource) {
+export type GroupPersonalAssessmentContext = { experienceId: string; frameworkId?: string };
+function listUrl(source: AssessmentSource, group?: GroupPersonalAssessmentContext) {
+  if (group) {
+    assertAssessmentId(group.experienceId);
+    const base = `/api/group-experiences/${encodeURIComponent(group.experienceId)}`;
+    if (source.kind === "card") return `${base}/cards/${encodeURIComponent(source.cardTemplateId)}/personal-tests`;
+    assertAssessmentId(group.frameworkId);
+    return `${base}/frameworks/${encodeURIComponent(group.frameworkId)}/items/${encodeURIComponent(source.itemId)}/personal-tests`;
+  }
   return source.kind === "card" ? `/api/cards-data/${encodeURIComponent(source.cardTemplateId)}/tests`
     : `/api/items-data/${encodeURIComponent(source.itemId)}/tests`;
 }
 class AssessmentHttpError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
 }
-async function assessmentResponse(response: Response, actor: string, source: AssessmentSource): Promise<AssessmentList> {
+async function assessmentResponse(response: Response, actor: string, source: AssessmentSource, group?: GroupPersonalAssessmentContext): Promise<AssessmentList> {
   const payload = await response.json();
   requireCondition(response.headers.get("X-Personal-Viewer") === actor, "ASSESSMENT_SESSION_CONFLICT");
+  if (group) requireCondition(response.headers.get("X-Group-Viewer") === actor, "GROUP_SESSION_CONFLICT");
+  const checkGroup = (list: { experienceId?: string; owner?: { kind?: string; userId?: string }; target?: unknown }) => {
+    if (group) requireCondition(list.experienceId === group.experienceId && list.owner?.kind === "personal" && list.owner.userId === actor
+      && JSON.stringify(list.target) === JSON.stringify(assessmentTarget(source)), "GROUP_CONTEXT_CONFLICT");
+  };
   if (!response.ok) {
     if (payload.code === "ASSESSMENT_REVISION_CONFLICT" && payload.latestList) {
       requireCondition(payload.latestList.viewerUserId === actor && sameAssessmentSource(payload.latestList.source, source), "ASSESSMENT_SESSION_CONFLICT");
+      checkGroup(payload.latestList);
       throw new AssessmentConflict(payload.latestList);
     }
     throw new AssessmentHttpError(response.status, payload.error ?? "Unable to save assessment.");
   }
   requireCondition(payload.viewerUserId === actor && payload.source && sameAssessmentSource(payload.source, source), "ASSESSMENT_SESSION_CONFLICT");
+  checkGroup(payload);
   requireCondition(Number.isSafeInteger(payload.revision) && payload.revision >= 0 && Array.isArray(payload.tests), "INVALID_ASSESSMENT_RESPONSE");
   return payload;
 }
@@ -33,23 +48,26 @@ export function discardFailedAssessment(command: AssessmentCommand, operation: P
 export function retryFailedAssessment(command: AssessmentCommand, operation: Promise<unknown>) {
   return personalWork.retryFailed(command.viewerUserId, mutationKey(command.source), operation) as Promise<AssessmentMutationResult>;
 }
-export async function readPersonalAssessments(actor: string, source: AssessmentSource) {
-  return assessmentResponse(await fetch(listUrl(source), { headers: { "X-Personal-Viewer": actor }, cache: "no-store" }), actor, source);
+export async function readPersonalAssessments(actor: string, source: AssessmentSource, group?: GroupPersonalAssessmentContext) {
+  return assessmentResponse(await fetch(listUrl(source, group), { headers: { "X-Personal-Viewer": actor, ...(group ? { "X-Group-Viewer": actor } : {}) }, cache: "no-store" }), actor, source, group);
 }
 // Uses the existing field queue, pending-work tracking and working-view epoch.
 // Callers retain the exact command across retries. Context Cards allow a future
 // fork modal to participate in Update locks for both viewer and original source.
-export function persistAssessment(command: AssessmentCommand, contextCardIds: readonly string[] = []): Promise<AssessmentMutationResult> {
+export function persistAssessment(command: AssessmentCommand, contextCardIds: readonly string[] = [], groupContext?: GroupPersonalAssessmentContext): Promise<AssessmentMutationResult> {
   assertAssessmentCommand(command);
   command = structuredClone(command); // Queue/retry intent must survive caller edits.
+  const group = groupContext ? { ...groupContext } : undefined;
+  const urlBase = listUrl(command.source, group); // Preparation can fail before work is marked pending.
   const actor = command.viewerUserId, source = command.source;
   const key = mutationKey(source);
   const cardIds = [...new Set([...contextCardIds, ...(source.kind === "card" ? [source.cardTemplateId] : [])])];
   let uncertain = false;
   const accept = (result: AssessmentMutationResult) => { workingCardStore.invalidate(actor); return result; };
   const reconcile = async () => {
-    const list = await readPersonalAssessments(actor, source);
-    const outcome = reconcileAssessment(command, list);
+    const list = await readPersonalAssessments(actor, source, group);
+    const outcome = reconcileAssessment(command, list, group ? { groupExperienceId: group.experienceId,
+      deckTemplateId: command.action === "add" && source.kind === "card" ? command.deckTemplateId! : null } : undefined);
     if (outcome) return accept({ ...list, outcome });
     if (list.revision !== command.expectedRevision) throw new AssessmentConflict(list);
     return null; // A confirmed unchanged revision permits the original operation.
@@ -58,10 +76,10 @@ export function persistAssessment(command: AssessmentCommand, contextCardIds: re
     if (uncertain) { const result = await reconcile(); if (result) return result; }
     uncertain = true;
     try {
-      const url = command.action === "add" ? listUrl(source) : `${listUrl(source)}/${encodeURIComponent(command.id)}`;
+      const url = command.action === "add" ? urlBase : `${urlBase}/${encodeURIComponent(command.id)}`;
       const response = await fetch(url, { method: command.action === "add" ? "POST" : command.action === "update" ? "PATCH" : "DELETE",
-        headers: { "Content-Type": "application/json", "X-Personal-Viewer": actor }, body: JSON.stringify(command) });
-      const result = await assessmentResponse(response, actor, source) as AssessmentMutationResult;
+        headers: { "Content-Type": "application/json", "X-Personal-Viewer": actor, ...(group ? { "X-Group-Viewer": actor } : {}) }, body: JSON.stringify(command) });
+      const result = await assessmentResponse(response, actor, source, group) as AssessmentMutationResult;
       uncertain = false; return accept(result);
     } catch (error) {
       if (error instanceof AssessmentConflict || error instanceof AssessmentHttpError && error.status < 500) { uncertain = false; throw error; }

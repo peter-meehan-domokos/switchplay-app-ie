@@ -1,6 +1,6 @@
 import { CardArchitectureError, isRecord, nonblank, requireCondition } from "../cards/domain";
 import { isIsoDateOnlyString } from "../dateOnly";
-import { manualAssessmentProvenance, sameAssessmentEntry, type AssessmentOrigin, type AssessmentProvenance } from "./provenance";
+import { manualAssessmentProvenance, sameAssessmentEntry, type AssessmentEntryContext, type AssessmentOrigin, type AssessmentProvenance } from "./provenance";
 
 export type AssessmentSource = { kind: "card"; cardTemplateId: string } | { kind: "item"; itemId: string };
 export type AssessmentTarget = { cardTemplateId: string; frameworkItemId?: never } | { frameworkItemId: string; cardTemplateId?: never };
@@ -50,13 +50,13 @@ export function assessmentRevision(value: unknown): number {
 }
 // Recognise current desired state only, never claim an exact operation receipt.
 // A stale absent Add is always a conflict, so a deleted result cannot resurrect.
-export function reconcileAssessment(command: AssessmentCommand, list: AssessmentList): "already-present" | "already-absent" | null {
+export function reconcileAssessment(command: AssessmentCommand, list: AssessmentList, entryContext?: AssessmentEntryContext): "already-present" | "already-absent" | null {
   requireCondition(command.viewerUserId === list.viewerUserId && sameAssessmentSource(command.source, list.source), "ASSESSMENT_SESSION_CONFLICT");
   if (list.revision <= command.expectedRevision) return null;
   const test = list.tests.find((test) => test.id === command.id);
   if (command.action === "delete") return test ? null : "already-absent";
   if (command.action === "add" && test?.provenance && !sameAssessmentEntry(test.provenance,
-    manualAssessmentProvenance(command.viewerUserId, { groupExperienceId: null, deckTemplateId: command.deckTemplateId ?? null }))) return null;
+    manualAssessmentProvenance(command.viewerUserId, entryContext ?? { groupExperienceId: null, deckTemplateId: command.deckTemplateId ?? null }))) return null;
   return test && test.date === command.date && test.result === command.result ? "already-present" : null;
 }
 export function newestAssessmentsFirst(tests: readonly AssessmentResult[]): AssessmentResult[] {
