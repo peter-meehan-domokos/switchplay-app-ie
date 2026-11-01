@@ -148,7 +148,7 @@ test("Integration saves an unchecked draft without inventing a calculation event
 test("Roots Rewind preserves its attempt and stored return state", async ({ page }) => {
   const { client, db, learner } = await fixture(page);
   try {
-    await page.setViewportSize({ width: 900, height: 1100 });
+    await page.setViewportSize({ width: 390, height: 844 });
     let dialog = await open(page), slider = dialog.getByRole("slider");
     await slider.focus(); await page.keyboard.press("ArrowRight");
     await dialog.getByRole("button", { name: "Next", exact: true }).click();
@@ -157,11 +157,9 @@ test("Roots Rewind preserves its attempt and stored return state", async ({ page
     await dialog.getByRole("button", { name: "Next", exact: true }).click();
     await slider.focus(); await page.keyboard.press("ArrowLeft");
     const check = dialog.getByRole("button", { name: "Check", exact: true });
-    // Existing Roots layout places Check below this viewport. Verify its keyboard
-    // action and persistence; do not disguise this visual-specific layout limitation.
-    const checkBox = await check.boundingBox();
-    test.info().annotations.push({ type: "visual-layout-backlog", description: `Roots Check at 900x1100: top=${checkBox?.y}, height=${checkBox?.height}; pointer overflow remains outside this project.` });
-    await check.focus(); await page.keyboard.press("Enter");
+    const checkBox = (await check.boundingBox())!;
+    expect(checkBox.y).toBeGreaterThanOrEqual(0); expect(checkBox.y + checkBox.height).toBeLessThanOrEqual(844);
+    await check.click(); // Ordinary pointer activation; no offscreen keyboard fallback.
     await expect(dialog.getByRole("button", { name: "Rewind", exact: true })).toBeVisible();
     await expect(dialog).toHaveAttribute("data-visual-save-status", "Saved");
     const record = (await db.collection("visualRecords").findOne({ principalKey: learner }))!;

@@ -1084,7 +1084,11 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setCanonical(persistence.presentation);
       const query = new URLSearchParams(window.location.search);
       if (navigation?.creating) query.set("entry", "create");
-      window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${query.size ? `?${query}` : ""}`); persistence.routeInstalled();
+      const href = `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${query.size ? `?${query}` : ""}`;
+      // Save-state notifications must not repeatedly rewrite an unchanged URL:
+      // WebKit rate-limits history writes, including replaceState no-ops.
+      if (window.location.pathname + window.location.search + window.location.hash !== href) window.history.replaceState(null, "", href);
+      persistence.routeInstalled();
     }
     });
   }, [persistence, navigation?.creating]);
