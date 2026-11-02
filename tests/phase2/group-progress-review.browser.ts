@@ -32,13 +32,14 @@ for (const engine of ["chromium", "webkit"] as const) for (const width of [390, 
       const colors = await page.evaluate(() => {
         const probe = document.createElement("span"); probe.style.position = "fixed"; document.body.append(probe);
         const color = (value: string) => { probe.style.color = value; return getComputedStyle(probe).color; };
-        const result = { half: color("#b5bdc980"), faint: color("#b5bdc928") }; probe.remove(); return result;
+        const result = { full: color("#b5bdc9"), half: color("#b5bdc980"), faint: color("#b5bdc928") }; probe.remove(); return result;
       });
       await outside.hover();
       expect(await outside.evaluate(element => { const style = getComputedStyle(element); return { line: style.textDecorationLine, thickness: style.textDecorationThickness, color: style.textDecorationColor }; }))
-        .toEqual({ line: "line-through", thickness: "2px", color: colors.half });
+        .toEqual({ line: "line-through", thickness: "2px", color: colors.full });
       expect(await item(page).locator(".progress-content-title").evaluate(element => getComputedStyle(element).textDecorationLine)).not.toContain("line-through");
-      expect(await page.locator('tr[data-area-id="review-outside-area"] .progress-content-title').evaluate(element => getComputedStyle(element).textDecorationLine)).not.toContain("line-through");
+      expect(await page.locator('tr[data-area-id="review-outside-area"] .progress-content-title').evaluate(element => getComputedStyle(element).textDecorationLine)).toContain("line-through");
+      expect(await page.locator('tr[data-area-id="review-area-1"] .progress-content-title').evaluate(element => getComputedStyle(element).textDecorationLine)).not.toContain("line-through");
       await expect(page.locator('tr[data-item-id="review-outside-item"] td')).toHaveText(["—", "—", "—"]);
       for (const dash of await page.locator('tr[data-item-id="review-outside-item"] .progress-outside').all())
         expect(await dash.evaluate(element => getComputedStyle(element).color)).toBe(colors.faint);
@@ -86,6 +87,9 @@ for (const engine of ["chromium", "webkit"] as const) for (const width of [390, 
         await Promise.all([page.waitForResponse(response => response.url().endsWith("/api/auth/logout") && response.status() === 200),
           page.getByRole("menuitem", { name: "Sign out", exact: true }).tap()]);
         expect((await page.request.get("/api/auth/me")).status()).toBe(401);
+        // Logout refreshes this route asynchronously. Finish that refresh before
+        // the next API login/navigation rather than racing the previous page.
+        await expect(page.getByRole("button", { name: "Overview menu", exact: true })).toHaveCount(0);
       }
     } finally { await browser.close(); }
   });
@@ -103,5 +107,38 @@ test("metadata uses current data with singular grammar, dual roles counted once 
     await expect(page.locator(".group-progress-metadata")).toHaveText("Galway U18 · 1 follower");
     await groups.changeMember(actor, created.experienceId, { operationId: randomUUID(), expectedStructureRevision: 0, kind: "remove-follower", targetUserId: live!.followers[0] });
     await expect(page.locator(".group-progress-metadata")).toHaveText("Galway U18 · 0 followers");
+  } finally { await client.close(); }
+});
+
+
+test("live review stores distinct club and player histories with realistic origins and activity", async () => {
+  assertDisposableDatabase();
+  const client = await new MongoClient(process.env.MONGODB_URI!).connect();
+  try {
+    const db = client.db(process.env.MONGODB_DB!);
+    const groups = new GroupExperienceRepository(new CardRepository(db, client));
+    const club = await groups.experiences().findOne({ experienceId: live!.experienceId });
+    expect(club).not.toBeNull();
+    const states = await groups.states().find({ experienceId: live!.experienceId }).toArray();
+    const clubTests = [...states.flatMap(state => state.tests ?? []), ...(club!.itemTests ?? [])];
+    expect(clubTests.filter(test => !test.provenance)).toHaveLength(1); // explicit September legacy import
+    for (const test of clubTests.filter(test => test.provenance)) expect(test.provenance!.groupExperienceId).toBe(live!.experienceId);
+    expect(clubTests.some(test => test.result)).toBe(true);
+    expect(clubTests.some(test => !test.result)).toBe(true);
+    expect(states.some(state => state.tests?.length === 0)).toBe(true);
+    const counts: number[] = [];
+    for (const id of live!.followers) {
+      const user = await groups.cards.users().findOne({ _id: new (await import("mongodb")).ObjectId(id) });
+      const cardTests = user!.cardsData.flatMap(card => card.tests).filter(test => test.id.startsWith("player-"));
+      const direct = user!.itemTests ?? [];
+      expect(direct.length).toBeGreaterThan(0);
+      expect(direct.some(test => test.provenance?.groupExperienceId === live!.experienceId)).toBe(true);
+      expect(direct.some(test => test.provenance?.groupExperienceId === null)).toBe(true);
+      expect(cardTests.some(test => !test.provenance)).toBe(true);
+      expect(cardTests.filter(test => test.provenance?.groupExperienceId === live!.experienceId).length).toBeGreaterThan(cardTests.filter(test => test.provenance?.groupExperienceId && test.provenance.groupExperienceId !== live!.experienceId).length);
+      for (const test of [...cardTests, ...direct]) expect(clubTests.some(clubTest => clubTest.id === test.id)).toBe(false);
+      counts.push(cardTests.length + direct.length);
+    }
+    expect(new Set(counts).size).toBe(4);
   } finally { await client.close(); }
 });

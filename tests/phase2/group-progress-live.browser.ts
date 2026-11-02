@@ -38,7 +38,7 @@ for (const engine of ["chromium", "webkit"] as const) for (const width of [390, 
     const outside = row(page, "review-outside-item"); await expect(outside.locator("td")).toHaveText(["—", "—", "—"]);
     expect(await outside.locator(".progress-content-title").evaluate(element => getComputedStyle(element).textDecorationLine)).toBe("line-through");
     await row(page).locator(".progress-tests-trigger").click();
-    const longOrigin = dialog(page).locator(".assessment-origin").filter({ hasText: "Connacht U18 Regional Basketball Development Squad" }).first();
+    const longOrigin = dialog(page).locator(".assessment-origin").filter({ hasText: "Galway U14 Regional Basketball Development Squad" }).first();
     await expect(longOrigin).toBeVisible();
     expect(await longOrigin.evaluate(element => { const style = getComputedStyle(element); return style.textOverflow === "ellipsis" && element.scrollWidth > element.clientWidth; })).toBe(true);
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
@@ -78,6 +78,10 @@ test("self personal Item entry is shared with My Progress while foreign history 
   await row(page).locator(".progress-tests-trigger").click(); await expect(dialog(page).getByRole("button", { name: "Add test", exact: true })).toBeEnabled();
   await expect(dialog(page).getByText("Other group", { exact: true })).not.toHaveCount(0);
   await expect(dialog(page).getByText("Personal", { exact: true })).not.toHaveCount(0);
+  await expect(dialog(page).getByText("Galway U18", { exact: true })).not.toHaveCount(0);
+  await expect(dialog(page).getByText("Unknown", { exact: true })).not.toHaveCount(0);
+  await expect(dialog(page).locator("tbody td:nth-child(3)").filter({ hasText: /^Progress$/ })).toHaveCount(2);
+  await expect(dialog(page).locator("tbody td:nth-child(3)").filter({ hasText: /^Control the movement$/ })).toHaveCount(2);
   await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await form(page, "2026-11-04", "Pass"); await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();
   await expect(dialog(page).locator("tbody tr").filter({ hasText: "4 Nov 2026" })).toBeVisible(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
   await page.goto(`/progress?framework=${live!.frameworkId}`); await expect(page.getByRole("heading", { name: "My Progress", exact: true })).toBeVisible();

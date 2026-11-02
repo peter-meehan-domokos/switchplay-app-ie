@@ -47,7 +47,7 @@ export default function FrameworkProgressTable({ actor, framework, unavailable =
                 aria-expanded={expanded} aria-controls={itemsId} disabled={!area.items.length} onClick={() => toggle(area.id)}>
                 <span aria-hidden="true">{expanded ? "⌄" : "›"}</span>
               </button>
-              <button type="button" className="progress-content-title" disabled={!onArea || !area.hasConfiguredCards}
+              <button type="button" className={`progress-content-title${area.items.length > 0 && area.items.every(item => "coverage" in item && item.coverage === "outside") ? " progress-outside-title" : ""}`} disabled={!onArea || !area.hasConfiguredCards}
                 onClick={() => onArea?.(area.id, area.title)}>{area.title}</button>
             </div></th>
             <Metric label="Completion" value={area.progress.completion} progress={area.progress} unavailable={unavailable} outside={"coverage" in area && area.coverage === "outside"} compare={comparison(area.id, false, "Completion")} comparisonId={comparisonId} />

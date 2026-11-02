@@ -62,7 +62,7 @@
 .groupShell :global(.progress-back) { display: block; margin: 0 auto 8px; border: 0; background: none; color: #b5bdc9; min-height: 36px; }
 .shell :global(.progress-skip) { font-size: 10px; font-weight: 400; color: #b5bdc980; }
 .shell :global(.progress-outside) { color: #b5bdc928; font-weight: 400; }
-.shell :global(.progress-outside-title), .shell :global(.progress-outside-title:not(:disabled):hover) { text-decoration-line: line-through; text-decoration-color: #b5bdc980; text-decoration-thickness: 2px; }
+.shell :global(.progress-outside-title), .shell :global(.progress-outside-title:not(:disabled):hover) { text-decoration-line: line-through; text-decoration-color: #b5bdc9; text-decoration-thickness: 2px; }
 .shell :global(.progress-metric-button) { border: 0; background: transparent; color: inherit; font: inherit; min-height: 28px; padding: 0; width: 100%; cursor: pointer; }
 .groupShell :global(.group-progress-modes) { display: flex; gap: 4px; align-items: center; min-height: 36px; }
 .groupShell :global(.group-progress-modes button) { border: 1px solid #343c48; border-radius: 6px; background: transparent; color: #b5bdc9; font-size: 12px; padding: 4px 9px; min-height: 30px; }
