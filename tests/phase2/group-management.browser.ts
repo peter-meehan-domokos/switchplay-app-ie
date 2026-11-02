@@ -13,12 +13,42 @@ async function create(page: Page, followerIds: string[] = []) {
 async function settings(page: Page, id: string) {
   await page.goto(`/decks?openExperience=${id}`); await expect(page.locator(".group-picker-current")).toBeVisible();
   await page.getByRole("button", { name: "Deck menu", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Group…", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Group settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Group settings", exact: true });
   await expect(dialog.getByLabel("Group name", { exact: true })).toBeVisible();
   await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
   return dialog;
 }
+for (const width of [320, 390, 1280]) test(`Group settings menu label fits one line and opens the existing form at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  await page.goto(`/decks?openExperience=${fixture!.experienceId}`);
+  await expect(page.locator(".group-picker-current")).toBeEnabled();
+  const trigger = page.getByRole("button", { name: "Deck menu", exact: true });
+  await trigger.click();
+  const item = page.getByRole("menuitem", { name: "Group settings", exact: true });
+  await expect(item).toBeVisible();
+  await expect(page.getByRole("menuitem")).toHaveText(["Progress", "Group settings"]);
+  const geometry = await item.evaluate(element => {
+    const range = document.createRange(); range.selectNodeContents(element);
+    const text = range.getBoundingClientRect(), button = element.getBoundingClientRect();
+    const menu = element.closest('[role="menu"]')!.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return { lines: range.getClientRects().length, textLeft: text.left, textRight: text.right,
+      contentLeft: button.left + parseFloat(style.paddingLeft), contentRight: button.right - parseFloat(style.paddingRight),
+      scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, menuLeft: menu.left, menuRight: menu.right, viewport: window.innerWidth };
+  });
+  expect(geometry.lines).toBe(1);
+  expect(geometry.textLeft).toBeGreaterThanOrEqual(geometry.contentLeft);
+  expect(geometry.textRight).toBeLessThanOrEqual(geometry.contentRight);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  expect(geometry.menuLeft).toBeGreaterThanOrEqual(0);
+  expect(geometry.menuRight).toBeLessThanOrEqual(geometry.viewport);
+  await page.keyboard.press("Escape"); await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(trigger).toBeFocused(); await trigger.click(); await item.click();
+  const dialog = page.getByRole("dialog", { name: "Group settings", exact: true });
+  await expect(dialog).toBeVisible(); await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+});
 async function traceMemberChange(page: Page, role: string, name: string, checked: boolean) {
   const trace = await page.evaluateHandle(({ role, name }) => {
     const dialog = document.querySelector<HTMLDialogElement>(".group-management-dialog")!;
@@ -145,7 +175,7 @@ test("LAN HTTP creation and settings work without secure-context randomUUID", as
     await expect(page).toHaveURL(new RegExp(`/decks\\?createdGroup=${result.experienceId}`));
     await page.locator(`[data-collection-item-id="${result.experienceId}"] .deck-tile-open-action`).click();
     await expect(page.locator(".group-picker-current")).toBeVisible();
-    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group…", exact: true }).click();
+    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group settings", exact: true }).click();
     dialog = page.getByRole("dialog", { name: "Group settings", exact: true });
     await expect(dialog.getByLabel("phase2, Admin", { exact: true })).toBeChecked();
     await dialog.getByLabel("Group name", { exact: true }).fill("LAN HTTP settings verified");
@@ -215,7 +245,7 @@ test("zero-follower Group settings Cancel and atomic Save retain the mounted Dec
   await expect(dialog.locator('.group-management-user input[aria-label$=", Follower"]:checked')).toHaveCount(0);
   await dialog.getByLabel("Group name", { exact: true }).fill("Discard settings"); await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   expect((await (await page.request.get(`/api/group-experiences/${group.experienceId}`)).json()).name).not.toBe("Discard settings");
-  await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group…", exact: true }).click();
+  await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group settings", exact: true }).click();
   const reopened = page.getByRole("dialog", { name: "Group settings", exact: true });
   await reopened.getByLabel("Group name", { exact: true }).fill("Saved together"); await reopened.getByRole("switch").check();
   await reopened.getByLabel("phase2, Follower", { exact: true }).check();
@@ -250,7 +280,7 @@ test("settings retain a non-default follower, Card 2, back face and the same phy
   await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 150, y, { steps: 12 }); await page.mouse.up();
   await expect(scene).toHaveAttribute("data-face", "back");
   const physical = await page.locator(".deck-detail").elementHandle();
-  await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group…", exact: true }).click();
+  await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await page.getByRole("menuitem", { name: "Group settings", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Group settings", exact: true });
   await expect(dialog.getByLabel("Alice, Follower", { exact: true })).toBeChecked();
   await dialog.getByLabel("Group name", { exact: true }).fill("Context retained"); await dialog.getByRole("button", { name: "Save", exact: true }).click();

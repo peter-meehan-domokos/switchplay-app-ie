@@ -19,7 +19,7 @@ test("existing Deck menu enters fixed Group Progress with role defaults and pers
   const f = await setup(page);
   try {
     await page.goto(`/decks?openExperience=${fixture!.experienceId}`); await expect(page.locator(".group-picker-current")).toBeEnabled();
-    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await expect(page.getByRole("menuitem", { name: "Group…", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await expect(page.getByRole("menuitem", { name: "Group settings", exact: true })).toBeVisible();
     await page.getByRole("menuitem", { name: "Progress", exact: true }).click();
     await expect(page.getByLabel("Progress perspective", { exact: true })).toHaveValue("group");
     await expect(page.locator(".group-progress-metadata")).toContainText("Galway U18");
@@ -27,7 +27,7 @@ test("existing Deck menu enters fixed Group Progress with role defaults and pers
     await expect(page.getByLabel("Progress perspective", { exact: true })).toHaveCount(0);
     await page.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } });
     await page.goto(`/decks?openExperience=${fixture!.experienceId}`); await expect(page.locator(".group-picker-current")).toBeEnabled();
-    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await expect(page.getByRole("menuitem", { name: "Group…", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Deck menu", exact: true }).click(); await expect(page.getByRole("menuitem", { name: "Group settings", exact: true })).toHaveCount(0);
     await page.getByRole("menuitem", { name: "Progress", exact: true }).click();
     await expect(page.getByLabel("Progress perspective", { exact: true })).toHaveValue(fixture!.otherId);
     await expect(page.getByLabel("Progress perspective", { exact: true }).locator("option:checked")).toHaveText("My Progress in Group");

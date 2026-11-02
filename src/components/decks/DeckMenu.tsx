@@ -14,7 +14,7 @@ type DeckMenuProps = {
   archiveDisabled?: boolean;
   membershipAction?: { label: string; disabled: boolean; onSelect: () => void };
   progressAction?: { disabled: boolean; onSelect: () => void };
-  groupAction?: { label: "Add as Group" | "Group…"; disabled: boolean; onSelect: () => void };
+  groupAction?: { label: "Add as Group" | "Group settings"; disabled: boolean; onSelect: () => void };
 };
 
 export default function DeckMenu({ deckId, deckTemplateId, editHref, showEdit = true, deckTitle, onArchive, archiveDisabled = false, membershipAction, groupAction, progressAction }: DeckMenuProps) {

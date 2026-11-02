@@ -1,0 +1,286 @@
+# Group Experiences — architecture sanity check
+
+Review date: 2 November 2026. Source baseline: `8433169221c8ac938111d57b82a367e91ba062e6`, branch `feat/group-experience`. The working tree was clean at the start.
+
+## Status and how to resume
+
+**Subsequent founder decision — 2 November 2026:** Option B is approved for both media and reflections, retaining the three core Group collections and existing personal embedding. The two questions in §E are now resolved. Reflection order is: ordinary own Card Personal first, then Group reflections creation-newest-first; own Group Card current Group first, then all remaining reflections creation-newest-first with undated legacy Personal after dated entries; Group-wide shared reflections creation-newest-first with author labels. Missing current-Group text never retargets editing. Context labels/Private treatment, creator deletion after leaving and visibility-only Group hiding are confirmed. `groupCardData` is the preferred separately commissioned future rename; multiple-Deck details remain a separate project. The [updated engineering plan](group-experience-engineering-plan.md), especially §§6 and 11, is authoritative. The comparative analysis and provisional wording below remain the original review record; they are not outstanding requests to reopen these decisions. This approval is documentation-only and authorises no implementation or rename.
+
+**Review complete. No implementation authorised or performed.** Read §D for the recommendation and §E for the decisions before commissioning contribution implementation. Only this report and the permitted product/permission corrections in the overarching engineering plan were changed. No code, tests, configuration, database records, services or commits were changed. Checkpoint 5.7 and Phases 6 onward have not begun.
+
+Source and test inspection establishes the findings below; this review did **not** rerun application suites or benchmark a live database. Existing tests are identified as evidence of coverage, not claimed as newly passing. No production Atlas or media-provider operations were performed. Historical implementation handoffs are supporting evidence, not substitutes for current code.
+
+## A. Current architecture
+
+### Implemented relationships
+
+```mermaid
+flowchart TD
+  U[users] --> PD[Embedded decksData: personal membership / adoption / navigation]
+  U --> PC[Embedded cardsData: one per user + CardTemplate]
+  U --> PT[Embedded direct Item tests / retained assignments]
+  PC --> L[Personal Steps / confidence / Card tests]
+  PC --> P[Personal media references / one reflection string / private Info references]
+  PD --> DT[Deck roots and immutable Deck versions]
+  PC --> CT[Card roots and immutable Card versions]
+  G[groupExperiences] --> DT
+  G --> CS[Selected Card versions / structure and adoption revisions / direct Group Item tests]
+  G --> M[groupExperienceMembers: unique experience + user]
+  M --> U
+  G --> GC[groupCardState: unique experience + CardTemplate]
+  GC --> CT
+  GC --> GL[Group-owned Steps / confidence / Card tests]
+  G --> R[groupOperationReceipts]
+  M --> S[groupRemovalLearning: latest frozen scalar snapshot]
+  G -. planned only .-> GM[groupMediaContributions]
+  G -. planned only .-> GR[groupReflections]
+  GM -. immutable author .-> U
+  GR -. immutable author .-> U
+```
+
+The arrows describe application relationships, not MongoDB foreign-key constraints. Physical image/video bytes live in the existing providers; MongoDB holds references and authority metadata.
+
+The founder's description is substantially correct:
+
+| Entity | Verified current implementation | Important qualification |
+| --- | --- | --- |
+| `users.cardsData` | `CardData` includes Step values, confidence, tests/list revision, media array, one reflection string, target date, private Info references, chats and a legitimate personal history-source pointer. | Uniqueness inside an embedded array is protected by application insertion/validation, not a separate per-Card unique index. Different CardTemplate IDs, including forks, remain different identities. |
+| `users.decksData` | `DeckData` holds adopted Deck version, active Card, archive/open timestamps and cadence anchor. | A Group assignment is not inserted here. A second Deck using the same Card does not create another CardData. |
+| `groupExperiences` | Name, creator/creation receipt, one selected Deck/version, retained Card selections, policy, revisions/admin count and direct Group Item tests. | `cardSelections` can retain detached Cards; current composition comes from `selectedContent`, not every retained selection. There is no implemented Group archive/delete lifecycle field or route. Retaining Group records is now a confirmed future requirement. |
+| `groupExperienceMembers` | One row per Group/user; independent Admin and follower status, access epoch/write fence, navigation, retained assignments, latest removal manifest. | Membership and ownership are separate. Removed rows remain, but are not general Group access grants. |
+| `groupCardState` | One row per Group/CardTemplate with Group Steps/readings, read revision and independent Card-test list/revision. | These are Group-owned values, **not** a second copy of each player's personal CardData. Rows survive composition changes. |
+| Supporting collections | `groupOperationReceipts`, `groupRemovalLearning`. | Receipts cover structural command replay; removal records contain scalar learning only and retain the latest generation, not an unlimited membership audit history. |
+
+Evidence: [personal models](../../../../src/lib/cards/model.ts:91), [Group models](../../../../src/lib/groupExperiences/model.ts:8), [collection/index definitions](../../../../src/lib/groupExperiences/indexes.ts:4), `GroupExperienceRepository.create/access/changeMember/open/writeLearning` in [repository](../../../../src/lib/groupExperiences/repository.ts), [adoption](../../../../src/lib/groupExperiences/adoption.ts), [removal snapshots](../../../../src/lib/groupExperiences/lifecycle.ts).
+
+### Implemented versus planned
+
+Phases 1–4 and the commissioned Phase 5 foundations, scoped reads and 5.5–5.6 presentation exist. Group media/reflection repositories, routes, galleries and reflection carousel do **not** exist yet. [GroupCardBack](../../../../src/components/group-experiences/GroupCardBack.tsx:8) explicitly remains learning-only. A test inserts a dummy `groupMediaContributions` record to prove removal does not cascade; that is not an implemented media feature.
+
+The plan has stale status wording: §6.2 calls several implemented collections “Proposed” and says Group assessment lists do not exist; §9.3's “not implemented by 5.0” is a historical baseline, not today's state. Actual `GroupCardState.tests/testsRevision`, `GroupExperience.itemTests/itemTestsRevision`, and [assessment repository](../../../../src/lib/groupExperiences/assessments.ts) settle this. This review records the discrepancy rather than performing an unrelated status rewrite of the plan.
+
+The newly confirmed history, reflection labels/editing/deletion and Admin-hiding rules are **requirements**. Storage alternatives in §C and proposed contracts/indexes in §D are **recommendations awaiting approval**. They have not been silently substituted into the plan.
+
+## B. Findings
+
+### B1. Retain the three core Group collections
+
+Their separation is useful, not cosmetic:
+
+- Experience structure/settings/adoption have a different lifetime and concurrency boundary from each member's authority/navigation.
+- Membership indexes support both “my Groups” and “this Group's followers” without fetching all roster data in the experience document. Retained assignments/removal state stay associated with the correct person.
+- Separate Card rows avoid putting every Card's learning/test list in one shared experience document. Exact `(experienceId, cardTemplateId)` queries and first-row uniqueness are straightforward.
+- Narrow scalar reads and separate assessment projections make ownership/security review tractable. `personalLearningForUsers` projects selected fields in Mongo, not full foreign CardData; the contribution implementation must retain that discipline.
+- Existing transaction/fence/revision infrastructure is reusable. [withMongoTransaction](../../../../src/lib/mongodb.ts:30) uses snapshot reads and majority writes. Membership changes and writes touch the relevant member fence, preventing removal from racing an authorised write unnoticed.
+
+There are still real contention points. The same Admin's writes can share a member fence; scalar and assessment writes on the same Group Card share a document even though they have separate logical revisions; direct Item tests share the experience document and one list revision. Transactions can retry. This is reasonable for the club trial, not a claim of unrestricted parallelism.
+
+Personal embedding versus Group separation is intentional: personal data is predominantly owner-local; Group data is shared by multiple actors, queried by roster and moderated separately. Embedding everything for symmetry would enlarge the shared mutation/read boundary. Conversely, normalising all personal learning would disrupt well-tested identity and adoption behaviour without solving the contribution requirements better.
+
+Reviewed coverage includes [Group integration](../../../../tests/group-experience.integration.ts), [transactional management](../../../../tests/group-experience-management.integration.ts), [lifecycle races](../../../../tests/group-experience-lifecycle.integration.ts), [projection/peer tests](../../../../tests/group-experience-perspectives.integration.ts) and [capacity fixtures](../../../../tests/group-experience-capacity.integration.ts). The capacity tests exercise 20×12 and 40×24 learning scenarios, not future media-feed performance. They do not establish a production throughput promise.
+
+### B2. One personal history does not require one physical document
+
+One authoritative owner/Card identity and one coherent owner-visible history can be implemented with referenced records. Putting every upload in CardData is not necessary to satisfy the principle. The same asset record can be reached through an owner view and an authorised Group view without duplicating bytes or personal learning records.
+
+Current personal media already provides useful precedent:
+
+- `CardRepository.personalMedia/removePersonalMedia` authorise the owner's stored Card record independently of Deck membership. Removing a reference is not currently a general provider purge.
+- [personalMediaKey/visiblePersonalMedia](../../../../src/lib/cards/personalHistoryProjection.ts) retain source identity for legitimate inherited media; [resolveAccessibleCardMedia](../../../../src/lib/cardMediaAccess.ts:35) validates viewer ownership and the actual personal source chain.
+- `personalCardHistoryDTO` is actor-scoped and does not require active Deck membership. Canonical ancestry alone never grants another person's private history.
+- The older `src/lib/userCardMedia.ts` contains a Deck-based image namespace. The current API calls [cards/uploadAuthorization.ts](../../../../src/lib/cards/uploadAuthorization.ts), and new personal images use `user-cards/{user}/{card}/...` in [cards/media.ts](../../../../src/lib/cards/media.ts:10). The legacy helper is not evidence that current media ownership is per Deck.
+
+Do not unify distinct forks by matching titles or canonical ancestry. Existing legitimate personal media inheritance should remain intact; the proposed owner aggregation concerns the same exact CardTemplate. Expanding new Group contributions through fork ancestry would be a separate policy, not an automatic consequence of shared history. Current forks copy the reflection text at initialisation and use live source history for media/tests; reflections are not currently a live multi-source carousel ([forks.ts](../../../../src/lib/cards/forks.ts:69)).
+
+### B3. The genuine inconsistencies are in the future contribution rules
+
+The previous §11.1 excluded uploads from other origins even in the author's own view. The previous §11.2 allowed Admin clear to erase the text. The previous media removal path combined moderation, tombstone and provider deletion. Those behaviours cannot satisfy the confirmed requirements.
+
+Fixing these requires separate **owner authority**, **origin**, **current Group visibility** and **deletion**. It does not require changing shared learning, Group assessment ownership, or the three core collections. A Group-origin contribution is personally authored content with a Group audience, not a Group-owned learning result.
+
+Personal reflection has additional gaps: `CardData.reflection` is a string, `setReflection` requires an ordinary working Card, and there is no reflection-specific ID/revision/creation time. Client queues serialize local writes, but do not establish server compare-and-set across devices. Owner deletion after losing all Deck access and multiple-origin selection therefore require new contracts even if storage stays embedded.
+
+Existing personal media arrays have no truthful per-upload historical timestamp. A normalised collection cannot recover missing dates. Existing stable legacy ordering must be preserved without inventing times from `CardData.updatedAt`.
+
+### B4. Group Admin and application Admin are separate
+
+[auth.ts](../../../../src/lib/auth.ts:67) exposes account `isAdmin`. Current uses include creator preview capability. It is not an implemented general media/reflection deletion privilege. [Group authorization](../../../../src/lib/groupExperiences/authorization.ts) uses `GroupMember.isAdmin`, with no account-Admin bypass. [Card media access tests](../../../../tests/card-media-access.integration.ts:35) explicitly reject foreign media access based on template ownership/Admin status.
+
+Recommend implementing only creator deletion and Group hiding in the contribution phases. Record privileged deletion as an Organisations/safeguarding backlog item requiring a separately defined capability and accountable operation. Do not turn either Boolean into an unreviewed application-wide delete route. No Organisations files were edited.
+
+### B5. `groupCardState` versus `groupCardData`
+
+The initial implementation commit `eedccd2` already called the sparse learning-only model `GroupCardState`. That describes mutable values separate from selected immutable content, but there is no discovered technical dependency on the word “State”, nor evidence of a deeper documented naming requirement. Since tests were subsequently added, “Data” is equally accurate. It must still mean **Group-owned** Card data, not follower CardData or an entire personal-shaped record.
+
+Recommend accepting `GroupCardData` as a future naming cleanup, independently of storage design. It has a small semantic benefit and no new feature value. A TypeScript-only rename is straightforward; a physical collection rename is an operational migration, not just search-and-replace.
+
+Direct current references found:
+
+- Source: `src/lib/groupExperiences/{model,indexes,repository,assessments}.ts` (`GroupCardState`, `GROUP_COLLECTIONS.states`, `states()`). Indirect consumers use `repo.states()` in learning/assessment paths and would need compilation/test verification if that accessor is renamed.
+- Tests: `tests/group-assessments.integration.ts`, `tests/phase2/group-progress-preview.browser.ts`; Group fixture/index tests consume repository constants indirectly.
+- Provisioning: `createGroupExperienceIndexes/assertGroupExperienceIndexes` in `src/lib/groupExperiences/indexes.ts`, called by repository readiness checks and fixture helpers `tests/helpers/{groupExperiences,groupProgressReview,groupReviewFixture}.ts`, follow the central collection definition. No dedicated Group index provisioning script was found under `scripts`. The explicit identity index name need not change.
+- Documentation: overarching plan, Phases 2–3 handoff, Phase 5 review; the Organisations draft also mentions the old name. Preserve historical records or annotate rather than rewriting their meaning; do not modify unrelated Organisations work here.
+
+Before any rename: inventory actual environments/collection existence, pause relevant writes for a small coordinated cutover, preserve documents/indexes/receipts, switch the constant and verify index assertions and reads/writes. Never leave old/new collections both writable. Disposable fixtures can be recreated; any non-disposable records need an explicit authorised migration/rollback procedure. Do not assume there are no records merely because there is no general user base. No collection inventory against a live database or rename was performed.
+
+### B6. Multiple Decks: compatible foundation, more than moving fields
+
+Moving the single Deck fields into an initial Deck entry is a plausible migration seed. It is not the whole implementation. Current assumptions appear in `selectedContent/selectedCard`, adoption review/receipts, creation manifests, per-member `activeCardId`, removal manifest `deckVersion`, Progress scope/destinations and the mounted Group Deck scene.
+
+Keep Group identity, membership, contribution ownership and `(experienceId, cardTemplateId)` contribution lookup independent of Deck position. Capture actual originating Deck as optional provenance where available; it must not become an ownership key. Current per-Group Card state is a good fit **if** the future product wants shared Group values for a Card appearing in two Group Decks.
+
+Future project decisions: one Group-selected version per Card versus different selections by Deck; which scope Group Progress summarises; one shared Group Card learning history versus per-Deck results; per-Deck navigation and removal manifests. Do not silently choose “highest version” for overlapping Group Decks. Retained-reference union/dedup utilities can be reused, but lifetime personal eligibility is not a replacement for current Group scope. No present migration or speculative Deck array is warranted.
+
+## C. Architecture comparison
+
+Effort is qualitative and relative to this codebase, including integration/testing—not elapsed-time or migration-volume estimates. All viable options still need protected Group allocation/delivery, the new permissions, owner history composition and future presentation work. These requirements must not be counted as unique costs of one option.
+
+### C1. Media: all five alternatives
+
+| Option | Requirement fit / ownership | Query behaviour | Reuse, implementation effort and disruption | Robustness / maintenance / adaptability | Trial consequence |
+| --- | --- | --- | --- | --- | --- |
+| **A. Original Group-only storage/presentation** | Fails continuous owner history and post-leave owner access; original moderation also fails hide/delete distinction. | Simple experience/Card feed; owner retrieval incorrectly gated by membership. | Reuses planned Group path, but no implemented feature is being preserved by keeping its wrong semantics. | Independent records are useful; exclusion of owners is not. Fixing retrieval/permissions turns it into B. | Do not ship unchanged. |
+| **B. Separate Group records, unified owner history** | Fully fits with immutable author/origin, visibility separate from deletion and owner endpoints independent of membership. | One indexed author/Card query across all Group origins plus existing embedded personal source; one Group/Card query for Group feed. No per-Group loop. Mixed chronological pages need a bounded merge cursor. | High reuse of personal paths and planned Group lifecycle. Moderate new feature work, low migration disruption. Existing bytes/arrays remain authoritative. | Two source adapters and permission paths remain, but one display contract and explicit source dispatch prevent duplicated UI. New growing Group histories are independent records. Future normalisation stays possible. | Recommended balance; requires substantive owner-feed/permission work, not merely changing one filter. |
+| **C. Extend personal CardData media array** | Fits ownership; optional origin/visibility per entry supports a single Group per upload. | Owner reads simple. Group chronological feed needs filtered nested-array aggregation across authors, including former authors; current roster alone is insufficient. Cross-author paging/counts and indexes are less direct. | Reuses array, but changes sanitizers, media contracts, appends, removals, validation and foreign-read boundaries. Moderate-to-high integration effort despite few collections. | Uploads and moderation write user documents also used by learning; arrays grow. External upload reservations/tombstones still needed. Appending an array does not solve allocation/retry safety. | Feasible for a handful of users, but adds complexity in the new shared feed without eliminating lifecycle machinery. Not preferred. |
+| **D. Common normalised media collection** | Clean author/Card identity with nullable personal/Group origin and separate visibility/deletion. No sharing array required. | Owner and Group queries both direct and pageable; simpler chronological paging and one contribution mutation path. | Best final persistence uniformity. Highest immediate adaptation of working DTOs/cache/media delivery/owner deletion/fork-source readers and old array APIs. Medium-to-high scoped migration effort; provider bytes need not move. | Less permanent source branching; excellent indexing and row-level lifecycle isolation. Migration must preserve IDs, old order, exact source authority and URLs/proofs. A transitional dual reader is still needed until cutover. | Credible alternative now, but extra personal-path regression exposure before trial. Worth choosing if one persistence model is a priority in its own right; not required for confirmed behaviour. |
+| **E. Independent personal CardData per context** | Contradicts shared progress/confidence/tests/history. Unioning copies requires deciding which is authoritative. | Simple context reads, difficult coherent owner history and cross-context edits. | High disruption to all completed foundations, cache keys, Framework eligibility and assessment history. | Duplicated facts, reconciliation and migration dominate; multiple contexts become competing histories. | Reject. Context-specific authored contributions do not justify context-specific learning copies. |
+
+MongoDB supports both embedding and references according to access patterns; collection count alone is not the design criterion. [MongoDB data-model guidance](https://www.mongodb.com/docs/manual/data-modeling/).
+
+**B versus D:** D is materially cleaner for storage, pagination and lifecycle testing. B is not equally simple: the merged cursor and two ownership adapters are real ongoing costs. Nevertheless, the current personal media stack is already source-aware, and the approved single-origin/no-resharing policy keeps B bounded. B does not require duplicate records or membership traversal. I recommend B unless the team explicitly elects the personal-media migration now. This is not a recommendation to make a universal content abstraction and leave two uncontrolled implementations behind it.
+
+Testing cost follows those differences. A can have passing Group-feed tests while failing the actual product requirement. B needs cross-source pagination/deletion/cache tests plus each source's authority tests. C needs nested-array projection and cross-author feed tests alongside whole-user write conflicts. D needs a stronger one-time migration/legacy-adapter suite, then benefits from one row lifecycle. E would require ongoing reconciliation tests for duplicated learning histories. None avoids the permission/race matrix in §D5.
+
+D would mean moving references, not copying media files: preserve `(author, exact source Card, media ID)` identity, known provider metadata and legacy order; route new writes through one authority, reconcile old rows before deleting old references, and retain compatible reads during a controlled cutover. Historical timestamps/provenance remain unknown where absent. Old personal endpoints and personal fork deletion must continue to target the correct item. Do not maintain two mutable authoritative copies indefinitely.
+
+### C2. Reflections
+
+| Storage option | Fit and effort | Strengths / weaknesses | Recommendation |
+| --- | --- | --- | --- |
+| Original Group-only rows + inaccessible personal history | Fails confirmed cross-context author read/delete and Admin hiding. | Good unique per-context identity; wrong access semantics. | Correct the semantics. |
+| **Existing personal string + separate Group reflection rows** | Fits with an owner query, typed targets, owner deletion and current-context editing. Moderate feature work; small personal contract extension. | No bulk migration; natural unique author/Card/Group key; all Group rows fetched in one indexed query. Legacy personal source needs revision/deletion handling and has unknown creation time. | **Recommended with B media.** Share read/mutation contracts, not duplicated carousel implementations. |
+| Context reflection array embedded in CardData | Fits but changes the existing scalar shape or requires side-by-side compatibility. | Simple owner retrieval, awkward Group-wide feed/moderation, shared user-document writes. Only one string per context means growth is less severe than media. | No compelling advantage over separate rows. |
+| **One normalised reflection collection, personal origin nullable** | Clearest uniform target/revision model; migration is smaller than media migration. | Unique author/Card/context, one edit/delete path and chronology. Existing personal scalar/editor/cache must migrate; old creation dates remain unknown. | Good alternative if choosing D or explicitly preferring uniform reflection storage. Not necessary for the trial requirement. |
+| Whole CardData copied per context | Fails one-learning-history principle even though context-specific reflection text is legitimate. | Creates much wider duplicated state than required. | Reject. |
+
+Media and reflections need similar ownership/visibility rules but different lifecycles. Media has upload allocation, provider processing, many items per context and provider cleanup; reflection has one logical slot per author/Card/context and revisioned text edits. A single polymorphic `contributions` collection or generic repository would introduce type-dependent uniqueness and lifecycle branches without a demonstrated query benefit. Prefer separate domain repositories/collections, reusable identity/capability/error conventions and a shared presentation contract where useful. Choosing D for media does not require merging reflection records into that collection.
+
+## D. Recommendation and consequences
+
+### D1. Adopt B's retrieval and ownership design; retain the Group core
+
+Recommended next architecture, **not yet approved for implementation**:
+
+1. Keep personal learning, personal media arrays and personal reflection compatible with current storage.
+2. Implement independent Group-origin media and reflection rows, as the plan already anticipated, but treat them as author-owned contributions whose audience is one Group.
+3. Give the owner a unified history read across all origins, with owner-specific delivery/delete rights. Keep foreign Group feed/read/delivery separately visibility-filtered.
+4. Reuse existing gallery/player/download/editor components through typed source adapters. Do not copy Group uploads into CardData or create synthetic personal Deck membership to make existing upload APIs pass.
+5. Keep protected-hosting/allocation/security prerequisites already agreed. Their implementations are still future work; this review neither reopens nor claims to complete them.
+
+The collection name `groupMediaContributions` describes origin, not ownership. Document that explicitly. This is preferable to renaming it while leaving the old membership-only access rule intact.
+
+### D2. Proposed minimal identity and lifecycle
+
+Illustrative fields, **not a schema change**:
+
+```ts
+// Common concepts, not a proposed generic base repository.
+{
+  contributionId,
+  authorUserId,              // immutable authenticated creator
+  cardTemplateId,            // exact owner-history target
+  originExperienceId,        // immutable Group origin; nullable in option D
+  originDeckTemplateId,      // optional known provenance, not authority
+  groupVisible,              // at most the originating Group; no sharing list
+  revision,
+  createdAt, updatedAt,
+  deletedAt                  // underlying creator deletion, separate from hide
+}
+// Media additionally: allocation status, trusted asset reference, uploadedAt,
+// immutable proof binding, cleanup status, retained anti-replay reservation.
+// Reflection additionally: text; unique author/Card/origin slot.
+```
+
+A source's role at creation is optional attribution, not its owner. Never use `source: group` to make an Admin upload ownerless or collectively deletable.
+
+**Jack example:** upload creates one author-owned attached record with Galway origin and `groupVisible=true`. Admin hide sets visibility false and advances revision; text/reference/bytes/author/origin stay. Other members' queries/delivery deny it. Jack's owner query still returns it; viewing through Galway computes `Private`. Leaving does not change owner read/delete. Jack's later creator delete tombstones the record everywhere and invokes the already-planned cleanup for an exclusively allocated asset. No duplicate file or CardData is created.
+
+Use distinct commands such as `hideFromGroup` and `deleteOwnContribution`, not one “remove” method that guesses intent from the role. Owner deletion is available even if the author also happens to be an Admin. Group-scoped author edit is not a grant to edit somebody else's reflection. An API checking `author === actor || member.isAdmin` and deleting underlying content would be incorrect.
+
+Owner access to the original Group's display name is allowed by the confirmed reflection requirement even after leaving. Resolve only the retained origin's minimal name for that author; it does not grant roster/Deck access. This is intentionally different from Phase 5 foreign assessment-origin disclosure. Keep those existing assessment policies unchanged.
+
+### D3. Retrieval, indexes and actual performance expectations
+
+Illustrative B owner query:
+
+```js
+find({ authorUserId: actor, cardTemplateId, state: "attached" })
+  .sort({ uploadedAt: -1, contributionId: -1 }).limit(pageSize)
+```
+
+No `experienceId` filter or current membership join belongs in this ownership predicate. Hidden items remain `attached`; deletion is a different state. A useful author index is `(authorUserId, cardTemplateId, state, uploadedAt DESC, contributionId DESC)`. A Group feed index starts `(originExperienceId, cardTemplateId, state, groupVisible, uploadedAt DESC, contributionId DESC)`. Use the actual stored field names when implementing, and verify `explain` on representative disposable data. The plan's optional uploader index becomes functionally justified by the confirmed owner-history query.
+
+This retrieves across three, four or many historical Groups with one database query for that page. Query cost still depends on matching records/page size, index selectivity and returned metadata—not a promise of constant execution time. Additional origins can be resolved in one bounded `$in` lookup per page, not one HTTP/database call per Group. Compound indexes support their leading field combinations; an experience-first index alone is not the appropriate author-history index. [MongoDB compound-index documentation](https://www.mongodb.com/docs/manual/core/indexes/index-types/index-compound/).
+
+Owner history B needs the existing embedded personal source plus that Group-contribution query, with independent cursors and stable tie-breakers merged into a bounded page. Do not load every historical Group or all images/players to find the next five. Old undated personal entries retain their existing per-source order in the legacy segment. D removes this dual-source paging cost, but still needs legacy ordering metadata.
+
+An Admin-only uploader or never-opened Group-only learner may have **no personal CardData row**. The unified owner reader must still return their legitimately owned contribution rows; it cannot call the existing `personalMedia` method's exactly-one-personal-record gate and fail the entire response. Treat a legitimately absent legacy personal source as absent, while keeping duplicate/malformed source errors explicit. Do not create a personal Deck or CardData solely to make contribution retrieval/deletion work. Exact contribution ownership is sufficient for its own read/delete path.
+
+For reflections: unique `(originExperienceId, cardTemplateId, authorUserId)` and author-first `(authorUserId, cardTemplateId, createdAt DESC, contributionId)` support both own history and Group feeds; a Group-first visibility/chronology index supports the carousel. One row per context is small for the trial, but use bounded pages if historical groups become numerous. Fetch minimal Group names in a batch. Never require membership in every origin to read the author's rows.
+
+Group feeds must not be built solely from current follower IDs: already-approved former-member contributions would disappear. Filter contribution visibility and current viewer authority; add the subject filter for authorised individual inspection. Do not broaden the existing scalar/assessment projection to include contributions. Use new narrow content projections, fetching only permitted records and necessary fields in Mongo.
+
+### D4. Reflection UI/state reuse and required changes
+
+[BackCardReflectionFragment](../../../../src/components/decks/BackCardReflectionFragment.tsx) is reusable rendering/tap/gesture infrastructure, not an existing multi-reflection controller. [WorkingFocusedCardView](../../../../src/components/decks/WorkingFocusedCardView.tsx) currently keeps one string draft/editor target by Card; [WorkingCardStore](../../../../src/lib/cards/workingCardStore.ts) caches a single reflection and personal media overlay. Simply passing a second string will not safely implement the requirement.
+
+Use one reflection display list with per-entry source/author/origin identity, label and server capabilities. A controller can choose labels and editing targets while preserving the existing fragment/editor. The current edit target must be the exact `(authenticated author, CardTemplate, current personal-or-Group context)` slot, not the currently rotating item, list index, newest item or mutable Group name. An absent current slot is distinct from displaying an older other-context reflection.
+
+Personal own view: all own entries, origin labels as confirmed; only Personal editable. Own Group view: same own entries, current Group editable while authorised, other entries read-only with owner delete, Private labels according to current Group sharing. Group-wide view: currently shared entries with author labels. Inspected follower: only that person's currently shared entries; no owner controls/private placeholders. No new carousel gestures or delete affordance are designed by this review; the future implementation must use the approved interaction review.
+
+With B, add a reflection-specific revision to the existing personal string and a membership-independent owner clear/delete operation. This is a small future contract extension, not a learning migration. Do not substitute whole-Card `updatedAt` as the reflection CAS: learning changes it too. Existing reflection creation time is unknown and must not be backfilled from learning timestamps. Bind drafts and responses to actor/source/context/revision and discard them on identity switches.
+
+Owner deletion from any context dispatches by exact source, invalidates that owner's Card contribution resource across personal/Group views, and refreshes affected visible Group feeds. Foreign Group responses stay in context-keyed, revocable resources; they never enter the ordinary personal working store. Reuse existing lease/generation patterns from [groupResource](../../../../src/components/group-experiences/groupResource.ts), but include contribution revisions: a hide is not necessarily a membership/structure change.
+
+### D5. Concurrency and lifecycle checks required before shipping contributions
+
+| Race or edge | Required outcome and simplest safeguard |
+| --- | --- |
+| Removal during upload | Provider transfer is outside the transaction. Final attach rechecks current Group capability/epoch and participates in the existing member fence. If removal wins, reject attachment; never silently convert the failed Group upload into a personal one. If attach wins, the completed item remains owner-readable after removal. Reuse allocation retry/cleanup conventions. |
+| Removal during reflection Save | Current-context edit fences the author membership, CASes the exact reflection and reauthorises on retry. Removal winning prevents the Save; existing text remains owner-readable/deletable. A remaining Admin role is still current membership; loss of all access is the relevant boundary. |
+| Remove and rejoin before an old operation completes | Bind to captured access generation; a new membership grant must not validate an old in-flight command. Rejoin can resume newly authorised current-context editing, not replay stale writes. |
+| Admin hides while author edits | Hide and edit contend on the same row revision. A losing edit conflicts; an edit retried after reload still cannot set visibility true. Text edits never derive visibility from “active member”. |
+| Admin hides while author deletes | Owner deletion wins globally or a stale action retries/returns conflict. Hide must not recreate a deleted record. Creator delete may proceed after a visibility revision conflict using fresh state without needing Group membership. |
+| Delete versus delayed commit/Save | Keep stable allocation/slot identity and terminal deletion/operation reservation. Never unconditional-upsert on retry. An intentional new upload has a new identity; a stale request never resurrects the old one. Reflection slot reuse must require a fresh, revision-checked author action. |
+| Archived/closed Group | Owner retrieval/delete skips membership/activity gates; retained Group identity supplies a minimal origin label. No cascade deletion. Group routes' future closure policy remains separate from owner history. |
+| Removed Card / changed adopted version | Author contributions remain keyed to the exact CardTemplate, not the visible Step position or current adopted version. Do not erase them with composition changes or resurrect removed navigation. Current-scope creation still validates the selected Card. |
+| Private/cross-Group leak | Query authorised shared rows only for foreign views; no hidden titles/counts/URLs in payloads. Owner union and foreign feed are separate read contracts. Cache keys include actor, experience, subject, source and authority generation. |
+| Hide after browser download | Deny fresh reads/grants; expire/invalidate Group caches using existing mechanisms. Existing bearer-link/download limitations remain as already agreed; no claim of remote erasure or new realtime infrastructure. |
+| Same video uploaded in another Group | Two separately allocated items, as confirmed. Delete/hide one exact identity only; no content-hash deduplication linking their ownership or visibility. |
+
+Existing transaction machinery is a sound basis. It must be extended at these precise contribution boundaries, not replaced by a global operation lock, new permission engine or background processing platform.
+
+### D6. Priorities, phase impact and verification
+
+**Necessary for confirmed product behaviour:** unified owner histories, owner read/delete after leaving, exact-source editing, independent hide/delete commands, non-destructive Group lifecycle, correct Private/origin/author labels, protected foreign projections and race safeguards. These are not optional improvements.
+
+**Material architectural improvements recommended:** author-indexed independent Group contribution records; narrow typed owner/Group read contracts; reflection CAS/target identity; common rendering with source-specific mutations. Keep providers and learning ownership unchanged. D is an optional alternative with a meaningful simplification benefit, not a required fix.
+
+**Marginal/optional:** `groupCardData` naming cleanup. It should not hold up useful contribution work. Avoid renaming for the sake of renaming every related “state” variable.
+
+**Defer:** full personal storage normalisation unless explicitly chosen; combined media/reflection collection; multiple-Deck support; historical browsers; privileged Organisations/Safeguarding deletion; restore/unhide UX; new upload sharing; new hosting/security decisions. Do not infer permission to implement these.
+
+Completed Phases 1–3 collection/learning/adoption models need no rewrite. Future Phase 6 must add owner authorisation and split hide/delete; Phase 7 must integrate owner union/gallery/private labels; Phase 10 must extend the shared reflection renderer/controller and personal deletion/revision contract. Phase 4 personal/Group Card adapters will be touched by those future features, with existing geometry/gesture regressions preserved. Phase 5 metrics, assessments, inclusion and origin-redaction rules remain unchanged. Info Cards are a separate approved ownership/audience domain; this prompt does not authorise changing their deletion model.
+
+Before implementation acceptance, add disposable integration tests covering the table above and the full Jack example; assert foreign database projections as well as JSON. Verify author/Card indexes with query plans, mixed-source page stability, same asset IDs at different sources, shared personal cache invalidation, legacy ordering and lack of false dates. Reuse personal media access/mutation tests and Group lifecycle races. Reflection tests need local/cross-device conflicts, all owner/context combinations, labels, current-target editing, retained deletion and hidden-row preservation. Later iPhone checks cover carousel text, gallery navigation and touch controls; they do not substitute for ownership/concurrency tests.
+
+### D7. Documentation changes made
+
+The overarching plan was corrected only for confirmed requirements: overview/permission tables, contribution ownership, continuous history, reflection presentation, creator deletion versus Group hiding, provider-cleanup applicability and corresponding future-phase acceptance/concurrency wording. Existing storage names remain proposals. No new storage option was adopted, and no unrelated Phase 5 status or Organisations document was rewritten. Earlier handoffs remain historical records.
+
+## E. Questions requiring founder decisions
+
+1. **Storage direction before contribution implementation:** approve **B for media and the equivalent existing-personal-plus-Group-row reflection design**, or choose **D's single media collection and/or normalised reflections** now? Recommendation: B for both, with the explicit unified read contracts and race protections above. D is justified if the team values one persistence/lifecycle path enough to accept the personal-stack migration and wider regression work before the trial. This is the only immediate architectural decision needed; no implementation is authorised by this report.
+2. **Legacy Personal reflection ordering:** old Personal reflections have no original creation timestamp. When displayed with Group reflections, should an undated Personal entry precede or follow the dated entries? Recommendation: a stable undated block after the dated newest-first entries, without a fabricated date; keep the edit target tied to current context regardless of display position. The plan already settles legacy **media** ordering but does not establish equivalent reflection chronology. This can be decided at the reflection presentation checkpoint, not as a prerequisite for the storage choice.
+
+No further decision is needed on creator ownership, post-leave access/deletion, Group hiding, Private labels, no existing-upload sharing or retained Group identity: this prompt settles those. No restore/unhide capability is proposed now. The multiple-Deck version/scope questions belong to that later project and should not delay the present architecture decision.

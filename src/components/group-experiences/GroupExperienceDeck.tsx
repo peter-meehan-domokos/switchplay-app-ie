@@ -102,7 +102,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
           try { rememberGroupReturn(sessionStorage, actor, { experienceId, cardId: currentCardId, rotation, focused, selection: shown, returnToProgress: progressReturn ?? undefined }); } catch { /* Optional storage. */ }
           router.push(groupProgressHref(experienceId));
         } }}
-        groupAction={boot.isAdmin ? { label: "Group…", disabled: !state.verified, onSelect: () => {
+        groupAction={boot.isAdmin ? { label: "Group settings", disabled: !state.verified, onSelect: () => {
           // Pin the displayed perspective before changing roles. A role-default
           // change after self-demotion must not replace a still-valid selection.
           settingsPerspective.current = shown; setSelection(shown); setSettingsOpen(true);
