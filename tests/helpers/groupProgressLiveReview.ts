@@ -14,9 +14,13 @@ export async function seedLiveGroupProgress(cards: CardRepository, uri: string, 
   assertDisposableDatabase(uri, cards.db.databaseName);
   const seeded = await seedGroupProgressReview(cards, uri, actor, other), groups = new GroupExperienceRepository(cards), now = new Date();
   const { cards: fixtureCards } = seeded.fixture, experienceId = seeded.data.experienceId;
+  // Rename only this account's display identity; its ID, email login, roles and
+  // all associated learning/results are unchanged. Other harness modes retain
+  // their established `other` username and fixtures.
+  await cards.users().updateOne({ _id: new ObjectId(other) }, { $set: { username: "Aoife Kelly" } });
   const framework = { ...seeded.fixture.framework, areas: seeded.fixture.framework.areas.map(area => ({ ...area, items: area.items.map(item => ({ ...item, cardTemplateIds: [...item.cardTemplateIds] })) })) };
   await groups.saveSettings(actor, experienceId, { operationId: "live-progress-peers", expectedStructureRevision: 0, allowFollowerInspection: true });
-  const origin = await groups.create(actor, { name: "Earlier practice with a deliberately long originating Group name", operationId: randomUUID(), adminIds: [], followerIds: [],
+  const origin = await groups.create(actor, { name: "Connacht U18 Regional Basketball Development Squad", operationId: randomUUID(), adminIds: [], followerIds: [],
     manifest: { deckTemplateId: seeded.deckId, deckVersion: 1, cards: fixtureCards.map(card => ({ cardTemplateId: card.cardTemplateId, version: 1 })) } });
   for (const [index, card] of fixtureCards.entries()) {
     const tests = seeded.fixture.cardTests[card.cardTemplateId].map((test, i) => ({ id: test.id, result: test.result, date: test.date, createdAt: new Date(test.createdAt),
@@ -54,5 +58,5 @@ export async function seedLiveGroupProgress(cards: CardRepository, uri: string, 
   framework.areas.push({ id: "review-outside-area", title: "Additional practice", items: [
     { id: "review-outside-item", title: "Future practice", cardTemplateIds: [outside[1]] }, { id: "review-empty-item", title: "Unassigned practice", cardTemplateIds: [] }] });
   return { frameworks: [framework], experienceId, frameworkId: framework.id, personalDeckId: personalDeck.deckTemplateId,
-    skippedCardId: outside[0], cardIds: fixtureCards.map(card => card.cardTemplateId), followers: seeded.followers };
+    skippedCardId: outside[0], cardIds: fixtureCards.map(card => card.cardTemplateId), followers: seeded.followers, followerLogin: "phase2-1@example.invalid" };
 }

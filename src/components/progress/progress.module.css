@@ -48,7 +48,9 @@
 /* Only the Progress page relinquishes the shared horizontal scroll container;
    Cards keep their existing shell geometry. Sticky controls follow the viewport. */
 .groupShell { overflow-x: clip; overflow-y: visible; }
-.groupShell :global(.group-progress-controls) { position: sticky; top: 0; z-index: 30; max-width: 900px; margin-inline: auto; background: #090b10; padding-block: 4px; }
+/* Content < sticky controls (10) < existing account menu (20). Comparisons
+   remain portal overlays; native modal dialogs retain the browser top layer. */
+.groupShell :global(.group-progress-controls) { position: sticky; top: 0; z-index: 10; max-width: 900px; margin-inline: auto; background: #090b10; padding-block: 4px; }
 .groupShell :global(.progress-framework-selector) { margin-block: 4px 8px; gap: 2px; }
 .groupShell :global(.group-progress-perspective) { display: flex; align-items: center; gap: 6px; }
 .groupShell :global(.group-progress-perspective select) { flex: 1; }
@@ -60,7 +62,7 @@
 .groupShell :global(.progress-back) { display: block; margin: 0 auto 8px; border: 0; background: none; color: #b5bdc9; min-height: 36px; }
 .shell :global(.progress-skip) { font-size: 10px; font-weight: 400; color: #b5bdc980; }
 .shell :global(.progress-outside) { color: #b5bdc928; font-weight: 400; }
-.shell :global(.progress-outside-title) { text-decoration: line-through; text-decoration-color: #b5bdc940; text-decoration-thickness: 1px; }
+.shell :global(.progress-outside-title), .shell :global(.progress-outside-title:not(:disabled):hover) { text-decoration-line: line-through; text-decoration-color: #b5bdc980; text-decoration-thickness: 2px; }
 .shell :global(.progress-metric-button) { border: 0; background: transparent; color: inherit; font: inherit; min-height: 28px; padding: 0; width: 100%; cursor: pointer; }
 .groupShell :global(.group-progress-modes) { display: flex; gap: 4px; align-items: center; min-height: 36px; }
 .groupShell :global(.group-progress-modes button) { border: 1px solid #343c48; border-radius: 6px; background: transparent; color: #b5bdc9; font-size: 12px; padding: 4px 9px; min-height: 30px; }

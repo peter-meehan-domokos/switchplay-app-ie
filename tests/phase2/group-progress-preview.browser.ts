@@ -44,7 +44,7 @@ for (const engine of ["chromium", "webkit"] as const) {
         const modal = page.getByRole("dialog", { name: "Assessment history", exact: true });
         await expect(modal).toBeVisible();
         await expect(modal.locator("tbody tr")).toHaveCount(7);
-        await expect(modal.getByText("Item test", { exact: true })).toHaveCount(3);
+        await expect(modal.getByText("Progress", { exact: true })).toHaveCount(3);
         await expect(modal.getByText("Find a steady base", { exact: true })).toHaveCount(2);
         await expect(modal.getByText("Control the movement", { exact: true })).toHaveCount(2);
         await expect(modal.getByRole("button", { name: "Add test", exact: true })).toBeDisabled();

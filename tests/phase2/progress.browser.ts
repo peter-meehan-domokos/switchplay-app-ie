@@ -105,8 +105,8 @@ test("the entire Tests cell provides direct CRUD, mounted indicator refresh, sou
     const before = (await f.repo.getPersonalUser(f.actor))!;
     await direct.locator("td").last().click({ position: { x: 5, y: 5 } });
     await modal(page).getByRole("button", { name: "Add test", exact: true }).click(); await form(page, "2026-10-16", "Pass");
-    await modal(page).getByRole("button", { name: "Save test", exact: true }).click(); await expect(modal(page).getByText("Item test", { exact: true })).toBeVisible();
-    await modal(page).getByRole("button", { name: "Edit test 2026-10-16 from Item test", exact: true }).click(); await form(page, "2026-10-17", "Fail");
+    await modal(page).getByRole("button", { name: "Save test", exact: true }).click(); await expect(modal(page).getByText("Progress", { exact: true })).toBeVisible();
+    await modal(page).getByRole("button", { name: "Edit test 2026-10-16 from Progress", exact: true }).click(); await form(page, "2026-10-17", "Fail");
     // Another Item's write advances the deliberately shared list revision.
     await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $inc: { itemTestsRevision: 1 } });
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -119,7 +119,7 @@ test("the entire Tests cell provides direct CRUD, mounted indicator refresh, sou
     await modal(page).getByRole("button", { name: "Resubmit reviewed change" }).click();
     await modal(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(direct.locator(".assessment-fail")).toHaveCount(1);
     await direct.getByRole("button").last().click();
-    await modal(page).getByRole("button", { name: "Delete test 2026-10-17 from Item test", exact: true }).click(); await modal(page).getByRole("button", { name: "Confirm delete" }).click();
+    await modal(page).getByRole("button", { name: "Delete test 2026-10-17 from Progress", exact: true }).click(); await modal(page).getByRole("button", { name: "Confirm delete" }).click();
     await modal(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(direct.getByRole("button", { name: /add first test/ })).toHaveText("+ Test");
     const control = row(page, "control"); await control.locator("td").last().click({ position: { x: 3, y: 3 } });
     await expect(modal(page).getByText("Source Card", { exact: true })).toBeVisible();

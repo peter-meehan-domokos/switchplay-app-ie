@@ -36,7 +36,7 @@ export function groupProgressFixture(ids = titles.map((_, i) => `progress-review
   const followerLearning = [0, 1, 2, 3].map(follower => cards.map((_, i) => learning(i,
     [0, 1, 2].map(step => (["done", "inProgress", "todo", "skipped", "todo", "done"] as const)[(i + step + follower * 2) % 6]),
     [0, 1, 2].map(step => (i + step + follower) % 7 ? 1 + (i * 3 + step + follower * 2) % 10 : null))));
-  const framework: Framework = { id: "galway-progress-review", title: "Galway practice — visual fixture", areas:
+  const framework: Framework = { id: "galway-progress-review", title: "U18 Movement & Skills", areas:
     ["Movement", "Passing", "Team sequences"].map((title, area) => ({ id: `review-area-${area + 1}`, title,
       items: ["Foundation", "Control", "Application"].map((name, item) => ({ id: `review-item-${area + 1}-${item + 1}`,
         title: `${title}: ${name.toLowerCase()}`, cardTemplateIds: item === 0 ? ids.slice(area * 4, area * 4 + 2) : [ids[area * 4 + item + 1]] })) })) };
@@ -48,7 +48,7 @@ export function groupProgressFixture(ids = titles.map((_, i) => `progress-review
     result(`review-card-${i + 1}-b`, i + 17, i % 3 !== 0)]]));
   const itemTests = Object.fromEntries(framework.areas.flatMap(area => area.items.map((item, i) => [item.id,
     [result(`${item.id}-a`, 28, i % 2 === 0), result(`${item.id}-b`, 29, i % 2 !== 0), result(`${item.id}-c`, 30, i % 2 === 0)]])));
-  return { name: "Galway Progress review", cards, framework, followerLearning, cardTests, itemTests };
+  return { name: "Galway U18", cards, framework, followerLearning, cardTests, itemTests };
 }
 
 export function projectGroupProgressFixture(fixture: ReturnType<typeof groupProgressFixture>,

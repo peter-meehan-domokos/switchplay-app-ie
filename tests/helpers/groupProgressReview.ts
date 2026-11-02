@@ -25,11 +25,11 @@ export async function seedGroupProgressReview(cards: CardRepository, uri: string
     await cards.publishCard(actor, root.cardTemplateId, 0); ids.push(root.cardTemplateId);
   }
   const fixture = groupProgressFixture(ids), now = new Date();
-  const people = ["Progress Ada", "Progress Ben", "Progress Cara"].map(username => ({ _id: new ObjectId(), username,
+  const people = ["Jack Murphy", "Emma Walsh", "Ben O'Connor"].map(username => ({ _id: new ObjectId(), username,
     email: `${randomUUID()}@example.invalid`, passwordHash: hashSync("local-test-only", 4), cardsData: [], decksData: [], createdAt: now, updatedAt: now }));
   await cards.users().insertMany(people);
   const followers = [other, ...people.map(person => person._id.toHexString())];
-  const deck = await cards.createDeckDraft(actor, { ...createDefaultDeckContent([]), title: "Populated Group Progress practice",
+  const deck = await cards.createDeckDraft(actor, { ...createDefaultDeckContent([]), title: "Movement & Skills",
     cards: ids.map(cardTemplateId => ({ cardTemplateId })) }, "public");
   await cards.publishDeck(actor, deck.deckTemplateId, 0);
   const experience = await repo.create(actor, { name: fixture.name, operationId: randomUUID(), adminIds: [], followerIds: followers,

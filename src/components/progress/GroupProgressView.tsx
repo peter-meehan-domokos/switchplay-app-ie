@@ -92,7 +92,7 @@ export default function GroupProgressView({ actor, userName, experienceId }: { a
         <select aria-label="Progress perspective" value={choices.length ? selected : ""} disabled={!choices.length} onChange={event => choose(event.target.value)}>
           {!choices.length ? <option value="">Verifying perspectives…</option> : choices.map(choice => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
         </select><button type="button" aria-label="Next Progress perspective" disabled={index < 0 || index >= choices.length - 1} onClick={() => choose(choices[index + 1].value)}>›</button></div>
-      <p className="group-progress-metadata">{state.nav?.name ?? ""}{state.nav ? ` · ${state.nav.activeFollowerCount} active Followers` : ""}</p>
+      <p className="group-progress-metadata">{state.nav?.name ?? ""}{state.nav ? ` · ${state.nav.activeFollowerCount} ${state.nav.activeFollowerCount === 1 ? "follower" : "followers"}` : ""}</p>
       <div className="group-progress-mode-slot">{state.perspective?.kind === "group" ? <div className="group-progress-modes" role="group" aria-label="Group metric display">
         <button type="button" aria-pressed={mode === "groupScores"} onClick={() => { setMode("groupScores"); setPopover(undefined); }}>Group scores</button>
         <button type="button" aria-pressed={mode === "playerAverages"} onClick={() => { setMode("playerAverages"); setPopover(undefined); }}>Player averages</button>

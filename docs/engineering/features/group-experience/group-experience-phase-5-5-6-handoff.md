@@ -2,6 +2,8 @@
 
 ## Resume here
 
+**Current follow-up commission:** approved iPhone-review refinements only, not 5.7. Implemented and verified after `974175f`: realistic fixture names, data-derived follower wording, Recorded in/Progress modal terminology, stronger outside strike and account-menu layering. This record belongs to the single focused refinement commit. Initial branch/tree were `feat/group-experience`, clean. Next is the updated physical iPhone review; obtain the refinement hash with `git log -1 --format='%H %s' --grep='^feat (group experience): refine progress review presentation$'`. The owned 4184 snapshot must be replaced with that committed code and freshly verified fixture URL; earlier unrelated review services remain untouched. No 5.7 work is authorised here.
+
 Branch `feat/group-experience`. Commission started with a clean tree at `33297bc`, the founder commit preserving the approved plan/5.0 preview after 5.4. No model change: GPT-6.1 Sol / Extra High remained appropriate.
 
 **5.5 complete:** `76064aa26117d048acea081ed5d254bc968d32ac` — `feat (group experience): integrate contextual progress navigation`.
@@ -67,7 +69,7 @@ After the 5.6 commit, start a fresh review process on a free port; earlier revie
 SWITCHPLAY_REVIEW_PORT=4184 node --import tsx scripts/test-phase2.ts --dev --lan --group-progress-live
 ```
 
-The runner prints actual LAN addresses and a direct live Group Progress URL. `phase2-test-results/review-server.json` records the new runner/app PIDs, active addresses and fixture IDs; verify these rather than using stale values. Login **phase2 / local-test-only** (Admin-only) or **other / local-test-only** (active follower). Use Overview → Progress for complete My Progress; open Galway Progress review → existing Deck menu → Progress for fixed Group learning. The final response supplies verified live URLs.
+The runner prints actual LAN addresses and a direct live Group Progress URL. `phase2-test-results/review-server.json` records the new runner/app PIDs, active addresses and fixture IDs; verify these rather than using stale values. After the approved naming refinement, login **phase2 / local-test-only** (Admin-only) or **phase2-1@example.invalid / local-test-only** (Aoife Kelly, active follower). Use Overview → Progress for complete My Progress; open Galway U18 → existing Deck menu → Progress for fixed Group learning. The final response supplies verified live URLs. Snapshot/PID/verified address details are also saved in the main workspace's ignored `phase2-test-results/group-progress-review-current.json` after review-server verification.
 
 Stop only this newly started runner with Ctrl+C in its terminal, or `kill -TERM <runner PID>` from its new metadata. The runner shuts down its Next process, mock providers and disposable Mongo; data is discarded. Do not kill unrelated listeners.
 
@@ -191,3 +193,26 @@ The overarching engineering plan, independent review, original 5.0 fixtures, pro
 - `tests/group-assessment-client.test.ts`
 - `tests/helpers/groupProgressLiveReview.ts`
 - `tests/phase2/group-progress-live.browser.ts`
+
+## Approved iPhone-review refinement record
+
+The former Progress Ada/Ben/Cara values were stored fixture usernames, not UI-generated prefixes. Review Group/Framework names now use Galway U18 / U18 Movement & Skills, retaining all canonical IDs and mappings. The three generated players are Jack Murphy, Emma Walsh and Ben O'Connor. The live fixture's existing `other` account is renamed Aoife Kelly in place; its stable user ID, email, roles and learning/tests are unchanged. Its email login remains `phase2-1@example.invalid`; non-live harness modes retain their established `other` login. The long originating Group name becomes Connacht U18 Regional Basketball Development Squad, retaining the truncation/redaction scenario.
+
+Metadata uses the server's existing active count but displays `{name} · {count} followers`, singular `follower` for one. Perspective labels and role/default logic stay unchanged. AssessmentModal changes only presentation: third header Recorded in and direct-item rows Progress (including accessible action names), Card titles unchanged, provenance still beneath the date. Stored/source DTO wording and ownership/inclusion/retry code remain untouched. Detailed context-cell popovers are explicitly deferred; none is implemented.
+
+Exact styling controls, all in `src/components/progress/progress.module.css`:
+
+- `.shell :global(.progress-outside-title), .shell :global(.progress-outside-title:not(:disabled):hover)` — `text-decoration-line: line-through`, `text-decoration-thickness: 2px` (was 1px), `text-decoration-color: #b5bdc980` (was #b5bdc940). Thickness and line brightness/alpha can be adjusted independently; text colour/weight/row geometry are unchanged. The equally specific hover selector prevents the general title-hover underline from replacing the strike.
+- `.shell :global(.progress-outside)` — unchanged `color: #b5bdc928; font-weight: 400`. Controls faint metric/Test dashes independently of the title strike.
+- `.shell :global(.progress-skip)` — unchanged `font-size: 10px; font-weight: 400; color: #b5bdc980`. Controls the separate skip label independently.
+- `.groupShell :global(.group-progress-controls)` — `z-index: 10` (was 30), below existing `.overview-menu` z-index 20 in `src/app/globals.css`. No global menu/header layout or event changes. Comparison portal remains 120; native `showModal()` assessment dialogs remain in the browser top layer above both.
+
+Verified refinement checks:
+
+- `node --import tsx --test tests/group-progress-preview.test.ts tests/group-progress-navigation.test.ts tests/assessment-history.test.ts tests/group-assessment-client.test.ts` — **19 passed, 0 failed**, including unchanged mapping/calculation, history and retry cases and the explicit human-title/canonical-ID invariant.
+- `node --import tsx scripts/test-phase2.ts --group-progress-live group-progress-live.browser.ts group-progress-review.browser.ts` — **9 passed, 4 failed** initially. All eight existing live workflow cases and the metadata lifecycle case passed. The four new browser cases initially expected alpha serialization `.502`; both engines returned `.5`. Their assertions now compare the exact authored hex colours through the same engine's CSS normalization, without broadening pixel tolerances or changing colour values.
+- `node --import tsx scripts/test-phase2.ts --group-progress-live group-progress-review.browser.ts` — **5 passed, 0 failed**. Chromium/WebKit at 390/1280 exercise actual menu pointer hit testing and successful Sign out in both personal/Group Progress after nonzero scrolling; native-dialog precedence and retained focus; comparison dismissal; original player IDs/order; exact metadata, singular/zero/dual-role counts; source terminology; hover line-through/thickness; and unchanged dashes/skip paint. Together with the eight passing existing live cases, all 13 relevant scenarios are covered.
+- `node --import tsx scripts/test-phase2.ts --group-progress progress.browser.ts group-progress-preview.browser.ts assessment-ui.browser.ts --grep 'progress\.browser\.ts|group-progress-preview\.browser\.ts|Item mode supports|Item presentation combines'` — **17 passed, 0 failed**. Existing personal Progress, static preview, direct/inherited CRUD, revisions/conflict handling, original-source edits, history ordering, responsive modal and keyboard focus remain covered. Only approved visible/accessibility terminology expectations were changed.
+- `npx tsc --noEmit --incremental false` passed; targeted `npx eslint --max-warnings 0` over the 12 changed/new TypeScript files passed with **0 errors / 0 warnings**; `git diff --check` passed. No full repository suite or production build was needed for this presentation/fixture-only follow-up.
+
+Logs: `/tmp/group-progress-review-unit.log`, `/tmp/group-progress-review-browser.log`, `/tmp/group-progress-review-browser-final.log`, `/tmp/group-progress-review-regressions.log`. Existing calculation, mutation, privacy and fixture cases are retained. No unexplained application failure remains. Only benign existing Playwright NO_COLOR/FORCE_COLOR warnings were emitted. No source/database model/API/permission changes or context-cell popovers were introduced. Physical visual acceptance and any later 5.7 commission remain separate.

@@ -1,11 +1,11 @@
 import { expect, test, chromium, webkit, type Page } from "@playwright/test";
 import { groupDeckHref } from "../../src/lib/frameworks/progressNavigation";
-const live = JSON.parse(process.env.PHASE5_LIVE_PROGRESS ?? "null") as { experienceId: string; frameworkId: string; personalDeckId: string; skippedCardId: string; cardIds: string[]; followers: string[] } | null;
+const live = JSON.parse(process.env.PHASE5_LIVE_PROGRESS ?? "null") as { experienceId: string; frameworkId: string; personalDeckId: string; skippedCardId: string; cardIds: string[]; followers: string[]; followerLogin: string } | null;
 test.skip(!live, "Requires the disposable --group-progress-live catalogue");
 const url = () => `/group-experiences/${live!.experienceId}/progress?framework=${live!.frameworkId}`;
 const row = (page: Page, id = "review-item-1-1") => page.locator(`tr[data-item-id="${id}"]`);
 const dialog = (page: Page) => page.getByRole("dialog", { name: "Assessment history", exact: true });
-async function login(page: Page, user = "phase2") { expect((await page.request.post("/api/auth/login", { data: { identifier: user, password: "local-test-only" } })).status()).toBe(200); }
+async function login(page: Page, user = "phase2") { expect((await page.request.post("/api/auth/login", { data: { identifier: user === "other" ? live!.followerLogin : user, password: "local-test-only" } })).status()).toBe(200); }
 async function form(page: Page, date: string, result: "Pass" | "Fail") { await dialog(page).getByLabel("Date", { exact: true }).fill(date); await dialog(page).getByLabel("Result", { exact: true }).selectOption({ label: result }); }
 for (const engine of ["chromium", "webkit"] as const) for (const width of [390, 1280]) test(`actual Group table, modes, touch comparisons and sticky controls: ${engine} ${width}`, async () => {
   const browser = await (engine === "webkit" ? webkit : chromium).launch();
@@ -38,7 +38,7 @@ for (const engine of ["chromium", "webkit"] as const) for (const width of [390, 
     const outside = row(page, "review-outside-item"); await expect(outside.locator("td")).toHaveText(["—", "—", "—"]);
     expect(await outside.locator(".progress-content-title").evaluate(element => getComputedStyle(element).textDecorationLine)).toBe("line-through");
     await row(page).locator(".progress-tests-trigger").click();
-    const longOrigin = dialog(page).locator(".assessment-origin").filter({ hasText: "Earlier practice with a deliberately long originating Group name" }).first();
+    const longOrigin = dialog(page).locator(".assessment-origin").filter({ hasText: "Connacht U18 Regional Basketball Development Squad" }).first();
     await expect(longOrigin).toBeVisible();
     expect(await longOrigin.evaluate(element => { const style = getComputedStyle(element); return style.textOverflow === "ellipsis" && element.scrollWidth > element.clientWidth; })).toBe(true);
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
@@ -59,7 +59,7 @@ test("Group editor uses the real Group Item API on HTTP, preserves history and n
   await expect(dialog(page).getByText("Unknown", { exact: true })).not.toHaveCount(0);
   await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await form(page, "2026-11-02", "Pass"); await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();
   await expect(dialog(page).getByRole("form", { name: "Add assessment", exact: true })).toHaveCount(0);
-  await expect(dialog(page).locator("tbody tr").filter({ hasText: "2 Nov 2026" }).locator(".assessment-origin")).toHaveText("Galway Progress review");
+  await expect(dialog(page).locator("tbody tr").filter({ hasText: "2 Nov 2026" }).locator(".assessment-origin")).toHaveText("Galway U18");
   const after = await (await page.request.get(listUrl)).json(); expect(after.revision).toBe(before.revision + 1); expect(after.tests.length).toBe(before.tests.length + 1);
   const saved = after.tests.find((value: { date: string }) => value.date === "2026-11-02");
   const target = dialog(page).locator("tbody tr").filter({ hasText: "2 Nov 2026" }); await target.getByRole("button", { name: /^Edit test/ }).click(); await form(page, "2026-11-03", "Fail"); await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();

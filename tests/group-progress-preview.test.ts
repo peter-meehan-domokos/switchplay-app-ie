@@ -6,6 +6,8 @@ import { assertAssessmentSource } from "../src/lib/assessments/contracts";
 
 test("visual fixture maps twelve distinct Cards and thirty-six distinct Steps to populated Areas/Items", () => {
   const fixture = groupProgressFixture(), { cards, framework } = fixture;
+  assert.equal(fixture.name, "Galway U18"); assert.equal(framework.title, "U18 Movement & Skills");
+  assert.equal(framework.id, "galway-progress-review", "human labels must not rename canonical fixture identities");
   assert.equal(new Set(cards.map(card => card.content.intro.title)).size, 12);
   assert.equal(new Set(cards.flatMap(card => card.content.steps.map(step => step.description))).size, 36);
   const graph = new Map(cards.map(card => [card.cardTemplateId, { cardTemplateId: card.cardTemplateId, forkedFrom: null }]));

@@ -440,17 +440,17 @@ test("Item mode supports direct-only CRUD and shared-list conflicts without memb
     const first = page.getByRole("region", { name: "Assessment view 1" }), second = page.getByRole("region", { name: "Assessment view 2" });
     await first.getByRole("button", { name: "Add first test" }).click(); await dialog(page).getByRole("button", { name: "Add test", exact: true }).click();
     await changeForm(page, "2026-10-15", "Fail"); await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();
-    await expect(dialog(page).getByText("Item test", { exact: true })).toBeVisible(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    await expect(dialog(page).getByText("Progress", { exact: true })).toBeVisible(); await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
     await second.getByRole("button", { name: "Add first test" }).click(); await dialog(page).getByRole("button", { name: "Add test", exact: true }).click(); await changeForm(page, "2026-10-16", "Pass");
     // Concurrent change to a different Item advances the deliberately shared revision.
     await repo.users().updateOne({ _id: fixtureActor }, { $inc: { itemTestsRevision: 1 } });
     await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();
     await expect(dialog(page).getByLabel("Date", { exact: true })).toHaveValue("2026-10-16");
     await expect(dialog(page).getByRole("button", { name: "Resubmit reviewed change" })).toBeVisible();
-    await dialog(page).getByRole("button", { name: "Resubmit reviewed change" }).click(); await expect(dialog(page).getByText("Item test", { exact: true })).toBeVisible();
-    await dialog(page).getByRole("button", { name: "Edit test 2026-10-16 from Item test", exact: true }).click(); await changeForm(page, "2026-10-17", "Fail");
+    await dialog(page).getByRole("button", { name: "Resubmit reviewed change" }).click(); await expect(dialog(page).getByText("Progress", { exact: true })).toBeVisible();
+    await dialog(page).getByRole("button", { name: "Edit test 2026-10-16 from Progress", exact: true }).click(); await changeForm(page, "2026-10-17", "Fail");
     await dialog(page).getByRole("button", { name: "Save test", exact: true }).click();
-    await dialog(page).getByRole("button", { name: "Delete test 2026-10-17 from Item test", exact: true }).click(); await dialog(page).getByRole("button", { name: "Confirm delete", exact: true }).click();
+    await dialog(page).getByRole("button", { name: "Delete test 2026-10-17 from Progress", exact: true }).click(); await dialog(page).getByRole("button", { name: "Confirm delete", exact: true }).click();
     await expect(dialog(page).getByText("No tests recorded yet.")).toBeVisible();
     const user = (await repo.getPersonalUser(userId))!; expect(user.cardsData).toEqual([]); expect(user.decksData).toEqual([]); expect(user.itemTests!.length).toBe(1);
     expect(await repo.getPersonalUser(actor)).not.toBeNull();
@@ -549,7 +549,7 @@ test("Item presentation combines direct, eligible own and inherited tests with e
     await expect(page.locator("output span")).toHaveCount(6);
     await expect(page.locator(".assessment-indicator span").last()).toHaveAttribute("aria-label", "2026-10-19: Pass");
     await page.getByRole("button", { name: "Open assessment history" }).click(); await expect(dialog(page).locator("tbody tr")).toHaveCount(6);
-    await expect(dialog(page).getByText("Item test", { exact: true })).toHaveCount(1);
+    await expect(dialog(page).getByText("Progress", { exact: true })).toHaveCount(1);
     // This source was assigned before its removal above. Phase 5.1b retains
     // its lifetime eligibility, so Item history correctly classifies it as own
     // evidence while still deduplicating the live fork chains and editing the

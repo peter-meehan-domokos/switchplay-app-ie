@@ -168,10 +168,10 @@ try {
   if (process.argv.includes("--dev")) {
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/${groupExperiences ? "decks" : "library?tab=info-cards"}`) : [];
     await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview, liveProgressReview }, null, 2));
-    console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+    console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or ${liveProgressReview?.followerLogin ?? "other"} / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
     if (liveProgressReview) console.log(`Live Group Progress: ${baseURL}/group-experiences/${liveProgressReview.experienceId}/progress?framework=${liveProgressReview.frameworkId}`);
     if (personalReview) console.log(`Personal review: ${baseURL}/decks?openDeck=${personalReview.deckId}\nInherited review: ${baseURL}/decks?openDeck=${personalReview.inheritedDeckId}`);
-    if (groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: other / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
+    if (groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: ${liveProgressReview?.followerLogin ?? "other"} / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
     if (groupProgress) {
