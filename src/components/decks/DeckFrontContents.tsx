@@ -28,7 +28,7 @@ export default function DeckFrontContents({ front, animated = false, preparing =
     </motion.div>
     <span className="deck-tile-title">{front.title} <span className="deck-tile-title-chevron" aria-hidden="true">›</span></span>
     <span className="deck-tile-meta">{preparing ? "Preparing deck..." : <>
-      {front.cardCount} cards{completion !== null ? <> &middot; {front.context !== "canonical" && front.isComplete ? "Completed" : `${Math.round(completion)}%`}</> : null}
+      {front.cardCount} cards{completion !== null || front.context !== "canonical" && front.allSkipped ? <span className={front.context !== "canonical" && front.allSkipped ? "personal-layout-slot" : undefined} aria-hidden={front.context !== "canonical" && front.allSkipped ? true : undefined}> &middot; {front.context !== "canonical" && front.isComplete ? "Completed" : `${Math.round(completion ?? 100)}%`}</span> : null}
       {front.context !== "canonical" && front.confidence !== null ? <span className="deck-tile-meta-confidence">{front.confidence}</span> : null}
     </>}</span>
   </>;

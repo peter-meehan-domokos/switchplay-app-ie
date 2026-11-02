@@ -549,7 +549,15 @@ test("Item presentation combines direct, eligible own and inherited tests with e
     await expect(page.locator("output span")).toHaveCount(6);
     await expect(page.locator(".assessment-indicator span").last()).toHaveAttribute("aria-label", "2026-10-19: Pass");
     await page.getByRole("button", { name: "Open assessment history" }).click(); await expect(dialog(page).locator("tbody tr")).toHaveCount(6);
-    await expect(dialog(page).getByText("Item test", { exact: true })).toHaveCount(1); await expect(dialog(page).getByText("Source Card", { exact: true })).toHaveCount(4);
+    await expect(dialog(page).getByText("Item test", { exact: true })).toHaveCount(1);
+    // This source was assigned before its removal above. Phase 5.1b retains
+    // its lifetime eligibility, so Item history correctly classifies it as own
+    // evidence while still deduplicating the live fork chains and editing the
+    // exact original storage source. It is no longer an inherited-only label.
+    await expect(dialog(page).getByText("Source Card", { exact: true })).toHaveCount(0);
+    const history = await page.evaluate(async ({ actor, itemId }) => (await fetch(`/api/items-data/${itemId}/history`, { headers: { "X-Personal-Viewer": actor } })).json(), { actor: f.actor, itemId });
+    expect(history.history.results.filter((row: { source: { kind: string; cardTemplateId?: string } }) => row.source.kind === "card" && row.source.cardTemplateId === f.source.root.cardTemplateId)
+      .map((row: { relationship: string }) => row.relationship)).toEqual(Array(4).fill("own-card"));
     await dialog(page).getByRole("button", { name: "Edit test 2026-10-08 from Shared practice", exact: true }).click(); await changeForm(page, "2026-10-20", "Pass");
     await dialog(page).getByRole("button", { name: "Save test", exact: true }).click(); await expect(dialog(page).getByRole("button", { name: "Edit test 2026-10-20 from Shared practice", exact: true })).toBeVisible(); await expect(dialog(page).locator("tbody tr")).toHaveCount(6);
     const user = (await f.repo.getPersonalUser(f.actor))!;

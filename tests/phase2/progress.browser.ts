@@ -76,7 +76,7 @@ test("configured order, independent session expansion, blank/zero/all-skipped/in
     expect(await page.locator("tr[data-item-id]").evaluateAll((rows) => rows.map((row) => row.getAttribute("data-item-id")))).toEqual(["control", "zero", "skipped", "direct", "partial", "other-item"]);
     await expect(row(page, "control").locator("td").nth(0)).toHaveText("33%"); await expect(row(page, "control").locator("td").nth(1)).toHaveText("8");
     await expect(row(page, "zero").locator("td").nth(0)).toHaveText("0%"); await expect(row(page, "zero").locator("td").nth(1)).toHaveText("");
-    await expect(row(page, "skipped").locator("td").nth(0)).toHaveText("100%");
+    await expect(row(page, "skipped").locator("td").nth(0)).toHaveText("skip");
     await expect(row(page, "direct").locator("td").nth(0)).toHaveText("");
     await expect(row(page, "other-item").locator("td").nth(0)).toHaveText("");
     await expect(row(page, "other-item").locator("td").nth(1)).toHaveText("");

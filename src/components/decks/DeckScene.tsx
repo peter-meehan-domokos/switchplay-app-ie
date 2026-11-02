@@ -1,5 +1,6 @@
 "use client";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
+import { progressObservationState } from "@/lib/frameworks/progressState";
 import { classifyProgress } from "@/lib/progress";
 import PerspectiveExchange from "@/components/group-experiences/PerspectiveExchange";
 
@@ -453,7 +454,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
 
       <motion.div className="detail-heading" layout>
         <div className="detail-progress-row">
-          {hasPersonalDeck(optimisticDeck) && optimisticDeck.progressPercentage !== null ? <p className="detail-progress">{classifyProgress(optimisticDeck.cards.flatMap(card => card.steps)).isComplete ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p> : <p className="detail-progress personal-layout-slot" aria-hidden="true" />}
+          {hasPersonalDeck(optimisticDeck) && optimisticDeck.progressPercentage !== null ? <p className={progressObservationState(optimisticDeck.cards.flatMap(card => card.steps)).state === "skipped" ? "detail-progress personal-layout-slot" : "detail-progress"} aria-hidden={progressObservationState(optimisticDeck.cards.flatMap(card => card.steps)).state === "skipped" ? true : undefined}>{classifyProgress(optimisticDeck.cards.flatMap(card => card.steps)).isComplete ? "Completed" : `Completion ${Math.round(optimisticDeck.progressPercentage)}%`}</p> : <p className="detail-progress personal-layout-slot" aria-hidden="true" />}
           {hasPersonalDeck(optimisticDeck) && optimisticDeck.confidenceScore !== null && (
             <p className="detail-confidence">Confidence {optimisticDeck.confidenceScore}</p>
           )}

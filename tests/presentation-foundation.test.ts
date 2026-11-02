@@ -67,7 +67,8 @@ test("canonical front reserves personal slots without dates, progress, or mutati
 test("working front retains dates, completion controls and calculated progress", () => {
   const html = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: working, dateLabel: "8 Oct", variant: "focused", onAdjustTargetDate: noop, onCycleStepStatus: noop, onOpenStepView: noop }));
   assert.match(html, /8 Oct/); assert.match(html, /Move target date/);
-  assert.match(html, /Current status: skipped/); assert.match(html, /Progress preview/);
+  assert.match(html, /Current status: skipped/); assert.match(html, /All Steps skipped/);
+  assert.match(html, /completion-strip--skipped/);
 });
 
 test("canonical tiles and empty Decks use the shared renderer without personal values", () => {
@@ -97,11 +98,12 @@ test("working empty and unavailable progress reserves layout without fabricated 
   assert.match(tile, /0 cards/); assert.doesNotMatch(tile, /0%|null%|NaN|Completed/);
   const scene = renderToStaticMarkup(React.createElement(DeckScene, { deck: empty, onBack: noop, transition: {} }));
   assert.doesNotMatch(scene, /Completion 0|Completed|null%|NaN/); assert.match(scene, /detail-progress personal-layout-slot/);
-  const front = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: { ...working, progressPercentage: null }, dateLabel: "8 Oct" }));
+  const front = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: { ...working, progressPercentage: null,
+    steps: working.steps.map(step => ({ ...step, completionStatus: "todo" as const })) }, dateLabel: "8 Oct" }));
   assert.doesNotMatch(front, /completion-strip-fill|null%|NaN/); assert.match(front, /completion-strip personal-layout-slot/);
 });
 
-test("working all-skipped Card/Deck is 100%, while genuine zero remains visible", () => {
+test("working all-skipped Card/Deck preserves legacy percentage internally but paints skipped and reserves the hidden percentage slot", () => {
   assert.equal(working.progressPercentage, 100);
   const deck = buildDeckLayout({ ...personalDeckFields, id: "working", title: "Practice", category: null, streams: [], cards: [working],
     activeCardId: working.id, dataOwnerUserId: "alice", hasUserDeckData: true }, { currentUserId: "alice", users: [] });
@@ -110,6 +112,8 @@ test("working all-skipped Card/Deck is 100%, while genuine zero remains visible"
   assert.equal(deck.progressPercentage, 100); assert.match(tile(deck), /100%/); assert.doesNotMatch(tile(deck), /Completed/);
   const front = renderToStaticMarkup(React.createElement(ActiveCardFront, { card: working, dateLabel: "8 Oct" }));
   assert.match(front, /width:100%/);
+  assert.match(front, /completion-strip--skipped/); assert.match(front, /All Steps skipped/);
+  assert.match(tile(deck), /class="personal-layout-slot" aria-hidden="true"/);
   const zero = buildOptimisticDeckLayout(deck, [buildCardLayout({ ...working,
     steps: working.steps.map((step) => ({ ...step, completionStatus: "todo" })) }, { currentUserId: "alice", users: [] })]);
   assert.equal(zero.progressPercentage, 0); assert.match(tile(zero), /0%/); assert.doesNotMatch(tile(zero), /Completed/);

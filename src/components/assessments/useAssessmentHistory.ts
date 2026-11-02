@@ -31,10 +31,7 @@ export function useAssessmentHistory(context: AssessmentContext) {
         || (group.subjectUserId ? value.owner.kind !== "personal" || value.owner.userId !== group.subjectUserId : value.owner.kind !== "group")) throw Error("Assessment context changed. Reopen history.");
       if ((kind === "card" ? !("cardTemplateId" in value.target) || value.target.cardTemplateId !== id : !("frameworkItemId" in value.target) || value.target.frameworkItemId !== id)
         || !Number.isFinite(Date.parse(value.leaseExpiresAt)) || Date.parse(value.leaseExpiresAt) <= Date.now()) throw Error("Assessment scope or authority changed. Refresh history.");
-      // Checkpoint 5.5 wires scoped reading; editor transport is the next 5.6
-      // dependency. Never fall through to an ordinary owner mutation endpoint.
-      return { ...value, configured: true, history: { ...value.history, results: value.history.results.map(row => ({ ...row, canMutate: false })),
-        sources: value.history.sources.map(source => ({ ...source, canMutate: false })) } };
+      return { ...value, configured: true };
     };
     void read().then((data) => {
       if (!controller.signal.aborted) setState({ key, readKey, data });

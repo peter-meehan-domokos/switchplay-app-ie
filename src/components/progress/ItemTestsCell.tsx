@@ -19,7 +19,7 @@ export default function ItemTestsCell({ actor, itemId, title, assessments, unava
   const results = unavailable && context?.group ? [] : assessments.latestThree;
   const label = `${title}: ${status ? "assessment history unavailable" : results.length ? "open assessment history" : "add first test"}`;
   return <td className="progress-tests-cell">
-    <button ref={trigger} type="button" className="progress-tests-trigger" aria-label={label} aria-haspopup="dialog" aria-describedby={descriptionId}
+    <button ref={trigger} type="button" className="progress-tests-trigger" aria-label={label} aria-haspopup="dialog" aria-describedby={descriptionId} disabled={!!context?.group && unavailable}
       onClick={() => setOpen(true)}>
       <AssessmentSymbols results={results} showTestLabel />
       {status ? <span className="progress-tests-warning" aria-hidden="true">!</span> : null}
@@ -27,7 +27,7 @@ export default function ItemTestsCell({ actor, itemId, title, assessments, unava
     <span id={descriptionId} className="progress-sr-only">{status ? "Some assessment history may be missing. Indicators show only the latest known results. " : ""}
       {results.length ? results.map((result) => `${result.date}: ${result.result ? "Pass" : "Fail"}`).join(", ")
         : status ? "No readable results are currently known." : "No tests recorded yet."}</span>
-    {open && (!context?.group || !unavailable) ? <ItemHistoryModal context={context ?? { viewerUserId: actor, source: { kind: "item", itemId }, canCreate: true }}
+    {open && (!context?.group || !unavailable) ? <ItemHistoryModal context={context ?? { viewerUserId: actor, source: { kind: "item", itemId }, canCreate: true, showOrigin: true }}
       onClose={() => { setOpen(false); requestAnimationFrame(() => trigger.current?.focus()); }} /> : null}
   </td>;
 }

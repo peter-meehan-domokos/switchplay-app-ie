@@ -12,6 +12,8 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/c
 import { forkCardContent } from "../src/lib/cards/forks";
 import { networkInterfaces } from "node:os";
 import { loadEnvConfig } from "@next/env";
+import { resolve } from "node:path";
+import { seedLiveGroupProgress } from "../tests/helpers/groupProgressLiveReview";
 import { seedGroupReview } from "../tests/helpers/groupReviewFixture";
 import { seedGroupProgressReview, startGroupProgressPreview } from "../tests/helpers/groupProgressReview";
 
@@ -31,8 +33,9 @@ const output: string[] = [];
 const interactive = process.argv.includes("--dev");
 const lan = interactive && process.argv.includes("--lan");
 const infoCards = process.argv.includes("--info-cards");
+const liveProgress = process.argv.includes("--group-progress-live");
 const groupProgress = process.argv.includes("--group-progress");
-const groupExperiences = process.argv.includes("--group-experiences") || groupProgress;
+const groupExperiences = process.argv.includes("--group-experiences") || groupProgress || liveProgress;
 const optimized = process.argv.includes("--optimized");
 // Opt-in provider checks still own a disposable database. Never forward an
 // environment database URI; only the provider credentials are used live.
@@ -105,6 +108,13 @@ try {
     }
   }
   const groupReview = groupExperiences ? await seedGroupReview(client, database, userId.toHexString(), (await db.collection("users").findOne({ username: "other" }))!._id.toString()) : undefined;
+  const liveProgressReview = liveProgress ? await seedLiveGroupProgress(new CardRepository(db, client), uri, userId.toHexString(),
+    (await db.collection("users").findOne({ username: "other" }))!._id.toString(), groupReview?.cardIds ?? []) : undefined;
+  const frameworkFixture = liveProgressReview ? resolve(`phase2-test-results/framework-${mode}.ts`) : undefined;
+  if (liveProgressReview && frameworkFixture) {
+    await mkdir("phase2-test-results", { recursive: true });
+    await writeFile(frameworkFixture, `export * from "../src/lib/frameworks/configurationContracts";\nimport { createFrameworkAccess } from "../src/lib/frameworks/configurationContracts";\nexport const { getFrameworks, getFramework, getFrameworkItem } = createFrameworkAccess(${JSON.stringify(liveProgressReview.frameworks)});\n`);
+  }
   media.listen(0, "127.0.0.1"); await once(media, "listening"); const address = media.address();
   if (!address || typeof address === "string") throw new Error("Missing media fixture port");
   mediaOrigin = `http://127.0.0.1:${address.port}`;
@@ -123,21 +133,21 @@ try {
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
-    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture", SWITCHPLAY_GROUP_EXPERIENCES_ENABLED: groupExperiences ? "1" : "0", PHASE2_GROUP_FIXTURE: JSON.stringify(groupReview ?? null) };
+    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture", SWITCHPLAY_GROUP_EXPERIENCES_ENABLED: groupExperiences ? "1" : "0", PHASE2_GROUP_FIXTURE: JSON.stringify(groupReview ?? null), ...(frameworkFixture ? { PHASE2_FRAMEWORK_FIXTURE_FILE: frameworkFixture, PHASE5_LIVE_PROGRESS: JSON.stringify(liveProgressReview) } : {}) };
   if (liveInfoMedia) Object.assign(env, {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("CLOUDFLARE_"))),
     PHASE2_LIVE_INFO_MEDIA: "1", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "0", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1",
     INFO_CARDS_PRIVATE_MEDIA_VERIFIED: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "1", PHASE2_MEDIA_FIXTURE_ORIGIN: "",
   });
   await mkdir("phase2-test-results", { recursive: true });
-  await writeFile(`phase2-test-results/tsconfig-${mode}.json`, JSON.stringify({ extends: "../tsconfig.json",
+  await writeFile(`phase2-test-results/tsconfig-${mode}.json`, JSON.stringify({ extends: "../tsconfig.json", compilerOptions: { baseUrl: ".." },
     include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", optimized ? "../.next-phase2-optimized/types/**/*.ts"
       : `../${env.PHASE2_INTERACTIVE === "1" ? ".next-phase2" : ".next-phase2-test"}/dev/types/**/*.ts`] }, null, 2));
   if (optimized) {
     // Measure/review actual optimized React, not JSX development stack capture.
     // Build without any database connection; only the local runtime receives
     // this harness's disposable URI. Public media flags remain fixture mocks.
-    app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build"], {
+    app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build", ...(frameworkFixture ? ["--webpack"] : [])], {
       env: { ...env, MONGODB_URI: "", MONGODB_DB: "" }, stdio: ["ignore", "pipe", "pipe"],
     });
     app.stdout!.on("data", value => { output.push(String(value)); if (interactive) process.stdout.write(value); });
@@ -145,7 +155,7 @@ try {
     const [code] = await once(app, "exit");
     if (code !== 0) throw new Error("Optimized disposable build failed; see the fixture server log.");
   }
-  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", optimized ? "start" : "dev", "--hostname", lan ? "0.0.0.0" : "127.0.0.1", "--port", String(appPort)], { env, stdio: ["ignore", "pipe", "pipe"] });
+  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", optimized ? "start" : "dev", ...(!optimized && frameworkFixture ? ["--webpack"] : []), "--hostname", lan ? "0.0.0.0" : "127.0.0.1", "--port", String(appPort)], { env, stdio: ["ignore", "pipe", "pipe"] });
   app.stdout!.on("data", (value) => { output.push(String(value)); if (interactive) process.stdout.write(value); });
   app.stderr!.on("data", (value) => { output.push(String(value)); if (interactive) process.stderr.write(value); });
   const deadline = Date.now() + 90_000;
@@ -157,8 +167,9 @@ try {
   }
   if (process.argv.includes("--dev")) {
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/${groupExperiences ? "decks" : "library?tab=info-cards"}`) : [];
-    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview }, null, 2));
+    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview, liveProgressReview }, null, 2));
     console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+    if (liveProgressReview) console.log(`Live Group Progress: ${baseURL}/group-experiences/${liveProgressReview.experienceId}/progress?framework=${liveProgressReview.frameworkId}`);
     if (personalReview) console.log(`Personal review: ${baseURL}/decks?openDeck=${personalReview.deckId}\nInherited review: ${baseURL}/decks?openDeck=${personalReview.inheritedDeckId}`);
     if (groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: other / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
@@ -169,7 +180,7 @@ try {
       progressPreview = await startGroupProgressPreview(progress.data, baseURL);
       Object.assign(env, { PHASE5_PROGRESS_PREVIEW_URL: progressPreview.baseURL, PHASE5_PROGRESS_EXPERIENCE: progress.data.experienceId });
     }
-    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--optimized"].includes(arg))], { env, stdio: "inherit" });
+    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--group-progress-live", "--optimized"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));

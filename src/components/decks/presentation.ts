@@ -16,7 +16,7 @@ export type ExperienceCardPresentation = Omit<CanonicalCardPresentation, "surfac
 export type ExperienceDeckPresentation = Omit<CanonicalDeckPresentation, "surface" | "cards"> & {
   surface: "experience"; experienceId: string; viewerUserId: string;
   cards: ExperienceCardPresentation[]; completion: number | null; confidence: number | null;
-  cardCount?: number; isComplete?: boolean;
+  cardCount?: number; isComplete?: boolean; allSkipped?: boolean;
 };
 
 // Canonical inputs contain content and immutable selection only. They deliberately

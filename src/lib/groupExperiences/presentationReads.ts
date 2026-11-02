@@ -4,6 +4,7 @@ import { cardCreatorAttributions } from "../cards/creatorAttribution";
 import { cardContentPresentation, canonicalIntroductionDTO } from "../cards/libraryProjection";
 import { layoutCardLabels } from "../cards/layout";
 import { isIsoDateOnlyString } from "../dateOnly";
+import { progressObservationState } from "../frameworks/progressState";
 import { classifyProgress } from "../progress";
 import { selectedContent } from "./publicVersions";
 import { personalLearningForUsers, userKey } from "./learningReads";
@@ -93,7 +94,7 @@ export async function collectionTiles(repo: GroupExperienceRepository, actor: st
     return { ...entry(actor, experience, member), deck: selected.deck, cardCount: selected.allCards.length, group: metrics(group),
       // Tiles contain only the first content page. Completion must cover every
       // selected Step, not just the visible page or a rounded percentage.
-      isComplete: classifyProgress(group.flatMap(card => card.items)).isComplete,
+      isComplete: classifyProgress(group.flatMap(card => card.items)).isComplete, allSkipped: progressObservationState(group.flatMap(card => card.items)).state === "skipped",
       groupLearning: group.slice(0, selected.cards.length) };
   }));
   return { viewerUserId: actor, entries: tiles, nextCursor: listed.nextCursor };

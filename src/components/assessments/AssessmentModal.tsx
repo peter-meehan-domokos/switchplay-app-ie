@@ -1,4 +1,7 @@
 "use client";
+import { clientId } from "@/lib/clientId";
+import { discardGroupAssessment, persistGroupAssessment, readGroupAssessmentList, retryGroupAssessment, type GroupAssessmentContext } from "@/lib/assessments/groupClient";
+import type { GroupPersonalAssessmentContext } from "@/lib/assessments/client";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import LibraryDialog from "@/components/library/LibraryDialog";
@@ -9,8 +12,9 @@ import { personalWork } from "@/lib/cards/personalWork";
 import { getTodayDateOnly, dateOnlyToUtcDate, isIsoDateOnlyString } from "@/lib/dateOnly";
 import type { AssessmentContext, useAssessmentHistory } from "./useAssessmentHistory";
 
-type Draft = { action: "add" | "update" | "delete"; source: AssessmentCommand["source"]; id: string; revision: number; date: string; result: "" | "pass" | "fail"; cardIds: string[] };
-type Pending = { command: AssessmentCommand; operation: Promise<AssessmentMutationResult>; canDiscard: boolean };
+type Transport = { groupOwned: GroupAssessmentContext } | { personal: GroupPersonalAssessmentContext | undefined };
+type Draft = { transport: Transport; action: "add" | "update" | "delete"; source: AssessmentCommand["source"]; id: string; revision: number; date: string; result: "" | "pass" | "fail"; cardIds: string[] };
+type Pending = { transport: Transport; command: AssessmentCommand; operation: Promise<AssessmentMutationResult>; canDiscard: boolean };
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 function saveErrorMessage(cause: unknown) {
   const message = cause instanceof Error ? cause.message : "Unable to save assessment.";
@@ -37,7 +41,9 @@ export default function AssessmentModal({ context, history, onClose }: {
   const data = history.data?.history;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; editorFinish.current?.(); }; }, []);
   const reset = () => {
-    if (pending.current?.canDiscard) discardFailedAssessment(pending.current.command, pending.current.operation);
+    if (pending.current?.canDiscard) { const value = pending.current;
+      if ("groupOwned" in value.transport) discardGroupAssessment(value.command, value.operation, value.transport.groupOwned);
+      else discardFailedAssessment(value.command, value.operation); }
     pending.current = null; setDraft(null); setError(""); setConflict(null); setRetryable(false); setDiscard(null);
     editorFinish.current?.(); editorFinish.current = null;
   };
@@ -48,31 +54,40 @@ export default function AssessmentModal({ context, history, onClose }: {
   };
   const start = (row?: HistoryResult | import("@/lib/groupExperiences/progressAssessments").ScopedHistoryResult, remove = false) => {
     if (draft || saving) return;
+    if (row && !row.source) { setError("This source is read-only."); return; }
     const source = row?.source ?? context.source;
+    if (row && !row.canMutate) return;
+    if (context.group?.subjectUserId && context.group.subjectUserId !== context.viewerUserId) return;
+    const ownGroup = context.group && context.group.subjectUserId === undefined;
+    const retained = source.kind === "card" && history.data && "selectedCards" in history.data && !history.data.selectedCards.some(card => card.cardTemplateId === source.cardTemplateId);
+    const transport: Transport = ownGroup ? { groupOwned: { experienceId: context.group!.experienceId } }
+      : { personal: context.group && !retained ? { experienceId: context.group.experienceId, frameworkId: context.group.frameworkId } : undefined };
     const revision = row?.sourceRevision ?? data?.sources.find((dependency) => dependency.source !== null && sameAssessmentSource(dependency.source, source))?.revision;
     if (revision == null) { setError("This assessment source is unavailable. Refresh before editing."); return; }
     setError(""); setConflict(null);
     const cardIds = [...new Set([...(context.source.kind === "card" ? [context.source.cardTemplateId] : []),
       ...(source.kind === "card" ? [source.cardTemplateId] : []), ...(row?.exposedThroughCardTemplateIds ?? [])])];
-    try { editorFinish.current = personalWork.begin({ userId: context.viewerUserId, cardIds }, `assessment-editor:${editorId}`); }
+    let id: string;
+    try { id = row?.id ?? clientId(); editorFinish.current = personalWork.begin({ userId: context.viewerUserId, cardIds, ...(ownGroup ? { context: { kind: "experience-assessment", experienceId: context.group!.experienceId } as const } : {}) }, `assessment-editor:${editorId}`); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Please wait for Update to finish."); return; }
-    setDraft({ action: row ? remove ? "delete" : "update" : "add", source, revision, id: row?.id ?? crypto.randomUUID(),
+    setDraft({ transport, action: row ? remove ? "delete" : "update" : "add", source, revision, id,
       date: row?.date ?? getTodayDateOnly(), result: row ? row.result ? "pass" : "fail" : "",
       cardIds });
   };
-  const finishSave = async (command: AssessmentCommand, operation: Promise<AssessmentMutationResult>) => {
+  const finishSave = async (command: AssessmentCommand, operation: Promise<AssessmentMutationResult>, transport: Transport) => {
     busy.current = true; setSaving(true); setError(""); setRetryable(false); setDiscard(null);
-    pending.current = { command, operation, canDiscard: false };
+    pending.current = { command, operation, transport, canDiscard: false };
     try {
       await operation;
       if (!mounted.current) return;
       pending.current = null; reset(); history.refresh();
+      if (context.group) window.dispatchEvent(new CustomEvent("group-assessment-changed"));
     } catch (cause) {
       if (!mounted.current) return;
       // Refresh the original storage list, not a combined fork list. A confirmed
       // conflict is safe to abandon; uncertain failures keep their exact retry.
       let current: AssessmentList | null = cause instanceof AssessmentConflict ? cause.latestList : null;
-      try { current = await readPersonalAssessments(context.viewerUserId, command.source); }
+      try { current = "groupOwned" in transport ? await readGroupAssessmentList(command.viewerUserId, command.source, transport.groupOwned) : await readPersonalAssessments(command.viewerUserId, command.source, transport.personal); }
       catch { /* Preserve the error and intent; never pretend a failed read is empty. */ }
       if (!mounted.current) return;
       pending.current!.canDiscard = current !== null;
@@ -91,19 +106,20 @@ export default function AssessmentModal({ context, history, onClose }: {
     if (missing && draft.action === "update") return;
     // A reviewed new addition gets a new identity; it never resurrects the ID
     // of an uncertain Add that might subsequently have been deleted elsewhere.
-    const id = conflict && missing && draft.action === "add" ? crypto.randomUUID() : draft.id;
+    try {
+    const id = conflict && missing && draft.action === "add" ? clientId() : draft.id;
     const base = { viewerUserId: context.viewerUserId, source: draft.source, id, expectedRevision: conflict?.revision ?? draft.revision };
     const command: AssessmentCommand = draft.action === "delete" ? { ...base, action: "delete" }
       : { ...base, action: draft.action, date: draft.date, result: draft.result === "pass",
         ...(draft.action === "add" && draft.source.kind === "card" ? { deckTemplateId: context.deckTemplateId } : {}) };
     setConflict(null);
-    try { void finishSave(command, persistAssessment(command, draft.cardIds)); }
+    void finishSave(command, "groupOwned" in draft.transport ? persistGroupAssessment(command, draft.transport.groupOwned) : persistAssessment(command, draft.cardIds, draft.transport.personal), draft.transport); }
     catch (cause) { setError(saveErrorMessage(cause)); }
   };
   const retry = () => {
     if (!pending.current || busy.current) return;
-    const { command, operation } = pending.current;
-    try { void finishSave(command, retryFailedAssessment(command, operation)); }
+    const { command, operation, transport } = pending.current;
+    try { void finishSave(command, "groupOwned" in transport ? retryGroupAssessment(command, operation, transport.groupOwned) : retryFailedAssessment(command, operation), transport); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Refresh before retrying."); }
   };
   const current = draft && conflict?.tests.find((test) => test.id === draft.id);
@@ -122,7 +138,7 @@ export default function AssessmentModal({ context, history, onClose }: {
     {data?.results.length ? <div className="assessment-table-scroll"><table className="assessment-table"><caption className="sr-only">Assessments, newest first</caption>
       <thead><tr><th scope="col">Date</th><th scope="col">Result</th><th scope="col">Card</th><th scope="col">Actions</th></tr></thead>
       <tbody>{data.results.map((row) => <tr key={"rowKey" in row ? row.rowKey : JSON.stringify([row.source, row.id])}>
-        <td><time dateTime={row.date}>{dateFormat.format(dateOnlyToUtcDate(row.date))}</time></td>
+        <td><time dateTime={row.date}>{dateFormat.format(dateOnlyToUtcDate(row.date))}</time>{context.showOrigin ? <small className="assessment-origin">{row.origin?.label ?? "Unknown"}</small> : null}</td>
         <td><span className={row.result ? "assessment-pass" : "assessment-fail"} aria-hidden="true">{row.result ? "✓" : "●"}</span><span className="sr-only">{row.result ? "Pass" : "Fail"}</span></td>
         <td className={row.relationship === "inherited-card" ? "assessment-source" : undefined}><span>{row.sourceTitle}</span>
           {row.relationship === "inherited-card" ? <small>Source Card</small> : null}</td>

@@ -4847,3 +4847,12 @@ input {
   font-size: 12px;
   pointer-events: none;
 }
+
+/* Progress history opts in; existing Card history consumers retain their date cell. */
+.assessment-origin { display: block; font-size: 10px; line-height: 1.25; color: #746b60; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.progress-comparison { z-index: 120; width: max-content; max-width: min(240px, calc(100vw - 16px)); padding: 9px 12px; border: 1px solid #343c48; border-radius: 8px; background: #222832; color: #dddfe4; box-shadow: 0 6px 20px #0005; font-size: 12px; line-height: 1.5; }
+.progress-comparison p { margin: 0; }
+/* Completion paint alone changes for an explicitly all-skipped Card. The
+   established strip dimensions, transform, margins and interactions are locked. */
+.completion-strip--skipped { background: var(--progress-skipped-track); }
+.completion-strip--skipped .completion-strip-fill { background: var(--progress-skipped); }

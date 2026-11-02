@@ -1,3 +1,4 @@
+import { progressObservationState } from "@/lib/frameworks/progressState";
 import type { LoadedGroup } from "./groupResource";
 import type { PerspectiveSelection } from "@/lib/groupExperiences/model";
 import { cardLearningContextKey } from "@/lib/cards/learningContext";
@@ -13,7 +14,7 @@ export function presentGroup(data: LoadedGroup, selection: PerspectiveSelection,
   requireCondition(rows, "GROUP_PERSPECTIVE_FORBIDDEN");
   const overall = metrics(rows);
   return { ...boot.deck, surface: "experience", id: boot.experienceId, experienceId: boot.experienceId, viewerUserId: boot.viewerUserId,
-    completion: overall.completion, confidence: overall.confidence,
+    completion: overall.completion, confidence: overall.confidence, allSkipped: progressObservationState(rows.flatMap(card => card.items)).state === "skipped",
     cards: boot.deck.cards.map(content => {
       const learning = rows.find(row => row.cardTemplateId === content.cardTemplateId);
       requireCondition(learning && learning.version === content.version, "GROUP_VERSION_CONFLICT");
@@ -31,7 +32,7 @@ export function presentGroup(data: LoadedGroup, selection: PerspectiveSelection,
 }
 export function presentGroupTile(value: GroupTiles["entries"][number]): ExperienceDeckPresentation {
   return { ...value.deck, surface: "experience", id: value.experienceId, experienceId: value.experienceId, viewerUserId: value.viewerUserId,
-    cardCount: value.cardCount, isComplete: value.isComplete, completion: value.group.completion, confidence: value.group.confidence,
+    cardCount: value.cardCount, isComplete: value.isComplete, allSkipped: value.allSkipped, completion: value.group.completion, confidence: value.group.confidence,
     cards: value.deck.cards.map(card => {
       const learning = value.groupLearning.find(row => row.cardTemplateId === card.cardTemplateId)!;
       const score = metrics([learning]);

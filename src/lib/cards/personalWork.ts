@@ -1,4 +1,4 @@
-export type ContributionWorkContext = { kind: "experience-contribution"; experienceId: string };
+export type ContributionWorkContext = { kind: "experience-contribution" | "experience-assessment"; experienceId: string };
 export type PersonalWorkScope = { userId: string; deckId?: string; cardIds: readonly string[]; context?: ContributionWorkContext };
 type Entry = { scope: PersonalWorkScope; promise?: Promise<unknown>; operation?: Promise<unknown>; retry?: () => Promise<unknown>; error?: Error; token: symbol };
 const namespace = (scope: PersonalWorkScope) => scope.context ? JSON.stringify([scope.context.kind, scope.context.experienceId]) : "personal";

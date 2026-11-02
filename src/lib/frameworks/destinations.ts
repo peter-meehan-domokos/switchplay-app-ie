@@ -1,4 +1,5 @@
 import { ObjectId, type ClientSession, type Collection, type Document, type Filter } from "mongodb";
+import { progressObservationState } from "./progressState";
 import { classifyProgress } from "../progress";
 import { CardArchitectureError, isRecord, nonblank, requireCondition } from "../cards/domain";
 import type { CardRepository } from "../cards/repository";
@@ -172,7 +173,7 @@ async function readDestinations(repo: CardRepository, actor: string, frameworkId
             title: version.content.title, category: version.content.categories[0] ?? null, ownerUsername: "", showOwnerTag: false,
             cardCount: eligible.cardTemplateIds.length, cardIds: eligible.cardTemplateIds.slice(0, 3), themes: version.content.themes.slice(0, 3).map(({ id, title }) => ({ id, title })),
             posterSrc: intro?.image?.src ?? (video ? getCloudflareStreamThumbnailUrl(video) : null), hasIntroVideo: !!video,
-            completion: progress.completion, confidence: progress.confidence, isComplete: !unavailable && classifyProgress(eligible.cardTemplateIds.flatMap(id => {
+            completion: progress.completion, confidence: progress.confidence, allSkipped: !unavailable && progressObservationState(eligible.cardTemplateIds.flatMap(id => { const card = calculations.get(id); return card?.state === "complete" ? card.steps : []; })).state === "skipped", isComplete: !unavailable && classifyProgress(eligible.cardTemplateIds.flatMap(id => {
               const card = calculations.get(id); return card?.state === "complete" ? card.steps : [];
             })).isComplete } });
       } catch (cause) { if (!(cause instanceof CardArchitectureError)) throw cause;

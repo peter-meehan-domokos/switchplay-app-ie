@@ -383,7 +383,8 @@ test("empty, unfinished and all-skipped scores remain distinct, including archiv
   await repo.deckVersions().updateOne({ deckTemplateId: "archived", version: 1 }, { $set: { "content.cards": [{ cardTemplateId: "second", cardVersionAtPublish: 1 }] } });
   await repo.users().updateOne({ _id: "alice" }, { $set: { decksData: [archived], cardsData: [second] } });
   let result = await readFrameworkSummaries(repo, "alice", frameworks);
-  assert.equal(result.frameworks[0].areas[0].items[0].progress.completion, 100);
+  assert.equal(result.frameworks[0].areas[0].items[0].progress.completion, null);
+  assert.equal(result.frameworks[0].areas[0].items[0].progress.observationState, "skipped");
   assert.equal(result.frameworks[0].areas[0].items[0].progress.confidence, 10);
   second.items.forEach((step) => { step.completionStatus = "todo"; });
   await repo.users().updateOne({ _id: "alice" }, { $set: { cardsData: [second] } });

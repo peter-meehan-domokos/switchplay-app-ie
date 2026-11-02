@@ -193,12 +193,12 @@ test("Area completion and confidence aggregate underlying distinct Cards, not It
   assert.equal(area.eligibleCardCount, 3);
 });
 
-test("all-skipped retains the percentage convention; complete describes read availability, not learning completion", () => {
+test("all-skipped keeps the low-level helper compatible but Framework output carries explicit skipped state", () => {
   assert.equal(getProgressPercentage([]), null); assert.equal(getProgressPercentage([{ completionStatus: "todo" }]), 0);
   assert.equal(getProgressPercentage([{ completionStatus: "skipped" }]), 100);
   const card = cardFixture("original"); card.data.items.forEach((step) => { step.completionStatus = "skipped"; });
   card.data.signalReadings[0].reading = 1; card.data.signalReadings[1].reading = 10;
-  const result = calculateCardProgress([calculation(card)]); assert.equal(result.state, "complete"); assert.equal(result.completion, 100); assert.equal(result.confidence, 6);
+  const result = calculateCardProgress([calculation(card)]); assert.equal(result.state, "complete"); assert.equal(result.completion, null); assert.equal(result.observationState, "skipped"); assert.equal(result.confidence, 6);
   assert.equal(calculateCardProgress([]).state, "empty"); assert.equal(getConfidenceScore([null, undefined]), null);
 });
 

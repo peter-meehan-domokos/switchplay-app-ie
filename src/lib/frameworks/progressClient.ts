@@ -38,7 +38,7 @@ export async function readProgressSummary(actor: string, frameworkId: string, si
       for (const progress of [area.progress, ...area.items.map((item) => item.progress)]) {
         if (!progress || !["complete", "empty", "incomplete"].includes(progress.state)
           || progress.state !== "complete" && (progress.completion !== null || progress.confidence !== null)
-          || progress.state === "complete" && (typeof progress.completion !== "number" || !Number.isFinite(progress.completion) || progress.completion < 0 || progress.completion > 100)
+          || progress.state === "complete" && (progress.observationState === "skipped" ? progress.completion !== null : typeof progress.completion !== "number" || !Number.isFinite(progress.completion) || progress.completion < 0 || progress.completion > 100)
           || progress.confidence !== null && (!Number.isInteger(progress.confidence) || progress.confidence < 1 || progress.confidence > 10)) throw new Error();
       }
       for (const item of area.items) {

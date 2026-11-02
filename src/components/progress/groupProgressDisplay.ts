@@ -4,7 +4,7 @@ import type { CalculationResult } from "@/lib/frameworks/calculations";
 export type GroupMode = "groupScores" | "playerAverages";
 export function groupProgressDisplay(metadata: ProgressMetadata[number], data?: GroupProgressSummary, mode: GroupMode = "groupScores") {
   const metric = (value?: GroupProgressSummary["framework"]["areas"][number]) => value && ("player" in value ? value.player : value[mode]);
-  const calculation = (value: ReturnType<typeof metric>, cardCount: number): CalculationResult & { observationState?: string } => ({
+  const calculation = (value: ReturnType<typeof metric>, cardCount: number): CalculationResult => ({
     state: !value || value.state === "incomplete" ? "incomplete" : value.state === "empty" || value.state === "outside" ? "empty" : "complete",
     completion: value?.completion ?? null, confidence: value?.confidence ?? null, eligibleCardCount: cardCount, resolvedCardCount: cardCount, issues: [], observationState: value?.state,
   });

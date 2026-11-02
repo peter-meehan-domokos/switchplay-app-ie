@@ -2,7 +2,7 @@ import { assertCardContent, CardArchitectureError, isRecord, nonblank, requireCo
 import type { CardData, CardTemplateRoot, CardTemplateVersion } from "../cards/model";
 import { assertCardVersionAccess } from "../cards/versionAccess";
 import type { CompletionStatus } from "../../components/decks/types";
-import { getProgressPercentage } from "../progress";
+import { progressObservationState, type ProgressObservationState } from "./progressState";
 import { getConfidenceScore } from "../signals";
 import type { Framework, FrameworkIssue } from "./configuration";
 import type { PersonalEligibility } from "./eligibility";
@@ -14,6 +14,7 @@ export type CardCalculation =
   | { state: "incomplete"; cardTemplateId: string; issues: FrameworkIssue[] };
 export type CalculationResult = {
   state: "complete" | "empty" | "incomplete";
+  observationState?: ProgressObservationState["state"];
   completion: number | null;
   confidence: number | null;
   eligibleCardCount: number | null;
@@ -93,7 +94,8 @@ export function calculateCardProgress(cards: readonly CardCalculation[], unknown
   if (unresolved.length || errors.length || count === null) return { state: "incomplete", completion: null, confidence: null,
     eligibleCardCount: count, resolvedCardCount: resolved.length, issues: errors };
   if (!distinct.length) return { state: "empty", completion: null, confidence: null, eligibleCardCount: 0, resolvedCardCount: 0, issues: [] };
-  return { state: "complete", completion: getProgressPercentage(resolved.flatMap((card) => card.steps)),
+  const observed = progressObservationState(resolved.flatMap(card => card.steps));
+  return { state: "complete", observationState: observed.state, completion: observed.completion,
     confidence: getConfidenceScore(resolved.flatMap((card) => card.readings)), eligibleCardCount: count, resolvedCardCount: resolved.length, issues: [] };
 }
 
