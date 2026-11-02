@@ -2,9 +2,11 @@
 
 ## Status / Resume here
 
-**Automated acceptance complete; final physical iPhone review outstanding, confirmed by the founder on 2 November 2026. No checkpoint commit yet.** Branch `feat/group-experience`, clean start at `fcf0e91` (the founder commit containing the approved architecture/reflection amendments and recent Group settings label). All earlier implementation commits remain intact. This commission covers 5.7 only.
+**Complete and founder accepted on 2 November 2026. All Phase 5 checkpoints (5.1a–5.7) are complete.** The founder approved the final physical iPhone review of Group/individual Progress, assessment histories and realistic fixtures, Item/Area strikethrough, navigation, popovers and visual presentation. No further visual approval is required.
 
-Next action: the founder completes the outstanding iPhone visual/touch review using the verified disposable environment below. After explicit acceptance, update this status and the plan status, inspect/stage only the relevant checkpoint and approved follow-up files listed below and create the one authorised checkpoint commit. Until then, stop at this acceptance boundary. Do not rerun these successful suites without a new change/failure, or begin Phase 6, reflection/media work, the naming cleanup or rollout.
+Branch `feat/group-experience`. The working tree was clean at finalisation: `71428cc17317a8ac43e8fd5923b0862d775b25b6` already contains the implementation, fixtures, styling and acceptance tests recorded below; `fcf0e91` already contains the approved architecture/reflection documentation and Group settings menu refinement. Preserve both commits. This finalisation commit records acceptance and closes the handoff/plan only; it does not repeat completed implementation or verification.
+
+Next action: stop after the finalisation commit and handoff. The separately planned `groupCardState` → `groupCardData` rename and Phase 6 require their own commissions. No rollout, provider operation or future-phase implementation is implied.
 
 ## Work completed
 
@@ -12,7 +14,7 @@ Next action: the founder completes the outstanding iPhone visual/touch review us
 - A Group Item assessment Add commits through the actual API, but its first response is deliberately lost. The client replays the same command, producing one event/one revision increment while the personal Item list remains exactly unchanged.
 - A valid foreign history response is held while the subject is removed; revalidation closes the modal, removes that subject from the picker, falls back to self, denies fresh foreign reads and rejects the delayed result. Removing the viewer next returns My Decks and denies Group reads, while the owner's normal personal Progress/history remains accessible.
 - Reran cumulative scope, lifetime eligibility, version projection, assessment provenance/history/storage/retry, policy/fence/removal/adoption/destination and relevant personal/Library/Info regressions. Verified main-derived Card geometry and accepted presentation in both engines; production and optimized builds passed.
-- No application source, styling, model, permission, calculation, API or configuration fix was necessary. Existing tests/assertions/tolerances were not changed. Option B, future reflection UX and the groupCardState name remain as previously approved/current respectively.
+- The initial consolidated acceptance run required no application fix. Subsequent separately authorised fixture, Item/Area strikethrough and browser-test refinements are recorded below and committed in `71428cc`. Calculations, ownership, permissions and Card geometry remain unchanged. Option B, future reflection UX and the groupCardState name remain as previously approved/current respectively.
 
 ## Current verification results
 
@@ -78,7 +80,7 @@ node --import tsx scripts/test-phase2.ts --optimized --group-progress-live group
 - The initial broader browser command omitted `--info-cards`, so its personal Info case lacked `demo-series-owner` and timed out selecting it. The other 42 cases passed. Rerunning that unchanged case with its required fixture flag passed; no Series/product change or assertion change.
 - Initial TypeScript found an optional release callback invocation in the new test; a definite invocation after the awaited capture corrected the test type. Final TypeScript passed.
 - Initial standard build snapshot used an external node_modules symlink, which Turbopack rejects outside its filesystem root. Snapshot-local dependencies resolved it; successful regular build used unchanged source/config. First failure log is `/tmp/group-progress-5-7-build-initial.log`.
-- Optimized WebKit over plain HTTP remains the previously diagnosed Secure-cookie harness limitation; do not weaken production cookies. WebKit development/mobile acceptance and geometry/presentation passed. No HTTPS/provider acceptance or new physical-device execution is claimed here.
+- Optimized WebKit over plain HTTP remains the previously diagnosed Secure-cookie harness limitation; do not weaken production cookies. WebKit development/mobile acceptance and geometry/presentation passed. Those automated runs did not exercise HTTPS/providers or physical devices; the subsequent founder iPhone acceptance is recorded below.
 - Existing NO_COLOR/FORCE_COLOR and the single unchanged image lint warning are recorded, not hidden. No unexplained application failure remains. Performance-capacity microbenchmarks and real-provider checks were not newly commissioned; no new throughput/participant-readiness claim is made.
 
 ## Consolidated architecture inventory (existing Phase 5, unchanged by 5.7)
@@ -113,7 +115,7 @@ Rollback may disable Group entry while retaining personal data, Group test lists
 
 ## Physical iPhone acceptance / review access
 
-Section 9.7 retains the founder physical-acceptance gate. On 2 November 2026 the founder explicitly confirmed **Final iPhone review still outstanding**. **Do not mark 5.7 complete or create its completion commit until the founder accepts that review.** No new visual/touch behaviour was introduced, so the race/calculation/privacy cases are automated and need no manual repetition.
+The founder completed and explicitly accepted the final physical iPhone review on 2 November 2026. The §9.7 gate is satisfied, covering Group and individual Progress, assessment histories and improved realistic fixtures, Item and Area strikethrough, navigation, popovers and visual presentation. No further visual approval or manual calculation/security/persistence repetition is required.
 
 A source snapshot with the authorised fixture/Area-title/CSS follow-ups is running independently at `/private/tmp/switchplay-phase5-7-phone-_bo23sqi`, using the existing disposable memory Mongo harness and mocked media. Existing ports/services were preserved (4185 was occupied; new review uses 4186). Exact URL/roles are verified separately in the ignored runtime record `phase2-test-results/group-progress-5-7-review-current.json`.
 
@@ -125,7 +127,7 @@ http://192.168.1.38:4186/group-experiences/f3416601-5bdd-45c5-a5a2-018cf0482690/
 
 Credentials: Admin `phase2 / local-test-only`; Aoife follower `phase2-1@example.invalid / local-test-only`.
 
-For the outstanding physical acceptance, review only the already-approved visuals/touch qualities: sticky selector/four-column readability and arrows; Group scores/Player averages popover placement; Recorded in/date-origin readability; outside Item strikethrough/faint dashes versus skip; Back continuity into the Group Deck. Arithmetic, ownership, persistence, auth, retries and revocation are already automated. Do not add UX or ask for manual calculation/security verification.
+The completed physical acceptance covered these approved visuals/touch qualities: sticky selector/four-column readability and arrows; Group scores/Player averages popover placement; Recorded in/date-origin readability; outside Item strikethrough/faint dashes versus skip; Back continuity into the Group Deck. Arithmetic, ownership, persistence, auth, retries and revocation are already automated. Do not add UX or ask for manual calculation/security verification.
 
 Start/restart and stop:
 
@@ -148,9 +150,9 @@ Earlier exact implementation inventories remain in [foundations](group-experienc
 
 ## QUESTIONS
 
-No unanswered clarification remains: the founder confirmed the final iPhone review is outstanding. The remaining gate is explicit visual/touch acceptance using the verified environment before the checkpoint completion commit. No manual arithmetic/permission/persistence repetition is required. No Phase 6 or naming-cleanup authority is implied.
+None. The founder accepted the final iPhone review and authorised Phase 5.7 finalisation. Remaining operational limitations below do not block Phase 5 completion and do not grant Phase 6, naming-cleanup or rollout authority.
 
-## Follow-up — populated assessment fixtures and Area title treatment (verified; physical review pending)
+## Follow-up — populated assessment fixtures and Area title treatment (verified and founder accepted)
 
 Founder-authorised fixture amendment: live disposable assessments now use a believable September/October schedule, unequal player activity, Card and direct Item histories, predominantly Galway U18 provenance, Personal origins, and a small explicit legacy/cross-Group sample. The originating second Group has the realistic long name `Galway U14 Regional Basketball Development Squad`; `Other group` remains an existing privacy-redaction label, never a seeded Group name. The original 5.0 static fixture and learning calculations remain unchanged.
 
@@ -160,7 +162,7 @@ Changed for this follow-up: `tests/helpers/groupProgressLiveReview.ts`, `tests/p
 
 Verification: seven focused unit tests passed; 29 disposable integration tests passed; TypeScript and focused lint passed. Integration cleanup warned that a Mongo child needed SIGKILL after its SIGINT timeout; all assertions passed. The 18-case Chromium/WebKit run passed 17 and exposed the test navigation race detailed below. All six affected-file cases passed on the final rerun. An earlier run was stopped after the founder changed the fixture naming request; do not count it as a completed run.
 
-Review environment: only the owned port 4186 runner was restarted. Its reused generated Next cache served history 404s after reseeding, so the old cache was moved to `/private/tmp/switchplay-phase5-7-stale-next-20261102` and a clean rebuild in the same snapshot restored successful history reads. The final focused browser rerun passed. No commit; final physical acceptance remains outstanding.
+Review environment: only the owned port 4186 runner was restarted. Its reused generated Next cache served history 404s after reseeding, so the old cache was moved to `/private/tmp/switchplay-phase5-7-stale-next-20261102` and a clean rebuild in the same snapshot restored successful history reads. The final focused browser rerun passed. These changes are committed in `71428cc`; final physical acceptance is now complete.
 
 Clean-cache LAN verification succeeded with actual loaded histories (not just the modal shell). Current review URL, superseding earlier generated IDs:
 
@@ -170,7 +172,7 @@ http://192.168.1.38:4186/group-experiences/f3416601-5bdd-45c5-a5a2-018cf0482690/
 
 Runner PID 10608, app PID 11214, snapshot unchanged. Player: `phase2-1@example.invalid / local-test-only` (Aoife Kelly); Admin: `phase2 / local-test-only`. On `Movement: foundation`, Aoife has two direct Progress and six Card assessments: three Personal, three Galway U18, one Other group and one legacy Unknown. Group-owned history contains three direct Progress and four Card assessments: six Galway U18 and one explicitly legacy Unknown. Group and player lists are separate. `Movement: control` and `Passing: foundation` provide additional differently populated histories; some other Items have none.
 
-The 18-case browser run passed 17 and exposed an existing WebKit logout test navigation race: the test started its next login/navigation before logout's router refresh completed. The review test now additionally asserts the account menu disappears after logout, before the next iteration. The focused six-case review rerun passed (`/tmp/fixture-browser-review-final.log`); no application logout change. Final TypeScript, focused lint and `git diff --check` passed. No commit was made. Final next action: founder iPhone review and acceptance; do not begin another phase.
+The 18-case browser run passed 17 and exposed an existing WebKit logout test navigation race: the test started its next login/navigation before logout's router refresh completed. The review test now additionally asserts the account menu disappears after logout, before the next iteration. The focused six-case review rerun passed (`/tmp/fixture-browser-review-final.log`); no application logout change. Final TypeScript, focused lint and `git diff --check` passed. The verified changes were subsequently committed in `71428cc` and the founder accepted the final iPhone review. Do not begin another phase.
 
 Exact follow-up checks:
 
@@ -180,3 +182,11 @@ Exact follow-up checks:
 - `node --import tsx scripts/test-phase2.ts --group-progress-live group-progress-review.browser.ts` after the logout-completion test assertion — 6 passed, covering the failed case and every other affected-file case.
 - `npx tsc --noEmit --incremental false`; `npx eslint --max-warnings 0 tests/helpers/groupProgressLiveReview.ts tests/phase2/group-progress-live.browser.ts tests/phase2/group-progress-review.browser.ts src/components/progress/FrameworkProgressTable.tsx`; `git diff --check` — passed.
 - An iPhone-sized Chromium LAN probe loaded the real history rows for both logins on the refreshed URL. Logs: `/tmp/fixture-lan-check-final.log`, `/tmp/fixture-unit.log`, `/tmp/fixture-integration.log`, `/tmp/fixture-typecheck-final.log`, `/tmp/fixture-lint-final.log`.
+
+## Finalisation verification and remaining limitations
+
+- Reviewed the clean working tree, current commit contents and previous verification records. All approved source, fixture, styling, architecture and menu-label changes were already committed; none were discarded, restaged or duplicated.
+- Finalisation changes only this handoff and the engineering plan to record successful founder acceptance, Phase 5 completion and the accepted wholly out-of-scope Area treatment.
+- No implementation changed after the successful checks above, so no test suite/build repetition was necessary. Final documentation checks: inspect the exact diff, check for obsolete acceptance blockers and run `git diff --check` before commit.
+- No unresolved Phase 5 acceptance issue remains. Known limitations remain: optimized WebKit over insecure HTTP needs an appropriate secure-cookie harness; existing lint/environment and Mongo cleanup warnings are recorded; membership-trust/safeguarding, production index/provider verification and deployment remain separately gated. Phase 5 completion does not approve participant rollout.
+- No Phase 6, media/reflection implementation, schema/database/infrastructure change or collection rename was performed during finalisation.
