@@ -102,7 +102,7 @@ test("independent admin group writes preserve both fields and never modify perso
   const view = await f.repo.card("carol", f.experienceId, f.ids[0], "group");
   assert.equal(view.learning.items[0].completionStatus, "done"); assert.equal(view.learning.signalReadings[1].reading, 8);
   for (const actor of ["alice", "bob", "carol"]) assert.deepEqual((await f.cards.getPersonalUser(actor))!.cardsData, []);
-  assert.equal(await f.repo.states().countDocuments({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }), 1);
+  assert.equal(await f.repo.cardData().countDocuments({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }), 1);
 });
 test("active followers including an explicit dual-role admin count once and confidence is raw weighted", async () => {
   const f = await groupFixture(client, { followers: ["alice", "bob", "carol", "dave"], cardCount: 1 });

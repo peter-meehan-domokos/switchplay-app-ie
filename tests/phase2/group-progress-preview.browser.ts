@@ -67,7 +67,7 @@ test("preview uses real disposable Group learning and never stores Group assessm
     const db = client.db(process.env.MONGODB_DB!), experienceId = process.env.PHASE5_PROGRESS_EXPERIENCE!;
     const experience = await db.collection("groupExperiences").findOne({ experienceId });
     expect(experience).not.toBeNull(); expect(experience).not.toHaveProperty("itemTests");
-    const states = await db.collection("groupCardState").find({ experienceId }).toArray();
+    const states = await db.collection("groupCardData").find({ experienceId }).toArray();
     expect(states).toHaveLength(12); expect(states.every(state => !Object.hasOwn(state, "tests"))).toBe(true);
     expect(await db.collection("users").countDocuments({ "cardsData.tests.id": /^PRIVATE-progress-test-/ })).toBe(4);
     expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).status()).toBe(200);
@@ -80,7 +80,7 @@ test("preview uses real disposable Group learning and never stores Group assessm
     const before = JSON.stringify(states);
     await page.goto(`${preview}/__group-progress-preview`);
     await expect(page.locator("tr[data-item-id]")).toHaveCount(9);
-    expect(JSON.stringify(await db.collection("groupCardState").find({ experienceId }).toArray())).toBe(before);
+    expect(JSON.stringify(await db.collection("groupCardData").find({ experienceId }).toArray())).toBe(before);
     const group = await page.evaluate(() => (window as unknown as { groupProgressPreview: { summary: unknown } }).groupProgressPreview.summary);
     expect(JSON.stringify(group)).not.toContain("PRIVATE-progress-test");
     expect(await (await page.request.get(`${preview}/api/items-data/review-item-1-1/history`)).status()).toBe(404);

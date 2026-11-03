@@ -7,7 +7,7 @@ import { assertStoredAssessmentTests } from "../assessments/repository";
 import { orderHistoryResults, type AssessmentHistory, type HistoryResult } from "../assessments/history";
 import { projectAssessmentOrigin, manualAssessmentProvenance } from "../assessments/provenance";
 import { getFrameworks, type Framework } from "../frameworks/configuration";
-import type { GroupCardState, GroupExperience, GroupItemTest, GroupMember } from "./model";
+import type { GroupCardData, GroupExperience, GroupItemTest, GroupMember } from "./model";
 import type { GroupExperienceRepository } from "./repository";
 import { groupCapabilities } from "./policy";
 import { currentGroupAssessmentContext } from "./assessmentContext";
@@ -18,9 +18,9 @@ export type GroupAssessmentList = AssessmentList & {
   groupCapabilities: ReturnType<typeof groupCapabilities>;
 };
 async function storage(repo: GroupExperienceRepository, actor: string, experience: GroupExperience, member: GroupMember,
-  source: AssessmentSource, session: ClientSession, cachedStates?: ReadonlyMap<string, GroupCardState>) {
+  source: AssessmentSource, session: ClientSession, cachedStates?: ReadonlyMap<string, GroupCardData>) {
   const row = source.kind === "card" ? cachedStates ? cachedStates.get(source.cardTemplateId)
-    : await repo.states().findOne({ experienceId: experience.experienceId, cardTemplateId: source.cardTemplateId }, { session,
+    : await repo.cardData().findOne({ experienceId: experience.experienceId, cardTemplateId: source.cardTemplateId }, { session,
       projection: { _id: 0, cardTemplateId: 1, tests: 1, testsRevision: 1 } }) : undefined;
   const tests = source.kind === "card" ? row?.tests ?? [] : experience.itemTests ?? [];
   // Undefined additive fields are legacy defaults; null/malformed data is not.
@@ -95,9 +95,9 @@ export async function mutateGroupAssessment(repo: GroupExperienceRepository, act
     const revision = saved.list.revision + 1;
     const guard = (field: string) => saved.list.revision === 0 ? { $or: [{ [field]: 0 }, { [field]: { $exists: false } }] } : { [field]: saved.list.revision };
     if (source.kind === "card") {
-      if (!saved.row) await repo.states().insertOne({ experienceId, cardTemplateId: source.cardTemplateId, items: [], signalReadings: [], revision: 0,
+      if (!saved.row) await repo.cardData().insertOne({ experienceId, cardTemplateId: source.cardTemplateId, items: [], signalReadings: [], revision: 0,
         tests: tests as CardTest[], testsRevision: revision, createdAt: now, updatedAt: now }, { session });
-      else requireCondition((await repo.states().updateOne({ experienceId, cardTemplateId: source.cardTemplateId, ...guard("testsRevision") },
+      else requireCondition((await repo.cardData().updateOne({ experienceId, cardTemplateId: source.cardTemplateId, ...guard("testsRevision") },
         { $set: { tests, testsRevision: revision, updatedAt: now } }, { session })).matchedCount === 1, "ASSESSMENT_REVISION_CONFLICT");
     } else requireCondition((await repo.experiences().updateOne({ experienceId, ...guard("itemTestsRevision") }, {
       $set: { itemTests: tests as GroupItemTest[], itemTestsRevision: revision, updatedAt: now },
@@ -112,10 +112,10 @@ export async function mutateGroupAssessment(repo: GroupExperienceRepository, act
 // Callers supply authorised scope Cards; this helper never discovers wider scope.
 export async function groupAssessmentHistoryReader(repo: GroupExperienceRepository, actor: string, experience: GroupExperience,
   member: GroupMember, cards: Awaited<ReturnType<typeof currentGroupAssessmentContext>>["assessmentCards"], session: ClientSession) {
-  const states = new Map<string, GroupCardState>();
+  const states = new Map<string, GroupCardData>();
   const ids = cards.map(card => card.cardTemplateId);
   for (let offset = 0; offset < ids.length; offset += 100) {
-    const rows = await repo.states().find({ experienceId: experience.experienceId, cardTemplateId: { $in: ids.slice(offset, offset + 100) } }, { session,
+    const rows = await repo.cardData().find({ experienceId: experience.experienceId, cardTemplateId: { $in: ids.slice(offset, offset + 100) } }, { session,
       projection: { _id: 0, cardTemplateId: 1, tests: 1, testsRevision: 1 } }).toArray();
     for (const row of rows) states.set(row.cardTemplateId, row);
   }

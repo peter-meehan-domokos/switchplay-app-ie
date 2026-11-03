@@ -101,7 +101,7 @@ test("empty cohort, all skipped, confidence-only and malformed learning remain d
     const user = await personal(f, userId); user.cardsData.forEach(card => { card.items.forEach(step => { step.completionStatus = "skipped"; }); card.signalReadings.forEach(signal => { signal.reading = 9; }); }); await seed(f, userId, user.cardsData);
   }
   const skipped = groupRow(item(await summary(f))).averages; assert.equal(skipped.state, "skipped"); assert.equal(skipped.confidence, 9); assert.equal(skipped.completion, null);
-  await f.repo.states().insertOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0], revision: 0, createdAt: new Date(), updatedAt: new Date(), items: [], signalReadings: [{ stepId: "a0", reading: 100 }] });
+  await f.repo.cardData().insertOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0], revision: 0, createdAt: new Date(), updatedAt: new Date(), items: [], signalReadings: [{ stepId: "a0", reading: 100 }] });
   assert.equal(groupRow(item(await summary(f))).scores.state, "incomplete");
   await f.cards.users().updateOne({ _id: "bob" }, { $set: { "cardsData.0.items.0.completionStatus": "broken" } });
   assert.equal(groupRow(item(await summary(f))).averages.state, "incomplete"); assert.equal(playerRow(item(await summary(f, "bob", player()))).state, "incomplete");
@@ -146,7 +146,7 @@ test("Group scores and averages share only Group-owned Tests, retaining removed 
   assert.equal((await history(f, "bob", group)).history.count, 2);
   await publishGroupDeck(f, []); await f.repo.adoptUpdate("alice", f.experienceId, await reviewedUpdate(f, "deck", f.deckId));
   assert.equal(item(await summary(f)).assessments, null); await assert.rejects(history(f, "alice", group), { code: "GROUP_PROGRESS_SOURCE_FORBIDDEN" });
-  assert.equal((await f.repo.states().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!.tests!.length, 1);
+  assert.equal((await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!.tests!.length, 1);
 });
 
 test("assessment database projections never retrieve private fields or unrelated source events", async t => {

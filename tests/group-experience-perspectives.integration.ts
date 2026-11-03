@@ -91,7 +91,7 @@ test("presentation batches page Cards and identities without losing selected con
   const tile = (await f.repo.collectionTiles("alice")).entries[0];
   assert.equal(tile.deck.cards.length, 20); assert.equal(tile.cardCount, 21);
   assert.equal(tile.isComplete, false, "a complete first page cannot complete the entire Deck");
-  await f.repo.states().updateMany({ experienceId: f.experienceId }, { $set: { "items.$[].completionStatus": "skipped" } });
+  await f.repo.cardData().updateMany({ experienceId: f.experienceId }, { $set: { "items.$[].completionStatus": "skipped" } });
   assert.equal((await f.repo.collectionTiles("alice")).entries[0].allSkipped, false,
     "a skipped first page cannot hide the percentage for an unstarted final Card");
   for (const prefix of ["a", "b", "c"]) await f.repo.writeLearning("alice", f.experienceId, f.ids[20], "group", completion(`${prefix}20`, "skipped"));

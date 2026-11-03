@@ -217,11 +217,11 @@ test("deterministic adoption versus follower Step write preserves earlier values
 test("a group write already authorized on an old version may commute with another admin adoption and remain historical", async t => {
   const f = await groupFixture(client, { admins: ["bob"], followers: [] }), competing = new GroupExperienceRepository(f.cards);
   await publishGroupCard(f, 0, ["a0", "b0", "d0"]); const update = await reviewedUpdate(f, "card", f.ids[0], "bob");
-  const collection = f.repo.states(), find = collection.findOne.bind(collection);
+  const collection = f.repo.cardData(), find = collection.findOne.bind(collection);
   let release!: () => void, reached!: () => void, once = true;
   const ready = new Promise<void>(resolve => { reached = resolve; }), held = new Promise<void>(resolve => { release = resolve; }); t.after(release);
   t.mock.method(collection, "findOne", async (...args: Parameters<typeof find>) => { const row = await find(...args); if (once) { once = false; reached(); await held; } return row; });
-  t.mock.method(f.repo, "states", () => collection);
+  t.mock.method(f.repo, "cardData", () => collection);
   const write = f.repo.writeLearning("alice", f.experienceId, f.ids[0], "group", completion("c0"));
   await ready; await competing.adoptUpdate("bob", f.experienceId, update); release(); await write;
   assert.equal((await collection.findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!.items[0].stepId, "c0");

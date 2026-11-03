@@ -30,7 +30,7 @@ export async function seedLiveGroupProgress(cards: CardRepository, uri: string, 
       date: index === 0 && i === 0 ? "2026-09-08" : `2026-10-${String(7 + index + i * 6).padStart(2, "0")}`,
       createdAt: new Date(index === 0 && i === 0 ? "2026-09-08T18:00:00Z" : `2026-10-${String(7 + index + i * 6).padStart(2, "0")}T18:00:00Z`),
       ...(index === 0 && i === 0 ? {} : { provenance: manualAssessmentProvenance(actor, { groupExperienceId: experienceId, deckTemplateId: seeded.deckId }) }) }));
-    await groups.states().updateOne({ experienceId, cardTemplateId: card.cardTemplateId }, { $set: { tests, testsRevision: 1,
+    await groups.cardData().updateOne({ experienceId, cardTemplateId: card.cardTemplateId }, { $set: { tests, testsRevision: 1,
       ...(index === 9 ? { items: card.learning.items.map(step => ({ ...step, completionStatus: "skipped" })) } : {}) } });
   }
   const itemTests = framework.areas.flatMap(area => area.items).flatMap((item, index) =>

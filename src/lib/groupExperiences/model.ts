@@ -25,7 +25,7 @@ export type GroupMember = {
 };
 export type RemovalManifest = { generation: string; snapshotAt: Date; deckVersion: number; cards: RetainedCardAssignment[] };
 export type RemovalLearning = LearningFields & { experienceId: string; userId: string; cardTemplateId: string; version: number; generation: string; snapshotAt: Date };
-export type GroupCardState = LearningFields & {
+export type GroupCardData = LearningFields & {
   experienceId: string; cardTemplateId: string; revision: number; createdAt: Date; updatedAt: Date;
   tests?: CardTest[]; testsRevision?: number;
 };

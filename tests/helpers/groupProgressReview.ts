@@ -34,7 +34,7 @@ export async function seedGroupProgressReview(cards: CardRepository, uri: string
   await cards.publishDeck(actor, deck.deckTemplateId, 0);
   const experience = await repo.create(actor, { name: fixture.name, operationId: randomUUID(), adminIds: [], followerIds: followers,
     manifest: { deckTemplateId: deck.deckTemplateId, deckVersion: 1, cards: ids.map(cardTemplateId => ({ cardTemplateId, version: 1 })) } });
-  await repo.states().insertMany(fixture.cards.map(card => ({ experienceId: experience.experienceId, cardTemplateId: card.cardTemplateId,
+  await repo.cardData().insertMany(fixture.cards.map(card => ({ experienceId: experience.experienceId, cardTemplateId: card.cardTemplateId,
     ...card.learning, revision: 0, createdAt: now, updatedAt: now })));
   for (const [follower, userId] of followers.entries()) {
     const rows = fixture.cards.map((card, i) => ({ ...initialCardData(card.cardTemplateId, 1, card.content, now), ...fixture.followerLearning[follower][i],

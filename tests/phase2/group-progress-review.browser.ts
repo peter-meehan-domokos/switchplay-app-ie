@@ -119,7 +119,7 @@ test("live review stores distinct club and player histories with realistic origi
     const groups = new GroupExperienceRepository(new CardRepository(db, client));
     const club = await groups.experiences().findOne({ experienceId: live!.experienceId });
     expect(club).not.toBeNull();
-    const states = await groups.states().find({ experienceId: live!.experienceId }).toArray();
+    const states = await groups.cardData().find({ experienceId: live!.experienceId }).toArray();
     const clubTests = [...states.flatMap(state => state.tests ?? []), ...(club!.itemTests ?? [])];
     expect(clubTests.filter(test => !test.provenance)).toHaveLength(1); // explicit September legacy import
     for (const test of clubTests.filter(test => test.provenance)) expect(test.provenance!.groupExperienceId).toBe(live!.experienceId);

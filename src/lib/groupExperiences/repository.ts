@@ -8,7 +8,7 @@ import { mergeRetainedAssignments } from "../cards/retainedAssignments";
 import { cardContentPresentation } from "../cards/libraryProjection";
 import { cardCreatorAttributions, creatorUsernames } from "../cards/creatorAttribution";
 import { GROUP_COLLECTIONS, assertGroupExperienceIndexes } from "./indexes";
-import type { GroupExperience, GroupMember, GroupCardState, GroupReceipt, Perspective, RemovalLearning } from "./model";
+import type { GroupExperience, GroupMember, GroupCardData, GroupReceipt, Perspective, RemovalLearning } from "./model";
 import { authorize, type GroupRole } from "./authorization";
 import { createCommand, memberCommand, learningCommand, hash, id, page, revision } from "./contracts";
 import { publicCards, selectedCard, selectedContent, validateCreationManifest } from "./publicVersions";
@@ -26,7 +26,7 @@ export class GroupExperienceRepository {
   constructor(readonly cards: CardRepository) {}
   experiences() { return this.cards.db.collection<GroupExperience>(GROUP_COLLECTIONS.experiences); }
   members() { return this.cards.db.collection<GroupMember>(GROUP_COLLECTIONS.members); }
-  states() { return this.cards.db.collection<GroupCardState>(GROUP_COLLECTIONS.states); }
+  cardData() { return this.cards.db.collection<GroupCardData>(GROUP_COLLECTIONS.cardData); }
   receipts() { return this.cards.db.collection<GroupReceipt>(GROUP_COLLECTIONS.receipts); }
   removals() { return this.cards.db.collection<RemovalLearning>(GROUP_COLLECTIONS.removals); }
   private ready = false;
@@ -187,8 +187,8 @@ export class GroupExperienceRepository {
     });
   }
   async groupLearning(experienceId: string, cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession) {
-    const rows: GroupCardState[] = [];
-    for (let start = 0; start < cards.length; start += 100) rows.push(...await this.states().find({ experienceId,
+    const rows: GroupCardData[] = [];
+    for (let start = 0; start < cards.length; start += 100) rows.push(...await this.cardData().find({ experienceId,
       cardTemplateId: { $in: cards.slice(start, start + 100).map(card => card.cardTemplateId) } }, {
       session, projection: { _id: 0, cardTemplateId: 1, items: 1, signalReadings: 1 },
     }).toArray());
@@ -263,16 +263,16 @@ export class GroupExperienceRepository {
         }
         await mutatePersonalLearningInSession(this.cards, actor, selected, command.change, session);
       } else {
-        const row = await this.states().findOne({ experienceId, cardTemplateId }, { session }), now = new Date();
-        if (!row) await this.states().insertOne({ experienceId, cardTemplateId, items: [], signalReadings: [], revision: 0, createdAt: now, updatedAt: now }, { session });
+        const row = await this.cardData().findOne({ experienceId, cardTemplateId }, { session }), now = new Date();
+        if (!row) await this.cardData().insertOne({ experienceId, cardTemplateId, items: [], signalReadings: [], revision: 0, createdAt: now, updatedAt: now }, { session });
         projectLearning(selected.content, row ?? { items: [], signalReadings: [] });
         const change = command.change, completion = change.kind === "completion", field = completion ? "items" : "signalReadings";
         const valueField = completion ? "completionStatus" : "reading", value = completion ? change.completionStatus : change.reading;
         const exists = row?.[field].some(item => item.stepId === change.stepId);
-        if (exists) await this.states().updateOne({ experienceId, cardTemplateId }, {
+        if (exists) await this.cardData().updateOne({ experienceId, cardTemplateId }, {
           $set: { [`${field}.$[step].${valueField}`]: value, updatedAt: now }, $inc: { revision: 1 },
         }, { session, arrayFilters: [{ "step.stepId": change.stepId }] });
-        else await this.states().updateOne({ experienceId, cardTemplateId }, { $push: { [field]: { stepId: change.stepId, [valueField]: value } },
+        else await this.cardData().updateOne({ experienceId, cardTemplateId }, { $push: { [field]: { stepId: change.stepId, [valueField]: value } },
           $set: { updatedAt: now }, $inc: { revision: 1 } }, { session });
       }
       return { ...identity(actor, experience, member), cardTemplateId, version: selected.version, owner, ok: true };

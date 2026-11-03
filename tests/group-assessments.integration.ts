@@ -27,11 +27,11 @@ const remove = (source: AssessmentSource, expectedRevision: number, actor = "ali
 test("Group Card and direct Item storage is independent, server-stamped and preserves learning fields", async () => {
   const f = await groupFixture(client), source = cardSource(f.ids[0]), frameworks = catalogue(f.ids);
   await f.repo.writeLearning("alice", f.experienceId, f.ids[0], "group", { accessEpoch: 0, version: 1, change: { kind: "completion", stepId: "a0", completionStatus: "done" } });
-  const before = await f.repo.states().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] });
+  const before = await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] });
   const people = await f.cards.users().find({}).toArray();
   const saved = await mutateGroupAssessment(f.repo, "alice", f.experienceId, source, add(source), frameworks);
   assert.equal(saved.owner.kind, "group"); assert.equal(saved.tests[0].origin?.label, f.command.name); assert.equal(saved.tests[0].provenance, undefined);
-  const raw = (await f.repo.states().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!;
+  const raw = (await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!;
   assert.equal(raw.tests![0].provenance!.enteredByUserId, "alice"); assert.equal(raw.tests![0].provenance!.deckTemplateId, f.deckId);
   assert.deepEqual(raw.items, before!.items); assert.equal(raw.revision, before!.revision);
   const updated = await mutateGroupAssessment(f.repo, "alice", f.experienceId, source, edit(source, 1), frameworks);
@@ -121,7 +121,7 @@ test("different Admin scalar and first-assessment writes preserve one Group row 
     mutateGroupAssessment(f.repo, "alice", f.experienceId, source, add(source), frameworks),
     f.repo.writeLearning("dave", f.experienceId, f.ids[0], "group", { accessEpoch: 0, version: 1, change: { kind: "completion", stepId: "a0", completionStatus: "done" } }),
   ]);
-  const rows = await f.repo.states().find({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }).toArray();
+  const rows = await f.repo.cardData().find({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }).toArray();
   assert.equal(rows.length, 1); assert.equal(rows[0].items[0].completionStatus, "done"); assert.equal(rows[0].tests!.length, 1);
 });
 
@@ -149,9 +149,9 @@ test("legacy counters default safely and malformed Group source data is unavaila
   const f = await groupFixture(client), source = cardSource(f.ids[0]), frameworks = catalogue(f.ids);
   await f.repo.writeLearning("alice", f.experienceId, f.ids[0], "group", { accessEpoch: 0, version: 1, change: { kind: "completion", stepId: "a0", completionStatus: "done" } });
   assert.equal((await readGroupAssessments(f.repo, "bob", f.experienceId, source, frameworks)).revision, 0);
-  await f.repo.states().updateOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }, { $set: { tests: [{ id: "legacy", date: "2026-01-01", result: true, createdAt: new Date("2026-01-01T12:00:00Z") }] } });
+  await f.repo.cardData().updateOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }, { $set: { tests: [{ id: "legacy", date: "2026-01-01", result: true, createdAt: new Date("2026-01-01T12:00:00Z") }] } });
   assert.equal((await readGroupAssessments(f.repo, "bob", f.experienceId, source, frameworks)).tests[0].origin?.label, "Unknown");
-  await f.repo.states().updateOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }, { $set: { testsRevision: -1 } });
+  await f.repo.cardData().updateOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }, { $set: { testsRevision: -1 } });
   const history = await readGroupAssessmentHistory(f.repo, "alice", f.experienceId, itemSource, frameworks);
   assert.equal(history.history.state, "incomplete"); assert.equal(history.history.count, null); assert.ok(history.history.issues.length);
 });
@@ -159,8 +159,8 @@ test("legacy counters default safely and malformed Group source data is unavaila
 test("scalar Group learning queries exclude the new assessment lists and provenance", async t => {
   const f = await groupFixture(client), source = cardSource(f.ids[0]), frameworks = catalogue(f.ids);
   await mutateGroupAssessment(f.repo, "alice", f.experienceId, source, add(source, "assessment-only-secret"), frameworks);
-  const collection = f.repo.states(), find = collection.find.bind(collection);
-  t.mock.method(f.repo, "states", () => collection);
+  const collection = f.repo.cardData(), find = collection.find.bind(collection);
+  t.mock.method(f.repo, "cardData", () => collection);
   t.mock.method(collection, "find", (...args: Parameters<typeof find>) => {
     assert.deepEqual(args[1]?.projection, { _id: 0, cardTemplateId: 1, items: 1, signalReadings: 1 });
     return find(...args);
@@ -173,11 +173,11 @@ test("scalar Group learning queries exclude the new assessment lists and provena
 test("failed Group test writes roll back fences, fields and revisions", async () => {
   const f = await groupFixture(client), source = cardSource(f.ids[0]), frameworks = catalogue(f.ids);
   const members = await f.repo.members().find({ experienceId: f.experienceId }).toArray();
-  await f.cards.db.command({ collMod: "groupCardState", validator: { testsRevision: { $exists: false } }, validationLevel: "strict" });
+  await f.cards.db.command({ collMod: "groupCardData", validator: { testsRevision: { $exists: false } }, validationLevel: "strict" });
   await assert.rejects(mutateGroupAssessment(f.repo, "alice", f.experienceId, source, add(source), frameworks));
-  assert.equal(await f.repo.states().countDocuments({ experienceId: f.experienceId }), 0);
+  assert.equal(await f.repo.cardData().countDocuments({ experienceId: f.experienceId }), 0);
   assert.deepEqual(await f.repo.members().find({ experienceId: f.experienceId }).toArray(), members);
-  await f.cards.db.command({ collMod: "groupCardState", validator: {} });
+  await f.cards.db.command({ collMod: "groupCardData", validator: {} });
   await f.cards.db.command({ collMod: "groupExperiences", validator: { itemTestsRevision: { $exists: false } }, validationLevel: "strict" });
   await assert.rejects(mutateGroupAssessment(f.repo, "alice", f.experienceId, itemSource, add(itemSource), frameworks));
   const experience = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
@@ -194,7 +194,7 @@ test("another Admin adoption racing a new test revalidates scope before commit",
   await read;
   try { await publishGroupDeck(f, [f.ids[1]]); await f.repo.adoptUpdate("alice", f.experienceId, await reviewedUpdate(f, "deck", f.deckId)); }
   finally { resume(); }
-  await rejected; assert.equal(await f.repo.states().countDocuments({ experienceId: f.experienceId }), 0);
+  await rejected; assert.equal(await f.repo.cardData().countDocuments({ experienceId: f.experienceId }), 0);
 });
 
 test("removal of Admin authority prevents mutations and lost-response acknowledgement", async () => {

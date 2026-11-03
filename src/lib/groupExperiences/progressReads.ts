@@ -43,7 +43,7 @@ async function playerLearning(repo: GroupExperienceRepository, users: string[], 
 }
 async function groupLearning(repo: GroupExperienceRepository, context: GroupProgressContext, ids: readonly string[], session: ClientSession): Promise<ProgressLearning> {
   const rows = [];
-  for (let start = 0; start < ids.length; start += 100) rows.push(...await repo.states().find({ experienceId: context.experience.experienceId,
+  for (let start = 0; start < ids.length; start += 100) rows.push(...await repo.cardData().find({ experienceId: context.experience.experienceId,
     cardTemplateId: { $in: ids.slice(start, start + 100) } }, { session, projection: { _id: 0, cardTemplateId: 1, items: 1, signalReadings: 1 } }).toArray());
   const cards = new Map<string, LearningFields>();
   for (const card of context.cards.filter(card => ids.includes(card.cardTemplateId))) {
