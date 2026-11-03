@@ -1,3 +1,4 @@
+import { assertNoGroupMediaReferences } from "../groupExperiences/media/registry";
 import { createHmac } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import type { ClientSession } from "mongodb";
@@ -35,6 +36,7 @@ export async function signInfoUpload(root: InfoRoot, media: InfoMedia) {
 }
 export async function assertMediaAttachment(repo: InfoCardRepository, actor: string, root: InfoRoot,
   media: InfoMedia | null, proof: string | undefined, session: ClientSession) {
+  await assertNoGroupMediaReferences(repo.db, media, session);
   if (!media || sameAsset(root.draft?.mediaItem, media)) return;
   const historical = await repo.versions().findOne({ infoCardId: root.infoCardId,
     "content.mediaItem.provider": media.provider, "content.mediaItem.assetId": media.assetId,
@@ -113,6 +115,7 @@ export async function authorizeInfoMedia(repo: InfoCardRepository, actor: string
 }
 export async function deliverInfoMedia(repo: InfoCardRepository, actor: string, context: MediaContext, signal?: AbortSignal) {
   const media = await authorizeInfoMedia(repo, actor, context);
+  await assertNoGroupMediaReferences(repo.db, media);
   assertInfoMediaConfigured();
   return media.mediaType === "image" ? readProtectedImage(media, signal)
     : Response.json(await streamPlaybackGrant(media.assetId), { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
@@ -121,6 +124,7 @@ export async function deliverInfoMedia(repo: InfoCardRepository, actor: string, 
 // Owner draft only. An arbitrary provider UID never grants a processing read.
 export async function infoDraftVideoStatus(repo: InfoCardRepository, actor: string, id: string, expected: number) {
   const media = await authorizeInfoMedia(repo, actor, { infoCardId: id, kind: "draft", revision: expected });
+  await assertNoGroupMediaReferences(repo.db, media);
   assertInfoMediaConfigured();
   requireCondition(media.mediaType === "video", "INVALID_INFO_MEDIA_CONTEXT");
   requireCondition(!!process.env.CLOUDFLARE_ACCOUNT_ID && !!process.env.CLOUDFLARE_STREAM_API_TOKEN, "INFO_MEDIA_CONFIGURATION_REQUIRED");

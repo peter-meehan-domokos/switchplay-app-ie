@@ -1,3 +1,4 @@
+import { assertNoGroupMediaReferences } from "../groupExperiences/media/registry";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
@@ -408,6 +409,7 @@ export class CardRepository {
     const existing = await this.cards().findOne({ cardTemplateId: command.cardTemplateId }, { session });
     content = withInfoAttachmentDates(content, existing?.draft ?? version.content);
     // Recovery checks the exact committed draft first; expired upload proofs must not undo a proven outcome.
+    await assertNoGroupMediaReferences(this.db, content, session);
     if (!existing) await validateForkAttachments(actor, { kind: "card", source: command.source, targetId: command.cardTemplateId, context: command.context }, version.content, content, command.mediaProofs);
     if (existing) {
       requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && existing.revision === 0
@@ -481,6 +483,7 @@ export class CardRepository {
         requireCondition(content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && !version.content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && sameContent(card.content, createDefaultCardContent(card.content.steps.map((step) => step.stepId))), "INVALID_NEW_FORK_CARD");
+        await assertNoGroupMediaReferences(this.db, card.content, session);
         const existingCard = await this.cards().findOne({ cardTemplateId: card.cardTemplateId }, { session });
         if (existingCard) requireCondition(existingCard.ownerUserId === actor && existingCard.latestVersion === 0 && existingCard.revision === 0
           && existingCard.forkedFrom === null && sameContent(existingCard.draft, card.content), "DECK_FORK_RECOVERY_CONFLICT");
@@ -499,6 +502,7 @@ export class CardRepository {
           && isDeepStrictEqual(existing.draft, content) && (existing.draftVisibility ?? "private") === (command.visibility ?? "private")
           && isDeepStrictEqual(existing.foreignCardSelections, command.foreignCardSelections), "DECK_FORK_RECOVERY_CONFLICT");
       } else {
+        await assertNoGroupMediaReferences(this.db, content, session);
         await validateForkAttachments(actor, { kind: "deck", source: command.source, targetId: command.deckTemplateId, context: command.context }, deckDraftContent(version.content), content, command.mediaProofs);
         const now = new Date();
         await this.recordReferenceChanges(command.deckTemplateId, content.cards.map((ref) => ref.cardTemplateId), session);
@@ -546,6 +550,7 @@ export class CardRepository {
     const root: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility: "private", ...(visibility === "public" ? { draftVisibility: visibility } : {}), latestVersion: 0,
       draft: withInfoAttachmentDates(structuredClone(content), null, now), stepIds: content.steps.map((step) => step.stepId), revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
     const existing = await this.transaction(async (session) => {
+      await assertNoGroupMediaReferences(this.db, content, session);
       await this.assertUser(actor, session);
       const existing = await this.cards().findOne({ cardTemplateId }, { session });
       if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && publicationVisibility(existing) === visibility && sameContent(existing.draft, withInfoAttachmentDates(content, existing.draft)), "INITIAL_CARD_CONFLICT"); return existing; }
@@ -610,6 +615,7 @@ export class CardRepository {
     const now = new Date(); const root: DeckTemplateRoot = { deckTemplateId: randomUUID(), ownerUserId: actor, visibility: "private", ...(visibility === "public" ? { draftVisibility: visibility } : {}),
       latestVersion: 0, draft: structuredClone(content), revision: 0, forkedFrom: null, createdAt: now, updatedAt: now };
     await this.transaction(async (session) => {
+      await assertNoGroupMediaReferences(this.db, content, session);
       await this.assertUser(actor, session); await this.deckReferences(actor, content, session);
       await this.recordReferenceChanges(root.deckTemplateId, content.cards.map((ref) => ref.cardTemplateId), session);
       await this.decks().insertOne(root, { session });
@@ -618,6 +624,7 @@ export class CardRepository {
   async saveCardDraft(actor: string, cardTemplateId: string, expectedRevision: number, content: CardContent, visibility?: Visibility) {
     assertCardContent(content);
     return this.transaction(async (session) => {
+      await assertNoGroupMediaReferences(this.db, content, session);
       const root = await this.ownerCard(actor, cardTemplateId, expectedRevision, session);
       const nextVisibility = draftVisibility(root, visibility);
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
@@ -645,6 +652,7 @@ export class CardRepository {
   async saveDeckDraft(actor: string, deckTemplateId: string, expectedRevision: number, content: DeckContent, visibility?: Visibility, foreignCardSelections?: import("./model").CardForkSource[]) {
     assertDeckContent(content);
     return this.transaction(async (session) => {
+      await assertNoGroupMediaReferences(this.db, content, session);
       const root = await this.ownerDeck(actor, deckTemplateId, expectedRevision, session);
       const nextVisibility = draftVisibility(root, visibility);
       await this.deckReferences(actor, content, session);
@@ -1102,6 +1110,7 @@ export class CardRepository {
       let mediaItems = data.mediaItems;
       requireCondition(Array.isArray(mediaItems), "INVALID_PERSONAL_MEDIA");
       const item = validate(change.append);
+      await assertNoGroupMediaReferences(this.db, item, session);
       const existing = mediaItems.find((media) => media?.id === item.id);
       requireCondition(!existing || isDeepStrictEqual(existing, item), "MEDIA_ID_CONFLICT");
       if (!existing) mediaItems = [...mediaItems, item];

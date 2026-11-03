@@ -1,3 +1,4 @@
+import { createGroupMediaIndexes } from "./media/indexes";
 import type { Db, IndexDescription } from "mongodb";
 import { requireCondition } from "../cards/domain";
 
@@ -20,6 +21,7 @@ export async function createGroupExperienceIndexes(db: Db) {
   // The explicit offline migration, never an application request, owns cutover.
   requireCondition(!await db.listCollections({ name: "groupCardState" }, { nameOnly: true }).hasNext(), "GROUP_CARD_RENAME_REQUIRED");
   for (const [collection, definition] of definitions) await db.collection(collection).createIndexes([definition]);
+  await createGroupMediaIndexes(db);
 }
 export async function assertGroupExperienceIndexes(db: Db) {
   requireCondition(!await db.listCollections({ name: "groupCardState" }, { nameOnly: true }).hasNext(), "GROUP_CARD_RENAME_REQUIRED");

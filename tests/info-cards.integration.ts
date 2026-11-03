@@ -238,9 +238,11 @@ test("attach/delete race serialises through the info guard: attach wins", async 
     await repo.db.collection("cardTemplates").insertOne({ cardTemplateId: "main", draft: { infoCardIds: ids } }, { session });
   });
   await entered;
-  const deletion = repo.delete("alice", "a", 2);
+  // Observe the expected rejection immediately: the competing operation can
+  // reject before the attachment acknowledgement returns under load.
+  const deletion = assert.rejects(repo.delete("alice", "a", 2), { code: "INFO_REFERENCED_CONFLICT" });
   release(); await attach;
-  await assert.rejects(deletion, { code: "INFO_REFERENCED_CONFLICT" });
+  await deletion;
   assert.equal(await repo.roots().countDocuments(), 1);
 });
 

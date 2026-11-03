@@ -1,3 +1,4 @@
+import { assertNotGroupMedia } from "../groupExperiences/media/registry";
 import type { ClientSession, Db } from "mongodb";
 import { requireCondition } from "../cards/domain";
 import type { InfoMedia } from "./model";
@@ -12,6 +13,7 @@ export type InfoMediaAllocation = {
 // reference there turn an info-card asset ID into a grant. Records survive card
 // deletion; provider garbage collection is deliberately deferred.
 export async function assertNotInfoMedia(db: Db, provider: "r2" | "stream", identity: string, session?: ClientSession) {
+  await assertNotGroupMedia(db, provider, identity, session);
   if (provider === "stream") {
     requireCondition(identity.length > 0 && identity.length <= 200 && !/[^a-zA-Z0-9_-]/.test(identity), "MEDIA_FORBIDDEN");
     // Cloudflare UIDs are hex; prevent alternate casing or URL-normalised input
