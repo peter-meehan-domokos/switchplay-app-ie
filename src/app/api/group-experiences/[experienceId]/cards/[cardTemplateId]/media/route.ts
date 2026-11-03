@@ -10,7 +10,7 @@ export async function POST(request: Request, context: Context) {
 }
 export async function GET(request: Request, context: Context) {
   return mediaRequest(request, true, async (repo, actor) => {
-    const { experienceId, cardTemplateId } = await context.params, p = query(request, ["after", "limit", "subjectUserId"]);
-    return repo.groupFeed(actor, experienceId, cardTemplateId, { ...pagination(p), subjectUserId: p.get("subjectUserId") ?? undefined });
+    const { experienceId, cardTemplateId } = await context.params, p = query(request, ["after", "before", "limit", "subjectUserId"]);
+    return repo.groupFeed(actor, experienceId, cardTemplateId, { ...pagination(p), before: p.get("before") ?? undefined, subjectUserId: p.get("subjectUserId") ?? undefined });
   });
 }

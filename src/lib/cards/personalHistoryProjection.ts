@@ -1,14 +1,17 @@
+import { collectionKey } from "../mediaCollection/contracts";
 import type { WeeklyCard } from "../../components/decks/types";
 import type { MediaItem } from "../media";
 
 export type PersonalMediaDisplayItem = MediaItem & {
   sourceCardTemplateId?: string;
   historyReadOnly?: true;
+  collection?: import("../mediaCollection/contracts").MediaCollectionItem;
 };
 
 // Historical segments never become current upload inputs. Their viewer-owned
 // personal media can be deleted at its source record.
-export function personalMediaKey(item: MediaItem & { sourceCardTemplateId?: string }) {
+export function personalMediaKey(item: MediaItem & { sourceCardTemplateId?: string; collection?: import("../mediaCollection/contracts").MediaCollectionItem }) {
+  if (item.collection) return collectionKey(item.collection);
   return JSON.stringify([item.sourceCardTemplateId ?? null, item.id]);
 }
 export function inheritedHistory(card: Pick<WeeklyCard, "id" | "personalHistory">) {

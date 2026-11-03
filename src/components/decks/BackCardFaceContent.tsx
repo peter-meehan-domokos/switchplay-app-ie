@@ -1,3 +1,5 @@
+import { useMediaCollection } from "@/components/media/useMediaCollection";
+import { collectionDisplayItem } from "@/lib/mediaCollection/presentation";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import { snapReadingToInteger, type CardLayout } from "@/components/cards/cardLayout";
 import {
@@ -512,7 +514,10 @@ export default function BackCardFaceContent({
   onSignalNavigateNext,
   onSignalNavigatePrevious,
 }: BackCardFaceContentProps) {
-  const hasBackMedia = card.backMediaItems.length > 0;
+  const mediaContext = card.dataOwnerUserId && onOpenMedia ? { kind: "owner" as const, viewerUserId: card.dataOwnerUserId, cardTemplateId: card.id } : null;
+  const collection = useMediaCollection(mediaContext, 5, JSON.stringify(card.backMediaItems.map(i => [i.id, i.uploadedAt])));
+  const mediaItems = collection.page && mediaContext ? collection.page.items.map(item => collectionDisplayItem(item, mediaContext)) : card.backMediaItems;
+  const hasBackMedia = mediaItems.length > 0;
   const isFocusedVariant = variant === "focused";
   const shouldShowReflectionPlaceholder = variant === "deck" || isFocusedVariant;
   const canEditReflection = isFocusedVariant && Boolean(onEditReflection);
@@ -560,7 +565,7 @@ export default function BackCardFaceContent({
         ) : null}
         {deckTemplateId ? (
           <BackCardMediaCarousel
-            items={card.backMediaItems}
+            items={mediaItems}
             onOpen={onOpenMedia ? (itemId, source) => onOpenMedia(card.id, itemId, source) : undefined}
           />
         ) : null}
@@ -589,7 +594,7 @@ export default function BackCardFaceContent({
           ariaLabel={card.reflection.trim() ? "Edit reflection" : "Add a reflection"}
           isEditable={canEditReflection}
           onClick={canEditReflection ? () => onEditReflection?.(card.id) : undefined}
-          reflectionVerticalOffset={card.reflectionVerticalOffset}
+          reflectionVerticalOffset={hasBackMedia ? 0 : card.reflectionVerticalOffset}
           showPlaceholder={shouldShowReflectionPlaceholder}
           text={card.reflection}
         />

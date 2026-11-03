@@ -6,13 +6,13 @@ import { GroupMediaRepository } from "./repository";
 import { GroupMediaAllocationUncertain } from "./contracts";
 import type { MediaAuthority } from "./model";
 
-export function mediaAuthority(request: Request): { authority: MediaAuthority; action: "status" | "playback" | "download" | "prepare-download" } {
+export function mediaAuthority(request: Request): { authority: MediaAuthority; action: "status" | "playback" | "download" | "prepare-download" | "thumbnail" } {
   const p = query(request, ["experienceId", "subjectUserId", "action"]), experienceId = p.get("experienceId"), subject = p.get("subjectUserId");
   requireCondition(experienceId !== "" && subject !== "" && (!subject || experienceId), "INVALID_GROUP_MEDIA_CONTEXT");
   const action = p.get("action") ?? "playback";
-  requireCondition(["status", "playback", "download"].includes(action) && (request.method !== "POST" || action === "download"), "INVALID_GROUP_MEDIA_ACTION");
+  requireCondition(["status", "playback", "download", "thumbnail"].includes(action) && (request.method !== "POST" || action === "download"), "INVALID_GROUP_MEDIA_ACTION");
   return { authority: experienceId ? { kind: "group", experienceId, ...(subject ? { subjectUserId: subject } : {}) } : { kind: "owner" },
-    action: request.method === "POST" ? "prepare-download" : action as "status" | "playback" | "download" };
+    action: request.method === "POST" ? "prepare-download" : action as "status" | "playback" | "download" | "thumbnail" };
 }
 // Owner retention must keep working if Group navigation is operationally disabled.
 // Group authority uses the established gated request/session boundary.

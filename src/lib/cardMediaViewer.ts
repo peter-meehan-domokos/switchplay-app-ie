@@ -1,8 +1,10 @@
+import { groupMediaUrl } from "./mediaCollection/presentation";
 import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
 
 export type CardMediaTarget = { viewerUserId: string; cardTemplateId: string; sourceCardTemplateId: string };
 export type CardMediaRequest = CardMediaTarget & { mediaItemId: string };
+export type GalleryMediaRequest = CardMediaRequest & { groupMedia?: { contributionId: string; mediaType: "image" | "video"; experienceId?: string; subjectUserId?: string } };
 export type OpenCardMedia = (cardId: string, mediaItemId: string, source: HTMLButtonElement, context?: { activeCardId: string; focused: boolean }) => void;
 export type MediaSelection = { mediaItemId: string; index: number };
 
@@ -32,11 +34,12 @@ export function cardMediaRequestUrl(target: CardMediaRequest, action: "playback"
 }
 
 export function cardMediaFileUrl(target: CardMediaRequest) {
-  return `/api/media/card/file?${new URLSearchParams(target)}`;
+  return `/api/media/card/file?${new URLSearchParams({ viewerUserId: target.viewerUserId, cardTemplateId: target.cardTemplateId, sourceCardTemplateId: target.sourceCardTemplateId, mediaItemId: target.mediaItemId })}`;
 }
 
-export function cardMediaVideoFileUrl(target: CardMediaRequest) {
-  return `/api/media/card/video-file?${new URLSearchParams(target)}`;
+export function cardMediaVideoFileUrl(target: GalleryMediaRequest) {
+  if (target.groupMedia) return groupMediaUrl(target.groupMedia, "download", target.groupMedia.experienceId ? { experienceId: target.groupMedia.experienceId, subjectUserId: target.groupMedia.subjectUserId } : undefined, true);
+  return `/api/media/card/video-file?${new URLSearchParams({ viewerUserId: target.viewerUserId, cardTemplateId: target.cardTemplateId, sourceCardTemplateId: target.sourceCardTemplateId, mediaItemId: target.mediaItemId })}`;
 }
 
 export type CardMediaDownload =

@@ -270,11 +270,12 @@ export async function requestStreamVideoReadiness(
   return responseBody;
 }
 
-export async function uploadFileToR2(uploadURL: string, file: File, signal: AbortSignal) {
+export async function uploadFileToR2(uploadURL: string, file: File, signal: AbortSignal, headers?: Record<string, string>) {
   const response = await fetch(uploadURL, {
     method: "PUT",
     headers: {
       "Content-Type": file.type,
+      ...headers,
     },
     body: file,
     signal,

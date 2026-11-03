@@ -21,6 +21,7 @@ export async function assertNotGroupMedia(db: Db, provider: "r2" | "stream", ide
 export async function assertNoGroupMediaReferences(db: Db, value: unknown, session?: ClientSession): Promise<void> {
   if (Array.isArray(value)) { for (const item of value) await assertNoGroupMediaReferences(db, item, session); return; }
   if (!isRecord(value)) return;
+  if ((value.mediaType === "image" || value.mediaType === "video") && typeof value.src === "string") await assertNotGroupMedia(db, "r2", value.src, session);
   if (value.provider === "cloudflare-stream" && typeof value.assetId === "string") await assertNotGroupMedia(db, "stream", value.assetId, session);
   if (value.mediaType === "image") {
     for (const key of ["src", "assetId"] as const) if (typeof value[key] === "string") await assertNotGroupMedia(db, "r2", value[key], session);

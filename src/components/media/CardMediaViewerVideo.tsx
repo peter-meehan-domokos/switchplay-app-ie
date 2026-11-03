@@ -4,7 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type VideoPlaybackState } from "./CloudflareHlsVideoPlayer";
 import { startStreamVideoReadinessPolling, type StreamVideoReadinessState } from "./useStreamVideoReadiness";
 import { requestCardVideoReadiness } from "@/lib/cardMediaClient";
-import type { CardMediaRequest } from "@/lib/cardMediaViewer";
+import type { GalleryMediaRequest as CardMediaRequest } from "@/lib/cardMediaViewer";
 import type { VideoMediaItem } from "@/lib/media";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import styles from "./CardMediaViewer.module.css";
@@ -20,11 +20,13 @@ const CardMediaViewerVideo = forwardRef<ViewerVideoHandle, { item: VideoMediaIte
   const [frameVisible, setFrameVisible] = useState(false);
   const [posterFailed, setPosterFailed] = useState(false);
   const { viewerUserId, cardTemplateId, sourceCardTemplateId, mediaItemId } = target;
+  const requestIdentity = JSON.stringify(target);
+  const groupVideo = Boolean(target.groupMedia);
   const [grant, setGrant] = useState<import("@/lib/cardPlaybackGrants").PlaybackGrant | null>(null);
   const resolvePlayback = useCallback(async (_item: unknown, signal: AbortSignal) => {
-    if (signal.aborted || !grant || grant.assetId !== item.assetId || Date.now() >= grant.expiresAt - 30_000) throw new Error("Video authorization expired. Retry video.");
+    if (signal.aborted || !grant || (!groupVideo && grant.assetId !== item.assetId) || Date.now() >= grant.expiresAt - 30_000) throw new Error("Video authorization expired. Retry video.");
     return grant;
-  }, [grant, item.assetId]);
+  }, [grant, item.assetId, groupVideo]);
 
   const stop = useCallback(() => {
     player.current?.pauseAndReset("card media viewer leaving video");
@@ -35,15 +37,15 @@ const CardMediaViewerVideo = forwardRef<ViewerVideoHandle, { item: VideoMediaIte
 
   useEffect(() => startStreamVideoReadinessPolling({ scope: "user-card", deckTemplateId: "personal-media-viewer", cardId: cardTemplateId }, item.assetId, setReadiness, {
     requestStatus: async (_target, _assetId, signal) => {
-      try { const result = await requestCardVideoReadiness({ viewerUserId, cardTemplateId, sourceCardTemplateId, mediaItemId }, signal);
+      try { const result = await requestCardVideoReadiness(JSON.parse(requestIdentity), signal);
         if (!signal.aborted && result.status === "ready") {
-          if (!result.grant || result.grant.assetId !== item.assetId) throw new Error("Video authorization unavailable.");
+          if (!result.grant || (!groupVideo && result.grant.assetId !== item.assetId)) throw new Error("Video authorization unavailable.");
           setGrant(result.grant); setPosterFailed(false);
         }
         return result; }
       catch (failure) { if (!signal.aborted) setError(failure instanceof Error ? failure.message : "Unable to check video status."); throw failure; }
     },
-  }), [attempt, cardTemplateId, sourceCardTemplateId, viewerUserId, item.assetId, mediaItemId]);
+  }), [attempt, cardTemplateId, sourceCardTemplateId, viewerUserId, item.assetId, mediaItemId, requestIdentity, groupVideo]);
 
   useLayoutEffect(() => {
     if (readiness.status !== "ready") return;
@@ -63,10 +65,10 @@ const CardMediaViewerVideo = forwardRef<ViewerVideoHandle, { item: VideoMediaIte
   }, [loading, readiness.status]);
 
   const frameChanged = useCallback(({ assetId, state }: { assetId: string; state: "failed" | "decoded" | "renderable" }) => {
-    if (assetId !== item.assetId) return;
+    if (assetId !== (groupVideo ? grant?.assetId : item.assetId)) return;
     if (state === "renderable") { setFrameVisible(true); setLoading(false); }
     if (state === "failed") { setFrameVisible(false); setError("The video could not be played. Please retry."); setLoading(false); }
-  }, [item.assetId]);
+  }, [item.assetId, groupVideo, grant?.assetId]);
   const playbackChanged = useCallback(({ state }: { state: VideoPlaybackState }) => {
     if (state === "failed") { setError("The video could not be played. Please retry."); setLoading(false); }
     if (state === "blocked") { setError("Playback was blocked. Tap the video play control to try again."); setLoading(false); }
@@ -78,14 +80,14 @@ const CardMediaViewerVideo = forwardRef<ViewerVideoHandle, { item: VideoMediaIte
     onLoadedMetadataCapture={() => { setLoading(false); setError(null); }}
     onCanPlayCapture={() => { setLoading(false); setError(null); }}
     onWaitingCapture={() => setLoading(true)} onPlayingCapture={() => { setLoading(false); setError(null); }} onPauseCapture={() => setLoading(false)}>
-    {readiness.status === "ready" ? <CloudflareHlsVideoPlayer key={`${item.id}:${attempt}`} ref={player} mediaItem={item} resolvePlayback={resolvePlayback} externalLoadingPresentation onMediaDisplayStateChange={frameChanged} onPlaybackStateChange={playbackChanged} /> : <>
+    {readiness.status === "ready" ? <CloudflareHlsVideoPlayer key={`${item.id}:${attempt}`} ref={player} mediaItem={groupVideo && grant && item.provider === "cloudflare-stream" ? { ...item, assetId: grant.assetId } : item} resolvePlayback={resolvePlayback} externalLoadingPresentation onMediaDisplayStateChange={frameChanged} onPlaybackStateChange={playbackChanged} /> : <>
       <div className={styles.mediaStatus} role={failed ? "alert" : "status"}>
         <p>{error || (readiness.status === "failed" ? "Video processing failed." : readiness.status === "waiting" ? "Video is still processing. Check again shortly." : readiness.status === "checking" ? "Checking video…" : "Processing video…")}</p>
         {failed ? <button className={styles.control} type="button" onClick={retry}>Retry video</button> : null}
       </div>
     </>}
     {!frameVisible && !posterFailed ? /* eslint-disable-next-line @next/next/no-img-element */
-      <img className={styles.poster} src={grant?.thumbnailUrl ?? getCloudflareStreamThumbnailUrl(item)} alt="" onError={() => setPosterFailed(true)} /> : null}
+      <img className={styles.poster} src={grant?.thumbnailUrl ?? (groupVideo ? item.thumbnailSrc : getCloudflareStreamThumbnailUrl(item))} alt="" onError={() => setPosterFailed(true)} /> : null}
     {readiness.status === "ready" && (loading || error || (!frameVisible && posterFailed)) ? <div className={styles.videoStatus} role={error ? "alert" : "status"}>
       <span>{error || "Loading video…"}</span>{error ? <button className={styles.control} type="button" onClick={retry}>Retry video</button> : null}
     </div> : null}

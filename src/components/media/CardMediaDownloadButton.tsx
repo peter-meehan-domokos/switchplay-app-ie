@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { startCardMediaDownload, type DownloadState } from "@/lib/cardMediaClient";
 import { fetchShareableVideoFile, isIphoneOrIpadSafari, isShareCancellation } from "@/lib/iosVideoShare";
-import { cardMediaVideoFileUrl, type CardMediaRequest } from "@/lib/cardMediaViewer";
+import { cardMediaVideoFileUrl, type GalleryMediaRequest as CardMediaRequest } from "@/lib/cardMediaViewer";
 import styles from "./CardMediaViewer.module.css";
 
 type IosDeliveryState =

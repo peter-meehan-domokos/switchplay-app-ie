@@ -1,4 +1,6 @@
 "use client";
+import { collectionTarget } from "@/lib/mediaCollection/presentation";
+import type { MediaCollectionContext } from "@/lib/mediaCollection/contracts";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject, type SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
@@ -18,10 +20,12 @@ type Props = {
   backgroundRef: RefObject<HTMLElement | null>;
   onSelect: (mediaItemId: string, index: number) => void;
   onClose: () => void;
+  collectionContext?: MediaCollectionContext;
+  paging?: { older: boolean; newer: boolean; loading: boolean; total: number; start: number; navigate: (direction: -1 | 1) => void };
 };
 const isolate = (event: SyntheticEvent) => event.stopPropagation();
 
-export default function CardMediaViewer({ items, index, target, sourceRef, backgroundRef, onSelect, onClose }: Props) {
+export default function CardMediaViewer({ items, index, target, sourceRef, backgroundRef, onSelect, onClose, collectionContext, paging }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const video = useRef<ViewerVideoHandle>(null);
@@ -29,13 +33,14 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
   const isPresent = useIsPresent();
   const item = items[index];
   const itemKey = item ? JSON.stringify([personalMediaKey(item), item.src]) : "";
-  const itemTarget = item ? { ...target, sourceCardTemplateId: item.sourceCardTemplateId ?? target.cardTemplateId, mediaItemId: item.id } : null;
+  const itemTarget = item ? collectionTarget(item, { ...target, sourceCardTemplateId: item.sourceCardTemplateId ?? target.cardTemplateId, mediaItemId: item.id }, collectionContext) : null;
   const leaving = closing || !item || !isPresent;
   const stop = useCallback(() => video.current?.stop(), []);
   const close = () => { stop(); setClosing(true); };
   const isVideoFullscreen = () => Boolean(document.fullscreenElement ||
     (dialog.current?.querySelector("video") as (HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }) | null)?.webkitDisplayingFullscreen);
   const navigate = (direction: -1 | 1) => {
+    if (paging) { if (!leaving && !paging.loading) { stop(); paging.navigate(direction); } return; }
     const nextIndex = Math.min(items.length - 1, Math.max(0, index + direction));
     if (nextIndex !== index && !leaving) { stop(); onSelect(personalMediaKey(items[nextIndex]), nextIndex); }
   };
@@ -94,16 +99,16 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
     }}>
     <header className={styles.toolbar}>
       <button ref={closeButton} className={styles.control} type="button" onClick={close} aria-label="Close media viewer">✕ <span>Close</span></button>
-      <p className={styles.counter} aria-live="polite" aria-atomic="true">{index + 1} of {items.length}</p>
+      <p className={styles.counter} aria-live="polite" aria-atomic="true">{(paging?.start ?? 0) + index + 1} of {paging?.total ?? items.length}</p>
       {!leaving && item ? <CardMediaDownloadButton key={itemKey} target={itemTarget!} isVideo={item.mediaType === "video"} /> : <span />}
     </header>
     <div className={styles.content}>
       {!leaving && item ? item.mediaType === "image" ? <CardMediaViewerImage key={itemKey} item={item} onNavigate={navigate} /> :
         <CardMediaViewerVideo key={itemKey} ref={video} item={item} target={itemTarget!} /> : null}
     </div>
-    {items.length > 1 ? <nav className={styles.navigation} aria-label="Media navigation">
-      <button className={styles.control} type="button" disabled={leaving || index === 0} onClick={() => navigate(-1)} aria-label="Previous media">← Previous</button>
-      <button className={styles.control} type="button" disabled={leaving || index === items.length - 1} onClick={() => navigate(1)} aria-label="Next media">Next →</button>
+    {(paging?.total ?? items.length) > 1 ? <nav className={styles.navigation} aria-label="Media navigation">
+      <button className={styles.control} type="button" disabled={leaving || Boolean(paging?.loading) || (index === 0 && !paging?.older)} onClick={() => navigate(-1)} aria-label="Previous media">← Previous</button>
+      <button className={styles.control} type="button" disabled={leaving || Boolean(paging?.loading) || (index === items.length - 1 && !paging?.newer)} onClick={() => navigate(1)} aria-label="Next media">Next →</button>
     </nav> : null}
   </dialog>, document.body);
 }

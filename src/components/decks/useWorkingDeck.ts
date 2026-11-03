@@ -1,4 +1,5 @@
 "use client";
+import { notifyMediaCollectionChanged } from "@/lib/mediaCollection/invalidation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DeckLayout } from "./deckLayout";
 import { buildOptimisticDeckLayout } from "./deckLayout";
@@ -261,6 +262,7 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
       }
 
       applyConfirmedCardMedia(target.cardId, result.mediaItems);
+      notifyMediaCollectionChanged(deck.dataOwnerUserId!, target.cardId);
     });
   };
   const removeFocusedCardMedia = async (target: UserCardMediaUploadTarget, mediaItemId: string) => {
@@ -287,6 +289,7 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
       workingCardStore.removeMedia(deck.dataOwnerUserId!, target.cardId, mediaItemId);
       cardsRef.current = nextCards;
       setCards(nextCards);
+      for (const cardId of new Set([target.cardId, ...affected])) notifyMediaCollectionChanged(deck.dataOwnerUserId!, cardId);
     }));
   };
   const commitActiveCard = (previous: number, next: number, rollback: (index: number) => void) => {

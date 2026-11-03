@@ -1,6 +1,7 @@
 export type BaseMediaItem = {
   id: string;
   description: string;
+  uploadedAt?: string; // Server-owned for new personal uploads; legacy absence is preserved.
 };
 
 export type CloudflareR2ImageMediaItem = BaseMediaItem & {

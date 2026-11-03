@@ -213,8 +213,8 @@ export class GroupMediaRepository {
       cardTemplateId: row.cardTemplateId, kind: row.kind, uploadedAt: row.uploadedAt!.toISOString(), revision: row.revision,
       groupVisible: row.groupVisible };
   }
-  ownerFeed(actor: string, cardTemplateId: string, options: { after?: string; limit?: number } = {}) { return readMediaPage(this, actor, cardTemplateId, { kind: "owner" }, options); }
-  groupFeed(actor: string, experienceId: string, cardTemplateId: string, options: { after?: string; limit?: number; subjectUserId?: string } = {}) {
+  ownerFeed(actor: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number } = {}) { return readMediaPage(this, actor, cardTemplateId, { kind: "owner" }, options); }
+  groupFeed(actor: string, experienceId: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number; subjectUserId?: string } = {}) {
     return readMediaPage(this, actor, cardTemplateId, { kind: "group", experienceId, subjectUserId: options.subjectUserId }, options);
   }
 }

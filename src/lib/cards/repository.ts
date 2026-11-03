@@ -1109,10 +1109,13 @@ export class CardRepository {
       const { data } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
       let mediaItems = data.mediaItems;
       requireCondition(Array.isArray(mediaItems), "INVALID_PERSONAL_MEDIA");
-      const item = validate(change.append);
+      const supplied = validate(change.append);
+      const { uploadedAt: suppliedDate, ...reference } = supplied; void suppliedDate;
+      const item = { ...reference, uploadedAt: new Date().toISOString() };
       await assertNoGroupMediaReferences(this.db, item, session);
       const existing = mediaItems.find((media) => media?.id === item.id);
-      requireCondition(!existing || isDeepStrictEqual(existing, item), "MEDIA_ID_CONFLICT");
+      const { uploadedAt: priorDate, ...priorReference } = existing ?? {}; void priorDate;
+      requireCondition(!existing || isDeepStrictEqual(priorReference, reference), "MEDIA_ID_CONFLICT");
       if (!existing) mediaItems = [...mediaItems, item];
       await this.users().updateOne({ _id: userKey(actor) }, { $set: { "cardsData.$[card].mediaItems": mediaItems,
         "cardsData.$[card].updatedAt": new Date() } }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });

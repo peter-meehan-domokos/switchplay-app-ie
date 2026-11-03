@@ -1,4 +1,5 @@
-import { cardMediaRequestUrl, type CardMediaRequest, type CardMediaDownload } from "@/lib/cardMediaViewer";
+import { groupMediaUrl } from "./mediaCollection/presentation";
+import { cardMediaRequestUrl, type GalleryMediaRequest as CardMediaRequest, type CardMediaDownload } from "@/lib/cardMediaViewer";
 import { StreamVideoReadinessRequestError, type StreamVideoReadinessStatus } from "@/lib/mediaUploadClient";
 
 async function readResponse(response: Response) {
@@ -9,7 +10,10 @@ async function readResponse(response: Response) {
 
 export async function requestCardVideoReadiness(target: CardMediaRequest, signal: AbortSignal): Promise<StreamVideoReadinessStatus & { grant?: import("./cardPlaybackGrants").PlaybackGrant }> {
   try {
-    const body = await readResponse(await fetch(cardMediaRequestUrl(target, "playback"), { signal, cache: "no-store" }));
+    const response = await fetch(target.groupMedia ? groupMediaUrl(target.groupMedia, "playback", target.groupMedia.experienceId ? { experienceId: target.groupMedia.experienceId, subjectUserId: target.groupMedia.subjectUserId } : undefined) : cardMediaRequestUrl(target, "playback"), { signal, cache: "no-store", headers: { "X-Group-Viewer": target.viewerUserId } });
+    if (target.groupMedia && (response.headers.get("X-Group-Viewer") ?? response.headers.get("X-Personal-Viewer")) !== target.viewerUserId) throw Error("Your account changed. Reopen the viewer.");
+    const body = await readResponse(response);
+    if (target.groupMedia) body.viewerUserId = target.viewerUserId;
     if (body.viewerUserId !== target.viewerUserId) throw new Error("Your account changed. Reopen the viewer.");
     if (body?.status === "ready") {
       const grant = body.grant;
@@ -29,6 +33,25 @@ export async function requestCardVideoReadiness(target: CardMediaRequest, signal
 }
 
 export async function requestCardMediaDownload(target: CardMediaRequest, prepare: boolean, signal: AbortSignal): Promise<CardMediaDownload> {
+  if (target.groupMedia) {
+    const g = target.groupMedia, authority = g.experienceId ? { experienceId: g.experienceId, subjectUserId: g.subjectUserId } : undefined;
+    const read = async (url: string, method = "GET") => {
+      const response = await fetch(url, { method, cache: "no-store", signal, headers: { "X-Group-Viewer": target.viewerUserId } });
+      if ((response.headers.get("X-Group-Viewer") ?? response.headers.get("X-Personal-Viewer")) !== target.viewerUserId) throw Error("Your account changed. Reopen the viewer.");
+      return readResponse(response);
+    };
+    if (g.mediaType === "image") {
+      await read(groupMediaUrl(g, "status", authority));
+      return { status: "ready", url: groupMediaUrl(g, "download", authority), filename: "card-media" };
+    }
+    const value = await read(groupMediaUrl(g, "download", authority), prepare ? "POST" : "GET");
+    if (!["ready", "preparing", "not-requested", "failed"].includes(value.status)) throw Error("Unable to read download status.");
+    if (value.status === "ready") {
+      const url = new URL(value.url);
+      if (url.protocol !== "https:" || !(url.hostname === "videodelivery.net" || url.hostname.endsWith(".cloudflarestream.com")) || !url.pathname.endsWith("/downloads/default.mp4") || typeof value.filename !== "string") throw Error("Unable to read download status.");
+    }
+    return value;
+  }
   const response = await fetch(prepare ? "/api/media/card" : cardMediaRequestUrl(target, "download"), {
     method: prepare ? "POST" : "GET",
     ...(prepare ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(target) } : {}),

@@ -113,7 +113,7 @@ test.describe("iPhone Safari simulation", () => {
     });
     const viewer = await openPreparedVideo(page);
     await viewer.getByRole("button", { name: "Save video" }).click();
-    await expect(viewer.getByRole("alert")).toBeVisible();
+    await expect(viewer.getByRole("alert").filter({ hasText: "The video could not be loaded for sharing" })).toBeVisible();
     await expect(viewer.getByRole("button", { name: "Retry save" })).toBeVisible();
     await page.evaluate(() => { (window as Window & { __activationActive?: boolean }).__activationActive = false; });
     await viewer.getByRole("button", { name: "Retry save" }).click();

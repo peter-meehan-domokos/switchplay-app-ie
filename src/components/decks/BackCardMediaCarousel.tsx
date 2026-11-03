@@ -21,7 +21,7 @@ function getLayoutMode(count: number): LayoutMode {
 
 function MediaItem({ item, index, count, onOpen }: { item: PersonalMediaDisplayItem; index: number; count: number; onOpen?: BackCardMediaCarouselProps["onOpen"] }) {
   const isVideo = isVideoMediaItem(item);
-  const src = isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : imageDeliveryUrl(item.src);
+  const src = item.collection?.source.kind === "group" && item.mediaType === "video" ? item.thumbnailSrc : isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : isVideoMediaItem(item) ? item.thumbnailSrc : imageDeliveryUrl(item.src);
 
   const contents = (<>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -57,7 +57,7 @@ export default function BackCardMediaCarousel({ items, onOpen }: BackCardMediaCa
       aria-label="Card media"
     >
       {renderedItems.map((item, index) => (
-        <MediaItem index={index} count={items.length} onOpen={onOpen} key={`${item.sourceCardTemplateId ?? "current"}:${item.id}`} item={item} />
+        <MediaItem index={index} count={items.length} onOpen={onOpen} key={personalMediaKey(item)} item={item} />
       ))}
     </section>
   );

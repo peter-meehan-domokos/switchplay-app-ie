@@ -38,9 +38,9 @@ export default function DeckDetail({ deck, ready = true, entryRevision, recovery
     if (!context || viewer || assessmentOpen || document.querySelector(".creator-modal-backdrop")) return;
     const card = working.deck.cards.find(card => card.id === cardId);
     const index = card ? visiblePersonalMedia(card).findIndex(item => personalMediaKey(item) === mediaItemId) : -1;
-    if (index < 0) return;
+    if (!card) return;
     mediaSourceRef.current = source;
-    setViewer({ cardId, mediaItemId, index, ...context, viewerUserId: deck.dataOwnerUserId!, deckTemplateId: deck.deckTemplateId, version: card?.adoptedVersion });
+    setViewer({ cardId, mediaItemId, index: Math.max(0, index), ...context, viewerUserId: deck.dataOwnerUserId!, deckTemplateId: deck.deckTemplateId, version: card?.adoptedVersion });
   };
   // Working membership is already authorized by the resolver. Creator entry
   // may create an owned copy; it does not grant writes to the foreign original.

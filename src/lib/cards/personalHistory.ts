@@ -41,8 +41,8 @@ export function readablePersonalHistory(data: CardData) {
   const mediaItems = validItems<CardData["mediaItems"][number]>(data.mediaItems, (value) => {
     if (!isMediaItem(value)) return null;
     // These are projection metadata, never trusted attributes of a stored upload.
-    const { sourceCardTemplateId, historyReadOnly, ...item } = value as MediaItem & { sourceCardTemplateId?: unknown; historyReadOnly?: unknown };
-    void sourceCardTemplateId; void historyReadOnly;
+    const { sourceCardTemplateId, historyReadOnly, collection, ...item } = value as MediaItem & { sourceCardTemplateId?: unknown; historyReadOnly?: unknown; collection?: unknown };
+    void sourceCardTemplateId; void historyReadOnly; void collection;
     return item;
   });
   let personalInfoCardIds: string[] = [];
