@@ -69,3 +69,15 @@ test("allocation uncertainty returns only the owned reservation for safe retry o
   assert.deepEqual(await response.json(), { error: "GROUP_MEDIA_ALLOCATION_UNCERTAIN", code: "GROUP_MEDIA_ALLOCATION_UNCERTAIN", contributionId: "reserved-id", outcome: "uncertain", retrySameOperation: true });
   assert.equal(response.headers.get("Cache-Control"), "private, no-store");
 });
+
+test("Group mutations compare Origin with the actual incoming host when Next uses an internal request URL", async t => {
+  const f = setup(t), r = await route("src/app/api/group-experiences/[experienceId]/cards/[cardTemplateId]/media/route.ts");
+  const url = "http://localhost:4187/api/group-experiences/group/cards/card/media";
+  assert.equal((await r.POST(new Request(url, { method: "POST", headers: { Host: "192.168.1.38:4187", Origin: "http://192.168.1.38:4187", "Sec-Fetch-Site": "same-origin" }, body: "{}" }), context)).status, 200);
+  assert.equal(f.calls.length, 1);
+  for (const headers of [
+    { Host: "192.168.1.38:4187", Origin: "https://foreign.invalid", "X-Forwarded-Host": "foreign.invalid" },
+    { Host: "192.168.1.38:4187", Origin: "http://192.168.1.38:4187", "Sec-Fetch-Site": "cross-site" },
+  ] as Record<string, string>[]) assert.equal((await r.POST(new Request(url, { method: "POST", headers, body: "{}" }), context)).status, 403);
+  assert.equal(f.calls.length, 1);
+});

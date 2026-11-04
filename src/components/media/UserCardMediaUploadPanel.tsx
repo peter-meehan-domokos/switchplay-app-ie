@@ -1,8 +1,11 @@
 "use client";
+import { requestCardVideoReadiness } from "@/lib/cardMediaClient";
+import type { GalleryMediaRequest } from "@/lib/cardMediaViewer";
+import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 
 import { imageDeliveryUrl } from "@/lib/mediaDelivery";
-import { useRef, useState, type ChangeEvent } from "react";
-import { useStreamVideoReadiness } from "@/components/media/useStreamVideoReadiness";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { startStreamVideoReadinessPolling, useStreamVideoReadiness, type StreamVideoReadinessState } from "@/components/media/useStreamVideoReadiness";
 import type { UserCardMediaUploadState, UserCardMediaUploadTarget } from "@/components/media/useKeyedUserCardMediaUploadController";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
 import type { ImageMediaItem, VideoMediaItem, MediaItem } from "@/lib/media";
@@ -15,6 +18,10 @@ export type UserCardMediaRemovalState = {
 };
 
 type UserCardMediaUploadPanelProps = {
+  canUpload?: boolean;
+  canRemoveMedia?: (item: MediaItem) => boolean;
+  showPrivate?: boolean;
+  getReadinessTarget?: (item: VideoMediaItem) => GalleryMediaRequest | undefined;
   images: ImageMediaItem[];
   videos: VideoMediaItem[];
   target: UserCardMediaUploadTarget;
@@ -27,14 +34,20 @@ type UserCardMediaUploadPanelProps = {
   getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
-function VideoTile({ item, target, removalState, onRemove }: {
-  item: VideoMediaItem;
+function VideoTile({ item, target, removalState, onRemove, canRemove = true, showPrivate = false, readinessTarget }: {
+  item: VideoMediaItem; canRemove?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
   target: UserCardMediaUploadTarget;
   removalState?: UserCardMediaRemovalState;
   onRemove: () => void;
 }) {
-  const { retry, state: streamState } = useStreamVideoReadiness(target, item.assetId, isCloudflareStreamVideoMediaItem(item));
-  const state = isCloudflareStreamVideoMediaItem(item) ? streamState : { status: "ready" as const };
+  const { retry, state: streamState } = useStreamVideoReadiness(target, item.assetId, isCloudflareStreamVideoMediaItem(item) && !readinessTarget);
+  const [collectionState, setCollectionState] = useState<StreamVideoReadinessState>({ status: "checking" });
+  const [attempt, setAttempt] = useState(0), requestKey = JSON.stringify(readinessTarget), targetKey = JSON.stringify(target);
+  useEffect(() => {
+    if (!requestKey) return;
+    return startStreamVideoReadinessPolling(JSON.parse(targetKey), item.assetId, setCollectionState, { requestStatus: (_target, _asset, signal) => requestCardVideoReadiness(JSON.parse(requestKey), signal) });
+  }, [requestKey, targetKey, item.assetId, attempt]);
+  const state = readinessTarget ? collectionState : isCloudflareStreamVideoMediaItem(item) ? streamState : { status: "ready" as const };
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const showThumbnail = state.status === "ready" && !thumbnailFailed;
   const canRetry = state.status === "waiting" || state.status === "failed" || state.status === "unavailable";
@@ -56,19 +69,20 @@ function VideoTile({ item, target, removalState, onRemove }: {
         {showThumbnail ? (
           // Stream thumbnail delivery is resolved by the existing playback helper.
           // eslint-disable-next-line @next/next/no-img-element
-          <img alt="" onError={() => setThumbnailFailed(true)} src={isCloudflareStreamVideoMediaItem(item) ? getCloudflareStreamThumbnailUrl(item) : item.thumbnailSrc ?? item.src} />
+          <img alt="" onError={() => setThumbnailFailed(true)} src={isCloudflareStreamVideoMediaItem(item) ? (item as PersonalMediaDisplayItem).collection?.source.kind === "group" ? item.thumbnailSrc : getCloudflareStreamThumbnailUrl(item) : item.thumbnailSrc ?? item.src} />
         ) : <span aria-hidden="true">Video</span>}
       </div>
+      {showPrivate && (item as PersonalMediaDisplayItem).collection?.private ? <span className="media-centre-private-label"><span className="group-private-mark" role="img" aria-label="Private">🔒</span></span> : null}
       <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
       <p className="user-card-media-tile-status" role={state.status === "failed" || state.status === "unavailable" ? "alert" : "status"}>
         {statusText}
       </p>
       {canRetry ? (
-        <button className="user-card-media-tile-retry" onClick={retry} type="button">
+        <button className="user-card-media-tile-retry" onClick={() => readinessTarget ? setAttempt(v => v + 1) : retry()} type="button">
           Check again
         </button>
       ) : null}
-      <button
+      {canRemove ? <button
         aria-label={`Remove video ${item.description} (${item.id})`}
         className="creator-modal-secondary user-card-media-tile-remove"
         disabled={removalState?.isRemoving}
@@ -76,7 +90,7 @@ function VideoTile({ item, target, removalState, onRemove }: {
         type="button"
       >
         {removalState?.isRemoving ? "Removing…" : "Remove"}
-      </button>
+      </button> : null}
       {removalState?.error ? <p className="creator-modal-error" role="alert">{removalState.error}</p> : null}
     </li>
   );
@@ -91,6 +105,7 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
+  canUpload = true, canRemoveMedia = () => true, showPrivate = false, getReadinessTarget,
   getMediaKey = (item) => item.id,
   getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
@@ -114,7 +129,7 @@ export default function UserCardMediaUploadPanel({
       <section className="creator-deck-introduction-section" aria-label="Images">
         <div className="user-card-media-section-header">
           <h2>Image</h2>
-          <input
+          {canUpload ? <input
             accept="image/*"
             aria-label="Choose image"
             className="creator-deck-introduction-image-input"
@@ -122,15 +137,15 @@ export default function UserCardMediaUploadPanel({
             onChange={handleImageChange}
             ref={imageInputRef}
             type="file"
-          />
-          <button
+          /> : null}
+          {canUpload ? <button
             className="creator-modal-secondary"
             disabled={uploadState.isImageUploading}
             onClick={() => imageInputRef.current?.click()}
             type="button"
           >
             + Add image
-          </button>
+          </button> : null}
         </div>
         {uploadState.isImageUploading ? (
           <p className="user-card-media-upload-status" role="status">
@@ -149,8 +164,9 @@ export default function UserCardMediaUploadPanel({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img alt={item.description} src={imageDeliveryUrl(item.src)} />
                 </div>
+                {showPrivate && (item as PersonalMediaDisplayItem).collection?.private ? <span className="media-centre-private-label"><span className="group-private-mark" role="img" aria-label="Private">🔒</span></span> : null}
                 <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
-                <button
+                {canRemoveMedia(item) ? <button
                   aria-label={`Remove image ${item.description} (${item.id})`}
                   className="creator-modal-secondary user-card-media-tile-remove"
                   disabled={removalState?.isRemoving}
@@ -158,7 +174,7 @@ export default function UserCardMediaUploadPanel({
                   type="button"
                 >
                   {removalState?.isRemoving ? "Removing…" : "Remove"}
-                </button>
+                </button> : null}
                 {removalState?.error ? <p className="creator-modal-error" role="alert">{removalState.error}</p> : null}
               </li>
             );
@@ -168,7 +184,7 @@ export default function UserCardMediaUploadPanel({
       <section className="creator-deck-introduction-section" aria-label="Videos">
         <div className="user-card-media-section-header">
           <h2>Video</h2>
-          <input
+          {canUpload ? <input
             accept="video/*"
             aria-label="Choose video"
             className="creator-deck-introduction-image-input"
@@ -176,15 +192,15 @@ export default function UserCardMediaUploadPanel({
             onChange={handleVideoChange}
             ref={videoInputRef}
             type="file"
-          />
-          <button
+          /> : null}
+          {canUpload ? <button
             className="creator-modal-secondary"
             disabled={uploadState.isVideoUploading}
             onClick={() => videoInputRef.current?.click()}
             type="button"
           >
             + Add video
-          </button>
+          </button> : null}
         </div>
         {uploadState.isVideoUploading ? (
           <p className="user-card-media-upload-status" role="status">
@@ -196,6 +212,7 @@ export default function UserCardMediaUploadPanel({
           {videos.map((item) => (
             <VideoTile
               item={item}
+              showPrivate={showPrivate} canRemove={canRemoveMedia(item)} readinessTarget={getReadinessTarget?.(item)}
               key={getMediaKey(item)}
               onRemove={() => onRemoveMedia(item)}
               removalState={removalStatesById[getMediaKey(item)]}

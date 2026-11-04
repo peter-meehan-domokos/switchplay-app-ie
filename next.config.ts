@@ -5,13 +5,24 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 export default function nextConfig(phase: string): NextConfig {
 const fixture = process.env.SWITCHPLAY_DATABASE_MODE === "disposable" && process.env.PHASE2_BROWSER_TEST === "1" ? process.env.PHASE2_FRAMEWORK_FIXTURE_FILE : undefined;
 if (fixture && !resolve(fixture).startsWith(resolve("phase2-test-results") + sep)) throw new Error("Framework fixtures must be generated inside the disposable harness directory");
+const mediaFixture = process.env.SWITCHPLAY_DATABASE_MODE === "disposable" && process.env.PHASE2_BROWSER_TEST === "1" && process.env.PHASE2_MEDIA_REVIEW === "1";
+if (mediaFixture && (!/^switchplay_phase2_browser_/.test(process.env.MONGODB_DB ?? "") || !/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.PHASE2_MEDIA_FIXTURE_ORIGIN ?? ""))) throw Error("Media fixtures require the local disposable harness");
 return {
+   ...(mediaFixture ? { async rewrites() { return [{ source: "/__phase7-media/:path*", destination: `${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN}/:path*` }]; } } : {}),
    devIndicators: false,
    // Bundler-only test substitution: normal development/production keep the
    // checked-in catalogue and default compiler, with no runtime fixture feature.
-   ...(fixture ? { webpack(config, { webpack }) {
-      config.plugins.push(new webpack.NormalModuleReplacementPlugin(/configuration(?:\.ts)?$/, (resource: { context: string; request: string }) => {
-         if (resource.request === "@/lib/frameworks/configuration" || resolve(resource.context, resource.request) === resolve("src/lib/frameworks/configuration")) resource.request = resolve(fixture);
+   ...(fixture || mediaFixture ? { webpack(config, { webpack }) {
+      if (fixture) config.plugins.push(new webpack.NormalModuleReplacementPlugin(/configuration(?:\.ts)?$/, (resource: { context: string; request: string }) => {
+         if (resource.request === "@/lib/frameworks/configuration" || resolve(resource.context, resource.request) === resolve("src/lib/frameworks/configuration")) resource.request = resolve(fixture!);
+      }));
+      if (mediaFixture) for (const [source, replacement] of [
+         ["src/lib/groupExperiences/media/providers", "tests/helpers/groupMediaReviewProvider.ts"],
+         ["src/lib/cards/mediaProviders", "tests/helpers/personalMediaReviewProvider.ts"],
+         ["src/lib/cards/protectedMedia", "tests/helpers/protectedMediaReviewProvider.ts"],
+      ]) config.plugins.push(new webpack.NormalModuleReplacementPlugin(/(?:providers|mediaProviders|protectedMedia)$/, (resource: { context: string; request: string }) => {
+         const target = resource.request.startsWith("@/") ? resolve("src", resource.request.slice(2)) : resolve(resource.context, resource.request);
+         if (target === resolve(source)) resource.request = resolve(replacement);
       }));
       return config;
    } } : {}),

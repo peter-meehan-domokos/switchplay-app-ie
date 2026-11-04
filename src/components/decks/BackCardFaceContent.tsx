@@ -1,3 +1,4 @@
+import MediaCentreControl from "@/components/media/MediaCentreControl";
 import { useMediaCollection } from "@/components/media/useMediaCollection";
 import { collectionDisplayItem } from "@/lib/mediaCollection/presentation";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
@@ -547,22 +548,7 @@ export default function BackCardFaceContent({
     <div className={layoutClassName}>
       <CardSemanticAnchors assessment={assessment} card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
       <div className="focused-card-back-shell">
-        {isFocusedVariant && canMutate && onEditMedia ? (
-          <button
-            className="focused-card-back-media-action"
-            onClick={(event) => {
-              event.stopPropagation();
-              onEditMedia(card.id);
-            }}
-            onPointerCancel={blockSignalBlockGesturePropagation}
-            onPointerDown={blockSignalBlockGesturePropagation}
-            onPointerMove={blockSignalBlockGesturePropagation}
-            onPointerUp={blockSignalBlockGesturePropagation}
-            type="button"
-          >
-            Add media
-          </button>
-        ) : null}
+        {canMutate && onEditMedia ? <MediaCentreControl total={collection.page?.total ?? card.backMediaItems.length} onOpen={() => onEditMedia(card.id)} /> : null}
         {deckTemplateId ? (
           <BackCardMediaCarousel
             items={mediaItems}

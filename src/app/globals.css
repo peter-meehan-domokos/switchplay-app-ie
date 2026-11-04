@@ -4856,3 +4856,24 @@ input {
    established strip dimensions, transform, margins and interactions are locked. */
 .completion-strip--skipped { background: var(--progress-skipped-track); }
 .completion-strip--skipped .completion-strip-fill { background: var(--progress-skipped); }
+
+/* Phase 7: the existing media action, with a single icon/count hit target. */
+.media-centre-control { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; padding: 10px 0; margin-top: -10px; }
+.media-centre-control, .media-centre-control:hover, .media-centre-control:focus-visible { color: rgba(255, 250, 240, .42); opacity: .546; }
+.media-centre-control::after { content: ""; position: absolute; left: 50%; top: 50%; width: var(--media-centre-hit-size, 44px); height: var(--media-centre-hit-size, 44px); transform: translate(-50%, -50%); }
+.media-centre-control svg { flex: none; }
+.media-centre-count { font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+/* Labels occupy the existing 26px lower margin, never thumbnail layout height. */
+.back-card-media-carousel--private { -webkit-mask-image: none; mask-image: none; }
+.media-private-slot { position: relative; flex: 0 0 auto; }
+.back-card-media-carousel--count-1 .media-private-slot { width: 60px; height: 75px; }
+.back-card-media-carousel--count-2 .media-private-slot { width: 54px; height: 68px; }
+.back-card-media-carousel--count-3 .media-private-slot { width: 46px; height: 58px; }
+.back-card-media-carousel--count-3 .media-private-slot:nth-child(2) > .back-card-media-carousel-item { transform: scale(1.02); z-index: 1; }
+.back-card-media-carousel--count-4 .media-private-slot, .back-card-media-carousel--count-5 .media-private-slot { flex: 0 1 46px; max-width: 46px; aspect-ratio: 46 / 58; }
+.media-private-slot > .back-card-media-carousel-item { display: block; width: 100%; max-width: none; height: 100%; -webkit-mask-image: linear-gradient(180deg,#000 0%,#000 80%,#0006 100%); mask-image: linear-gradient(180deg,#000 0%,#000 80%,#0006 100%); }
+.media-private-label { position: absolute; top: calc(100% + 2px); left: 0; width: 100%; text-align: center; pointer-events: none; }
+/* Match the back-date lock's inherited metadata paint and its .84 ancestor
+   opacity; the existing group-private-mark supplies the same 7px/.65 glyph. */
+.media-private-label, .media-centre-private-label { color: rgba(255, 250, 240, .42); opacity: .84; font-size: 7px; font-weight: 680; line-height: 1; letter-spacing: .0064rem; text-shadow: 0 0 16px rgba(255, 250, 240, .05); }
+.media-removal-toast { font-size: .8rem; color: #b9c2ce; }

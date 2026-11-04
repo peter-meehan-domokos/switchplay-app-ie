@@ -21,7 +21,11 @@ export async function mediaRequest(request: Request, groupScoped: boolean, run: 
   const execute = async (groups: GroupExperienceRepository, actor: string) => {
     requireCondition(!request.headers.has("X-Group-Viewer") || request.headers.get("X-Group-Viewer") === actor, "GROUP_SESSION_CONFLICT");
     if (!["GET", "HEAD"].includes(request.method)) {
-      requireCondition(request.headers.get("sec-fetch-site") !== "cross-site" && (!request.headers.has("origin") || request.headers.get("origin") === new URL(request.url).origin), "GROUP_MEDIA_ORIGIN_FORBIDDEN");
+      // Next may construct request.url with its internal hostname. The incoming
+      // Host is the browser-facing authority; forwarded-host is not trusted.
+      const url = new URL(request.url), host = request.headers.get("host") ?? url.host;
+      const origin = new URL(`${url.protocol}//${host}`).origin;
+      requireCondition(request.headers.get("sec-fetch-site") !== "cross-site" && (!request.headers.has("origin") || request.headers.get("origin") === origin), "GROUP_MEDIA_ORIGIN_FORBIDDEN");
     }
     try {
       const value = await run(new GroupMediaRepository(groups), actor);

@@ -2,6 +2,10 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { groupProgressHref, rememberGroupReturn, readGroupDeckReturn, readProgressReturn, progressReturnHref } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import CardMediaCentre from "@/components/media/CardMediaCentre";
+import CollectionGallery from "@/components/media/CollectionGallery";
+import type { MediaCollectionContext } from "@/lib/mediaCollection/contracts";
+import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import DeckScene from "@/components/decks/DeckScene";
 import FocusedCardView from "@/components/decks/FocusedCardView";
 import { createGroupResource, type GroupResourceState } from "./groupResource";
@@ -33,6 +37,8 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const [focused, setFocused] = useState(restored?.focused ?? false);
   const [expanded, setExpanded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mediaOverlay, setMediaOverlay] = useState<{ kind: "gallery" | "centre"; cardId: string; selectedKey?: string; authority: string; focused: boolean; context: MediaCollectionContext; version: number } | null>(null);
+  const mediaSourceRef = useRef<HTMLButtonElement | null>(null);
   const settingsPerspective = useRef<PerspectiveSelection | null>(null);
   useEffect(() => {
     // Effect lifetime owns transport resources, including Strict Mode's trial
@@ -82,6 +88,23 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const choices: PerspectiveChoice[] = [{ key: "group", name: boot.name, group: true, selection: { perspective: "group" } },
     ...data.followers.map(row => ({ key: row.userId, name: row.username, selection: row.userId === actor ? { perspective: "self" as const } : { perspective: "follower" as const, subjectUserId: row.userId } }))];
   const selectedKey = shown.perspective === "group" ? "group" : shown.perspective === "self" ? actor : shown.subjectUserId;
+  const mediaAuthority = JSON.stringify([actor, experienceId, effective, boot.accessEpoch, boot.adoptionRevision, boot.isAdmin, boot.isFollower]);
+  const mediaContext = (cardId: string): MediaCollectionContext | null => !state.verified ? null : shown.perspective === "self"
+    ? { kind: "owner", viewerUserId: actor, cardTemplateId: cardId, experienceId }
+    : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision,
+      ...(shown.perspective === "follower" ? { subjectUserId: shown.subjectUserId } : {}) };
+  const validOverlay = mediaOverlay?.authority === mediaAuthority && mediaOverlay.cardId === currentCardId && mediaOverlay.focused === focused ? mediaOverlay : null;
+  if (mediaOverlay && !validOverlay) setMediaOverlay(null);
+  const openMedia: OpenCardMedia = (cardId, selectedKey, source, scene) => {
+    if (!scene || !state.verified || mediaOverlay || settingsOpen) return;
+    mediaSourceRef.current = source;
+    setMediaOverlay({ kind: "gallery", cardId, selectedKey, authority: mediaAuthority, focused: scene.focused, context: mediaContext(cardId)!, version: deck.cards.find(c => c.id === cardId)!.version });
+  };
+  const openCentre = (cardId: string) => {
+    if (!state.verified || mediaOverlay || settingsOpen) return;
+    mediaSourceRef.current = document.activeElement as HTMLButtonElement;
+    setMediaOverlay({ kind: "centre", cardId, authority: mediaAuthority, focused, context: mediaContext(cardId)!, version: deck.cards.find(c => c.id === cardId)!.version });
+  };
   const comparisonOpen = expanded && focused && boot.canInspectFollowers && state.verified;
   const select = (choice: PerspectiveChoice) => { setSelection(choice.selection); void resource.navigate(choice.selection, currentCardId).catch(() => resource.invalidate()); };
   const save = (cardId: string, change: PersonalLearningChange) => {
@@ -112,12 +135,21 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       onToggleDeckFlip={(delta = 180) => setRotation(value => value + delta)} onBack={progressReturn ? () => router.push(progressReturnHref(progressReturn), { scroll: false }) : onBack} backLabel={progressReturn ? "Back to Progress" : "Back to My Decks"}
       transition={{ type: "spring", stiffness: 300, damping: 30 }} error={state.error ?? state.mutationError}
       onActiveCardChange={(_previous, next) => { const card = deck.cards[next]; if (card) { setActiveCardId(card.id); void resource.navigate(shown, card.id).catch(() => resource.invalidate()); } }}
-      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack card={card} focused={options.variant !== "preview"} /> : null}
-      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} interactionLocked={!state.verified}
+      onOpenMedia={openMedia} mediaViewerOpen={!!validOverlay}
+      renderMediaOverlay={scene => {
+        const context = validOverlay?.context, card = deck.cards.find(c => c.id === validOverlay?.cardId);
+        if (!context || !validOverlay || !card || !isExperienceCard(card) || scene.transitioning || scene.activeCardId !== card.id) return null;
+        return validOverlay.kind === "gallery" ? <CollectionGallery key={`${mediaAuthority}:${card.id}`} context={context} suspended={!state.verified} selectedKey={validOverlay.selectedKey!} sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />
+          : <CardMediaCentre key={`${mediaAuthority}:${card.id}`} context={context} suspended={!state.verified}
+            groupUpload={{ viewerUserId: actor, experienceId, cardTemplateId: card.id, accessEpoch: boot.accessEpoch, version: card.version }}
+            sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
+      }}
+      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
+      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} interactionLocked={!state.verified || !!validOverlay}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
-        backFace={<GroupCardBack card={props.card} focused onChange={change => save(props.card.id, change)} />} /> : null} />
+        backFace={<GroupCardBack card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />
     {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} onCollapse={() => {
       setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />

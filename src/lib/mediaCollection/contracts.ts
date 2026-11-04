@@ -8,7 +8,7 @@ export type MediaCollectionItem = {
   uploadedAt: string | null; originName: string | null; private: boolean;
   revision?: number; media?: MediaItem;
 };
-export type MediaCollectionPage = { viewerUserId: string; cardTemplateId: string; total: number; olderCount: number;
+export type MediaCollectionPage = { capabilities?: import("./permissions").MediaCapabilities; viewerUserId: string; cardTemplateId: string; total: number; olderCount: number;
   items: MediaCollectionItem[]; start?: number; refresh?: string | null; older: string | null; newer: string | null;
   experienceId?: string; subjectUserId?: string | null; accessEpoch?: number; adoptionRevision?: number; structureRevision?: number };
 export function collectionKey(item: Pick<MediaCollectionItem, "source">) {

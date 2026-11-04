@@ -1,3 +1,4 @@
+import { memberMediaCapabilities, type MediaCapabilities } from "./permissions";
 import type { Document } from "mongodb";
 import type { CardRepository } from "../cards/repository";
 import { requireCondition, nonblank } from "../cards/domain";
@@ -54,9 +55,11 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
   if (hasGroups) await assertGroupMediaIndexes(cards.db);
   return cards.transaction(async session => {
     let authority = {};
+    let capabilities: MediaCapabilities = { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true };
     if (options.experienceId) {
       const groups = new GroupExperienceRepository(cards), access = await groups.access(actor, options.experienceId, "member", session);
       await selectedCard(cards, access.experience, cardTemplateId, session);
+      capabilities = memberMediaCapabilities(access.member, actor);
       authority = { experienceId: options.experienceId, accessEpoch: access.member.accessEpoch,
         adoptionRevision: access.experience.adoptionRevision, structureRevision: access.experience.structureRevision };
     }
@@ -121,7 +124,7 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
       start = personalBefore + groupBefore;
     }
     const encode = (direction: Cursor["direction"], order: Order, inclusive = false) => Buffer.from(JSON.stringify({ context, direction, order, inclusive })).toString("base64url");
-    return { viewerUserId: actor, cardTemplateId, ...authority, start, refresh: rows.at(-1) ? encode("older", rows.at(-1)!.order, true) : null, items: rows.map(r => r.item), total, olderCount: Math.max(0, total - rows.length),
+    return { viewerUserId: actor, cardTemplateId, ...authority, capabilities, start, refresh: rows.at(-1) ? encode("older", rows.at(-1)!.order, true) : null, items: rows.map(r => r.item), total, olderCount: Math.max(0, total - rows.length),
       older: rows[0] && (await get("older", rows[0].order, 1)).length ? encode("older", rows[0].order) : null,
       newer: rows.at(-1) && (await get("newer", rows.at(-1)!.order, 1)).length ? encode("newer", rows.at(-1)!.order) : null };
   });

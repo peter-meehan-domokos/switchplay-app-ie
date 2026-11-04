@@ -6,6 +6,7 @@ import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjec
 
 type BackCardMediaCarouselProps = {
   items: PersonalMediaDisplayItem[];
+  showPrivate?: boolean;
   onOpen?: (mediaKey: string, source: HTMLButtonElement) => void;
 };
 
@@ -43,22 +44,24 @@ function MediaItem({ item, index, count, onOpen }: { item: PersonalMediaDisplayI
     : <div className="back-card-media-carousel-item">{contents}</div>;
 }
 
-export default function BackCardMediaCarousel({ items, onOpen }: BackCardMediaCarouselProps) {
+export default function BackCardMediaCarousel({ items, onOpen, showPrivate = false }: BackCardMediaCarouselProps) {
   if (items.length === 0) {
     return null;
   }
 
   const renderedItems = items.slice(0, 5);
   const mode = getLayoutMode(renderedItems.length);
+  const privateLabels = showPrivate && renderedItems.some(item => item.collection?.private);
 
   return (
     <section
-      className={`back-card-media-carousel back-card-media-carousel--${mode}`}
+      className={`back-card-media-carousel back-card-media-carousel--${mode}${privateLabels ? " back-card-media-carousel--private" : ""}`}
       aria-label="Card media"
     >
-      {renderedItems.map((item, index) => (
-        <MediaItem index={index} count={items.length} onOpen={onOpen} key={personalMediaKey(item)} item={item} />
-      ))}
+      {renderedItems.map((item, index) => privateLabels ? <span className="media-private-slot" key={personalMediaKey(item)}>
+        <MediaItem index={index} count={items.length} onOpen={onOpen} item={item} />
+        {item.collection?.private ? <span className="media-private-label"><span className="group-private-mark" role="img" aria-label="Private">🔒</span></span> : null}
+      </span> : <MediaItem index={index} count={items.length} onOpen={onOpen} key={personalMediaKey(item)} item={item} />)}
     </section>
   );
 }

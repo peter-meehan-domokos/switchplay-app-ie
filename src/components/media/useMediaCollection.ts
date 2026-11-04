@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { MediaCollectionController } from "@/lib/mediaCollection/controller";
+import { MediaCollectionController, type CollectionLoader } from "@/lib/mediaCollection/controller";
 import type { MediaCollectionContext } from "@/lib/mediaCollection/contracts";
 import { MEDIA_COLLECTION_CHANGED } from "@/lib/mediaCollection/invalidation";
-export function useMediaCollection(context: MediaCollectionContext | null, limit = 30, refreshKey = "") {
+export function useMediaCollection(context: MediaCollectionContext | null, limit = 30, refreshKey = "", loader?: CollectionLoader) {
   const key = JSON.stringify(context);
-  const controller = useMemo(() => key === "null" ? null : new MediaCollectionController(JSON.parse(key), undefined, limit), [key, limit]);
+  const controller = useMemo(() => key === "null" ? null : new MediaCollectionController(JSON.parse(key), loader, limit), [key, limit, loader]);
   const empty = useMemo(() => ({ page: null, selectedKey: null, loading: false, error: null }), []);
   const state = useSyncExternalStore(controller?.subscribe ?? (() => () => {}), controller?.snapshot ?? (() => empty), () => empty);
   useEffect(() => {

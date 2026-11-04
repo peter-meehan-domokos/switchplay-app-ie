@@ -99,7 +99,9 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
     }}>
     <header className={styles.toolbar}>
       <button ref={closeButton} className={styles.control} type="button" onClick={close} aria-label="Close media viewer">✕ <span>Close</span></button>
-      <p className={styles.counter} aria-live="polite" aria-atomic="true">{(paging?.start ?? 0) + index + 1} of {paging?.total ?? items.length}</p>
+      <p className={styles.counter} aria-live="polite" aria-atomic="true">{(paging?.start ?? 0) + index + 1} of {paging?.total ?? items.length}
+        {collectionContext?.kind === "owner" && collectionContext.experienceId && item?.collection?.private ? <span className={styles.privateLabel}>Private</span> : null}
+      </p>
       {!leaving && item ? <CardMediaDownloadButton key={itemKey} target={itemTarget!} isVideo={item.mediaType === "video"} /> : <span />}
     </header>
     <div className={styles.content}>

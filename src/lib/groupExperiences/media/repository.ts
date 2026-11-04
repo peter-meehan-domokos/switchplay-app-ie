@@ -1,3 +1,4 @@
+import { memberMediaCapabilities } from "../../mediaCollection/permissions";
 import { randomUUID } from "node:crypto";
 import { MongoServerError, type ClientSession } from "mongodb";
 import { requireCondition } from "../../cards/domain";
@@ -164,7 +165,7 @@ export class GroupMediaRepository {
       const subject = await this.groups.members().findOne({ experienceId, userId: subjectUserId, followerStatus: "active" }, { session, projection: { _id: 1 } });
       requireCondition(subject, "GROUP_MEDIA_FORBIDDEN");
     }
-    return { viewerUserId: actor, experienceId, cardTemplateId, accessEpoch: member.accessEpoch,
+    return { viewerUserId: actor, experienceId, cardTemplateId, capabilities: memberMediaCapabilities(member, subjectUserId), accessEpoch: member.accessEpoch,
       structureRevision: experience.structureRevision, adoptionRevision: experience.adoptionRevision, version: card.version };
   }
   async authorized(actor: string, contributionId: string, authority: MediaAuthority, allowPending = false) {

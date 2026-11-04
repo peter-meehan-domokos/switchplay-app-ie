@@ -21,7 +21,7 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
     older = { $or: [{ uploadedAt: { [cmp]: new Date(cursor.date) } }, { uploadedAt: new Date(cursor.date), contributionId: { [idCmp]: cursor.id } }] };
   }
   return repo.transaction(async session => {
-    const context = authority.kind === "owner" ? { viewerUserId: actor, cardTemplateId, kind: "owner" as const }
+    const context = authority.kind === "owner" ? { viewerUserId: actor, cardTemplateId, kind: "owner" as const, capabilities: { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false } }
       : { ...await repo.groupAuthority(actor, authority.experienceId, cardTemplateId, session, authority.subjectUserId),
         kind: "group" as const, subjectUserId: authority.subjectUserId ?? null };
     const filter: Filter<GroupMediaRecord> = { cardTemplateId, state: "attached", ...(authority.kind === "owner" ? { authorUserId: actor }
@@ -30,6 +30,10 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
       experienceId: 1, cardTemplateId: 1, kind: 1, uploadedAt: 1, revision: 1, groupVisible: 1 } })
       .sort({ uploadedAt: sign, contributionId: sign }).limit(limit + 1).toArray();
     const total = await repo.records().countDocuments(filter, { session });
+    // Creator removal is management even when this perspective cannot upload.
+    // The query is within the same authorised shared feed and snapshot.
+    if (authority.kind === "group" && !context.capabilities.canManage && await repo.records().countDocuments({ ...filter, authorUserId: actor,
+      ...(authority.subjectUserId && authority.subjectUserId !== actor ? { contributionId: { $in: [] } } : {}) }, { session })) context.capabilities = { ...context.capabilities, canManage: true };
     const page = rows.slice(0, limit); if (sign === 1) page.reverse();
     const last = page.at(-1), first = page[0];
     const encode = (row: GroupMediaRecord, inclusive = false) => Buffer.from(JSON.stringify({ key, date: row.uploadedAt!.toISOString(), id: row.contributionId, inclusive })).toString("base64url");
