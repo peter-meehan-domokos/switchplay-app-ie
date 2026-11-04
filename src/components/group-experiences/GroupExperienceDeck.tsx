@@ -11,6 +11,7 @@ import FocusedCardView from "@/components/decks/FocusedCardView";
 import { createGroupResource, type GroupResourceState } from "./groupResource";
 import { presentGroup } from "./groupPresentation";
 import GroupCardBack from "./GroupCardBack";
+import type { ReflectionAreaContext } from "@/components/reflections/ReflectionArea";
 import { isExperienceCard } from "@/components/decks/presentation";
 import type { PerspectiveSelection } from "@/lib/groupExperiences/model";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
@@ -32,6 +33,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const [resource, setResource] = useState<ReturnType<typeof createGroupResource>>();
   const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, resource?.snapshot ?? emptySnapshot);
   const [selection, setSelection] = useState<PerspectiveSelection | undefined>(restored?.selection);
+  const [reflectionOpen, setReflectionOpen] = useState(false);
   const [rotation, setRotation] = useState(restored?.rotation ?? 0);
   const [activeCardId, setActiveCardId] = useState<string | undefined>(restored?.cardId);
   const [focused, setFocused] = useState(restored?.focused ?? false);
@@ -95,6 +97,11 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     ? { kind: "owner", viewerUserId: actor, cardTemplateId: cardId, experienceId }
     : !state.verified ? null : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision,
       ...(shown.perspective === "follower" ? { subjectUserId: shown.subjectUserId } : {}) };
+  const reflectionContext = (cardId: string): ReflectionAreaContext | null => !state.verified && !(shown.perspective === "self" && effective.perspective === "self") ? null : {
+    viewerUserId: actor, cardTemplateId: cardId, adoptionRevision: boot.adoptionRevision,
+    view: { kind: "group", experienceId, mode: shown.perspective === "self" ? "own" : shown.perspective === "group" ? "group" : "inspection",
+      subjectUserId: shown.perspective === "follower" ? shown.subjectUserId : undefined, accessEpoch: boot.accessEpoch },
+  };
   const signalReadOnlyReason = !state.verified ? "Checking your access. Try again in a moment."
     : shown.perspective === "group" ? "Only a Group Admin can change this value." : "Only this member can change this value.";
   const validOverlay = mediaOverlay?.authority === mediaAuthority && mediaOverlay.cardId === currentCardId && mediaOverlay.focused === focused ? mediaOverlay : null;
@@ -148,12 +155,12 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
             groupUpload={{ viewerUserId: actor, experienceId, cardTemplateId: card.id, accessEpoch: boot.accessEpoch, version: card.version }}
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
-      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack readOnlyReason={signalReadOnlyReason} card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
-      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} interactionLocked={!state.verified || !!validOverlay}
+      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
+      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} interactionLocked={!state.verified || !!validOverlay || reflectionOpen}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
-        backFace={<GroupCardBack readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />
+        backFace={<GroupCardBack reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />
     {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} onCollapse={() => {
       setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />

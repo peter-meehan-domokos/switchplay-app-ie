@@ -189,6 +189,8 @@ export type WeeklyCard = {
   mediaItems: MediaItem[];
   chats: CardChat[];
   reflection: string;
+  reflectionRevision?: number;
+  reflectionCreatedAt?: string | null;
 };
 
 export type Deck = {

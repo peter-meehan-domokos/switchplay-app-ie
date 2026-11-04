@@ -88,7 +88,7 @@ export function initialCardData(cardTemplateId: string, version: AdoptedVersion,
   return { cardTemplateId, cardTemplateVersion: version, targetDate: initialTargetDate(null, content.suggestedTargetDate, generatedTargetDate),
     items: content.steps.map(({ stepId }) => ({ stepId, completionStatus: "todo" })),
     signalReadings: content.steps.map(({ stepId }) => ({ stepId, reading: null })),
-    reflection: "", mediaItems: [], chats: [], tests: [], createdAt: now, updatedAt: now };
+    reflection: "", reflectionRevision: 0, reflectionCreatedAt: null, mediaItems: [], chats: [], tests: [], createdAt: now, updatedAt: now };
 }
 export function createStep(description: string | null = null): Step { return { stepId: globalThis.crypto.randomUUID(), description, mediaItem: null }; }
 export function stepLinkedSignals(content: CardContent, data: CardData) {

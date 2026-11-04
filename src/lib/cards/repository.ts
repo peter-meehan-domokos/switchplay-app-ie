@@ -1094,13 +1094,48 @@ export class CardRepository {
         "decksData.$[deck].updatedAt": new Date() } }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
     });
   }
-  async setReflection(actor: string, deckTemplateId: string, cardTemplateId: string, reflection: string) {
-    requireCondition(typeof reflection === "string" && reflection.length <= 20000, "INVALID_REFLECTION");
-    await this.transaction(async (session) => {
-      await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
-      await this.users().updateOne({ _id: userKey(actor) }, { $set: { "cardsData.$[card].reflection": reflection,
-        "cardsData.$[card].updatedAt": new Date() } }, { session, arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });
+  async setReflection(actor: string, deckTemplateId: string, cardTemplateId: string, reflection: string,
+    command?: { expectedRevision: number; operationId: string }) {
+    // Trusted internal snapshot writes remain compatible. HTTP callers always
+    // pass the revision captured by their editor (legacy absence means zero).
+    return this.transaction(async session => {
+      const { data } = await this.workingCard(actor, deckTemplateId, cardTemplateId, session);
+      return this.writePersonalReflection(actor, data, reflection, command ?? { expectedRevision: data.reflectionRevision ?? 0, operationId: randomUUID() }, session);
     });
+  }
+  async deletePersonalReflection(actor: string, cardTemplateId: string, command: { expectedRevision: number; operationId: string }) {
+    entityId(actor); entityId(cardTemplateId);
+    return this.transaction(async session => {
+      const user = await this.users().findOne({ _id: userKey(actor) }, { session, projection: { cardsData: { $elemMatch: { cardTemplateId } } } });
+      const data = user?.cardsData?.[0]; requireCondition(data, "REFLECTION_SOURCE_FORBIDDEN");
+      return this.writePersonalReflection(actor, data, "", command, session);
+    });
+  }
+  private async writePersonalReflection(actor: string, data: CardData, text: string,
+    command: { expectedRevision: number; operationId: string }, session: ClientSession) {
+    requireCondition(typeof text === "string" && text.length <= 20000, "INVALID_REFLECTION");
+    requireCondition(Number.isSafeInteger(command.expectedRevision) && command.expectedRevision >= 0 && nonblank(command.operationId), "INVALID_REFLECTION_COMMAND");
+    const { hash } = await import("../groupExperiences/contracts");
+    text = text.trim(); const commandHash = hash({ actor, cardTemplateId: data.cardTemplateId, text, ...command });
+    if (data.reflectionLastOperation?.operationId === command.operationId) {
+      requireCondition(data.reflectionLastOperation.commandHash === commandHash, "REFLECTION_OPERATION_CONFLICT");
+      return { revision: data.reflectionRevision ?? 0 };
+    }
+    requireCondition((data.reflectionRevision ?? 0) === command.expectedRevision, "REFLECTION_REVISION_CONFLICT");
+    const now = new Date();
+    // Only a witnessed new empty slot can acquire an original creation time.
+    // Missing legacy metadata is deliberately not repaired on an edit.
+    const creation = data.reflectionCreatedAt === null && !data.reflection.trim() && text && (data.reflectionRevision ?? 0) === 0
+      ? { "cardsData.$[card].reflectionCreatedAt": now } : {};
+    const result = await this.users().updateOne({ _id: userKey(actor), $expr: { $eq: [
+      { $size: { $filter: { input: "$cardsData", as: "c", cond: { $eq: ["$$c.cardTemplateId", data.cardTemplateId] } } } }, 1,
+    ] } }, { $set: {
+      "cardsData.$[card].reflection": text, "cardsData.$[card].reflectionRevision": command.expectedRevision + 1,
+      "cardsData.$[card].reflectionLastOperation": { operationId: command.operationId, commandHash },
+      "cardsData.$[card].updatedAt": now, ...creation,
+    } }, { session, arrayFilters: [{ "card.cardTemplateId": data.cardTemplateId }] });
+    requireCondition(result.matchedCount === 1, "REFLECTION_REVISION_CONFLICT");
+    return { revision: command.expectedRevision + 1 };
   }
   async mutateMedia(actor: string, deckTemplateId: string, cardTemplateId: string,
     change: { append: MediaItem } | { remove: string }, validate: (value: unknown) => MediaItem) {

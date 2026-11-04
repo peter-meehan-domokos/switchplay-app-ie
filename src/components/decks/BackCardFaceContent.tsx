@@ -546,6 +546,7 @@ export function FocusedSignalRow({
 
 type BackCardFaceContentProps = {
   assessment?: import("react").ReactNode;
+  reflectionArea?: import("react").ReactNode | ((verticalOffset: number) => import("react").ReactNode);
   card: CardLayout;
   deckTemplateId?: string;
   dateLabel: string;
@@ -561,6 +562,7 @@ type BackCardFaceContentProps = {
 
 export default function BackCardFaceContent({
   assessment,
+  reflectionArea,
   card,
   deckTemplateId,
   dateLabel,
@@ -634,14 +636,14 @@ export default function BackCardFaceContent({
           )}
         </section>
         <BackCardExternalComment comment={card.externalComment} className={externalCommentClassName} />
-        <BackCardReflectionFragment
+        {(typeof reflectionArea === "function" ? reflectionArea(hasBackMedia ? 0 : card.reflectionVerticalOffset) : reflectionArea) ?? <BackCardReflectionFragment
           ariaLabel={card.reflection.trim() ? "Edit reflection" : "Add a reflection"}
           isEditable={canEditReflection}
           onClick={canEditReflection ? () => onEditReflection?.(card.id) : undefined}
           reflectionVerticalOffset={hasBackMedia ? 0 : card.reflectionVerticalOffset}
           showPlaceholder={shouldShowReflectionPlaceholder}
           text={card.reflection}
-        />
+        />}
       </div>
     </div>
   );

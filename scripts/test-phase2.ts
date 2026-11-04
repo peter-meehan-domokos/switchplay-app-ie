@@ -15,6 +15,7 @@ import { loadEnvConfig } from "@next/env";
 import { resolve } from "node:path";
 import { createMediaReviewHandler, seedMediaReview } from "../tests/helpers/mediaReviewFixture";
 import { seedLiveGroupProgress } from "../tests/helpers/groupProgressLiveReview";
+import { seedReflectionReview } from "../tests/helpers/reflectionReviewFixture";
 import { seedGroupReview } from "../tests/helpers/groupReviewFixture";
 import { seedGroupProgressReview, startGroupProgressPreview } from "../tests/helpers/groupProgressReview";
 
@@ -132,6 +133,7 @@ try {
   const baseURL = `http://${optimized ? "localhost" : "127.0.0.1"}:${appPort}`;
   const lanIPs = Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => row.address);
   const mediaReviewData = mediaReview && groupReview ? await seedMediaReview(client, database, groupReview, mediaFixture, `http://${lan ? lanIPs[0] : "127.0.0.1"}:${appPort}/__phase7-media/assets`) : undefined;
+  const reflectionReview = process.argv.includes("--group-reflections") && groupReview ? await seedReflectionReview(client, database, groupReview) : undefined;
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
     SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","),
     PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", PHASE2_OPTIMIZED: optimized ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin, PHASE2_MEDIA_REVIEW: mediaReview ? "1" : "0", ...(mediaReviewData ? { PHASE7_MEDIA_REVIEW: JSON.stringify(mediaReviewData) } : {}),
@@ -172,7 +174,7 @@ try {
   }
   if (process.argv.includes("--dev")) {
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/${groupExperiences ? "decks" : "library?tab=info-cards"}`) : [];
-    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview, liveProgressReview, mediaReviewData }, null, 2));
+    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview, liveProgressReview, mediaReviewData, reflectionReview }, null, 2));
     console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or ${liveProgressReview?.followerLogin ?? mediaReviewData?.follower ?? "other"} / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
     if (mediaReviewData) console.log(`Media review: ${baseURL}/decks?openExperience=${mediaReviewData.experienceId}\nPersonal: ${baseURL}/decks?openDeck=${mediaReviewData.personalDeckId}\nFollower: Aoife Kelly / local-test-only\nImages and uploads use the local mock provider; live Stream video is not enabled.`);
     if (liveProgressReview) console.log(`Live Group Progress: ${baseURL}/group-experiences/${liveProgressReview.experienceId}/progress?framework=${liveProgressReview.frameworkId}`);

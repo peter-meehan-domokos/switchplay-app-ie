@@ -87,6 +87,9 @@ export type CardData = {
   items: { stepId: string; completionStatus: CompletionStatus }[];
   signalReadings: { stepId: string; reading: number | null }[];
   reflection: string;
+  reflectionRevision?: number;
+  reflectionCreatedAt?: Date | null;
+  reflectionLastOperation?: { operationId: string; commandHash: string };
   mediaItems: MediaItem[];
   chats: { id: string; deckTemplateId: string; comments: CardComment[] }[];
   tests: CardTest[];

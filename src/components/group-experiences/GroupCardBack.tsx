@@ -1,3 +1,4 @@
+import ReflectionArea, { type ReflectionAreaContext } from "@/components/reflections/ReflectionArea";
 import BackCardMediaCarousel from "@/components/decks/BackCardMediaCarousel";
 import MediaCentreControl from "@/components/media/MediaCentreControl";
 import { useMediaCollection } from "@/components/media/useMediaCollection";
@@ -12,7 +13,8 @@ import { signalReadingToNormalized } from "@/lib/signals";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
 
 // Media is loaded through its own scoped collection, never through scalar learning or a foreign personal working store.
-export default function GroupCardBack({ readOnlyReason, card, focused = false, onChange, onSignalNavigateNext, onSignalNavigatePrevious, mediaContext = null, onOpenMedia, onEditMedia }: {
+export default function GroupCardBack({ reflectionInteractive = true, reflectionContext, onReflectionModalChange, readOnlyReason, card, focused = false, onChange, onSignalNavigateNext, onSignalNavigatePrevious, mediaContext = null, onOpenMedia, onEditMedia }: {
+  reflectionInteractive?: boolean; reflectionContext?: ReflectionAreaContext | null; onReflectionModalChange?: (open: boolean) => void;
   readOnlyReason?: string;
   mediaContext?: MediaCollectionContext | null; onOpenMedia?: OpenCardMedia; onEditMedia?: (cardId: string) => void;
   card: ExperienceCardPresentation; focused?: boolean; onChange?: (change: PersonalLearningChange) => void;
@@ -44,6 +46,8 @@ export default function GroupCardBack({ readOnlyReason, card, focused = false, o
           onSignalNavigateNext={onSignalNavigateNext} onSignalNavigatePrevious={onSignalNavigatePrevious} />
           : <PassiveSignalRow key={step.stepId} signal={signal} heading={heading} readOnlyReason={!card.canWriteLearning ? readOnlyReason : undefined} interactionIdentity={card.dataIdentity} />;
       })}
-    </section></div>
+    </section>
+      {reflectionContext ? <ReflectionArea verticalOffset={items.length ? 0 : -10} context={reflectionContext} active={focused} interactive={focused && reflectionInteractive} onModalChange={onReflectionModalChange} /> : null}
+    </div>
   </div>;
 }

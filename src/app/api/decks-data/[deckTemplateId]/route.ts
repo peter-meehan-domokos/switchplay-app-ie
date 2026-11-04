@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { personalUpdateRequest, fields } from "@/lib/cards/http";
 import { workingDTO } from "@/lib/cards/readModels";
 import { requireCondition } from "@/lib/cards/domain";
@@ -13,7 +14,7 @@ export async function PATCH(request: Request, context: RouteContext<'/api/decks-
   return personalUpdateRequest(request, async (repo, actor) => {
     const { deckTemplateId } = await context.params;
     const body = await request.json();
-    fields(body, ["type", "cardTemplateId", "stepId", "completionStatus", "reading", "targetDate", "reflection", "mediaItem", "mediaItemId", "activeCardId", "membershipRevision"]);
+    fields(body, ["type", "cardTemplateId", "stepId", "completionStatus", "reading", "targetDate", "reflection", "mediaItem", "mediaItemId", "activeCardId", "membershipRevision", "expectedReflectionRevision", "operationId"]);
     const cardId = body.cardTemplateId as string;
     switch (body.type) {
       case "archive": await repo.archiveDeckData(actor, deckTemplateId); break;
@@ -22,7 +23,7 @@ export async function PATCH(request: Request, context: RouteContext<'/api/decks-
       case "completion": await repo.setCompletion(actor, deckTemplateId, cardId, body.stepId as string, body.completionStatus as CompletionStatus); break;
       case "signal": await repo.setSignalReading(actor, deckTemplateId, cardId, body.stepId as string, body.reading as number | null); break;
       case "target-date": await repo.setTargetDate(actor, deckTemplateId, cardId, body.targetDate as string | null); break;
-      case "reflection": await repo.setReflection(actor, deckTemplateId, cardId, body.reflection as string); break;
+      case "reflection": await repo.setReflection(actor, deckTemplateId, cardId, body.reflection as string, { expectedRevision: (body.expectedReflectionRevision ?? 0) as number, operationId: (body.operationId ?? randomUUID()) as string }); break;
       case "append-card-media": case "remove-card-media": {
         const mediaItems = await repo.mutateMedia(actor, deckTemplateId, cardId, body.type === "append-card-media" ? { append: body.mediaItem as MediaItem } : { remove: body.mediaItemId as string }, (item) => {
           if (isCloudflareR2ImageMediaItem(item)) return validateNewPersonalImage(item, actor, cardId, createR2UserDataPublicObjectUrl);

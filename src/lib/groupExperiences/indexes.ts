@@ -1,3 +1,4 @@
+import { createGroupReflectionIndexes } from "../reflections/indexes";
 import { createGroupMediaIndexes } from "./media/indexes";
 import type { Db, IndexDescription } from "mongodb";
 import { requireCondition } from "../cards/domain";
@@ -22,6 +23,7 @@ export async function createGroupExperienceIndexes(db: Db) {
   requireCondition(!await db.listCollections({ name: "groupCardState" }, { nameOnly: true }).hasNext(), "GROUP_CARD_RENAME_REQUIRED");
   for (const [collection, definition] of definitions) await db.collection(collection).createIndexes([definition]);
   await createGroupMediaIndexes(db);
+  await createGroupReflectionIndexes(db);
 }
 export async function assertGroupExperienceIndexes(db: Db) {
   requireCondition(!await db.listCollections({ name: "groupCardState" }, { nameOnly: true }).hasNext(), "GROUP_CARD_RENAME_REQUIRED");

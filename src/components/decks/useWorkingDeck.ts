@@ -226,7 +226,8 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
     setCards(nextCards);
 
     try {
-      await persistCardReflection(deck.deckTemplateId, cardId, normalizedReflection, deck.dataOwnerUserId);
+      await persistCardReflection(deck.deckTemplateId, cardId, normalizedReflection, deck.dataOwnerUserId, previousCards.find(card => card.id === cardId)?.reflectionRevision ?? 0);
+      updatePersonalCard(cardId, card => ({ ...card, reflectionRevision: (card.reflectionRevision ?? 0) + 1 }));
     } catch (error) {
       updatePersonalCard(cardId, (card) => withUpdatedReflection(card, previousCards.find((item) => item.id === cardId)?.reflection ?? ""));
       throw error;
