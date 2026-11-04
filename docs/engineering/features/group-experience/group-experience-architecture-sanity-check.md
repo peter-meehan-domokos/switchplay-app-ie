@@ -256,7 +256,7 @@ Owner deletion from any context dispatches by exact source, invalidates that own
 | Removed Card / changed adopted version | Author contributions remain keyed to the exact CardTemplate, not the visible Step position or current adopted version. Do not erase them with composition changes or resurrect removed navigation. Current-scope creation still validates the selected Card. |
 | Private/cross-Group leak | Query authorised shared rows only for foreign views; no hidden titles/counts/URLs in payloads. Owner union and foreign feed are separate read contracts. Cache keys include actor, experience, subject, source and authority generation. |
 | Hide after browser download | Deny fresh reads/grants; expire/invalidate Group caches using existing mechanisms. Existing bearer-link/download limitations remain as already agreed; no claim of remote erasure or new realtime infrastructure. |
-| Same video uploaded in another Group | Two separately allocated items, as confirmed. Delete/hide one exact identity only; no content-hash deduplication linking their ownership or visibility. |
+| Same video In another Group | Two separately allocated items, as confirmed. Delete/hide one exact identity only; no content-hash deduplication linking their ownership or visibility. |
 
 Existing transaction machinery is a sound basis. It must be extended at these precise contribution boundaries, not replaced by a global operation lock, new permission engine or background processing platform.
 
