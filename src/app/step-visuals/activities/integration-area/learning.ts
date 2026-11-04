@@ -237,7 +237,8 @@ export const integrationReducer = (state: IntegrationState, action: IntegrationA
     }
     const expected = analyseRegion(state.region).area;
     const correct = Math.abs(submitted - expected) <= CALCULATION_ABSOLUTE_TOLERANCE + CALCULATION_RELATIVE_TOLERANCE * Math.max(1, Math.abs(expected));
-    const calculation: Calculation = immutable({ number: state.records.current.checks.length + 1, region: { ...state.region, curves: [...state.region.curves] }, submitted, expected, correct, assisted: state.records.current.assistanceRequested, problemRevision: state.problemRevision, answerRevision: state.answerRevision });
+    // Hosted restoration retains the last check as evidence; full history belongs to Visual Learning Records.
+    const calculation: Calculation = immutable({ number: (state.records.current.checks.at(-1)?.number ?? 0) + 1, region: { ...state.region, curves: [...state.region.curves] }, submitted, expected, correct, assisted: state.records.current.assistanceRequested, problemRevision: state.problemRevision, answerRevision: state.answerRevision });
     return record({ ...state, checked: calculation, revision: state.revision + 1, feedback: correct ? "correct" : "incorrect" }, [{ type: "calculation-checked", calculation }], { checks: [...state.records.current.checks, calculation] });
   }
   return state;

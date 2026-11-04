@@ -1,4 +1,5 @@
 import type { ImageMediaItem, MediaItem, VideoMediaItem } from "@/lib/media";
+import type { StepMediaItem } from "@/lib/stepMedia";
 
 export type DeckCategory = string | null;
 export type CompletionStatus = "todo" | "inProgress" | "done" | "skipped";
@@ -21,7 +22,8 @@ export type CardChat = {
 export type CardIntro = {
   title: string | null;
   description: string | null;
-  mediaItem: MediaItem | null;
+  mediaItem?: MediaItem | null;
+  mediaItems?: StepMediaItem[];
 };
 
 export type CardTemplateStep = {
@@ -31,6 +33,7 @@ export type CardTemplateStep = {
   description: string | null;
   descriptionContent?: StepDescriptionSpan[];
   mediaItem?: MediaItem | null;
+  mediaItems?: StepMediaItem[];
 };
 
 export type StepDescriptionSpan =
@@ -143,6 +146,7 @@ export type WeeklyCardStep = {
   descriptionContent?: StepDescriptionSpan[];
   completionStatus: string;
   mediaItem?: MediaItem | null;
+  mediaItems?: StepMediaItem[];
 };
 
 export type WeeklyCardSignal = {

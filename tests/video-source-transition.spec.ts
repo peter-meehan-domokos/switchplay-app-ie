@@ -106,6 +106,9 @@ for (const protectedDelivery of [false, true]) for (const transport of ["native"
     await page.evaluate(() => (window as unknown as Fixture).frame("a")); await expect(video).toBeVisible();
     // Check concealment in the same task as navigation, before React commits.
     expect(await page.evaluate(() => { (window as unknown as Fixture).select("b", true); return getComputedStyle(document.querySelector('video')!).visibility; })).toBe("hidden");
+    // The selected prop must have reconciled before asserting durable loading
+    // feedback. An immediate read can precede the same-source passive effect.
+    await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
     await expect(page.getByRole("status")).toHaveText("Preparing video…");
     if (context === "canonical") await expect(video).not.toHaveAttribute("src");
     await select("c", false);

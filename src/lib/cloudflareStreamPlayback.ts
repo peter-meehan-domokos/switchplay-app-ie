@@ -1,5 +1,6 @@
 import type { CloudflareStreamVideoMediaItem } from "@/lib/media";
 import { streamDeliveryUrl } from "./mediaDelivery";
+import { phase2VisualReviewMediaUrl } from "./phase2VisualReviewMedia";
 
 function createCloudflareStreamAssetUrl(assetId: string, path: string) {
   return `https://videodelivery.net/${encodeURIComponent(assetId)}${path}`;
@@ -33,6 +34,7 @@ export function createCloudflareStreamIframeUrl(assetId: string) {
 }
 
 export function getCloudflareStreamHlsManifestUrl(mediaItem: CloudflareStreamVideoMediaItem) {
+  const review = phase2VisualReviewMediaUrl(mediaItem.assetId, "video"); if (review) return review;
   const protectedUrl = streamDeliveryUrl(mediaItem.assetId, "manifest");
   if (protectedUrl) return protectedUrl;
   try {
@@ -56,6 +58,7 @@ export function getCloudflareStreamHlsManifestUrl(mediaItem: CloudflareStreamVid
 }
 
 export function getCloudflareStreamThumbnailUrl(mediaItem: CloudflareStreamVideoMediaItem) {
+  const review = phase2VisualReviewMediaUrl(mediaItem.assetId, "thumbnail"); if (review) return review;
   const protectedUrl = streamDeliveryUrl(mediaItem.assetId, "thumbnail");
   if (protectedUrl) return protectedUrl;
   return mediaItem.thumbnailSrc && isValidHttpsUrl(mediaItem.thumbnailSrc)

@@ -10,10 +10,12 @@ import LaterStages from "./later-stages";
 import { useStageMotion } from "./use-stage-motion";
 import { integrationPresentation } from "./presentation";
 import styles from "./integration.module.css";
+import type { VisualContentDimensions } from "../../core/host";
+import { integrationContainerStyle } from "./container-layout";
 
-export type IntegrationActivityProps = IntegrationCallbacks & Readonly<{ visible?: boolean; onExit?: () => void; restartKey?: number; exitKey?: number }>;
+export type IntegrationActivityProps = IntegrationCallbacks & Readonly<{ visible?: boolean; onExit?: () => void; restartKey?: number; exitKey?: number; dimensions?: VisualContentDimensions }>;
 
-export default function IntegrationActivity({ visible = true, onExit, restartKey = 0, exitKey = 0, ...callbacks }: IntegrationActivityProps) {
+export default function IntegrationActivity({ visible = true, onExit, restartKey = 0, exitKey = 0, dimensions, ...callbacks }: IntegrationActivityProps) {
   if (![restartKey, exitKey].every((key) => Number.isSafeInteger(key) && key >= 0)) throw new RangeError("Activity request keys must be non-negative safe integers.");
   const active = useSurfaceActive() && visible;
   const [state, dispatch] = useReducer((previous: ReturnType<typeof initialIntegration>, action: Parameters<typeof integrationReducer>[1]) => integrationReducer(previous, action, active), undefined, () => initialIntegration(createIntegrationAttemptId()));
@@ -37,14 +39,14 @@ export default function IntegrationActivity({ visible = true, onExit, restartKey
     const panel = `${attemptId}:${state.stage}:${state.part}`;
     if (previousPanel.current !== panel && active) {
       // Navigation from a scrolled control group should expose the new task and graph.
-      activity.current?.scrollIntoView({ block: "start", behavior: "instant" });
+      if (!dimensions) activity.current?.scrollIntoView({ block: "start", behavior: "instant" });
       heading.current?.focus({ preventScroll: true });
     }
     previousPanel.current = panel;
-  }, [state.stage, state.part, attemptId, active]);
+  }, [state.stage, state.part, attemptId, active, dimensions]);
   const lessonActive = active && !state.records.exited;
   if (!visible) return null;
-  return <section ref={activity} className={styles.activity} aria-label="Integration" data-integration-stage={state.stage} data-integration-part={state.part}>
+  return <section ref={activity} className={`${styles.activity} ${styles.container}`} style={integrationContainerStyle(dimensions)} aria-label="Integration" data-integration-stage={state.stage} data-integration-part={state.part}>
     {state.stage <= 2 ? <IntroStages state={state} presentation={presentation} active={lessonActive} dispatch={dispatch} headingRef={heading} onExit={onExit} />
       : <LaterStages state={state} presentation={presentation} active={lessonActive} dispatch={dispatch} headingRef={heading} onExit={onExit} />}
     <span id={`${id}-status`} className={styles.status} role="status" aria-live="polite" aria-atomic="true">{presentation.announcement}</span>

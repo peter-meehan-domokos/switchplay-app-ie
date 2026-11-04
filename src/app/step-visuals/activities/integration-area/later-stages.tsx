@@ -28,6 +28,6 @@ export default function LaterStages(props: StageProps & {
     <div className={styles.panel}>
       {state.stage === 3 ? <GrowthStage {...content} /> : rule ? <DivisionRule presentation={presentation} /> : state.stage === 4 ? <DivisionStage {...content} /> : state.stage === 5 ? <OffsetAreaStage {...content} /> : state.stage === 6 ? <BetweenCurvesStage {...content} /> : <CalculationStage {...content} />}
     </div>
-    <StageNavigation {...props} nextEnabled={presentation.nextEnabled} />
+    {!props.hosted ? <StageNavigation {...props} nextEnabled={presentation.nextEnabled} /> : null}
   </div>;
 }

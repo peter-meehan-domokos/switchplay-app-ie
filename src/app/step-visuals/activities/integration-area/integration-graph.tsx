@@ -2,7 +2,7 @@
 
 import { memo, useId, useMemo, useRef, type Dispatch } from "react";
 import type { CoordinatePlaneScene, Segment } from "../../core/graph/types";
-import { useGraphMeasurement } from "../../platform/web/measurement";
+import { useIntegrationGraphMeasurement } from "./use-graph-measurement";
 import { frameProfile, integrationGraphLayout, integrationPlaneLayout } from "./graph-layout";
 import { boundaryBounds, effectiveRectangleCount, effectiveRegion, type Boundary, type IntegrationAction, type IntegrationState } from "./learning";
 import { useBoundaryPointer } from "./use-boundary-pointer";
@@ -18,7 +18,7 @@ const Plane = memo(function Plane({ plane }: { plane: CoordinatePlaneScene }) {
 });
 
 export default function IntegrationGraph({ state, active, dispatch, className = "" }: { state: IntegrationState; active: boolean; dispatch: Dispatch<IntegrationAction>; className?: string }) {
-  const { ref, size, ready } = useGraphMeasurement();
+  const { ref, size, ready } = useIntegrationGraphMeasurement();
   const svgRef = useRef<SVGSVGElement>(null);
   const id = useId();
   const { stage, function: comparison, part } = state;
