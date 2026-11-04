@@ -85,7 +85,7 @@ test("group and own edits use separate APIs, retain private learning, and front 
   try {
     const shared = await (await page.request.get(`/api/group-experiences/${fixture!.experienceId}/cards/${fixture!.cardIds[0]}?perspective=self`)).json();
     expect(shared.learning.items[0].completionStatus).toBe("done");
-    await expect(page.locator(".focused-card-surface--front .group-private-mark")).toHaveAttribute("aria-label", "Private to you");
+    await expect(page.locator(".focused-card-surface--front .date-visibility-indicator svg")).toHaveAttribute("aria-label", "Private in this Group");
   } finally {
     const own = await (await page.request.get(`/api/group-experiences/${fixture!.secondId}`)).json();
     await page.request.patch(`/api/group-experiences/${fixture!.secondId}/cards/${fixture!.cardIds[0]}/personal-learning`, { data: { accessEpoch: own.accessEpoch, version: 1,

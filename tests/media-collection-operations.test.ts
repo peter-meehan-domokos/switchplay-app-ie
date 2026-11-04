@@ -43,3 +43,14 @@ test("a lost transfer response is recovered through owner status without a secon
   await assert.rejects(upload.run(new AbortController().signal)); await upload.run(new AbortController().signal);
   assert.equal(transfers, 1); assert.equal(statuses, 1);
 });
+
+test("Group-context Remove rejects Personal and foreign origins and uses membership-checked creator deletion", async t => {
+  const calls: { url: string; body: unknown }[] = [];
+  t.mock.method(globalThis, "fetch", async (input: unknown, init?: RequestInit) => { calls.push({ url: String(input), body: init?.body ? JSON.parse(String(init.body)) : null }); return json({ state: "deleted" }); });
+  const group = { ...context, experienceId: "origin", accessEpoch: 4 };
+  await assert.rejects(mutateCollectionItem({ ...group, experienceId: "different" }, item, "delete"));
+  await assert.rejects(mutateCollectionItem(group, { ...item, source: { kind: "personal", cardTemplateId: "card", mediaItemId: "p" } }, "delete"));
+  assert.equal(calls.length, 0);
+  await mutateCollectionItem(group, item, "delete");
+  assert.deepEqual(calls, [{ url: "/api/group-experiences/origin/media/upload", body: { expectedRevision: 2, accessEpoch: 4 } }]);
+});

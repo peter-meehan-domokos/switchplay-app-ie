@@ -1,3 +1,4 @@
+import VisibilityIndicator from "@/components/media/VisibilityIndicator";
 import { progressObservationState } from "@/lib/frameworks/progressState";
 import { getConfidenceScore } from "@/lib/signals";
 import type { SyntheticEvent } from "react";
@@ -58,7 +59,7 @@ export default function CardSemanticAnchors({
       </span> : null}
       {showText ? (
         <div className={`deck-card-date-shell${hasDate ? "" : " personal-date-slot"}`} aria-hidden={hasDate ? undefined : true}>
-          <p className="deck-card-date">{hasDate ? shownDate : ""}{experience && card.ownerDate ? <span className="group-private-mark" title="Private to you" aria-label="Private to you"> 🔒</span> : null}</p>
+          <p className="deck-card-date">{hasDate ? shownDate : ""}{experience && card.ownerDate ? <span className="date-visibility-indicator"> <VisibilityIndicator visible={false} /></span> : null}</p>
           {isTargetDateInteractive ? (
             <>
               <button

@@ -9,11 +9,15 @@ export function mutateCollectionItem(context: MediaCollectionContext, item: Medi
   return queue.enqueue({ userId: context.viewerUserId, cardId: collectionKey(item), deckTemplateId: "media-collection" }, async () => {
     const source = item.source;
     if (action === "delete" && context.viewerUserId !== item.authorUserId) throw Error("Only the creator can delete this contribution.");
+    if (action === "delete" && context.experienceId && (source.kind !== "group" || source.experienceId !== context.experienceId)) throw Error("Remove this upload in its original context or your Personal Card.");
+    if (action === "delete" && context.experienceId && !Number.isSafeInteger(context.accessEpoch)) throw Error("Group authority changed. Reopen Media Centre.");
     let result;
     if (action === "hide") {
       if (context.kind !== "group" || source.kind !== "group" || source.experienceId !== context.experienceId) throw Error("Invalid Group hiding source.");
       result = await mediaJson(context, `/api/group-experiences/${encodeURIComponent(context.experienceId)}/media/${encodeURIComponent(source.contributionId)}`, "PATCH", { expectedRevision: item.revision, accessEpoch: context.accessEpoch });
-    } else if (source.kind === "group") result = await mediaJson(context, `/api/group-media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision });
+    } else if (source.kind === "group") result = context.experienceId
+      ? await mediaJson(context, `/api/group-experiences/${encodeURIComponent(context.experienceId)}/media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision, accessEpoch: context.accessEpoch })
+      : await mediaJson(context, `/api/group-media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision });
     else result = await mediaJson(context, `/api/cards-data/${encodeURIComponent(source.cardTemplateId)}/media/${encodeURIComponent(source.mediaItemId)}`, "DELETE");
     notifyMediaCollectionChanged(item.authorUserId, context.cardTemplateId, source.kind === "group" ? source.experienceId : undefined);
     return result;
@@ -36,7 +40,7 @@ export class GroupMediaUpload {
     const path = `/api/group-experiences/${encodeURIComponent(c.experienceId)}/cards/${encodeURIComponent(c.cardTemplateId)}/media`;
     try {
       // An exact retry recovers a receipt/refreshes its proof, never another file.
-      this.allocation = await mediaJson<Allocation>(c, path, "POST", { operationId: this.operationId, accessEpoch: c.accessEpoch, version: c.version, kind, contentType: this.file.type, size: this.file.size }, signal);
+      this.allocation = await mediaJson<Allocation>(c, path, "POST", { operationId: this.operationId, accessEpoch: c.accessEpoch, version: c.version, kind, contentType: this.file.type, size: this.file.size, ...(this.file.name ? { originalFilename: this.file.name } : {}) }, signal);
       if (this.allocation.state !== "attached" && !this.transferAttempted) {
         if (!this.allocation.uploadURL) throw Error("Upload allocation is unavailable.");
         this.transferAttempted = true;

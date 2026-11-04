@@ -89,10 +89,14 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     ...data.followers.map(row => ({ key: row.userId, name: row.username, selection: row.userId === actor ? { perspective: "self" as const } : { perspective: "follower" as const, subjectUserId: row.userId } }))];
   const selectedKey = shown.perspective === "group" ? "group" : shown.perspective === "self" ? actor : shown.subjectUserId;
   const mediaAuthority = JSON.stringify([actor, experienceId, effective, boot.accessEpoch, boot.adoptionRevision, boot.isAdmin, boot.isFollower]);
-  const mediaContext = (cardId: string): MediaCollectionContext | null => !state.verified ? null : shown.perspective === "self"
+  // Own history remains authorised by its creator identity while Group writes
+  // revalidate. Never retain or substitute a foreign perspective's media.
+  const mediaContext = (cardId: string): MediaCollectionContext | null => shown.perspective === "self" && effective.perspective === "self"
     ? { kind: "owner", viewerUserId: actor, cardTemplateId: cardId, experienceId }
-    : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision,
+    : !state.verified ? null : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision,
       ...(shown.perspective === "follower" ? { subjectUserId: shown.subjectUserId } : {}) };
+  const signalReadOnlyReason = !state.verified ? "Checking your access. Try again in a moment."
+    : shown.perspective === "group" ? "Only a Group Admin can change this value." : "Only this member can change this value.";
   const validOverlay = mediaOverlay?.authority === mediaAuthority && mediaOverlay.cardId === currentCardId && mediaOverlay.focused === focused ? mediaOverlay : null;
   if (mediaOverlay && !validOverlay) setMediaOverlay(null);
   const openMedia: OpenCardMedia = (cardId, selectedKey, source, scene) => {
@@ -144,12 +148,12 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
             groupUpload={{ viewerUserId: actor, experienceId, cardTemplateId: card.id, accessEpoch: boot.accessEpoch, version: card.version }}
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
-      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
+      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack readOnlyReason={signalReadOnlyReason} card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
       renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} interactionLocked={!state.verified || !!validOverlay}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
-        backFace={<GroupCardBack card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />
+        backFace={<GroupCardBack readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />
     {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} onCollapse={() => {
       setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />

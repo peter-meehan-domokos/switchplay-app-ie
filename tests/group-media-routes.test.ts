@@ -81,3 +81,14 @@ test("Group mutations compare Origin with the actual incoming host when Next use
   ] as Record<string, string>[]) assert.equal((await r.POST(new Request(url, { method: "POST", headers, body: "{}" }), context)).status, 403);
   assert.equal(f.calls.length, 1);
 });
+
+test("Group-scoped creator Remove binds origin, revision, current actor and membership epoch", async t => {
+  const f = setup(t), r = await route("src/app/api/group-experiences/[experienceId]/media/[contributionId]/route.ts");
+  const request = (data: unknown) => new Request("http://local/api/group-experiences/group/media/contribution", { method: "DELETE", body: JSON.stringify(data) });
+  assert.equal((await r.DELETE(request({ expectedRevision: 2, accessEpoch: 4 }), context)).status, 200);
+  assert.deepEqual(f.calls[0], { method: "delete", args: ["bob", "contribution", { expectedRevision: 2 }, { experienceId: "group", accessEpoch: 4 }] });
+  assert.equal((await r.DELETE(request({ expectedRevision: 2 }), context)).status, 409);
+  assert.equal((await r.DELETE(request({ expectedRevision: 2, accessEpoch: 4, authorUserId: "alice" }), context)).status, 400);
+  f.denied = true; assert.equal((await r.DELETE(request({ expectedRevision: 2, accessEpoch: 4 }), context)).status, 403);
+  assert.equal(f.calls.length, 1);
+});

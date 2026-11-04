@@ -6,6 +6,7 @@ import { snapReadingToInteger, type CardLayout } from "@/components/cards/cardLa
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -105,6 +106,7 @@ function blockSignalBlockGesturePropagation(event: PointerEvent<HTMLElement>) {
 
 type FocusedSignalRowProps = {
   readOnly?: boolean;
+  readOnlyReason?: string;
   interactionIdentity?: string;
   heading?: import("react").ReactNode;
   cardId: string;
@@ -114,12 +116,15 @@ type FocusedSignalRowProps = {
   onSignalNavigatePrevious?: () => void;
 };
 
-export function PassiveSignalRow({ signal, heading }: { signal: CardLayout["signals"][number]; heading?: import("react").ReactNode }) {
+export function PassiveSignalRow({ signal, heading, readOnlyReason, interactionIdentity }: { signal: CardLayout["signals"][number]; heading?: import("react").ReactNode; readOnlyReason?: string; interactionIdentity?: string }) {
+  const guard = useReadOnlySignalGesture(Boolean(readOnlyReason), readOnlyReason, `${interactionIdentity ?? "preview"}:${signal.id}`);
   const displayedReading = signal.reading === null ? null : snapReadingToInteger(signal.reading);
   const displayedReadingLabel = displayedReading === null ? "" : formatDisplayedSignalReading(signal, displayedReading);
 
   return (
-    <div className="focused-card-signal-slot">
+    <div className={`focused-card-signal-slot${readOnlyReason ? " focused-card-signal-slot--read-only" : ""}`}
+      aria-describedby={guard.visible ? guard.id : undefined} {...(readOnlyReason ? guard.bindings : {})}>
+      {guard.visible ? <span className="read-only-signal-tooltip" role="tooltip" id={guard.id}>{readOnlyReason}</span> : null}
       <p>{heading ?? signal.title}</p>
       <div
         className="focused-card-signal-track"
@@ -152,7 +157,57 @@ export function getFocusedSignalDisplayState(
   return { label, isVisible, isUnset, effectiveNormalized };
 }
 
+// Read-only signals still own their pointer sequence. They explain the existing
+// permission without starting a learning drag or the ancestor Card gesture.
+function useReadOnlySignalGesture(readOnly: boolean, reason: string | undefined, identity: string | undefined) {
+  const key = JSON.stringify([readOnly, reason, identity]);
+  const id = useId();
+  const [hint, setHint] = useState({ key, visible: false });
+  if (hint.key !== key) setHint({ key, visible: false });
+  const row = useRef<HTMLDivElement | null>(null);
+  const pointer = useRef<{ id: number; x: number; y: number; shown: boolean } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTimer = useCallback(() => { if (timer.current) clearTimeout(timer.current); timer.current = null; }, []);
+  const dismiss = useCallback(() => { clearTimer(); setHint({ key, visible: false }); }, [clearTimer, key]);
+  useEffect(() => () => { clearTimer(); pointer.current = null; }, [clearTimer, key]);
+  const visible = readOnly && Boolean(reason) && hint.key === key && hint.visible;
+  useEffect(() => {
+    if (!visible) return;
+    const outside = (event: globalThis.PointerEvent) => { if (!row.current?.contains(event.target as Node)) dismiss(); };
+    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") { event.stopPropagation(); event.preventDefault(); dismiss(); } };
+    document.addEventListener("pointerdown", outside, true); document.addEventListener("keydown", escape, true);
+    return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("keydown", escape, true); };
+  }, [visible, dismiss]);
+  const cancel = (event: PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (!pointer.current) return;
+    pointer.current = null; dismiss();
+  };
+  return { id, visible, bindings: {
+    onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation(); if (event.button !== 0) return;
+      row.current = event.currentTarget; clearTimer(); pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY, shown: false };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation(); const start = pointer.current;
+      if (!start || start.id !== event.pointerId || start.shown || !reason) return;
+      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) >= DECK_GESTURE_THRESHOLDS.deadZonePx) {
+        start.shown = true; setHint({ key, visible: true });
+      }
+    },
+    onPointerUp: (event: PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation(); const start = pointer.current; pointer.current = null;
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+      if (start?.shown) { clearTimer(); timer.current = setTimeout(dismiss, 2500); }
+    },
+    onPointerCancel: cancel, onLostPointerCapture: cancel,
+    onClick: (event: MouseEvent<HTMLDivElement>) => { event.stopPropagation(); event.preventDefault(); },
+  } };
+}
+
 export function FocusedSignalRow({
+  readOnlyReason,
   readOnly = false,
   interactionIdentity,
   heading,
@@ -162,6 +217,7 @@ export function FocusedSignalRow({
   onSignalNavigateNext,
   onSignalNavigatePrevious,
 }: FocusedSignalRowProps) {
+  const readOnlyGesture = useReadOnlySignalGesture(readOnly, readOnlyReason, `${interactionIdentity ?? cardId}:${signal.id}`);
   const [isValueVisible, setIsValueVisible] = useState(false);
   const [previewNormalized, setPreviewNormalized] = useState<number | null>(null);
   const [previewSource, setPreviewSource] = useState({ id: signal.id, value: signal.value, interactionIdentity, readOnly });
@@ -450,7 +506,7 @@ export function FocusedSignalRow({
     showValueTemporarily();
   };
 
-  const signalRowClassName = "focused-card-signal-slot";
+  const signalRowClassName = `focused-card-signal-slot${readOnly ? " focused-card-signal-slot--read-only" : ""}`;
   const signalValueClassName = readOnly ? "focused-card-signal-value" : [
     "focused-card-signal-value",
     isValueVisible || isUnset ? "focused-card-signal-value--visible" : "focused-card-signal-value--hidden",
@@ -460,17 +516,19 @@ export function FocusedSignalRow({
   return (
     <div
       className={signalRowClassName}
+      aria-describedby={readOnlyGesture.visible ? readOnlyGesture.id : undefined}
       role={readOnly ? undefined : "button"}
       tabIndex={readOnly ? undefined : 0}
       aria-label={readOnly ? undefined : `Adjust ${signal.title} reading`}
-      onPointerDown={readOnly ? undefined : handleRowPointerDown}
-      onPointerMove={readOnly ? undefined : handleRowPointerMove}
-      onPointerUp={readOnly ? undefined : finishRowPointerInteraction}
-      onPointerCancel={readOnly ? undefined : handleRowPointerCancel}
-      onLostPointerCapture={readOnly ? undefined : handleLostPointerCapture}
-      onClick={readOnly ? undefined : handleRowClick}
+      onPointerDown={readOnly ? readOnlyGesture.bindings.onPointerDown : handleRowPointerDown}
+      onPointerMove={readOnly ? readOnlyGesture.bindings.onPointerMove : handleRowPointerMove}
+      onPointerUp={readOnly ? readOnlyGesture.bindings.onPointerUp : finishRowPointerInteraction}
+      onPointerCancel={readOnly ? readOnlyGesture.bindings.onPointerCancel : handleRowPointerCancel}
+      onLostPointerCapture={readOnly ? readOnlyGesture.bindings.onLostPointerCapture : handleLostPointerCapture}
+      onClick={readOnly ? readOnlyGesture.bindings.onClick : handleRowClick}
       onKeyDown={readOnly ? undefined : handleRowKeyDown}
     >
+      {readOnlyGesture.visible ? <span className="read-only-signal-tooltip" role="tooltip" id={readOnlyGesture.id}>{readOnlyReason}</span> : null}
       <p>{heading ?? signal.title}</p>
       <div
         ref={signalTrackRef}

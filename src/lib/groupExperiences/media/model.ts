@@ -5,7 +5,7 @@ export type GroupMediaRecord = {
   contributionId: string; operationId: string; operationHash: string;
   authorUserId: string; experienceId: string; cardTemplateId: string; deckTemplateId: string;
   accessEpoch: number; version: number; adoptionRevision: number;
-  kind: "image" | "video"; contentType: string; size: number;
+  kind: "image" | "video"; contentType: string; size: number; originalFilename?: string;
   state: "pending" | "attached" | "deleted"; groupVisible: boolean; revision: number;
   allocation: "reserved" | "allocating" | "ready" | "uncertain";
   asset?: GroupMediaAsset; uploadURL?: string; uploadHeaders?: Record<string, string>;

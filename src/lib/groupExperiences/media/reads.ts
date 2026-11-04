@@ -1,3 +1,4 @@
+import { creatorUsernames } from "../../cards/creatorAttribution";
 import type { Filter } from "mongodb";
 import { requireCondition } from "../../cards/domain";
 import { hash, id } from "../contracts";
@@ -27,7 +28,7 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
     const filter: Filter<GroupMediaRecord> = { cardTemplateId, state: "attached", ...(authority.kind === "owner" ? { authorUserId: actor }
       : { experienceId: authority.experienceId, groupVisible: true, ...(authority.subjectUserId ? { authorUserId: authority.subjectUserId } : {}) }) };
     const rows = await repo.records().find({ ...filter, ...older }, { session, projection: { _id: 0, contributionId: 1, authorUserId: 1,
-      experienceId: 1, cardTemplateId: 1, kind: 1, uploadedAt: 1, revision: 1, groupVisible: 1 } })
+      experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1 } })
       .sort({ uploadedAt: sign, contributionId: sign }).limit(limit + 1).toArray();
     const total = await repo.records().countDocuments(filter, { session });
     // Creator removal is management even when this perspective cannot upload.
@@ -38,11 +39,12 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
     const last = page.at(-1), first = page[0];
     const encode = (row: GroupMediaRecord, inclusive = false) => Buffer.from(JSON.stringify({ key, date: row.uploadedAt!.toISOString(), id: row.contributionId, inclusive })).toString("base64url");
     // One bounded identity lookup, never membership checks or one query per origin.
+    const authors = await creatorUsernames(repo.groups.cards, page.map(row => row.authorUserId), session);
     const origins = await repo.groups.experiences().find({ experienceId: { $in: [...new Set(page.map(r => r.experienceId))] } },
       { session, projection: { _id: 0, experienceId: 1, name: 1 } }).toArray();
     const start = last ? await repo.records().countDocuments({ ...filter, $or: [{ uploadedAt: { $lt: last.uploadedAt } },
       { uploadedAt: last.uploadedAt, contributionId: { $lt: last.contributionId } }] }, { session }) : 0;
-    return { ...context, total, start, refresh: first ? encode(first, true) : null, previous: first && start + page.length < total ? encode(first) : null, items: page.map(row => ({ ...repo.dto(row), originName: origins.find(g => g.experienceId === row.experienceId)?.name ?? null,
+    return { ...context, total, start, refresh: first ? encode(first, true) : null, previous: first && start + page.length < total ? encode(first) : null, items: page.map(row => ({ ...repo.dto(row), authorName: authors.get(row.authorUserId) ?? "Unknown user", originName: origins.find(g => g.experienceId === row.experienceId)?.name ?? null,
       sourceKind: "group-contribution" as const,
       deliveryUrl: `/api/group-media/${encodeURIComponent(row.contributionId)}?action=playback${authority.kind === "owner" ? "" : `&experienceId=${encodeURIComponent(authority.experienceId)}${authority.subjectUserId ? `&subjectUserId=${encodeURIComponent(authority.subjectUserId)}` : ""}`}` })),
       next: start > 0 && last ? encode(last) : null };

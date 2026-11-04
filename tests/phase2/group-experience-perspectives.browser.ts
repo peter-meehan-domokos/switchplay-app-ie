@@ -81,7 +81,7 @@ test("peer-hidden follower receives Group/self choices; empty group keeps a name
   await page.locator(".group-picker-current").click();
   await expect(page.locator(".group-perspective-list button")).toHaveCount(2);
   await expect(page.getByRole("button", { name: "All followers", exact: true })).toHaveCount(0);
-  await expect(page.locator(".group-private-mark").first()).toHaveAttribute("title", "Private to you");
+  await expect(page.locator(".date-visibility-indicator svg").first()).toHaveAttribute("aria-label", "Private in this Group");
   await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
   await page.goto(`/decks?openExperience=${fixture!.zeroId}`);
   await expect(page.locator(".group-picker-static")).toHaveText(/Empty squad/);

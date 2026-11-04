@@ -16,9 +16,13 @@ test("media capabilities match Group, self, Admin inspection and peer contexts",
   await createGroupMediaIndexes(f.cards.db);
   await media.records().insertOne({ contributionId: "owned", operationId: "owned", operationHash: "fixture", authorUserId: "bob", experienceId: f.experienceId, cardTemplateId: f.ids[0], deckTemplateId: f.deckId,
     accessEpoch: 0, version: 1, adoptionRevision: 0, kind: "image", contentType: "image/png", size: 1, state: "attached", groupVisible: true, revision: 1, allocation: "ready", createdAt: new Date(), uploadedAt: new Date() });
-  const creator = await media.groupFeed("bob", f.experienceId, f.ids[0]); assert.equal(creator.capabilities?.canManage, true); assert.equal(creator.capabilities?.canUpload, false);
-  const self = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId }); assert.equal(self.capabilities?.canUpload, true);
+  const creator = await media.groupFeed("bob", f.experienceId, f.ids[0]); assert.equal(creator.items[0].authorName, "bob"); assert.equal(creator.capabilities?.canManage, true); assert.equal(creator.capabilities?.canUpload, false);
+  const self = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId }); assert.equal(self.items[0].authorName, "bob"); assert.equal(self.capabilities?.canUpload, true);
   const inspected = await media.groupFeed("alice", f.experienceId, f.ids[0], { subjectUserId: "bob" }); assert.equal(inspected.capabilities?.canUpload, false); assert.equal(inspected.capabilities?.canHideOthers, true);
+  await media.records().updateOne({ contributionId: "owned" }, { $set: { groupVisible: false } });
+  const hidden = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId });
+  assert.equal(hidden.items[0].authorName, "bob"); assert.equal(hidden.items[0].private, true);
+  await media.records().updateOne({ contributionId: "owned" }, { $set: { groupVisible: true } });
   await f.repo.experiences().updateOne({ experienceId: f.experienceId }, { $set: { allowFollowerInspection: true } });
   const peer = await media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob" }); assert.equal(peer.capabilities?.canManage, false); assert.equal(peer.capabilities?.canHideOthers, false);
 });

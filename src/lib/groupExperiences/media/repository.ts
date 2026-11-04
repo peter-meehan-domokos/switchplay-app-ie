@@ -128,11 +128,17 @@ export class GroupMediaRepository {
       return { contributionId, revision: row.revision + 1, groupVisible: false };
     });
   }
-  async delete(actor: string, contributionId: string, input: unknown) {
+  async delete(actor: string, contributionId: string, input: unknown, context?: { experienceId: string; accessEpoch: number }) {
     id(actor); id(contributionId); const cmd = mutationCommand(input, "delete");
     const row = await this.transaction(async session => {
+      if (context) {
+        id(context.experienceId);
+        const { member } = await this.groups.access(actor, context.experienceId, "member", session, context.accessEpoch);
+        await this.groups.fence([member], session);
+      }
       const current = await this.records().findOne({ contributionId, authorUserId: actor }, { session });
       requireCondition(current, "GROUP_MEDIA_FORBIDDEN");
+      requireCondition(!context || current.experienceId === context.experienceId, "GROUP_MEDIA_FORBIDDEN");
       if (current.state === "deleted") return current;
       requireCondition(current.revision === cmd.expectedRevision, "GROUP_MEDIA_REVISION_CONFLICT");
       await this.records().updateOne({ contributionId, revision: current.revision }, { $set: { state: "deleted", groupVisible: false,
@@ -212,7 +218,7 @@ export class GroupMediaRepository {
   dto(row: GroupMediaRecord) {
     return { contributionId: row.contributionId, authorUserId: row.authorUserId, experienceId: row.experienceId,
       cardTemplateId: row.cardTemplateId, kind: row.kind, uploadedAt: row.uploadedAt!.toISOString(), revision: row.revision,
-      groupVisible: row.groupVisible };
+      groupVisible: row.groupVisible, ...(row.originalFilename !== undefined ? { originalFilename: row.originalFilename } : {}) };
   }
   ownerFeed(actor: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number } = {}) { return readMediaPage(this, actor, cardTemplateId, { kind: "owner" }, options); }
   groupFeed(actor: string, experienceId: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number; subjectUserId?: string } = {}) {

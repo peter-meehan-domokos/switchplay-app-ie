@@ -31,7 +31,7 @@ function personalPipeline(actor: string, sources: string[]): Document[] {
           { $or: [{ $eq: [{ $type: `${item}.thumbnailSrc` }, "missing"] }, { $eq: [{ $type: `${item}.thumbnailSrc` }, "string"] }] },
           ...["width", "height"].map(k => ({ $or: [{ $eq: [`${item}.provider`, "youtube"] },{ $eq: [{ $type: `${item}.${k}` }, "missing"] }, { $and: [{ $in: [{ $type: `${item}.${k}` }, ["int", "long", "double"]] }, { $gt: [`${item}.${k}`, 0] }, { $lte: [`${item}.${k}`, Number.MAX_VALUE] }] }] }))] }] }] } } },
     // Existing repair semantics keep the first valid occurrence of a duplicate ID.
-    { $sort: { position: 1 } }, { $group: { _id: { source: "$cardsData.cardTemplateId", id: `${item}.id` }, media: { $first: Object.fromEntries(["id", "description", "mediaType", "provider", "assetId", "src", "thumbnailSrc", "width", "height", "uploadedAt"].map(k => [k, `${item}.${k}`])) }, index: { $first: "$position" } } },
+    { $sort: { position: 1 } }, { $group: { _id: { source: "$cardsData.cardTemplateId", id: `${item}.id` }, media: { $first: Object.fromEntries(["id", "description", "mediaType", "provider", "assetId", "src", "thumbnailSrc", "width", "height", "uploadedAt", "originalFilename"].map(k => [k, `${item}.${k}`])) }, index: { $first: "$position" } } },
     { $set: { date: { $convert: { input: { $cond: [{ $in: [{ $type: "$media.uploadedAt" }, ["string", "date"]] }, "$media.uploadedAt", null] }, to: "date", onError: null, onNull: null } } } },
     { $project: { _id: 0, media: 1, at: { $cond: ["$date", { $dateToString: { date: "$date", format: "%Y-%m-%dT%H:%M:%S.%LZ" } }, ""] },
       kind: { $cond: ["$date", "personal", ""] }, source: { $cond: ["$date", "$_id.source", ""] }, id: { $cond: ["$date", "$_id.id", ""] },
@@ -64,8 +64,8 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
         adoptionRevision: access.experience.adoptionRevision, structureRevision: access.experience.structureRevision };
     }
     // Minimal lineage only; unrelated personal content never leaves MongoDB.
-    const user = await cards.users().aggregate<{ refs: { id: string; next?: string }[] }>([
-      { $match: { _id: userKey(actor) } }, { $project: { _id: 0, refs: { $map: { input: { $ifNull: ["$cardsData", []] }, as: "c", in: { id: "$$c.cardTemplateId", next: "$$c.historySourceCardTemplateId" } } } } },
+    const user = await cards.users().aggregate<{ username?: string; refs: { id: string; next?: string }[] }>([
+      { $match: { _id: userKey(actor) } }, { $project: { _id: 0, username: 1, refs: { $map: { input: { $ifNull: ["$cardsData", []] }, as: "c", in: { id: "$$c.cardTemplateId", next: "$$c.historySourceCardTemplateId" } } } } },
     ], { session }).next();
     requireCondition(user, "MEDIA_FORBIDDEN");
     const sources: string[] = []; let next: string | undefined = cardTemplateId;
@@ -84,7 +84,7 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
         [{ $sort: Object.fromEntries(sortFields.map(k => [k, sign])) }, { $limit: count }]), { session }).toArray() : [];
       const rows: Row[] = personal.flatMap(p => isMediaItem(p.media) ? [{ order: sortFields.map(k => p[k]) as Order, item: {
         source: { kind: "personal" as const, cardTemplateId: p.sourceId, mediaItemId: p.media.id }, authorUserId: actor, mediaType: p.media.mediaType,
-        description: p.media.description, uploadedAt: p.at || null, originName: "Personal", private: Boolean(options.experienceId), media: p.media as MediaItem } }] : []);
+        description: p.media.description, originalFilename: p.media.originalFilename, uploadedAt: p.at || null, originName: "Personal", private: Boolean(options.experienceId), media: p.media as MediaItem } }] : []);
       if (hasGroups) {
         // Date/ID range and sort are backed by the author/Card chronological index.
         let range: Document = {};
@@ -99,11 +99,11 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
             range = { $or: [{ uploadedAt: { [cmp]: date } }, ...(equal ? [equal] : [])] };
           }
         }
-        const result = await groups.find({ ...baseGroup, ...range }, { session, projection: { _id: 0, contributionId: 1, experienceId: 1, kind: 1, uploadedAt: 1, groupVisible: 1, revision: 1 } })
+        const result = await groups.find({ ...baseGroup, ...range }, { session, projection: { _id: 0, contributionId: 1, experienceId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, groupVisible: 1, revision: 1 } })
           .sort({ uploadedAt: sign, contributionId: sign }).limit(count).toArray();
         for (const g of result) rows.push({ order: [g.uploadedAt!.toISOString(), "group", "", g.contributionId, 0, 0], item: {
           source: { kind: "group", experienceId: g.experienceId, contributionId: g.contributionId }, authorUserId: actor, mediaType: g.kind,
-          description: `Group ${g.kind}`, uploadedAt: g.uploadedAt!.toISOString(), originName: null, revision: g.revision,
+          description: `Group ${g.kind}`, originalFilename: g.originalFilename, uploadedAt: g.uploadedAt!.toISOString(), originName: null, revision: g.revision,
           private: Boolean(options.experienceId && (options.experienceId !== g.experienceId || !g.groupVisible)) } });
       }
       return rows.sort((a, b) => sign * compare(a.order, b.order)).slice(0, count);
@@ -114,6 +114,7 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
     const total = personalCount + (hasGroups ? await groups.countDocuments(baseGroup, { session }) : 0);
     const origins = [...new Set(rows.flatMap(r => r.item.source.kind === "group" ? [r.item.source.experienceId] : []))];
     const names = origins.length ? await cards.db.collection<{ experienceId: string; name: string }>("groupExperiences").find({ experienceId: { $in: origins } }, { session, projection: { _id: 0, experienceId: 1, name: 1 } }).toArray() : [];
+    for (const row of rows) row.item.authorName = typeof user.username === "string" && user.username.trim() ? user.username : "Unknown user";
     for (const row of rows) if (row.item.source.kind === "group") row.item.originName = names.find(g => g.experienceId === (row.item.source as { experienceId: string }).experienceId)?.name ?? null;
     let start = 0;
     if (rows[0]) {

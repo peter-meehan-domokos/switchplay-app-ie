@@ -1,4 +1,5 @@
 "use client";
+import { mediaCentreMetadata } from "@/lib/mediaCollection/centreMetadata";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
@@ -69,7 +70,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
     setRemoving(s => ({ ...s, [key]: { isRemoving: true, error: null } }));
     try {
       if (action === "delete" && value.source.kind === "personal" && personalTarget && onPersonalRemove) await onPersonalRemove({ ...personalTarget, cardId: value.source.cardTemplateId }, value.source.mediaItemId);
-      else await personalWork.run({ userId: context.viewerUserId, cardIds: [context.cardTemplateId], ...(value.source.kind === "group" ? { context: { kind: "experience-contribution" as const, experienceId: value.source.experienceId } } : {}) }, `remove:${collectionKey(value)}`, () => mutateCollectionItem(context, value, action));
+      else await personalWork.run({ userId: context.viewerUserId, cardIds: [context.cardTemplateId], ...(value.source.kind === "group" ? { context: { kind: "experience-contribution" as const, experienceId: value.source.experienceId } } : {}) }, `remove:${collectionKey(value)}`, () => mutateCollectionItem({ ...context, ...(collection.page?.accessEpoch !== undefined ? { accessEpoch: collection.page.accessEpoch } : {}) }, value, action));
       if (action === "delete" && value.source.kind === "personal") workingCardStore.removeMedia(context.viewerUserId, value.source.cardTemplateId, value.source.mediaItemId);
       if (mounted.current) { if (action === "hide") setToast(hideNotice); await collection.controller?.refresh(); }
     } catch (error) { if (mounted.current) setRemoving(s => ({ ...s, [key]: { isRemoving: false, error: error instanceof Error ? error.message : "Unable to remove media." } })); }
@@ -104,7 +105,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
       {collection.error && !legacyItems.length ? <p role="alert" className="creator-modal-error">{collection.error}</p> : null}
       <UserCardMediaUploadPanel images={items.filter(isImageMediaItem)} videos={items.filter(isVideoMediaItem)} target={target}
         uploadState={personalTarget ? personal.getState(personalTarget) : groupState} removalStatesById={removing} canUpload={canUpload}
-        canRemoveMedia={item => Boolean(operation(item).action)} showPrivate={privateLabels}
+        getMetadata={item => mediaCentreMetadata(item, Boolean(context.experienceId))} canRemoveMedia={item => Boolean(operation(item).action)} showPrivate={privateLabels}
         getMediaKey={item => personalMediaKey(item as PersonalMediaDisplayItem)}
         getReadinessTarget={item => (item as PersonalMediaDisplayItem).collection ? collectionTarget(item as PersonalMediaDisplayItem, { viewerUserId: context.viewerUserId, cardTemplateId: context.cardTemplateId, sourceCardTemplateId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? context.cardTemplateId, mediaItemId: item.id }, context) : undefined}
         onAddImage={file => void upload("image", file)} onAddVideo={file => void upload("video", file)} onRemoveMedia={item => void remove(item)} />

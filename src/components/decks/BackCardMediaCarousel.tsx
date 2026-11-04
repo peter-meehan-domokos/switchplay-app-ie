@@ -1,3 +1,4 @@
+import VisibilityIndicator from "@/components/media/VisibilityIndicator";
 import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
 import { imageDeliveryUrl } from "@/lib/mediaDelivery";
 import { isCloudflareStreamVideoMediaItem, isVideoMediaItem } from "@/lib/media";
@@ -51,7 +52,7 @@ export default function BackCardMediaCarousel({ items, onOpen, showPrivate = fal
 
   const renderedItems = items.slice(0, 5);
   const mode = getLayoutMode(renderedItems.length);
-  const privateLabels = showPrivate && renderedItems.some(item => item.collection?.private);
+  const privateLabels = showPrivate;
 
   return (
     <section
@@ -60,7 +61,7 @@ export default function BackCardMediaCarousel({ items, onOpen, showPrivate = fal
     >
       {renderedItems.map((item, index) => privateLabels ? <span className="media-private-slot" key={personalMediaKey(item)}>
         <MediaItem index={index} count={items.length} onOpen={onOpen} item={item} />
-        {item.collection?.private ? <span className="media-private-label"><span className="group-private-mark" role="img" aria-label="Private">🔒</span></span> : null}
+        <span className="media-private-label"><VisibilityIndicator visible={item.collection?.private === false} /></span>
       </span> : <MediaItem index={index} count={items.length} onOpen={onOpen} key={personalMediaKey(item)} item={item} />)}
     </section>
   );

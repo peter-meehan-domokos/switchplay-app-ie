@@ -1484,6 +1484,14 @@ input {
   color: #5f6871;
 }
 
+.user-card-media-tile-origin {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.66rem;
+  color: #5f6871;
+}
+
 .user-card-media-tile-remove,
 .user-card-media-tile-retry {
   justify-self: start;
@@ -3849,6 +3857,27 @@ input {
   outline-offset: 4px;
 }
 
+.focused-card-signal-slot--read-only {
+  position: relative;
+}
+
+.read-only-signal-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  width: max-content;
+  max-width: min(260px, 100%);
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(22, 26, 32, 0.96);
+  color: rgba(255, 250, 240, 0.86);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  font-weight: 400;
+  pointer-events: none;
+}
+
 .focused-card-signal-slot:nth-child(2) {
   margin-left: 3px;
 }
@@ -4873,7 +4902,26 @@ input {
 .back-card-media-carousel--count-4 .media-private-slot, .back-card-media-carousel--count-5 .media-private-slot { flex: 0 1 46px; max-width: 46px; aspect-ratio: 46 / 58; }
 .media-private-slot > .back-card-media-carousel-item { display: block; width: 100%; max-width: none; height: 100%; -webkit-mask-image: linear-gradient(180deg,#000 0%,#000 80%,#0006 100%); mask-image: linear-gradient(180deg,#000 0%,#000 80%,#0006 100%); }
 .media-private-label { position: absolute; top: calc(100% + 2px); left: 0; width: 100%; text-align: center; pointer-events: none; }
-/* Match the back-date lock's inherited metadata paint and its .84 ancestor
-   opacity; the existing group-private-mark supplies the same 7px/.65 glyph. */
-.media-private-label, .media-centre-private-label { color: rgba(255, 250, 240, .42); opacity: .84; font-size: 7px; font-weight: 680; line-height: 1; letter-spacing: .0064rem; text-shadow: 0 0 16px rgba(255, 250, 240, .05); }
+/* Both visibility states share one fixed footprint and the subdued date paint. */
+.group-visibility-icon { display: inline-block; width: 9px; height: 9px; flex: none; vertical-align: -1px; color: inherit; opacity: .65; }
+.media-private-label, .media-centre-private-label { color: rgba(255, 250, 240, .42); opacity: .84; font-size: 7px; line-height: 1; }
+.media-private-label { display: flex; align-items: center; justify-content: center; height: 9px; }
+.date-visibility-indicator { color: rgba(255, 250, 240, .42); }
+.media-centre-private-label { display: flex; height: 9px; align-items: center; color: #5f6871; }
+/* Within the own-Group Centre, shared grid tracks align wrapped filenames,
+   metadata and Remove controls. Rail widths, scrolling and 6px item gaps stay. */
+.user-card-media-rail--visibility { display: grid; grid-auto-flow: column; grid-auto-columns: 136px; grid-template-rows: 88px 15px auto auto auto auto; row-gap: 0; }
+.user-card-media-rail--visibility > .user-card-media-tile { grid-row: 1 / span 6; grid-template-rows: subgrid; row-gap: 0; }
+.user-card-media-rail--visibility .user-card-media-tile-preview { grid-row: 1; }
+.user-card-media-rail--visibility .media-centre-private-label { grid-row: 2; margin-top: 6px; }
+.user-card-media-rail--visibility .user-card-media-tile-name { grid-row: 3; margin-top: 6px; }
+.user-card-media-rail--visibility .user-card-media-tile-origin { grid-row: 4; margin-top: 6px; }
+.user-card-media-rail--visibility .user-card-media-tile-remove { grid-row: 5; margin-top: 6px; }
+.user-card-media-rail--visibility .creator-modal-error { grid-row: 6; margin-top: 6px; }
+.user-card-media-rail--visibility.user-card-media-rail--videos { grid-template-rows: 88px 15px auto auto auto auto auto auto; }
+.user-card-media-rail--visibility.user-card-media-rail--videos > .user-card-media-tile { grid-row: 1 / span 8; }
+.user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-status { grid-row: 5; margin-top: 6px; }
+.user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-retry { grid-row: 6; margin-top: 6px; }
+.user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-remove { grid-row: 7; }
+.user-card-media-rail--visibility.user-card-media-rail--videos .creator-modal-error { grid-row: 8; }
 .media-removal-toast { font-size: .8rem; color: #b9c2ce; }

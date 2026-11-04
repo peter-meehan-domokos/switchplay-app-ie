@@ -207,7 +207,7 @@ test("foreign query projects only allowed metadata; owner history does not consu
   t.mock.method(f.media, "records", () => collection);
   await f.media.groupFeed("alice", f.experienceId, f.ids[0], { subjectUserId: "bob" });
   assert.deepEqual(calls[0].filter, { cardTemplateId: f.ids[0], state: "attached", experienceId: f.experienceId, groupVisible: true, authorUserId: "bob" });
-  assert.deepEqual((calls[0].options as { projection: object }).projection, { _id: 0, contributionId: 1, authorUserId: 1, experienceId: 1, cardTemplateId: 1, kind: 1, uploadedAt: 1, revision: 1, groupVisible: 1 });
+  assert.deepEqual((calls[0].options as { projection: object }).projection, { _id: 0, contributionId: 1, authorUserId: 1, experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1 });
   t.mock.method(f.repo, "members", () => { throw Error("owner history must not join membership"); });
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).items[0].contributionId, row.contributionId);
 });
@@ -279,4 +279,39 @@ test("cleanup acknowledgement failure cannot turn successful logical deletion in
   const result = await f.media.delete("bob", attached.contributionId, { expectedRevision: attached.revision });
   assert.equal(result.state, "deleted"); assert.equal(result.cleanup, "pending");
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).total, 0);
+});
+
+test("original filenames survive image/video attachment and hiding; legacy allocations remain valid", async () => {
+  const f = await fixture();
+  for (const kind of ["image", "video"] as const) {
+    const filename = kind === "image" ? "footwork-practice.jpg" : "defensive-positioning.mp4";
+    const cmd = f.mediaCommand({ kind, contentType: kind === "image" ? "image/jpeg" : "video/mp4", originalFilename: filename });
+    const a = await f.media.allocate("bob", f.experienceId, f.ids[0], cmd);
+    await assert.rejects(f.media.allocate("bob", f.experienceId, f.ids[0], { ...cmd, originalFilename: "different.jpg" }), { code: "GROUP_MEDIA_OPERATION_CONFLICT" });
+    const saved = await f.media.commit("bob", f.experienceId, f.ids[0], a.contributionId, { expectedRevision: a.revision, proof: a.proof });
+    assert.equal(saved.originalFilename, filename);
+    await f.media.hide("alice", f.experienceId, saved.contributionId, { expectedRevision: saved.revision, accessEpoch: 0 });
+    const owner = (await f.media.ownerFeed("bob", f.ids[0])).items.find(i => i.contributionId === saved.contributionId)!;
+    assert.equal(owner.originalFilename, filename); assert.equal(owner.experienceId, f.experienceId);
+    assert.equal(owner.groupVisible, false); assert.ok(owner.originName);
+  }
+  const legacy = await f.attach(); assert.equal(legacy.originalFilename, undefined);
+  await assert.rejects(f.allocate("bob", { originalFilename: "../private.jpg" }), { code: "INVALID_GROUP_MEDIA_FILENAME" });
+});
+
+test("Group-context creator deletion requires matching origin and live membership; ordinary owner deletion survives leaving", async () => {
+  const f = await fixture();
+  const other = await f.repo.create("alice", { ...f.creationCommand, operationId: "other-media-origin", name: "Galway development" });
+  const own = await f.attach(), foreign = await f.attach("bob", {}, other.experienceId);
+  await assert.rejects(f.media.delete("bob", foreign.contributionId, { expectedRevision: foreign.revision }, { experienceId: f.experienceId, accessEpoch: 0 }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  await f.media.hide("alice", f.experienceId, own.contributionId, { expectedRevision: own.revision, accessEpoch: 0 });
+  const hidden = await f.media.records().findOne({ contributionId: own.contributionId });
+  await assert.rejects(f.media.delete("bob", own.contributionId, { expectedRevision: hidden!.revision }, { experienceId: f.experienceId, accessEpoch: 99 }));
+  assert.equal((await f.media.records().findOne({ contributionId: own.contributionId }))!.state, "attached");
+  await f.media.delete("bob", own.contributionId, { expectedRevision: hidden!.revision }, { experienceId: f.experienceId, accessEpoch: 0 });
+  const retained = await f.attach(); await f.removeFollower();
+  await assert.rejects(f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision }, { experienceId: f.experienceId, accessEpoch: 0 }));
+  assert.equal((await f.media.records().findOne({ contributionId: retained.contributionId }))!.state, "attached");
+  assert.equal((await f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision })).state, "deleted");
+  assert.equal((await f.media.records().findOne({ contributionId: foreign.contributionId }))!.state, "attached");
 });

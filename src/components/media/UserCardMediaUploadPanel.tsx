@@ -1,4 +1,5 @@
 "use client";
+import VisibilityIndicator from "./VisibilityIndicator";
 import { requestCardVideoReadiness } from "@/lib/cardMediaClient";
 import type { GalleryMediaRequest } from "@/lib/cardMediaViewer";
 import type { PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
@@ -18,6 +19,7 @@ export type UserCardMediaRemovalState = {
 };
 
 type UserCardMediaUploadPanelProps = {
+  getMetadata?: (item: MediaItem) => { filename: string; origin: string; uploader?: string };
   canUpload?: boolean;
   canRemoveMedia?: (item: MediaItem) => boolean;
   showPrivate?: boolean;
@@ -34,7 +36,8 @@ type UserCardMediaUploadPanelProps = {
   getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
-function VideoTile({ item, target, removalState, onRemove, canRemove = true, showPrivate = false, readinessTarget }: {
+function VideoTile({ item, target, removalState, onRemove, canRemove = true, showPrivate = false, readinessTarget, getMetadata }: {
+  getMetadata?: UserCardMediaUploadPanelProps["getMetadata"];
   item: VideoMediaItem; canRemove?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
   target: UserCardMediaUploadTarget;
   removalState?: UserCardMediaRemovalState;
@@ -72,8 +75,9 @@ function VideoTile({ item, target, removalState, onRemove, canRemove = true, sho
           <img alt="" onError={() => setThumbnailFailed(true)} src={isCloudflareStreamVideoMediaItem(item) ? (item as PersonalMediaDisplayItem).collection?.source.kind === "group" ? item.thumbnailSrc : getCloudflareStreamThumbnailUrl(item) : item.thumbnailSrc ?? item.src} />
         ) : <span aria-hidden="true">Video</span>}
       </div>
-      {showPrivate && (item as PersonalMediaDisplayItem).collection?.private ? <span className="media-centre-private-label"><span className="group-private-mark" role="img" aria-label="Private">🔒</span></span> : null}
-      <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
+      {showPrivate ? <span className="media-centre-private-label"><VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} /></span> : null}
+      <p className="user-card-media-tile-name" title={getMetadata?.(item).filename ?? item.description}>{getMetadata?.(item).filename ?? item.description}</p>
+      {getMetadata ? <p className="user-card-media-tile-origin">{getMetadata(item).uploader !== undefined ? `By: ${getMetadata(item).uploader}` : `In: ${getMetadata(item).origin}`}</p> : null}
       <p className="user-card-media-tile-status" role={state.status === "failed" || state.status === "unavailable" ? "alert" : "status"}>
         {statusText}
       </p>
@@ -105,7 +109,7 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
-  canUpload = true, canRemoveMedia = () => true, showPrivate = false, getReadinessTarget,
+  getMetadata, canUpload = true, canRemoveMedia = () => true, showPrivate = false, getReadinessTarget,
   getMediaKey = (item) => item.id,
   getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
@@ -153,7 +157,7 @@ export default function UserCardMediaUploadPanel({
           </p>
         ) : null}
         {uploadState.imageError ? <p className="creator-modal-error" role="alert">{uploadState.imageError}</p> : null}
-        <ul className="user-card-media-rail" aria-label="Uploaded images">
+        <ul className={`user-card-media-rail${showPrivate && images.length > 0 ? " user-card-media-rail--visibility" : ""}`} aria-label="Uploaded images">
           {images.map((item) => {
             const removalState = removalStatesById[getMediaKey(item)];
 
@@ -164,8 +168,9 @@ export default function UserCardMediaUploadPanel({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img alt={item.description} src={imageDeliveryUrl(item.src)} />
                 </div>
-                {showPrivate && (item as PersonalMediaDisplayItem).collection?.private ? <span className="media-centre-private-label"><span className="group-private-mark" role="img" aria-label="Private">🔒</span></span> : null}
-                <p className="user-card-media-tile-name" title={item.description}>{item.description}</p>
+                {showPrivate ? <span className="media-centre-private-label"><VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} /></span> : null}
+                <p className="user-card-media-tile-name" title={getMetadata?.(item).filename ?? item.description}>{getMetadata?.(item).filename ?? item.description}</p>
+                {getMetadata ? <p className="user-card-media-tile-origin">{getMetadata(item).uploader !== undefined ? `By: ${getMetadata(item).uploader}` : `In: ${getMetadata(item).origin}`}</p> : null}
                 {canRemoveMedia(item) ? <button
                   aria-label={`Remove image ${item.description} (${item.id})`}
                   className="creator-modal-secondary user-card-media-tile-remove"
@@ -208,11 +213,11 @@ export default function UserCardMediaUploadPanel({
           </p>
         ) : null}
         {uploadState.videoError ? <p className="creator-modal-error" role="alert">{uploadState.videoError}</p> : null}
-        <ul className="user-card-media-rail" aria-label="Uploaded videos">
+        <ul className={`user-card-media-rail${showPrivate && videos.length > 0 ? " user-card-media-rail--visibility user-card-media-rail--videos" : ""}`} aria-label="Uploaded videos">
           {videos.map((item) => (
             <VideoTile
               item={item}
-              showPrivate={showPrivate} canRemove={canRemoveMedia(item)} readinessTarget={getReadinessTarget?.(item)}
+              getMetadata={getMetadata} showPrivate={showPrivate} canRemove={canRemoveMedia(item)} readinessTarget={getReadinessTarget?.(item)}
               key={getMediaKey(item)}
               onRemove={() => onRemoveMedia(item)}
               removalState={removalStatesById[getMediaKey(item)]}

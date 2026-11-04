@@ -12,7 +12,8 @@ import { signalReadingToNormalized } from "@/lib/signals";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
 
 // Media is loaded through its own scoped collection, never through scalar learning or a foreign personal working store.
-export default function GroupCardBack({ card, focused = false, onChange, onSignalNavigateNext, onSignalNavigatePrevious, mediaContext = null, onOpenMedia, onEditMedia }: {
+export default function GroupCardBack({ readOnlyReason, card, focused = false, onChange, onSignalNavigateNext, onSignalNavigatePrevious, mediaContext = null, onOpenMedia, onEditMedia }: {
+  readOnlyReason?: string;
   mediaContext?: MediaCollectionContext | null; onOpenMedia?: OpenCardMedia; onEditMedia?: (cardId: string) => void;
   card: ExperienceCardPresentation; focused?: boolean; onChange?: (change: PersonalLearningChange) => void;
   onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void;
@@ -35,13 +36,13 @@ export default function GroupCardBack({ card, focused = false, onChange, onSigna
           <StepProgressStrip completionStatus={step.completionStatus} />
         </span>;
         // Keep the same SVG/row through perspective changes. Security identity
-        // resets gesture preview independently; foreign rows have no handlers,
-        // button role or focus target, and never acquire personal capabilities.
+        // resets gesture preview independently; read-only rows own gestures but
+        // never acquire learning mutation capabilities.
         return focused ? <FocusedSignalRow key={step.stepId} signal={signal} cardId={card.id} heading={heading}
-          readOnly={!card.canWriteLearning || !onChange} interactionIdentity={card.dataIdentity}
+          readOnly={!card.canWriteLearning || !onChange} readOnlyReason={!card.canWriteLearning ? readOnlyReason : undefined} interactionIdentity={card.dataIdentity}
           onCommitSignalReading={(_cardId, stepId, value) => { if (card.canWriteLearning) onChange?.({ kind: "signal", stepId, reading: value }); }}
           onSignalNavigateNext={onSignalNavigateNext} onSignalNavigatePrevious={onSignalNavigatePrevious} />
-          : <PassiveSignalRow key={step.stepId} signal={signal} heading={heading} />;
+          : <PassiveSignalRow key={step.stepId} signal={signal} heading={heading} readOnlyReason={!card.canWriteLearning ? readOnlyReason : undefined} interactionIdentity={card.dataIdentity} />;
       })}
     </section></div>
   </div>;

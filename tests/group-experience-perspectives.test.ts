@@ -61,10 +61,10 @@ test("foreign learning has no editing affordance or private fields while own dat
   const own = presentGroup(data, { perspective: "self" }, true).cards[0];
   const front = renderToStaticMarkup(React.createElement(Front, { card: foreign, dateLabel: "", variant: "focused", onCycleStepStatus: () => {} }));
   const back = renderToStaticMarkup(React.createElement(Back, { card: foreign, focused: true, onChange: () => {} }));
-  assert.doesNotMatch(front + back, /Update step progress|Adjust .* reading|Private to you|2027/);
+  assert.doesNotMatch(front + back, /Update step progress|Adjust .* reading|Private in this Group|2027/);
   assert.equal("ownerDate" in foreign, false); assert.equal(own.ownerDate, "2027-01-20");
   const ownHtml = renderToStaticMarkup(React.createElement(Front, { card: own, dateLabel: "", variant: "focused" }));
-  assert.match(ownHtml, /Private to you/); assert.doesNotMatch(ownHtml, /<sup/);
+  assert.match(ownHtml, /Private in this Group/); assert.doesNotMatch(ownHtml, /<sup/);
   assert.equal(presentGroup(data, { perspective: "group" }, false).cards[0].canWriteLearning, false);
 });
 test("individual back headings contain only titles and progress, preserving signal graphics", () => {

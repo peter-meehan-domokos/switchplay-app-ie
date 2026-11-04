@@ -1,6 +1,7 @@
 export type BaseMediaItem = {
   id: string;
   description: string;
+  originalFilename?: string;
   uploadedAt?: string; // Server-owned for new personal uploads; legacy absence is preserved.
 };
 
@@ -79,7 +80,13 @@ function hasOptionalPositiveNumberField(value: Record<string, unknown>, fieldNam
 }
 
 function isBaseMediaItem(value: unknown): value is BaseMediaItem {
-  return isRecord(value) && hasStringField(value, "id") && hasStringField(value, "description");
+  return isRecord(value) && hasStringField(value, "id") && hasStringField(value, "description") &&
+    (value.originalFilename === undefined || isOriginalMediaFilename(value.originalFilename));
+}
+
+export function isOriginalMediaFilename(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= 255 &&
+    ![...value].some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 || character === "/" || character === "\\");
 }
 
 export function isCloudflareR2ImageMediaItem(value: unknown): value is CloudflareR2ImageMediaItem {

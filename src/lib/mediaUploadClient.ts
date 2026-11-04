@@ -396,6 +396,7 @@ export async function uploadImageMedia(
   throwIfUploadAborted(signal);
 
   const item = createImageMediaItem(directUpload, file.name || "Introduction image");
+  if (file.name) item.originalFilename = file.name;
   if (directUpload.attachmentProof) attachmentProofs.set(item, directUpload.attachmentProof);
   return item;
 }
@@ -413,6 +414,7 @@ export async function uploadVideoMedia(
   throwIfUploadAborted(signal);
 
   const item = createStreamVideoMediaItem(directUpload, file.name || "Video attached", dimensions);
+  if (file.name) item.originalFilename = file.name;
   if (directUpload.attachmentProof) attachmentProofs.set(item, directUpload.attachmentProof);
   return item;
 }

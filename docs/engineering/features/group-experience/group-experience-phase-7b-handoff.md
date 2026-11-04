@@ -234,3 +234,194 @@ Actual component SVG was rasterised at native reference glyph size and compared 
 Verification: focused unit7/7, targeted ESLint, TypeScript and diff checks passed. Chromium/WebKit checks passed on the existing disposable environment: computed SVG18×18CSS px, approximately17.03×17.03painted px at390×844; correct separate frame/plus strokes; lower-right positioning and interrupted frame endpoints; unchanged subdued colour/count8/4px gap; no inherited size or stroke overrides; approximately44.99×44.99screen-space hit target; outer-target clicks open the same existing Media Centre in Deck and Focused views. No media mutations or fixture reset were performed.
 
 Captured and visually inspected the actual mobile Card with loaded thumbnails and count8 against the supplied image: `/private/tmp/phase7b-reference-icon-mobile.png`. Geometry/paint measurements: `/private/tmp/phase7b-reference-icon-measurements.json`. Reference comparison: `/private/tmp/phase7b-reference-icon-comparison.json`. Browser log: `/tmp/phase7b-reference-icon-browser.log`. Existing port4187 review source updated in place; URL and credentials above unchanged. All previous uncommitted work preserved; no later phase begun.
+
+## Approved filename, origin and context Remove corrections — implemented, awaiting iPhone acceptance
+
+Baseline: founder commit `2dd1c0d`, clean working tree. This correction remains **uncommitted**. Founder explicitly confirmed retaining the accepted image-based **bottom-right** icon; no icon source, count behaviour, touch target or thumbnail/Gallery lock styling changed. No later phase begun.
+
+### Production behaviour
+
+- New Personal image/video uploads persist optional `originalFilename` alongside their compatible existing media reference. New Group allocations accept the same optional field, validate it and bind it into the existing operation hash. Omitted legacy fields keep their old allocation/retry shape. Attachment, hiding and deletion do not rewrite filename or origin.
+- Narrow owner-history and Group-feed projections carry filename metadata. Media Centre shows the filename as its title and a separate subdued `In: Personal` or actual originating Group name line. The shared panel exposes an optional metadata callback used only by Card Media Centre; unrelated upload panels retain their existing presentation. No origin captions were added to Card thumbnails or Gallery.
+- Legacy fallback: retain an existing filename-shaped upload label where available; otherwise show `Filename unavailable`. This is display-only and does not fabricate/backfill originalFilename. A missing retained Group name uses `Group unavailable`, never an invented origin. Existing descriptions and filenames are not exposed as editable title fields.
+- Ordinary Personal Card: creator Remove works for Personal and all owned Group origins, including departed Groups. Inside a Group: creator Remove is available only for that exact originating Group, including hidden contributions. Personal and other-origin items remain visible but read-only there.
+- New `DELETE /api/group-experiences/:experienceId/media/:contributionId` accepts expectedRevision/accessEpoch. The transaction fences current membership, checks epoch, exact author and exact origin, then applies the existing revision/tombstone/provider-cleanup lifecycle. Forged origins, foreign authors, stale authority and revoked membership fail. The ordinary owner endpoint remains available independently of Group membership, as required for Personal Card deletion after leaving.
+- Admin Remove of another member still uses the existing Group visibility PATCH, with the approved toast. It neither deletes the contribution nor calls provider deletion. Group-only reads remain filtered in MongoDB; private/other-origin records are not returned to inspectors.
+- Existing horizontal rails and all-metadata-on-opening behaviour remain. No additional paging controls, sharing controls, ownership model or permission framework was introduced.
+
+### Disposable eight-image review fixture
+
+Only `tests/helpers/mediaReviewFixture.ts` changed fixture generation. Eight simple, distinct basketball illustrations replace indistinguishable court images. No Group name, Personal/Private/Shared status or upload-origin caption is baked into the imagery. Names shown below are actual stored original filenames, and In comes from the production metadata path.
+
+This table describes **Aoife Kelly's first Card**. Other accounts keep their existing different ownership/distribution examples.
+
+| Item | Filename / recognisable image | Original upload context | Initially shared with Galway U18 | Aoife can Remove inside Galway U18 |
+| --- | --- | --- | --- | --- |
+| 1 | basketball-hoop.png — hoop and ball | Personal | No | No |
+| 2 | training-cones.png — orange cones | Personal | No | No |
+| 3 | balance-board.png — player on board | Galway U18 | No; seeded hidden | Yes |
+| 4 | footwork-ladder.png — yellow ladder | Galway U18 | Yes; Admin removal test target | Yes |
+| 5 | passing-practice.png — two passing players | Galway U18 | Yes | Yes |
+| 6 | rebound-practice.png — rebound beneath hoop | Galway U18 | Yes | Yes |
+| 7 | defensive-positioning.png — defensive stance | Galway development | No | No |
+| 8 | dribbling-practice.png — player dribbling | Galway development | No | No |
+
+Aoife sees all eight. In her Galway U18 perspective items1–3 and7–8 have locks. Admin inspection initially sees only items4–6. Hiding item4 leaves Aoife's total at8, makes item4 private relative to Galway U18, retains `In: Galway U18`, and reduces inspector-visible items to2. Outside Groups, Aoife may Remove all eight. She has left Galway development, exercising retained author access.
+
+### Verification
+
+- `node --import tsx --test tests/media-ux.test.tsx tests/group-media-routes.test.ts tests/media-collection-operations.test.ts tests/personal-media-mutations.test.ts` — **20/20 passed**. Includes rendered image/video metadata, legacy fallback, filename preservation, source permissions, strict route fields, private locks and unchanged icon counts.
+- `node --import tsx --test tests/group-media.integration.ts` — **21/21 passed** on disposable MongoDB. Includes image/video filenames, immutable origins after hide, legacy retries, conflicting filename retry, hidden current-origin creator deletion, wrong-origin rejection, removed membership, privacy allowlist and existing upload/removal races.
+- `node --import tsx --test tests/media-collection.integration.ts` — **10/10 passed** on disposable MongoDB. Includes Personal image/video metadata, current and departed Group origins, retained identities, privacy and bounded chronology.
+- `node --import tsx --test tests/media-ux.integration.ts` — **1/1 passed** as part of the initial three-file integration selection. No capability implementation changes followed.
+- `node --import tsx --test --test-name-pattern='Group-context creator deletion' tests/group-media.integration.ts` — **1/1 passed** after adding stale access-epoch coverage; a rejected stale request leaves the hidden contribution attached.
+- `npx playwright test tests/media-upload-client.spec.ts tests/user-card-media.spec.tsx tests/user-card-media-upload-panel.spec.tsx tests/keyed-user-card-media-upload-controller.spec.ts tests/user-card-media-mutation-queue.spec.ts tests/card-media-viewer.spec.ts --workers=2` — **69/69 passed**.
+- `PHASE7_REVIEW_INFO=/private/tmp/switchplay-phase7b-review-ucl528ag/phase2-test-results/review-server.json npx playwright test --config playwright.phase7b.config.ts` — **14/14 passed**, Chromium/WebKit. Covers real new Personal/Group uploads, exact filename/origin text, four current-origin Remove controls, hidden author ownership, Admin hide/retention, perspective revocation, count/Gallery and all-metadata Centre loading.
+- `npx playwright test --config playwright.media-collection.config.ts` — **44/44 passed**, Chromium/WebKit. Existing Gallery pagination, selected-source identity, image/video playback/readiness, iPhone download/share and narrow/desktop layout regressions.
+- `npx tsc --noEmit`, targeted ESLint across changed TypeScript/TSX, and `git diff --check` — passed. Production build command in the isolated export: `MONGODB_URI='' MONGODB_DB='' node node_modules/next/dist/bin/next build --webpack`; **passed** on the final source, including the legacy filename fallback.
+
+Initial expected failures: new Remove test failed before the permission fix; new Group filename tests were added before implementation; strict existing projection test required the explicitly approved originalFilename addition while retaining all private-field restrictions. A new route assertion was corrected to the established409 invalid-revision status. A legacy filename-label regression failed before its display-only fallback was added. No existing test was weakened.
+
+First review/browser attempt loaded an old fixture module during an incomplete source copy and also encountered an interrupted focus transition. That run was stopped, the copy completed, only the owned disposable runner restarted, and all eight records verified through the authenticated API before the successful14-test run. No product code workaround was added for the harness refresh issue.
+
+### Review access and operations
+
+Verified LAN page HTTP200:
+
+`http://192.168.1.38:4187/decks?openExperience=4bd22da4-e6a4-4c7c-9be8-21279c2e025b`
+
+Ordinary Personal Deck:
+
+`http://192.168.1.38:4187/decks?openDeck=a1e5aa11-6e39-4c87-8e6d-9b7750630304`
+
+- Player: `Aoife Kelly` / `local-test-only`.
+- Admin: `phase2` / `local-test-only`.
+- Owned runner PID43978, port4187, source export `/private/tmp/switchplay-phase7b-review-ucl528ag`. Its `phase2-test-results/review-server.json` contains current IDs/PIDs and disposable DB name.
+- Start from that export: `SWITCHPLAY_REVIEW_PORT=4187 node --import tsx scripts/test-phase2.ts --dev --lan --group-media`.
+- Stop this runner only: `kill -TERM 43978`. Restart seeds a fresh database and changes IDs; read the newly generated review-server.json instead of reusing stale deep links. Do not stop unrelated review services.
+- Data and image upload/delivery/deletion providers are disposable/local mocks. No persistent database, Atlas, real Cloudflare asset or provider configuration was changed. Real-provider checks were not run. No migration is required.
+
+Review steps: sign in as Aoife, open the first Card, flip it and open Media Centre using the accepted icon/count8. Scroll the existing rail to inspect all filenames/origins and four allowed Remove controls. Check the same Card in ordinary Personal Deck for all eight Remove controls and no private indicators. Sign in as phase2, select Aoife in Galway U18, then Remove **footwork-ladder.png**. Return as Aoife: it remains present, now locked, with unchanged Galway U18 origin. Avoid removing that seed item until the intended physical hide test. Gallery still opens separately from a thumbnail and can navigate older items.
+
+Actual rendered screenshots inspected at390×844 WebKit and1440×1000 Chromium: `/tmp/phase7b-corrections-iphone-card.png`, `...-iphone-centre.png`, `...-iphone-centre-group.png`, `...-iphone-centre-older.png`, `...-desktop-centre.png`. Filenames/origins wrap within the unchanged rails; removed controls leave Personal/other-origin entries read-only. Visual/API evidence: `/tmp/phase7b-corrections-visual-evidence.json`. Review API readback confirmed all eight exact origins/privacy flags. No screenshot operation hid or deleted seeded media.
+
+### Changed-file inventory and remaining boundaries
+
+- Media Centre: `src/components/media/{CardMediaCentre,UserCardMediaUploadPanel}.tsx`, narrowly scoped origin-line rule in `src/app/globals.css`.
+- Metadata/transport: `src/lib/media.ts`, `src/lib/mediaUploadClient.ts`, `src/lib/mediaCollection/{centreMetadata,contracts,operations,ownerHistory,permissions,transport}.ts`.
+- Group persistence/API: `src/lib/groupExperiences/media/{contracts,model,reads,repository}.ts`, `src/app/api/group-experiences/[experienceId]/media/[contributionId]/route.ts`.
+- Tests: `tests/group-media-routes.test.ts`, `tests/group-media.integration.ts`, `tests/media-collection-operations.test.ts`, `tests/media-collection.integration.ts`, `tests/media-ux.test.tsx`, `tests/helpers/mediaReviewFixture.ts`, `tests/phase2/media-ux.browser.ts`.
+- This handoff. The initial working tree was clean; no unrelated files or prior commits were changed.
+
+Outstanding: physical iPhone acceptance of these corrections and the later separately authorised Phase7B commit. The previously observed intermittent media disappearance remains an unconfirmed observation, not addressed by this metadata/permission correction. No new product decision is required. No Phase10, reflections, Info Cards or later-phase implementation has begun.
+
+## Approved investigation fixes and uploader amendment — implemented, pending physical acceptance
+
+This section supersedes the earlier unresolved media-disappearance observation and the Group-context In presentation. No commit has been made. All earlier uncommitted Phase7B work remains preserved on `feat/group-experience`; no Phase10 implementation or Personal Info Cards branch merge occurred.
+
+### Implemented corrections
+
+- **Owner thumbnail lifetime:** `GroupExperienceDeck` retains the media context only for the authenticated viewer's selected self perspective while scalar writes/reverification temporarily mark Group authority unverified. Its existing controller and thumbnails remain mounted; five-slot geometry does not enter the no-media layout. Group operations still require verified authority. Foreign perspectives still lose their media context on authority expiry; account/Card/perspective identities continue to create separate controllers, and revoked/mismatched responses cannot enter the ordinary personal store. A foreign-to-self fallback is not treated as the retained selected-self case. No authority lease was extended or disabled and no loading UI was introduced.
+- **Permission-read-only signal gestures:** Focused rows, and ordinary Deck preview rows whose permissions are read-only, own their pointer sequence. They capture down/move/up/cancel/click rather than starting an ancestor flip. Editable signal logic is unchanged. Beyond the existing10px dead zone, an absolute-positioned small tooltip shows the approved member/Admin/checking-access message. It stays up to2.5seconds after release, dismisses on outside tap/Escape, and clears on identity, permission or perspective change. The hint has no interactive controls or layout height. Outside-signal flipping remains intact. Native touch interception is covered in Chromium, mouse/pointer behaviour in Chromium/WebKit; physical Safari touch acceptance remains with the founder.
+- **Media Centre secondary metadata:** inside a Group, one subdued line reads `By: {actual uploader username}`; outside Groups it still reads `In: {Personal or original Group}`. Original filenames and the single secondary-line layout remain. Images and videos share this rendering. Group feed names are resolved in one bounded username-only lookup per metadata page; owner history projects its own username only. Missing identities use existing identity fallbacks, never a raw ID. The original author ID and origin remain unchanged by hiding. No author labels were added to thumbnails/Gallery and no ownership/removal rights changed.
+- **Reusable fixture correction:** Aoife's eight filenames, dark basketball scenes and provenance/visibility cases are unchanged. phase2's eight references use distinct filenames and a simple light/mirrored variant with extra training balls; its five shared Galway U18 uploads are `single-leg-balance.png`, `agility-ladder.png`, `chest-pass-drill.png`, `basket-rebound.png`, `lateral-defence.png`. One16-entry filename list and a small existing PNG-renderer variant replace per-author duplicate identities. This is not a new fixture framework. Tests assert16 distinct filenames and16 distinct image hashes.
+
+### Fixture reuse, stability and reset boundary
+
+The source fixture helpers are retained, reusable test infrastructure. `scripts/test-phase2.ts` seeds once at runner startup into the replica set owned by that runner. `createMediaReviewHandler` creates one asset map for that same lifetime. Login/logout, switching accounts, reloads and changing perspectives do not seed again, reset visibility, replace assets or regenerate IDs. Creator ownership, original context and contribution identity remain the same for all accounts.
+
+Automated review verification allocates a temporary Aoife image, hides it as phase2, logs Aoife out/in, then checks the exact same contribution ID, author, filename, original Group, private status, baseline seeded IDs and original PNG bytes before cleaning up only that temporary item. Seeded media remains intact.
+
+Each running database and mock asset map is disposable on an explicit runner stop/reset. The factory/helper code remains in the repository for future review environments, including a shared seed-once lifecycle for later reflections/Info work. Keep a review runner alive if its actions must remain available. Do not silently restart/reseed it as part of another task. An intentional restart changes generated IDs and requires reporting the new review URL.
+
+**Preservation:** the prior port4187 environment, source snapshot and its data/actions were not reset or overwritten. The improved fixtures run in a separate fresh port4188 environment. Source updates during testing used Next hot reload only and did not rerun the parent seed function.
+
+### Phase10 fixture requirements recorded, not implemented
+
+The authoritative plan's Phase10 section now records reuse of the seed-once lifecycle where practical; stable reflection author/context/content/identity across Admin/member logins and reloads; edits/hiding/deletion persisting across subsequent accounts until an explicit approved reset; no regeneration on login. Most texts should be approximately nine words, one longer truncation example, with simple variations distinguishing Personal/current-Group/other-Group/Admin examples. The later Phase10 handoff must explain lifecycle/reset boundaries and demonstrate cross-account state persistence. No reflection schema, API, fixture records or UI was implemented here.
+
+### Verification actually run
+
+- `node --import tsx --test tests/media-ux.test.tsx tests/media-review-fixture.test.ts tests/group-experience-client.test.ts tests/media-collection-operations.test.ts` — **24/24 passed**. Uploader/origin fallback, immutable identities, fixture uniqueness, media operations and Group resource authority tests.
+- `node --import tsx --test tests/group-media.integration.ts tests/media-collection.integration.ts tests/media-ux.integration.ts` — **32/32 passed** on disposable MongoDB replica sets. Covers owner/Group separation, uploader-name projection before/after hiding, source/revision/ownership/privacy boundaries and existing races/retries.
+- `npx playwright test tests/signal-confidence.spec.ts tests/signal-readings-null.spec.ts tests/signal-visibility.spec.ts tests/signal-rollback.spec.ts tests/user-card-media.spec.tsx tests/user-card-media-upload-panel.spec.tsx tests/media-upload-client.spec.ts tests/keyed-user-card-media-upload-controller.spec.ts --workers=2` — **69/69 passed**, rerun after the preview gesture extension.
+- `PHASE7_REVIEW_INFO=/private/tmp/switchplay-phase7b-approved-review/phase2-test-results/review-server.json npx playwright test --config playwright.phase7b.config.ts` — initial expanded run **19/22 passed**, with3 test-setup failures: both engines attempted an outside tap on a non-interactive semantic heading behind the Card shell, and WebKit's old own-Group test assumed a remembered self perspective after another case had selected Group. Corrected to a real blank-space tap and explicit self selection; neither changes fixture login behaviour or product code.
+- Same browser command with `--grep 'read-only Group signals|read-only Group signal previews|own Group history'` — **6/6 passed** in Chromium/WebKit after the corrections and the two additional ordinary-Deck preview cases. Combined successful runs verify **24 distinct application-browser scenarios**. Includes delayed first/existing confidence writes with continuous5-thumbnail/no-reflow observation, exact checking-access tooltip, foreign revocation, Group/member explanations and dismissal, no read-only writes, trusted Chromium touch, normal outside flips, uploader counts3Aoife/5phase2, role-based Remove/settings, upload/removal, all-metadata Centre loading and account-switch identity/asset stability.
+- `npx playwright test --config playwright.media-collection.config.ts` — **44/44 passed** across Chromium/WebKit: existing Gallery pagination, private source identity, image/video viewer, focus, iPhone sharing/download and responsive layouts.
+- `npx tsc --noEmit` — passed. Targeted ESLint across all changed TypeScript/TSX, plus final preview/browser checks — passed. `git diff --check` — passed.
+- Isolated final-source build: `MONGODB_URI='' MONGODB_DB='' node node_modules/next/dist/bin/next build --webpack` from `/private/tmp/switchplay-phase7b-build-p4mpl9gl` — passed. No database connection was used for the build.
+- WebKit390×844 and Chromium1440×1000 screenshots inspected: readable restrained tooltip without row movement; filename plus exactly one By line; distinct light phase2/dark Aoife images; correct three member Remove controls; unchanged count8/icon/thumbnail locks and Gallery distinction. `/tmp/phase7b-approved-{iphone,desktop}-{tooltip,group-centre,own-card}.png`; visual/API evidence `/tmp/phase7b-approved-visual-evidence.json`.
+
+All outstanding initial browser failures are resolved by the focused rerun. Logs use `/tmp/phase7b-approved-{unit,integration,regressions,browser,browser-rerun,gallery,types,lint,preview-lint,build}.log`. No test expectation was weakened to accommodate a privacy or product regression. Real Cloudflare/provider calls were not run; the review uses local mock images/providers only. Physical acceptance remains outstanding.
+
+### Fresh iPhone review access
+
+Verified LAN HTTP200:
+
+`http://192.168.1.38:4188/decks?openExperience=72c1a97c-40b3-4257-ac8b-8c58736081c0`
+
+Ordinary Personal Deck:
+
+`http://192.168.1.38:4188/decks?openDeck=2fe4a542-1083-42e1-8eba-fa8b47f46273`
+
+- `Aoife Kelly` / `local-test-only` — Follower, not Group Admin.
+- `phase2` / `local-test-only` — Group Admin, not Follower.
+- Group Card still contains all8 shared contributions:5owned byphase2,3byAoife. Aoife's own history still has8items including Personal/hidden/other-Group cases.
+- Review source `/private/tmp/switchplay-phase7b-approved-review`; runner PID61762, app PID61900. Current generated IDs/database/PIDs are in its `phase2-test-results/review-server.json`.
+- Start from that directory: `SWITCHPLAY_REVIEW_PORT=4188 node --import tsx scripts/test-phase2.ts --dev --lan --group-media`. **Starting a new runner seeds fresh disposable data; do not restart to preserve actions.** Explicit stop for this runner only: `kill -TERM 61762`. Existing4187 remains available with prior actions.
+- No persistent database, Atlas data, real provider assets or provider configuration was changed.
+
+Review route: as Aoife select her own perspective on the first Card, flip and drag an unset confidence reading; check continuity on physical iPhone. Select Galway U18 Group perspective: drag a signal for the Group Admin explanation, then flip using space below the signals. In Media Centre inspect uploader names and distinct images; only Aoife's3shared items have her Remove controls. As phase2 inspect Aoife for the member-only signal explanation; Group settings remains available only tophase2. To verify your own cross-login hide sequence, remove Aoife's `footwork-ladder.png` asphase2, then log back in asAoife: the same item remains, now private, By Aoife; ordinary Personal Media Centre still shows its Galway U18 origin. Login/reload will not reset that action.
+
+### Files changed in this amendment
+
+- `src/components/group-experiences/{GroupExperienceDeck,GroupCardBack}.tsx`: owner media lifetime and authoritative explanation selection.
+- `src/components/decks/BackCardFaceContent.tsx`, `src/app/globals.css`: narrowly scoped read-only gesture ownership/tooltip, including permission-read-only previews.
+- `src/components/media/{CardMediaCentre,UserCardMediaUploadPanel}.tsx`; `src/lib/mediaCollection/{contracts,centreMetadata,ownerHistory,transport}.ts`; `src/lib/groupExperiences/media/reads.ts`: uploader metadata/read projections and one secondary line.
+- `tests/helpers/mediaReviewFixture.ts`, new `tests/media-review-fixture.test.ts`, `tests/media-ux.test.tsx`, `tests/media-ux.integration.ts`, `tests/phase2/media-ux.browser.ts`.
+- This handoff and the Phase10 fixture-requirements bullet in the authoritative engineering plan. Earlier Phase7B filename/removal files remain uncommitted as before; no unrelated work was discarded or staged.
+
+Remaining boundary: await founder physical iPhone acceptance before any Phase7B commit. No genuine unresolved product decisions. Do not begin Phase10, merge Personal Info Cards, reset current review data or commit automatically.
+
+## Visibility eye icons — implemented, pending physical acceptance
+
+Approved targeted presentation update only. The original uncommitted work, manually shortened **By:/In:** metadata labels, unrelated architecture/engineering-plan/draft edits, review media records and prior commits remain preserved. No commit or later phase was begun.
+
+- Added `src/components/media/VisibilityIndicator.tsx` using the official Lucide eye/eye-off paths and retained upstream ISC licence in `visibility-icons.LICENSE`. Both states use9×9CSS pixels, stroke2, no fill/background, identical subdued opacity and no handlers/visibility controls. Accessible names describe current-Group visibility, not edit permission.
+- Own Group thumbnails now have exactly one indicator each: eye for explicit current-Group sharing, eye-off for Personal/other-Group/hidden-current-Group items. Slots occupy the existing below-thumbnail area; five-thumbnail sizes/Card layout remain unchanged. Unknown legacy Personal metadata is not falsely marked shared.
+- Own Group Media Centre image/video entries each reserve the same9px icon slot. Scoped native CSS subgrid aligns filenames, By lines and Remove controls even when filenames wrap. Existing136px columns,10px column gaps,6px spacing, scrollable rails and text wrapping remain; empty rails keep their existing flex layout and do not acquire phantom space. On the light Centre background the icon uses the existing subdued secondary-text colour; Card/date indicators use subdued Card metadata colour.
+- `CardSemanticAnchors` replaces the owner-date lock with the same eye-off SVG for front/back/focused representations. Current dates remain owner-only: Group and inspected-person perspectives still receive no date. No Group-shared date model or visibility/edit permission was invented. Ordinary Personal dates have no new icon or control changes.
+- Gallery, original filenames, By/In strings, sharing/ownership/removal, bottom-right plus icon/count, signal gestures/tooltips and date editing logic are unchanged. No backend/schema/provider changes.
+
+### Verification
+
+- `node --import tsx --test tests/media-ux.test.tsx tests/group-experience-perspectives.test.ts` — **20/20 passed**, including both media kinds/states, identical SVG geometry, hidden foreign dates, private owner dates on both faces, existing ownership/Remove invariants and exact By metadata. New icon expectation failed before implementation; no privacy tests were weakened.
+- `PHASE7_REVIEW_INFO=/private/tmp/switchplay-phase7b-visibility-tests/phase2-test-results/review-server.json npx playwright test --config playwright.phase7b.config.ts --grep 'visibility icons|own Group history|ordinary Personal Deck|read-only Group signals'` — **8/8 passed** at390×844 in Chromium/WebKit. Tests assert5icons under thumbnails (3eye/2eye-off),8Centre icons (3eye/5eye-off), identical icon dimensions/strokes/Y positions, filename/By/Remove alignment across wrapped filenames,4author Remove controls, both date faces/read-only behaviour, no foreign/ordinary-Personal indicators, Gallery/Centre/upload/removal and existing read-only signal/touch/outside-flip interactions.
+- Focused final `--grep 'visibility icons'` rerun — **2/2 passed** in Chromium/WebKit after ensuring empty video rails retain their original flex layout.
+- `npx tsc --noEmit`, targeted ESLint of all changed TypeScript/TSX and `git diff --check` — passed. Isolated final-source production build: `MONGODB_URI='' MONGODB_DB='' node node_modules/next/dist/bin/next build --webpack` in `/private/tmp/switchplay-phase7b-build-p4mpl9gl` — passed on the final stable source.
+- Reviewed actual mobile screenshot showing private `balance-board.png` and shared `footwork-ladder.png`, equal icon space and aligned filename/By/Remove rows: `/tmp/phase7b-visibility-alignment-mobile.png`. Card-back screenshot `/tmp/phase7b-visibility-card-mobile.png`. Screenshot inspection caught extra height on the empty video rail, which was corrected and regression-tested. Front/back date presence and dimensions were also checked by automated component/browser assertions.
+
+### Existing review environment preserved
+
+Updated only icon/presentation/CSS files in the **existing4188 source snapshot** using hot reload. The runner was not restarted and its database/assets were not reseeded. Authenticated owner-history readback before/after screenshot inspection confirmed identical media records (`/tmp/phase7b-visibility-review-evidence.json`, `mediaUnchanged:true`). No media uploads, hiding or deletion were performed against4188. Navigation preference was restored after screenshot inspection. Existing4187 remains untouched.
+
+All mutation-capable automated tests used a separate disposable4189 fixture, now stopped. No persistent data, Atlas or real provider media was accessed or changed.
+
+Verified review URL remains:
+
+`http://192.168.1.38:4188/decks?openExperience=72c1a97c-40b3-4257-ac8b-8c58736081c0`
+
+Credentials unchanged: `Aoife Kelly` or `phase2`, password `local-test-only`. As Aoife select her own perspective, inspect date icons/front/back and Media Centre; scroll to balance-board/footwork-ladder for both visibility states. By/In remain as manually approved. Current shared/private state reflects the founder's existing actions, not a reset.
+
+### Files in this targeted pass
+
+- New `src/components/media/VisibilityIndicator.tsx` and `visibility-icons.LICENSE`.
+- `src/components/decks/{BackCardMediaCarousel,CardSemanticAnchors}.tsx`, `src/components/media/UserCardMediaUploadPanel.tsx`, scoped rules in `src/app/globals.css`.
+- `tests/media-ux.test.tsx`, `tests/group-experience-perspectives.test.ts`, `tests/phase2/{media-ux,group-experience-perspectives,group-experience-boundaries}.browser.ts` (the latter date assertions updated to the new indicator without altering privacy expectations).
+- This handoff only among documentation. No unrelated manual documentation changes were modified or staged.
+
+Await physical iPhone acceptance before committing. No unresolved product decision or further implementation phase is authorised.
+
+## Commit authorised
+
+The founder has now explicitly requested adding and committing the reviewed Phase7B changes, superseding the pending-commit stop above. Commit the coherent accumulated metadata/removal, thumbnail/gesture, uploader/fixture and visibility refinements with their tests and handoff, including the approved Phase10 fixture-lifecycle documentation note. No Phase10 functionality is included. Preserve the unrelated manual substitutions in the architecture sanity-check and draft engineering-plan documents as uncommitted work. Verification results above remain applicable; this finalisation changes documentation/Git state only and does not rerun or reset review fixtures.

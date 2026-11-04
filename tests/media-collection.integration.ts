@@ -108,3 +108,22 @@ test("equal-date identifiers use Mongo byte ordering and cursor values remain li
   assert.deepEqual(seen, [...ids].reverse());
   assert.equal((await readOwnerMediaPage(f.cards, "bob", f.ids[0], { limit: 1, cursor: p.newer! })).items[0].description, "a");
 });
+
+test("unified metadata retains original image and video filenames and immutable origins after hiding", async () => {
+  const f = await fixture();
+  await f.cards.users().updateOne({ _id: "bob" }, { $set: { "cardsData.0.mediaItems": [
+    { ...image("personal-image"), originalFilename: "shooting-drill.jpg" },
+    { id: "personal-video", mediaType: "video", provider: "cloudflare-stream", assetId: "stream-id", src: "https://video.invalid", description: "Video", originalFilename: "defensive-positioning.mp4" }, image("legacy"),
+  ] } });
+  await groupItem(f, "group-original", "2026-10-01T00:00:00.000Z");
+  await f.cards.db.collection("groupMediaContributions").updateOne({ contributionId: "group-original" }, { $set: { originalFilename: "footwork-practice.jpg" } });
+  const before = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId });
+  assert.equal(before.items.find(i => i.source.kind === "personal" && i.source.mediaItemId === "personal-image")!.originalFilename, "shooting-drill.jpg");
+  assert.equal(before.items.find(i => i.mediaType === "video")!.originalFilename, "defensive-positioning.mp4");
+  assert.equal(before.items.find(i => i.description === "legacy")!.originalFilename, undefined);
+  await f.cards.db.collection("groupMediaContributions").updateOne({ contributionId: "group-original" }, { $set: { groupVisible: false } });
+  const after = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId });
+  const original = before.items.find(i => i.source.kind === "group")!, hidden = after.items.find(i => i.source.kind === "group")!;
+  assert.equal(hidden.originalFilename, "footwork-practice.jpg"); assert.equal(hidden.originName, original.originName); assert.ok(hidden.originName);
+  assert.equal(original.private, false); assert.equal(hidden.private, true);
+});
