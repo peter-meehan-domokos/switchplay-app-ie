@@ -16,9 +16,8 @@ import type { Framework } from "../src/lib/frameworks/configuration";
 import type { CardData } from "../src/lib/cards/model";
 
 let mongo: MongoMemoryReplSet, client: MongoClient;
-const flag = process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
-before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "1"; });
-after(async () => { if (flag === undefined) delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED; else process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = flag; await client?.close(); await mongo?.stop(); });
+before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); });
+after(async () => { await client?.close(); await mongo?.stop(); });
 type Fixture = Awaited<ReturnType<typeof groupFixture>>;
 const catalogue = (ids: string[]): Framework[] => [{ id: "skills", title: "Skills", areas: [
   { id: "area", title: "Area", items: [{ id: "goal", title: "Goal", cardTemplateIds: ids.slice(0, 2) }, { id: "next", title: "Next", cardTemplateIds: ids.slice(2, 3) }] },

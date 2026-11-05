@@ -86,14 +86,13 @@ test("Library menu supports touch, explicit Add/Open and existing Edit ordering"
     await expect(page.getByRole("button", { name: "Add to My Decks", exact: true })).toHaveCount(0);
     const trigger = page.getByRole("button", { name: "Deck menu", exact: true });
     await trigger.tap();
-    const groupAction = process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1" ? ["Add as Group"] : [];
-    await expect(page.getByRole("menuitem")).toHaveText(["Edit", "Add to My Decks", ...groupAction]);
+    await expect(page.getByRole("menuitem")).toHaveText(["Edit", "Add to My Decks", "Add as Group"]);
     expect((await repo.getPersonalUser(actor))!.decksData.some(data => data.deckTemplateId === deck.deckTemplateId)).toBe(false);
     await page.screenshot({ path: "/tmp/switchplay-library-menu-390.png" });
     await page.getByRole("menuitem", { name: "Add to My Decks", exact: true }).tap();
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
     await trigger.tap();
-    await expect(page.getByRole("menuitem")).toHaveText(["Edit", "Open in My Decks", ...groupAction]);
+    await expect(page.getByRole("menuitem")).toHaveText(["Edit", "Open in My Decks", "Add as Group"]);
     await expect(page).toHaveURL(new RegExp(`/library/${deck.deckTemplateId}$`));
     const data = (await repo.getPersonalUser(actor))!.decksData.find(item => item.deckTemplateId === deck.deckTemplateId)!;
     expect(data.openedAt).toBeNull();

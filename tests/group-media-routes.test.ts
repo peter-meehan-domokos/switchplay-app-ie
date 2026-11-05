@@ -29,24 +29,23 @@ async function route(path: string) {
   return fixtureModule.exports as Record<string, (request: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>>;
 }
 function setup(t: TestContext) {
-  const previous = process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
-  process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "1";
   const fixture: Fixture = { actor: { id: "bob" }, denied: false, uncertain: false, calls: [] };
   const global = globalThis as typeof globalThis & { __groupMediaRoute?: Fixture }; global.__groupMediaRoute = fixture;
-  t.after(() => { delete global.__groupMediaRoute; if (previous === undefined) delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED; else process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = previous; });
+  t.after(() => { delete global.__groupMediaRoute; });
   return fixture;
 }
 const context = { params: Promise.resolve({ contributionId: "contribution", experienceId: "group", cardTemplateId: "card" }) };
 
-test("owner media route is authenticated, actor-bound, private and survives disabled Group entry", async t => {
+test("owner and Group media routes are available with normal authentication, actor binding and privacy", async t => {
   const f = setup(t), r = await route("src/app/api/group-media/[contributionId]/route.ts");
-  process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "0";
   const response = await r.GET(new Request("http://local/api/group-media/contribution"), context);
   assert.equal(await response.text(), "protected bytes"); assert.equal(response.headers.get("Cache-Control"), "private, no-store");
   assert.equal(response.headers.get("Vary"), "Cookie"); assert.deepEqual(f.calls[0].args.slice(0, 4), ["bob", "contribution", { kind: "owner" }, "playback"]);
-  assert.equal((await r.GET(new Request("http://local/api/group-media/contribution?experienceId=group"), context)).status, 503);
+  assert.equal((await r.GET(new Request("http://local/api/group-media/contribution?experienceId=group"), context)).status, 200);
+  assert.deepEqual(f.calls[1].args.slice(0, 4), ["bob", "contribution", { kind: "group", experienceId: "group" }, "playback"]);
   assert.equal((await r.GET(new Request("http://local/api/group-media/contribution", { headers: { "X-Group-Viewer": "alice" } }), context)).status, 409);
   f.actor = null; assert.equal((await r.GET(new Request("http://local/api/group-media/contribution"), context)).status, 401);
+  assert.equal((await r.GET(new Request("http://local/api/group-media/contribution?experienceId=group"), context)).status, 401);
 });
 
 test("Group delivery context is explicit, download preparation uses POST, invalid queries and origins fail", async t => {

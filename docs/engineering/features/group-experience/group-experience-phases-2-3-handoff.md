@@ -1,5 +1,7 @@
 # Group Experiences — Phases 2 and 3 handoff
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 **Status:** Both phases completed, acceptance checks passed, and implementation committed separately on `feat/group-experience`. Stop before Phase 4. No deployment, live database/index changes, provider configuration changes or real-participant enablement occurred.
 
 The authority for this work is the subsequent **Implement Group Experiences Phases 2 and 3** commission. The earlier Phase 1-only amendment and its handoff describe the previous delivery boundary. The approved [engineering plan](group-experience-engineering-plan.md) remains the architecture and later-phase specification.

@@ -6,8 +6,6 @@ import { GroupUpdateConflict } from "./adoption";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 export async function groupRequest(request: Request, run: (repo: GroupExperienceRepository, actor: string) => Promise<unknown>) {
-  // Opt-in remains an operational gate. No deployment/configuration is enabled here.
-  if (process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED !== "1") return Response.json({ error: "Group Experiences unavailable" }, { status: 503, headers });
   let viewer: string | undefined;
   let conflict: GroupUpdateConflict | undefined;
   const result = await cardRequest(async (cards, actor) => {

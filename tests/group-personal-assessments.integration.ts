@@ -13,9 +13,8 @@ import { readAssessmentList } from "../src/lib/assessments/repository";
 import { frameworkCataloguePlugin } from "./helpers/frameworkCataloguePlugin";
 
 let mongo: MongoMemoryReplSet, client: MongoClient;
-const originalFlag = process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
-before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "1"; });
-after(async () => { if (originalFlag === undefined) delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED; else process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = originalFlag; await client?.close(); await mongo?.stop(); });
+before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); });
+after(async () => { await client?.close(); await mongo?.stop(); });
 const catalogue = (id: string) => [{ id: "skills", title: "Skills", areas: [{ id: "area", title: "Area", items: [{ id: "goal", title: "Goal", cardTemplateIds: [id] }, { id: "outside", title: "Outside", cardTemplateIds: [] }] }] }];
 const add = (source: AssessmentSource, deckTemplateId?: string): AssessmentCommand => ({ action: "add", viewerUserId: "bob", source, expectedRevision: 0, id: "test", date: "2026-11-01", result: true, ...(source.kind === "card" ? { deckTemplateId } : {}) });
 type Route = (request: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>;

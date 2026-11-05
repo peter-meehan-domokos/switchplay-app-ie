@@ -32,8 +32,8 @@ const LibraryView = forwardRef<HTMLDivElement, { children: ReactNode; detail: bo
     {present || !detail ? children : null}
   </motion.div>;
 });
-export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName, publishedId, groupsEnabled = false }: {
-  initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string; publishedId?: string; groupsEnabled?: boolean;
+export default function LibraryShell({ initialCollection, initialEntry, currentUserId, userName, publishedId }: {
+  initialCollection?: LibraryCollectionDTO; initialEntry?: LibraryEntry; currentUserId: string; userName: string; publishedId?: string;
 }) {
   const router = useRouter();
   const search = useSearchParams(), progressReturn = readProgressReturn(search);
@@ -194,8 +194,8 @@ export default function LibraryShell({ initialCollection, initialEntry, currentU
         }} cardActions={cardAction}
         deckActions={<DeckMenu deckId={active.deckTemplateId} deckTemplateId={active.deckTemplateId}
           showEdit={!!membership?.canEditInCreator && navigation.verified}
-          groupAction={groupsEnabled ? { label: "Add as Group", disabled: pending !== null || !navigation.verified || navigation.checking,
-            onSelect: () => setCreatingGroup(true) } : undefined}
+          groupAction={{ label: "Add as Group", disabled: pending !== null || !navigation.verified || navigation.checking,
+            onSelect: () => setCreatingGroup(true) }}
           membershipAction={{ label: pending === "add" ? "Adding to My Decks…" : pending === "restore" ? "Restoring to My Decks…" : !membership ? "Loading…" : deckEntryAction(membership.state),
             disabled: !membership || pending !== null || !navigation.verified || navigation.checking, onSelect: () => void primaryAction() }}
           editHref={`/creator/edit/${encodeURIComponent(active.deckTemplateId)}?${new URLSearchParams({ returnTo: "library", returnDeckId: active.deckTemplateId,

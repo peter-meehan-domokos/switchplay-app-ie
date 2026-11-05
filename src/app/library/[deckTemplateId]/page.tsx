@@ -15,5 +15,5 @@ export default async function LibraryDeckPage({ params }: PageProps<'/library/[d
     if (error instanceof CardArchitectureError && error.code === "LIBRARY_DECK_FORBIDDEN") notFound();
     throw error;
   }
-  return <LibraryShell key={`${user.id}:${entry.deckTemplateId}`} initialEntry={entry} currentUserId={user.id} userName={user.username} groupsEnabled={process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1"} />;
+  return <LibraryShell key={`${user.id}:${entry.deckTemplateId}`} initialEntry={entry} currentUserId={user.id} userName={user.username} />;
 }

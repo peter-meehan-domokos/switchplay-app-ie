@@ -1,5 +1,7 @@
 # Phase 5.7 — Consolidated regression and acceptance handoff
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 ## Status / Resume here
 
 **Complete and founder accepted on 2 November 2026. All Phase 5 checkpoints (5.1a–5.7) are complete.** The founder approved the final physical iPhone review of Group/individual Progress, assessment histories and realistic fixtures, Item/Area strikethrough, navigation, popovers and visual presentation. No further visual approval is required.

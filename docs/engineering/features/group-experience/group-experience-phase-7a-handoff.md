@@ -1,5 +1,7 @@
 # Phase 7 Checkpoint A — Media integration
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 ## Status / Resume here
 
 Checkpoint A implementation and verification are complete on `feat/group-experience`, from clean Phase 6 commit `8dc572ca724f`. TypeScript, focused lint, the final isolated production build and diff checks passed. This handoff accompanies the focused commit `feat (group experience): integrate bounded media collections`. The proposed split is technically sound. **Checkpoint B has not begun.** Stop after the focused A commit.

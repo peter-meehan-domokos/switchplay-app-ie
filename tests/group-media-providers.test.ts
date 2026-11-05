@@ -2,14 +2,20 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createGroupMediaProvider, groupMediaConfiguration } from "../src/lib/groupExperiences/media/providers";
 import type { GroupMediaRecord } from "../src/lib/groupExperiences/media/model";
-const env = { GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", CLOUDFLARE_ACCOUNT_ID: "account",
+const env = { NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", CLOUDFLARE_ACCOUNT_ID: "account",
   CLOUDFLARE_STREAM_API_TOKEN: "test", CLOUDFLARE_R2_ACCESS_KEY_ID: "test", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "test",
   CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME: "private-group", CLOUDFLARE_R2_BUCKET_NAME: "public", CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "personal" };
 const row = { contributionId: "12345678-1234-1234-1234-123456789abc", authorUserId: "bob", experienceId: "group", cardTemplateId: "card", kind: "video", contentType: "video/mp4", size: 100, state: "pending" } as GroupMediaRecord;
-test("private configuration is deny by default and rejects shared legacy buckets and trial flag", () => {
-  assert.throws(() => groupMediaConfiguration("image", { ...env, GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED: undefined, INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "1" }));
+test("provider configuration needs actual credentials and a dedicated bucket, not administrative approval", () => {
+  assert.deepEqual(groupMediaConfiguration("image", env), { bucket: "private-group", account: "account" });
+  assert.equal(groupMediaConfiguration("video", env).account, "account");
+  for (const field of ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME"] as const) {
+    assert.throws(() => groupMediaConfiguration("image", { ...env, [field]: undefined }));
+  }
+  assert.throws(() => groupMediaConfiguration("video", { ...env, CLOUDFLARE_STREAM_API_TOKEN: undefined }));
+  assert.throws(() => groupMediaConfiguration("image", { ...env, NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0" }));
   assert.throws(() => groupMediaConfiguration("image", { ...env, CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME: "public" }));
-  assert.equal(groupMediaConfiguration("image", env).bucket, "private-group");
+  assert.throws(() => groupMediaConfiguration("image", { ...env, CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME: "personal" }));
 });
 test("Stream allocation always requires signed URLs and binds immutable contribution metadata", async () => {
   let body: Record<string, unknown> = {};

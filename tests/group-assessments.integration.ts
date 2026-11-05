@@ -14,9 +14,8 @@ import { frameworkCataloguePlugin } from "./helpers/frameworkCataloguePlugin";
 import { personalGroupAssessments } from "../src/lib/groupExperiences/personalAssessments";
 
 let mongo: MongoMemoryReplSet, client: MongoClient;
-const originalFlag = process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
-before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "1"; });
-after(async () => { if (originalFlag === undefined) delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED; else process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = originalFlag; await client?.close(); await mongo?.stop(); });
+before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); });
+after(async () => { await client?.close(); await mongo?.stop(); });
 const catalogue = (ids: string[]) => [{ id: "skills", title: "Skills", areas: [{ id: "area", title: "Area", items: [{ id: "goal", title: "Goal", cardTemplateIds: [ids[0]] }, { id: "other", title: "Other", cardTemplateIds: [ids[1]] }, { id: "outside", title: "Outside", cardTemplateIds: [] }] }] }];
 const cardSource = (id: string): AssessmentSource => ({ kind: "card", cardTemplateId: id });
 const itemSource: AssessmentSource = { kind: "item", itemId: "goal" };

@@ -1,5 +1,7 @@
 # Group Experiences — Phase 4 implementation handoff
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 **Date:** 30 October 2026  
 **Branch:** `feat/group-experience`  
 **Status:** Initial slice and iPhone refinements accepted and committed in baseline `cccb0ba`. Checkpoint 8 creation/settings is implemented, uncommitted, and automated verification passed; its form awaits physical iPhone review. See the Checkpoint 8 handoff below. Earlier sections preserve the initial-slice execution record, including `39aa33aaba824c550cbe82fc8efe9e422157a94e`. Organisations planning work remains untouched.

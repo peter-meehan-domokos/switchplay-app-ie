@@ -1,5 +1,7 @@
 # Phase 6 — Group media foundations
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 ## Status / Resume here
 
 Implementation and automated verification are complete on `feat/group-experience`, starting from clean `ec863dedecfe567ca4917cad1a9caf5a2de85aec` (the committed `groupCardData` rename). The final isolated production build passed. This handoff accompanies the dedicated Phase 6 commit, `feat (group experience): add protected group media foundations`. Phase 5 was already complete and accepted. Stop after the Phase 6 commit; Phase 7 has not begun.

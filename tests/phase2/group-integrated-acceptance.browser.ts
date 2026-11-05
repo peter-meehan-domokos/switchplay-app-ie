@@ -55,6 +55,14 @@ test("club journey joins creation, learning, media, shared reflections, account 
     for (const [page, expected] of [[admin, "group"], [member, "self"], [second, "group"]] as const) {
       await page.goto(`/decks?openExperience=${id}`); await expect(page.locator(".group-experience")).toHaveAttribute("data-perspective-key", expected === "self" ? people.otherId : expected);
       const meta = await json(page.request.get(base)); expect(meta.isAdmin).toBe(expected === "group"); expect(meta.isFollower).toBe(expected === "self");
+      if (page !== second) {
+        await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+        await page.getByRole("menuitem", { name: "Progress", exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`/group-experiences/${id}/progress`));
+        await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "Back to Group Deck", exact: true }).click();
+        await expect(page.locator(".group-experience")).toHaveAttribute("data-perspective-key", expected === "self" ? people.otherId : expected);
+      }
     }
     const learning = async (page: Page, owner: string, change: unknown) => json(page.request.patch(`${cardBase}/${owner}-learning`, { data: { accessEpoch: 0, version: 1, change } }));
     await learning(admin, "group", { kind: "completion", stepId: deck.steps[0][0], completionStatus: "done" }); await learning(admin, "group", { kind: "signal", stepId: deck.steps[0][0], reading: 8 });

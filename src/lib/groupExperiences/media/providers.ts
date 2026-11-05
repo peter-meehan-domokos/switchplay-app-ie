@@ -9,9 +9,7 @@ import type { GroupMediaProvider, GroupMediaRecord } from "./model";
 
 type Env = Record<string, string | undefined>;
 export function groupMediaConfiguration(kind: "image" | "video", env: Env = process.env) {
-  // Operational attestation of the prescribed real-provider checks, not a
-  // public-image trial escape hatch. No deployment is enabled by this change.
-  requireCondition(env.GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED === "1" && env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1", "GROUP_MEDIA_PROVIDER_VERIFICATION_REQUIRED");
+  requireCondition(env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1", "GROUP_MEDIA_CONFIGURATION_REQUIRED");
   requireCondition(Boolean(env.CLOUDFLARE_ACCOUNT_ID), "GROUP_MEDIA_CONFIGURATION_REQUIRED");
   const bucket = env.CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME;
   if (kind === "image") requireCondition(Boolean(bucket && env.CLOUDFLARE_R2_ACCESS_KEY_ID && env.CLOUDFLARE_R2_SECRET_ACCESS_KEY)

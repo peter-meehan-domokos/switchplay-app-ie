@@ -14,8 +14,8 @@ export function mediaAuthority(request: Request): { authority: MediaAuthority; a
   return { authority: experienceId ? { kind: "group", experienceId, ...(subject ? { subjectUserId: subject } : {}) } : { kind: "owner" },
     action: request.method === "POST" ? "prepare-download" : action as "status" | "playback" | "download" | "thumbnail" };
 }
-// Owner retention must keep working if Group navigation is operationally disabled.
-// Group authority uses the established gated request/session boundary.
+// Owner retention is independent of current Group membership.
+// Group authority uses the established authenticated request boundary.
 export async function mediaRequest(request: Request, groupScoped: boolean, run: (repo: GroupMediaRepository, actor: string) => Promise<unknown>) {
   let direct: Response | undefined, unavailable: string | undefined, uncertain: string | undefined;
   const execute = async (groups: GroupExperienceRepository, actor: string) => {
@@ -33,7 +33,7 @@ export async function mediaRequest(request: Request, groupScoped: boolean, run: 
       return value;
     } catch (error) {
       if (error instanceof GroupMediaAllocationUncertain) uncertain = error.contributionId;
-      if (error instanceof CardArchitectureError && ["GROUP_MEDIA_INDEXES_NOT_READY", "GROUP_MEDIA_PROVIDER_VERIFICATION_REQUIRED", "GROUP_MEDIA_CONFIGURATION_REQUIRED", "GROUP_MEDIA_PRIVATE_BUCKET_REQUIRED", "GROUP_MEDIA_SIGNING_UNAVAILABLE", "GROUP_MEDIA_ALLOCATION_UNCERTAIN"].includes(error.code)) unavailable = error.code;
+      if (error instanceof CardArchitectureError && ["GROUP_MEDIA_INDEXES_NOT_READY", "GROUP_MEDIA_CONFIGURATION_REQUIRED", "GROUP_MEDIA_PRIVATE_BUCKET_REQUIRED", "GROUP_MEDIA_SIGNING_UNAVAILABLE", "GROUP_MEDIA_ALLOCATION_UNCERTAIN"].includes(error.code)) unavailable = error.code;
       throw error;
     }
   };

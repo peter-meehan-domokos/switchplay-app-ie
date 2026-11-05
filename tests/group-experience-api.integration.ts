@@ -13,11 +13,11 @@ type Route = Record<string, (request: Request, context?: Context) => Promise<Res
 const state = { actor: null as { id: string } | null, db: null as Db | null, client: null as MongoClient | null };
 const global = globalThis as typeof globalThis & { __groupApi?: typeof state };
 let mongo: MongoMemoryReplSet, fixture: Awaited<ReturnType<typeof groupFixture>>;
-const routes: Record<string, Route> = {}, originalFlag = process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
+const routes: Record<string, Route> = {};
 before(async () => {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   state.client = await new MongoClient(mongo.getUri()).connect(); fixture = await groupFixture(state.client); state.db = fixture.cards.db;
-  global.__groupApi = state; process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "1";
+  global.__groupApi = state;
   for (const path of ["", "/[experienceId]", "/[experienceId]/members", "/[experienceId]/open", "/[experienceId]/summary",
     "/[experienceId]/cards/[cardTemplateId]", "/[experienceId]/cards/[cardTemplateId]/perspectives",
     "/[experienceId]/cards/[cardTemplateId]/personal-learning", "/[experienceId]/cards/[cardTemplateId]/group-learning",
@@ -33,7 +33,7 @@ before(async () => {
     routes[path] = fixtureModule.exports as Route;
   }
 });
-after(async () => { delete global.__groupApi; if (originalFlag === undefined) delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED; else process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = originalFlag;
+after(async () => { delete global.__groupApi;
   await state.client?.close(); await mongo?.stop(); });
 function req(path = "", method = "GET", body?: unknown, headers?: Record<string, string>) {
   return new Request(`http://local/api/group-experiences${path}`, { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -56,12 +56,12 @@ test("management route validates complete commands, binds actors and acknowledge
   assert.equal(retry.headers.get("Cache-Control"), "private, no-store");
   assert.equal((await routes["/[experienceId]"].GET(req("/x"), context())).status, 403);
 });
-test("new APIs are disabled by default and all responses are private and uncached", async () => {
-  delete process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED;
-  const disabled = await routes[""].GET(req()); assert.equal(disabled.status, 503);
-  process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED = "1"; state.actor = null;
+test("Group APIs are available by default and all responses remain authenticated, private and uncached", async () => {
+  state.actor = { id: "alice" };
+  const available = await routes[""].GET(req()); assert.equal(available.status, 200);
+  state.actor = null;
   const unauth = await routes[""].POST(req("", "POST", fixture.command)); assert.equal(unauth.status, 401);
-  for (const response of [disabled, unauth]) { assert.equal(response.headers.get("Cache-Control"), "private, no-store"); assert.equal(response.headers.get("Vary"), "Cookie"); }
+  for (const response of [available, unauth]) { assert.equal(response.headers.get("Cache-Control"), "private, no-store"); assert.equal(response.headers.get("Vary"), "Cookie"); }
 });
 test("authenticated actor binding, strict fields and query validation reject forged operations", async () => {
   state.actor = { id: "alice" };

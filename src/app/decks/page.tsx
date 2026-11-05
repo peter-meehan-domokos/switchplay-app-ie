@@ -9,14 +9,11 @@ export default async function DecksPage() {
   if (!user) return <EmbeddedAuthScreen />;
   const repo = await CardRepository.application();
   const memberships = await membershipDTO(repo, user.id);
-  // Direct server repository calls do not pass through the HTTP feature gate.
-  let groups;
-  if (process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1") {
-    const groupRepo = new GroupExperienceRepository(repo); groups = await groupRepo.collectionTiles(user.id);
-    while (groups.nextCursor) {
-      const next = await groupRepo.collectionTiles(user.id, groups.nextCursor);
-      groups = { ...next, entries: [...groups.entries, ...next.entries] };
-    }
+  const groupRepo = new GroupExperienceRepository(repo);
+  let groups = await groupRepo.collectionTiles(user.id);
+  while (groups.nextCursor) {
+    const next = await groupRepo.collectionTiles(user.id, groups.nextCursor);
+    groups = { ...next, entries: [...groups.entries, ...next.entries] };
   }
   return <AppShell memberships={memberships} groups={groups} currentUserId={user.id} userName={user.username} />;
 }

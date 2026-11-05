@@ -26,7 +26,6 @@ export async function GET(request: Request) {
   return personalUpdateRequest(request, async (cards, actor) => {
     const { cardTemplateId, view } = viewFrom(request);
     if (view.kind === "group") {
-      requireCondition(process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1", "GROUP_FORBIDDEN");
       requireCondition(!request.headers.has("X-Group-Viewer") || request.headers.get("X-Group-Viewer") === actor, "GROUP_SESSION_CONFLICT");
     }
     return readReflectionFeed(new GroupExperienceRepository(cards), actor, cardTemplateId, view);
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
     id(body.operationId); revision(body.expectedRevision);
     const command = { operationId: body.operationId, expectedRevision: body.expectedRevision };
     if (source.kind === "group-card") {
-      requireCondition(body.action === "save" && process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1", "REFLECTION_SOURCE_FORBIDDEN");
+      requireCondition(body.action === "save", "REFLECTION_SOURCE_FORBIDDEN");
       id(source.experienceId);
       return saveCollectiveReflection(groups, actor, source.experienceId, source.cardTemplateId, { ...command, accessEpoch: body.accessEpoch, text: body.text });
     }
@@ -61,7 +60,6 @@ export async function POST(request: Request) {
     if (source.reflectionId !== null) id(source.reflectionId);
     const repo = new GroupReflectionRepository(groups);
     if (body.action === "save") {
-      requireCondition(process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1", "GROUP_FORBIDDEN");
       return repo.save(actor, source.experienceId, source.cardTemplateId, { ...command, accessEpoch: body.accessEpoch, text: body.text, reflectionId: source.reflectionId });
     }
     id(source.reflectionId);
@@ -70,7 +68,6 @@ export async function POST(request: Request) {
       ...(body.action === "delete" ? { authorUserId: actor } : {}) }, { projection: { _id: 0, reflectionId: 1 } });
     requireCondition(row, "REFLECTION_SOURCE_FORBIDDEN");
     if (body.action === "delete") return repo.deleteOwn(actor, source.reflectionId, command);
-    requireCondition(process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1", "GROUP_FORBIDDEN");
     return repo.hide(actor, source.experienceId, source.reflectionId, { ...command, accessEpoch: body.accessEpoch });
   };
   // Creator deletion remains possible outside originating Group membership.

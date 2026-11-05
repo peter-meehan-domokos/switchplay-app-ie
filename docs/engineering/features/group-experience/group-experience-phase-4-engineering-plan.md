@@ -1,5 +1,7 @@
 # Group Experiences — Phase 4 Engineering Plan
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 **Date:** 30 October 2026  
 **Branch inspected:** `feat/group-experience`  
 **Status (1 November 2026):** Phase 4, including Checkpoint 8 atomic creation/settings and subsequent iPhone refinements, is accepted and committed at review baseline `a6f2e32`. Q1–Q3 are resolved. Findings and execution/test records below describe their historical Phase 4 baseline and remain preserved. The founder's revised Phase 5 contract in the [overarching engineering plan](group-experience-engineering-plan.md), §§7 and 9, supersedes forward requirements about owner-only assessments and preserved all-skipped percentage displays; it also defines Progress-only scope/defaults/capabilities without redesigning the accepted Card interface. Checkpoint 5.0 is completed; this documentation update does not authorise 5.1a–5.7 implementation.

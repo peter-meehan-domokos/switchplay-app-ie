@@ -1,5 +1,7 @@
 # Group Card data naming change
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 ## Status / Resume here
 
 **Complete and verified, 3 November 2026.** Source naming, guarded migration utility, disposable migration tests and affected regressions are complete on `feat/group-experience`, starting from clean `4fe0104`. No persistent database was modified and no review/development process was stopped. There is no existing persistent Group collection to migrate in the inspected Atlas database. Phase 6 remains outside scope. Stop after the focused rename commit; any future non-disposable cutover requires explicit target-specific approval.

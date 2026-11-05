@@ -18,6 +18,7 @@ import { seedLiveGroupProgress } from "../tests/helpers/groupProgressLiveReview"
 import { seedReflectionReview } from "../tests/helpers/reflectionReviewFixture";
 import { seedGroupReview } from "../tests/helpers/groupReviewFixture";
 import { seedGroupProgressReview, startGroupProgressPreview } from "../tests/helpers/groupProgressReview";
+import { createGroupExperienceIndexes } from "../src/lib/groupExperiences/indexes";
 
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
@@ -62,6 +63,8 @@ try {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   const uri = mongo.getUri(), database = `switchplay_phase2_browser_${randomUUID().replaceAll("-", "")}`;
   client = await new MongoClient(uri).connect(); const db = client.db(database); await createFoundationIndexes(db); await createInfoCardIndexes(db);
+  // Full-app My Decks always reads Group entries, including when none are seeded.
+  await createGroupExperienceIndexes(db);
   const now = new Date(); const userId = new ObjectId();
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
     decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
@@ -140,7 +143,7 @@ try {
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: mediaReview ? `http://${lan ? lanIPs[0] : "127.0.0.1"}:${appPort}/__phase7-media/assets` : `${mediaOrigin}/assets`,
-    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture", SWITCHPLAY_GROUP_EXPERIENCES_ENABLED: groupExperiences ? "1" : "0", PHASE2_GROUP_FIXTURE: JSON.stringify(groupReview ?? null), ...(frameworkFixture ? { PHASE2_FRAMEWORK_FIXTURE_FILE: frameworkFixture, PHASE5_LIVE_PROGRESS: JSON.stringify(liveProgressReview) } : {}) };
+    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture", PHASE2_GROUP_FIXTURE: JSON.stringify(groupReview ?? null), ...(frameworkFixture ? { PHASE2_FRAMEWORK_FIXTURE_FILE: frameworkFixture, PHASE5_LIVE_PROGRESS: JSON.stringify(liveProgressReview) } : {}) };
   if (liveInfoMedia) Object.assign(env, {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("CLOUDFLARE_"))),
     PHASE2_LIVE_INFO_MEDIA: "1", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "0", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1",

@@ -1,5 +1,7 @@
 # Phase 11 — Integrated acceptance excluding Info Cards
 
+> **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
+
 **Status — 5 November 2026:** automated non-Info acceptance and targeted fixes are complete. Physical iPhone acceptance is pending. All Phase11 changes remain uncommitted on `feat/group-experience`; baseline `9a7eb86`. No deployment, live-provider operation, persistent-database migration or Info Card work was performed.
 
 ## A. Coverage
