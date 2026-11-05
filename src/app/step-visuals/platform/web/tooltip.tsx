@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { tooltipLayout } from "../../core/presentation/tooltip-layout";
 import styles from "./tooltip.module.css";
+import { TooltipOverlayContext } from "./TooltipOverlayContext";
 
 export type TooltipProps = Readonly<{ children: string; title: string; content: ReactNode; disabled?: boolean; onOpen?: () => void; maxWidth?: number }>;
 
 function ActiveTooltip({ children, title, content, onOpen, maxWidth }: Omit<TooltipProps, "disabled">) {
   const id = useId();
+  const overlay = useContext(TooltipOverlayContext);
   const trigger = useRef<HTMLButtonElement>(null);
   const popup = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -28,15 +30,29 @@ function ActiveTooltip({ children, title, content, onOpen, maxWidth }: Omit<Tool
     if (!open) return;
     const outside = (event: Event) => {
       const target = event.target as Node;
+      // Safari focuses the dialog when a pointer moves between controls that it
+      // does not focus on click. Actual outside clicks are handled by pointerdown.
+      if (event.type === "focusin" && target === trigger.current?.closest("dialog")) return;
       if (!trigger.current?.contains(target) && !popup.current?.contains(target)) setOpen(false);
     };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setOpen(false); } };
+    // Listen inside a modal before its event shield blocks document listeners.
+    // Preventing the default also keeps this Escape from cancelling the dialog.
+    const keyboardRoot = trigger.current?.closest("dialog") ?? document;
+    const keydown = (event: Event) => {
+      const key = (event as KeyboardEvent).key;
+      // Dismiss on keyboard departure even when Safari tabs to the dialog root.
+      if (key === "Tab") setOpen(false);
+      if (key === "Escape") {
+        event.preventDefault(); event.stopPropagation(); setOpen(false);
+        trigger.current?.focus({ preventScroll: true });
+      }
+    };
     const observer = new ResizeObserver(measure);
     if (trigger.current) observer.observe(trigger.current);
     if (popup.current) observer.observe(popup.current);
     document.addEventListener("pointerdown", outside, true);
     document.addEventListener("focusin", outside);
-    document.addEventListener("keydown", escape);
+    keyboardRoot.addEventListener("keydown", keydown, true);
     window.addEventListener("scroll", measure, true);
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
@@ -45,7 +61,7 @@ function ActiveTooltip({ children, title, content, onOpen, maxWidth }: Omit<Tool
       observer.disconnect();
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("focusin", outside);
-      document.removeEventListener("keydown", escape);
+      keyboardRoot.removeEventListener("keydown", keydown, true);
       window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
@@ -55,10 +71,10 @@ function ActiveTooltip({ children, title, content, onOpen, maxWidth }: Omit<Tool
   return <>
     <button ref={trigger} type="button" className={styles.trigger} data-spv-tooltip-trigger aria-expanded={open}
       aria-controls={open ? id : undefined} aria-describedby={open ? id : undefined} onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}>{children}</button>
-    {open ? createPortal(<div ref={attach} id={id} className={styles.popup} role="tooltip" data-side={placement?.side}
+    {open ? createPortal(<div ref={attach} id={id} className={styles.popup} role="tooltip" tabIndex={-1} data-side={placement?.side}
       style={{ left: placement?.left ?? 0, top: placement?.top ?? 0, maxWidth: `min(${maxWidth === undefined ? "18rem" : `${maxWidth}px`}, ${placement ? `${placement.maxWidth}px` : "calc(100vw - 16px)"})`, maxHeight: placement?.maxHeight, visibility: placement ? "visible" : "hidden" }}>
       <strong>{title}</strong><p>{content}</p>
-    </div>, document.body) : null}
+    </div>, overlay ?? document.body) : null}
   </>;
 }
 

@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import type { HostedVisualProps, VisualContentDimensions, VisualHostControls } from "@/app/step-visuals/core/host";
+import { TooltipOverlayContext } from "@/app/step-visuals/platform/web/TooltipOverlayContext";
 import type { OpenVisual, VisualPersistence } from "@/lib/interactiveVisuals/persistence";
 import { buildInteractiveVisualHostLayout, visualPersistenceNotice } from "./interactiveVisualHostLayout";
 import styles from "./InteractiveVisualHost.module.css";
@@ -18,6 +19,7 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
   const topRight = useRef<HTMLElement>(null), bottomRight = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState<VisualContentDimensions>({ width: 0, height: 0 });
   const [controls, setControls] = useState<VisualHostControls | null>(null);
+  const [tooltipOverlay, setTooltipOverlay] = useState<HTMLDivElement | null>(null);
   const [status, setStatus] = useState(persistence.statusLabel);
   const [active, setActive] = useState(opened), [creating, setCreating] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
@@ -71,6 +73,7 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
     onCancel={(event) => { event.preventDefault(); closeHost(); }} onClick={(event) => event.stopPropagation()}
     onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()}
     onKeyDown={(event) => event.stopPropagation()}>
+    <TooltipOverlayContext.Provider value={tooltipOverlay}>
     <motion.div className={styles.shell} initial={reduced ? false : { x: "100%" }} animate={{ x: 0 }} transition={{ duration: .2 }}>
       <header className={styles.titleRow}>
         <h2>{layout.title}</h2>
@@ -115,5 +118,8 @@ export default function InteractiveVisualHost({ title, opened, persistence, Visu
         </nav>
       </div>
     </motion.div>
+    {/* Outside the animated shell so fixed popup coordinates stay viewport based. */}
+    <div ref={setTooltipOverlay} className={styles.tooltipOverlay} data-visual-tooltip-overlay="" />
+    </TooltipOverlayContext.Provider>
   </dialog>, document.body);
 }
