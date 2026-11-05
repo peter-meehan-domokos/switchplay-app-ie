@@ -28,6 +28,9 @@ export type RemovalLearning = LearningFields & { experienceId: string; userId: s
 export type GroupCardData = LearningFields & {
   experienceId: string; cardTemplateId: string; revision: number; createdAt: Date; updatedAt: Date;
   tests?: CardTest[]; testsRevision?: number;
+  reflection?: string;
+  reflectionRevision?: number;
+  reflectionLastOperation?: { operationId: string; actorUserId: string; commandHash: string };
 };
 export type GroupReceipt = {
   experienceId: string; actor: string; operationId: string; commandHash: string;

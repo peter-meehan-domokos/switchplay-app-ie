@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { motion, useReducedMotion } from "motion/react";
 import LibraryDialog from "@/components/library/LibraryDialog";
 import type { LibraryPreviewManifest } from "@/lib/cards/libraryProjection";
+import { COMPACT_GROUP_NAME_LENGTH } from "@/lib/groupExperiences/namePresentation";
 import { clientId } from "@/lib/clientId";
 import { groupFetch, GroupRequestError } from "./groupClient";
 import { ensureUserDirectory, useUserDirectory } from "./userDirectory";
@@ -106,7 +107,8 @@ export default function GroupManagementForm({ actor, manifest, experienceId, onC
       {error ? <p role="alert">{error}</p> : null}
       {!values && !loading ? <button type="button" onClick={() => { setLoading(true); setLoadAttempt(value => value + 1); }}>Retry loading settings</button> : null}
       {values ? <fieldset disabled={locked} className="group-management-fields">
-        <label>Group name<input name="groupName" value={values.name} maxLength={120} required onChange={event => setValues({ ...values, name: event.target.value })} /></label>
+        <label>Group name<input name="groupName" aria-describedby={Array.from(values.name).length > COMPACT_GROUP_NAME_LENGTH ? "group-name-length-warning" : undefined} value={values.name} maxLength={120} required onChange={event => setValues({ ...values, name: event.target.value })} /></label>
+        {Array.from(values.name).length > COMPACT_GROUP_NAME_LENGTH ? <p id="group-name-length-warning" className="creator-modal-counter creator-modal-counter--warning" role="status">Longer names may be shortened in some parts of the app.</p> : null}
         <label className="group-management-policy"><input type="checkbox" role="switch" checked={values.allowFollowerInspection}
           onChange={event => setValues({ ...values, allowFollowerInspection: event.target.checked })} />Can followers view each other&apos;s Cards?</label>
         <SelectedMembersArea animate={animateMembers} reduced={reduced}>

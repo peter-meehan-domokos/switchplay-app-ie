@@ -7,6 +7,7 @@ type BackCardReflectionFragmentProps = {
   reflectionVerticalOffset?: number;
   showPlaceholder?: boolean;
   text?: string | null;
+  prefix?: string;
 };
 
 type ReflectionFragmentStyle = CSSProperties & {
@@ -22,6 +23,7 @@ export default function BackCardReflectionFragment({
   reflectionVerticalOffset = 0,
   showPlaceholder = false,
   text,
+  prefix,
 }: BackCardReflectionFragmentProps) {
   const hasText = typeof text === "string" && text.trim().length > 0;
   const canEdit = isEditable && Boolean(onClick);
@@ -86,7 +88,7 @@ export default function BackCardReflectionFragment({
       style={style}
       tabIndex={canEdit ? 0 : undefined}
     >
-      {hasText ? text : reflectionPlaceholderText}
+      {hasText ? <>{prefix ? <span className="focused-card-back-reflection-prefix">{prefix}</span> : null}{text}</> : reflectionPlaceholderText}
     </p>
   );
 }

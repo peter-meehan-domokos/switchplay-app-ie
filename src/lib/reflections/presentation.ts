@@ -51,3 +51,18 @@ export function sharedReflectionItems(context: Extract<ReflectionContext, { kind
   return [...entries].sort(compare).map(entry => ({ entry, empty: false, private: false,
     label: subjectUserId === undefined ? entry.authorName : entry.originName }));
 }
+
+// Card previews select their current source; retained history remains untouched.
+export function currentContextReflection<T extends ReflectionDisplayItem>(context: ReflectionContext, items: T[], subjectUserId = context.viewerUserId): T | null {
+  const matches = items.filter(({ entry }) => entry.authorUserId === subjectUserId && entry.source.cardTemplateId === context.cardTemplateId
+    && (context.kind === "personal" ? entry.source.kind === "personal"
+      : entry.source.kind === "group" && entry.source.experienceId === context.experienceId));
+  if (matches.length > 1) throw Error("Duplicate current reflection source.");
+  return matches[0] ?? null;
+}
+export function memberReflectionItems<T extends ReflectionDisplayItem>(context: Extract<ReflectionContext, { kind: "group" }>, items: T[]): T[] {
+  const visible = items.filter(({ entry, empty }) => !empty && entry.text.trim() && entry.groupVisible && entry.source.kind === "group"
+    && entry.source.experienceId === context.experienceId && entry.source.cardTemplateId === context.cardTemplateId);
+  distinct(visible.map(item => item.entry));
+  return visible.sort((a, b) => compare(a.entry, b.entry));
+}

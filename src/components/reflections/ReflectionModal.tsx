@@ -3,9 +3,9 @@ import { useEffect, useLayoutEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
 // The existing reflection editor shell, also used for source-bound read-only views.
-export default function ReflectionModal({ text, editable, canDelete, canHide, explanation, error, saving, onChange, onSave, onDelete, onHide, onClose }: {
-  text: string; editable: boolean; canDelete: boolean; canHide: boolean; explanation: string | null; error: string | null; saving: boolean;
-  onChange(text: string): void; onSave(): void; onDelete(): void; onHide(): void; onClose(): void;
+export default function ReflectionModal({ text, editable, canDelete, explanation, error, saving, onChange, onSave, onDelete, onClose }: {
+  text: string; editable: boolean; canDelete: boolean; explanation: string | null; error: string | null; saving: boolean;
+  onChange(text: string): void; onSave(): void; onDelete(): void; onClose(): void;
 }) {
   const dialog = useRef<HTMLFormElement>(null), close = useRef<HTMLButtonElement>(null);
   const closing = useRef(onClose), busy = useRef(saving);
@@ -36,7 +36,6 @@ export default function ReflectionModal({ text, editable, canDelete, canHide, ex
       {error ? <p role="alert" className="creator-modal-error">{error}</p> : null}
       <div className="creator-modal-actions">
         {canDelete ? <button type="button" className="creator-modal-secondary" disabled={saving} onClick={onDelete}>Delete</button> : null}
-        {canHide ? <button type="button" className="creator-modal-secondary" disabled={saving} onClick={onHide}>Remove from Group</button> : null}
         <button type="button" className="creator-modal-secondary" disabled={saving} onClick={onClose}>{editable ? "Cancel" : "Close"}</button>
         {editable ? <button className="creator-modal-primary" type="submit" disabled={saving}>{saving ? "Saving..." : "Save"}</button> : null}
       </div>

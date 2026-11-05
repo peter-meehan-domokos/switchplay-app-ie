@@ -1,3 +1,5 @@
+import { collectiveReflection } from "./collective";
+import type { CollectiveReflection } from "./model";
 import { ObjectId } from "mongodb";
 import { requireCondition } from "../cards/domain";
 import { creatorUsernames } from "../cards/creatorAttribution";
@@ -11,7 +13,7 @@ import { reflectionSlotKey, type GroupReflection, type ReflectionEntry, type Ref
 
 export type ReflectionView = { kind: "personal" } | { kind: "group"; experienceId: string; mode: "own" | "group" | "inspection"; subjectUserId?: string; accessEpoch: number };
 export type ReflectionItem = ReflectionDisplayItem & { canEdit: boolean; canDelete: boolean; canHide: boolean; explanation: string | null };
-export type ReflectionFeed = { viewerUserId: string; cardTemplateId: string; view: ReflectionView; items: ReflectionItem[]; accessEpoch: number | null; adoptionRevision: number | null };
+export type ReflectionFeed = { viewerUserId: string; cardTemplateId: string; view: ReflectionView; items: ReflectionItem[]; collective?: CollectiveReflection; accessEpoch: number | null; adoptionRevision: number | null };
 const groupProjection = { _id: 0, reflectionId: 1, experienceId: 1, cardTemplateId: 1, authorUserId: 1, text: 1, revision: 1, createdAt: 1, groupVisible: 1, deleted: 1 };
 const personalKey = (actor: string) => /^[a-f\d]{24}$/i.test(actor) ? new ObjectId(actor) : actor;
 export async function readReflectionFeed(groups: GroupExperienceRepository, actor: string, cardTemplateId: string, view: ReflectionView): Promise<ReflectionFeed> {
@@ -96,7 +98,9 @@ export async function readReflectionFeed(groups: GroupExperienceRepository, acto
         display = [{ entry: currentSlot, empty: !currentSlot.text.trim(), label: currentSlot.authorName, private: !currentSlot.groupVisible }, ...display.filter(i => reflectionSlotKey(i.entry) !== reflectionSlotKey(currentSlot))];
       }
     }
-    return { viewerUserId: actor, cardTemplateId, view, accessEpoch: authority?.member.accessEpoch ?? null, adoptionRevision: authority?.experience.adoptionRevision ?? null,
+    return { viewerUserId: actor, cardTemplateId, view,
+      ...(view.kind === "group" && view.mode === "group" ? { collective: await collectiveReflection(groups, view.experienceId, cardTemplateId, authority!.member.isAdmin, session) } : {}),
+      accessEpoch: authority?.member.accessEpoch ?? null, adoptionRevision: authority?.experience.adoptionRevision ?? null,
       items: display.map(item => {
         const e = item.entry, mine = e.authorUserId === actor;
         const current = view.kind === "personal" ? e.source.kind === "personal" : e.source.kind === "group" && e.source.experienceId === view.experienceId;

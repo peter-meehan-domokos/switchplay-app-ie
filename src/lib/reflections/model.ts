@@ -42,3 +42,7 @@ export type GroupReflection = {
   updatedAt: Date;
   lastOperation: ReflectionOperation;
 };
+
+// Collective ownership is a distinct source, never a fabricated personal author.
+export type CollectiveReflectionSource = { kind: "group-card"; experienceId: string; cardTemplateId: string };
+export type CollectiveReflection = { source: CollectiveReflectionSource; text: string; revision: number; canEdit: boolean };

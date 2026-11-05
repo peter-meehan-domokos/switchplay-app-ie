@@ -1,11 +1,39 @@
-/* Absolute overlay preserves the existing Card and bottom-right text geometry. */
-.reflection-area { position: absolute; right: 38px; bottom: 18px; width: 116px; height: 100px; transform: translateY(var(--reflection-y-offset, 0)); pointer-events: none; }
-.reflection-area .focused-card-back-reflection-fragment { right: 0; bottom: 44px; margin: 0; transform: none; pointer-events: auto; }
-.reflection-area-content { opacity: 1; transition: none; }
-.reflection-area--group .reflection-area-content { transition: opacity 200ms ease; }
-.reflection-area-content--fading { opacity: 0; }
-.reflection-context { position: absolute; right: 0; bottom: 29px; max-width: 140px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: rgba(194, 204, 219, .42); font-size: 9px; line-height: 13px; text-align: right; pointer-events: auto; }
-.reflection-next { position: absolute; right: -12px; bottom: -12px; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; padding: 0; border: 0; background: none; pointer-events: auto; cursor: pointer; touch-action: manipulation; }
-.reflection-next-icon { width: 24px; height: 24px; flex: none; }
-.reflection-next:focus-visible { outline: 1px solid #b7bfd0; outline-offset: -5px; border-radius: 8px; }
-@media (prefers-reduced-motion: reduce) { .reflection-area--group .reflection-area-content { transition: none; } }
+/* The original narrow note remains independently anchored in the corner. */
+.reflection-area,
+.reflection-member-area {
+  position: absolute;
+  right: 38px;
+  bottom: 62px;
+  width: 102px;
+  transform: translateY(var(--reflection-y-offset, 0));
+  pointer-events: none;
+}
+.reflection-area .focused-card-back-reflection-fragment,
+.reflection-member-area .focused-card-back-reflection-fragment {
+  position: static;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  transform: none;
+  pointer-events: auto;
+}
+/* Adjust this one value to move the complete member note. */
+.reflection-member-area {
+  --reflection-member-offset: 12px;
+  bottom: calc(62px + var(--reflection-member-offset));
+  right: 160px; /*38px corner +102px Group note +20px separation. */
+  width: 130px;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+.reflection-member-area .focused-card-back-reflection-fragment {
+  text-align: left;
+}
+.reflection-member-area .focused-card-back-reflection-prefix {
+  color: rgba(255, 250, 240, 0.21);
+}
+.reflection-member-area--fading { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .reflection-member-area { transition: none; }
+}

@@ -47,6 +47,23 @@ test("Admin hiding preserves author text and ownership; edits do not unhide", as
   const row = (await f.reflections.rows().findOne({ reflectionId: edited.reflectionId! }))!;
   assert.equal(row.groupVisible, false); assert.equal(row.authorUserId, "bob"); assert.equal(row.text, "My corrected group reflection"); assert.deepEqual(row.createdAt, before.createdAt);
 });
+test("revoked Admin cannot hide a reflection or replay a previous removal", async () => {
+  const f = await groupFixture(client, { admins: ["bob"] }); await createGroupReflectionIndexes(f.cards.db);
+  const reflections = new GroupReflectionRepository(f.repo);
+  const saved = await reflections.save("carol", f.experienceId, f.ids[0], { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "My teammates helped me keep my balance today." });
+  const command = { operationId: randomUUID(), expectedRevision: saved.revision, accessEpoch: 0 };
+  await reflections.hide("bob", f.experienceId, saved.reflectionId!, command);
+  const before = await reflections.rows().findOne({ reflectionId: saved.reflectionId! });
+  const experience = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
+  await f.repo.changeMember("alice", f.experienceId, { kind: "set-admin", targetUserId: "bob", isAdmin: false, operationId: randomUUID(), expectedStructureRevision: experience.structureRevision });
+  await assert.rejects(reflections.hide("bob", f.experienceId, saved.reflectionId!, command));
+  await assert.rejects(reflections.hide("bob", f.experienceId, saved.reflectionId!, { ...command, operationId: randomUUID(), expectedRevision: before!.revision }));
+  assert.deepEqual(await reflections.rows().findOne({ reflectionId: saved.reflectionId! }), before);
+  const { readReflectionFeed } = await import("../src/lib/reflections/reads");
+  const owner = await readReflectionFeed(f.repo, "carol", f.ids[0], { kind: "personal" });
+  const retained = owner.items.find(i => i.entry.source.kind === "group" && i.entry.source.reflectionId === saved.reflectionId)!;
+  assert.equal(retained.entry.text, before!.text); assert.equal(retained.entry.groupVisible, false); assert.equal(retained.entry.authorUserId, "carol");
+});
 test("creator deletion survives leaving; stale membership edits cannot change retained content", async () => {
   const f = await fixture(), saved = await f.reflections.save("bob", f.experienceId, f.ids[0], f.command("I enjoyed our Galway training session with teammates today."));
   const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
@@ -204,4 +221,92 @@ test("ambiguous duplicate Personal slots cannot be edited or cleared", async () 
   await assert.rejects(f.cards.deletePersonalReflection("bob", f.ids[0], { ...command, operationId: randomUUID() }));
   const texts = (await f.cards.getPersonalUser("bob"))!.cardsData.filter(c => c.cardTemplateId === f.ids[0]).map(c => c.reflection);
   assert.deepEqual(texts, ["", "Separate malformed duplicate"]);
+});
+
+test("collective reflection is empty by default, shared across Admins and separate from all author history", async () => {
+  const f = await groupFixture(client, { admins: ["bob"] });
+  const { saveCollectiveReflection } = await import("../src/lib/reflections/collective");
+  const { readReflectionFeed } = await import("../src/lib/reflections/reads");
+  const authors = new GroupReflectionRepository(f.repo);
+  await authors.save("alice", f.experienceId, f.ids[0], { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "Old author-owned Admin reflection" });
+  const before = await authors.rows().find({}).toArray(), users = await f.cards.users().find({}).toArray();
+  const view = { kind: "group" as const, mode: "group" as const, experienceId: f.experienceId, accessEpoch: 0 };
+  const empty = await readReflectionFeed(f.repo, "alice", f.ids[0], view);
+  assert.equal(empty.collective!.text, ""); assert.equal(empty.collective!.revision, 0);
+  const cmd = { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "Our group improved today." };
+  const saved = await saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], cmd);
+  assert.equal(saved.revision, 1);
+  const bob = await readReflectionFeed(f.repo, "bob", f.ids[0], view), carol = await readReflectionFeed(f.repo, "carol", f.ids[0], view);
+  assert.deepEqual(bob.collective!.source, empty.collective!.source); assert.equal(bob.collective!.text, cmd.text); assert.equal(bob.collective!.canEdit, true);
+  assert.equal(carol.collective!.canEdit, false); assert.equal(carol.collective!.text, cmd.text);
+  await saveCollectiveReflection(f.repo, "bob", f.experienceId, f.ids[0], { ...cmd, operationId: randomUUID(), expectedRevision: 1, text: "Our shared corrected note." });
+  assert.equal((await readReflectionFeed(f.repo, "alice", f.ids[0], view)).collective!.text, "Our shared corrected note.");
+  assert.deepEqual(await authors.rows().find({}).toArray(), before); assert.deepEqual(await f.cards.users().find({}).toArray(), users);
+});
+
+test("collective reflection CAS and exact retries never silently overwrite another Admin", async () => {
+  const f = await groupFixture(client, { admins: ["bob"] });
+  const { saveCollectiveReflection } = await import("../src/lib/reflections/collective");
+  const cmd = { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "First note" };
+  const first = await saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], cmd);
+  assert.equal((await saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], cmd)).outcome, "already-applied");
+  await assert.rejects(saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], { ...cmd, text: "Different retry" }));
+  const writes = ["alice", "bob"].map(actor => saveCollectiveReflection(f.repo, actor, f.experienceId, f.ids[0], { ...cmd, operationId: randomUUID(), expectedRevision: first.revision, text: `Edit from ${actor}` }));
+  const results = await Promise.allSettled(writes); assert.equal(results.filter(r => r.status === "fulfilled").length, 1);
+  assert.equal((await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!.reflectionRevision, 2);
+  await assert.rejects(saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], cmd));
+});
+
+test("collective reflection writes leave scalar values and both existing revisions and assessments untouched", async () => {
+  const f = await groupFixture(client);
+  const { saveCollectiveReflection } = await import("../src/lib/reflections/collective");
+  await f.repo.writeLearning("alice", f.experienceId, f.ids[0], "group", { accessEpoch: 0, version: 1, change: { kind: "signal", stepId: "a0", reading: 7 } });
+  await f.repo.cardData().updateOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }, { $set: { testsRevision: 3, tests: [{ id: "kept", result: true, date: "2026-11-01", createdAt: new Date() }] } });
+  const before = (await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!;
+  await saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "Collective note" });
+  const after = (await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!;
+  for (const key of ["items", "signalReadings", "revision", "tests", "testsRevision", "createdAt"] as const) assert.deepEqual(after[key], before[key]);
+  await f.repo.writeLearning("alice", f.experienceId, f.ids[0], "group", { accessEpoch: 0, version: 1, change: { kind: "completion", stepId: "b0", completionStatus: "done" } });
+  assert.equal((await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!.reflectionRevision, 1);
+});
+
+test("revoked Admin cannot save or replay collective edits but keeps Follower read access", async () => {
+  const f = await groupFixture(client, { admins: ["bob"] });
+  const { saveCollectiveReflection } = await import("../src/lib/reflections/collective");
+  const { readReflectionFeed } = await import("../src/lib/reflections/reads");
+  const cmd = { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "Shared note survives role loss" };
+  await saveCollectiveReflection(f.repo, "bob", f.experienceId, f.ids[0], cmd);
+  const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
+  await f.repo.changeMember("alice", f.experienceId, { kind: "set-admin", targetUserId: "bob", isAdmin: false, operationId: randomUUID(), expectedStructureRevision: e.structureRevision });
+  await assert.rejects(saveCollectiveReflection(f.repo, "bob", f.experienceId, f.ids[0], cmd));
+  const member = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!;
+  const result = await readReflectionFeed(f.repo, "bob", f.ids[0], { kind: "group", mode: "group", experienceId: f.experienceId, accessEpoch: member.accessEpoch });
+  assert.equal(result.collective!.canEdit, false); assert.equal(result.collective!.text, cmd.text);
+  await assert.rejects(saveCollectiveReflection(f.repo, "outsider", f.experienceId, f.ids[0], cmd));
+  await assert.rejects(saveCollectiveReflection(f.repo, "alice", f.experienceId, "forged", cmd));
+});
+
+test("revocation committed during a pending collective save denies the captured Admin authority", async t => {
+  const f = await groupFixture(client, { admins: ["bob"] });
+  const { saveCollectiveReflection } = await import("../src/lib/reflections/collective");
+  let release!: () => void, reached!: () => void; const gate = new Promise<void>(r => { release = r; }), ready = new Promise<void>(r => { reached = r; });
+  const fence = f.repo.fence.bind(f.repo); let paused = false;
+  t.mock.method(f.repo, "fence", async (...args: Parameters<typeof fence>) => { if (!paused) { paused = true; reached(); await gate; } return fence(...args); });
+  const pending = saveCollectiveReflection(f.repo, "bob", f.experienceId, f.ids[0], { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "Must not survive revocation" });
+  await ready; const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
+  await f.repo.changeMember("alice", f.experienceId, { kind: "set-admin", targetUserId: "bob", isAdmin: false, operationId: randomUUID(), expectedStructureRevision: e.structureRevision });
+  release(); await assert.rejects(pending);
+  assert.equal(await f.repo.cardData().countDocuments({ experienceId: f.experienceId, reflection: { $exists: true } }), 0);
+});
+
+test("first collective note and concurrent scalar creation preserve one complete Group Card row", async () => {
+  const f = await groupFixture(client); const { saveCollectiveReflection } = await import("../src/lib/reflections/collective");
+  await Promise.all([
+    saveCollectiveReflection(f.repo, "alice", f.experienceId, f.ids[0], { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: "Our collective note" }),
+    f.repo.writeLearning("alice", f.experienceId, f.ids[0], "group", { accessEpoch: 0, version: 1, change: { kind: "completion", stepId: "a0", completionStatus: "done" } }),
+  ]);
+  assert.equal(await f.repo.cardData().countDocuments({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }), 1);
+  const row = (await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!;
+  assert.equal(row.reflectionRevision, 1); assert.equal(row.revision, 1); assert.equal(row.reflection, "Our collective note");
+  assert.equal(row.items[0].completionStatus, "done"); assert.deepEqual(row.signalReadings, []);
 });

@@ -47,3 +47,37 @@ test("Group shared and inspected lists have no empty slots or private/other-orig
   for (const row of [{ ...monday, groupVisible: false }, tuesday, personal(), { ...monday, text: "" }]) assert.throws(() => sharedReflectionItems(ctx, [row]));
   assert.throws(() => sharedReflectionItems(ctx, [admin], "aoife"));
 });
+
+test("compact reflection Group names keep full stored values and shorten only beyond fifteen characters", async () => {
+  const { compactGroupName } = await import("../src/lib/groupExperiences/namePresentation");
+  assert.equal(compactGroupName("Galway U18"), "Galway U18");
+  assert.equal(compactGroupName("123456789012345"), "123456789012345");
+  assert.equal(compactGroupName("1234567890123456"), "12345678901234…");
+  const original = "Galway development team";
+  assert.equal(compactGroupName(original), "Galway develop…");
+  assert.equal(Array.from(compactGroupName(original)).length, 15);
+  assert.equal(original, "Galway development team");
+});
+
+test("individual previews contain only the exact current context, including its empty slot", async () => {
+  const { currentContextReflection } = await import("../src/lib/reflections/presentation");
+  const p = personal(), groupContext = { ...context, kind: "group" as const, experienceId: "galway" };
+  const personalHistory = ownReflectionItems(context, p, [monday, tuesday]);
+  assert.equal(currentContextReflection(context, personalHistory)?.entry.text, p.text);
+  const empty = { ...monday, text: "" };
+  const ownGroup = ownReflectionItems(groupContext, empty, [p, tuesday]);
+  assert.equal(currentContextReflection(groupContext, ownGroup)?.empty, true);
+  assert.equal(currentContextReflection(groupContext, personalHistory)?.entry.text, monday.text);
+  assert.equal(currentContextReflection({ ...groupContext, experienceId: "missing" }, personalHistory), null);
+});
+
+test("member carousel contains only current Group visible nonblank author contributions", async () => {
+  const { memberReflectionItems } = await import("../src/lib/reflections/presentation");
+  const ctx = { ...context, kind: "group" as const, experienceId: "galway" };
+  const rows = ownReflectionItems(ctx, monday, [personal(), tuesday]);
+  const hidden = { entry: { ...monday, authorUserId: "other-member", groupVisible: false }, empty: false, private: true, label: null };
+  const empty = { entry: { ...monday, authorUserId: "third-member", text: "" }, empty: true, private: false, label: null };
+  const carousel = memberReflectionItems(ctx, [...rows, hidden, empty]);
+  assert.equal(carousel.length, 1); assert.equal(carousel[0].entry.authorName, "Aoife Kelly");
+  assert.equal(memberReflectionItems(ctx, [hidden, empty]).length, 0);
+});

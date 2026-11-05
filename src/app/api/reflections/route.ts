@@ -1,3 +1,4 @@
+import { saveCollectiveReflection } from "@/lib/reflections/collective";
 import { requireCondition } from "@/lib/cards/domain";
 import { personalUpdateRequest } from "@/lib/cards/http";
 import { GroupExperienceRepository } from "@/lib/groupExperiences/repository";
@@ -40,10 +41,15 @@ export async function POST(request: Request) {
     requireCondition(body.action === "save" || body.action === "delete" || body.action === "hide", "INVALID_REFLECTION_ACTION");
     requireCondition(body.source !== null && typeof body.source === "object" && "kind" in body.source, "INVALID_REFLECTION_SOURCE");
     const sourceValue: unknown = body.source;
-    exact(sourceValue, body.source.kind === "personal" ? ["kind", "cardTemplateId"] : ["kind", "cardTemplateId", "experienceId", "reflectionId"]);
+    exact(sourceValue, body.source.kind === "personal" ? ["kind", "cardTemplateId"] : body.source.kind === "group-card" ? ["kind", "cardTemplateId", "experienceId"] : ["kind", "cardTemplateId", "experienceId", "reflectionId"]);
     const source = sourceValue; id(source.cardTemplateId);
     id(body.operationId); revision(body.expectedRevision);
     const command = { operationId: body.operationId, expectedRevision: body.expectedRevision };
+    if (source.kind === "group-card") {
+      requireCondition(body.action === "save" && process.env.SWITCHPLAY_GROUP_EXPERIENCES_ENABLED === "1", "REFLECTION_SOURCE_FORBIDDEN");
+      id(source.experienceId);
+      return saveCollectiveReflection(groups, actor, source.experienceId, source.cardTemplateId, { ...command, accessEpoch: body.accessEpoch, text: body.text });
+    }
     if (source.kind === "personal") {
       requireCondition(body.action !== "hide", "REFLECTION_SOURCE_FORBIDDEN");
       if (body.action === "save") { id(body.deckTemplateId); requireCondition(typeof body.text === "string", "INVALID_REFLECTION_TEXT"); }

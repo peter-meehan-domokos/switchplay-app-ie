@@ -1,13 +1,16 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BackCardReflectionFragment from "@/components/decks/BackCardReflectionFragment";
-import { reflectionSlotKey } from "@/lib/reflections/model";
-import type { ReflectionFeed, ReflectionItem, ReflectionView } from "@/lib/reflections/reads";
+import { currentContextReflection, memberReflectionItems } from "@/lib/reflections/presentation";
+import { reflectionSlotKey, type ReflectionSource, type CollectiveReflectionSource } from "@/lib/reflections/model";
+import type { ReflectionFeed, ReflectionView } from "@/lib/reflections/reads";
 import { personalWork } from "@/lib/cards/personalWork";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
+import { clientId } from "@/lib/clientId";
 import ReflectionModal from "./ReflectionModal";
-import ReflectionNextIcon from "./ReflectionNextIcon";
 import "./reflections.css";
+
+type EditorTarget = { source: ReflectionSource | CollectiveReflectionSource; text: string; revision: number; canEdit: boolean; canDelete: boolean; explanation: string | null };
 
 export type ReflectionAreaContext = { viewerUserId: string; cardTemplateId: string; view: ReflectionView; deckTemplateId?: string; adoptionRevision?: number };
 export default function ReflectionArea({ context, active = true, interactive = true, verticalOffset = 0, onModalChange }: {
@@ -20,13 +23,13 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   context: ReflectionAreaContext; active: boolean; interactive: boolean; verticalOffset: number; onModalChange?: (open: boolean) => void;
 }) {
   const [feed, setFeed] = useState<ReflectionFeed | null>(null), [selected, setSelected] = useState<string | null>(null);
-  const [modal, setModal] = useState<ReflectionItem | null>(null), [draft, setDraft] = useState(""), [error, setError] = useState<string | null>(null), [saving, setSaving] = useState(false);
-  const [fading, setFading] = useState(false), [paused, setPaused] = useState(false), [reduced, setReduced] = useState(false);
+  const [modal, setModal] = useState<EditorTarget | null>(null), [draft, setDraft] = useState(""), [error, setError] = useState<string | null>(null), [saving, setSaving] = useState(false);
+  const [fading, setFading] = useState(false), [reduced, setReduced] = useState(false);
   const alive = useRef(true), requestId = useRef(0), mutation = useRef<{ action: string; operationId: string; text: string } | null>(null);
-  const ownedPointer = useRef<number | null>(null);
+  const ownedPointer = useRef<number | null>(null), pendingMember = useRef<string | null>(null);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null), source = useRef<HTMLDivElement>(null);
   const { viewerUserId: actor, cardTemplateId: card, view } = context;
-  const group = view.kind === "group", autoplay = group && view.mode === "group";
+  const group = view.kind === "group", groupWide = group && view.mode === "group";
   const own = !group || view.mode === "own";
   const session = useRef(workingCardStore.session(actor));
   const live = useCallback(() => alive.current && workingCardStore.session(actor) === session.current, [actor]);
@@ -60,56 +63,64 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   }, []);
   useEffect(() => { onModalChange?.(!!modal); return () => onModalChange?.(false); }, [modal, onModalChange]);
   useEffect(() => {
-    if (!modal || modal.entry.authorUserId !== actor) return;
-    return personalWork.begin({ userId: actor, cardIds: [card], ...(modal.entry.source.kind === "group" ? { context: { kind: "experience-contribution" as const, experienceId: modal.entry.source.experienceId } } : {}) }, `reflection-editor:${reflectionSlotKey(modal.entry)}`);
+    if (!modal || (!modal.canEdit && !modal.canDelete)) return;
+    return personalWork.begin({ userId: actor, cardIds: [card], ...(modal.source.kind !== "personal" ? { context: { kind: "experience-contribution" as const, experienceId: modal.source.experienceId } } : {}) }, `reflection-editor:${JSON.stringify(modal.source)}`);
   }, [actor, card, modal]);
-  const items = useMemo(() => feed?.items ?? [], [feed]), selectedItem = items.find(i => reflectionSlotKey(i.entry) === selected) ?? items[0];
-  const advance = useCallback(() => {
-    if (items.length < 2) return;
-    const step = () => { const index = selected === null ? 0 : Math.max(0, items.findIndex(i => reflectionSlotKey(i.entry) === selected)); setSelected(reflectionSlotKey(items[(index + 1) % items.length].entry)); setFading(false); };
-    if (autoplay && !reduced) { if (timeout.current) clearTimeout(timeout.current); setFading(true); timeout.current = setTimeout(step, 200); } else step();
-  }, [items, selected, autoplay, reduced]);
-  const advanceRef = useRef(advance);
-  useEffect(() => { advanceRef.current = advance; }, [advance]);
-  useEffect(() => {
-    if (!autoplay || reduced || !active || paused || modal || items.length < 2) return;
-    const timer = setInterval(() => { if (document.visibilityState === "visible" && !source.current?.closest('[aria-hidden="true"]')) advanceRef.current(); }, 5000);
-    return () => clearInterval(timer);
-  }, [autoplay, reduced, active, paused, modal, items.length]);
-  const open = () => { if (!interactive || !selectedItem) return; setModal(selectedItem); setDraft(selectedItem.entry.text); setError(null); mutation.current = null; };
+  const items = useMemo(() => feed?.items ?? [], [feed]);
+  const displayContext = useMemo(() => ({ ...view, viewerUserId: actor, cardTemplateId: card }), [view, actor, card]);
+  const selectedItem = groupWide ? null : currentContextReflection(displayContext, items,
+    view.kind === "group" && view.mode === "inspection" ? view.subjectUserId : actor);
+  const members = useMemo(() => groupWide && displayContext.kind === "group" ? memberReflectionItems(displayContext, items) : [], [groupWide, displayContext, items]);
+  if (members.length && !members.some(i => reflectionSlotKey(i.entry) === selected)) setSelected(reflectionSlotKey(members[0].entry));
+  else if (!members.length && selected !== null) setSelected(null);
+  const selectedMember = members.find(i => reflectionSlotKey(i.entry) === selected) ?? members[0];
+  const advance = () => {
+    if (members.length < 2 || !interactive || !active || modal) return;
+    const from = pendingMember.current ?? selected;
+    const index = Math.max(0, members.findIndex(i => reflectionSlotKey(i.entry) === from));
+    const next = reflectionSlotKey(members[(index + 1) % members.length].entry);
+    pendingMember.current = next;
+    const step = () => { setSelected(next); pendingMember.current = null; setFading(false); };
+    if (!reduced) { if (timeout.current) clearTimeout(timeout.current); setFading(true); timeout.current = setTimeout(step, 200); } else step();
+  };
+  const current: EditorTarget | null = groupWide ? feed?.collective ? { ...feed.collective, canDelete: false, explanation: null } : null
+    : selectedItem ? { source: selectedItem.entry.source, text: selectedItem.entry.text, revision: selectedItem.entry.revision, canEdit: selectedItem.canEdit, canDelete: selectedItem.canDelete, explanation: selectedItem.explanation } : null;
+  const open = () => { if (!interactive || !active || !current) return; setModal(current); setDraft(current.text); setError(null); mutation.current = null; };
   const close = () => { if (!saving) setModal(null); };
-  const apply = async (action: "save" | "delete" | "hide") => {
+  const apply = async (action: "save" | "delete") => {
     if (!modal || saving || (!interactive && action !== "delete")) return;
     const item = modal;
-    if (!(action === "save" ? item.canEdit : action === "delete" ? item.canDelete : item.canHide)) return;
+    if (!(action === "save" ? item.canEdit : item.canDelete)) return;
     const text = draft.trim();
-    if (!mutation.current || mutation.current.action !== action || mutation.current.text !== text) mutation.current = { action, text, operationId: crypto.randomUUID() };
+    if (!mutation.current || mutation.current.action !== action || mutation.current.text !== text) mutation.current = { action, text, operationId: clientId() };
     const operation = mutation.current;
     setSaving(true); setError(null);
     try {
       const response = await fetch("/api/reflections", { method: "POST", headers: { "Content-Type": "application/json", "X-Personal-Viewer": actor, ...(group ? { "X-Group-Viewer": actor } : {}) },
-        body: JSON.stringify({ action, source: item.entry.source, text, operationId: operation.operationId, expectedRevision: item.entry.revision,
+        body: JSON.stringify({ action, source: item.source, text, operationId: operation.operationId, expectedRevision: item.revision,
           ...(view.kind === "group" ? { accessEpoch: view.accessEpoch } : {}), ...(context.deckTemplateId ? { deckTemplateId: context.deckTemplateId } : {}) }) });
       const result = await response.json(); if (!live()) return;
       if (!response.ok) throw Error(result.code?.includes("CONFLICT") ? "This reflection changed. Close and reopen it before trying again." : "Unable to save this reflection. Check your access and try again.");
-      if (item.entry.source.kind === "personal") workingCardStore.invalidateLearning(actor, card);
+      if (item.source.kind === "personal") workingCardStore.invalidateLearning(actor, card);
       setModal(null); mutation.current = null; await refreshRef.current(); window.dispatchEvent(new Event("switchplay-reflections"));
     } catch (e) { if (live()) setError(e instanceof Error ? e.message : "Unable to update reflection."); }
     finally { if (live()) setSaving(false); }
   };
-  if (!selectedItem) return null;
-  return <div ref={source} className={`reflection-area${autoplay ? " reflection-area--group" : ""}`} style={{ "--reflection-y-offset": `${verticalOffset}px` } as import("react").CSSProperties}
+  if (!current && !selectedMember) return null;
+  return <div className="reflection-card-notes" ref={source}
     onPointerDown={e => { ownedPointer.current = e.pointerId; e.stopPropagation(); }}
     onPointerMove={e => { if (ownedPointer.current === e.pointerId) e.stopPropagation(); }}
     onPointerUp={e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } }}
-    onPointerCancel={e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } }}
-    onFocusCapture={() => setPaused(true)} onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget)) setPaused(false); }}>
-    <div className={`reflection-area-content${fading ? " reflection-area-content--fading" : ""}`}>
-      <BackCardReflectionFragment text={selectedItem.entry.text} isEditable={interactive} onClick={open} showPlaceholder={selectedItem.empty} ariaLabel={selectedItem.empty ? "Add a reflection" : "Open reflection"} />
-      {selectedItem.label || selectedItem.private ? <span className="reflection-context">{selectedItem.label}{selectedItem.private ? " · Private" : ""}</span> : null}
-    </div>
-    {items.length > 1 && interactive ? <button type="button" className="reflection-next" aria-label="Next reflection" onClick={e => { e.stopPropagation(); advance(); }}><ReflectionNextIcon /></button> : null}
-    {modal ? <ReflectionModal text={draft} editable={modal.canEdit && interactive} canDelete={modal.canDelete} canHide={modal.canHide && interactive} explanation={modal.explanation} error={error} saving={saving}
-      onChange={setDraft} onSave={() => void apply("save")} onDelete={() => void apply("delete")} onHide={() => void apply("hide")} onClose={close} /> : null}
+    onPointerCancel={e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } }}>
+    {current ? <div className="reflection-area" style={{ "--reflection-y-offset": `${verticalOffset}px` } as import("react").CSSProperties}>
+      <BackCardReflectionFragment text={current.text} isEditable={interactive && active} onClick={open}
+        showPlaceholder={!current.text.trim() && current.canEdit} ariaLabel={!current.text.trim() ? "Add a reflection" : "Open reflection"} />
+    </div> : null}
+    {groupWide && selectedMember ? <div className={`reflection-member-area${fading ? " reflection-member-area--fading" : ""}`} style={{ "--reflection-y-offset": `${verticalOffset}px` } as import("react").CSSProperties}>
+      <BackCardReflectionFragment prefix={`${selectedMember.entry.authorName}: `} text={selectedMember.entry.text} isEditable={members.length > 1 && interactive && active}
+        onClick={advance} ariaLabel="Next member reflection" />
+    </div> : null}
+    {modal ? <ReflectionModal text={draft} editable={modal.canEdit && interactive} canDelete={modal.canDelete} explanation={modal.explanation} error={error} saving={saving}
+      onChange={setDraft} onSave={() => void apply("save")} onDelete={() => void apply("delete")} onClose={close} /> : null}
   </div>;
 }
