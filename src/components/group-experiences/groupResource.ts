@@ -141,6 +141,17 @@ export function createGroupResource(actor: string, experienceId: string, options
   }
   return { snapshot: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     load, invalidate, save,
+    async revalidate(minimumStructureRevision: number) {
+      if (!Number.isSafeInteger(minimumStructureRevision) || minimumStructureRevision < 0) return false;
+      // A settings/adoption acknowledgement can arrive while a poll begun
+      // before that commit still owns the coalesced load. It cannot certify
+      // the acknowledged revision; finish it, then make one fresh read.
+      const wasPending = Boolean(pending);
+      const current = () => state.verified && (state.data?.bootstrap.structureRevision ?? -1) >= minimumStructureRevision;
+      invalidate(); await load();
+      if (wasPending && !current() && !disposed) { invalidate(); await load(); }
+      return current();
+    },
     async navigate(selection: PerspectiveSelection, activeCardId?: string) {
       const current = state.data?.bootstrap; if (!current || !state.verified) return;
       const token = ++navigationGeneration;

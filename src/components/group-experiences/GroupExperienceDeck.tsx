@@ -20,6 +20,7 @@ import PerspectivePicker, { type PerspectiveChoice } from "./PerspectivePicker";
 import PerspectiveGrid from "./PerspectiveGrid";
 import DeckMenu from "@/components/decks/DeckMenu";
 import GroupManagementForm from "./GroupManagementForm";
+import GroupUpdateControls from "./GroupUpdateControls";
 const emptyState: GroupResourceState = { verified: false, loading: true };
 const noSubscribe = () => () => {};
 const emptySnapshot = () => emptyState;
@@ -63,8 +64,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const settings = settingsOpen ? <GroupManagementForm key="management" actor={actor} experienceId={experienceId} onCancel={() => setSettingsOpen(false)}
     onSaved={async result => {
       if (!result.hasAccess) { resource?.dispose(); (onAccessRemoved ?? onBack)(); return; }
-      resource?.invalidate(); await resource?.load();
-      if (!resource?.snapshot().verified) throw Error("Saved; current access could not be refreshed.");
+      if (!await resource?.revalidate(result.structureRevision)) throw Error("Saved; current access could not be refreshed.");
       // Structural revalidation temporarily purges peer rows. Restore only
       // after verification; the existing permission check rejects removed peers.
       if (settingsPerspective.current) setSelection(settingsPerspective.current);
@@ -130,7 +130,10 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   return <main className="app-shell app-shell--deck group-experience" data-experience-id={experienceId} data-perspective-key={selectedKey}
     data-current-card={currentCardId} data-face={Math.abs(rotation % 360) === 180 ? "back" : "front"}>
     {!state.verified ? <p className="group-verification" role="status">Verifying current access… <button type="button" onClick={() => void resource.load()}>Retry</button></p> : null}
-    <DeckScene deck={deck} initialCardTemplateId={currentCardId} initiallyFocused={!!restored?.focused}
+    <GroupUpdateControls key={`${actor}:${experienceId}`} actor={actor} experienceId={experienceId} deck={deck}
+      enabled={state.verified && boot.isAdmin && effective.perspective === "group"} onAdopted={async command => {
+        if (!await resource.revalidate(command.expectedStructureRevision + 1)) throw Error("Update saved; current Group could not be refreshed.");
+      }}>{updates => <DeckScene deck={deck} updateAction={updates.deckButton} cardFrontAction={card => updates.cardButton(card.id)} initialCardTemplateId={currentCardId} initiallyFocused={!!restored?.focused}
       deckActions={<DeckMenu deckId={experienceId} deckTemplateId={boot.deckTemplateId} showEdit={false}
         progressAction={{ disabled: !state.verified, onSelect: () => {
           try { rememberGroupReturn(sessionStorage, actor, { experienceId, cardId: currentCardId, rotation, focused, selection: shown, returnToProgress: progressReturn ?? undefined }); } catch { /* Optional storage. */ }
@@ -144,7 +147,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       onFocusChange={value => { setFocused(value); if (!value) setExpanded(false); }}
       playbackViewerUserId={actor} isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation}
       onToggleDeckFlip={(delta = 180) => setRotation(value => value + delta)} onBack={progressReturn ? () => router.push(progressReturnHref(progressReturn), { scroll: false }) : onBack} backLabel={progressReturn ? "Back to Progress" : "Back to My Decks"}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }} error={state.error ?? state.mutationError}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }} error={state.error ?? state.mutationError ?? updates.error}
       onActiveCardChange={(_previous, next) => { const card = deck.cards[next]; if (card) { setActiveCardId(card.id); void resource.navigate(shown, card.id).catch(() => resource.invalidate()); } }}
       onOpenMedia={openMedia} mediaViewerOpen={!!validOverlay}
       renderMediaOverlay={scene => {
@@ -156,11 +159,11 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
       renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
-      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} interactionLocked={!state.verified || !!validOverlay || reflectionOpen}
+      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} frontAction={updates.cardButton(props.card.id)} interactionLocked={!state.verified || !!validOverlay || reflectionOpen || updates.open}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
-        backFace={<GroupCardBack reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />
+        backFace={<GroupCardBack reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />}</GroupUpdateControls>
     {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} onCollapse={() => {
       setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />

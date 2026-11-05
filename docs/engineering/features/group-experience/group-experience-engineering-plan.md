@@ -987,6 +987,10 @@ Each phase below states pre-start feedback, post-phase approval and automatic pr
 
 ### Phase 11 — Integrated acceptance and release readiness
 
+**Current commission — 5 November 2026:** integrated acceptance covers the completed non-Info Group Experiences functionality only. Exclude all Personal/Group Info Card functionality, its feature tests and the pending branch merge. Existing Info requirements elsewhere remain future scope. No commit until the founder accepts the Phase11 results on iPhone; no deployment or live-provider/persistent-database changes are authorised by this acceptance commission.
+
+**Published Deck acceptance:** a new publication must not automatically change an existing Group. Only current Group Admins viewing the Group perspective receive the existing Card/Deck Update controls when a newer public version is available. Followers never receive them; Admins in individual perspectives do not receive them. Explicit review/Cancel/Update uses the Group transport (§12.2), including an Admin who is not the original Deck creator. Verify added-Card order/default states, source/revision checks and exact retries, unchanged existing learning/media/reflections/dates/permissions and personal adoption pointers, and version-aware revalidation after a concurrent poll. A larger completion denominator after adding a Card is expected, not loss of recorded progress.
+
 - **Objective/dependencies:** prove the combined feature, operational prerequisites and rollback. Depends on every implemented phase and resolved applicable Q1–Q3 gates.
 - **Scope/reuse:** run targeted combined regressions, typecheck, scoped lint and standard build; verify API privacy and browser journeys with existing harnesses; measure §14 budgets; document indexes/configuration, provider verification, account-lifecycle restrictions and rollout/rollback. No unrelated refactor or new test framework.
 - **Likely files:** group integration/browser suites, current test harness, operational checklist and accepted plan/handoff during implementation. Any defect fixes stay within the approved feature scope.

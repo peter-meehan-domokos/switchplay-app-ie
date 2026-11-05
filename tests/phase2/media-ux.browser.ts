@@ -56,7 +56,9 @@ test("own Group history contains shared and Private media, Group upload and crea
   const thumbs = page.locator(".focused-card-surface--back .back-card-media-carousel button"); await expect(thumbs).toHaveCount(5);
   await expect(page.locator(".focused-card-surface--back .media-private-label")).toHaveCount(5);
   expect(await thumbs.evaluateAll(nodes => nodes.map(n => [(n as HTMLElement).offsetWidth, (n as HTMLElement).offsetHeight]))).toEqual(Array.from({ length: 5 }, () => [46, 58]));
-  expect(await page.locator(".focused-card-surface--back").evaluate(back => {
+  // is-flipped marks the start of the existing 680ms transition. Measure
+  // settled spacing rather than a transient 3D bounding box during that flip.
+  await expect.poll(() => page.locator(".focused-card-surface--back").evaluate(back => {
     const bottom = Math.max(...Array.from(back.querySelectorAll(".media-private-label")).map(label => label.getBoundingClientRect().bottom));
     return bottom < back.querySelector(".focused-card-back-signals")!.getBoundingClientRect().top;
   })).toBe(true);

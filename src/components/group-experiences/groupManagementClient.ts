@@ -1,7 +1,7 @@
 import { groupFetch } from "./groupClient";
 export type GroupFormValues = { name: string; adminIds: string[]; followerIds: string[]; allowFollowerInspection: boolean };
 export type GroupSettings = GroupFormValues & { expectedStructureRevision: number };
-export type ManagementResult = { viewerUserId: string; experienceId: string; hasAccess: boolean; outcome: string };
+export type ManagementResult = { viewerUserId: string; experienceId: string; structureRevision: number; hasAccess: boolean; outcome: string };
 type Meta = { structureRevision: number; name: string; allowFollowerInspection: boolean; isAdmin: boolean };
 type Roster = { structureRevision: number; members: { userId: string; username: string; isAdmin: boolean; followerStatus: string }[]; nextCursor: string | null };
 export async function loadGroupSettings(actor: string, experienceId: string, signal?: AbortSignal): Promise<GroupSettings> {

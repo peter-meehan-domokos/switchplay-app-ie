@@ -19,7 +19,7 @@ function fixture() {
     calls.push(url); if (method === "PATCH") { writes.push(body); return { ...authority, ok: true } as never; }
     return (url.includes("/presentation?") ? bootstrap : url.includes("/perspectives?") ? peers : url.includes("/aggregates?") ? aggregates : authority) as never;
   };
-  return { authority, bootstrap, peers, calls, writes, read };
+  return { authority, bootstrap, peers, aggregates, calls, writes, read };
 }
 test("shared resource coalesces concurrent loads and expires cached peer authority from verification start", async () => {
   const f = fixture(); let now = 100, expire!: () => void;
@@ -113,4 +113,29 @@ test("leaving a view cancels reads but finishes already queued owner-bound learn
   resource.dispose(); release(); await Promise.all([older, newer]);
   assert.equal(f.writes.length, 2); assert.deepEqual((f.writes[1] as { change: unknown }).change, { kind: "completion", stepId: "s", completionStatus: "skipped" });
   assert.equal(resource.snapshot().data, undefined, "save responses cannot repopulate a disposed view");
+});
+
+for (const boundary of ["first", "final", "revoked"] as const) test(`post-save revalidation replaces a pre-commit ${boundary} authority read without trusting stale data`, async () => {
+  const f = fixture(); let pause = false, paused = false, baseReads = 0, revoked = false, release!: () => void, reached!: () => void;
+  const gate = new Promise<void>(r => { release = r; }), ready = new Promise<void>(r => { reached = r; });
+  const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
+    if (revoked) throw new GroupRequestError("GROUP_FORBIDDEN", 403);
+    const result = structuredClone(await f.read<T>(...args));
+    if (pause && args[1] === "/api/group-experiences/e") {
+      baseReads++;
+      if (!paused && (boundary !== "final" || baseReads === 2)) { paused = true; reached(); await gate; }
+    }
+    return result;
+  };
+  const resource = createGroupResource("alice", "e", { read });
+  try {
+    await resource.load(); pause = true; const older = resource.load(); await ready;
+    f.authority.structureRevision = 1; f.bootstrap.structureRevision = 1; f.peers.structureRevision = 1; f.aggregates.structureRevision = 1;
+    const fresh = resource.revalidate(1);
+    if (boundary === "revoked") revoked = true;
+    release(); await older;
+    assert.equal(await fresh, boundary !== "revoked");
+    if (boundary === "revoked") { assert.equal(resource.snapshot().data, undefined); assert.equal(resource.snapshot().verified, false); }
+    else { assert.equal(resource.snapshot().verified, true); assert.equal(resource.snapshot().data!.bootstrap.structureRevision, 1); }
+  } finally { release(); resource.dispose(); }
 });
