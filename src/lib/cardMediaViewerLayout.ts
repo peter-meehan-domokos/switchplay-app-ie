@@ -4,7 +4,7 @@ import { resolveMediaSelection, type MediaSelection } from "./cardMediaViewer";
 
 export type WorkingMediaSelection = MediaSelection & {
   cardId: string; activeCardId: string; focused: boolean;
-  viewerUserId: string; deckTemplateId: string; version?: number;
+  viewerUserId: string; deckTemplateId: string; version?: number; initialPage?: import("./mediaCollection/contracts").MediaCollectionPage;
 };
 // Derived selection never mutates the working Card/Deck layout or personal history.
 export function buildCardMediaViewerLayout(deck: DeckLayout, selection: WorkingMediaSelection | null,

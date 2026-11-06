@@ -1,4 +1,7 @@
+import { mockLegacyGalleryHistory } from "./personalMediaFixture";
 import { expect, test, type Page } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => mockLegacyGalleryHistory(page));
 
 const streamUrl = "**/downloads/default.mp4*";
 const appVideoUrl = "**/api/media/card/video-file*";

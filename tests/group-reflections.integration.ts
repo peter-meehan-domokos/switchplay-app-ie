@@ -81,7 +81,17 @@ test("wrong sources, stale epochs and missing indexes cannot commit a reflection
   await assert.rejects(f.reflections.save("bob", f.experienceId, f.ids[0], { ...f.command("Old access"), accessEpoch: 7 }));
   assert.equal(await f.reflections.rows().countDocuments(), 0);
   await f.reflections.rows().dropIndexes();
-  await assert.rejects(new GroupReflectionRepository(f.repo).save("bob", f.experienceId, f.ids[0], f.command("No indexes")));
+  // Explicit inventory remains uncached; a fresh connected client must fail
+  // readiness after operator-side schema removal.
+  const { assertGroupReflectionIndexes } = await import("../src/lib/reflections/indexes");
+  await assert.rejects(assertGroupReflectionIndexes(f.cards.db));
+  const fresh = await new MongoClient(mongo.getUri()).connect();
+  try {
+    const { CardRepository } = await import("../src/lib/cards/repository");
+    const { GroupExperienceRepository } = await import("../src/lib/groupExperiences/repository");
+    const cold = new GroupReflectionRepository(new GroupExperienceRepository(new CardRepository(fresh.db(f.cards.db.databaseName), fresh)));
+    await assert.rejects(cold.save("bob", f.experienceId, f.ids[0], f.command("No indexes")));
+  } finally { await fresh.close(); }
   assert.equal(await f.reflections.rows().countDocuments(), 0);
 });
 
@@ -309,4 +319,25 @@ test("first collective note and concurrent scalar creation preserve one complete
   const row = (await f.repo.cardData().findOne({ experienceId: f.experienceId, cardTemplateId: f.ids[0] }))!;
   assert.equal(row.reflectionRevision, 1); assert.equal(row.revision, 1); assert.equal(row.reflection, "Our collective note");
   assert.equal(row.items[0].completionStatus, "done"); assert.deepEqual(row.signalReadings, []);
+});
+
+
+test("reflection feeds are snapshot reads without bookkeeping writes; mutation fences and revocation remain enforced", async () => {
+  const f = await fixture();
+  await f.reflections.save("bob", f.experienceId, f.ids[0], f.command("My group reflection"));
+  const before = await f.repo.members().find({ experienceId: f.experienceId }).sort({ userId: 1 }).toArray();
+  const writes: string[] = [];
+  const listener = (event: { commandName: string }) => { if (["update", "insert", "delete", "findAndModify"].includes(event.commandName)) writes.push(event.commandName); };
+  const { readReflectionFeed } = await import("../src/lib/reflections/reads");
+  client.on("commandStarted", listener);
+  try {
+    await readReflectionFeed(f.repo, "alice", f.ids[0], { kind: "group", experienceId: f.experienceId, mode: "group", accessEpoch: 0 });
+    await readReflectionFeed(f.repo, "alice", f.ids[0], { kind: "group", experienceId: f.experienceId, mode: "inspection", subjectUserId: "bob", accessEpoch: 0 });
+    await readReflectionFeed(f.repo, "bob", f.ids[0], { kind: "group", experienceId: f.experienceId, mode: "own", accessEpoch: 0 });
+  } finally { client.off("commandStarted", listener); }
+  assert.deepEqual(writes, []);
+  assert.deepEqual(await f.repo.members().find({ experienceId: f.experienceId }).sort({ userId: 1 }).toArray(), before);
+  await f.repo.members().updateOne({ experienceId: f.experienceId, userId: "bob" }, { $set: { followerStatus: "removed" }, $inc: { accessEpoch: 1 } });
+  await assert.rejects(readReflectionFeed(f.repo, "bob", f.ids[0], { kind: "group", experienceId: f.experienceId, mode: "own", accessEpoch: 0 }));
+  await assert.rejects(f.reflections.save("bob", f.experienceId, f.ids[0], f.command("Revoked")));
 });

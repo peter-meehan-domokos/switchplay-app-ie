@@ -5,7 +5,7 @@ import { personalMediaKey } from "@/lib/cards/personalHistoryProjection";
 export type CardMediaTarget = { viewerUserId: string; cardTemplateId: string; sourceCardTemplateId: string };
 export type CardMediaRequest = CardMediaTarget & { mediaItemId: string };
 export type GalleryMediaRequest = CardMediaRequest & { groupMedia?: { contributionId: string; mediaType: "image" | "video"; experienceId?: string; subjectUserId?: string } };
-export type OpenCardMedia = (cardId: string, mediaItemId: string, source: HTMLButtonElement, context?: { activeCardId: string; focused: boolean }) => void;
+export type OpenCardMedia = (cardId: string, mediaItemId: string, source: HTMLButtonElement, context?: { activeCardId: string; focused: boolean }, initialPage?: import("./mediaCollection/contracts").MediaCollectionPage) => void;
 export type MediaSelection = { mediaItemId: string; index: number };
 
 export function resolveMediaSelection(items: PersonalMediaDisplayItem[], selection: MediaSelection): MediaSelection | null {

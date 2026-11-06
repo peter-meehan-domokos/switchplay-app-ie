@@ -1,4 +1,7 @@
+import { mockLegacyGalleryHistory } from "./personalMediaFixture";
 import { expect, test } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => mockLegacyGalleryHistory(page));
 
 test("opens the exact thumbnail and traverses all eight items without wrapping", async ({ page }) => {
   await page.goto("/");
@@ -184,4 +187,21 @@ for (const width of [320, 390, 1280]) test(`gallery controls, focus and containe
   await viewer.getByRole("button", { name: "Close media viewer" }).click();
   await expect(viewer).toHaveCount(0);
   await expect(source).toBeFocused();
+});
+
+test("known Personal video opens paused before delayed history metadata without changing selection", async ({ page }) => {
+  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/media/history?*", async route => {
+    if (new URL(route.request().url()).searchParams.get("limit") === "30") await held;
+    await route.fallback();
+  });
+  try {
+    await page.goto("/?strict"); await page.getByRole("button", { name: /^Open video 2 of 8:/ }).click();
+    const viewer = page.getByRole("dialog", { name: "Card media viewer" }); await expect(viewer).toBeVisible();
+    await expect(viewer.locator("video")).toHaveCount(1);
+    expect(await viewer.locator("video").evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);
+    release(); await expect(viewer.getByText("2 of 8")).toBeVisible();
+    await expect(viewer.getByText("Loading media history…")).toHaveCount(0);
+    await expect(viewer.locator("video")).toHaveCount(1);
+  } finally { release(); }
 });

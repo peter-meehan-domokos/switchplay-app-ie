@@ -15,17 +15,19 @@ export default function WorkingCardMediaViewer({ deck, selection, context, sourc
   sourceRef: RefObject<HTMLButtonElement | null>;
   onSelect: (selection: WorkingMediaSelection) => void; onClose: () => void;
 }) {
-  const collectionContext = selection && deck.dataOwnerUserId ? { kind: "owner" as const, viewerUserId: deck.dataOwnerUserId, cardTemplateId: selection.cardId } : null;
-  const collection = useMediaCollection(collectionContext);
-  const override = collection.page && collectionContext ? collection.page.items.map(item => collectionDisplayItem(item, collectionContext)) : undefined;
+  const scope = buildCardMediaViewerLayout(deck, selection, context);
+  const collectionContext = scope.validScope && selection && deck.dataOwnerUserId ? { kind: "owner" as const, viewerUserId: deck.dataOwnerUserId, cardTemplateId: selection.cardId } : null;
+  const collection = useMediaCollection(collectionContext, 30, "", undefined, false, selection?.initialPage ? { page: selection.initialPage, selectedKey: normaliseCollectionSelectionKey(selection.mediaItemId, selection.cardId) } : undefined);
+  const override = collection.page && collectionContext ? collection.page.items.map(item => collectionDisplayItem(item, collectionContext)) : collection.error ? [] : undefined;
   const { items, resolved, valid, validScope } = buildCardMediaViewerLayout(deck, selection && override ? { ...selection, mediaItemId: normaliseCollectionSelectionKey(selection.mediaItemId, selection.cardId) } : selection, context, override);
   useEffect(() => {
     if (selection && !validScope) onClose();
     else if ((collection.page || collection.error) && !collection.loading && selection && resolved && (selection.mediaItemId !== resolved.mediaItemId || selection.index !== resolved.index)) onSelect({ ...selection, ...resolved });
   }, [selection, validScope, resolved, onClose, onSelect, collection.loading, collection.page, collection.error]);
-  if (!valid || !selection || !resolved) return null;
-  return <CardMediaViewer key={`${deck.dataOwnerUserId}:${deck.deckTemplateId}:${selection.cardId}`} items={items} index={resolved.index}
+  if (!validScope || !selection || (!valid && !collection.error && !collection.loading)) return null;
+  return <CardMediaViewer key={`${deck.dataOwnerUserId}:${deck.deckTemplateId}:${selection.cardId}`} items={items} index={resolved?.index ?? 0}
     target={{ viewerUserId: deck.dataOwnerUserId!, cardTemplateId: selection.cardId, sourceCardTemplateId: selection.cardId }}
+    collectionStatus={{ loading: collection.loading, error: collection.error, retry: () => { void collection.controller?.refresh(); } }}
     collectionContext={collectionContext ?? undefined}
     paging={collection.page && collection.controller ? { older: Boolean(collection.page.older), newer: Boolean(collection.page.newer), loading: collection.loading,
       total: collection.page.total, start: collection.page.start ?? 0,

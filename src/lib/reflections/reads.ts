@@ -23,16 +23,15 @@ export async function readReflectionFeed(groups: GroupExperienceRepository, acto
     const rows = groups.cards.db.collection<GroupReflection>(GROUP_REFLECTIONS);
     const context = { ...view, cardTemplateId, viewerUserId: actor };
     const authority = view.kind === "group" ? await groups.access(actor, view.experienceId, "member", session, view.accessEpoch) : null;
+    // Snapshot reads need current authority, not write fences. Mutations keep
+    // their membership/adoption fences and atomic revision guards.
     if (authority) {
       await selectedCard(groups.cards, authority.experience, cardTemplateId, session);
-      const admins = await groups.members().find({ experienceId: authority.experience.experienceId, isAdmin: true }, { session }).toArray();
-      await groups.fence([authority.member, ...admins], session);
     }
     if (view.kind === "group" && view.mode === "inspection") {
       id(view.subjectUserId);
       const subject = await groups.members().findOne({ experienceId: view.experienceId, userId: view.subjectUserId }, { session });
       requireCondition(subject?.followerStatus === "active" && canInspectPeers(authority!.experience, authority!.member), "GROUP_PERSPECTIVE_FORBIDDEN");
-      await groups.fence([subject], session);
     }
     const owner = view.kind === "personal" || view.mode === "own";
     if (view.kind === "group" && view.mode === "own") requireCondition(authority!.member.followerStatus === "active", "GROUP_PERSPECTIVE_FORBIDDEN");

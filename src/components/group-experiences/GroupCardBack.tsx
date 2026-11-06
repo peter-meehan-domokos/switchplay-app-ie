@@ -20,13 +20,13 @@ export default function GroupCardBack({ reflectionInteractive = true, reflection
   card: ExperienceCardPresentation; focused?: boolean; onChange?: (change: PersonalLearningChange) => void;
   onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void;
 }) {
-  const collection = useMediaCollection(mediaContext, 5);
+  const collection = useMediaCollection(mediaContext, 5, "", undefined, true);
   const items = mediaContext && collection.page ? collection.page.items.map(i => collectionDisplayItem(i, mediaContext)) : [];
   return <div className={`focused-card-back-layout back-card-face-content ${focused ? "back-card-face-content--focused" : "back-card-face-content--preview"}`}>
     <CardSemanticAnchors card={card} dateLabel="" showProgress={false} variant="back" />
     <div className="focused-card-back-shell">
       {collection.page?.capabilities?.canManage && onEditMedia ? <MediaCentreControl total={collection.page.total} onOpen={() => onEditMedia(card.id)} /> : null}
-      <BackCardMediaCarousel items={items} showPrivate={mediaContext?.kind === "owner" && Boolean(mediaContext.experienceId)} onOpen={onOpenMedia ? (key, source) => onOpenMedia(card.id, key, source) : undefined} />
+      <BackCardMediaCarousel items={items} showPrivate={mediaContext?.kind === "owner" && Boolean(mediaContext.experienceId)} onOpen={onOpenMedia ? (key, source) => onOpenMedia(card.id, key, source, undefined, collection.page ?? undefined) : undefined} />
       <section className={`focused-card-back-signals ${items.length ? "" : "focused-card-back-signals--no-media"} group-back-signals`} aria-label="Card progress and confidence">
       {card.steps.map((step, i) => {
         const reading = card.learning.signalReadings.find(row => row.stepId === step.stepId)?.reading ?? null;

@@ -1,3 +1,4 @@
+import { ensureGroupReadiness } from "./readiness";
 import { randomUUID } from "node:crypto";
 import { MongoServerError, type ClientSession } from "mongodb";
 import { CardRepository } from "../cards/repository";
@@ -7,11 +8,11 @@ import { ensurePersonalLearningInSession, mutatePersonalLearningInSession } from
 import { mergeRetainedAssignments } from "../cards/retainedAssignments";
 import { cardContentPresentation } from "../cards/libraryProjection";
 import { cardCreatorAttributions, creatorUsernames } from "../cards/creatorAttribution";
-import { GROUP_COLLECTIONS, assertGroupExperienceIndexes } from "./indexes";
+import { GROUP_COLLECTIONS } from "./indexes";
 import type { GroupExperience, GroupMember, GroupCardData, GroupReceipt, Perspective, RemovalLearning } from "./model";
 import { authorize, type GroupRole } from "./authorization";
 import { createCommand, memberCommand, learningCommand, hash, id, page, revision } from "./contracts";
-import { publicCards, selectedCard, selectedContent, validateCreationManifest } from "./publicVersions";
+import { publicCards, selectedCard, selectedContent, verifySelectedVisibility, validateCreationManifest } from "./publicVersions";
 import { personalLearningForUsers, userKey } from "./learningReads";
 import { aggregateLearning, entry, identity } from "./readModels";
 import { formerCardLearning, removalSnapshot, snapshotRemoval } from "./lifecycle";
@@ -29,9 +30,8 @@ export class GroupExperienceRepository {
   cardData() { return this.cards.db.collection<GroupCardData>(GROUP_COLLECTIONS.cardData); }
   receipts() { return this.cards.db.collection<GroupReceipt>(GROUP_COLLECTIONS.receipts); }
   removals() { return this.cards.db.collection<RemovalLearning>(GROUP_COLLECTIONS.removals); }
-  private ready = false;
   async transaction<T>(run: (session: ClientSession) => Promise<T>) {
-    if (!this.ready) { await assertGroupExperienceIndexes(this.cards.db); this.ready = true; }
+    await ensureGroupReadiness(this.cards);
     return this.cards.transaction(run);
   }
   async access(actor: string, experienceId: string, role: GroupRole, session: ClientSession, epoch?: number) {
@@ -95,6 +95,14 @@ export class GroupExperienceRepository {
         const experience = experiences.find(experience => experience.experienceId === member.experienceId);
         requireCondition(experience, "INVALID_GROUP_MEMBERSHIP"); return entry(actor, experience, member);
       }), nextCursor: members.length > paging.limit ? rows.at(-1)!.experienceId : null };
+    });
+  }
+  async authority(actor: string, experienceId: string) {
+    return this.transaction(async session => {
+      const { experience, member } = await this.access(actor, experienceId, "member", session);
+      await verifySelectedVisibility(this.cards, experience, session);
+      return { viewerUserId: actor, experienceId, structureRevision: experience.structureRevision,
+        accessEpoch: member.accessEpoch, adoptionRevision: experience.adoptionRevision };
     });
   }
   async get(actor: string, experienceId: string) {

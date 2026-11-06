@@ -36,13 +36,13 @@ export default function DeckDetail({ deck, ready = true, entryRevision, recovery
     if (next >= 0 && next !== previous) working.commitActiveCard(previous, next, pendingNavigation.rollback);
   }, [ready, pendingNavigation, deck.cards, deck.activeCardId, working]);
   const updates = useWorkingUpdates(deck, async (command) => { await onAdopted(command); working.clearMutationError(); }, ready);
-  const openMedia: OpenCardMedia = (cardId, mediaItemId, source, context) => {
+  const openMedia: OpenCardMedia = (cardId, mediaItemId, source, context, initialPage) => {
     if (!context || viewer || centre || assessmentOpen || document.querySelector(".creator-modal-backdrop")) return;
     const card = working.deck.cards.find(card => card.id === cardId);
     const index = card ? visiblePersonalMedia(card).findIndex(item => personalMediaKey(item) === mediaItemId) : -1;
     if (!card) return;
     mediaSourceRef.current = source;
-    setViewer({ cardId, mediaItemId, index: Math.max(0, index), ...context, viewerUserId: deck.dataOwnerUserId!, deckTemplateId: deck.deckTemplateId, version: card?.adoptedVersion });
+    setViewer({ cardId, mediaItemId, initialPage, index: Math.max(0, index), ...context, viewerUserId: deck.dataOwnerUserId!, deckTemplateId: deck.deckTemplateId, version: card?.adoptedVersion });
   };
   // Working membership is already authorized by the resolver. Creator entry
   // may create an owned copy; it does not grant writes to the foreign original.

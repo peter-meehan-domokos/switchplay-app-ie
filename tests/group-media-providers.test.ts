@@ -4,18 +4,16 @@ import { createGroupMediaProvider, groupMediaConfiguration } from "../src/lib/gr
 import type { GroupMediaRecord } from "../src/lib/groupExperiences/media/model";
 const env = { NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", CLOUDFLARE_ACCOUNT_ID: "account",
   CLOUDFLARE_STREAM_API_TOKEN: "test", CLOUDFLARE_R2_ACCESS_KEY_ID: "test", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "test",
-  CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME: "private-group", CLOUDFLARE_R2_BUCKET_NAME: "public", CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "personal" };
+  CLOUDFLARE_R2_BUCKET_NAME: "path-assets", CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "path-user-data" };
 const row = { contributionId: "12345678-1234-1234-1234-123456789abc", authorUserId: "bob", experienceId: "group", cardTemplateId: "card", kind: "video", contentType: "video/mp4", size: 100, state: "pending" } as GroupMediaRecord;
-test("provider configuration needs actual credentials and a dedicated bucket, not administrative approval", () => {
-  assert.deepEqual(groupMediaConfiguration("image", env), { bucket: "private-group", account: "account" });
+test("provider configuration uses existing user-data storage and requires actual credentials", () => {
+  assert.deepEqual(groupMediaConfiguration("image", env), { bucket: "path-user-data", account: "account" });
   assert.equal(groupMediaConfiguration("video", env).account, "account");
-  for (const field of ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME"] as const) {
+  for (const field of ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_USER_DATA_BUCKET_NAME"] as const) {
     assert.throws(() => groupMediaConfiguration("image", { ...env, [field]: undefined }));
   }
   assert.throws(() => groupMediaConfiguration("video", { ...env, CLOUDFLARE_STREAM_API_TOKEN: undefined }));
   assert.throws(() => groupMediaConfiguration("image", { ...env, NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0" }));
-  assert.throws(() => groupMediaConfiguration("image", { ...env, CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME: "public" }));
-  assert.throws(() => groupMediaConfiguration("image", { ...env, CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME: "personal" }));
 });
 test("Stream allocation always requires signed URLs and binds immutable contribution metadata", async () => {
   let body: Record<string, unknown> = {};
@@ -40,16 +38,16 @@ test("cleanup accepts provider not-found but rejects permission errors and wrong
   const provider = createGroupMediaProvider({ env, fetch: async () => Response.json({}, { status }) });
   const r = { ...row, state: "deleted" as const, asset: { provider: "stream" as const, assetId: "abcdef1234567890abcdef1234567890" } };
   await provider.remove(r); status = 403; await assert.rejects(provider.remove(r));
-  await assert.rejects(provider.remove({ ...r, kind: "image", asset: { provider: "r2", assetId: "user-cards/bob/legacy.jpg", bucket: "private-group" } }));
+  await assert.rejects(provider.remove({ ...r, kind: "image", asset: { provider: "r2", assetId: "user-cards/bob/legacy.jpg", bucket: "path-user-data" } }));
 });
 
-test("image signing uses dedicated bucket, exact length, metadata and conditional PUT without a public URL", async () => {
+test("image signing uses path-user-data with a distinct Group key, exact length, metadata and conditional PUT", async () => {
   let input: Record<string, unknown> = {}, signed: Record<string, unknown> = {};
   const provider = createGroupMediaProvider({ env, sign: (async (_client, command, options) => {
     input = command.input as Record<string, unknown>; signed = options as Record<string, unknown>; return "https://private-r2.test/signed-put";
   }) as typeof import("@aws-sdk/s3-request-presigner").getSignedUrl });
   const result = await provider.allocate({ ...row, kind: "image", contentType: "image/jpeg" });
-  assert.equal(input.Bucket, "private-group"); assert.equal(input.Key, `group-media/${row.contributionId}.jpg`);
+  assert.equal(input.Bucket, "path-user-data"); assert.equal(input.Key, `group-media/${row.contributionId}.jpg`);
   assert.equal(input.IfNoneMatch, "*"); assert.equal(input.ContentLength, 100);
   assert.deepEqual(input.Metadata, { creator: "bob", "contribution-id": row.contributionId, "experience-id": "group", "card-template-id": "card" });
   assert.equal(result.headers["If-None-Match"], "*"); assert.equal(signed.expiresIn, 300);
@@ -57,19 +55,26 @@ test("image signing uses dedicated bucket, exact length, metadata and conditiona
   assert.ok(!("deliveryUrl" in result)); assert.ok(!("src" in result));
 });
 
-test("image readiness and cleanup reject forged object metadata and never delete a shared bucket", async () => {
+test("image readiness and cleanup verify provenance and delete only the exact Group object in shared storage", async () => {
   let creator = "bob", deletes = 0;
   const s3 = { send: async (command: { constructor: { name: string } }) => {
-    if (command.constructor.name === "DeleteObjectCommand") { deletes++; return {}; }
+    if (command.constructor.name === "DeleteObjectCommand") {
+      assert.deepEqual((command as unknown as { input: unknown }).input, { Bucket: "path-user-data", Key: `group-media/${row.contributionId}.jpg` });
+      deletes++; return {};
+    }
     return { ContentType: "image/jpeg", ContentLength: 100, Metadata: { creator, "contribution-id": row.contributionId, "experience-id": "group", "card-template-id": "card" } };
   } } as unknown as import("@aws-sdk/client-s3").S3Client;
   const provider = createGroupMediaProvider({ env, s3 });
-  const r = { ...row, kind: "image" as const, contentType: "image/jpeg", asset: { provider: "r2" as const, assetId: `group-media/${row.contributionId}.jpg`, bucket: "private-group" } };
+  const r = { ...row, kind: "image" as const, contentType: "image/jpeg", asset: { provider: "r2" as const, assetId: `group-media/${row.contributionId}.jpg`, bucket: "path-user-data" } };
   assert.equal((await provider.status(r)).status, "ready");
   creator = "alice"; await assert.rejects(provider.status(r)); await assert.rejects(provider.remove({ ...r, state: "deleted" }));
   assert.equal(deletes, 0); creator = "bob";
   await provider.remove({ ...r, state: "deleted" }); assert.equal(deletes, 1);
-  await assert.rejects(provider.remove({ ...r, state: "deleted", asset: { ...r.asset, bucket: "personal" } })); assert.equal(deletes, 1);
+  await assert.rejects(provider.remove({ ...r, state: "deleted", asset: { ...r.asset, bucket: "path-assets" } }));
+  for (const assetId of ["user-cards/bob/card/personal.jpg", "user-decks/bob/deck/cards/card/personal.jpg", "group-media/another-contribution.jpg"]) {
+    await assert.rejects(provider.remove({ ...r, state: "deleted", asset: { ...r.asset, assetId } }));
+  }
+  assert.equal(deletes, 1);
 });
 
 test("Stream cleanup checks immutable provider provenance before physical deletion", async () => {
@@ -90,7 +95,7 @@ test("private image delivery streams bytes through the app and preserves downloa
     ...(command.constructor.name === "GetObjectCommand" ? { Body: { transformToWebStream: () => new Response("image bytes").body } } : {}) }) } as unknown as import("@aws-sdk/client-s3").S3Client;
   const provider = createGroupMediaProvider({ env, s3 });
   const r = { ...row, kind: "image" as const, contentType: "image/jpeg", state: "attached" as const,
-    asset: { provider: "r2" as const, assetId: `group-media/${row.contributionId}.jpg`, bucket: "private-group" } };
+    asset: { provider: "r2" as const, assetId: `group-media/${row.contributionId}.jpg`, bucket: "path-user-data" } };
   const response = await provider.deliver(r, "download");
   assert.equal(await response.text(), "image bytes"); assert.equal(response.headers.get("Content-Type"), "image/jpeg");
   assert.equal(response.headers.get("Cache-Control"), "private, no-store"); assert.equal(response.headers.get("Location"), null);
@@ -115,4 +120,26 @@ test("signed video playback and download reuse grants while never exposing unsig
   const download = await (await provider.deliver(r, "download")).json();
   assert.ok(download.url.includes("signed.grant")); assert.ok(!download.url.includes("unsigned"));
   assert.equal((requests.findLast(r => r.url.endsWith("/token"))!.body as { downloadable: boolean }).downloadable, true);
+});
+
+for (const status of [200, 204]) test(`Stream cleanup accepts a successful empty ${status} response after verifying immutable provenance`, async () => {
+  let deletes = 0;
+  const provider = createGroupMediaProvider({ env, fetch: async (_url, init) => {
+    if (init?.method === "DELETE") { deletes++; return new Response(null, { status }); }
+    return Response.json({ success: true, result: { creator: "bob", requireSignedURLs: true,
+      meta: { groupContributionId: row.contributionId, experienceId: "group", cardTemplateId: "card" } } });
+  } });
+  const r = { ...row, state: "deleted" as const, asset: { provider: "stream" as const, assetId: "abcdef1234567890abcdef1234567890" } };
+  await provider.remove(r);
+  assert.equal(deletes, 1);
+});
+
+test("Stream cleanup still rejects provider failures and negative JSON acknowledgements", async () => {
+  for (const [status, body] of [[403, ""], [200, '{"success":false}']] as const) {
+    const provider = createGroupMediaProvider({ env, fetch: async (_url, init) => init?.method === "DELETE"
+      ? new Response(body, { status })
+      : Response.json({ success: true, result: { creator: "bob", requireSignedURLs: true,
+        meta: { groupContributionId: row.contributionId, experienceId: "group", cardTemplateId: "card" } } }) });
+    await assert.rejects(provider.remove({ ...row, state: "deleted", asset: { provider: "stream", assetId: "abcdef1234567890abcdef1234567890" } }), { code: "GROUP_MEDIA_CLEANUP_FAILED" });
+  }
 });

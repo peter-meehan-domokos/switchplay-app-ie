@@ -50,3 +50,20 @@ test("existing gallery arrows cross a bounded page boundary without losing the s
   await viewer.getByRole("button", { name: "Next media" }).click(); await expect(viewer.getByText("6 of 35")).toBeVisible();
   expect(limits.every(n => n <= 30)).toBe(true);
 });
+
+test("background Gallery metadata does not resize the image or reset an existing zoom", async ({ page }) => {
+  const record = { source: { kind: "personal", cardTemplateId: "card-1", mediaItemId: "photo" }, authorUserId: owner, mediaType: "image", description: "Basketball practice", uploadedAt: null, originName: "Personal", private: false,
+    media: { id: "photo", mediaType: "image", src: "/image-0.svg", description: "Basketball practice" } };
+  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/media/history?*", async route => {
+    if (new URL(route.request().url()).searchParams.get("limit") === "30") await held;
+    await route.fulfill({ json: { viewerUserId: owner, cardTemplateId: "card-1", items: [record], total: 1, olderCount: 0, older: null, newer: null } });
+  });
+  try {
+    await page.goto("/?strict"); await page.getByRole("button", { name: /^Open image 1 of 1:/ }).click();
+    const gallery = page.getByRole("dialog", { name: "Card media viewer" });
+    await gallery.getByRole("button", { name: "Zoom in" }).click(); await expect(gallery.getByLabel("Zoom level")).toHaveText("150%");
+    release(); await expect(gallery.getByText("Loading media history…")).toHaveCount(0);
+    await page.waitForTimeout(150); await expect(gallery.getByLabel("Zoom level")).toHaveText("150%");
+  } finally { release(); }
+});

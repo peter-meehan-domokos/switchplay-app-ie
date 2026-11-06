@@ -1,3 +1,4 @@
+import { groupMediaAvailable } from "../groupExperiences/readiness";
 import { memberMediaCapabilities, type MediaCapabilities } from "./permissions";
 import type { Document } from "mongodb";
 import type { CardRepository } from "../cards/repository";
@@ -7,7 +8,7 @@ import { id, hash } from "../groupExperiences/contracts";
 import { userKey } from "../groupExperiences/learningReads";
 import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
-import { GROUP_MEDIA_COLLECTION, assertGroupMediaIndexes } from "../groupExperiences/media/indexes";
+import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
 import type { GroupMediaRecord } from "../groupExperiences/media/model";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 
@@ -51,8 +52,7 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
   id(actor); id(cardTemplateId); if (options.experienceId !== undefined) id(options.experienceId);
   const limit = options.limit ?? 30; requireCondition(Number.isSafeInteger(limit) && limit > 0 && limit <= 30, "INVALID_MEDIA_PAGE");
   const context = hash({ actor, cardTemplateId, experienceId: options.experienceId ?? null }), after = cursor(options.cursor, context);
-  const hasGroups = await cards.db.listCollections({ name: GROUP_MEDIA_COLLECTION }, { nameOnly: true }).hasNext();
-  if (hasGroups) await assertGroupMediaIndexes(cards.db);
+  const hasGroups = await groupMediaAvailable(cards);
   return cards.transaction(async session => {
     let authority = {};
     let capabilities: MediaCapabilities = { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true };

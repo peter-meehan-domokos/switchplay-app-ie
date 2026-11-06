@@ -184,11 +184,11 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
   const deckIntroVideoHeight = deckIntroVideo?.height ?? 16;
   const isDeckIntroPortrait = deckIntroVideoHeight > deckIntroVideoWidth;
   const activeCard = optimisticDeck.cards[activeCardIndex];
-  const handleOpenMedia = useCallback<OpenCardMedia>((cardId, key, source) => {
+  const handleOpenMedia = useCallback<OpenCardMedia>((cardId, key, source, _context, initialPage) => {
     if (mediaViewerOpen || transitionPhase || !activeCard) return;
     introPlayerRef.current?.pauseAndReset("opening personal media viewer");
     setIsDeckIntroExpanded(false);
-    onOpenMedia?.(cardId, key, source, { activeCardId: activeCard.id, focused: isFocusModeOpen });
+    onOpenMedia?.(cardId, key, source, { activeCardId: activeCard.id, focused: isFocusModeOpen }, initialPage);
   }, [mediaViewerOpen, transitionPhase, activeCard, onOpenMedia, isFocusModeOpen]);
   const openMedia = onOpenMedia ? handleOpenMedia : undefined;
   const finalCardIndex = optimisticDeck.cards.length - 1;

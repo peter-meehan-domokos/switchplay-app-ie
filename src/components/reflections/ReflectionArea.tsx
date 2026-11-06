@@ -6,6 +6,7 @@ import { reflectionSlotKey, type ReflectionSource, type CollectiveReflectionSour
 import type { ReflectionFeed, ReflectionView } from "@/lib/reflections/reads";
 import { personalWork } from "@/lib/cards/personalWork";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
+import { patchReflectionFeed } from "@/lib/reflections/clientState";
 import { clientId } from "@/lib/clientId";
 import ReflectionModal from "./ReflectionModal";
 import "./reflections.css";
@@ -26,6 +27,7 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   const [modal, setModal] = useState<EditorTarget | null>(null), [draft, setDraft] = useState(""), [error, setError] = useState<string | null>(null), [saving, setSaving] = useState(false);
   const [fading, setFading] = useState(false), [reduced, setReduced] = useState(false);
   const alive = useRef(true), requestId = useRef(0), mutation = useRef<{ action: string; operationId: string; text: string } | null>(null);
+  const pendingSave = useRef(false), eventOrigin = useRef({});
   const ownedPointer = useRef<number | null>(null), pendingMember = useRef<string | null>(null);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null), source = useRef<HTMLDivElement>(null);
   const { viewerUserId: actor, cardTemplateId: card, view } = context;
@@ -34,6 +36,7 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   const session = useRef(workingCardStore.session(actor));
   const live = useCallback(() => alive.current && workingCardStore.session(actor) === session.current, [actor]);
   const refresh = useCallback(async () => {
+    if (pendingSave.current) return;
     const generation = ++requestId.current;
     const params = new URLSearchParams({ cardTemplateId: card });
     if (view.kind === "group") { params.set("experienceId", view.experienceId); params.set("mode", view.mode); params.set("accessEpoch", String(view.accessEpoch)); if (view.subjectUserId) params.set("subjectUserId", view.subjectUserId); }
@@ -45,18 +48,22 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
         || (context.adoptionRevision !== undefined && result.adoptionRevision !== context.adoptionRevision)) {
         setFeed(null); setModal(null); throw Error("Current reflection access could not be verified.");
       }
-      setFeed(result); setError(null);
+      setFeed(result);
     } catch (e) { if (live() && generation === requestId.current) { if (!own) { setFeed(null); setModal(null); } setError(e instanceof Error ? e.message : "Unable to load reflections."); } }
   }, [actor, card, view, context.adoptionRevision, group, live, own]);
   const refreshRef = useRef(refresh);
   useEffect(() => { refreshRef.current = refresh; }, [refresh]);
   useEffect(() => {
     alive.current = true; void refreshRef.current();
-    const reload = () => { if (document.visibilityState !== "hidden") void refreshRef.current(); };
+    const reload = (event?: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      if (detail?.origin === eventOrigin.current || (detail && (detail.actor !== actor || detail.card !== card))) return;
+      if (document.visibilityState !== "hidden") void refreshRef.current();
+    };
     const timer = setInterval(reload, 5000);
     window.addEventListener("focus", reload); window.addEventListener("switchplay-reflections", reload); document.addEventListener("visibilitychange", reload);
     return () => { alive.current = false; clearInterval(timer); window.removeEventListener("focus", reload); window.removeEventListener("switchplay-reflections", reload); document.removeEventListener("visibilitychange", reload); if (timeout.current) clearTimeout(timeout.current); };
-  }, []);
+  }, [actor, card]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)"), change = () => setReduced(media.matches);
     change(); media.addEventListener("change", change); return () => media.removeEventListener("change", change);
@@ -88,12 +95,15 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   const open = () => { if (!interactive || !active || !current) return; setModal(current); setDraft(current.text); setError(null); mutation.current = null; };
   const close = () => { if (!saving) setModal(null); };
   const apply = async (action: "save" | "delete") => {
-    if (!modal || saving || (!interactive && action !== "delete")) return;
+    if (!modal || !feed || pendingSave.current || saving || (!interactive && action !== "delete")) return;
     const item = modal;
     if (!(action === "save" ? item.canEdit : item.canDelete)) return;
     const text = draft.trim();
     if (!mutation.current || mutation.current.action !== action || mutation.current.text !== text) mutation.current = { action, text, operationId: clientId() };
     const operation = mutation.current;
+    const previous = feed, submitted = action === "delete" ? "" : text;
+    pendingSave.current = true; ++requestId.current;
+    setFeed(patchReflectionFeed(previous, item.source, submitted));
     setSaving(true); setError(null);
     try {
       const response = await fetch("/api/reflections", { method: "POST", headers: { "Content-Type": "application/json", "X-Personal-Viewer": actor, ...(group ? { "X-Group-Viewer": actor } : {}) },
@@ -101,10 +111,21 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
           ...(view.kind === "group" ? { accessEpoch: view.accessEpoch } : {}), ...(context.deckTemplateId ? { deckTemplateId: context.deckTemplateId } : {}) }) });
       const result = await response.json(); if (!live()) return;
       if (!response.ok) throw Error(result.code?.includes("CONFLICT") ? "This reflection changed. Close and reopen it before trying again." : "Unable to save this reflection. Check your access and try again.");
+      if (!Number.isSafeInteger(result.revision) || result.revision < item.revision) throw Error("Unable to verify the saved reflection. Try again.");
+      ++requestId.current;
+      setFeed(patchReflectionFeed(previous, item.source, submitted, result));
       if (item.source.kind === "personal") workingCardStore.invalidateLearning(actor, card);
-      setModal(null); mutation.current = null; await refreshRef.current(); window.dispatchEvent(new Event("switchplay-reflections"));
-    } catch (e) { if (live()) setError(e instanceof Error ? e.message : "Unable to update reflection."); }
-    finally { if (live()) setSaving(false); }
+      setModal(null); mutation.current = null;
+      window.dispatchEvent(new CustomEvent("switchplay-reflections", { detail: { origin: eventOrigin.current, actor, card } }));
+    } catch (e) {
+      if (live()) {
+        ++requestId.current; setFeed(previous);
+        setError(e instanceof Error ? e.message : "Unable to update reflection.");
+        // Reconcile a conflict/ambiguous network failure without discarding the
+        // editor draft. A later reopening then uses the current server revision.
+        pendingSave.current = false; void refreshRef.current();
+      }
+    } finally { pendingSave.current = false; if (live()) setSaving(false); }
   };
   if (!current && !selectedMember) return null;
   return <div className="reflection-card-notes" ref={source}

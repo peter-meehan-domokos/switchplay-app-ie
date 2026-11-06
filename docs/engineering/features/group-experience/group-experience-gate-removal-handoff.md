@@ -1,5 +1,7 @@
 # Group Experiences — removal of administrative environment gates
 
+> **Storage decision superseded, 5 November 2026:** Deployment Checkpoint 1 replaces the historical dedicated Group bucket with the existing `CLOUDFLARE_R2_USER_DATA_BUCKET_NAME` (`path-user-data`), retaining the Group namespace and all contribution permissions/lifecycle rules. The18 Group indexes have now been provisioned in Atlas `switchplay`. Original execution records below remain historical. See the [current deployment handoff](group-experience-deployment-checkpoint-1-handoff.md).
+
 **Implemented and verified, 5 November 2026.** Work on `feat/group-experience`, baseline `225f957`, initially clean. Remove `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` only. All changes remain uncommitted pending founder approval. Bucket choice, protected-media configuration, provider operations, ownership and delivery remain unchanged. No Atlas, Vercel or Cloudflare configuration/data writes were performed.
 
 Runtime removals and affected tests are implemented. Tests-first provider/route assertions failed against the old gates; after removal,14/14 focused provider/route tests passed (`/tmp/group-gate-removal-unit.log`). The seven-suite disposable MongoDB selection passed104/104 (`/tmp/group-gate-removal-integration.log`). All references to the removed variables, the `groupsEnabled` prop and obsolete verification error are absent from `src`, `scripts` and `tests`.

@@ -131,3 +131,25 @@ test("50 loaded comparisons keep the same scene and Card object with no identity
     processingP95Ms: cost95("processing"), inputDelayP95Ms: cost95("delay"), presentationP95Ms: cost95("presentation") }));
   expect(sorted[Math.ceil(sorted.length * .95) - 1]).toBeLessThanOrEqual(100);
 });
+
+test("ordinary Personal Cards preserve focus, horizontal flip and vertical traversal", async ({ page }) => {
+  const media = JSON.parse(process.env.PHASE11_REVIEW ?? "null")?.mediaReviewData;
+  test.skip(!media, "Requires the existing disposable Personal media review Deck");
+  await page.request.post("/api/auth/login", { data: { identifier: "Aoife Kelly", password: "local-test-only" } });
+  await page.goto(`/decks?${new URLSearchParams({ openDeck: media.personalDeckId, openCard: media.cardId })}`);
+  await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-layer")).toBeVisible();
+  const original = await page.locator(".focused-card-object").elementHandle();
+  await swipe(page, ".focused-card-surface--front .card-title-anchor", 180, 0);
+  await expect(page.locator(".focused-card-object")).toHaveClass(/is-flipped/);
+  await expect(page.locator(".focused-card-surface--back .back-card-media-carousel button")).toHaveCount(5);
+  expect(await original!.evaluate(node => node.isConnected)).toBe(true);
+  await page.waitForTimeout(700); // Preserve the established flip gesture lock.
+  const first = await page.locator(".focused-card-surface--back .card-title-anchor").textContent();
+  await swipe(page, ".focused-card-surface--back .card-title-anchor", 0, 170);
+  // Both physical Cards coexist during the established traversal animation.
+  await expect(page.locator(".focused-card-surface--back .card-title-anchor")).toHaveCount(1);
+  await expect(page.locator(".focused-card-surface--back .card-title-anchor")).not.toHaveText(first!);
+  // A focused-only flip does not change the ordinary Personal Deck's face.
+  // Its next Card therefore opens on the original front, as before Groups.
+  await expect(page.locator(".focused-card-object")).not.toHaveClass(/is-flipped/);
+});

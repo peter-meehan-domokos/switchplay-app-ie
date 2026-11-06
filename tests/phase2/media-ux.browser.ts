@@ -73,12 +73,43 @@ test("own Group history contains shared and Private media, Group upload and crea
   await expect(hiddenSeed.getByRole("button", { name: /Remove image/ })).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(centre(page)).toBeVisible(); await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
+  const allocated = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname.endsWith(`/cards/${fixture.cardId}/media`));
   await centre(page).getByLabel("Choose image").setInputFiles({ name: "group-training.png", mimeType: "image/png", buffer: png });
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(9);
   const newest = centre(page).locator(".user-card-media-tile").last();
   await expect(newest.locator(".user-card-media-tile-name")).toHaveText("group-training.png");
   await expect(newest.locator(".user-card-media-tile-origin")).toHaveText("By: Aoife Kelly");
-  await newest.getByRole("button", { name: /Remove image/ }).click(); await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
+  const contributionId = (await (await allocated).json()).contributionId;
+  await centre(page).getByRole("button", { name: "Close", exact: true }).click();
+  await expect(thumbs.filter({ has: page.locator(`img[src*="${contributionId}"]`) })).toHaveCount(1);
+  await expect(control).toHaveText("9");
+  await thumbs.filter({ has: page.locator(`img[src*="${contributionId}"]`) }).click();
+  await expect(gallery.locator(`img[src*="${contributionId}"]`)).toBeVisible();
+  await gallery.getByRole("button", { name: "Close media viewer" }).click(); await expect(gallery).toHaveCount(0); await control.click();
+  await centre(page).locator(".user-card-media-tile").filter({ hasText: "group-training.png" }).getByRole("button", { name: /Remove image/ }).click();
+  await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
+  await centre(page).getByRole("button", { name: "Close", exact: true }).click();
+  await expect(thumbs.filter({ has: page.locator(`img[src*="${contributionId}"]`) })).toHaveCount(0);
+  await expect(control).toHaveText("8");
+});
+test("Group Card upload refreshes newest thumbnails and exact Gallery item without reload", async ({ page }) => {
+  await login(page); await selectPerspective(page, { perspective: "group" }); await openBack(page, true);
+  const back = page.locator(".focused-card-surface--back"), control = back.getByRole("button", { name: "Media Centre", exact: true });
+  await control.click();
+  const allocated = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname.endsWith(`/cards/${fixture.cardId}/media`));
+  await centre(page).getByLabel("Choose image").setInputFiles({ name: "group-card-training.png", mimeType: "image/png", buffer: png });
+  const id = (await (await allocated).json()).contributionId;
+  await expect(centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" })).toBeVisible();
+  await centre(page).getByRole("button", { name: "Close", exact: true }).click();
+  const thumb = back.locator(".back-card-media-carousel button").filter({ has: page.locator(`img[src*="${id}"]`) });
+  await expect(thumb).toHaveCount(1); await thumb.click();
+  const gallery = page.getByRole("dialog", { name: "Card media viewer" });
+  await expect(gallery.locator(`img[src*="${id}"]`)).toBeVisible();
+  await gallery.getByRole("button", { name: "Close media viewer" }).click(); await expect(gallery).toHaveCount(0);
+  await control.click();
+  await centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" }).getByRole("button", { name: /Remove image/ }).click();
+  await expect(centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" })).toHaveCount(0);
+  await centre(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(thumb).toHaveCount(0);
 });
 test("Admin inspection Centre is remove-only; removal hides the Group contribution and retains creator history", async ({ page }) => {
   await login(page);
@@ -190,7 +221,7 @@ async function dragSignal(page: Page, index = 0, dx = 120) {
   await page.mouse.move(box.x + 20, box.y + box.height / 2); await page.mouse.down();
   await page.mouse.move(box.x + 20 + dx, box.y + box.height / 2, { steps: 12 }); await page.mouse.up();
 }
-test("owner media and layout survive delayed first and existing confidence saves and temporary verification", async ({ page }) => {
+test("owner media and layout survive delayed first and existing confidence saves with fresh authority", async ({ page }) => {
   await login(page, "Aoife Kelly"); await selectPerspective(page, { perspective: "self" });
   const path = `/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/personal-learning`;
   const reset = () => page.request.patch(path, { data: { accessEpoch: 0, version: 1, change: { kind: "signal", stepId: "group-0-b", reading: null } } });
@@ -209,11 +240,8 @@ test("owner media and layout survive delayed first and existing confidence saves
       const top = (await back.locator(".group-back-signals").boundingBox())!.y;
       const saved = page.waitForResponse(response => response.url().endsWith("/personal-learning") && response.request().method() === "PATCH");
       await dragSignal(page, 1, dx);
-      await expect(page.locator(".group-verification")).toBeVisible({ timeout: 10000 });
+      await expect(page.locator(".group-verification")).toHaveCount(0);
       await expect(back.locator(".back-card-media-carousel button")).toHaveCount(5);
-      await dragSignal(page, 0, 40);
-      await expect(page.getByRole("tooltip")).toHaveText("Checking your access. Try again in a moment.");
-      await page.keyboard.press("Escape"); await expect(page.getByRole("tooltip")).toHaveCount(0);
       expect((await saved).ok()).toBeTruthy();
       await expect(page.locator(".group-verification")).toHaveCount(0, { timeout: 15000 });
       expect((await back.locator(".group-back-signals").boundingBox())!.y).toBeCloseTo(top, 1);
@@ -221,6 +249,28 @@ test("owner media and layout survive delayed first and existing confidence saves
     const samples = await page.evaluate(() => { const w = window as unknown as { mediaSamples: { count: number; noMedia: boolean }[]; stopMediaProbe(): void }; w.stopMediaProbe(); return w.mediaSamples; });
     expect(samples.length).toBeGreaterThan(1); expect(samples.every(s => s.count === 5 && !s.noMedia)).toBe(true);
   } finally { await page.unroute("**/personal-learning"); await reset(); }
+});
+
+test("owner media survives explicit authority expiry while Group mutations remain disabled", async ({ page }) => {
+  await login(page, "Aoife Kelly"); await selectPerspective(page, { perspective: "self" }); await openBack(page, true);
+  const back = page.locator(".focused-card-surface--back"); await expect(back.locator(".back-card-media-carousel button")).toHaveCount(5);
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const authority = `**/api/group-experiences/${fixture.experienceId}/authority`;
+  await page.route(authority, async route => { await held; await route.continue(); });
+  let writes = 0;
+  page.on("request", request => { if (request.method() === "PATCH" && request.url().endsWith("/personal-learning")) writes++; });
+  try {
+    await expect(page.locator(".group-verification")).toBeVisible({ timeout: 15000 });
+    await expect(back.locator(".back-card-media-carousel button")).toHaveCount(5);
+    await dragSignal(page, 0, 40);
+    await expect(page.getByRole("tooltip")).toHaveText("Checking your access. Try again in a moment.");
+    expect(writes).toBe(0);
+    await page.keyboard.press("Escape"); await expect(page.getByRole("tooltip")).toHaveCount(0);
+    release();
+    await expect(page.locator(".group-verification")).toHaveCount(0, { timeout: 15000 });
+    await expect(back.locator(".back-card-media-carousel button")).toHaveCount(5);
+  } finally { release(); await page.unroute(authority); }
 });
 
 test("read-only Group signals own mouse and touch gestures, explain permissions, and preserve outside flipping", async ({ page, browserName }) => {
@@ -310,4 +360,49 @@ test("visibility icons use equal tracks on own Group thumbnails, Centre metadata
   await modal.getByRole("button", { name: "Close", exact: true }).click(); await expect(modal).toHaveCount(0);
   await selectPerspective(page, { perspective: "group" }); await openBack(page, true); await expect(page.locator(".date-visibility-indicator")).toHaveCount(0);
   await openBack(page, false); await expect(page.locator(".group-visibility-icon")).toHaveCount(0);
+});
+
+for (const group of [false, true]) test(`known ${group ? "Group" : "Personal"} Gallery opens before delayed metadata and exposes retry without retaining denied media`, async ({ page }) => {
+  await login(page); if (group) await selectPerspective(page, { perspective: "group" }); await openBack(page, group);
+  const thumbs = page.locator(".focused-card-surface--back .back-card-media-carousel button"); await expect(thumbs).toHaveCount(5);
+  const expectedSrc = await thumbs.last().locator("img").getAttribute("src");
+  let release!: () => void, requested = false; const gate = new Promise<void>(resolve => { release = resolve; });
+  const pattern = group ? "**/api/group-experiences/*/cards/*/media?*" : "**/api/media/history?*";
+  await page.route(pattern, async route => {
+    if (new URL(route.request().url()).searchParams.get("limit") !== "30") return route.continue();
+    requested = true; await gate; await route.continue();
+  });
+  const gallery = page.getByRole("dialog", { name: "Card media viewer" });
+  try {
+    await thumbs.last().click(); await expect(gallery).toBeVisible(); await expect.poll(() => requested).toBe(true);
+    await expect(gallery.getByRole("status").filter({ hasText: "Loading media history" })).toBeVisible();
+    await expect(gallery.locator("img").first()).toHaveAttribute("src", expectedSrc!);
+    release(); await expect(gallery.getByText("Loading media history…", { exact: true })).toHaveCount(0);
+    await expect(gallery.locator("img").first()).toHaveAttribute("src", expectedSrc!);
+    await page.unroute(pattern);
+    await page.route(pattern, route => route.fulfill({ status: 403, json: { error: "Access removed", code: "GROUP_FORBIDDEN" } }));
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(gallery.getByRole("alert")).toContainText("Unable to load"); await expect(gallery.locator("img")).toHaveCount(0);
+    await page.unroute(pattern); await gallery.getByRole("button", { name: "Retry media history" }).click();
+    await expect(gallery.getByRole("alert")).toHaveCount(0); await expect(gallery.locator("img").first()).toBeVisible();
+  } finally { release(); await page.unroute(pattern); }
+});
+
+for (const overlay of ["grid", "gallery"] as const) test(`valid renewal keeps the ${overlay} and focused Card mounted when an older authority request fails`, async ({ page }) => {
+  await login(page); await selectPerspective(page, { perspective: "group" }); await openBack(page, true);
+  if (overlay === "grid") { await page.locator(".group-picker-current").click(); await page.getByRole("button", { name: "All followers", exact: true }).click(); }
+  else await page.locator(".focused-card-surface--back .back-card-media-carousel button").first().click();
+  const target = overlay === "grid" ? page.getByRole("region", { name: "Follower comparison" }) : page.getByRole("dialog", { name: "Card media viewer" });
+  await expect(target).toBeVisible(); const focused = await page.locator(".focused-card-object").elementHandle();
+  let held = false, newer = 0, release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+  const pattern = `**/api/group-experiences/${fixture.experienceId}/authority`;
+  await page.route(pattern, async route => {
+    if (!held) { held = true; await gate; return route.fulfill({ status: 503, json: { error: "Delayed temporary failure" } }); }
+    const response = await route.fetch(); await route.fulfill({ response }); newer++;
+  });
+  try {
+    await expect.poll(() => held).toBe(true); await expect.poll(() => newer, { timeout: 15000 }).toBeGreaterThan(0);
+    release(); await page.waitForTimeout(400); await expect(target).toBeVisible();
+    expect(await focused!.evaluate(node => node.isConnected)).toBe(true); await expect(page.locator(".group-verification")).toHaveCount(0);
+  } finally { release(); await page.unroute(pattern); }
 });

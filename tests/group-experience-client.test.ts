@@ -71,7 +71,7 @@ test("fresh server revocation clears cached group data and a slow final check ca
     assert.equal(resource.snapshot().data, undefined, "revoked or different-account data must be cleared, including owner dates"); resource.dispose();
   }
   let now = 0, baseReads = 0;
-  const slow: typeof groupFetch = async (...args) => { if (args[1].endsWith("/e") && ++baseReads === 2) now += GROUP_AUTHORITY_MS + 1; return f.read(...args); };
+  const slow: typeof groupFetch = async (...args) => { if (args[1].endsWith("/authority") && ++baseReads === 2) now += GROUP_AUTHORITY_MS + 1; return f.read(...args); };
   const delayed = createGroupResource("alice", "e", { read: slow, now: () => now }); await delayed.load();
   assert.equal(delayed.snapshot().verified, false); delayed.dispose();
 });
@@ -121,7 +121,7 @@ for (const boundary of ["first", "final", "revoked"] as const) test(`post-save r
   const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
     if (revoked) throw new GroupRequestError("GROUP_FORBIDDEN", 403);
     const result = structuredClone(await f.read<T>(...args));
-    if (pause && args[1] === "/api/group-experiences/e") {
+    if (pause && args[1] === "/api/group-experiences/e/authority") {
       baseReads++;
       if (!paused && (boundary !== "final" || baseReads === 2)) { paused = true; reached(); await gate; }
     }
@@ -138,4 +138,124 @@ for (const boundary of ["first", "final", "revoked"] as const) test(`post-save r
     if (boundary === "revoked") { assert.equal(resource.snapshot().data, undefined); assert.equal(resource.snapshot().verified, false); }
     else { assert.equal(resource.snapshot().verified, true); assert.equal(resource.snapshot().data!.bootstrap.structureRevision, 1); }
   } finally { release(); resource.dispose(); }
+});
+
+test("fresh authority renews independently while a slow content refresh remains pending", async () => {
+  const f = fixture(); let now = 0, hold = false, release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const timers: (() => void)[] = [];
+  const read: typeof groupFetch = async (...args) => {
+    if (hold && args[1].includes("/presentation?")) await held;
+    return f.read(...args);
+  };
+  const resource = createGroupResource("alice", "e", { read, now: () => now,
+    schedule: callback => { timers.push(callback); return timers.length as unknown as ReturnType<typeof setTimeout>; }, cancel: () => {} });
+  await resource.load(); hold = true; const refresh = resource.load();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  now = 2000; const count = f.calls.length;
+  assert.equal(await resource.renewAuthority(), true);
+  assert.equal(f.calls.length, count + 1, "renewal must not reload presentation or peer pages");
+  now = GROUP_AUTHORITY_MS; timers[0](); assert.equal(resource.snapshot().verified, true);
+  assert.equal(resource.snapshot().data!.followers[0].username, "Bob");
+  now = 2000 + GROUP_AUTHORITY_MS; timers.at(-1)!(); assert.equal(resource.snapshot().verified, false);
+  release(); await refresh; resource.dispose();
+});
+
+test("authority renewal rejects changed scopes, revocation and slow responses without widening the lease", async () => {
+  for (const field of ["structureRevision", "accessEpoch", "adoptionRevision"] as const) {
+    const f = fixture(), resource = createGroupResource("alice", "e", { read: f.read });
+    await resource.load(); f.authority[field]++;
+    assert.equal(await resource.renewAuthority(), false);
+    assert.equal(resource.snapshot().verified, false);
+    assert.equal(resource.snapshot().data?.followers.length, 0);
+    resource.dispose();
+  }
+  for (const [code, status] of [["GROUP_FORBIDDEN", 403], ["GROUP_SESSION_CONFLICT", 409]] as const) {
+    const f = fixture(); let fail = false;
+    const read: typeof groupFetch = async (...args) => { if (fail) throw new GroupRequestError(code, status); return f.read(...args); };
+    const resource = createGroupResource("alice", "e", { read }); await resource.load(); fail = true;
+    assert.equal(await resource.renewAuthority(), false); assert.equal(resource.snapshot().data, undefined); resource.dispose();
+  }
+  const f = fixture(); let now = 0, slow = false;
+  const read: typeof groupFetch = async (...args) => { if (slow) now += GROUP_AUTHORITY_MS; return f.read(...args); };
+  const resource = createGroupResource("alice", "e", { read, now: () => now }); await resource.load(); slow = true;
+  assert.equal(await resource.renewAuthority(), false); assert.equal(resource.snapshot().verified, false); resource.dispose();
+});
+
+test("disposed or superseded authority renewals cannot restore stale access", async () => {
+  const f = fixture(); let hold = false, release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => { const value = await f.read<T>(...args); if (hold) await held; return value; };
+  const resource = createGroupResource("alice", "e", { read }); await resource.load(); hold = true;
+  const renewal = resource.renewAuthority(); resource.dispose(); release(); await renewal;
+  assert.equal(resource.snapshot().verified, false); assert.equal(resource.snapshot().data, undefined);
+});
+
+test("a late old renewal cannot invalidate a newly acknowledged Group generation", async () => {
+  const f = fixture(); let hold = false, first = true, release!: () => void, reached!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; }), ready = new Promise<void>(resolve => { reached = resolve; });
+  const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
+    const value = structuredClone(await f.read<T>(...args));
+    if (hold && first && args[1].endsWith("/authority")) { first = false; reached(); await held; }
+    return value;
+  };
+  const resource = createGroupResource("alice", "e", { read }); await resource.load(); hold = true;
+  const old = resource.renewAuthority(); await ready;
+  for (const value of [f.authority, f.bootstrap, f.peers, f.aggregates]) value.structureRevision = 1;
+  assert.equal(await resource.revalidate(1), true);
+  release(); await old;
+  assert.equal(resource.snapshot().verified, true); assert.equal(resource.snapshot().data!.bootstrap.structureRevision, 1);
+  resource.dispose();
+});
+
+test("an older same-scope transient renewal failure cannot withdraw a newer unexpired verification", async () => {
+  for (const failure of ["expired", "network"] as const) {
+    const f = fixture(); let now = 0, hold = false, held = false, release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const read: typeof groupFetch = async (...args) => {
+      if (hold && !held && args[1].endsWith("/authority")) { held = true; await gate; if (failure === "network") throw Error("Offline"); }
+      return f.read(...args);
+    };
+    let expire!: () => void;
+    const resource = createGroupResource("alice", "e", { read, now: () => now, schedule: fn => { expire = fn; return 1 as never; }, cancel() {} });
+    await resource.load(); now = 1000; hold = true; const old = resource.renewAuthority();
+    now = 4000; await resource.load(); assert.equal(resource.snapshot().verified, true);
+    now = 6001; release(); await old;
+    assert.equal(resource.snapshot().verified, true, `${failure} from the old request must not collapse valid grid/overlay authority`);
+    now = 9000; expire(); assert.equal(resource.snapshot().verified, false, "the newer request-start lease still expires after five seconds");
+    resource.dispose();
+  }
+});
+test("revocation and scope conflicts still withdraw authority after a newer same-scope success", async () => {
+  for (const hard of ["revoked", "scope"] as const) {
+    const f = fixture(); let hold = false, held = false, release!: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const read: typeof groupFetch = async (...args) => {
+      if (hold && !held && args[1].endsWith("/authority")) { held = true; await gate;
+        if (hard === "revoked") throw new GroupRequestError("GROUP_FORBIDDEN", 403);
+        return { ...f.authority, structureRevision: 1 } as never;
+      } return f.read(...args);
+    };
+    const resource = createGroupResource("alice", "e", { read }); await resource.load(); hold = true;
+    const old = resource.renewAuthority(); await resource.load(); release(); await old;
+    assert.equal(resource.snapshot().verified, false); if (hard === "revoked") assert.equal(resource.snapshot().data, undefined);
+    resource.dispose();
+  }
+});
+
+
+test("bootstrap presentation, peers and aggregates start together after common authority and reject mixed scopes", async () => {
+  const f = fixture(), started = new Set<string>();
+  let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+  const read: typeof groupFetch = async (...args) => {
+    for (const kind of ["presentation", "perspectives", "aggregates"]) if (args[1].includes(`/${kind}?`)) { started.add(kind); await gate; }
+    return f.read(...args);
+  };
+  const resource = createGroupResource("alice", "e", { read });
+  const pending = resource.load();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual([...started].sort(), ["aggregates", "perspectives", "presentation"]);
+  f.aggregates.adoptionRevision++; release(); await pending;
+  assert.equal(resource.snapshot().verified, false); assert.equal(resource.snapshot().data, undefined);
+  resource.dispose();
 });

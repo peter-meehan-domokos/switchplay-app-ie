@@ -1,3 +1,4 @@
+import { ensureGroupReadiness } from "../readiness";
 import { memberMediaCapabilities } from "../../mediaCollection/permissions";
 import { randomUUID } from "node:crypto";
 import { MongoServerError, type ClientSession } from "mongodb";
@@ -6,7 +7,7 @@ import { id, hash } from "../contracts";
 import type { GroupExperienceRepository } from "../repository";
 import { selectedCard } from "../publicVersions";
 import { canInspectPeers } from "../policy";
-import { GROUP_MEDIA_COLLECTION, assertGroupMediaIndexes } from "./indexes";
+import { GROUP_MEDIA_COLLECTION } from "./indexes";
 import { allocationCommand, mutationCommand, GroupMediaAllocationUncertain } from "./contracts";
 import type { GroupMediaRecord, GroupMediaProvider, MediaAuthority } from "./model";
 import { signGroupUpload, verifyGroupUpload } from "./proof";
@@ -16,9 +17,8 @@ import { readMediaPage } from "./reads";
 export class GroupMediaRepository {
   constructor(readonly groups: GroupExperienceRepository, readonly provider: GroupMediaProvider = productionGroupMediaProvider) {}
   records() { return this.groups.cards.db.collection<GroupMediaRecord>(GROUP_MEDIA_COLLECTION); }
-  private ready = false;
   async transaction<T>(run: (session: ClientSession) => Promise<T>) {
-    if (!this.ready) { await assertGroupMediaIndexes(this.groups.cards.db); this.ready = true; }
+    await ensureGroupReadiness(this.groups.cards, "media");
     return this.groups.transaction(run);
   }
   async creationAuthority(actor: string, experienceId: string, cardTemplateId: string, epoch: number, version: number, session: ClientSession, adoptionRevision?: number) {

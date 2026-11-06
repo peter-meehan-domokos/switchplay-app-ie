@@ -22,7 +22,7 @@ before(async () => {
     "/[experienceId]/cards/[cardTemplateId]", "/[experienceId]/cards/[cardTemplateId]/perspectives",
     "/[experienceId]/cards/[cardTemplateId]/personal-learning", "/[experienceId]/cards/[cardTemplateId]/group-learning",
     "/[experienceId]/updates", "/[experienceId]/members/[userId]/snapshot", "/[experienceId]/settings", "/[experienceId]/navigation", "/[experienceId]/perspectives",
-    "/[experienceId]/presentation", "/[experienceId]/aggregates", "/[experienceId]/management", "/tiles"]) {
+    "/[experienceId]/authority", "/[experienceId]/presentation", "/[experienceId]/aggregates", "/[experienceId]/management", "/tiles"]) {
     const bundle = await build({ entryPoints: [`src/app/api/group-experiences${path}/route.ts`], bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
       plugins: [{ name: "group-auth-and-disposable-db", setup(builder) {
         builder.onLoad({ filter: /src\/lib\/auth\.ts$/ }, () => ({ contents: "export async function getCurrentUser() { return globalThis.__groupApi.actor; }", loader: "ts" }));
@@ -157,4 +157,18 @@ test("removal and rejoin APIs revoke every fresh group grant, expose frozen snap
   const personal = routes["/[experienceId]/cards/[cardTemplateId]/personal-learning"];
   assert.equal((await personal.PATCH(req("/x", "PATCH", completion("a0")), context())).status, 409);
   assert.equal((await personal.PATCH(req("/x", "PATCH", completion("a0", "todo", 2)), context())).status, 200);
+});
+
+
+test("narrow authority endpoint is private, actor-bound and denies revoked/nonmember access", async () => {
+  const route = routes["/[experienceId]/authority"];
+  state.actor = null; assert.equal((await route.GET(req("/x/authority"), context())).status, 401);
+  state.actor = { id: "outsider" }; assert.equal((await route.GET(req("/x/authority"), context())).status, 403);
+  state.actor = { id: "alice" };
+  assert.equal((await route.GET(req("/x/authority?actor=bob"), context())).status, 400);
+  assert.equal((await route.GET(req("/x/authority", "GET", undefined, { "X-Group-Viewer": "bob" }), context())).status, 409);
+  const response = await route.GET(req("/x/authority"), context()); assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  const value = await response.json(); assert.equal(value.viewerUserId, "alice");
+  assert.deepEqual(Object.keys(value).sort(), ["accessEpoch", "adoptionRevision", "experienceId", "structureRevision", "viewerUserId"]);
 });

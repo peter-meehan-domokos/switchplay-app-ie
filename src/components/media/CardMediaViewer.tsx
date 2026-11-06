@@ -21,11 +21,12 @@ type Props = {
   onSelect: (mediaItemId: string, index: number) => void;
   onClose: () => void;
   collectionContext?: MediaCollectionContext;
+  collectionStatus?: { loading: boolean; error: string | null; retry(): void };
   paging?: { older: boolean; newer: boolean; loading: boolean; total: number; start: number; navigate: (direction: -1 | 1) => void };
 };
 const isolate = (event: SyntheticEvent) => event.stopPropagation();
 
-export default function CardMediaViewer({ items, index, target, sourceRef, backgroundRef, onSelect, onClose, collectionContext, paging }: Props) {
+export default function CardMediaViewer({ items, index, target, sourceRef, backgroundRef, onSelect, onClose, collectionContext, paging, collectionStatus }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const video = useRef<ViewerVideoHandle>(null);
@@ -34,7 +35,7 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
   const item = items[index];
   const itemKey = item ? JSON.stringify([personalMediaKey(item), item.src]) : "";
   const itemTarget = item ? collectionTarget(item, { ...target, sourceCardTemplateId: item.sourceCardTemplateId ?? target.cardTemplateId, mediaItemId: item.id }, collectionContext) : null;
-  const leaving = closing || !item || !isPresent;
+  const leaving = closing || (!item && !collectionStatus?.loading && !collectionStatus?.error) || !isPresent;
   const stop = useCallback(() => video.current?.stop(), []);
   const close = () => { stop(); setClosing(true); };
   const isVideoFullscreen = () => Boolean(document.fullscreenElement ||
@@ -99,11 +100,13 @@ export default function CardMediaViewer({ items, index, target, sourceRef, backg
     }}>
     <header className={styles.toolbar}>
       <button ref={closeButton} className={styles.control} type="button" onClick={close} aria-label="Close media viewer">✕ <span>Close</span></button>
-      <p className={styles.counter} aria-live="polite" aria-atomic="true">{(paging?.start ?? 0) + index + 1} of {paging?.total ?? items.length}
+      <p className={styles.counter} aria-live="polite" aria-atomic="true">{item ? `${(paging?.start ?? 0) + index + 1} of ${paging?.total ?? items.length}` : "Media"}
         {collectionContext?.kind === "owner" && collectionContext.experienceId && item?.collection?.private ? <span className={styles.privateLabel}>Private</span> : null}
       </p>
       {!leaving && item ? <CardMediaDownloadButton key={itemKey} target={itemTarget!} isVideo={item.mediaType === "video"} /> : <span />}
     </header>
+    {collectionStatus?.loading ? <p className={styles.collectionStatus} role="status">Loading media history…</p> : null}
+    {collectionStatus?.error ? <div className={styles.collectionStatus} role="alert"><p>Unable to load this media history. Check your access and try again.</p><button type="button" className={styles.control} onClick={collectionStatus.retry}>Retry media history</button></div> : null}
     <div className={styles.content}>
       {!leaving && item ? item.mediaType === "image" ? <CardMediaViewerImage key={itemKey} item={item} onNavigate={navigate} /> :
         <CardMediaViewerVideo key={itemKey} ref={video} item={item} target={itemTarget!} /> : null}

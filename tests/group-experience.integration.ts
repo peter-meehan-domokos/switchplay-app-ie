@@ -9,7 +9,7 @@ import { createGroupExperienceIndexes, assertGroupExperienceIndexes } from "../s
 import { CardRepository } from "../src/lib/cards/repository";
 
 let mongo: MongoMemoryReplSet, client: MongoClient;
-before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri()).connect(); });
+before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(mongo.getUri(), { monitorCommands: true }).connect(); });
 after(async () => { await client?.close(); await mongo?.stop(); });
 
 test("creation pins public versions, assigns metadata once and retries without creating personal rows", async () => {
@@ -166,4 +166,42 @@ test("index provisioning is explicit, repeatable and required before group write
   await createGroupExperienceIndexes(db); await createGroupExperienceIndexes(db); await assertGroupExperienceIndexes(db);
   await db.collection("groupExperienceMembers").dropIndex("group_member_identity");
   await assert.rejects(assertGroupExperienceIndexes(db), { code: "GROUP_INDEXES_NOT_READY" });
+});
+
+
+test("authority renewals check current membership and selected publication visibility without loading full content", async () => {
+  const f = await groupFixture(client);
+  const value = await f.repo.authority("bob", f.experienceId);
+  assert.deepEqual(Object.keys(value).sort(), ["accessEpoch", "adoptionRevision", "experienceId", "structureRevision", "viewerUserId"]);
+  await assert.rejects(f.repo.authority("outsider", f.experienceId));
+  for (const [collection, filter] of [
+    [f.cards.decks(), { deckTemplateId: f.deckId }],
+    [f.cards.deckVersions(), { deckTemplateId: f.deckId, version: 1 }],
+    [f.cards.cards(), { cardTemplateId: f.ids[0] }],
+    [f.cards.cardVersions(), { cardTemplateId: f.ids[0], version: 1 }],
+  ] as const) {
+    await collection.updateOne(filter, { $set: { visibility: "private" } });
+    await assert.rejects(f.repo.authority("bob", f.experienceId), { code: "GROUP_PUBLIC_CONTENT_FORBIDDEN" });
+    await collection.updateOne(filter, { $set: { visibility: "public" } });
+    await f.repo.authority("bob", f.experienceId);
+  }
+  await f.repo.members().updateOne({ experienceId: f.experienceId, userId: "bob" }, { $set: { followerStatus: "removed" }, $inc: { accessEpoch: 1 } });
+  await assert.rejects(f.repo.authority("bob", f.experienceId));
+});
+test("schema readiness is shared by request repositories, isolated by client/database, and retries after repair", async () => {
+  const f = await groupFixture(client), fresh = await new MongoClient(mongo.getUri(), { monitorCommands: true }).connect();
+  const metadata: string[] = [], commands: string[] = [];
+  fresh.on("commandStarted", event => { commands.push(event.commandName); if (["listCollections", "listIndexes"].includes(event.commandName)) metadata.push(event.commandName); });
+  const repository = () => new GroupExperienceRepository(new CardRepository(fresh.db(f.cards.db.databaseName), fresh));
+  try {
+    await Promise.all([repository().authority("alice", f.experienceId), repository().authority("bob", f.experienceId)]);
+    assert.equal(metadata.length, 11, "one cold inventory shared by concurrent request repositories");
+    metadata.length = 0; commands.length = 0;
+    await repository().authority("bob", f.experienceId);
+    assert.equal(metadata.length, 0); assert.equal(commands.length, 5);
+    const absent = fresh.db(`switchplay_test_missing_${randomUUID()}`), other = new GroupExperienceRepository(new CardRepository(absent, fresh));
+    await assert.rejects(other.list("alice"), { code: "GROUP_INDEXES_NOT_READY" });
+    await createGroupExperienceIndexes(absent);
+    assert.deepEqual((await other.list("alice")).entries, []);
+  } finally { await fresh.close(); }
 });

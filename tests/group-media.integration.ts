@@ -18,7 +18,7 @@ async function fixture() {
   const calls = { allocate: 0, status: 0, delete: 0, deliver: 0 };
   const provider: GroupMediaProvider = {
     checkConfiguration() {},
-    async allocate(row) { calls.allocate++; return { asset: row.kind === "image" ? { provider: "r2", assetId: `group-media/${row.contributionId}.jpg`, bucket: "private-test" } : { provider: "stream", assetId: randomUUID().replaceAll("-", "") }, uploadURL: "https://upload.example.test/only", headers: {} }; },
+    async allocate(row) { calls.allocate++; return { asset: row.kind === "image" ? { provider: "r2", assetId: `group-media/${row.contributionId}.jpg`, bucket: "path-user-data" } : { provider: "stream", assetId: randomUUID().replaceAll("-", "") }, uploadURL: "https://upload.example.test/only", headers: {} }; },
     async status() { calls.status++; return { status: "ready" }; },
     async remove() { calls.delete++; },
     async deliver() { calls.deliver++; return Response.json({ grant: "signed-only" }); },
@@ -50,6 +50,8 @@ test("allocation retries reserve one asset, trusted origin, no personal data; at
   assert.equal(recovered.state, "attached"); assert.equal(recovered.uploadURL, undefined); assert.equal(f.calls.allocate, 1);
   assert.equal(saved.authorUserId, "bob"); assert.equal(saved.experienceId, f.experienceId);
   assert.equal(saved.cardTemplateId, f.ids[0]); assert.ok(saved.uploadedAt); assert.equal(saved.groupVisible, true);
+  assert.deepEqual((await f.media.records().findOne({ contributionId: saved.contributionId }))!.asset,
+    { provider: "r2", bucket: "path-user-data", assetId: `group-media/${saved.contributionId}.jpg` });
   assert.equal(JSON.stringify(await f.cards.users().find({}).toArray()), before);
 });
 
@@ -72,9 +74,11 @@ test("owner history spans Groups without membership or personal CardData; Group 
 
 test("hide is visibility only; creator can read/delete after removal; application Admin cannot delete", async () => {
   const f = await fixture(), row = await f.attach();
+  const originalAsset = (await f.media.records().findOne({ contributionId: row.contributionId }))!.asset;
   await assert.rejects(f.media.delete("outsider", row.contributionId, { expectedRevision: row.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
   await assert.rejects(f.media.delete("alice", row.contributionId, { expectedRevision: row.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
   const hidden = await f.media.hide("alice", f.experienceId, row.contributionId, { expectedRevision: row.revision, accessEpoch: 0 });
+  assert.deepEqual((await f.media.records().findOne({ contributionId: row.contributionId }))!.asset, originalAsset);
   assert.equal(f.calls.delete, 0); assert.equal((await f.media.groupFeed("carol", f.experienceId, f.ids[0])).items.length, 0);
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).items[0].groupVisible, false);
   await assert.rejects(f.media.deliver("carol", row.contributionId, { kind: "group", experienceId: f.experienceId }, "playback"), { code: "GROUP_MEDIA_FORBIDDEN" });

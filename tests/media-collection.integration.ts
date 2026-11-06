@@ -6,7 +6,7 @@ import { groupFixture } from "./helpers/groupExperiences";
 import { readOwnerMediaPage } from "../src/lib/mediaCollection/ownerHistory";
 import { collectionKey } from "../src/lib/mediaCollection/contracts";
 let mongo: MongoMemoryReplSet, client: MongoClient;
-before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } }); client = await new MongoClient(mongo.getUri()).connect(); });
+before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } }); client = await new MongoClient(mongo.getUri(), { monitorCommands: true }).connect(); });
 after(async () => { await client?.close(); await mongo?.stop(); });
 const image = (id: string, uploadedAt?: string) => ({ id, mediaType: "image", provider: "cloudflare-r2", assetId: `user-cards/test/${id}.jpg`, src: `https://personal.invalid/${id}.jpg`, description: id, ...(uploadedAt ? { uploadedAt } : {}) });
 async function fixture() {
@@ -126,4 +126,15 @@ test("unified metadata retains original image and video filenames and immutable 
   const original = before.items.find(i => i.source.kind === "group")!, hidden = after.items.find(i => i.source.kind === "group")!;
   assert.equal(hidden.originalFilename, "footwork-practice.jpg"); assert.equal(hidden.originName, original.originName); assert.ok(hidden.originName);
   assert.equal(original.private, false); assert.equal(hidden.private, true);
+});
+
+
+test("warm owner history reuses positive Group schema readiness without repeated metadata commands", async () => {
+  const f = await fixture(); await readOwnerMediaPage(f.cards, "bob", f.ids[0]);
+  const metadata: string[] = [];
+  const listener = (event: { commandName: string }) => { if (["listCollections", "listIndexes"].includes(event.commandName)) metadata.push(event.commandName); };
+  client.on("commandStarted", listener);
+  try { await readOwnerMediaPage(f.cards, "bob", f.ids[0]); }
+  finally { client.off("commandStarted", listener); }
+  assert.deepEqual(metadata, []);
 });

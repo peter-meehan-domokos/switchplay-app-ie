@@ -33,7 +33,7 @@ export async function mediaRequest(request: Request, groupScoped: boolean, run: 
       return value;
     } catch (error) {
       if (error instanceof GroupMediaAllocationUncertain) uncertain = error.contributionId;
-      if (error instanceof CardArchitectureError && ["GROUP_MEDIA_INDEXES_NOT_READY", "GROUP_MEDIA_CONFIGURATION_REQUIRED", "GROUP_MEDIA_PRIVATE_BUCKET_REQUIRED", "GROUP_MEDIA_SIGNING_UNAVAILABLE", "GROUP_MEDIA_ALLOCATION_UNCERTAIN"].includes(error.code)) unavailable = error.code;
+      if (error instanceof CardArchitectureError && ["GROUP_MEDIA_INDEXES_NOT_READY", "GROUP_MEDIA_CONFIGURATION_REQUIRED", "GROUP_MEDIA_SIGNING_UNAVAILABLE", "GROUP_MEDIA_ALLOCATION_UNCERTAIN"].includes(error.code)) unavailable = error.code;
       throw error;
     }
   };

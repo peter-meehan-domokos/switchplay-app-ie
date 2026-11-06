@@ -203,3 +203,44 @@ test("late inspected-history responses cannot replace the shared Group note", as
   await exactGroup(page, fixture.cardId, "group"); await expect(note(page)).toHaveText("Add a reflection..."); release(); await page.waitForTimeout(400);
   await expect(note(page)).toHaveText("Add a reflection..."); await note(page).click(); await expect(page.getByRole("dialog", { name: "Edit reflection" })).toBeVisible();
 });
+
+for (const perspective of ["personal", "own-group", "collective"] as const) test(`immediate ${perspective} reflection feedback survives delayed saves and stale reads`, async ({ page }) => {
+  await login(page, perspective === "collective" ? "phase2" : "Aoife Kelly");
+  if (perspective === "personal") await personal(page); else await exactGroup(page, fixture.cardId, perspective === "collective" ? "group" : "self");
+  await expect(note(page)).toBeVisible(); const original = await note(page).textContent();
+  const value = `Immediate ${perspective} ${Date.now()}`;
+  let releaseRead!: () => void, releaseSave!: () => void, readStarted = false, saved = false;
+  const readGate = new Promise<void>(resolve => { releaseRead = resolve; }), saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
+  await page.route("**/api/reflections?**", async route => {
+    if (new URL(route.request().url()).searchParams.get("cardTemplateId") !== fixture.cardId) return route.continue();
+    if (readStarted) return route.continue();
+    readStarted = true; const response = await route.fetch(); await readGate; await route.fulfill({ response });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await expect.poll(() => readStarted).toBe(true);
+  if (perspective !== "personal") await expect(page.locator(".group-verification")).toHaveCount(0);
+  await page.route("**/api/reflections", async route => { if (route.request().method() !== "POST") return route.continue(); await saveGate; const response = await route.fetch(); saved = true; await route.fulfill({ response }); });
+  try {
+    await note(page).click(); const editor = page.getByRole("dialog", { name: "Edit reflection" });
+    await editor.getByRole("textbox").fill(value); await editor.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(note(page)).toHaveText(value); expect(saved).toBe(false);
+    releaseSave(); await expect(editor).toHaveCount(0); await expect(note(page)).toHaveText(value);
+    releaseRead(); await page.waitForTimeout(150); await expect(note(page)).toHaveText(value);
+    await page.unroute("**/api/reflections"); await page.unroute("**/api/reflections?**");
+    await note(page).click(); await expect(editor.getByRole("textbox")).toHaveValue(value);
+    await editor.getByRole("textbox").fill(`${value} again`); await editor.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(editor).toHaveCount(0); await expect(note(page)).toHaveText(`${value} again`);
+    await note(page).click(); await editor.getByRole("textbox").fill("Rejected edit");
+    await page.route("**/api/reflections", route => route.fulfill({ status: 409, json: { code: "REFLECTION_REVISION_CONFLICT" } }));
+    await editor.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText("changed"); await expect(note(page)).toHaveText(`${value} again`);
+    await expect(editor.getByRole("textbox")).toHaveValue("Rejected edit");
+    await page.unroute("**/api/reflections"); await editor.getByRole("button", { name: "Close", exact: true }).click();
+  } finally {
+    releaseRead(); releaseSave(); await page.unroute("**/api/reflections"); await page.unroute("**/api/reflections?**");
+    // Restore only this test's disposable author/context slot, using its fresh revision.
+    const params = new URLSearchParams({ cardTemplateId: fixture.cardId, ...(perspective !== "personal" ? { experienceId: group.experienceId, mode: perspective === "collective" ? "group" : "own", accessEpoch: "0" } : {}) });
+    const feed = await (await page.request.get(`/api/reflections?${params}`)).json();
+    const slot = perspective === "collective" ? feed.collective : feed.items.find((i: {entry:{source:{kind:string;experienceId?:string}}}) => perspective === "personal" ? i.entry.source.kind === "personal" : i.entry.source.experienceId === group.experienceId)?.entry;
+    if (slot) expect((await page.request.post("/api/reflections", { data: { action: "save", source: slot.source, text: original === "Add a reflection..." ? "" : original, expectedRevision: slot.revision, operationId: crypto.randomUUID(), accessEpoch: 0, deckTemplateId: group.deckId } })).ok()).toBeTruthy();
+  }
+});

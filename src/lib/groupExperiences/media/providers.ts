@@ -11,9 +11,8 @@ type Env = Record<string, string | undefined>;
 export function groupMediaConfiguration(kind: "image" | "video", env: Env = process.env) {
   requireCondition(env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1", "GROUP_MEDIA_CONFIGURATION_REQUIRED");
   requireCondition(Boolean(env.CLOUDFLARE_ACCOUNT_ID), "GROUP_MEDIA_CONFIGURATION_REQUIRED");
-  const bucket = env.CLOUDFLARE_R2_GROUP_MEDIA_BUCKET_NAME;
-  if (kind === "image") requireCondition(Boolean(bucket && env.CLOUDFLARE_R2_ACCESS_KEY_ID && env.CLOUDFLARE_R2_SECRET_ACCESS_KEY)
-    && bucket !== env.CLOUDFLARE_R2_BUCKET_NAME && bucket !== env.CLOUDFLARE_R2_USER_DATA_BUCKET_NAME, "GROUP_MEDIA_PRIVATE_BUCKET_REQUIRED");
+  const bucket = env.CLOUDFLARE_R2_USER_DATA_BUCKET_NAME;
+  if (kind === "image") requireCondition(Boolean(bucket && env.CLOUDFLARE_R2_ACCESS_KEY_ID && env.CLOUDFLARE_R2_SECRET_ACCESS_KEY), "GROUP_MEDIA_CONFIGURATION_REQUIRED");
   else requireCondition(Boolean(env.CLOUDFLARE_STREAM_API_TOKEN), "GROUP_MEDIA_CONFIGURATION_REQUIRED");
   return { bucket, account: env.CLOUDFLARE_ACCOUNT_ID! };
 }
@@ -96,8 +95,12 @@ export function createGroupMediaProvider(deps: { env?: Env; fetch?: typeof fetch
       }
       if (!await video(row, true)) return;
       const response = await stream(encodeURIComponent(locator.assetId), { method: "DELETE" });
-      if (response.status === 404) return;
-      const value = await response.json(); requireCondition(response.ok && value.success === true, "GROUP_MEDIA_CLEANUP_FAILED");
+      if (response.status === 204 || response.status === 404) return;
+      requireCondition(response.ok, "GROUP_MEDIA_CLEANUP_FAILED");
+      const body = await response.text();
+      // Stream can acknowledge deletion with an empty 200 response.
+      if (response.status === 200 && body.trim() === "") return;
+      const value = JSON.parse(body); requireCondition(value.success === true, "GROUP_MEDIA_CLEANUP_FAILED");
     },
     async deliver(row, action, signal) {
       config(row.kind); const locator = asset(row);

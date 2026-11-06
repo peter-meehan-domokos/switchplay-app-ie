@@ -860,10 +860,10 @@ export default function FocusedCardView({
               {!isFlipped ? frontAction : null}
             </div>
             {backFace ? <div className="physical-card focused-card-surface focused-card-surface--back" aria-hidden={!isFlipped} inert={!isFlipped}>
-              <CardBackSlot onOpenMedia={onOpenMedia ? (cardId, key, source) => {
+              <CardBackSlot onOpenMedia={onOpenMedia ? (cardId, key, source, context, initialPage) => {
                 if (!isFlipped || isFocusedGestureLocked || stepViewItem || interactionLocked || mediaViewerOpen) return;
                 videoPlayerRef.current?.pauseAndReset("opening personal media viewer");
-                onOpenMedia(cardId, key, source);
+                onOpenMedia(cardId, key, source, context, initialPage);
               } : undefined} content={backFace} onNext={settleFocusedCardToPast} onPrevious={restoreFocusedCardFromPast} />
             </div> : null}
             <AnimatePresence>

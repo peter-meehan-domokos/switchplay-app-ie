@@ -576,7 +576,7 @@ export default function BackCardFaceContent({
   onSignalNavigatePrevious,
 }: BackCardFaceContentProps) {
   const mediaContext = card.dataOwnerUserId && onOpenMedia ? { kind: "owner" as const, viewerUserId: card.dataOwnerUserId, cardTemplateId: card.id } : null;
-  const collection = useMediaCollection(mediaContext, 5, JSON.stringify(card.backMediaItems.map(i => [i.id, i.uploadedAt])));
+  const collection = useMediaCollection(mediaContext, 5, JSON.stringify(card.backMediaItems.map(i => [i.id, i.uploadedAt])), undefined, true);
   const mediaItems = collection.page && mediaContext ? collection.page.items.map(item => collectionDisplayItem(item, mediaContext)) : card.backMediaItems;
   const hasBackMedia = mediaItems.length > 0;
   const isFocusedVariant = variant === "focused";
@@ -612,7 +612,7 @@ export default function BackCardFaceContent({
         {deckTemplateId ? (
           <BackCardMediaCarousel
             items={mediaItems}
-            onOpen={onOpenMedia ? (itemId, source) => onOpenMedia(card.id, itemId, source) : undefined}
+            onOpen={onOpenMedia ? (itemId, source) => onOpenMedia(card.id, itemId, source, undefined, collection.page ?? undefined) : undefined}
           />
         ) : null}
         <section

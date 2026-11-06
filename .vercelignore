@@ -1,0 +1,12 @@
+.git
+.env*
+.next*
+node_modules
+.vercel
+.aws
+.codex
+phase2-test-results
+test-results
+playwright-report
+coverage
+*.tsbuildinfo

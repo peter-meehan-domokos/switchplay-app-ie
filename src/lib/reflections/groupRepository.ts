@@ -1,10 +1,11 @@
+import { ensureGroupReadiness } from "../groupExperiences/readiness";
 import { randomUUID } from "node:crypto";
 import { MongoServerError, type ClientSession } from "mongodb";
 import { requireCondition } from "../cards/domain";
 import { exact, hash, id, revision } from "../groupExperiences/contracts";
 import type { GroupExperienceRepository } from "../groupExperiences/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
-import { GROUP_REFLECTIONS, assertGroupReflectionIndexes } from "./indexes";
+import { GROUP_REFLECTIONS } from "./indexes";
 import type { GroupReflection } from "./model";
 
 type Ack = { reflectionId: string | null; revision: number; outcome: "applied" | "already-applied" | "unchanged" };
@@ -20,11 +21,10 @@ function command(value: unknown, kind: "save" | "hide" | "delete") {
 }
 
 export class GroupReflectionRepository {
-  private ready = false;
   constructor(readonly groups: GroupExperienceRepository) {}
   rows() { return this.groups.cards.db.collection<GroupReflection>(GROUP_REFLECTIONS); }
   private async transaction<T>(run: (session: ClientSession) => Promise<T>) {
-    if (!this.ready) { await assertGroupReflectionIndexes(this.groups.cards.db); this.ready = true; }
+    await ensureGroupReadiness(this.groups.cards, "reflections");
     return this.groups.transaction(run);
   }
   private replay(row: Pick<GroupReflection, "reflectionId" | "revision" | "lastOperation">, actor: string, operationId: string, commandHash: string): Ack | null {

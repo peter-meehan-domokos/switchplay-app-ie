@@ -59,3 +59,40 @@ export async function validateCreationManifest(repo: CardRepository, manifest: L
     { $inc: { publicationGuard: 1 } }, { session });
   requireCondition(result.matchedCount === 1, "GROUP_PREVIEW_CONFLICT");
 }
+
+// Renewal needs the selected publication's continued visibility, not its media,
+// step content, creator attribution or restored navigation. Project only the
+// immutable references and visibility while still checking every selected Card.
+export async function verifySelectedVisibility(repo: CardRepository, experience: GroupExperience, session: ClientSession) {
+  type Deck = { visibility: string; versions: { visibility: string; content: { cards: { cardTemplateId: string }[] } }[] };
+  const deck = await repo.decks().aggregate<Deck>([
+    { $match: { deckTemplateId: experience.deckTemplateId } },
+    { $lookup: { from: repo.deckVersions().collectionName, pipeline: [
+      { $match: { deckTemplateId: experience.deckTemplateId, version: experience.deckVersion } },
+      { $project: { _id: 0, visibility: 1, "content.cards.cardTemplateId": 1 } },
+    ], as: "versions" } },
+    { $project: { _id: 0, visibility: 1, versions: 1 } },
+  ], { session }).next();
+  requireCondition(deck?.visibility === "public" && deck.versions.length === 1 && deck.versions[0].visibility === "public", "GROUP_PUBLIC_CONTENT_FORBIDDEN");
+  const refs = deck.versions[0].content.cards.map(({ cardTemplateId }) => {
+    const selected = experience.cardSelections.filter(ref => ref.cardTemplateId === cardTemplateId);
+    requireCondition(selected.length === 1, "INVALID_GROUP_SELECTIONS"); return selected[0];
+  });
+  requireCondition(new Set(refs.map(ref => ref.cardTemplateId)).size === refs.length, "INVALID_GROUP_SELECTIONS");
+  for (let start = 0; start < refs.length; start += 100) {
+    const batch = refs.slice(start, start + 100);
+    type Card = { cardTemplateId: string; visibility: string; versions: { version: number; visibility: string }[] };
+    const roots = await repo.cards().aggregate<Card>([
+      { $match: { cardTemplateId: { $in: batch.map(ref => ref.cardTemplateId) } } },
+      { $lookup: { from: repo.cardVersions().collectionName, let: { id: "$cardTemplateId" }, pipeline: [
+        { $match: { $expr: { $eq: ["$cardTemplateId", "$$id"] }, version: { $in: [...new Set(batch.map(ref => ref.version))] } } },
+        { $project: { _id: 0, version: 1, visibility: 1 } },
+      ], as: "versions" } },
+      { $project: { _id: 0, cardTemplateId: 1, visibility: 1, versions: 1 } },
+    ], { session }).toArray();
+    for (const ref of batch) {
+      const root = roots.find(row => row.cardTemplateId === ref.cardTemplateId);
+      requireCondition(root?.visibility === "public" && root.versions.some(row => row.version === ref.version && row.visibility === "public"), "GROUP_PUBLIC_CONTENT_FORBIDDEN");
+    }
+  }
+}

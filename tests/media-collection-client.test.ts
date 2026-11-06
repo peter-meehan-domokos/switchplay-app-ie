@@ -42,3 +42,37 @@ test("presentation-only Group references retain typed identity and cannot become
   const db = { collection() { throw Error("Contextual URL denial must precede any generic grant lookup"); } } as unknown as import("mongodb").Db;
   await assert.rejects(assertNoGroupMediaReferences(db, display), { code: "MEDIA_FORBIDDEN" });
 });
+
+test("thumbnail refresh starts at newest while Gallery refresh retains its anchor", async () => {
+  const requested: (string | undefined)[] = [];
+  const first = { ...page(["old"], "older"), refresh: "anchor" };
+  let inserted = false;
+  const c = new MediaCollectionController(context, async (_ctx, cursor) => {
+    requested.push(cursor);
+    return inserted && cursor === undefined ? page(["old", "new"]) : first;
+  }, 5);
+  await c.load(); inserted = true;
+  await c.refresh(); assert.deepEqual(c.snapshot().page!.items.map(i => i.description), ["old"]);
+  await c.refresh(true); assert.deepEqual(c.snapshot().page!.items.map(i => i.description), ["old", "new"]);
+  assert.deepEqual(requested, [undefined, "anchor", undefined]); c.dispose();
+});
+
+test("a known thumbnail opens from its authorised page while metadata is delayed, preserving selection after refresh", async () => {
+  const seed = page(["6", "7", "8"]); let finish!: (value: MediaCollectionPage) => void;
+  const c = new MediaCollectionController(context, () => new Promise(resolve => { finish = resolve; }), 30,
+    { page: seed, selectedKey: collectionKey(seed.items[1]) });
+  const pending = c.load();
+  assert.equal(c.selected()!.description, "7"); assert.equal(c.snapshot().loading, true);
+  finish(page(["1", "2", "3", "4", "5", "6", "7", "8"])); await pending;
+  assert.equal(c.selected()!.description, "7"); assert.equal(c.snapshot().loading, false); c.dispose();
+});
+test("seeded Gallery data is cleared on denied/failed metadata and cannot cross viewer or Group scope", async () => {
+  const seed = page(["photo"]);
+  for (const status of [403, 500]) {
+    const c: MediaCollectionController = new MediaCollectionController(context, async () => { throw Object.assign(Error("Unavailable"), { status }); }, 30,
+      { page: seed, selectedKey: collectionKey(seed.items[0]) });
+    await c.load(); assert.equal(c.snapshot().page, null); assert.equal(c.selected(), null); assert.ok(c.snapshot().error); c.dispose();
+  }
+  assert.throws(() => new MediaCollectionController({ ...context, viewerUserId: "another" }, async () => seed, 30,
+    { page: seed, selectedKey: collectionKey(seed.items[0]) }));
+});

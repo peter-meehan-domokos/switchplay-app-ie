@@ -1,5 +1,7 @@
 # Phase 6 — Group media foundations
 
+> **Storage decision superseded, 5 November 2026:** Deployment Checkpoint 1 replaces the historical dedicated Group bucket with the existing `CLOUDFLARE_R2_USER_DATA_BUCKET_NAME` (`path-user-data`), retaining the Group namespace and all contribution permissions/lifecycle rules. The18 Group indexes have now been provisioned in Atlas `switchplay`. Original execution records below remain historical. See the [current deployment handoff](group-experience-deployment-checkpoint-1-handoff.md).
+
 > **Historical configuration superseded, 5 November 2026:** `SWITCHPLAY_GROUP_EXPERIENCES_ENABLED` and `GROUP_MEDIA_PRIVATE_PROVIDER_VERIFIED` have been removed. Any disabled-feature behaviour, environment assignments or certification requirements below record the earlier implementation, not current setup instructions. Group functionality uses normal permissions; provider tests are verification rather than a runtime certificate. Bucket/delivery configuration is unchanged. The18 Group indexes must exist before deploying the flag-free build against Atlas. See the [current gate-removal handoff](group-experience-gate-removal-handoff.md).
 
 ## Status / Resume here
