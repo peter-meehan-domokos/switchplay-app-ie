@@ -1,5 +1,4 @@
 # Group Experiences — independent architecture review (single document for Codex)
-
 Reviewer: Claude (Copilot in VS Code). Scope: investigation only. No application code, docs, schemas, tests or config were changed; no database or provider was touched; no tests were run.
 
 Reviewed: `docs/engineering/features/group-experience/group-experience-engineering-plan-draft.md` against `docs/design/features/group-experience/original-requirements-prompt.md` and the code on `feat/group-experience`.
