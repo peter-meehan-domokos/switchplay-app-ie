@@ -172,4 +172,4 @@ Only the following authorised checkpoint files are changed. V3/V2 and supporting
 
 Automated CP2 exit evidence is met for the tested normal and stress datasets. The known standard-build diagnostic is reported rather than hidden; provider-limit coverage beyond the tested payloads and the combined physical review remain outstanding. No CP3 work has started.
 
-Implementation commit: to be recorded after creating the authorised checkpoint commit. Commit subject: `feat: compose complete initial Card preparation`. Its parent is `cd5e260`. The exact final working-tree status and commit hashes are supplied in the handoff message. No push, merge or deployment occurred.
+Implementation commit: `fca0e05` — `feat: compose complete initial Card preparation`, with parent `cd5e260`. This handoff receives a separate documentation-only follow-up recording that implementation hash. The exact final working-tree status and both commit hashes are supplied in the handoff message. No push, merge or deployment occurred.
