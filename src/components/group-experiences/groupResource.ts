@@ -1,3 +1,5 @@
+import type { PreparedGroup } from "@/lib/groupExperiences/preparation";
+import { captureCardPreparation, acceptCardPreparation } from "@/lib/cards/preparationClient";
 import type { GroupBootstrap, GroupPerspectivePage, GroupAggregates } from "@/lib/groupExperiences/presentationReads";
 import type { PerspectiveSelection } from "@/lib/groupExperiences/model";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
@@ -31,7 +33,9 @@ export function createGroupResource(actor: string, experienceId: string, options
   const dirty = new Map<string, { progress?: number; confidence?: number; progressSteps?: Set<string> }>();
   let aggregateRead: Promise<void> | undefined, active = true;
   const live = () => !disposed && workingCardStore.session(actor) === session;
-  let requiredStructureRevision = 0, verificationOrder = 0, lastGrantedOrder = 0;
+  let requiredStructureRevision = 0, requiredAccessEpoch = 0, requiredAdoptionRevision = 0, verificationOrder = 0, lastGrantedOrder = 0;
+  let initialOpen: Promise<void> | undefined;
+  const initialRequests = new Map<string, Promise<void>>();
   let pending: Promise<void> | undefined, renewal: Promise<boolean> | undefined, expiry: ReturnType<typeof setTimeout> | undefined, expiresAt = 0;
   const abort = new AbortController(), listeners = new Set<() => void>(), lanes = new Map<string, Promise<void>>();
   const confirmed = new Map<string, PersonalLearningChange>(), fieldTokens = new Map<string, symbol>();
@@ -87,6 +91,11 @@ export function createGroupResource(actor: string, experienceId: string, options
         if (disposed || !state.data) return false;
         if (!isCurrent()) return state.verified;
         const current = state.data.bootstrap;
+        if (reference.viewerUserId === actor && reference.experienceId === experienceId) {
+          requiredStructureRevision = Math.max(requiredStructureRevision, reference.structureRevision);
+          requiredAccessEpoch = Math.max(requiredAccessEpoch, reference.accessEpoch);
+          requiredAdoptionRevision = Math.max(requiredAdoptionRevision, reference.adoptionRevision);
+        }
         if (current.structureRevision !== reference.structureRevision || current.accessEpoch !== reference.accessEpoch
           || current.adoptionRevision !== reference.adoptionRevision) {
           workingCardStore.clearGroup(actor, experienceId);
@@ -188,7 +197,7 @@ export function createGroupResource(actor: string, experienceId: string, options
     });
     await aggregateRead;
   }
-  async function load() {
+  async function load(preparation?: { selection?: PerspectiveSelection; cardTemplateId?: string; opening?: boolean }) {
     if (pending) return pending;
     if (disposed) return;
     const token = ++generation, readStamp = mutationStamp, navigationAtRead = navigationGeneration;
@@ -196,7 +205,27 @@ export function createGroupResource(actor: string, experienceId: string, options
     update({ ...state, loading: true, error: undefined });
     pending = (async () => {
       try {
-        const reference = await read<Authority>(actor, `${base}/authority`, abort.signal);
+        const capture = captureCardPreparation(actor);
+        let prepared: PreparedGroup | undefined;
+        let checkedAt = now();
+        let reference: Authority, bootstrap: GroupBootstrap | undefined;
+        const followers = new Map<string, GroupPerspectivePage["followers"][number]>(), aggregates: GroupAggregates["cards"] = [];
+        if (preparation) {
+          const selection = preparation.selection ?? state.data?.bootstrap.selection;
+          const params = selection ? `?${new URLSearchParams({ perspective: selection.perspective, ...(selection.perspective === "follower" ? { subjectUserId: selection.subjectUserId } : {}) })}` : "";
+          prepared = preparation.opening
+            ? await read<PreparedGroup>(actor, `${base}/preparation`, abort.signal, "POST", { ...(selection ? { selection } : {}), ...(preparation.cardTemplateId ? { cardTemplateId: preparation.cardTemplateId } : {}) })
+            : await read<PreparedGroup>(actor, `${base}/preparation${params}`, abort.signal);
+          reference = bootstrap = prepared.bootstrap;
+          checkAuthority(reference, prepared);
+          for (const row of prepared.followers) followers.set(row.userId, row);
+          aggregates.push(...prepared.aggregates);
+          if (state.data && (state.data.bootstrap.structureRevision !== reference.structureRevision || state.data.bootstrap.accessEpoch !== reference.accessEpoch || state.data.bootstrap.adoptionRevision !== reference.adoptionRevision)) {
+            workingCardStore.clearGroup(actor, experienceId);
+            update({ ...state, data: { ...state.data, followers: state.data.followers.filter(row => row.userId === actor) }, loading: true, verified: false });
+          }
+        } else {
+        reference = await read<Authority>(actor, `${base}/authority`, abort.signal);
         if (state.data && (state.data.bootstrap.structureRevision !== reference.structureRevision || state.data.bootstrap.accessEpoch !== reference.accessEpoch || state.data.bootstrap.adoptionRevision !== reference.adoptionRevision)) {
           workingCardStore.clearGroup(actor, experienceId);
           // A viewer epoch does not change when somebody ELSE leaves. Structure
@@ -204,8 +233,6 @@ export function createGroupResource(actor: string, experienceId: string, options
           update({ ...state, data: state.data ? { ...state.data, followers: state.data.followers.filter(row => row.userId === actor) } : undefined,
             loading: true, verified: false });
         }
-        let bootstrap: GroupBootstrap | undefined;
-        const followers = new Map<string, GroupPerspectivePage["followers"][number]>(), aggregates: GroupAggregates["cards"] = [];
         let offset: number | null = 0;
         while (offset !== null) {
           const [page, firstPeers, aggregate]: [GroupBootstrap, GroupPerspectivePage, GroupAggregates] = await Promise.all([
@@ -233,12 +260,13 @@ export function createGroupResource(actor: string, experienceId: string, options
           offset = page.nextCardOffset;
         }
         order = ++verificationOrder;
-        let checkedAt = now(); const latest = await read<Authority>(actor, `${base}/authority`, abort.signal); checkAuthority(reference, latest);
+        checkedAt = now(); const latest = await read<Authority>(actor, `${base}/authority`, abort.signal); checkAuthority(reference, latest);
         // Lease starts before the final authority read, not when it resolves.
         // Expiry restricts edits; only confirmed denial or incompatible scope
         // withdraws retained content.
         if (now() - checkedAt >= GROUP_AUTHORITY_MS) throw new Error("Access verification expired. Retry.");
-        if (reference.structureRevision < requiredStructureRevision) throw new GroupRequestError("GROUP_SCOPE_CONFLICT", 409);
+        }
+        if (reference.structureRevision < requiredStructureRevision || reference.accessEpoch < requiredAccessEpoch || reference.adoptionRevision < requiredAdoptionRevision) throw new GroupRequestError("GROUP_SCOPE_CONFLICT", 409);
         if (!live() || token !== generation) return;
         let incoming: LoadedGroup = { bootstrap: bootstrap!, followers: [...followers.values()], aggregates };
         for (const [key, entry] of changes) {
@@ -280,6 +308,15 @@ export function createGroupResource(actor: string, experienceId: string, options
           order = ++verificationOrder; checkedAt = now();
           checkAuthority(reference, await read<Authority>(actor, `${base}/authority`, abort.signal));
           if (now() - checkedAt >= GROUP_AUTHORITY_MS) throw Error("Access verification expired. Retry.");
+        }
+        if (prepared) {
+          const b = incoming.bootstrap, selected = prepared.bootstrap.selection, own = selected.perspective === "self";
+          if (selected.perspective === "group" && b.deck.cards.some(card => !incoming.aggregates.some(row => row.cardTemplateId === card.id))) throw Error("Group aggregate preparation is incomplete. Retry opening the Deck.");
+          acceptCardPreparation(capture, prepared.contributions, b.deck.cards.map(card => card.id),
+            cardTemplateId => own ? { kind: "owner", viewerUserId: actor, cardTemplateId, experienceId }
+              : { kind: "group", viewerUserId: actor, cardTemplateId, experienceId, accessEpoch: b.accessEpoch, adoptionRevision: b.adoptionRevision, structureRevision: b.structureRevision, ...(selected.perspective === "follower" ? { subjectUserId: selected.subjectUserId } : {}) },
+            cardTemplateId => ({ viewerUserId: actor, cardTemplateId, adoptionRevision: b.adoptionRevision, structureRevision: b.structureRevision,
+              view: { kind: "group", experienceId, mode: own ? "own" : selected.perspective === "group" ? "group" : "inspection", subjectUserId: selected.perspective === "follower" ? selected.subjectUserId : undefined, accessEpoch: b.accessEpoch } }));
         }
         grant(checkedAt, order);
         update({ data: incoming, verified: true, loading: false, mutationError: state.mutationError });
@@ -348,7 +385,20 @@ export function createGroupResource(actor: string, experienceId: string, options
     lanes.set(key, operation); return operation;
   }
   return { isDisposed: () => disposed, snapshot: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    load, renewAuthority, invalidate, save,
+    load, prepare(selection?: PerspectiveSelection, cardTemplateId?: string) {
+      const key = JSON.stringify([selection ?? null, cardTemplateId ?? null]), existing = initialRequests.get(key);
+      if (existing) return existing;
+      const previous = initialOpen;
+      const operation = Promise.resolve(previous).catch(() => {}).then(async () => {
+        // Only compatible initial requests share a result. An already running
+        // refresh or another entry intent must finish before this scope starts.
+        while (pending) await pending;
+        await load({ selection, cardTemplateId, opening: true });
+      });
+      initialOpen = operation; initialRequests.set(key, operation);
+      void operation.finally(() => { if (initialRequests.get(key) === operation) initialRequests.delete(key); });
+      return operation;
+    }, renewAuthority, invalidate, save,
     setActive(value: boolean) { active = value; },
     async revalidate(minimumStructureRevision: number) {
       if (!Number.isSafeInteger(minimumStructureRevision) || minimumStructureRevision < 0) return false;
@@ -358,8 +408,8 @@ export function createGroupResource(actor: string, experienceId: string, options
       // the acknowledged revision; finish it, then make one fresh read.
       const wasPending = Boolean(pending);
       const current = () => state.verified && (state.data?.bootstrap.structureRevision ?? -1) >= minimumStructureRevision;
-      invalidate(); await load();
-      if (wasPending && !current() && !disposed) { invalidate(); await load(); }
+      invalidate(); await load({ selection: state.data?.bootstrap.selection });
+      if (wasPending && !current() && !disposed) { invalidate(); await load({ selection: state.data?.bootstrap.selection }); }
       return current();
     },
     async navigate(selection: PerspectiveSelection, activeCardId?: string) {
@@ -369,7 +419,9 @@ export function createGroupResource(actor: string, experienceId: string, options
       const body = { accessEpoch: current.accessEpoch, expectedStructureRevision: current.structureRevision, selection, ...(activeCardId ? { activeCardId } : {}) };
       // Visual switching is immediate. Persist in order so a slow earlier click
       // cannot become the remembered perspective after a later selection.
+      const opening = initialOpen;
       navigationTail = navigationTail.catch(() => {}).then(async () => {
+        await opening;
         if (!disposed && token === navigationGeneration) await read(actor, `${base}/navigation`, abort.signal, "PATCH", body);
       });
       await navigationTail;

@@ -61,6 +61,7 @@ export class ReflectionController {
         || feed.view.accessEpoch !== view.accessEpoch || feed.view.subjectUserId !== view.subjectUserId))
       || (adoptionRevision !== undefined && feed.adoptionRevision !== adoptionRevision)) throw Object.assign(Error("Current reflection access could not be verified."), { status: 409 });
     const owner = view.kind === "personal" || view.mode === "own";
+    if (feed.historyComplete === false && !owner) throw Object.assign(Error("Invalid partial reflection scope."), { status: 409 });
     if (feed.items.some(item => item.entry.source.cardTemplateId !== cardTemplateId || owner && item.entry.authorUserId !== viewerUserId)
       || feed.collective && (view.kind !== "group" || view.mode !== "group" || feed.collective.source.experienceId !== view.experienceId || feed.collective.source.cardTemplateId !== cardTemplateId)) {
       throw Object.assign(Error("Invalid reflection source."), { status: 409 });
@@ -69,30 +70,44 @@ export class ReflectionController {
       || item.entry.source.cardTemplateId !== cardTemplateId || (view.mode === "inspection" && item.entry.authorUserId !== view.subjectUserId)
       || (item.entry.authorUserId !== viewerUserId && !item.entry.groupVisible))) throw Object.assign(Error("Invalid reflection scope."), { status: 409 });
   }
+  preparationToken() { return this.stamp; }
+  acceptPrepared(feed: ReflectionFeed, stamp = 0, cancelRead = true) {
+    if (!this.live()) return false;
+    this.validate(feed);
+    if (cancelRead) this.generation++;
+    const previous = this.state.feed;
+    if (previous) {
+      const items = new Map(previous.items.map(item => [reflectionSlotKey(item.entry), item]));
+      feed = { ...feed, items: feed.items.map(item => {
+        const key = reflectionSlotKey(item.entry), known = items.get(key);
+        if (!known) return item;
+        if (known.entry.revision > item.entry.revision) return known;
+        // Protect local text, not obsolete permissions/visibility carried
+        // beside it. A newer visibility decision still wins immediately.
+        return this.pendingKey === key || (this.changes.get(key) ?? 0) > stamp ? { ...item, empty: known.empty, entry: { ...item.entry, text: known.entry.text, revision: known.entry.revision } } : item;
+      }) };
+      // A composed owner preview is not a deletion of independently retained
+      // author history. The existing full feed still reconciles that history.
+      if (feed.historyComplete === false) {
+        const keys = new Set(feed.items.map(item => reflectionSlotKey(item.entry)));
+        feed = { ...feed, items: [...feed.items, ...previous.items.filter(item => !keys.has(reflectionSlotKey(item.entry)))] };
+      }
+      if (previous.collective && feed.collective && previous.collective.source.experienceId === feed.collective.source.experienceId
+        && (this.pendingKey === keyFor(feed.collective.source, feed.viewerUserId) || (this.changes.get(keyFor(feed.collective.source, feed.viewerUserId)) ?? 0) > stamp || previous.collective.revision > feed.collective.revision)) feed = { ...feed, collective: previous.collective };
+    }
+    this.set({ feed, error: null });
+    return true;
+  }
   refresh = (): Promise<void> => {
     if (this.pending) return this.pending;
     if (!this.live()) return Promise.resolve();
     const generation = this.generation, stamp = this.stamp;
     this.pending = (async () => {
       try {
-        let feed = await this.request.read();
+        const feed = await this.request.read();
         if (!this.live() || generation !== this.generation) return;
         this.validate(feed);
-        const previous = this.state.feed;
-        if (previous) {
-          const items = new Map(previous.items.map(item => [reflectionSlotKey(item.entry), item]));
-          feed = { ...feed, items: feed.items.map(item => {
-            const key = reflectionSlotKey(item.entry), known = items.get(key);
-            if (!known) return item;
-            if (known.entry.revision > item.entry.revision) return known;
-            // Protect local text, not obsolete permissions/visibility carried
-            // beside it. A newer visibility decision still wins immediately.
-            return this.pendingKey === key || (this.changes.get(key) ?? 0) > stamp ? { ...item, empty: known.empty, entry: { ...item.entry, text: known.entry.text, revision: known.entry.revision } } : item;
-          }) };
-          if (previous.collective && feed.collective && previous.collective.source.experienceId === feed.collective.source.experienceId
-            && (this.pendingKey === keyFor(feed.collective.source, feed.viewerUserId) || (this.changes.get(keyFor(feed.collective.source, feed.viewerUserId)) ?? 0) > stamp || previous.collective.revision > feed.collective.revision)) feed = { ...feed, collective: previous.collective };
-        }
-        this.set({ feed, error: null });
+        this.acceptPrepared(feed, stamp, false);
       } catch (cause) {
         if (!this.live() || generation !== this.generation) return;
         this.set({ ...(denied(cause, true) ? { feed: null } : {}), error: cause instanceof Error ? cause.message : "Unable to load reflections." });
@@ -159,9 +174,15 @@ export class ReflectionController {
 }
 
 const retained = new Map<string, ReflectionController>();
+const reflectionKey = (c: ReflectionAreaContext) => JSON.stringify([c.viewerUserId, c.cardTemplateId, c.view.kind, c.view.kind === "group" ? [c.view.experienceId, c.view.mode, c.view.subjectUserId ?? null, c.view.accessEpoch] : null, c.adoptionRevision ?? null, c.structureRevision ?? null]);
+export function hasPreparedReflection(context: ReflectionAreaContext) { return !!retained.get(reflectionKey(context))?.snapshot().feed; }
+export function captureReflectionPreparation(actor: string) { return new Map([...retained].filter(([, c]) => c.context.viewerUserId === actor).map(([key, c]) => [key, c.preparationToken()])); }
+export function acceptReflectionPreparation(context: ReflectionAreaContext, feed: ReflectionFeed, tokens: Map<string, number>) {
+  return retainedReflection(context).acceptPrepared(feed, tokens.get(reflectionKey(context)) ?? 0);
+}
 // Accessed by the client component only; server snapshots are always empty.
 export function retainedReflection(context: ReflectionAreaContext, request?: Transport) {
-  const key = JSON.stringify({ ...context, deckTemplateId: undefined }); let controller = retained.get(key);
+  const key = reflectionKey(context); let controller = retained.get(key);
   if (!controller) { controller = new ReflectionController(context, request); retained.set(key, controller); }
   return controller;
 }

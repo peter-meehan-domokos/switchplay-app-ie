@@ -109,7 +109,7 @@ export function createMediaReviewHandler() {
   }
   return { handle, add, records, assets };
 }
-export async function seedMediaReview(client: MongoClient, database: string, group: Awaited<ReturnType<typeof seedGroupReview>>, fixture: ReturnType<typeof createMediaReviewHandler>, publicBase: string) {
+export async function seedMediaReview(client: MongoClient, database: string, group: Awaited<ReturnType<typeof seedGroupReview>>, fixture: ReturnType<typeof createMediaReviewHandler>, publicBase: string, removeFromOtherOrigin = true) {
   if (!/^switchplay_phase2_browser_/.test(database)) throw Error("Disposable media fixture only");
   const cards = new CardRepository(client.db(database), client), groups = new GroupExperienceRepository(cards);
   await createGroupMediaIndexes(cards.db);
@@ -135,6 +135,6 @@ export async function seedMediaReview(client: MongoClient, database: string, gro
     }
   }
   // Retained author history survives removal from the other origin Group.
-  await groups.changeMember(group.adminId, group.secondId, { kind: "remove-follower", targetUserId: group.otherId, operationId: randomUUID(), expectedStructureRevision: 0 });
+  if (removeFromOtherOrigin) await groups.changeMember(group.adminId, group.secondId, { kind: "remove-follower", targetUserId: group.otherId, operationId: randomUUID(), expectedStructureRevision: 0 });
   return { cardId, personalDeckId: group.deckId, experienceId: group.experienceId, follower: "Aoife Kelly" };
 }

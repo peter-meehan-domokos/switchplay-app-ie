@@ -9,6 +9,9 @@ import type { CollectiveReflection } from "./model";
 // this transaction. Do not widen existing scalar/assessment projections.
 export async function collectiveReflection(groups: GroupExperienceRepository, experienceId: string, cardTemplateId: string, isAdmin: boolean, session: ClientSession): Promise<CollectiveReflection> {
   const row = await groups.cardData().findOne({ experienceId, cardTemplateId }, { session, projection: { _id: 0, reflection: 1, reflectionRevision: 1 } });
+  return projectCollectiveReflection(experienceId, cardTemplateId, isAdmin, row);
+}
+export function projectCollectiveReflection(experienceId: string, cardTemplateId: string, isAdmin: boolean, row?: { reflection?: string; reflectionRevision?: number } | null): CollectiveReflection {
   const text = row?.reflection === undefined ? "" : row.reflection, value = row?.reflectionRevision ?? 0;
   requireCondition(typeof text === "string" && text.length <= 20000 && row?.reflectionRevision !== null, "INVALID_COLLECTIVE_REFLECTION"); revision(value);
   return { source: { kind: "group-card", experienceId, cardTemplateId }, text, revision: value, canEdit: isAdmin };

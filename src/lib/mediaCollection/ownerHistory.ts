@@ -12,16 +12,16 @@ import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
 import type { GroupMediaRecord } from "../groupExperiences/media/model";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 
-type Order = [string, string, string, string, number, number];
+export type Order = [string, string, string, string, number, number];
 type Row = { order: Order; item: MediaCollectionItem };
 type Cursor = { context: string; direction: "older" | "newer"; order: Order; inclusive?: boolean };
-const compare = (a: Order, b: Order) => { for (let i = 0; i < a.length; i++) { if (typeof a[i] === "string" && typeof b[i] === "string") { const value = Buffer.compare(Buffer.from(a[i] as string), Buffer.from(b[i] as string)); if (value) return value; } else { if (a[i] < b[i]) return -1; if (a[i] > b[i]) return 1; } } return 0; };
+export const compare = (a: Order, b: Order) => { for (let i = 0; i < a.length; i++) { if (typeof a[i] === "string" && typeof b[i] === "string") { const value = Buffer.compare(Buffer.from(a[i] as string), Buffer.from(b[i] as string)); if (value) return value; } else { if (a[i] < b[i]) return -1; if (a[i] > b[i]) return 1; } } return 0; };
 const sortFields = ["at", "kind", "source", "id", "rank", "index"];
 const tuple = sortFields.map(k => `$${k}`);
 // Evaluate only scalar media metadata. Do not project reflection/tests/Info or
 // transfer the complete media array to Node in order to find a page.
 const string = (field: string) => ({ $cond: [{ $eq: [{ $type: field }, "string"] }, { $gt: [{ $strLenCP: { $trim: { input: field } } }, 0] }, false] });
-function personalPipeline(actor: string, sources: string[]): Document[] {
+export function personalPipeline(actor: string, sources: string[]): Document[] {
   const item = "$cardsData.mediaItems";
   return [
     { $match: { _id: userKey(actor) } }, { $project: { cardsData: { $filter: { input: "$cardsData", as: "card", cond: { $in: ["$$card.cardTemplateId", { $literal: sources }] } } } } },

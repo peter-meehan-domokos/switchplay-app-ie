@@ -1,5 +1,6 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
+import { hasInitialGroupPreparation } from "@/lib/cards/preparationClient";
 import { groupProgressHref, rememberGroupReturn, readGroupDeckReturn, readProgressReturn, progressReturnHref } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import CardMediaCentre from "@/components/media/CardMediaCentre";
@@ -34,6 +35,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const resource = useMemo(() => typeof window === "undefined" ? undefined : retainedGroupResource(actor, experienceId), [actor, experienceId]);
   const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, emptySnapshot);
   const [selection, setSelection] = useState<PerspectiveSelection | undefined>(restored?.selection);
+  const [initialPresented, setInitialPresented] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [rotation, setRotation] = useState(restored?.rotation ?? 0);
   const [activeCardId, setActiveCardId] = useState<string | undefined>(restored?.cardId);
@@ -47,7 +49,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     // View lifetime owns timers, not accepted data or submitted work.
     if (!resource) return;
     resource.setActive(true);
-    void resource.load();
+    void resource.prepare(restored?.selection, restored?.cardId);
     const refresh = () => { if (document.visibilityState === "hidden") resource.invalidate(); else void resource.load(); };
     const hidden = () => { resource.invalidate(); if (document.visibilityState !== "hidden") void resource.load(); };
     const timer = window.setInterval(refresh, 4_000);
@@ -62,8 +64,13 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     authorityTimer = setTimeout(renewAuthority, 2_000);
     window.addEventListener("focus", hidden); window.addEventListener("pageshow", hidden); document.addEventListener("visibilitychange", hidden);
     return () => { stopped = true; resource.setActive(false); clearInterval(timer); clearTimeout(authorityTimer); window.removeEventListener("focus", hidden); window.removeEventListener("pageshow", hidden); document.removeEventListener("visibilitychange", hidden); };
-  }, [resource]);
+  }, [resource, restored?.selection, restored?.cardId]);
   const data = state.data?.bootstrap.viewerUserId === actor && state.data.bootstrap.experienceId === experienceId ? state.data : undefined;
+  const initialSelection = restored?.selection ?? data?.bootstrap.selection;
+  const initialAllowed = data && initialSelection && (initialSelection.perspective === "group" || initialSelection.perspective === "self" && data.bootstrap.isFollower
+    || initialSelection.perspective === "follower" && data.bootstrap.canInspectFollowers && data.followers.some(row => row.userId === initialSelection.subjectUserId));
+  const initialComplete = !!data && hasInitialGroupPreparation(actor, data.bootstrap, initialAllowed ? initialSelection! : data.bootstrap.selection);
+  if (initialComplete && !initialPresented) setInitialPresented(true);
   // Keep the form mounted even if authority polling observes a committed
   // self-removal before its HTTP acknowledgement reaches this browser.
   const settings = settingsOpen ? <GroupManagementForm key="management" actor={actor} experienceId={experienceId} onCancel={() => setSettingsOpen(false)}
@@ -75,13 +82,16 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       if (settingsPerspective.current) setSelection(settingsPerspective.current);
       setSettingsOpen(false);
     }} /> : null;
-  if (!data || !resource) return <main className="app-shell"><button type="button" onClick={onBack}>Back to My Decks</button>
-    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void resource?.load()}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
+  if (!data || !resource || !initialPresented && !initialComplete) return <main className="app-shell"><button type="button" onClick={onBack}>Back to My Decks</button>
+    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void (initialPresented ? resource?.load() : resource?.prepare(restored?.selection, restored?.cardId))}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
   const boot = data.bootstrap;
   const chosen = selection ?? boot.selection;
   const permitted = chosen.perspective === "group" || chosen.perspective === "self" && boot.isFollower
     || chosen.perspective === "follower" && boot.canInspectFollowers && data.followers.some(row => row.userId === chosen.subjectUserId);
-  const effective: PerspectiveSelection = permitted ? chosen : { perspective: boot.isAdmin ? "group" : "self" };
+  const storedSelection = boot.selection;
+  const restoredAllowed = storedSelection.perspective === "group" || storedSelection.perspective === "self" && boot.isFollower
+    || storedSelection.perspective === "follower" && boot.canInspectFollowers && data.followers.some(row => row.userId === storedSelection.subjectUserId);
+  const effective: PerspectiveSelection = permitted ? chosen : restoredAllowed ? boot.selection : { perspective: boot.isAdmin ? "group" : "self" };
   if (selection && !permitted) setSelection(undefined);
   // A stale lease disables writes. Confirmed denial/composition changes purge
   // affected resources; routine verification must not reconstruct the Card.

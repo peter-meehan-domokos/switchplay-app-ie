@@ -6,7 +6,7 @@ import type { ScopedProgressAssessmentHistory } from "@/lib/groupExperiences/pro
 import { groupFetch } from "@/components/group-experiences/groupClient";
 import type { AssessmentSource } from "@/lib/assessments/contracts";
 
-export type AssessmentContext = { viewerUserId: string; source: AssessmentSource; deckTemplateId?: string; canCreate: boolean; showOrigin?: boolean; group?: { experienceId: string; frameworkId: string; subjectUserId?: string } };
+export type AssessmentContext = { initialHistory?: AssessmentHistoryResponse; viewerUserId: string; source: AssessmentSource; deckTemplateId?: string; canCreate: boolean; showOrigin?: boolean; group?: { experienceId: string; frameworkId: string; subjectUserId?: string } };
 export function useAssessmentHistory(context: AssessmentContext) {
   const { viewerUserId: actor, source } = context;
   const id = source.kind === "card" ? source.cardTemplateId : source.itemId, kind = source.kind;
@@ -18,7 +18,7 @@ export function useAssessmentHistory(context: AssessmentContext) {
   const [request, setRequest] = useState(0);
   const refresh = useCallback(() => setRequest((value) => value + 1), []);
   const readKey = JSON.stringify([key, epoch, request]);
-  const [state, setState] = useState<{ key: string; readKey: string; data?: AssessmentHistoryResponse | (ScopedProgressAssessmentHistory & { configured: boolean }); error?: string }>({ key, readKey: "" });
+  const [state, setState] = useState<{ key: string; readKey: string; data?: AssessmentHistoryResponse | (ScopedProgressAssessmentHistory & { configured: boolean }); error?: string }>({ key, readKey: "", data: context.initialHistory?.viewerUserId === actor && context.initialHistory.cardTemplateId === id ? context.initialHistory : undefined });
   useEffect(() => {
     const controller = new AbortController();
     const target: AssessmentSource = kind === "card" ? { kind, cardTemplateId: id } : { kind, itemId: id };
@@ -59,6 +59,6 @@ export function useAssessmentHistory(context: AssessmentContext) {
     const timer = setTimeout(() => setState(previous => previous.data === data ? { ...previous, data: undefined, error: "Current assessment authority expired. Refresh history." } : previous), Math.max(0, Date.parse(data.leaseExpiresAt) - Date.now()));
     return () => clearTimeout(timer);
   }, [state.data]);
-  return { data: state.key === key ? state.data : undefined, loading: state.readKey !== readKey,
+  return { data: state.key === key ? state.data : undefined, loading: state.readKey !== readKey && !(state.key === key && state.data),
     error: state.readKey === readKey ? state.error : undefined, refresh };
 }

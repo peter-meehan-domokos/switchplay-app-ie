@@ -2,7 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 const group = JSON.parse(process.env.PHASE2_GROUP_FIXTURE ?? "null");
 const media = JSON.parse(process.env.PHASE7_MEDIA_REVIEW ?? "null");
 test.skip(!group || !media, "Requires disposable --group-media fixture");
-async function login(page: Page) { expect((await page.request.post("/api/auth/login", { data: { identifier: "Aoife Kelly", password: "local-test-only" } })).ok()).toBeTruthy(); }
+async function login(page: Page) { expect((await page.request.post("/api/auth/login", { data: { identifier: "Aoife Kelly", password: "local-test-only" } })).ok()).toBeTruthy();
+  // Test-only HTTP transport for the signed production session cookie.
+  if (process.env.PHASE2_OPTIMIZED === "1") await page.context().addCookies((await page.context().cookies()).map(cookie => ({ ...cookie, secure: false })));
+}
 const note = (page: Page) => page.locator(".focused-card-surface--back .reflection-area p");
 async function seedNote(page: Page, personal: boolean, text: string) {
   const query = new URLSearchParams({ cardTemplateId: media.cardId, ...(personal ? {} : { experienceId: group.experienceId, mode: "own", accessEpoch: "0" }) });
@@ -57,13 +60,17 @@ for (const browserName of ["chromium", "webkit"] as const) test.describe(browser
     if (personal) {
       // Delay the existing protected open, keeping all animation clocks intact.
       const held = new Promise<void>(resolve => { release = resolve; releaseAll = resolve; });
-      await page.route("**/api/decks-data", async route => { if (route.request().method() === "POST") await held; await route.continue(); });
-    } else await page.route(`**/api/group-experiences/${group.experienceId}/presentation?*`, route => route.abort("failed"));
+      await page.route(`**/api/decks-data/${group.deckId}/preparation`, async route => { if (route.request().method() === "POST") await held; await route.continue(); });
+    } else await page.route(`**/api/group-experiences/${group.experienceId}/preparation*`, route => route.abort("failed"));
     try {
       await tile.locator(".deck-tile-open-action").click();
       await expect(page.locator(".deck-card.is-active")).toBeVisible();
       await page.locator(".deck-card.is-active").press("Enter"); await flip(page);
-      if (personal) await expect(page.locator(".app-shell--deck")).toHaveAttribute("data-working-ready", "false");
+      if (personal) {
+        await expect(page.locator(".app-shell--deck")).toHaveAttribute("data-working-ready", "false");
+        await expect(page.locator(".focused-card-surface--back .assessment-indicator")).toBeVisible();
+        await expect(page.locator(".focused-card-surface--back .assessment-indicator")).toBeDisabled();
+      }
       await expect(note(page)).toHaveText(text);
       await expect(page.locator(".focused-card-surface--back .back-card-media-carousel-item")).toHaveCount(5);
     } finally { release(); }

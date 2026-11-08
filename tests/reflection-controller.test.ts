@@ -76,3 +76,21 @@ test("submitted reflection work outlives view disposal and cannot repopulate its
   assert.equal(personalWork.hasWork(scope), true); write.resolve({ revision: 2 }); await saving;
   assert.equal(personalWork.hasWork(scope), false); assert.equal(c.snapshot().feed, null);
 });
+
+test("composed preparation reconciles newer optimistic sources and accepts independent notes", async () => {
+ const write = gate<{ revision: number }>();
+ const c = new ReflectionController(context, { read: async () => feed(), write: () => write.promise });
+ c.acceptPrepared(feed()); const stamp = c.preparationToken(); const saving = c.save(feed().items[0].entry.source, "Immediate", 1, "save");
+ const incoming = feed(); incoming.items.push({ ...incoming.items[0], entry: { ...incoming.items[0].entry, source: { kind: "group", cardTemplateId: "c", experienceId: "previous-origin", reflectionId: "other" }, text: "Independent" } });
+ c.acceptPrepared(incoming, stamp); assert.equal(c.snapshot().feed!.items[0].entry.text, "Immediate"); assert.equal(c.snapshot().feed!.items[1].entry.text, "Independent");
+ write.resolve({ revision: 2 }); await saving; c.acceptPrepared(feed(), stamp); assert.equal(c.snapshot().feed!.items[0].entry.text, "Immediate");
+ c.dispose(); assert.equal(c.acceptPrepared(feed()), false);
+});
+
+test("compact current-source preparation preserves retained owner history until a full feed reconciles it", async () => {
+ const complete = feed(); complete.items.push({ ...complete.items[0], entry: { ...complete.items[0].entry, source: { kind: "group", experienceId: "previous-origin", cardTemplateId: "c", reflectionId: "retained" }, text: "Retained owner history" } });
+ const c = new ReflectionController(context, { read: async () => complete, write: async () => ({ revision: 2 }) });
+ await c.refresh(); c.acceptPrepared({ ...feed("Current", 2), historyComplete: false });
+ assert.equal(c.snapshot().feed!.items.length, 2); assert.equal(c.snapshot().feed!.items[1].entry.text, "Retained owner history");
+ c.acceptPrepared(feed("Current", 2)); assert.equal(c.snapshot().feed!.items.length, 1); c.dispose();
+});

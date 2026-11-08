@@ -7,7 +7,7 @@ import { createGroupExperienceIndexes } from "../../src/lib/groupExperiences/ind
 import { GroupExperienceRepository } from "../../src/lib/groupExperiences/repository";
 
 // Called only by the disposable harness. Never seed through the normal app URI.
-export async function seedGroupReview(client: MongoClient, database: string, adminId: string, otherId: string) {
+export async function seedGroupReview(client: MongoClient, database: string, adminId: string, otherId: string, cardCount = 3) {
   const cards = new CardRepository(client.db(database), client), repo = new GroupExperienceRepository(cards);
   await createGroupExperienceIndexes(cards.db);
   const now = new Date(), names = ["Alice", "Bob", "Carla", "Daniel", "Eva", "Finn", "Grace", "Hannah", "Isaac", "Julia", "Kai", "Liam", "Mia", "Nora With A Long Username", "Former"];
@@ -15,9 +15,9 @@ export async function seedGroupReview(client: MongoClient, database: string, adm
   await cards.users().insertMany(people);
   const followers = [otherId, ...people.slice(0, 14).map(person => person._id.toHexString())], former = people.at(-1)!._id.toHexString();
   const cardIds: string[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < cardCount; i++) {
     const root = await cards.createCardDraft(adminId, { ...createDefaultCardContent([`group-${i}-a`, `group-${i}-b`, `group-${i}-c`]),
-      intro: { title: ["Find your balance", "Control the movement", "Make it consistent"][i], description: "Compare the same Card across authorised perspectives.", mediaItem: null },
+      intro: { title: ["Find your balance", "Control the movement", "Make it consistent"][i % 3], description: "Compare the same Card across authorised perspectives.", mediaItem: null },
       steps: ["Prepare", "Practise", "Reflect"].map((title, j) => ({ stepId: `group-${i}-${["a", "b", "c"][j]}`, title, description: "Take your time and notice what changes.", mediaItem: null })) }, "public");
     await cards.publishCard(adminId, root.cardTemplateId, 0); cardIds.push(root.cardTemplateId);
   }

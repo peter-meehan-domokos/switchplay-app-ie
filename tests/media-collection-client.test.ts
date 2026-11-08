@@ -122,3 +122,13 @@ test("Gallery activation restores Strict Mode lifecycle checks but never revives
   workingCardStore.clearUser("bob"); assert.equal(c.snapshot().page, null);
   c.activate(); await c.load(); assert.equal(c.snapshot().page, null);
 });
+
+test("composed media preparation cannot resurrect a removed item or replace a newer preview", async () => {
+ const c = new MediaCollectionController(context, async () => page(["newer"]), 5);
+ const token = c.preparationToken(); c.acceptPrepared(page(["initial"]), token);
+ assert.equal(c.acceptPrepared(page(["older"]), token), false);
+ const beforeRemoval = c.preparationToken(); c.invalidate(); c.removed(c.snapshot().page!.items[0].source, "delete");
+ assert.equal(c.acceptPrepared(page(["initial"]), beforeRemoval), false);
+ await c.load(); const source = c.snapshot().page!.items[0].source; assert.equal(source.kind === "personal" && source.mediaItemId, "newer");
+ c.dispose(); assert.equal(c.acceptPrepared(page([])), false);
+});

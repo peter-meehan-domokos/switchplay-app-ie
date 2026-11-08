@@ -35,7 +35,7 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   const session = useRef(workingCardStore.session(actor));
   useEffect(() => {
     if (!controller) return;
-    alive.current = true; void controller.refresh();
+    alive.current = true; if (!controller.snapshot().feed) void controller.refresh();
     const reload = () => { if (document.visibilityState !== "hidden") void controller.refresh(); };
     const timer = setInterval(reload, 5000);
     window.addEventListener("focus", reload); document.addEventListener("visibilitychange", reload);

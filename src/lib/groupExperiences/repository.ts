@@ -182,18 +182,28 @@ export class GroupExperienceRepository {
     revision(accessEpoch); if (cardTemplateId !== undefined) id(cardTemplateId);
     return this.transaction(async session => {
       const { experience, member } = await this.access(actor, experienceId, "member", session, accessEpoch);
-      await this.fence([member], session);
       const { cards } = await selectedContent(this.cards, experience, session);
-      const selected = cards.find(card => card.cardTemplateId === (cardTemplateId ?? member.activeCardId)) ?? (cardTemplateId ? undefined : cards[0]);
-      requireCondition(cardTemplateId === undefined || selected, "GROUP_CARD_FORBIDDEN");
-      if (member.followerStatus === "active" && selected) {
-        await personalLearningForUsers(this.cards, [actor], [selected], session);
-        await ensurePersonalLearningInSession(this.cards, actor, selected, session, { scheduling: "experience" });
-      }
-      await this.members().updateOne({ experienceId, userId: actor }, { $set: { activeCardId: selected?.cardTemplateId ?? null, openedAt: new Date() } }, { session });
-      return { ...identity(actor, experience, member), activeCardId: selected?.cardTemplateId ?? null };
+      return this.openSelectedInSession(actor, experience, member, cards, session, cardTemplateId);
     });
   }
+  // Internal actual-entry helper. The caller has authorised this member and
+  // resolved this composition in the same transaction. Preparation never calls
+  // it unless this is an explicit actual-open operation.
+  async openSelectedInSession(actor: string, experience: GroupExperience, member: GroupMember,
+    cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession, cardTemplateId?: string) {
+    if (cardTemplateId !== undefined) id(cardTemplateId);
+    await this.fence([member], session);
+    const selected = cards.find(card => card.cardTemplateId === (cardTemplateId ?? member.activeCardId)) ?? (cardTemplateId ? undefined : cards[0]);
+    requireCondition(cardTemplateId === undefined || selected, "GROUP_CARD_FORBIDDEN");
+    if (member.followerStatus === "active" && selected) {
+      await personalLearningForUsers(this.cards, [actor], [selected], session);
+      await ensurePersonalLearningInSession(this.cards, actor, selected, session, { scheduling: "experience" });
+    }
+    member.activeCardId = selected?.cardTemplateId ?? null; member.openedAt = new Date();
+    await this.members().updateOne({ experienceId: experience.experienceId, userId: actor }, { $set: { activeCardId: member.activeCardId, openedAt: member.openedAt } }, { session });
+    return { ...identity(actor, experience, member), activeCardId: member.activeCardId };
+  }
+
   async groupLearning(experienceId: string, cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession) {
     const rows: GroupCardData[] = [];
     for (let start = 0; start < cards.length; start += 100) rows.push(...await this.cardData().find({ experienceId,

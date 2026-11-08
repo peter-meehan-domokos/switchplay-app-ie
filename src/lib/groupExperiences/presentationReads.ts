@@ -20,9 +20,9 @@ function cardWindow(length: number, offset: number) {
   requireCondition(Number.isSafeInteger(offset) && offset >= 0 && (offset === 0 || offset < length), "INVALID_GROUP_PAGE");
   return { start: offset, end: offset + CARD_PAGE, nextCardOffset: offset + CARD_PAGE < length ? offset + CARD_PAGE : null };
 }
-async function content(repo: GroupExperienceRepository, experience: GroupExperience, session: ClientSession, offset = 0) {
+export async function content(repo: GroupExperienceRepository, experience: GroupExperience, session: ClientSession, offset = 0, complete = false) {
   const selected = await selectedContent(repo.cards, experience, session), window = cardWindow(selected.cards.length, offset);
-  const cards = selected.cards.slice(window.start, window.end);
+  const cards = complete ? selected.cards : selected.cards.slice(window.start, window.end);
   const roots = cards.length ? await repo.cards.cards().find({ cardTemplateId: { $in: cards.map(card => card.cardTemplateId) } }, { session }).toArray() : [];
   const creators = await cardCreatorAttributions(repo.cards, roots, session);
   const labels = layoutCardLabels(selected.deck.content.labelPrefix, selected.deck.content.cards);
@@ -31,13 +31,13 @@ async function content(repo: GroupExperienceRepository, experience: GroupExperie
     introduction: canonicalIntroductionDTO(selected.deck.content.introduction), streams: selected.deck.content.themes.map(({ id, title }) => ({ id, title })),
     ownerUsername: experience.name, showOwnerTag: true,
     cards: cards.map((card, i) => cardContentPresentation(card, labels[offset + i].label, creators.get(card.cardTemplateId)!)) };
-  return { deck, cards, allCards: selected.cards, nextCardOffset: window.nextCardOffset };
+  return { deck, cards, allCards: selected.cards, nextCardOffset: complete ? null : window.nextCardOffset };
 }
 // Owner dates are deliberately separate from foreign learning. Selecting a group
 // context never creates a second personal CardData or makes this private field
 // part of the reusable peer matrix. Later personal/group contribution sources
 // require separate typed loaders, not widening this owner allowlist.
-async function ownDates(repo: GroupExperienceRepository, actor: string, ids: string[], session: ClientSession) {
+export async function ownDates(repo: GroupExperienceRepository, actor: string, ids: string[], session: ClientSession) {
   const rows = await repo.cards.users().aggregate<{ cards: { cardTemplateId: string; targetDate: string | null }[] }>([
     { $match: { _id: userKey(actor) } }, { $project: { _id: 0, cards: { $map: {
       input: { $filter: { input: "$cardsData", as: "card", cond: { $in: ["$$card.cardTemplateId", { $literal: ids }] } } },

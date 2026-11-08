@@ -20,7 +20,7 @@ function fixture() {
   const calls: string[] = [], writes: unknown[] = [];
   const read: typeof groupFetch = async (_actor, url, _signal, method, body) => {
     calls.push(url); if (method === "PATCH") { writes.push(body); return { ...authority, ok: true } as never; }
-    return (url.includes("/presentation?") ? bootstrap : url.includes("/perspectives?") ? peers : url.includes("/aggregates?") ? aggregates : authority) as never;
+    return (url.includes("/preparation") ? { ...authority, bootstrap, followers: peers.followers, aggregates: aggregates.cards, contributions: { media: {}, reflections: {} } } : url.includes("/presentation?") ? bootstrap : url.includes("/perspectives?") ? peers : url.includes("/aggregates?") ? aggregates : authority) as never;
   };
   return { authority, bootstrap, peers, aggregates, calls, writes, read };
 }
@@ -389,4 +389,58 @@ test("bootstrap presentation, peers and aggregates start together after common a
   f.aggregates.adoptionRevision++; release(); await pending;
   assert.equal(resource.snapshot().verified, false); assert.equal(resource.snapshot().data, undefined);
   resource.dispose();
+});
+
+test("composed initial preparation publishes only after complete scoped contribution hydration without authority bookends", async () => {
+ const f = fixture(), gateRead = gate(); let called = false;
+ const read: typeof groupFetch = async <T>(_actor: string, url: string) => {
+  f.calls.push(url); called = true; await gateRead.promise;
+  return { ...f.authority, bootstrap: f.bootstrap, followers: f.peers.followers, aggregates: [], contributions: { media: {}, reflections: {} } } as T;
+ };
+ const resource = createGroupResource("alice", "e", { read });
+ const pending = resource.prepare(); await tick(); assert.equal(called, true); assert.equal(resource.snapshot().data, undefined);
+ gateRead.release(); await pending;
+ assert.equal(resource.snapshot().verified, true); assert.equal(resource.snapshot().data!.bootstrap, f.bootstrap);
+ assert.deepEqual(f.calls, ["/api/group-experiences/e/preparation"]); resource.dispose();
+});
+
+test("wrong-account composed responses cannot enter retained Group data", async () => {
+ const f = fixture(); const read: typeof groupFetch = async <T>() => ({ ...f.authority, viewerUserId: "other", bootstrap: f.bootstrap, followers: [], aggregates: [], contributions: { media: {}, reflections: {} } }) as T;
+ const resource = createGroupResource("alice", "e", { read }); await resource.prepare();
+ assert.equal(resource.snapshot().data, undefined); assert.equal(resource.snapshot().verified, false); resource.dispose();
+});
+
+test("an older composed response cannot undo a newer confirmed authority scope", async () => {
+ for (const field of ["structureRevision", "accessEpoch", "adoptionRevision"] as const) {
+  const f = fixture(), held = gate(); let hold = false;
+  const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
+   const response = structuredClone(await f.read<T>(...args));
+   if (hold && args[1].includes("/preparation")) await held.promise;
+   return response;
+  };
+  const resource = createGroupResource("alice", "e", { read }); await resource.prepare();
+  hold = true; const old = resource.prepare(); await tick(); f.authority[field]++;
+  assert.equal(await resource.renewAuthority(), false); held.release(); await old;
+  assert.equal(resource.snapshot().verified, false); assert.equal(resource.snapshot().data!.followers.length, 0);
+  hold = false; f.bootstrap[field]++; await resource.prepare(); assert.equal(resource.snapshot().verified, true); resource.dispose();
+ }
+});
+
+test("initial entries share only compatible in-flight perspective requests", async () => {
+ const f = fixture(), held = gate(); const selections: unknown[] = [];
+ const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
+  const response = structuredClone(await f.read<T>(...args));
+  if (args[1].includes("/preparation")) {
+   const selection = (args[4] as { selection?: unknown })?.selection; selections.push(selection);
+   if (selections.length === 1) await held.promise;
+   (response as { bootstrap: GroupBootstrap }).bootstrap.selection = selection as GroupBootstrap["selection"];
+  }
+  return response;
+ };
+ const resource = createGroupResource("alice", "e", { read });
+ const first = resource.prepare({ perspective: "group" });
+ assert.equal(resource.prepare({ perspective: "group" }), first);
+ const other = resource.prepare({ perspective: "follower", subjectUserId: "bob" }); await tick(); assert.equal(selections.length, 1);
+ held.release(); await Promise.all([first, other]); assert.equal(selections.length, 2);
+ assert.deepEqual(resource.snapshot().data!.bootstrap.selection, { perspective: "follower", subjectUserId: "bob" }); resource.dispose();
 });

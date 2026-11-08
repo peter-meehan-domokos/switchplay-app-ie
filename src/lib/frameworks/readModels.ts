@@ -191,3 +191,18 @@ export async function readCardAssessmentHistory(repo: CardRepository, actor: str
       history: projectAssessmentHistory(user, [history], titles, { ownCardIds: [cardTemplateId], originNames }) };
   });
 }
+
+// The caller has authorised every selected Card within the same snapshot.
+// Reuse one eligibility/title/provenance pass for all visible assessment badges.
+export async function prepareCardAssessmentHistories(repo: CardRepository, actor: string, ids: string[], session: ClientSession) {
+  const user = await personalUser(repo, actor, session), eligible = await eligibility(repo, actor, user, session);
+  const histories = ids.map(id => {
+    const count = user.cardsData.filter(data => data.cardTemplateId === id).length;
+    requireCondition(count === 1 || count === 0 && allowsVirtualPersonalCard(eligible, id), "CARD_CONTEXT_FORBIDDEN");
+    return eligibleHistory(user, id, eligible);
+  });
+  const titles = await sourceTitles(repo, actor, user, histories, session, eligible);
+  const originNames = await authorisedAssessmentOriginNames(repo, actor, ownerAssessmentEvents(user), session);
+  return Object.fromEntries(ids.map((cardTemplateId, i) => [cardTemplateId, { viewerUserId: actor, cardTemplateId,
+    history: projectAssessmentHistory(user, [histories[i]], titles, { ownCardIds: [cardTemplateId], originNames }) }]));
+}

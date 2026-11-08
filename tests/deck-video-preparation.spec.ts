@@ -23,7 +23,7 @@ test.beforeAll(async () => {
           <FocusedCardView {...props} playbackViewerUserId={actor}/></>}/>:null;
     }
     createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
-  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", define: {
+  ` }, bundle: true, write: false, outfile: "fixture.js", loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" }, platform: "browser", format: "iife", jsx: "automatic", define: {
     "process.env.NODE_ENV": JSON.stringify("test"), "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1"),
     "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": JSON.stringify("0"), "process.env": "{}",
   } });
@@ -56,7 +56,7 @@ async function setup(page: Page, query: string, holdCold = false) {
       return route.fulfill({ contentType: "image/svg+xml", body: svg });
     }
     if (url.pathname.includes("/api/")) return route.fulfill({ json: { status: "ready" } });
-    return route.fulfill({ contentType: "text/html", body: '<div id="root"></div>' });
+    return route.fulfill({ contentType: "text/html", body: '<meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div>' });
   });
   await page.route("https://videodelivery.net/**", async route => {
     const url = new URL(route.request().url()), asset = url.pathname.split("/")[1];
@@ -131,7 +131,9 @@ test("100-Card Deck limits proactive work; rapid navigation and learner change d
   await expect(page.locator(".active-card-front--focused")).toContainText("Introduction 5");
   await page.evaluate(() => (window as unknown as Harness).switchActor());
   await expect(page.locator(".active-card-front--focused")).toHaveCount(0);
-  await expect.poll(() => f.requests.filter(r => r.actor === "bob").length).toBe(6);
+  // StrictMode may abort/restart the two initial jobs on account remount.
+  // Verify the six authorised identities rather than counting cancelled attempts.
+  await expect.poll(() => new Set(f.requests.filter(r => r.actor === "bob" && r.kind === "grant").map(r => r.asset)).size).toBe(6);
   await page.evaluate(() => (window as unknown as Harness).closeDeck());
   const count = f.requests.length;
   await page.waitForTimeout(150); expect(f.requests.length).toBe(count);

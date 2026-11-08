@@ -47,10 +47,10 @@ export default function DeckDetail({ deck, ready = true, entryRevision, recovery
   // Working membership is already authorized by the resolver. Creator entry
   // may create an owned copy; it does not grant writes to the foreign original.
   const canEnterCreator = ready && (deck.permissions?.canEditDeck || (deck.hasUserDeckData && deck.context === "working"));
-  const assessment = (card: import("./presentation").PresentedCard, variant: "front" | "back" = "front", interactive = true) => hasPersonalCard(card) && working.canMutate && deck.dataOwnerUserId ?
-    <AssessmentControl key={`${deck.dataOwnerUserId}:${card.id}`} variant={variant} interactive={interactive} context={{ viewerUserId: deck.dataOwnerUserId,
-      source: { kind: "card", cardTemplateId: card.id }, deckTemplateId: deck.deckTemplateId,
-      canCreate: deck.hasUserDeckData && deck.context === "working" }} onOpenChange={setAssessmentOpen} /> : undefined;
+  const assessment = (card: import("./presentation").PresentedCard, variant: "front" | "back" = "front", interactive = true) => hasPersonalCard(card) && deck.dataOwnerUserId ?
+    <AssessmentControl key={`${deck.dataOwnerUserId}:${card.id}`} variant={variant} interactive={interactive && working.canMutate} context={{ viewerUserId: deck.dataOwnerUserId,
+      initialHistory: deck.preparedAssessments?.[card.id], source: { kind: "card", cardTemplateId: card.id }, deckTemplateId: deck.deckTemplateId,
+      canCreate: working.canMutate && deck.hasUserDeckData && deck.context === "working" }} onOpenChange={setAssessmentOpen} /> : undefined;
   const entryCardId = pendingNavigation && deck.cards.some(card => card.id === pendingNavigation.cardId) ? pendingNavigation.cardId : deck.activeCardId;
   return <><DeckScene {...props} initiallyFocused={!!recoveryInfoCardId} entrySelection={entryRevision === undefined ? undefined : { revision: entryRevision, cardId: entryCardId }} onOpenMedia={openMedia} mediaViewerOpen={!!viewer || !!centre}
     renderMediaOverlay={context => {

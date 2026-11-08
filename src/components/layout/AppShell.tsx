@@ -1,4 +1,6 @@
 "use client";
+import type { preparePersonalDeck } from "@/lib/cards/preparation";
+import { captureCardPreparation, acceptPersonalPreparation } from "@/lib/cards/preparationClient";
 import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
 import { personalWork } from "@/lib/cards/personalWork";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -64,7 +66,15 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
   const decks = buildMyDecksLayout(active.flatMap((item) => item.display ? [buildDeckLayout(item.display, { currentUserId, users: [{ id: currentUserId, name: userName }] })] : []));
   const opening = useRef<{ actor: string; id: string; requestKey: string; generation: number } | null>(null);
   function acceptRecords(values: MembershipDTO[]) {
-    setRecords(values);
+    setRecords(values.map(value => {
+      const old = records.find(record => record.deckTemplateId === value.deckTemplateId)?.display;
+      const current = value.display;
+      const compatible = current && old?.preparedAssessments && old.dataOwnerUserId === currentUserId && old.adoptedVersion === current.adoptedVersion
+        && JSON.stringify(old.cards.map(card => [card.id, card.adoptedVersion])) === JSON.stringify(current.cards.map(card => [card.id, card.adoptedVersion]));
+      return value.availability === "available" && compatible ? { ...value, display: { ...current, preparedAssessments: old.preparedAssessments } } : value;
+    }));
+    // This helper is called only after awaited event/effect requests, never during render.
+    // eslint-disable-next-line react-hooks/purity
     freshness.current = { actor: currentUserId, at: Date.now(), epoch: workingCardStore.epoch(currentUserId) };
   }
   async function open(id: string, cardTemplateId?: string, fromUrl = false) {
@@ -77,7 +87,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     setPending(id); setError(""); setVerified(false); setRetryEntry({ id, card: cardTemplateId, fromUrl });
     const membership = records.find(item => item.deckTemplateId === id);
     const retainingFailedEntry = !fromUrl && selected?.deckTemplateId === id && !verified;
-    const warm = !fromUrl && (canPresentWorkingMembership(membership, currentUserId, freshness.current) || canRetainWorkingMembership(membership, currentUserId));
+    const warm = !fromUrl && !!membership?.display?.preparedAssessments && (canPresentWorkingMembership(membership, currentUserId, freshness.current) || canRetainWorkingMembership(membership, currentUserId));
     if (!retainingFailedEntry) {
       if (warm) { setSelected(membership!.display!); setRotation(0); }
       else setSelected(null);
@@ -96,22 +106,24 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
         if (!stillRequested()) return;
         if (expectedVersion !== null && (!cardTemplateId || !/^[1-9]\d*$/.test(expectedVersion) || !Number.isSafeInteger(Number(expectedVersion)))) throw new Error("The selected Card version is invalid. Return to Progress and refresh your choices.");
         await flushPersonalMutations();
-        const current = fromUrl ? await workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data") : records;
+        const current = records;
         if (!stillRequested()) return;
-        if (fromUrl) acceptRecords(current);
         const membership = current.find(item => item.deckTemplateId === id && item.archivedAt === null);
         if (!membership || membership.availability === "unavailable") throw new Error("This Deck cannot currently be opened. Your membership and personal state are retained.");
         const scope = { userId: currentUserId, deckId: id, cardIds: membership.display?.cards.map(card => card.id) ?? [] };
         await personalWork.wait(scope);
         if (!stillRequested()) return;
-        const epoch = workingCardStore.epoch(currentUserId), revision = personalWork.revision(scope);
-        const deck = await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}), ...(expectedVersion === null ? {} : { expectedCardVersion: Number(expectedVersion) }) });
+        const epoch = workingCardStore.epoch(currentUserId), session = workingCardStore.session(currentUserId);
+        const capture = captureCardPreparation(currentUserId);
+        const prepared = await workingRequest<Awaited<ReturnType<typeof preparePersonalDeck>>>(currentUserId, `/api/decks-data/${encodeURIComponent(id)}/preparation`, "POST", { localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}), ...(expectedVersion === null ? {} : { expectedCardVersion: Number(expectedVersion) }) });
         if (!stillRequested()) return;
-        if (workingCardStore.epoch(currentUserId) !== epoch || personalWork.hasWork(scope) || personalWork.revision(scope) !== revision) throw new Error("Personal state changed while checking this Deck. Retry opening to load its current state.");
+        const deck = acceptPersonalPreparation(capture, prepared);
+        if (deck.cards.some(card => (workingCardStore.personal(currentUserId, card.id)?.adoptedVersion ?? 0) > (card.adoptedVersion ?? 0))) throw new Error("The Card version changed during opening. Retry to load its current state.");
         if (expectedVersion !== null && deck.cards.find(card => card.cardTemplateId === cardTemplateId)?.adoptedVersion !== Number(expectedVersion)) throw new Error("The selected Card version changed. Return to Progress and refresh your choices.");
-        workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
+        workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards, undefined, epoch, session);
         const personalDraft = new URLSearchParams(window.location.search).get("personalDraft");
         openedParam.current = JSON.stringify([currentUserId, id, personalDraft ? cardTemplateId ?? null : null, null]);
+        setRecords(previous => previous.map(record => record.deckTemplateId === id && record.availability === "available" ? { ...record, display: deck } : record));
         setSelected(deck); setEntryRevision(generation); setVerified(true); setRetryEntry(null);
         window.history.replaceState(null, "", withProgressReturn(`/decks?${new URLSearchParams({ openDeck: id,
           ...(personalDraft && cardTemplateId ? { openCard: cardTemplateId, personalDraft } : {}) })}`, progressReturn ? { ...progressReturn, restored: false } : null));
@@ -173,20 +185,26 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     }
     const generation = ++refreshGeneration.current;
     const epoch = workingCardStore.epoch(currentUserId);
-    const workRevision = personalWork.revision(scope);
+    const session = workingCardStore.session(currentUserId), capture = captureCardPreparation(currentUserId);
+    const url = `/api/decks-data/${encodeURIComponent(id)}/preparation`;
     const [projection, membershipRecords] = await Promise.all([
-      command?.kind === "deck" ? workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly() }) : workingRequest<Deck>(currentUserId, `/api/decks-data/${encodeURIComponent(id)}`),
+      workingRequest<Awaited<ReturnType<typeof preparePersonalDeck>>>(currentUserId, url, command?.kind === "deck" ? "POST" : "GET", command?.kind === "deck" ? { localDate: getTodayDateOnly() } : undefined),
       workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data"),
     ]);
-    // Focus is a read, not another opening. Only an externally adopted Deck
-    // composition needs normal open initialization for its newly introduced Cards.
-    const deck = !command && projection.adoptedVersion !== selected.adoptedVersion
-      ? await workingRequest<Deck>(currentUserId, "/api/decks-data", "POST", { deckTemplateId: id, localDate: getTodayDateOnly() }) : projection;
-    if (!live.current || actorRef.current !== currentUserId || refreshGeneration.current !== generation || workingCardStore.epoch(currentUserId) !== epoch || personalWork.hasWork(scope) || personalWork.revision(scope) !== workRevision) {
-      if (!command) return; // Obsolete background data must not replace optimistic work.
+    // Only an actual adoption that introduced Cards needs opening writes.
+    const prepared = !command && projection.deck.adoptedVersion !== selected.adoptedVersion
+      ? await workingRequest<Awaited<ReturnType<typeof preparePersonalDeck>>>(currentUserId, url, "POST", { localDate: getTodayDateOnly() }) : projection;
+    if (!live.current || actorRef.current !== currentUserId || refreshGeneration.current !== generation || workingCardStore.session(currentUserId) !== session) {
+      if (!command) return;
       throw new Error("Working state changed during refresh. Retry to load the current state.");
     }
-    workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards);
+    const deck = prepared.deck;
+    if (deck.cards.some(card => (workingCardStore.personal(currentUserId, card.id)?.adoptedVersion ?? 0) > (card.adoptedVersion ?? 0))) {
+      if (!command) return;
+      throw new Error("The Card version changed during refresh. Retry to load the current state.");
+    }
+    acceptPersonalPreparation(capture, prepared);
+    workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards, undefined, epoch, session);
     setSelected(deck); acceptRecords(membershipRecords);
   }
   useEffect(() => {

@@ -1,3 +1,4 @@
+import type { ClientSession } from "mongodb";
 import { cardCreatorAttributions } from "./creatorAttribution";
 import type { CardRepository } from "./repository";
 import { resolveWorkingDeck, resolveCreatorDeck, resolveCreatorCard, capabilities } from "./resolvers";
@@ -34,11 +35,14 @@ export async function creatorCardDTO(repo: CardRepository, actor: string, id: st
   const { _id, ...root } = card.root; void _id;
   return jsonDTO({ ...card, root });
 }
-export async function workingDTO(repo: CardRepository, actor: string, id: string): Promise<Deck> {
-  const deck = await resolveWorkingDeck(repo, actor, id);
+export async function workingDTO(repo: CardRepository, actor: string, id: string, session?: ClientSession): Promise<Deck> {
+  const deck = await resolveWorkingDeck(repo, actor, id, session);
   requireCondition(deck?.mode === "working", "WORKING_DECK_REQUIRED");
+  return workingSelectionDTO(repo, actor, deck, session);
+}
+export async function workingSelectionDTO(repo: CardRepository, actor: string, deck: NonNullable<Awaited<ReturnType<typeof resolveWorkingDeck>>>, session?: ClientSession): Promise<Deck> {
   const display = projectWorking(deck, actor);
-  const creators = await cardCreatorAttributions(repo, deck.cards.map((card) => card.root));
+  const creators = await cardCreatorAttributions(repo, deck.cards.map((card) => card.root), session);
   display.cards.forEach((card) => { card.creator = creators.get(card.cardTemplateId!); });
   return display;
 }

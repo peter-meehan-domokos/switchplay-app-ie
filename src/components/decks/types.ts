@@ -194,6 +194,7 @@ export type WeeklyCard = {
 };
 
 export type Deck = {
+  preparedAssessments?: Record<string, import("@/lib/assessments/historyClient").AssessmentHistoryResponse>;
   templateOwnerUserId?: string;
   dataOwnerUserId?: string;
   context?: "working";

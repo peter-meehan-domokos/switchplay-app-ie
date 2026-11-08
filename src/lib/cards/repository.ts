@@ -1034,12 +1034,13 @@ export class CardRepository {
   async activeMemberships(actor: string): Promise<DeckData[]> {
     const user = await this.getPersonalUser(actor); return user?.decksData.filter((deck) => deck.archivedAt === null) ?? [];
   }
-  async openWorkingDeck(actor: string, deckTemplateId: string, localDate: string, targetCardTemplateId?: string, expectedCardVersion?: number) {
+  async openWorkingDeck<T = void>(actor: string, deckTemplateId: string, localDate: string, targetCardTemplateId?: string, expectedCardVersion?: number,
+    afterOpen?: (selection: { user: PersonalUser; root: DeckTemplateRoot; version: DeckTemplateVersion; cards: { root: CardTemplateRoot; version: CardTemplateVersion; data: CardData }[] }, session: ClientSession) => Promise<T>) {
     entityId(deckTemplateId);
     if (targetCardTemplateId !== undefined) entityId(targetCardTemplateId);
     if (expectedCardVersion !== undefined) { assertAdoption(expectedCardVersion); requireCondition(targetCardTemplateId !== undefined, "TARGET_CARD_CONTEXT_REQUIRED"); }
     requireCondition(isIsoDateOnlyString(localDate) && localDate === localDate.trim(), "INVALID_CADENCE_ANCHOR");
-    await this.transaction(async (session) => {
+    return this.transaction(async (session) => {
       const user = await this.assertUser(actor, session);
       if (expectedCardVersion !== undefined) requireCondition(user.cardsData.find((card) => card.cardTemplateId === targetCardTemplateId)?.cardTemplateVersion === expectedCardVersion, "TARGET_CARD_VERSION_CONFLICT");
       const data = user.decksData.find((item) => item.deckTemplateId === deckTemplateId);
@@ -1074,9 +1075,11 @@ export class CardRepository {
         requireCondition(adopted, "MISSING_CARD_VERSION");
         assertCardVersionAccess(actor, card, adopted);
         const generated = addDaysToDateOnly(anchor, (index + 1) * version.content.cadence.intervalDays);
-        if (existing.targetDate === null) await this.users().updateOne({ _id: userKey(actor) }, {
+        if (existing.targetDate === null) { await this.users().updateOne({ _id: userKey(actor) }, {
           $set: { "cardsData.$[card].targetDate": adopted.content.suggestedTargetDate || generated, "cardsData.$[card].updatedAt": now },
         }, { session, arrayFilters: [{ "card.cardTemplateId": ref.cardTemplateId }] });
+          existing.targetDate = adopted.content.suggestedTargetDate || generated; existing.updatedAt = now;
+        }
       }
       await this.retainAssignments(actor, requests, session);
       const activeCardId = targetCardTemplateId ?? (version.content.cards.some((ref) => ref.cardTemplateId === data.activeCardId)
@@ -1085,6 +1088,8 @@ export class CardRepository {
         "decksData.$[deck].openedAt": now, "decksData.$[deck].updatedAt": now,
         "decksData.$[deck].cadenceAnchorDate": anchor, "decksData.$[deck].activeCardId": activeCardId,
       } }, { session, arrayFilters: [{ "deck.deckTemplateId": deckTemplateId }] });
+      data.openedAt = now; data.updatedAt = now; data.cadenceAnchorDate = anchor; data.activeCardId = activeCardId;
+      return afterOpen?.({ user, root, version, cards: ids.map(id => ({ root: rootsById.get(id)!, version: versionsById.get(id)!, data: user.cardsData.find(card => card.cardTemplateId === id)! })) }, session);
     });
   }
   async setActiveCard(actor: string, deckTemplateId: string, cardTemplateId: string) {

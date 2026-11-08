@@ -1,3 +1,4 @@
+import type { ClientSession } from "mongodb";
 import type { CardRepository } from "./repository";
 import { assertAdoption, nonblank, requireCondition } from "./domain";
 import type { Capabilities, CardData, CardTemplateRoot, DeckData, DeckTemplateRoot, PublishedDeckContent } from "./model";
@@ -28,9 +29,9 @@ export function capabilities(actor: string, dataOwnerUserId: string, deck: DeckT
   };
 }
 
-async function resolveCards(repo: CardRepository, refs: PublishedDeckContent["cards"], actor: string | null, data: CardData[], selection: "adopted" | "latest" | "historical") {
+async function resolveCards(repo: CardRepository, refs: PublishedDeckContent["cards"], actor: string | null, data: CardData[], selection: "adopted" | "latest" | "historical", session?: ClientSession) {
   if (refs.length === 0) return [];
-  const roots = await repo.cards().find({ cardTemplateId: { $in: refs.map((ref) => ref.cardTemplateId) } }).toArray();
+  const roots = await repo.cards().find({ cardTemplateId: { $in: refs.map((ref) => ref.cardTemplateId) } }, { session }).toArray();
   const rootsById = new Map(roots.map((root) => [root.cardTemplateId, root]));
   const dataById = new Map(data.map((item) => [item.cardTemplateId, item]));
   const requests = refs.map((ref) => {
@@ -43,7 +44,7 @@ async function resolveCards(repo: CardRepository, refs: PublishedDeckContent["ca
     assertAdoption(version);
     return { root, personal, version };
   });
-  const versions = await repo.cardVersions().find({ $or: requests.map(({ root, version }) => ({ cardTemplateId: root.cardTemplateId, version })) }).toArray();
+  const versions = await repo.cardVersions().find({ $or: requests.map(({ root, version }) => ({ cardTemplateId: root.cardTemplateId, version })) }, { session }).toArray();
   const byVersion = new Map(versions.map((version) => [`${version.cardTemplateId}@${version.version}`, version]));
   return requests.map(({ root, personal, version }) => {
     const adopted = byVersion.get(`${root.cardTemplateId}@${version}`); requireCondition(adopted, "MISSING_CARD_VERSION");
@@ -52,18 +53,24 @@ async function resolveCards(repo: CardRepository, refs: PublishedDeckContent["ca
   });
 }
 
-export async function resolveWorkingDeck(repo: CardRepository, actor: string, deckTemplateId: string) {
-  const user = await repo.getPersonalUser(actor);
+export async function resolveWorkingDeck(repo: CardRepository, actor: string, deckTemplateId: string, session?: ClientSession) {
+  const user = await repo.getPersonalUser(actor, session);
   const data = user?.decksData.find((item) => item.deckTemplateId === deckTemplateId);
   if (!data || data.archivedAt !== null) return null; // Ownership is never a membership fallback.
   assertAdoption(data.deckTemplateVersion);
-  const root = await repo.decks().findOne({ deckTemplateId }); requireCondition(root, "MISSING_DECK_REFERENCE");
+  const root = await repo.decks().findOne({ deckTemplateId }, { session }); requireCondition(root, "MISSING_DECK_REFERENCE");
   requireCondition(root.ownerUserId === actor || root.visibility === "public", "DECK_FORBIDDEN");
-  const version = await repo.getDeckVersion(deckTemplateId, data.deckTemplateVersion); requireCondition(version, "MISSING_DECK_VERSION");
+  const version = await repo.getDeckVersion(deckTemplateId, data.deckTemplateVersion, session); requireCondition(version, "MISSING_DECK_VERSION");
   assertDeckVersionAccess(actor, root, version);
-  const cards = await resolveCards(repo, version.content.cards, actor, user?.cardsData ?? [], "adopted");
-  return { mode: "working" as const, root: publishedRoot(root), version: publishedVersion(version), data, personalRecords: user!.cardsData, permissions: capabilities(actor, actor, root),
-    cards: cards.map((card) => ({ ...card, permissions: capabilities(actor, actor, root, card.root, card.data) })) };
+  const cards = await resolveCards(repo, version.content.cards, actor, user?.cardsData ?? [], "adopted", session);
+  return workingSelection(actor, user!, root, version, cards);
+}
+// Internal projection of a selection already authorised in the current snapshot.
+export function workingSelection(actor: string, user: import("./model").PersonalUser, root: DeckTemplateRoot,
+  version: import("./model").DeckTemplateVersion, cards: { root: CardTemplateRoot; version: import("./model").CardTemplateVersion; data: CardData | null }[]) {
+  const data = user.decksData.find(item => item.deckTemplateId === root.deckTemplateId)!;
+  return { mode: "working" as const, root: publishedRoot(root), version: publishedVersion(version), data, personalRecords: user.cardsData, permissions: capabilities(actor, actor, root),
+    cards: cards.map(card => ({ root: publishedRoot(card.root), version: publishedVersion(card.version), data: card.data, permissions: capabilities(actor, actor, root, card.root, card.data) })) };
 }
 
 // Template-only: never reads personal data or mutates adoption.

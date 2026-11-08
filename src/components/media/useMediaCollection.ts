@@ -12,7 +12,7 @@ export function useMediaCollection(context: MediaCollectionContext | null, limit
   const state = useSyncExternalStore(controller?.subscribe ?? (() => () => {}), controller?.snapshot ?? (() => empty), () => empty);
   useEffect(() => {
     if (!controller) return;
-    controller.activate(); void controller.load();
+    controller.activate(); if (!controller.snapshot().page || !refreshFromNewest) void controller.load();
     const refresh = () => { if (document.visibilityState !== "hidden") void controller.refresh(refreshFromNewest); };
     const changed = (e: Event) => {
       const detail = (e as CustomEvent).detail;

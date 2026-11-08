@@ -16,6 +16,9 @@ import { resolve } from "node:path";
 import { createMediaReviewHandler, seedMediaReview } from "../tests/helpers/mediaReviewFixture";
 import { seedLiveGroupProgress } from "../tests/helpers/groupProgressLiveReview";
 import { seedReflectionReview } from "../tests/helpers/reflectionReviewFixture";
+import { GroupReflectionRepository } from "../src/lib/reflections/groupRepository";
+import { saveCollectiveReflection } from "../src/lib/reflections/collective";
+import { GroupExperienceRepository } from "../src/lib/groupExperiences/repository";
 import { seedGroupReview } from "../tests/helpers/groupReviewFixture";
 import { seedGroupProgressReview, startGroupProgressPreview } from "../tests/helpers/groupProgressReview";
 import { createGroupExperienceIndexes } from "../src/lib/groupExperiences/indexes";
@@ -40,6 +43,7 @@ const lan = interactive && process.argv.includes("--lan");
 const infoCards = process.argv.includes("--info-cards");
 const liveProgress = process.argv.includes("--group-progress-live");
 const groupProgress = process.argv.includes("--group-progress");
+const completeLoading = process.argv.includes("--complete-loading");
 const mediaReview = process.argv.includes("--group-media");
 const groupExperiences = mediaReview || process.argv.includes("--group-experiences") || groupProgress || liveProgress;
 const optimized = process.argv.includes("--optimized");
@@ -115,7 +119,7 @@ try {
       personalReview = { deckId, emptyCardId, mixedCardId, inheritedDeckId, inheritedCardId };
     }
   }
-  const groupReview = groupExperiences ? await seedGroupReview(client, database, userId.toHexString(), (await db.collection("users").findOne({ username: "other" }))!._id.toString()) : undefined;
+  const groupReview = groupExperiences ? await seedGroupReview(client, database, userId.toHexString(), (await db.collection("users").findOne({ username: "other" }))!._id.toString(), completeLoading ? 6 : 3) : undefined;
   const liveProgressReview = liveProgress ? await seedLiveGroupProgress(new CardRepository(db, client), uri, userId.toHexString(),
     (await db.collection("users").findOne({ username: "other" }))!._id.toString(), groupReview?.cardIds ?? []) : undefined;
   const frameworkFixture = liveProgressReview ? resolve(`phase2-test-results/framework-${mode}.ts`) : undefined;
@@ -136,6 +140,15 @@ try {
   const baseURL = `http://${optimized ? "localhost" : "127.0.0.1"}:${appPort}`;
   const lanIPs = Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => row.address);
   const mediaReviewData = mediaReview && groupReview ? await seedMediaReview(client, database, groupReview, mediaFixture, `http://${lan ? lanIPs[0] : "127.0.0.1"}:${appPort}/__phase7-media/assets`) : undefined;
+  if (completeLoading && groupReview && mediaReview) {
+    for (const cardId of groupReview.cardIds.slice(1)) await seedMediaReview(client, database, { ...groupReview, cardIds: [cardId] }, mediaFixture, `http://${lan ? lanIPs[0] : "127.0.0.1"}:${appPort}/__phase7-media/assets`, false);
+    const groupRepo = new GroupExperienceRepository(new CardRepository(db, client)), notes = new GroupReflectionRepository(groupRepo);
+    for (const [i, cardTemplateId] of groupReview.cardIds.entries()) {
+      await db.collection("users").updateOne({ _id: new ObjectId(groupReview.otherId) }, { $set: { "cardsData.$[card].reflection": `Personal reflection for Card ${i + 1}` } }, { arrayFilters: [{ "card.cardTemplateId": cardTemplateId }] });
+      await notes.save(groupReview.otherId, groupReview.experienceId, cardTemplateId, { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: `Player reflection for Card ${i + 1}` });
+      await saveCollectiveReflection(groupRepo, groupReview.adminId, groupReview.experienceId, cardTemplateId, { operationId: randomUUID(), accessEpoch: 0, expectedRevision: 0, text: `Collective reflection for Card ${i + 1}` });
+    }
+  }
   const reflectionReview = process.argv.includes("--group-reflections") && groupReview ? await seedReflectionReview(client, database, groupReview) : undefined;
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
     SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","),
@@ -157,8 +170,8 @@ try {
     // Measure/review actual optimized React, not JSX development stack capture.
     // Build without any database connection; only the local runtime receives
     // this harness's disposable URI. Public media flags remain fixture mocks.
-    app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build", ...(frameworkFixture ? ["--webpack"] : [])], {
-      env: { ...env, MONGODB_URI: "", MONGODB_DB: "" }, stdio: ["ignore", "pipe", "pipe"],
+    app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build", ...(frameworkFixture || mediaReview ? ["--webpack"] : [])], {
+      env: { ...env, MONGODB_URI: "", MONGODB_DB: mediaReview ? database : "" }, stdio: ["ignore", "pipe", "pipe"],
     });
     app.stdout!.on("data", value => { output.push(String(value)); if (interactive) process.stdout.write(value); });
     app.stderr!.on("data", value => { output.push(String(value)); if (interactive) process.stderr.write(value); });
@@ -191,7 +204,7 @@ try {
       progressPreview = await startGroupProgressPreview(progress.data, baseURL);
       Object.assign(env, { PHASE5_PROGRESS_PREVIEW_URL: progressPreview.baseURL, PHASE5_PROGRESS_EXPERIENCE: progress.data.experienceId });
     }
-    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--group-progress-live", "--group-media", "--optimized"].includes(arg))], { env, stdio: "inherit" });
+    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--group-progress-live", "--group-media", "--optimized", "--complete-loading"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));

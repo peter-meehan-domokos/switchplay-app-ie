@@ -12,6 +12,7 @@ export class MediaCollectionController {
   private offGroup?: () => void;
   private revoked = false;
   private lastChange?: Event;
+  private preparationVersion = 0;
   constructor(readonly context: MediaCollectionContext, readonly request: CollectionLoader = fetchMediaCollection, readonly limit = 30, private readonly initial?: GallerySeed) {
     workingCardStore.trackUser(context.viewerUserId);
     this.session = workingCardStore.session(context.viewerUserId);
@@ -50,7 +51,13 @@ export class MediaCollectionController {
     void promise.finally(() => { if (this.pending?.promise === promise) this.pending = undefined; });
     return promise;
   }
-  invalidate() { ++this.generation; this.abort?.abort(); this.pending = undefined; }
+  preparationToken() { return this.preparationVersion; }
+  acceptPrepared(page: MediaCollectionPage, token = 0) {
+    if (this.disposed || this.revoked || workingCardStore.session(this.context.viewerUserId) !== this.session || token !== this.preparationVersion) return false;
+    this.validate(page); ++this.generation; this.abort?.abort(); this.pending = undefined; ++this.preparationVersion;
+    this.set({ page, loading: false, error: null }); return true;
+  }
+  invalidate() { ++this.preparationVersion; ++this.generation; this.abort?.abort(); this.pending = undefined; }
   changed(event: Event) { if (this.lastChange !== event) { this.lastChange = event; this.invalidate(); } }
   removed(source: MediaSource, action: "delete" | "hide") {
     const page = this.state.page; if (!page) return;
@@ -72,7 +79,7 @@ export class MediaCollectionController {
       this.validate(page);
       const found = page.items.findIndex(i => collectionKey(i) === previous);
       const chosen = edge === "first" ? 0 : edge === "last" ? page.items.length - 1 : found >= 0 ? found : Math.max(0, Math.min(index, page.items.length - 1));
-      this.currentCursor = cursor;
+      ++this.preparationVersion; this.currentCursor = cursor;
       this.set({ page, selectedKey: page.items[chosen] ? collectionKey(page.items[chosen]) : null, loading: false });
     } catch (error) {
       if (this.disposed || workingCardStore.session(this.context.viewerUserId) !== this.session || generation !== this.generation || abort.signal.aborted) return;
@@ -98,8 +105,15 @@ export class MediaCollectionController {
 
 // Only Card preview windows are retained. Gallery cursor/selection stays local.
 const previews = new Map<string, MediaCollectionController>();
+const previewKey = (c: MediaCollectionContext) => JSON.stringify([c.viewerUserId, c.cardTemplateId, c.kind, c.experienceId ?? null, c.kind === "group" ? c.subjectUserId ?? null : null, c.accessEpoch ?? null, c.kind === "group" ? c.adoptionRevision : null, c.kind === "group" ? c.structureRevision ?? null : null]);
+export function hasPreparedMedia(context: MediaCollectionContext) { return !!previews.get(previewKey(context))?.snapshot().page; }
+export function captureMediaPreparation(actor: string) { return new Map([...previews].filter(([, c]) => c.context.viewerUserId === actor).map(([key, c]) => [key, c.preparationToken()])); }
+export function acceptMediaPreparation(context: MediaCollectionContext, page: MediaCollectionPage, tokens: Map<string, number>) {
+  const controller = retainedMediaPreview(context);
+  return controller.acceptPrepared(page, tokens.get(previewKey(context)) ?? 0) || controller.snapshot().page !== null;
+}
 export function retainedMediaPreview(context: MediaCollectionContext, loader?: CollectionLoader, limit = 5) {
-  const key = JSON.stringify(context);
+  const key = previewKey(context);
   let controller = previews.get(key);
   if (controller && (controller.request !== (loader ?? fetchMediaCollection) || controller.limit !== limit)) { controller.dispose(); previews.delete(key); controller = undefined; }
   if (!controller) { controller = new MediaCollectionController(context, loader, limit); previews.set(key, controller); }
