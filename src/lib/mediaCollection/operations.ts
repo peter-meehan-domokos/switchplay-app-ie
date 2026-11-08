@@ -19,7 +19,7 @@ export function mutateCollectionItem(context: MediaCollectionContext, item: Medi
       ? await mediaJson(context, `/api/group-experiences/${encodeURIComponent(context.experienceId)}/media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision, accessEpoch: context.accessEpoch })
       : await mediaJson(context, `/api/group-media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision });
     else result = await mediaJson(context, `/api/cards-data/${encodeURIComponent(source.cardTemplateId)}/media/${encodeURIComponent(source.mediaItemId)}`, "DELETE");
-    notifyMediaCollectionChanged(item.authorUserId, context.cardTemplateId, source.kind === "group" ? source.experienceId : undefined);
+    notifyMediaCollectionChanged(item.authorUserId, context.cardTemplateId, source.kind === "group" ? source.experienceId : undefined, { source, action });
     return result;
   });
 }

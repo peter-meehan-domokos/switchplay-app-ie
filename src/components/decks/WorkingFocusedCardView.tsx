@@ -26,7 +26,7 @@ export default function WorkingFocusedCardView({ card, deckTemplateId, canMutate
       card={card} deckTemplateId={deckTemplateId} dateLabel={dateLabel} variant="focused" canMutate={canMutate}
       onCommitSignalReading={onCommitSignalReading}
       onEditMedia={onOpenMediaCentre}
-      reflectionArea={card.dataOwnerUserId ? offset => <ReflectionArea verticalOffset={offset} context={{ viewerUserId: card.dataOwnerUserId!, cardTemplateId: card.id, deckTemplateId, view: { kind: "personal" } }} onModalChange={setReflectionOpen} /> : undefined}
+      reflectionArea={card.dataOwnerUserId ? offset => <ReflectionArea interactive={canMutate} verticalOffset={offset} context={{ viewerUserId: card.dataOwnerUserId!, cardTemplateId: card.id, deckTemplateId, view: { kind: "personal" } }} onModalChange={setReflectionOpen} /> : undefined}
       />}
     />;
 }

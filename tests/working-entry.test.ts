@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { entryDeck, entryMembership } from "./fixtures/workingEntry";
-import { canPresentWorkingMembership, WORKING_PRESENTATION_FRESH_MS } from "../src/lib/cards/workingEntry";
+import { canPresentWorkingMembership, canRetainWorkingMembership, WORKING_PRESENTATION_FRESH_MS } from "../src/lib/cards/workingEntry";
 import { workingCardStore } from "../src/lib/cards/workingCardStore";
 import { personalWork } from "../src/lib/cards/personalWork";
 import { buildDeckLayout } from "../src/components/decks/deckLayout";
@@ -22,6 +22,15 @@ test("warm presentation requires fresh actor-bound, available, initialized membe
   workingCardStore.clearUser(actor);
   workingCardStore.invalidate(actor);
   assert.equal(canPresentWorkingMembership(membership, actor, fresh, 1001), false);
+});
+test("read-only retained membership outlives freshness but not account or adopted composition", () => {
+  const actor = "retained-entry", membership = entryMembership(entryDeck(0, actor));
+  assert.equal(canRetainWorkingMembership(membership, actor), false);
+  workingCardStore.accept(actor, buildDeckLayout(membership.display!, { currentUserId: actor, users: [] }).cards);
+  assert.equal(canRetainWorkingMembership(membership, actor), true);
+  assert.equal(canPresentWorkingMembership(membership, actor, { actor, at: 1, epoch: 0 }, 100_000), false);
+  assert.equal(canRetainWorkingMembership(membership, "another"), false);
+  workingCardStore.clearUser(actor); assert.equal(canRetainWorkingMembership(membership, actor), false);
 });
 
 test("pending or failed shared Card work and adoption locks exclude immediate presentation; empty initialized Decks are valid", async () => {

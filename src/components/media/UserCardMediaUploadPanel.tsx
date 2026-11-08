@@ -21,6 +21,7 @@ export type UserCardMediaRemovalState = {
 type UserCardMediaUploadPanelProps = {
   getMetadata?: (item: MediaItem) => { filename: string; origin: string; uploader?: string };
   canUpload?: boolean;
+  mutationDisabled?: boolean;
   canRemoveMedia?: (item: MediaItem) => boolean;
   showPrivate?: boolean;
   getReadinessTarget?: (item: VideoMediaItem) => GalleryMediaRequest | undefined;
@@ -36,9 +37,9 @@ type UserCardMediaUploadPanelProps = {
   getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
-function VideoTile({ item, target, removalState, onRemove, canRemove = true, showPrivate = false, readinessTarget, getMetadata }: {
+function VideoTile({ item, target, removalState, onRemove, canRemove = true, mutationDisabled = false, showPrivate = false, readinessTarget, getMetadata }: {
   getMetadata?: UserCardMediaUploadPanelProps["getMetadata"];
-  item: VideoMediaItem; canRemove?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
+  item: VideoMediaItem; canRemove?: boolean; mutationDisabled?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
   target: UserCardMediaUploadTarget;
   removalState?: UserCardMediaRemovalState;
   onRemove: () => void;
@@ -89,7 +90,7 @@ function VideoTile({ item, target, removalState, onRemove, canRemove = true, sho
       {canRemove ? <button
         aria-label={`Remove video ${item.description} (${item.id})`}
         className="creator-modal-secondary user-card-media-tile-remove"
-        disabled={removalState?.isRemoving}
+        disabled={mutationDisabled || removalState?.isRemoving}
         onClick={onRemove}
         type="button"
       >
@@ -109,7 +110,7 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
-  getMetadata, canUpload = true, canRemoveMedia = () => true, showPrivate = false, getReadinessTarget,
+  getMetadata, canUpload = true, mutationDisabled = false, canRemoveMedia = () => true, showPrivate = false, getReadinessTarget,
   getMediaKey = (item) => item.id,
   getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
@@ -137,14 +138,14 @@ export default function UserCardMediaUploadPanel({
             accept="image/*"
             aria-label="Choose image"
             className="creator-deck-introduction-image-input"
-            disabled={uploadState.isImageUploading}
+            disabled={mutationDisabled || uploadState.isImageUploading}
             onChange={handleImageChange}
             ref={imageInputRef}
             type="file"
           /> : null}
           {canUpload ? <button
             className="creator-modal-secondary"
-            disabled={uploadState.isImageUploading}
+            disabled={mutationDisabled || uploadState.isImageUploading}
             onClick={() => imageInputRef.current?.click()}
             type="button"
           >
@@ -174,7 +175,7 @@ export default function UserCardMediaUploadPanel({
                 {canRemoveMedia(item) ? <button
                   aria-label={`Remove image ${item.description} (${item.id})`}
                   className="creator-modal-secondary user-card-media-tile-remove"
-                  disabled={removalState?.isRemoving}
+                  disabled={mutationDisabled || removalState?.isRemoving}
                   onClick={() => onRemoveMedia(item)}
                   type="button"
                 >
@@ -193,14 +194,14 @@ export default function UserCardMediaUploadPanel({
             accept="video/*"
             aria-label="Choose video"
             className="creator-deck-introduction-image-input"
-            disabled={uploadState.isVideoUploading}
+            disabled={mutationDisabled || uploadState.isVideoUploading}
             onChange={handleVideoChange}
             ref={videoInputRef}
             type="file"
           /> : null}
           {canUpload ? <button
             className="creator-modal-secondary"
-            disabled={uploadState.isVideoUploading}
+            disabled={mutationDisabled || uploadState.isVideoUploading}
             onClick={() => videoInputRef.current?.click()}
             type="button"
           >
@@ -217,7 +218,7 @@ export default function UserCardMediaUploadPanel({
           {videos.map((item) => (
             <VideoTile
               item={item}
-              getMetadata={getMetadata} showPrivate={showPrivate} canRemove={canRemoveMedia(item)} readinessTarget={getReadinessTarget?.(item)}
+              getMetadata={getMetadata} showPrivate={showPrivate} canRemove={canRemoveMedia(item)} mutationDisabled={mutationDisabled} readinessTarget={getReadinessTarget?.(item)}
               key={getMediaKey(item)}
               onRemove={() => onRemoveMedia(item)}
               removalState={removalStatesById[getMediaKey(item)]}

@@ -5,7 +5,7 @@ export async function mediaJson<T>(context: Pick<MediaCollectionContext, "viewer
   const value = await response.json();
   if (!response.ok) throw Object.assign(new Error(value.error ?? "Media unavailable."), { status: response.status, code: value.code, contributionId: value.contributionId });
   const viewer = response.headers.get("X-Group-Viewer") ?? response.headers.get("X-Personal-Viewer");
-  if (viewer && viewer !== context.viewerUserId) throw Error("Your account changed. Reopen the Card.");
+  if (viewer && viewer !== context.viewerUserId) throw Object.assign(Error("Your account changed. Reopen the Card."), { status: 409 });
   return value;
 }
 export async function fetchMediaCollection(context: MediaCollectionContext, cursor?: string, signal?: AbortSignal, limit = 30): Promise<MediaCollectionPage> {

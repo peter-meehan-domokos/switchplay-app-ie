@@ -26,6 +26,7 @@ export function presentGroup(data: LoadedGroup, selection: PerspectiveSelection,
         ...(own ? { ownerDate: boot.ownDates?.find(row => row.cardTemplateId === content.cardTemplateId)?.targetDate ?? null } : {}),
         completion: values.completion, confidence: values.confidence,
         aggregates: selection.perspective === "group" ? data.aggregates.find(row => row.cardTemplateId === content.cardTemplateId) : undefined,
+        aggregatePending: selection.perspective === "group" ? data.aggregatePending?.[content.cardTemplateId] : undefined,
         steps: content.steps.map(step => ({ ...step, completionStatus: learning.items.find(item => item.stepId === step.stepId)!.completionStatus })),
       };
     }) };

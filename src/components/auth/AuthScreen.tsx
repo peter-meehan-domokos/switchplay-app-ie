@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
+import { workingCardStore } from "@/lib/cards/workingCardStore";
 
 type AuthScreenProps = {
   redirectTo?: string;
@@ -32,6 +33,9 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
       return;
     }
 
+    // A successful sign-in starts a new client authority scope, including when
+    // the previous account had only Group or preview resources in memory.
+    workingCardStore.clearSession();
     startTransition(() => {
       if (redirectTo) {
         router.replace(redirectTo);

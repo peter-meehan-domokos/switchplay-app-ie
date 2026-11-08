@@ -1,14 +1,14 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { groupProgressHref, rememberGroupReturn, readGroupDeckReturn, readProgressReturn, progressReturnHref } from "@/lib/frameworks/progressNavigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import CardMediaCentre from "@/components/media/CardMediaCentre";
 import CollectionGallery from "@/components/media/CollectionGallery";
 import type { MediaCollectionContext, MediaCollectionPage } from "@/lib/mediaCollection/contracts";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import DeckScene from "@/components/decks/DeckScene";
 import FocusedCardView from "@/components/decks/FocusedCardView";
-import { createGroupResource, type GroupResourceState } from "./groupResource";
+import { retainedGroupResource, type GroupResourceState } from "./groupResource";
 import { presentGroup } from "./groupPresentation";
 import GroupCardBack from "./GroupCardBack";
 import type { ReflectionAreaContext } from "@/components/reflections/ReflectionArea";
@@ -31,8 +31,8 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   // commits during a soft navigation. Reading the latter loses return geometry.
   const [restored] = useState(() => readGroupDeckReturn(entryQuery, experienceId));
   const progressReturn = readProgressReturn(entryQuery);
-  const [resource, setResource] = useState<ReturnType<typeof createGroupResource>>();
-  const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, resource?.snapshot ?? emptySnapshot);
+  const resource = useMemo(() => typeof window === "undefined" ? undefined : retainedGroupResource(actor, experienceId), [actor, experienceId]);
+  const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, emptySnapshot);
   const [selection, setSelection] = useState<PerspectiveSelection | undefined>(restored?.selection);
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [rotation, setRotation] = useState(restored?.rotation ?? 0);
@@ -44,13 +44,9 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const mediaSourceRef = useRef<HTMLButtonElement | null>(null);
   const settingsPerspective = useRef<PerspectiveSelection | null>(null);
   useEffect(() => {
-    // Effect lifetime owns transport resources, including Strict Mode's trial
-    // mount. A disposed controller must never be reused by the next mount.
-    const resource = createGroupResource(actor, experienceId);
-    // Publish an externally owned controller; this must follow effect lifetime
-    // so Strict Mode cleanup cannot leave a disposed resource mounted.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setResource(resource);
+    // View lifetime owns timers, not accepted data or submitted work.
+    if (!resource) return;
+    resource.setActive(true);
     void resource.load();
     const refresh = () => { if (document.visibilityState === "hidden") resource.invalidate(); else void resource.load(); };
     const hidden = () => { resource.invalidate(); if (document.visibilityState !== "hidden") void resource.load(); };
@@ -65,9 +61,9 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     };
     authorityTimer = setTimeout(renewAuthority, 2_000);
     window.addEventListener("focus", hidden); window.addEventListener("pageshow", hidden); document.addEventListener("visibilitychange", hidden);
-    return () => { stopped = true; clearInterval(timer); clearTimeout(authorityTimer); window.removeEventListener("focus", hidden); window.removeEventListener("pageshow", hidden); document.removeEventListener("visibilitychange", hidden); resource.dispose(); };
-  }, [actor, experienceId]);
-  const data = "data" in state ? state.data : undefined;
+    return () => { stopped = true; resource.setActive(false); clearInterval(timer); clearTimeout(authorityTimer); window.removeEventListener("focus", hidden); window.removeEventListener("pageshow", hidden); document.removeEventListener("visibilitychange", hidden); };
+  }, [resource]);
+  const data = state.data?.bootstrap.viewerUserId === actor && state.data.bootstrap.experienceId === experienceId ? state.data : undefined;
   // Keep the form mounted even if authority polling observes a committed
   // self-removal before its HTTP acknowledgement reaches this browser.
   const settings = settingsOpen ? <GroupManagementForm key="management" actor={actor} experienceId={experienceId} onCancel={() => setSettingsOpen(false)}
@@ -87,9 +83,9 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     || chosen.perspective === "follower" && boot.canInspectFollowers && data.followers.some(row => row.userId === chosen.subjectUserId);
   const effective: PerspectiveSelection = permitted ? chosen : { perspective: boot.isAdmin ? "group" : "self" };
   if (selection && !permitted) setSelection(undefined);
-  // A peer cache may still exist in memory, but never render it without a live
-  // authority lease. Group/self fallback has no foreign-private data to reveal.
-  const shown = effective.perspective === "follower" && !state.verified ? { perspective: boot.isAdmin ? "group" : "self" } as PerspectiveSelection : effective;
+  // A stale lease disables writes. Confirmed denial/composition changes purge
+  // affected resources; routine verification must not reconstruct the Card.
+  const shown = effective;
   const deck = presentGroup(data, shown, state.verified);
   // Adoption can remove a Card while this physical scene remains mounted.
   // Retained learning is not a historical navigation grant: use only a current
@@ -99,18 +95,18 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const choices: PerspectiveChoice[] = [{ key: "group", name: boot.name, group: true, selection: { perspective: "group" } },
     ...data.followers.map(row => ({ key: row.userId, name: row.username, selection: row.userId === actor ? { perspective: "self" as const } : { perspective: "follower" as const, subjectUserId: row.userId } }))];
   const selectedKey = shown.perspective === "group" ? "group" : shown.perspective === "self" ? actor : shown.subjectUserId;
-  const mediaAuthority = JSON.stringify([actor, experienceId, effective, boot.accessEpoch, boot.adoptionRevision, boot.isAdmin, boot.isFollower]);
+  const mediaAuthority = JSON.stringify([actor, experienceId, effective, boot.accessEpoch, boot.adoptionRevision, boot.structureRevision, boot.isAdmin, boot.isFollower]);
   // Own history remains authorised by its creator identity while Group writes
   // revalidate. Never retain or substitute a foreign perspective's media.
   const mediaContext = (cardId: string): MediaCollectionContext | null => shown.perspective === "self" && effective.perspective === "self"
     ? { kind: "owner", viewerUserId: actor, cardTemplateId: cardId, experienceId }
-    : !state.verified ? null : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision,
+    : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision, structureRevision: boot.structureRevision,
       ...(shown.perspective === "follower" ? { subjectUserId: shown.subjectUserId } : {}) };
-  const reflectionContext = (cardId: string): ReflectionAreaContext | null => !state.verified && !(shown.perspective === "self" && effective.perspective === "self") ? null : {
-    viewerUserId: actor, cardTemplateId: cardId, adoptionRevision: boot.adoptionRevision,
+  const reflectionContext = (cardId: string): ReflectionAreaContext => ({
+    viewerUserId: actor, cardTemplateId: cardId, adoptionRevision: boot.adoptionRevision, structureRevision: boot.structureRevision,
     view: { kind: "group", experienceId, mode: shown.perspective === "self" ? "own" : shown.perspective === "group" ? "group" : "inspection",
       subjectUserId: shown.perspective === "follower" ? shown.subjectUserId : undefined, accessEpoch: boot.accessEpoch },
-  };
+  });
   const signalReadOnlyReason = !state.verified ? "Checking your access. Try again in a moment."
     : shown.perspective === "group" ? "Only a Group Admin can change this value." : "Only this member can change this value.";
   const validOverlay = mediaOverlay?.authority === mediaAuthority && mediaOverlay.cardId === currentCardId && mediaOverlay.focused === focused ? mediaOverlay : null;
@@ -125,7 +121,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     mediaSourceRef.current = document.activeElement as HTMLButtonElement;
     setMediaOverlay({ kind: "centre", cardId, authority: mediaAuthority, focused, context: mediaContext(cardId)!, version: deck.cards.find(c => c.id === cardId)!.version });
   };
-  const comparisonOpen = expanded && focused && boot.canInspectFollowers && state.verified;
+  const comparisonOpen = expanded && focused && boot.canInspectFollowers;
   const select = (choice: PerspectiveChoice) => { setSelection(choice.selection); void resource.navigate(choice.selection, currentCardId).catch(() => resource.invalidate()); };
   const save = (cardId: string, change: PersonalLearningChange) => {
     const card = deck.cards.find(card => card.id === cardId);
@@ -162,13 +158,13 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       renderMediaOverlay={scene => {
         const context = validOverlay?.context, card = deck.cards.find(c => c.id === validOverlay?.cardId);
         if (!context || !validOverlay || !card || !isExperienceCard(card) || scene.transitioning || scene.activeCardId !== card.id) return null;
-        return validOverlay.kind === "gallery" ? <CollectionGallery key={`${mediaAuthority}:${card.id}`} context={context} suspended={!state.verified} selectedKey={validOverlay.selectedKey!} initialPage={validOverlay.initialPage} sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />
-          : <CardMediaCentre key={`${mediaAuthority}:${card.id}`} context={context} suspended={!state.verified}
+        return validOverlay.kind === "gallery" ? <CollectionGallery key={`${mediaAuthority}:${card.id}`} context={context} selectedKey={validOverlay.selectedKey!} initialPage={validOverlay.initialPage} sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />
+          : <CardMediaCentre key={`${mediaAuthority}:${card.id}`} context={context} readOnly={!state.verified}
             groupUpload={{ viewerUserId: actor, experienceId, cardTemplateId: card.id, accessEpoch: boot.accessEpoch, version: card.version }}
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
       renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
-      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} frontAction={updates.cardButton(props.card.id)} interactionLocked={!state.verified || !!validOverlay || reflectionOpen || updates.open}
+      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
@@ -177,7 +173,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />
       : <PerspectivePicker choices={choices} selected={selectedKey} ownKey={boot.isFollower ? actor : undefined} canCompare={boot.canInspectFollowers}
-        focused={focused} disabled={!state.verified} onSelect={select} onCompare={setExpanded} />}
+        focused={focused} disabled={false} onSelect={select} onCompare={setExpanded} />}
     {settings}
   </main>;
 }

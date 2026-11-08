@@ -12,6 +12,7 @@ export type ExperienceCardPresentation = Omit<CanonicalCardPresentation, "surfac
   learning: LearningFields; canWriteLearning: boolean; ownerDate?: string | null;
   completion: number | null; confidence: number | null;
   aggregates?: GroupAggregates["cards"][number];
+  aggregatePending?: { progress?: boolean; confidence?: boolean; progressSteps?: string[] };
 };
 export type ExperienceDeckPresentation = Omit<CanonicalDeckPresentation, "surface" | "cards"> & {
   surface: "experience"; experienceId: string; viewerUserId: string;

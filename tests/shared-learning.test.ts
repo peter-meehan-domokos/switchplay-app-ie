@@ -91,8 +91,8 @@ test("personal presentation cache refuses group/foreign payloads and invalidates
   assert.throws(() => store.accept("alice", [card], { kind: "experience", experienceId: "A", cardTemplateId: "x", version: 1, perspective: "self" }));
   assert.throws(() => store.accept("bob", [card]), { code: "PERSONAL_CACHE_OWNER_MISMATCH" });
   store.invalidateLearning("alice", "x");
-  assert.equal(store.personal("alice", "x"), undefined);
-  assert.equal(store.accept("alice", [card], undefined, epoch), false);
+  assert.equal(store.personal("alice", "x")!.reflection, "Private");
+  assert.equal(store.accept("alice", [card], undefined, epoch), true, "accept independent presentation data while protecting invalidated learning");
   assert.deepEqual(store.projectPersonal("alice", card).personalInfoCardIds, ["note"]);
   store.clearUser("alice");
   assert.equal(store.accept("alice", [card], undefined, undefined, session), false);

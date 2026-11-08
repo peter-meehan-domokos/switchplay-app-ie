@@ -20,8 +20,8 @@ const hideNotice = "Removed from this Group. The creator still has their copy.";
 
 // The existing Media Centre shell and rails, fed by the shared source-aware
 // collection. It is deliberately separate from the thumbnail-opened Gallery.
-export default function CardMediaCentre({ context, personalTarget, groupUpload, legacyItems = [], onPersonalUpload, onPersonalRemove, onClose, backgroundRef, sourceRef, suspended = false }: {
-  suspended?: boolean; context: MediaCollectionContext; personalTarget?: UserCardMediaUploadTarget; groupUpload?: GroupUploadContext;
+export default function CardMediaCentre({ context, personalTarget, groupUpload, legacyItems = [], onPersonalUpload, onPersonalRemove, onClose, backgroundRef, sourceRef, suspended = false, readOnly = false }: {
+  readOnly?: boolean; suspended?: boolean; context: MediaCollectionContext; personalTarget?: UserCardMediaUploadTarget; groupUpload?: GroupUploadContext;
   legacyItems?: PersonalMediaDisplayItem[];
   onPersonalUpload?: (target: UserCardMediaUploadTarget, item: ModernUserCardMediaItem) => Promise<void>;
   onPersonalRemove?: (target: UserCardMediaUploadTarget, id: string) => Promise<void>;
@@ -65,7 +65,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
   };
   const remove = async (item: MediaItem) => {
     const { value, action } = operation(item), key = personalMediaKey(item as PersonalMediaDisplayItem);
-    if (!action || removalInFlight.current.has(key)) return;
+    if (readOnly || !action || removalInFlight.current.has(key)) return;
     removalInFlight.current.add(key);
     setRemoving(s => ({ ...s, [key]: { isRemoving: true, error: null } }));
     try {
@@ -77,7 +77,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
     finally { removalInFlight.current.delete(key); if (mounted.current) setRemoving(s => s[key]?.error ? s : { ...s, [key]: { isRemoving: false, error: null } }); }
   };
   const upload = async (kind: "image" | "video", file: File) => {
-    if (!canUpload) return;
+    if (readOnly || !canUpload) return;
     if (personalTarget) { await (kind === "image" ? personal.uploadImage : personal.uploadVideo)(personalTarget, file); return; }
     if (!groupUpload) return;
     const fileKey = JSON.stringify([file.name, file.type, file.size, file.lastModified]);
@@ -104,7 +104,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
       <header className="creator-modal-header"><p id="media-centre-title">Card media</p><button ref={close} className="creator-modal-close" type="button" onClick={() => setOpen(false)}>Close</button></header>
       {collection.error && !legacyItems.length ? <p role="alert" className="creator-modal-error">{collection.error}</p> : null}
       <UserCardMediaUploadPanel images={items.filter(isImageMediaItem)} videos={items.filter(isVideoMediaItem)} target={target}
-        uploadState={personalTarget ? personal.getState(personalTarget) : groupState} removalStatesById={removing} canUpload={canUpload}
+        uploadState={personalTarget ? personal.getState(personalTarget) : groupState} removalStatesById={removing} canUpload={canUpload} mutationDisabled={readOnly}
         getMetadata={item => mediaCentreMetadata(item, Boolean(context.experienceId))} canRemoveMedia={item => Boolean(operation(item).action)} showPrivate={privateLabels}
         getMediaKey={item => personalMediaKey(item as PersonalMediaDisplayItem)}
         getReadinessTarget={item => (item as PersonalMediaDisplayItem).collection ? collectionTarget(item as PersonalMediaDisplayItem, { viewerUserId: context.viewerUserId, cardTemplateId: context.cardTemplateId, sourceCardTemplateId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? context.cardTemplateId, mediaItemId: item.id }, context) : undefined}

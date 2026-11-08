@@ -13,7 +13,7 @@ import type { Deck } from "@/components/decks/types";
 import type { MembershipDTO } from "@/lib/cards/readModels";
 import { getTodayDateOnly } from "@/lib/dateOnly";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
-import { canPresentWorkingMembership, type WorkingPresentationFreshness } from "@/lib/cards/workingEntry";
+import { canPresentWorkingMembership, canRetainWorkingMembership, type WorkingPresentationFreshness } from "@/lib/cards/workingEntry";
 import { flushPersonalMutations } from "@/lib/deckMutations";
 import { progressReturnHref, readProgressReturn, withProgressReturn } from "@/lib/frameworks/progressNavigation";
 import GroupExperienceDeck from "@/components/group-experiences/GroupExperienceDeck";
@@ -77,7 +77,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     setPending(id); setError(""); setVerified(false); setRetryEntry({ id, card: cardTemplateId, fromUrl });
     const membership = records.find(item => item.deckTemplateId === id);
     const retainingFailedEntry = !fromUrl && selected?.deckTemplateId === id && !verified;
-    const warm = !fromUrl && canPresentWorkingMembership(membership, currentUserId, freshness.current);
+    const warm = !fromUrl && (canPresentWorkingMembership(membership, currentUserId, freshness.current) || canRetainWorkingMembership(membership, currentUserId));
     if (!retainingFailedEntry) {
       if (warm) { setSelected(membership!.display!); setRotation(0); }
       else setSelected(null);

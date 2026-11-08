@@ -41,7 +41,7 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
     if (!deck.dataOwnerUserId) return;
     const actor = deck.dataOwnerUserId;
     return workingCardStore.subscribe(actor, () => {
-      const next = cardsRef.current.map(card => workingCardStore.projectPersonal(actor, card));
+      const next = cardsRef.current.map(card => workingCardStore.project(actor, card));
       cardsRef.current = next; setCards(next);
     });
   }, [deck.dataOwnerUserId]);
@@ -66,6 +66,15 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
   function updatePersonalCard(cardId: string, change: (card: typeof cards[number]) => typeof cards[number]) {
     const next = cardsRef.current.map((card) => card.id === cardId ? change(card) : card);
     cardsRef.current = next; setCards(next);
+    if (deck.dataOwnerUserId) workingCardStore.accept(deck.dataOwnerUserId, next, undefined, undefined, ownerSession.current);
+  }
+  function learningNotice(cardId: string, change: import("@/lib/cards/learning").PersonalLearningChange, phase: "start" | "settled") {
+    const actor = deck.dataOwnerUserId;
+    if (!actor || workingCardStore.session(actor) !== ownerSession.current) return;
+    const card = cardsRef.current.find(card => card.id === cardId);
+    const current = phase === "start" ? change : change.kind === "completion" ? { ...change, completionStatus: normalizeCompletionStatus(card?.steps.find(step => step.stepId === change.stepId)?.completionStatus ?? "todo") }
+      : { ...change, reading: card?.signals.find(signal => signal.id === change.stepId)?.rawReading ?? null };
+    workingCardStore.publishLearning(actor, cardId, current, phase);
   }
   async function saveField<T>(key: string, previous: T, next: T, persist: () => Promise<unknown>, rollback: (value: T) => void) {
     if (!confirmedFields.current.has(key)) confirmedFields.current.set(key, previous);
@@ -116,9 +125,12 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
       return;
     }
 
+    const change = { kind: "completion" as const, stepId, completionStatus: nextCompletionStatus };
+    learningNotice(activeCard.id, change, "start");
     void saveField(`${activeCard.id}:completion:${stepId}`, currentStep.completionStatus, nextCompletionStatus,
       () => persistStepCompletionStatus(deck.deckTemplateId, activeCard.id, stepId, nextCompletionStatus, deck.dataOwnerUserId),
-      (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, steps: card.steps.map((step) => step.stepId === stepId ? { ...step, completionStatus: value } : step) })));
+      (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, steps: card.steps.map((step) => step.stepId === stepId ? { ...step, completionStatus: value } : step) })))
+      .finally(() => learningNotice(activeCard.id, change, "settled"));
 
   };
   const adjustFocusedCardTargetDate = (cardId: string, direction: -1 | 1) => {
@@ -152,9 +164,10 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
     cardsRef.current = nextCards;
     setCards(nextCards);
 
+    workingCardStore.setTargetDate(deck.dataOwnerUserId!, activeCard.id, nextTargetDate);
     void saveField(`${activeCard.id}:date`, activeCard.targetDate, nextTargetDate,
       () => persistCardTargetDate(deck.deckTemplateId, activeCard.id, nextTargetDate, deck.dataOwnerUserId),
-      (value) => updatePersonalCard(activeCard.id, (card) => ({ ...card, targetDate: value })));
+      (value) => { updatePersonalCard(activeCard.id, (card) => ({ ...card, targetDate: value })); workingCardStore.setTargetDate(deck.dataOwnerUserId!, activeCard.id, value); });
 
   };
   const optimisticSignalManagerRef = useRef<OptimisticSignalManager | null>(null);
@@ -163,16 +176,15 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
       async (cardId: string, signalId: string, reading: number) => {
         await persistSignalReading(deck.deckTemplateId, cardId, signalId, reading, deck.dataOwnerUserId);
       },
+      // Callback is invoked by the asynchronous queue, never during render.
+      // eslint-disable-next-line react-hooks/refs
       (cardId: string, signalId: string, restored) => {
-        setCards((currentCards) => {
-          const revertedCards = currentCards.map((c) =>
+        const revertedCards = cardsRef.current.map((c) =>
             c.id === cardId
               ? withUpdatedSignalReading(c, signalId, restored.rawReading)
               : c
           );
-          cardsRef.current = revertedCards;
-          return revertedCards;
-        });
+        cardsRef.current = revertedCards; setCards(revertedCards);
       }
     );
   }
@@ -209,7 +221,10 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
       return;
     }
 
-    void personalWork.run({ userId: deck.dataOwnerUserId!, cardIds: [cardId] }, `signal-chain:${cardId}:${signalId}`, () => manager.setOptimisticReading(cardId, signalId, nextReading)).catch(() => {});
+    const change = { kind: "signal" as const, stepId: signalId, reading: nextReading };
+    learningNotice(cardId, change, "start");
+    void personalWork.run({ userId: deck.dataOwnerUserId!, cardIds: [cardId] }, `signal-chain:${cardId}:${signalId}`, () => manager.setOptimisticReading(cardId, signalId, nextReading))
+      .catch(() => {}).finally(() => learningNotice(cardId, change, "settled"));
   };
   const commitFocusedReflection = async (cardId: string, reflection: string) => {
     if (!canMutate || !deck.hasUserDeckData) {
@@ -242,6 +257,7 @@ export function useWorkingDeck(deck: DeckLayout, ready = true) {
     );
 
     cardsRef.current = nextCards;
+    if (deck.dataOwnerUserId && workingCardStore.session(deck.dataOwnerUserId) === ownerSession.current) workingCardStore.setMedia(deck.dataOwnerUserId, cardId, mediaItems);
     setCards((currentCards) => currentCards.map((card) =>
       card.id === cardId ? withCardMediaItems(card, mediaItems) : card,
     ));

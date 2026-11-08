@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MediaCollectionController } from "../src/lib/mediaCollection/controller";
+import { MediaCollectionController, retainedMediaPreview } from "../src/lib/mediaCollection/controller";
+import { workingCardStore } from "../src/lib/cards/workingCardStore";
+import { notifyMediaCollectionChanged } from "../src/lib/mediaCollection/invalidation";
 import { collectionKey, type MediaCollectionPage, type MediaCollectionContext } from "../src/lib/mediaCollection/contracts";
 const context: MediaCollectionContext = { viewerUserId: "bob", cardTemplateId: "card", kind: "owner" };
 const page = (ids: string[], older: string | null = null, newer: string | null = null): MediaCollectionPage => ({ viewerUserId: "bob", cardTemplateId: "card", total: 8, olderCount: 3, older, newer,
@@ -66,13 +68,57 @@ test("a known thumbnail opens from its authorised page while metadata is delayed
   finish(page(["1", "2", "3", "4", "5", "6", "7", "8"])); await pending;
   assert.equal(c.selected()!.description, "7"); assert.equal(c.snapshot().loading, false); c.dispose();
 });
-test("seeded Gallery data is cleared on denied/failed metadata and cannot cross viewer or Group scope", async () => {
+test("seeded Gallery data is cleared on denial, retained on server failure and cannot cross viewer or Group scope", async () => {
   const seed = page(["photo"]);
   for (const status of [403, 500]) {
     const c: MediaCollectionController = new MediaCollectionController(context, async () => { throw Object.assign(Error("Unavailable"), { status }); }, 30,
       { page: seed, selectedKey: collectionKey(seed.items[0]) });
-    await c.load(); assert.equal(c.snapshot().page, null); assert.equal(c.selected(), null); assert.ok(c.snapshot().error); c.dispose();
+    await c.load(); assert.equal(c.snapshot().page, status === 403 ? null : seed); assert.equal(c.selected()?.description ?? null, status === 403 ? null : "photo"); assert.ok(c.snapshot().error); c.dispose();
   }
   assert.throws(() => new MediaCollectionController({ ...context, viewerUserId: "another" }, async () => seed, 30,
     { page: seed, selectedKey: collectionKey(seed.items[0]) }));
+});
+
+test("Card preview remount reuses completed and in-flight data; account clearance prevents late resurrection", async () => {
+  let finish!: (value: MediaCollectionPage) => void, calls = 0;
+  const loader = async () => { calls++; return new Promise<MediaCollectionPage>(resolve => { finish = resolve; }); };
+  const first = retainedMediaPreview(context, loader), read = first.load();
+  const second = retainedMediaPreview(context, loader), again = second.load();
+  assert.equal(first, second); assert.equal(calls, 1);
+  finish(page(["photo"])); await Promise.all([read, again]);
+  assert.equal(retainedMediaPreview(context, loader).snapshot().page!.items[0].description, "photo");
+  const refresh = second.load(); workingCardStore.clearUser("bob"); finish(page(["late"])); await refresh;
+  assert.equal(first.snapshot().page, null);
+  assert.notEqual(retainedMediaPreview(context, loader), first);
+  workingCardStore.clearUser("bob");
+});
+
+test("temporary refresh failure keeps known previews, confirmed Group scope loss clears them", async () => {
+  let error: Error | undefined;
+  const loader = async () => { if (error) throw error; return page(["photo"]); };
+  const c = retainedMediaPreview(context, loader); await c.load();
+  error = Error("Offline"); await c.load(); assert.equal(c.snapshot().page!.items.length, 1); assert.match(c.snapshot().error!, /Offline/);
+  error = Object.assign(Error("Revoked"), { status: 403 }); await c.load(); assert.equal(c.snapshot().page, null);
+  workingCardStore.clearUser("bob");
+});
+test("confirmed hiding removes the Group preview without deleting the owner copy or resurrecting a delayed page", async () => {
+  const source = { kind: "group" as const, experienceId: "g", contributionId: "photo" };
+  const item = { source, authorUserId: "bob", mediaType: "image" as const, description: "Photo", uploadedAt: null, originName: "Group", private: false };
+  const groupContext: MediaCollectionContext = { kind: "group", viewerUserId: "coach", cardTemplateId: "card", experienceId: "g", accessEpoch: 2, adoptionRevision: 3 };
+  const groupPage: MediaCollectionPage = { ...page([]), viewerUserId: "coach", experienceId: "g", accessEpoch: 2, adoptionRevision: 3, items: [item], total: 1 };
+  let held = false, finish!: (page: MediaCollectionPage) => void;
+  const c = retainedMediaPreview(groupContext, async () => held ? new Promise(resolve => { finish = resolve; }) : groupPage);
+  const owner = retainedMediaPreview({ ...context, experienceId: "g" }, async () => ({ ...groupPage, viewerUserId: "bob" }));
+  await c.load(); await owner.load(); held = true; const older = c.load();
+  notifyMediaCollectionChanged("bob", "card", "g", { source, action: "hide" });
+  assert.equal(c.snapshot().page!.items.length, 0); assert.equal(c.snapshot().page!.total, 0);
+  assert.equal(owner.snapshot().page!.items.length, 1); assert.equal(owner.snapshot().page!.items[0].private, true);
+  finish(groupPage); await older; assert.equal(c.snapshot().page!.items.length, 0);
+  workingCardStore.clearUser("coach"); workingCardStore.clearUser("bob");
+});
+test("Gallery activation restores Strict Mode lifecycle checks but never revives a revoked seed", async () => {
+  const seed = page(["photo"]), c = new MediaCollectionController(context, async () => seed, 30, { page: seed, selectedKey: collectionKey(seed.items[0]) });
+  c.dispose(); c.activate(); await c.load(); assert.equal(c.selected()!.description, "photo");
+  workingCardStore.clearUser("bob"); assert.equal(c.snapshot().page, null);
+  c.activate(); await c.load(); assert.equal(c.snapshot().page, null);
 });

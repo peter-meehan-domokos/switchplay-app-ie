@@ -1,0 +1,33 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { WorkingCardStore } from "../src/lib/cards/workingCardStore";
+import { entryDeck } from "./fixtures/workingEntry";
+import { buildDeckLayout } from "../src/components/decks/deckLayout";
+test("exact learning and reflection updates retain Personal media, dates and independent Info revisions", () => {
+  const store = new WorkingCardStore(), actor = "retained-owner";
+  const card = buildDeckLayout(entryDeck(0, actor), { currentUserId: actor, users: [] }).cards[0];
+  store.accept(actor, [card]); const before = store.personal(actor, card.id)!;
+  store.acceptPersonal(actor, { cardTemplateId: card.id, personalInfoRevision: 8, personalInfoCardIds: ["private-note"] });
+  store.publishLearning(actor, card.id, { kind: "signal", stepId: card.signals[0].id, reading: 9 }, "start");
+  store.publishLearning(actor, card.id, { kind: "signal", stepId: card.signals[0].id, reading: 9 }, "settled");
+  store.setReflection(actor, card.id, "New reflection");
+  const after = store.personal(actor, card.id)!;
+  assert.equal(after.mediaItems, before.mediaItems); assert.equal(after.targetDate, before.targetDate); assert.equal(after.reflection, "New reflection");
+  store.acceptPersonal(actor, { cardTemplateId: card.id, personalInfoRevision: 2, personalInfoCardIds: [] });
+  assert.deepEqual(store.projectPersonal(actor, card).personalInfoCardIds, ["private-note"]);
+  assert.equal(store.projectPersonal(actor, card).personalInfoRevision, 8);
+  store.clearUser(actor); assert.equal(store.personal(actor, card.id), undefined);
+});
+test("an older Personal read merges independent sections without replacing a newer field save", () => {
+  const store = new WorkingCardStore(), actor = "merge-owner";
+  const card = buildDeckLayout(entryDeck(0, actor), { currentUserId: actor, users: [] }).cards[0];
+  store.accept(actor, [card]); const atRead = store.epoch(actor), step = card.signals[0].id;
+  const change = { kind: "signal" as const, stepId: step, reading: 9 };
+  store.publishLearning(actor, card.id, change, "start"); store.publishLearning(actor, card.id, change, "settled");
+  const media = [{ id: "new-photo", mediaType: "image" as const, src: "/photo.png", description: "Independent photo" }];
+  assert.equal(store.accept(actor, [{ ...card, reflection: "Independent server note", mediaItems: media }], undefined, atRead), true);
+  const result = store.personal(actor, card.id)!;
+  assert.equal(result.readings.get(step), 9); assert.equal(result.reflection, "Independent server note"); assert.equal(result.mediaItems, media);
+  const session = store.session(actor); store.clearUser(actor);
+  assert.equal(store.accept(actor, [card], undefined, undefined, session), false);
+});

@@ -28,7 +28,7 @@ async function mutate(deckTemplateId: string, key: string, body: unknown, userId
     if (userId && actor && actor !== userId) throw new Error("Your account changed. Reopen the Card before retrying.");
     if (!response.ok) throw new Error(payload.error ?? "Unable to save change");
     if (userId && cardId && body && typeof body === "object" && "type" in body
-      && ["completion", "signal", "target-date"].includes(String(body.type))) workingCardStore.invalidateLearning(userId, cardId);
+      && ["completion", "signal", "target-date"].includes(String(body.type))) workingCardStore.invalidate(userId);
     return payload;
   });
   return userId ? personalWork.run({ userId, ...(cardId ? {} : { deckId: deckTemplateId }), cardIds: cardId ? [cardId] : [] }, key, operation) : operation();

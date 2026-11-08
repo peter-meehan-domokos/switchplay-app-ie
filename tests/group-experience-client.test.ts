@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createGroupResource, GROUP_AUTHORITY_MS } from "../src/components/group-experiences/groupResource";
+import { createGroupResource, retainedGroupResource, GROUP_AUTHORITY_MS } from "../src/components/group-experiences/groupResource";
+import { workingCardStore } from "../src/lib/cards/workingCardStore";
+import { personalWork } from "../src/lib/cards/personalWork";
 import { groupFetch, GroupRequestError } from "../src/components/group-experiences/groupClient";
 import type { GroupBootstrap, GroupPerspectivePage, GroupAggregates } from "../src/lib/groupExperiences/presentationReads";
+import { aggregateLearning } from "../src/lib/groupExperiences/readModels";
 
 function fixture() {
   const authority = { viewerUserId: "alice", experienceId: "e", structureRevision: 0, adoptionRevision: 0, accessEpoch: 0 };
@@ -21,6 +24,134 @@ function fixture() {
   };
   return { authority, bootstrap, peers, aggregates, calls, writes, read };
 }
+const tick = () => new Promise<void>(resolve => setImmediate(resolve));
+function gate() { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); return { promise, release }; }
+
+test("an overlapping personal save preserves its source and accepts unrelated bootstrap content, then repairs F only", async () => {
+  const f = fixture(), heldRead = gate(), heldSave = gate(); let pause = false, reading = false;
+  f.bootstrap.isFollower = true; f.bootstrap.own = structuredClone(f.bootstrap.group);
+  f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own]).cards;
+  const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
+    if (args[3] === "PATCH") { await heldSave.promise; return {} as T; }
+    const value = structuredClone(await f.read<T>(...args));
+    if (pause && args[1].includes("/presentation?")) { reading = true; await heldRead.promise; }
+    return value;
+  };
+  const resource = createGroupResource("alice", "e", { read });
+  try {
+    await resource.load(); f.bootstrap.name = "Updated independently"; pause = true;
+    const pending = resource.load(); await tick(); assert.equal(reading, true);
+    const save = resource.save("c", "personal", 1, 0, { kind: "signal", stepId: "s", reading: 8 });
+    heldRead.release(); await pending;
+    assert.equal(resource.snapshot().data!.bootstrap.name, "Updated independently");
+    assert.equal(resource.snapshot().data!.bootstrap.own![0].signalReadings[0].reading, 8);
+    assert.equal(resource.snapshot().data!.bootstrap.group[0].signalReadings[0].reading, null);
+    const count = f.calls.filter(url => url.includes("/presentation?")).length;
+    heldSave.release(); await save;
+    assert.equal(f.calls.filter(url => url.includes("/presentation?")).length, count, "save reconciliation must not bootstrap the whole Group");
+  } finally { heldRead.release(); heldSave.release(); resource.dispose(); }
+});
+
+test("collective G edits never invalidate F or refetch follower learning", async () => {
+  const f = fixture(); f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.group]).cards;
+  const resource = createGroupResource("alice", "e", { read: f.read });
+  try {
+    await resource.load(); const before = f.calls.length;
+    await resource.save("c", "group", 1, 0, { kind: "signal", stepId: "s", reading: 9 });
+    assert.equal(resource.snapshot().data!.bootstrap.group[0].signalReadings[0].reading, 9);
+    assert.equal(resource.snapshot().data!.aggregates[0].followers.confidence, null);
+    assert.deepEqual(f.calls.slice(before), ["/api/group-experiences/e/cards/c/group-learning"]);
+    await resource.save("c", "group", 1, 0, { kind: "completion", stepId: "s", completionStatus: "done" });
+    assert.equal(resource.snapshot().data!.aggregates[0].group.completion, 100);
+    assert.equal(resource.snapshot().data!.aggregates[0].followers.done, 0);
+    assert.deepEqual(resource.snapshot().data!.aggregatePending, {});
+    assert.equal(f.calls.slice(before).filter(url => url.includes("/aggregates?") || url.includes("/perspectives?")).length, 0);
+  } finally { resource.dispose(); }
+});
+
+test("a first Group presentation repairs a dependency changed during loading before publishing any R1 placeholder", async () => {
+  const f = fixture(), held = gate(); f.bootstrap.isFollower = true; f.bootstrap.own = structuredClone(f.bootstrap.group);
+  f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own]).cards;
+  const resource = createGroupResource("alice", "e", { read: f.read });
+  const change = { kind: "signal" as const, stepId: "s", reading: 7 };
+  const save = personalWork.run({ userId: "alice", cardIds: ["c"] }, "initial-overlap", () => held.promise);
+  workingCardStore.publishLearning("alice", "c", change, "start");
+  try {
+    const loading = resource.load(); await tick(); assert.equal(resource.snapshot().data, undefined);
+    f.bootstrap.own![0].signalReadings[0].reading = 7; f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own]).cards;
+    workingCardStore.publishLearning("alice", "c", change, "settled"); held.release(); await save; await loading;
+    assert.equal(resource.snapshot().data!.aggregates[0].followers.confidence, 7);
+    assert.deepEqual(resource.snapshot().data!.aggregatePending, {});
+  } finally { held.release(); resource.dispose(); }
+});
+
+test("several queued player changes coalesce F reconciliation and keep newer edits through an earlier failure", async () => {
+  const f = fixture(), held = gate(); let writes = 0;
+  f.bootstrap.isFollower = true; f.bootstrap.own = structuredClone(f.bootstrap.group);
+  f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own]).cards;
+  const read: typeof groupFetch = async (...args) => {
+    if (args[3] === "PATCH") {
+      if (++writes === 1) { await held.promise; throw Error("First save failed"); }
+      const change = (args[4] as { change: { reading: number } }).change;
+      f.bootstrap.own![0].signalReadings[0].reading = change.reading;
+      f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own!]).cards;
+      return {} as never;
+    }
+    return structuredClone(await f.read(...args));
+  };
+  const resource = createGroupResource("alice", "e", { read });
+  try {
+    await resource.load(); const before = f.calls.length;
+    const first = resource.save("c", "personal", 1, 0, { kind: "signal", stepId: "s", reading: 5 });
+    const newer = resource.save("c", "personal", 1, 0, { kind: "signal", stepId: "s", reading: 9 });
+    assert.equal(resource.snapshot().data!.aggregatePending!.c.confidence, true);
+    assert.equal(resource.snapshot().data!.aggregatePending!.c.progress, false);
+    held.release(); await Promise.all([first, newer]);
+    assert.equal(resource.snapshot().data!.bootstrap.own![0].signalReadings[0].reading, 9);
+    assert.equal(resource.snapshot().data!.aggregates[0].followers.confidence, 9);
+    assert.deepEqual(resource.snapshot().data!.aggregatePending, {});
+    assert.equal(f.calls.slice(before).filter(url => url.includes("/aggregates?")).length, 1);
+    assert.equal(f.calls.slice(before).filter(url => url.includes("/presentation?")).length, 0);
+  } finally { held.release(); resource.dispose(); }
+});
+test("already authorised complete follower inputs calculate exact F immediately without an R1 placeholder", async () => {
+  const f = fixture(), held = gate(); f.bootstrap.isFollower = true; f.bootstrap.own = structuredClone(f.bootstrap.group);
+  f.peers.followers = [{ userId: "alice", username: "Alice", learning: structuredClone(f.bootstrap.own) }];
+  f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own]).cards;
+  const read: typeof groupFetch = async (...args) => {
+    if (args[3] === "PATCH") { await held.promise; f.aggregates.cards[0].followers.confidence = 8; return {} as never; }
+    return f.read(...args);
+  };
+  const resource = createGroupResource("alice", "e", { read });
+  try {
+    await resource.load(); const save = resource.save("c", "personal", 1, 0, { kind: "signal", stepId: "s", reading: 8 });
+    assert.equal(resource.snapshot().data!.aggregates[0].followers.confidence, 8);
+    assert.equal(resource.snapshot().data!.aggregatePending!.c.confidence, false);
+    assert.equal(resource.snapshot().data!.aggregates[0].group.confidence, null);
+    held.release(); await save;
+  } finally { held.release(); resource.dispose(); }
+});
+
+test("Personal edits notify matching retained projections; inactive resources retain dirty data without starting reads", async () => {
+  const f = fixture(); f.bootstrap.isFollower = true; f.bootstrap.own = structuredClone(f.bootstrap.group);
+  f.aggregates.cards = aggregateLearning(f.bootstrap.group, [f.bootstrap.own]).cards;
+  const resource = createGroupResource("alice", "e", { read: f.read });
+  try {
+    await resource.load(); resource.setActive(false); const before = f.calls.length;
+    const change = { kind: "completion" as const, stepId: "s", completionStatus: "done" as const };
+    workingCardStore.publishLearning("alice", "c", change, "start");
+    workingCardStore.publishLearning("alice", "c", change, "settled"); await tick();
+    assert.equal(f.calls.length, before); assert.equal(resource.snapshot().data!.bootstrap.own![0].items[0].completionStatus, "done");
+    assert.deepEqual(resource.snapshot().data!.aggregatePending!.c.progressSteps, ["s"]);
+    assert.equal(resource.snapshot().data!.aggregatePending!.c.confidence, false);
+    workingCardStore.clearUser("alice"); assert.equal(resource.snapshot().data, undefined);
+  } finally { resource.dispose(); }
+  const retained = retainedGroupResource("retention-actor", "group-one");
+  assert.equal(retainedGroupResource("retention-actor", "group-one"), retained);
+  assert.notEqual(retainedGroupResource("retention-actor", "group-two"), retained);
+  workingCardStore.clearUser("retention-actor");
+  assert.notEqual(retainedGroupResource("retention-actor", "group-one"), retained); workingCardStore.clearUser("retention-actor");
+});
 test("shared resource coalesces concurrent loads and expires cached peer authority from verification start", async () => {
   const f = fixture(); let now = 100, expire!: () => void;
   const resource = createGroupResource("alice", "e", { read: f.read, now: () => now,

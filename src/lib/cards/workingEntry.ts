@@ -6,6 +6,15 @@ import { isIsoDateOnlyString } from "../dateOnly";
 // Freshness describes existing membership data; it stores no second Deck copy.
 export const WORKING_PRESENTATION_FRESH_MS = 60_000;
 export type WorkingPresentationFreshness = { actor: string; at: number; epoch: number };
+// Read-only continuity for an already loaded membership. This is not an edit
+// grant: the existing protected actual-open request still runs and can deny it.
+export function canRetainWorkingMembership(membership: MembershipDTO | undefined, actor: string) {
+  const deck = membership?.display;
+  return !!deck && membership.archivedAt === null && membership.availability === "available" && membership.dataOwnerUserId === actor
+    && deck.dataOwnerUserId === actor && !!deck.openedAt && (!deck.cards.length || deck.cards.some(card => card.id === deck.activeCardId))
+    && !personalWork.isLocked({ userId: actor, deckId: deck.deckTemplateId, cardIds: deck.cards.map(card => card.id) })
+    && deck.cards.every(card => isIsoDateOnlyString(card.targetDate) && workingCardStore.personal(actor, card.id)?.adoptedVersion === card.adoptedVersion);
+}
 export function canPresentWorkingMembership(membership: MembershipDTO | undefined, actor: string,
   freshness: WorkingPresentationFreshness, now = Date.now()) {
   const deck = membership?.display;

@@ -2,7 +2,7 @@ import type { MediaItem } from "../media";
 export type MediaSource = { kind: "personal"; cardTemplateId: string; mediaItemId: string }
   | { kind: "group"; experienceId: string; contributionId: string };
 export type MediaCollectionContext = { viewerUserId: string; cardTemplateId: string; kind: "owner"; experienceId?: string; accessEpoch?: number }
-  | { viewerUserId: string; cardTemplateId: string; kind: "group"; experienceId: string; subjectUserId?: string; accessEpoch: number; adoptionRevision: number };
+  | { viewerUserId: string; cardTemplateId: string; kind: "group"; experienceId: string; subjectUserId?: string; accessEpoch: number; adoptionRevision: number; structureRevision?: number };
 export type MediaCollectionItem = {
   source: MediaSource; authorUserId: string; mediaType: "image" | "video"; description: string;
   originalFilename?: string; authorName?: string;

@@ -54,7 +54,7 @@ export default function CardSemanticAnchors({
         ) : showProgress ? <div className="completion-strip personal-layout-slot" aria-hidden="true" /> : null}
       </div>
       {showText && (personal || experience) ? <span className="card-confidence">
-        {experience && card.aggregates ? <ConfidencePair groupCard group={confidence} follower={card.aggregates.followers.confidence} activeTotal={card.aggregates.followers.activeTotal} />
+        {experience && card.aggregates ? <ConfidencePair groupCard group={confidence} follower={card.aggregates.followers.confidence} activeTotal={card.aggregates.followers.activeTotal} pending={card.aggregatePending?.confidence} />
           : <span aria-label={confidence === null ? "Confidence not set" : `Confidence ${confidence} out of 10`}>{confidence}</span>}
       </span> : null}
       {showText ? (

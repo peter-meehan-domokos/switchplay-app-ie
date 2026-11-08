@@ -9,6 +9,7 @@ import type { ExperienceCardPresentation } from "@/components/decks/presentation
 import { FocusedSignalRow, PassiveSignalRow } from "@/components/decks/BackCardFaceContent";
 import CardSemanticAnchors from "@/components/decks/CardSemanticAnchors";
 import StepProgressStrip from "@/components/cards/StepProgressStrip";
+import AggregateValue from "./AggregateValue";
 import { signalReadingToNormalized } from "@/lib/signals";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
 
@@ -34,7 +35,7 @@ export default function GroupCardBack({ reflectionInteractive = true, reflection
         const signal = { id: step.stepId, title: step.title ?? `Step ${i + 1}`, value: reading === null ? 0 : signalReadingToNormalized(reading), reading, rawReading: reading,
           variant: (["recovery", "movement", "load"] as const)[i % 3], unit: null, order: "increasing" as const };
         const heading = <span className="group-back-heading"><span>{signal.title}</span>
-          {aggregate && aggregate.followers.eligibleTotal > 0 ? <span className="group-step-counts" aria-label={`${aggregate.followers.doing} doing, ${aggregate.followers.done} done`}>{`${aggregate.followers.doing}\u00a0\u00a0${aggregate.followers.done}`}</span> : null}
+          {aggregate && aggregate.followers.eligibleTotal > 0 ? <span className="group-step-counts" aria-label={card.aggregatePending?.progressSteps?.includes(step.stepId) ? "Updating follower progress" : `${aggregate.followers.doing} doing, ${aggregate.followers.done} done`}><AggregateValue pending={card.aggregatePending?.progressSteps?.includes(step.stepId)}>{aggregate.followers.doing}</AggregateValue>{"\u00a0\u00a0"}<AggregateValue pending={card.aggregatePending?.progressSteps?.includes(step.stepId)}>{aggregate.followers.done}</AggregateValue></span> : null}
           <StepProgressStrip completionStatus={step.completionStatus} />
         </span>;
         // Keep the same SVG/row through perspective changes. Security identity
