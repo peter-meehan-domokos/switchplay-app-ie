@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import PublicHeader from "@/components/public-site/PublicHeader";
-import PublicLayout from "@/components/public-site/PublicLayout";
-import { SUPPORT_EMAIL } from "@/components/support/SupportErrorMessage";
+import PublicHeader from "../components/PublicHeader";
+import PublicLayout from "../components/PublicLayout";
+import { SITE_NAME, SUPPORT_EMAIL } from "../siteInfo";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How Switchplay collects, stores and uses information submitted through public forms.",
+  description: `How ${SITE_NAME} collects, stores and uses information submitted through public forms.`,
 };
 
 export default function PrivacyPage() {
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
         <header className={styles.header}>
           <h1 id="privacy-title">Privacy Policy</h1>
           <p>
-            This page explains how Switchplay uses the personal information you choose to send through our public
+            This page explains how {SITE_NAME} uses the personal information you choose to send through our public
             website forms.
           </p>
         </header>
@@ -50,7 +50,7 @@ export default function PrivacyPage() {
         <section className={styles.section}>
           <h2>How it is stored and used</h2>
           <p>
-            Form submissions are stored in Switchplay systems so the team can review them and respond where appropriate.
+            Form submissions are stored in {SITE_NAME} systems so the team can review them and respond where appropriate.
             We use the details you provide only for purposes connected with your enquiry or request.
           </p>
         </section>
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
           <h2>Service providers</h2>
           <p>
             We may use service providers to host the website, store form submissions, operate databases, provide
-            infrastructure, or support communications. These providers may process information for Switchplay when
+            infrastructure, or support communications. These providers may process information for {SITE_NAME} when
             providing those services.
           </p>
         </section>
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
         <section className={styles.section}>
           <h2>Website analytics</h2>
           <p>
-            Switchplay uses Vercel Analytics to understand general website usage, such as which pages are visited. We
+            {SITE_NAME} uses Vercel Analytics to understand general website usage, such as which pages are visited. We
             use this information to improve the website. We do not intentionally send names, email addresses, phone
             numbers or form contents to analytics.
           </p>
@@ -94,7 +94,7 @@ export default function PrivacyPage() {
         <section className={styles.section}>
           <h2>Contact us</h2>
           <p>
-            To ask about privacy or your information, contact Switchplay at{" "}
+            To ask about privacy or your information, contact {SITE_NAME} at{" "}
             <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
           </p>
         </section>

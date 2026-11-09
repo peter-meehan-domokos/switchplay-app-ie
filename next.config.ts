@@ -5,8 +5,8 @@ export default function nextConfig(phase: string): NextConfig {
   return {
     devIndicators: false,
 
-    // Permit phone review over Wi-Fi.
-    allowedDevOrigins: ["192.168.1.38"],
+    // Permit phone review over Wi-Fi and the <site>.localhost development hosts.
+    allowedDevOrigins: ["192.168.1.38", "*.localhost"],
 
     serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
 

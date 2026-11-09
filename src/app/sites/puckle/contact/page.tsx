@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import ContactSupportForm from "@/components/public-site/ContactSupportForm";
-import PublicHeader from "@/components/public-site/PublicHeader";
-import PublicLayout from "@/components/public-site/PublicLayout";
-import { SUPPORT_EMAIL } from "@/components/support/SupportErrorMessage";
+import ContactSupportForm from "../components/ContactSupportForm";
+import PublicHeader from "../components/PublicHeader";
+import PublicLayout from "../components/PublicLayout";
+import { SITE_NAME, SUPPORT_EMAIL } from "../siteInfo";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
   title: "Contact and support",
-  description: "Contact Switchplay for support, partnerships, press enquiries and general questions.",
+  description: `Contact ${SITE_NAME} for support, partnerships, press enquiries and general questions.`,
 };
 
 export default function ContactPage() {

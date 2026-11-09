@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import PublicLayout from "@/components/public-site/PublicLayout";
-import PublicHeader from "@/components/public-site/PublicHeader";
-import CreatorSection from "@/components/public-site/CreatorSection";
-import HowItWorksSection, { FollowerInterestSection } from "@/components/public-site/HowItWorksSection";
-import buttonStyles from "@/components/public-site/PublicButton.module.css";
+import PublicLayout from "./components/PublicLayout";
+import PublicHeader from "./components/PublicHeader";
+import CreatorSection from "./components/CreatorSection";
+import HowItWorksSection, { FollowerInterestSection } from "./components/HowItWorksSection";
+import buttonStyles from "./components/PublicButton.module.css";
+import { SITE_NAME, SITE_TITLE_NAME } from "./siteInfo";
 import styles from "./HomePage.module.css";
 
-const homeTitle = "SWITCHPLAY — The unofficial way to get there.";
+const homeTitle = `${SITE_TITLE_NAME} — The unofficial way to get there.`;
 const homeDescription =
   "A clear path, not just another video. Follow the steps of someone who's done it.";
 
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: homeTitle,
     description: homeDescription,
-    siteName: "SWITCHPLAY",
+    siteName: SITE_TITLE_NAME,
     type: "website",
   },
   twitter: {
@@ -63,7 +64,7 @@ export default function Home() {
             height={1402}
             priority
             sizes="(min-width: 840px) 38vw, calc(100vw - 32px)"
-            src="/images/hero/hero-illustration8.png"
+            src="/images/sites/puckle/hero-illustration8.png"
             width={1122}
           />
         </figure>
@@ -71,11 +72,11 @@ export default function Home() {
       <HowItWorksSection />
       <figure className={styles.creatorArtworkPanel}>
         <Image
-          alt="People collaborating around a Switchplay path"
+          alt={`People collaborating around a ${SITE_NAME} path`}
           className={styles.creatorArtworkImage}
           height={1086}
           sizes="(min-width: 840px) 70vw, calc(100vw - 32px)"
-          src="/images/other/second-illustration.png"
+          src="/images/sites/puckle/second-illustration.png"
           width={1448}
         />
       </figure>

@@ -3,12 +3,16 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
+import { siteBrands } from "@/lib/sites/siteBrands";
+import type { SiteId } from "@/lib/sites/siteResolver";
 
 type AuthScreenProps = {
   redirectTo?: string;
+  site?: SiteId;
 };
 
-export default function AuthScreen({ redirectTo }: AuthScreenProps) {
+export default function AuthScreen({ redirectTo, site = "switchplay" }: AuthScreenProps) {
+  const brand = siteBrands[site];
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -45,7 +49,7 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
   return (
     <section className="auth-screen" aria-labelledby="auth-title">
       <section className="auth-card">
-        <p className="eyebrow">Switchplay</p>
+        <p className="eyebrow">{brand.name}</p>
         <h1 id="auth-title">Sign in</h1>
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="auth-field">
@@ -72,7 +76,7 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
             />
           </label>
 
-          {error ? <SupportErrorMessage className="auth-error" /> : null}
+          {error ? <SupportErrorMessage className="auth-error" email={brand.supportEmail} /> : null}
 
           <button className="auth-submit" disabled={isPending} type="submit">
             {isPending ? "Signing in..." : "Sign in"}
