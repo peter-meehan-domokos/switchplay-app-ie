@@ -32,8 +32,6 @@ const SIGNAL_DRAG_THRESHOLD_PX = 8;
 const isSignalGestureShieldDebug = process.env.NODE_ENV !== "production";
 const signalFieldMovementRatio = SIGNAL_FIELD_WIDTH / SIGNAL_FIELD_VIEWBOX_WIDTH;
 
-type SignalGestureIntent = "pending" | "signal" | "vertical" | "cancelled";
-
 type SignalDragSession = {
   sourceIdentity?: string;
   pointerId: number;
@@ -41,7 +39,7 @@ type SignalDragSession = {
   startPointerY: number;
   startNormalized: number;
   movementRangePx: number;
-  intent: SignalGestureIntent;
+  horizontalLocked: boolean;
   moved: boolean;
 };
 
@@ -92,6 +90,15 @@ export function getSignalGestureAxis(deltaX: number, deltaY: number): "horizonta
   }
 
   return null;
+}
+
+export function getSignalGestureDecision(deltaX: number, deltaY: number, horizontalLocked = false) {
+  // The small-movement shortcut still drives an immediate visual preview and
+  // allows fine edits on release. Firm ownership needs the existing clear lead,
+  // so an early horizontal nudge can yield without retuning any thresholds.
+  const axis = horizontalLocked ? "horizontal" : getSignalGestureAxis(deltaX, deltaY);
+  return { axis, horizontalLocked: horizontalLocked || axis === "horizontal"
+    && Math.abs(deltaX) - Math.abs(deltaY) >= DECK_GESTURE_THRESHOLDS.diagonalTolerancePx };
 }
 
 function blockSignalBlockGesturePropagation(event: PointerEvent<HTMLElement>) {
@@ -157,15 +164,16 @@ export function getFocusedSignalDisplayState(
   return { label, isVisible, isUnset, effectiveNormalized };
 }
 
-// Read-only signals still own their pointer sequence. They explain the existing
-// permission without starting a learning drag or the ancestor Card gesture.
-function useReadOnlySignalGesture(readOnly: boolean, reason: string | undefined, identity: string | undefined) {
+// Track the row sequence so horizontal attempts cannot flip the Card. Direction
+// is still provisional: vertical intent uses the same navigation as editable rows.
+function useReadOnlySignalGesture(readOnly: boolean, reason: string | undefined, identity: string | undefined,
+  onNavigateNext?: () => void, onNavigatePrevious?: () => void) {
   const key = JSON.stringify([readOnly, reason, identity]);
   const id = useId();
   const [hint, setHint] = useState({ key, visible: false });
   if (hint.key !== key) setHint({ key, visible: false });
   const row = useRef<HTMLDivElement | null>(null);
-  const pointer = useRef<{ id: number; x: number; y: number; shown: boolean } | null>(null);
+  const pointer = useRef<{ id: number; x: number; y: number; shown: boolean; key: string; horizontalLocked: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearTimer = useCallback(() => { if (timer.current) clearTimeout(timer.current); timer.current = null; }, []);
   const dismiss = useCallback(() => { clearTimer(); setHint({ key, visible: false }); }, [clearTimer, key]);
@@ -180,26 +188,47 @@ function useReadOnlySignalGesture(readOnly: boolean, reason: string | undefined,
   }, [visible, dismiss]);
   const cancel = (event: PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
-    if (!pointer.current) return;
+    if (pointer.current?.id !== event.pointerId) return;
     pointer.current = null; dismiss();
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const navigate = (event: PointerEvent<HTMLDivElement>, deltaY: number) => {
+    pointer.current = null; dismiss();
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    event.preventDefault();
+    if (deltaY > 0) onNavigateNext?.(); else onNavigatePrevious?.();
   };
   return { id, visible, bindings: {
     onPointerDown: (event: PointerEvent<HTMLDivElement>) => {
-      event.stopPropagation(); if (event.button !== 0) return;
-      row.current = event.currentTarget; clearTimer(); pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY, shown: false };
+      event.stopPropagation(); if (event.button !== 0 || pointer.current) return;
+      row.current = event.currentTarget; dismiss(); pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY, shown: false, key, horizontalLocked: false };
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
     onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
       event.stopPropagation(); const start = pointer.current;
-      if (!start || start.id !== event.pointerId || start.shown || !reason) return;
-      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) >= DECK_GESTURE_THRESHOLDS.deadZonePx) {
-        start.shown = true; setHint({ key, visible: true });
+      if (!start || start.id !== event.pointerId) return;
+      if (start.key !== key) { cancel(event); return; }
+      const deltaY = event.clientY - start.y, { axis, horizontalLocked } = getSignalGestureDecision(event.clientX - start.x, deltaY, start.horizontalLocked);
+      start.horizontalLocked = horizontalLocked;
+      if (axis === "vertical") { navigate(event, deltaY); return; }
+      if (horizontalLocked && reason) {
+        if (!start.shown) { start.shown = true; setHint({ key, visible: true }); }
+        event.preventDefault();
+      } else if (start.shown) {
+        start.shown = false; dismiss();
       }
     },
     onPointerUp: (event: PointerEvent<HTMLDivElement>) => {
-      event.stopPropagation(); const start = pointer.current; pointer.current = null;
+      event.stopPropagation(); const start = pointer.current;
+      if (!start || start.id !== event.pointerId) return;
+      if (start.key !== key) { cancel(event); return; }
+      const deltaY = event.clientY - start.y, { axis } = getSignalGestureDecision(event.clientX - start.x, deltaY, start.horizontalLocked);
+      if (axis === "vertical") { navigate(event, deltaY); return; }
+      pointer.current = null;
       if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-      if (start?.shown) { clearTimer(); timer.current = setTimeout(dismiss, 2500); }
+      if (axis === "horizontal" && reason) {
+        setHint({ key, visible: true }); clearTimer(); timer.current = setTimeout(dismiss, 2500); event.preventDefault();
+      } else dismiss();
     },
     onPointerCancel: cancel, onLostPointerCapture: cancel,
     onClick: (event: MouseEvent<HTMLDivElement>) => { event.stopPropagation(); event.preventDefault(); },
@@ -217,7 +246,7 @@ export function FocusedSignalRow({
   onSignalNavigateNext,
   onSignalNavigatePrevious,
 }: FocusedSignalRowProps) {
-  const readOnlyGesture = useReadOnlySignalGesture(readOnly, readOnlyReason, `${interactionIdentity ?? cardId}:${signal.id}`);
+  const readOnlyGesture = useReadOnlySignalGesture(readOnly, readOnlyReason, `${interactionIdentity ?? cardId}:${signal.id}`, onSignalNavigateNext, onSignalNavigatePrevious);
   const [isValueVisible, setIsValueVisible] = useState(false);
   const [previewNormalized, setPreviewNormalized] = useState<number | null>(null);
   const [previewSource, setPreviewSource] = useState({ id: signal.id, value: signal.value, interactionIdentity, readOnly });
@@ -338,7 +367,7 @@ export function FocusedSignalRow({
       startPointerY: event.clientY,
       startNormalized: displayState.effectiveNormalized,
       movementRangePx,
-      intent: "pending",
+      horizontalLocked: false,
       moved: false,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -358,21 +387,16 @@ export function FocusedSignalRow({
     const deltaY = event.clientY - session.startPointerY;
     const movementDistance = Math.hypot(deltaX, deltaY);
     const nextMoved = session.moved || movementDistance >= DECK_GESTURE_THRESHOLDS.deadZonePx;
-    const nextAxis = getSignalGestureAxis(deltaX, deltaY);
+    const { axis: nextAxis, horizontalLocked } = getSignalGestureDecision(deltaX, deltaY, session.horizontalLocked);
     const nextNormalized = clampNormalized(session.startNormalized + deltaX / session.movementRangePx);
 
     if (nextMoved) {
       suppressNextClickRef.current = true;
     }
 
-    if (session.intent === "pending" && nextAxis === "vertical") {
-      dragSessionRef.current = {
-        ...session,
-        intent: "vertical",
-        moved: nextMoved,
-      };
-      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (nextAxis === "vertical") {
       releaseDragSession();
+      if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       hideValueNow();
       event.preventDefault();
 
@@ -385,24 +409,13 @@ export function FocusedSignalRow({
       return;
     }
 
-    if (session.intent === "pending" && nextAxis === "horizontal") {
-      dragSessionRef.current = {
-        ...session,
-        intent: "signal",
-        moved: nextMoved,
-      };
-    } else {
-      dragSessionRef.current = {
-        ...session,
-        moved: nextMoved,
-      };
-    }
+    dragSessionRef.current = { ...session, horizontalLocked, moved: nextMoved };
 
     // Preview is gesture-local: it gives immediate tactile feedback, but is
     // discarded unless horizontal signal intent wins and the pointer ends.
     setPreviewNormalized(nextNormalized);
 
-    if (dragSessionRef.current?.intent === "signal") {
+    if (nextAxis === "horizontal") {
       keepValueVisible();
       event.preventDefault();
     }
@@ -418,13 +431,9 @@ export function FocusedSignalRow({
     }
     if (session.sourceIdentity !== interactionIdentity) { releaseDragSession(); hideValueNow(); return; }
 
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-
     const deltaX = event.clientX - session.startPointerX;
     const deltaY = event.clientY - session.startPointerY;
-    const finalAxis = session.intent === "pending" ? getSignalGestureAxis(deltaX, deltaY) : null;
-    const finalIntent: SignalGestureIntent =
-      session.intent === "signal" || finalAxis === "horizontal" ? "signal" : "cancelled";
+    const { axis: finalAxis } = getSignalGestureDecision(deltaX, deltaY, session.horizontalLocked);
     const finalNormalized = clampNormalized(session.startNormalized + deltaX / session.movementRangePx);
     const wasMoved = session.moved || Math.hypot(deltaX, deltaY) >= DECK_GESTURE_THRESHOLDS.deadZonePx;
 
@@ -437,8 +446,10 @@ export function FocusedSignalRow({
     // is about to happen so the row does not momentarily fall back to stale
     // signal.value before parent state updates propagate.
     dragSessionRef.current = null;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
 
     if (finalAxis === "vertical") {
+      setPreviewNormalized(null);
       hideValueNow();
 
       if (deltaY > 0) {
@@ -450,13 +461,13 @@ export function FocusedSignalRow({
       return;
     }
 
-    if (finalIntent === "signal") {
+    if (finalAxis === "horizontal") {
       setPreviewNormalized(finalNormalized);
       onCommitSignalReading(cardId, signal.id, getFinalReadingFromNormalized(finalNormalized));
       showValueTemporarily();
-    } else if (wasMoved) {
+    } else {
       setPreviewNormalized(null);
-      hideValueNow();
+      if (wasMoved) hideValueNow();
     }
   };
 
@@ -469,8 +480,6 @@ export function FocusedSignalRow({
       return;
     }
 
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-
     const wasMoved = session.moved;
 
     if (wasMoved) {
@@ -478,6 +487,7 @@ export function FocusedSignalRow({
     }
 
     releaseDragSession();
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     hideValueNow();
   };
 
