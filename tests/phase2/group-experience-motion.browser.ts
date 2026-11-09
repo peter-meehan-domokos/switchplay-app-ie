@@ -133,7 +133,8 @@ test("50 loaded comparisons keep the same scene and Card object with no identity
 });
 
 test("ordinary Personal Cards preserve focus, horizontal flip and vertical traversal", async ({ page }) => {
-  const media = JSON.parse(process.env.PHASE11_REVIEW ?? "null")?.mediaReviewData;
+  const media = JSON.parse(process.env.PHASE11_REVIEW ?? "null")?.mediaReviewData
+    ?? JSON.parse(process.env.PHASE7_MEDIA_REVIEW ?? "null");
   test.skip(!media, "Requires the existing disposable Personal media review Deck");
   await page.request.post("/api/auth/login", { data: { identifier: "Aoife Kelly", password: "local-test-only" } });
   await page.goto(`/decks?${new URLSearchParams({ openDeck: media.personalDeckId, openCard: media.cardId })}`);

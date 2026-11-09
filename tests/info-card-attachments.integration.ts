@@ -169,16 +169,16 @@ test("real canonical create wins a concurrent delete through the shared guard", 
   const { main, info } = await setup(), hold = barrier(); const transaction = main.transaction.bind(main);
   main.transaction = run => transaction(async session => { const result = await run(session); hold.entered(); await hold.gate; return result; });
   const creation = main.createCardDraft("bob", content(["a"]), "private", "main"); await hold.reached;
-  const deletion = info.delete("alice", "a", 2); hold.release(); await creation;
-  await assert.rejects(deletion, { code: "INFO_REFERENCED_CONFLICT" });
+  const deletion = assert.rejects(info.delete("alice", "a", 2), { code: "INFO_REFERENCED_CONFLICT" });
+  hold.release(); await Promise.all([creation, deletion]);
 });
 
 test("deletion wins a concurrent canonical create, leaving no dangling draft", async () => {
   const { main, info } = await setup(), hold = barrier(); const transaction = info.transaction.bind(info);
   info.transaction = run => transaction(async session => { const result = await run(session); hold.entered(); await hold.gate; return result; });
   const deletion = info.delete("alice", "a", 2); await hold.reached;
-  const creation = main.createCardDraft("bob", content(["a"]), "private", "main"); hold.release(); await deletion;
-  await assert.rejects(creation, { code: "INFO_REFERENCE_FORBIDDEN" });
+  const creation = assert.rejects(main.createCardDraft("bob", content(["a"]), "private", "main"), { code: "INFO_REFERENCE_FORBIDDEN" });
+  hold.release(); await Promise.all([deletion, creation]);
   assert.equal(await main.cards().countDocuments({ cardTemplateId: "main" }), 0);
 });
 
