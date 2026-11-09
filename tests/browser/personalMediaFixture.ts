@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 // These older viewer cases deliberately exercise the legacy CardData thumbnail
 // snapshot (the five-item HTTP thumbnail path is covered in media-collection and
@@ -17,4 +17,11 @@ export async function mockLegacyGalleryHistory(page: Page) {
       authorUserId: owner, mediaType: item.mediaType, description: item.description, uploadedAt: null, originName: "Personal", private: false, media: item }));
     return route.fulfill({ json: { viewerUserId: owner, cardTemplateId: "card-1", total: records.length, start: 0, olderCount: 0, older: null, newer: null, items: records } });
   });
+}
+
+// Gallery tests exercise focused interactions. Deck previews are passive.
+export async function openFocusedMediaCard(page: Page, url = "/") {
+  await page.goto(url);
+  await page.locator(".deck-card.is-active").press("Enter");
+  await expect(page.locator(".focused-card-object")).toBeVisible();
 }

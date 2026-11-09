@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-export default function MediaCentreControl({ total, onOpen }: { total: number; onOpen(): void }) {
+export default function MediaCentreControl({ total, onOpen }: { total: number; onOpen?: () => void }) {
   const button = useRef<HTMLButtonElement>(null);
+  const interactive = Boolean(onOpen);
   useEffect(() => {
     const node = button.current;
     if (!node) return;
@@ -26,10 +27,8 @@ export default function MediaCentreControl({ total, onOpen }: { total: number; o
     window.addEventListener("resize", schedule); window.visualViewport?.addEventListener("resize", schedule);
     measure();
     return () => { cancelAnimationFrame(frame); resize.disconnect(); transform.disconnect(); window.removeEventListener("resize", schedule); window.visualViewport?.removeEventListener("resize", schedule); };
-  }, []);
-  return <button ref={button} type="button" className="focused-card-back-media-action media-centre-control" aria-label="Media Centre" aria-haspopup="dialog"
-    onPointerDown={e => e.stopPropagation()} onPointerMove={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onPointerCancel={e => e.stopPropagation()}
-    onKeyDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); e.currentTarget.focus({ preventScroll: true }); onOpen(); }}>
+  }, [interactive]);
+  const contents = <>
     {/* Traced from the supplied icon.png, using its 40×40 glyph crop.
         Separate stroke widths preserve the reference's frame/plus proportions. */}
     <svg aria-hidden="true" className="media-centre-icon" width="18" height="18" viewBox="0 0 40 40" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" strokeWidth="4.1667" strokeLinecap="round" strokeLinejoin="round">
@@ -37,5 +36,9 @@ export default function MediaCentreControl({ total, onOpen }: { total: number; o
       <path strokeWidth="5" d="M25.5 31.5h12M31.5 25.5v12" />
     </svg>
     {total > 5 ? <span className="media-centre-count">{total}</span> : null}
-  </button>;
+  </>;
+  if (!onOpen) return <span className="focused-card-back-media-action media-centre-control" aria-hidden="true">{contents}</span>;
+  return <button ref={button} type="button" className="focused-card-back-media-action media-centre-control" aria-label="Media Centre" aria-haspopup="dialog"
+    onPointerDown={e => e.stopPropagation()} onPointerMove={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onPointerCancel={e => e.stopPropagation()}
+    onKeyDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); e.currentTarget.focus({ preventScroll: true }); onOpen(); }}>{contents}</button>;
 }

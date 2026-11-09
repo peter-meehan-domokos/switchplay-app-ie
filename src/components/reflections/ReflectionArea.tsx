@@ -82,10 +82,10 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
   };
   if (!current && !selectedMember) return null;
   return <div className="reflection-card-notes" ref={source}
-    onPointerDown={e => { ownedPointer.current = e.pointerId; e.stopPropagation(); }}
-    onPointerMove={e => { if (ownedPointer.current === e.pointerId) e.stopPropagation(); }}
-    onPointerUp={e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } }}
-    onPointerCancel={e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } }}>
+    onPointerDown={interactive && active ? e => { ownedPointer.current = e.pointerId; e.stopPropagation(); } : undefined}
+    onPointerMove={interactive && active ? e => { if (ownedPointer.current === e.pointerId) e.stopPropagation(); } : undefined}
+    onPointerUp={interactive && active ? e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } } : undefined}
+    onPointerCancel={interactive && active ? e => { if (ownedPointer.current === e.pointerId) { e.stopPropagation(); ownedPointer.current = null; } } : undefined}>
     {current ? <div className="reflection-area" style={{ "--reflection-y-offset": `${verticalOffset}px` } as import("react").CSSProperties}>
       <BackCardReflectionFragment text={current.text} isEditable={interactive && active} onClick={open}
         showPlaceholder={!current.text.trim() && current.canEdit} ariaLabel={!current.text.trim() ? "Add a reflection" : "Open reflection"} />

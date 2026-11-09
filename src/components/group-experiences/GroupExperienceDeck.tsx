@@ -127,7 +127,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     setMediaOverlay({ kind: "gallery", cardId, selectedKey, initialPage, authority: mediaAuthority, focused: scene.focused, context: mediaContext(cardId)!, version: deck.cards.find(c => c.id === cardId)!.version });
   };
   const openCentre = (cardId: string) => {
-    if (!state.verified || mediaOverlay || settingsOpen) return;
+    if (!focused || !state.verified || mediaOverlay || settingsOpen) return;
     mediaSourceRef.current = document.activeElement as HTMLButtonElement;
     setMediaOverlay({ kind: "centre", cardId, authority: mediaAuthority, focused, context: mediaContext(cardId)!, version: deck.cards.find(c => c.id === cardId)!.version });
   };
@@ -173,7 +173,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
             groupUpload={{ viewerUserId: actor, experienceId, cardTemplateId: card.id, accessEpoch: boot.accessEpoch, version: card.version }}
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
-      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={options.variant !== "preview"} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
+      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={false} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
       renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}

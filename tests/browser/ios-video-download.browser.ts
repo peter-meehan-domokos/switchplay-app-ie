@@ -1,4 +1,4 @@
-import { mockLegacyGalleryHistory } from "./personalMediaFixture";
+import { mockLegacyGalleryHistory, openFocusedMediaCard } from "./personalMediaFixture";
 import { expect, test, type Page } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => mockLegacyGalleryHistory(page));
@@ -8,7 +8,7 @@ const appVideoUrl = "**/api/media/card/video-file*";
 const iphoneSafari = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 async function openPreparedVideo(page: Page) {
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   await page.getByRole("button", { name: /^Open video 2 of 8:/ }).click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
   await viewer.getByRole("button", { name: "Download encoded MP4" }).click();

@@ -89,8 +89,7 @@ export default function DeckCard({
       data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
       layoutId={`week-card-${cardPresentationIdentity(card)}`}
-      role={onActivate ? isDeckFlipped && onOpenMedia ? "group" : "button" : undefined}
-      aria-label={isDeckFlipped && onOpenMedia ? `${card.label}. Press Enter to focus this card, or open a media item.` : undefined}
+      role={onActivate ? "button" : undefined}
       tabIndex={onActivate ? 0 : undefined}
       onClick={onActivate ? handleActivate : undefined}
       onKeyDown={handleKeyDown}

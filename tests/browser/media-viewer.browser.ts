@@ -1,10 +1,10 @@
-import { mockLegacyGalleryHistory } from "./personalMediaFixture";
+import { mockLegacyGalleryHistory, openFocusedMediaCard } from "./personalMediaFixture";
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => mockLegacyGalleryHistory(page));
 
 test("opens the exact thumbnail and traverses all eight items without wrapping", async ({ page }) => {
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   const thumbnails = page.getByRole("button", { name: /^Open (image|video) \d of 8:/ });
   await expect(thumbnails).toHaveCount(5);
   await thumbnails.nth(3).click();
@@ -28,7 +28,7 @@ test("opens the exact thumbnail and traverses all eight items without wrapping",
 });
 
 test("zoom controls, swipe, download, and single-item layout work on a phone", async ({ page }) => {
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   await page.getByRole("button", { name: /^Open image 1 of 8:/ }).click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
   await expect(viewer.getByRole("button", { name: "Previous media" })).toBeDisabled();
@@ -57,7 +57,7 @@ test("zoom controls, swipe, download, and single-item layout work on a phone", a
   await expect(viewer.getByRole("link", { name: "Download ready" })).toBeVisible();
   await viewer.getByRole("button", { name: "Close media viewer" }).click();
 
-  await page.goto("/?single");
+  await openFocusedMediaCard(page, "/?single");
   await page.getByRole("button", { name: /^Open image 1 of 1:/ }).click();
   await expect(page.getByRole("dialog", { name: "Card media viewer" }).getByText("1 of 1")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Media navigation" })).toHaveCount(0);
@@ -66,7 +66,7 @@ test("zoom controls, swipe, download, and single-item layout work on a phone", a
 test("desktop toolbar remains reachable when an image fails", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.route("**/image-6.svg", (route) => route.abort());
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   await page.getByRole("button", { name: /^Open image 5 of 8:/ }).click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
   await viewer.getByRole("button", { name: "Next media" }).click();
@@ -83,7 +83,7 @@ test("desktop toolbar remains reachable when an image fails", async ({ page }) =
 });
 
 test("video starts paused, unmounts on navigation, and opening from focused card works", async ({ page }) => {
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   await page.getByRole("button", { name: /^Open video 2 of 8:/ }).click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
   await expect(viewer.getByText("2 of 8")).toBeVisible();
@@ -97,8 +97,7 @@ test("video starts paused, unmounts on navigation, and opening from focused card
   await viewer.getByRole("button", { name: "Close media viewer" }).click();
   await expect(viewer).toHaveCount(0);
 
-  await page.goto("/");
-  await page.getByRole("group", { name: /Press Enter to focus this card/ }).press("Enter");
+  await openFocusedMediaCard(page, "/");
   await expect(page.getByRole("button", { name: "Close focused card" })).toBeVisible();
   await page.getByRole("button", { name: /^Open image 1 of 8:/ }).last().click();
   await expect(page.getByRole("dialog", { name: "Card media viewer" })).toBeVisible();
@@ -106,7 +105,7 @@ test("video starts paused, unmounts on navigation, and opening from focused card
 
 
 test("inherited media with a repeated ID selects and downloads its own source", async ({ page }) => {
-  await page.goto("/?inherited");
+  await openFocusedMediaCard(page, "/?inherited");
   await page.getByRole("button", { name: /^Open image 3 of 3:/ }).click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
   await expect(viewer.getByText("3 of 3")).toBeVisible();
@@ -135,7 +134,7 @@ for (const strict of [false, true]) test(`gallery decoding, retry and paused nav
       return route.fulfill({ status: 206, contentType: "video/webm", headers: { "Accept-Ranges": "bytes", "Content-Range": `bytes ${start}-${end}/${bytes.length}` }, body: bytes.subarray(start, end + 1) }); }
     return route.fulfill({ contentType: "video/webm", headers: { "Accept-Ranges": "bytes" }, body: bytes });
   });
-  await page.goto(strict ? "/?strict" : "/");
+  await openFocusedMediaCard(page, strict ? "/?strict" : "/");
   await page.getByRole("button", { name: /^Open video 2 of 8:/ }).click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
   const video = viewer.locator("video");
@@ -169,7 +168,7 @@ for (const strict of [false, true]) test(`gallery decoding, retry and paused nav
 
 for (const width of [320, 390, 1280]) test(`gallery controls, focus and contained images remain usable at ${width}px`, async ({ page }, info) => {
   await page.setViewportSize({ width, height: 844 });
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   const source = page.getByRole("button", { name: /^Open image 4 of 8:/ });
   await source.click();
   const viewer = page.getByRole("dialog", { name: "Card media viewer" });
@@ -196,7 +195,7 @@ test("known Personal video opens paused before delayed history metadata without 
     await route.fallback();
   });
   try {
-    await page.goto("/?strict"); await page.getByRole("button", { name: /^Open video 2 of 8:/ }).click();
+    await openFocusedMediaCard(page, "/?strict"); await page.getByRole("button", { name: /^Open video 2 of 8:/ }).click();
     const viewer = page.getByRole("dialog", { name: "Card media viewer" }); await expect(viewer).toBeVisible();
     await expect(viewer.locator("video")).toHaveCount(1);
     expect(await viewer.locator("video").evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);

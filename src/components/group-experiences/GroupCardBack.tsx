@@ -26,8 +26,8 @@ export default function GroupCardBack({ reflectionInteractive = true, reflection
   return <div className={`focused-card-back-layout back-card-face-content ${focused ? "back-card-face-content--focused" : "back-card-face-content--preview"}`}>
     <CardSemanticAnchors card={card} dateLabel="" showProgress={false} variant="back" />
     <div className="focused-card-back-shell">
-      {collection.page?.capabilities?.canManage && onEditMedia ? <MediaCentreControl total={collection.page.total} onOpen={() => onEditMedia(card.id)} /> : null}
-      <BackCardMediaCarousel items={items} showPrivate={mediaContext?.kind === "owner" && Boolean(mediaContext.experienceId)} onOpen={onOpenMedia ? (key, source) => onOpenMedia(card.id, key, source, undefined, collection.page ?? undefined) : undefined} />
+      {collection.page?.capabilities?.canManage && onEditMedia ? <MediaCentreControl total={collection.page.total} onOpen={focused ? () => onEditMedia(card.id) : undefined} /> : null}
+      <BackCardMediaCarousel items={items} showPrivate={mediaContext?.kind === "owner" && Boolean(mediaContext.experienceId)} onOpen={focused && onOpenMedia ? (key, source) => onOpenMedia(card.id, key, source, undefined, collection.page ?? undefined) : undefined} />
       <section className={`focused-card-back-signals ${items.length ? "" : "focused-card-back-signals--no-media"} group-back-signals`} aria-label="Card progress and confidence">
       {card.steps.map((step, i) => {
         const reading = card.learning.signalReadings.find(row => row.stepId === step.stepId)?.reading ?? null;
@@ -39,13 +39,13 @@ export default function GroupCardBack({ reflectionInteractive = true, reflection
           <StepProgressStrip completionStatus={step.completionStatus} />
         </span>;
         // Keep the same SVG/row through perspective changes. Security identity
-        // resets gesture preview independently; read-only rows own gestures but
+        // resets gesture preview independently; focused read-only rows own gestures but
         // never acquire learning mutation capabilities.
         return focused ? <FocusedSignalRow key={step.stepId} signal={signal} cardId={card.id} heading={heading}
           readOnly={!card.canWriteLearning || !onChange} readOnlyReason={!card.canWriteLearning ? readOnlyReason : undefined} interactionIdentity={card.dataIdentity}
           onCommitSignalReading={(_cardId, stepId, value) => { if (card.canWriteLearning) onChange?.({ kind: "signal", stepId, reading: value }); }}
           onSignalNavigateNext={onSignalNavigateNext} onSignalNavigatePrevious={onSignalNavigatePrevious} />
-          : <PassiveSignalRow key={step.stepId} signal={signal} heading={heading} readOnlyReason={!card.canWriteLearning ? readOnlyReason : undefined} interactionIdentity={card.dataIdentity} />;
+          : <PassiveSignalRow key={step.stepId} signal={signal} heading={heading} />;
       })}
     </section>
       {reflectionContext ? <ReflectionArea verticalOffset={items.length ? 0 : -10} context={reflectionContext} active={focused} interactive={focused && reflectionInteractive} onModalChange={onReflectionModalChange} /> : null}

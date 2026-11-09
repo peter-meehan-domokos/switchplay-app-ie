@@ -1,3 +1,4 @@
+import { openFocusedMediaCard } from "./personalMediaFixture";
 import { test, expect } from "@playwright/test";
 const owner = "507f1f77bcf86cd799439011";
 test("unified collection uses the existing thumbnail layout and gallery through Strict Mode", async ({ page }) => {
@@ -9,7 +10,7 @@ test("unified collection uses the existing thumbnail layout and gallery through 
     return route.fulfill({ json: { viewerUserId: owner, cardTemplateId: "card-1", items: records.slice(-limit), start: Math.max(0, 8 - limit), total: 8, olderCount: Math.max(0, 8 - limit), older: limit < 8 ? "older" : null, newer: null }, headers: { "X-Personal-Viewer": owner } });
   });
   await page.route("**/api/group-media/*?*", route => route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l5kAAAAASUVORK5CYII=", "base64") }));
-  await page.goto("/?strict=1");
+  await openFocusedMediaCard(page, "/?strict=1");
   const thumbnails = page.getByRole("button", { name: /^Open image/ });
   await expect(thumbnails).toHaveCount(5);
   await expect(thumbnails.first()).toHaveAttribute("aria-label", /Training photo 4$/);
@@ -39,7 +40,7 @@ test("existing gallery arrows cross a bounded page boundary without losing the s
     return route.fulfill({ json: { viewerUserId: owner, cardTemplateId: "card-1", total: 35, start, olderCount: 35 - Math.min(limit, 35),
       items: old ? records.slice(0, 5) : records.slice(start), older: old ? null : "older", newer: old ? "newer" : null }, headers: { "X-Personal-Viewer": owner } });
   });
-  await page.goto("/");
+  await openFocusedMediaCard(page, "/");
   const thumbnails = page.getByRole("button", { name: /^Open image/ });
   await expect(thumbnails).toHaveCount(5); await expect(thumbnails.first()).toHaveAttribute("aria-label", /Bounded photo 31$/);
   await thumbnails.first().click();
@@ -60,7 +61,7 @@ test("background Gallery metadata does not resize the image or reset an existing
     await route.fulfill({ json: { viewerUserId: owner, cardTemplateId: "card-1", items: [record], total: 1, olderCount: 0, older: null, newer: null } });
   });
   try {
-    await page.goto("/?strict"); await page.getByRole("button", { name: /^Open image 1 of 1:/ }).click();
+    await openFocusedMediaCard(page, "/?strict"); await page.getByRole("button", { name: /^Open image 1 of 1:/ }).click();
     const gallery = page.getByRole("dialog", { name: "Card media viewer" });
     await gallery.getByRole("button", { name: "Zoom in" }).click(); await expect(gallery.getByLabel("Zoom level")).toHaveText("150%");
     release(); await expect(gallery.getByText("Loading media history…")).toHaveCount(0);

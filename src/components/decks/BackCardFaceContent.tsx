@@ -608,11 +608,11 @@ export default function BackCardFaceContent({
     <div className={layoutClassName}>
       <CardSemanticAnchors assessment={assessment} card={card} dateLabel={dateLabel} showProgress={false} variant="back" />
       <div className="focused-card-back-shell">
-        {canMutate && onEditMedia ? <MediaCentreControl total={collection.page?.total ?? card.backMediaItems.length} onOpen={() => onEditMedia(card.id)} /> : null}
+        {canMutate && onEditMedia ? <MediaCentreControl total={collection.page?.total ?? card.backMediaItems.length} onOpen={isFocusedVariant ? () => onEditMedia(card.id) : undefined} /> : null}
         {deckTemplateId ? (
           <BackCardMediaCarousel
             items={mediaItems}
-            onOpen={onOpenMedia ? (itemId, source) => onOpenMedia(card.id, itemId, source, undefined, collection.page ?? undefined) : undefined}
+            onOpen={isFocusedVariant && onOpenMedia ? (itemId, source) => onOpenMedia(card.id, itemId, source, undefined, collection.page ?? undefined) : undefined}
           />
         ) : null}
         <section
