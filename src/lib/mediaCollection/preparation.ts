@@ -75,14 +75,33 @@ export async function sharedPreviewPages(repo: CardRepository, actor: string, id
   ], { session }).toArray();
   const { creatorUsernames } = await import("../cards/creatorAttribution");
   const names = await creatorUsernames(repo, windows.flatMap(window => window.items.map(item => item.authorUserId as string)), session);
-  return Object.fromEntries(ids.map(card => {
-    const window = windows.find(window => window._id === card), items = window?.items ?? [], total = window?.total ?? 0;
+  return Object.fromEntries(ids.map(card => [card, sharedWindowPage(actor, card, authority, names, windows.find(window => window._id === card), subjectUserId)]));
+}
+function sharedWindowPage(actor: string, card: string, authority: Authority, names: Map<string, string>, window?: Window, subjectUserId?: string) {
+    const experienceId = authority.experience.experienceId, items = window?.items ?? [], total = window?.total ?? 0;
     const key = hash({ actor, cardTemplateId: card, authority: { kind: "group", experienceId, ...(subjectUserId ? { subjectUserId } : {}) } });
     const encode = (row: Record<string, unknown>, inclusive = false) => JSON.stringify({ after: Buffer.from(JSON.stringify({ key, date: (row.uploadedAt as Date).toISOString(), id: row.contributionId, inclusive })).toString("base64url") });
     const page: MediaCollectionPage = { viewerUserId: actor, cardTemplateId: card, experienceId, accessEpoch: authority.member.accessEpoch, adoptionRevision: authority.experience.adoptionRevision, structureRevision: authority.experience.structureRevision,
       subjectUserId: subjectUserId ?? null, total, olderCount: Math.max(0, total - items.length), start: Math.max(0, total - items.length), older: total > items.length && items.at(-1) ? encode(items.at(-1)!) : null, newer: null, refresh: items[0] ? encode(items[0], true) : null,
       capabilities: memberMediaCapabilities(authority.member, subjectUserId, !!window?.own),
       items: [...items].reverse().map(row => ({ source: { kind: "group", experienceId, contributionId: row.contributionId as string }, authorUserId: row.authorUserId as string, authorName: names.get(row.authorUserId as string) ?? "Unknown user", mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number, originName: authority.experience.name, private: false })) };
-    return [card, page];
-  }));
+    return page;
+}
+
+// One authorised aggregate for the requested Card/subject batch. Never query
+// owner histories or non-visible/other-Group contributions for inspection.
+export async function subjectPreviewPages(repo: CardRepository, actor: string, ids: string[], subjects: string[], session: ClientSession, authority: Authority) {
+  requireCondition(authority.member.userId === actor, "GROUP_PERSPECTIVE_FORBIDDEN");
+  const windows = !ids.length || !subjects.length ? [] : await repo.db.collection(GROUP_MEDIA_COLLECTION).aggregate<Omit<Window, "_id"> & { _id: { card: string; subject: string } }>([
+    { $match: { experienceId: authority.experience.experienceId, cardTemplateId: { $in: ids }, authorUserId: { $in: subjects }, state: "attached", groupVisible: true } },
+    { $sort: { uploadedAt: -1, contributionId: -1 } },
+    { $group: { _id: { card: "$cardTemplateId", subject: "$authorUserId" }, total: { $sum: 1 }, own: { $sum: { $cond: [{ $eq: ["$authorUserId", actor] }, 1, 0] } },
+      items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", kind: "$kind", uploadedAt: "$uploadedAt", revision: "$revision", originalFilename: "$originalFilename" } } } } },
+  ], { session }).toArray();
+  const { creatorUsernames } = await import("../cards/creatorAttribution");
+  const names = await creatorUsernames(repo, subjects, session);
+  return new Map(subjects.map(subject => [subject, Object.fromEntries(ids.map(card => {
+    const window = windows.find(window => window._id.card === card && window._id.subject === subject);
+    return [card, sharedWindowPage(actor, card, authority, names, window ? { ...window, _id: card } : undefined, subject)];
+  }))]));
 }

@@ -23,6 +23,7 @@ import PerspectiveGrid from "./PerspectiveGrid";
 import DeckMenu from "@/components/decks/DeckMenu";
 import GroupManagementForm from "./GroupManagementForm";
 import GroupUpdateControls from "./GroupUpdateControls";
+import { useGroupPreparation } from "./useGroupPreparation";
 const emptyState: GroupResourceState = { verified: false, loading: true };
 const noSubscribe = () => () => {};
 const emptySnapshot = () => emptyState;
@@ -44,9 +45,17 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const [focused, setFocused] = useState(restored?.focused ?? false);
   const [expanded, setExpanded] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const root = useRef<HTMLElement | null>(null);
+  const [sceneBusy, setSceneBusy] = useState(false), [focusBusy, setFocusBusy] = useState(false);
+  const [pendingChoice, setPendingChoice] = useState<PerspectiveChoice>();
+  const [preparationError, setPreparationError] = useState<string>();
+  const selectionIntent = useRef(0);
+  const retryChoice = useRef<PerspectiveChoice | undefined>(undefined);
   const [mediaOverlay, setMediaOverlay] = useState<{ kind: "gallery" | "centre"; cardId: string; selectedKey?: string; initialPage?: MediaCollectionPage; authority: string; focused: boolean; context: MediaCollectionContext; version: number } | null>(null);
   const mediaSourceRef = useRef<HTMLButtonElement | null>(null);
   const settingsPerspective = useRef<PerspectiveSelection | null>(null);
+  useGroupPreparation(resource, root, actor, experienceId, settingsOpen || reflectionOpen || !!mediaOverlay || sceneBusy || focused && focusBusy || !!pendingChoice || expanded);
+  useEffect(() => () => { selectionIntent.current++; resource?.releasePerspectiveIntent(); resource?.setFollowerIntent(false); }, [resource]);
   useEffect(() => {
     // View lifetime owns timers, not accepted data or submitted work.
     if (!resource) return;
@@ -144,7 +153,22 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     setMediaOverlay({ kind: "centre", cardId, authority: mediaAuthority, focused, context: mediaContext(cardId)!, version: deck.cards.find(c => c.id === cardId)!.version });
   };
   const comparisonOpen = expanded && focused && boot.canInspectFollowers;
-  const select = (choice: PerspectiveChoice) => { setSelection(choice.selection); void resource.navigate(choice.selection, currentCardId).catch(() => resource.invalidate()); };
+  const select = (choice: PerspectiveChoice) => {
+    const intent = ++selectionIntent.current;
+    retryChoice.current = choice;
+    resource.releasePerspectiveIntent(); setPreparationError(undefined);
+    const apply = () => { setSelection(choice.selection); setPendingChoice(undefined); void resource.navigate(choice.selection, currentCardId).catch(() => resource.invalidate()); };
+    if (resource.isPrepared(choice.selection)) { apply(); return; }
+    setPendingChoice(choice);
+    void resource.preparePerspective(choice.selection).then(ready => {
+      if (intent !== selectionIntent.current) return;
+      if (ready) apply();
+      else { setPendingChoice(undefined); setPreparationError(resource.snapshot().preparation?.error ?? "This perspective could not be prepared. Retry."); }
+    });
+  };
+  const followers = { ready: resource.followersReady(), error: state.preparation?.followers === "error" ? state.preparation.error : undefined,
+    retry: () => { resource.setFollowerIntent(true); void resource.prepareFollowers(); } };
+  const compare = (value: boolean) => { setExpanded(value); resource.setFollowerIntent(value); if (value) void resource.prepareFollowers(); };
   const save = (cardId: string, change: PersonalLearningChange) => {
     const card = deck.cards.find(card => card.id === cardId);
     if (card?.canWriteLearning) void resource.save(cardId, shown.perspective === "group" ? "group" : "personal", card.version, boot.accessEpoch, change);
@@ -154,7 +178,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     const old = card.learning.items.find(item => item.stepId === stepId)!.completionStatus;
     save(cardId, { kind: "completion", stepId, completionStatus: states[(states.indexOf(old) + 1) % states.length] });
   };
-  return <main className="app-shell app-shell--deck group-experience" data-experience-id={experienceId} data-perspective-key={selectedKey}
+  return <main ref={root} className="app-shell app-shell--deck group-experience" data-experience-id={experienceId} data-perspective-key={selectedKey}
     data-current-card={currentCardId} data-face={Math.abs(rotation % 360) === 180 ? "back" : "front"}>
     {!state.verified ? <p className="group-verification" role="status">Verifying current access… <button type="button" onClick={() => void resource.load()}>Retry</button></p> : null}
     <GroupUpdateControls key={`${actor}:${experienceId}`} actor={actor} experienceId={experienceId} deck={deck}
@@ -171,7 +195,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
           // change after self-demotion must not replace a still-valid selection.
           settingsPerspective.current = shown; setSelection(shown); setSettingsOpen(true);
         } } : undefined} />}
-      onFocusChange={value => { setFocused(value); if (!value) setExpanded(false); }}
+      onFocusChange={value => { setFocused(value); if (!value) compare(false); }} onPreparationBusyChange={setSceneBusy}
       playbackViewerUserId={actor} isDeckFlipped={Math.abs(rotation % 360) === 180} deckFlipRotationY={rotation}
       onToggleDeckFlip={(delta = 180) => setRotation(value => value + delta)} onBack={progressReturn ? () => router.push(progressReturnHref(progressReturn), { scroll: false }) : onBack} backLabel={progressReturn ? "Back to Progress" : "Back to My Decks"}
       transition={{ type: "spring", stiffness: 300, damping: 30 }} error={state.error ?? state.mutationError ?? updates.error}
@@ -186,16 +210,17 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
       renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={false} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
-      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
+      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} onPreparationBusyChange={setFocusBusy} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
         backFace={<GroupCardBack reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />}</GroupUpdateControls>
-    {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} onCollapse={() => {
-      setExpanded(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
+    {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} followers={followers} onCollapse={() => {
+      compare(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />
       : <PerspectivePicker choices={choices} selected={selectedKey} ownKey={boot.isFollower ? actor : undefined} canCompare={boot.canInspectFollowers}
-        focused={focused} disabled={false} onSelect={select} onCompare={setExpanded} />}
+        focused={focused} disabled={false} onSelect={select} onCompare={compare} followers={followers} pendingKey={pendingChoice?.key}
+        preparationError={preparationError} onRetry={() => { if (retryChoice.current) select(retryChoice.current); }} />}
     {settings}
   </main>;
 }

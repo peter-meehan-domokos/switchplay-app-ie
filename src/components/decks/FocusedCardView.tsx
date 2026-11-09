@@ -64,6 +64,7 @@ export type FocusedCardViewProps = {
   assessment?: ReactNode;
   frontAction?: ReactNode;
   interactionLocked?: boolean;
+  onPreparationBusyChange?: (busy: boolean) => void;
   onRequestAddComment?: () => void;
   traversalDirection: FocusedTraversalDirection;
   transition: Transition;
@@ -248,6 +249,7 @@ export default function FocusedCardView({
   assessment,
   playbackViewerUserId,
   interactionLocked = false,
+  onPreparationBusyChange,
   onRequestAddComment,
   traversalDirection,
   transition,
@@ -368,6 +370,7 @@ export default function FocusedCardView({
     + (card.personalHistory ?? []).filter(source => source.cardTemplateId !== card.id).reduce((sum, source) => sum + (source.personalInfoCardIds?.length ?? 0), 0) : 0;
   const attachmentCount = infoCards !== undefined ? infoCards.length : (card.infoCardIds?.length ?? 0) + (personalEnabled ? personalCount : 0);
   const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);
+  useEffect(() => { onPreparationBusyChange?.(isFocusedGestureLocked || !!stepViewItem || consultationOpen); }, [onPreparationBusyChange, isFocusedGestureLocked, stepViewItem, consultationOpen]);
   if (consultation && (consultation.identity !== consultationIdentity || !stepViewItem || !isPresent || mediaViewerOpen)) setConsultation(null);
   const consultationRequest = consultation?.request;
   useEffect(() => {

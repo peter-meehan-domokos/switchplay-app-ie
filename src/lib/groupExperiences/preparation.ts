@@ -25,22 +25,23 @@ export async function prepareGroup(repo: GroupExperienceRepository, actor: strin
     if (opening) await repo.openSelectedInSession(actor, experience, member, selected.cards, session, opening.cardTemplateId && ids.includes(opening.cardTemplateId) ? opening.cardTemplateId : undefined,
       requested?.perspective === "default" ? selection : undefined);
     const group = await repo.groupLearning(experienceId, selected.cards, session);
-    // Preserve the current picker and comparison scalar matrix until CP3. This
-    // does not prepare other perspectives' media/reflections or private fields.
-    const followerIds = await repo.members().find({ experienceId, followerStatus: "active" }, { session, projection: { userId: 1 } }).toArray();
-    const learning = await personalLearningForUsers(repo.cards, followerIds.map(row => row.userId), selected.cards, session);
+    // Group aggregates use narrow follower learning, not complete perspectives.
+    // Me/inspection need only their selected learning and never await aggregates.
+    const followerIds = selection.perspective === "group" ? await repo.members().find({ experienceId, followerStatus: "active" }, { session, projection: { userId: 1 } }).toArray() : [];
+    const learning = await personalLearningForUsers(repo.cards, selection.perspective === "group" ? followerIds.map(row => row.userId)
+      : [selection.perspective === "self" ? actor : selection.subjectUserId], selected.cards, session);
     const followers = []; let cursor: string | undefined;
     do {
       const page = await activeIdentities(repo, experience, member, session, cursor, 100);
-      followers.push(...page.followers.map(row => ({ ...row, learning: learning.get(row.userId)! }))); cursor = page.nextCursor ?? undefined;
+      followers.push(...page.followers.map(row => ({ ...row, learning: learning.get(row.userId) ?? [] }))); cursor = page.nextCursor ?? undefined;
     } while (cursor);
-    const own = member.followerStatus === "active" ? learning.get(actor)! : null;
+    const own = member.followerStatus === "active" ? learning.get(actor) ?? null : null;
     const bootstrap = { ...entry(actor, experience, member), canInspectFollowers: canInspectPeers(experience, member), allowFollowerInspection: experience.allowFollowerInspection === true,
-      selection, deck: selected.deck, group, own, ownDates: own ? await ownDates(repo, actor, ids, session) : null, nextCardOffset: null, deferred: ["assessments", "private-content", "group-contributions"] as const };
+      selection, deck: selected.deck, group, own, ownDates: selection.perspective === "self" ? await ownDates(repo, actor, ids, session) : null, nextCardOffset: null, deferred: ["assessments", "private-content", "group-contributions"] as const };
     const owner = selection.perspective === "self", subjectUserId = selection.perspective === "follower" ? selection.subjectUserId : undefined;
     const media = owner ? await ownerPreviewPages(repo.cards, actor, ids, session, true, authority) : await sharedPreviewPages(repo.cards, actor, ids, session, authority, subjectUserId);
     const reflections = await readReflectionFeedsInSession(repo, actor, ids, { kind: "group", experienceId, accessEpoch: member.accessEpoch, mode: owner ? "own" : subjectUserId ? "inspection" : "group", ...(subjectUserId ? { subjectUserId } : {}) }, session, authority, true);
-    return { ...identity(actor, experience, member), bootstrap, followers, aggregates: aggregateLearning(group, [...learning.values()]).cards, contributions: { media, reflections } };
+    return { ...identity(actor, experience, member), bootstrap, followers, aggregates: selection.perspective === "group" ? aggregateLearning(group, [...learning.values()]).cards : [], contributions: { media, reflections } };
   });
 }
 export type PreparedGroup = Awaited<ReturnType<typeof prepareGroup>>;

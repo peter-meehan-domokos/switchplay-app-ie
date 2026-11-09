@@ -46,6 +46,8 @@ export type DeckSceneProps = {
   onActiveCardChange?: (previous: number, next: number, rollback: (index: number) => void) => void;
   renderFocusedCard?: (props: FocusedCardViewProps) => ReactNode;
   onFocusChange?: (focused: boolean) => void;
+  // Observe existing foreground activity without changing motion or gestures.
+  onPreparationBusyChange?: (busy: boolean) => void;
 };
 
 function FocusedCardSlot({ render, props }: { render: NonNullable<DeckSceneProps["renderFocusedCard"]>; props: FocusedCardViewProps }) {
@@ -159,7 +161,7 @@ function useDeckSceneLayout(
 
 // Working adoption reconciles composition in place; personal changes preserve
 // navigation and player lifetime. Canonical callers still select immutable content.
-export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, initiallyFocused = false, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay, onFocusChange }: DeckSceneProps) {
+export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = false, deckFlipRotationY = 0, onBack, backLabel = "Back", initialCardTemplateId, entrySelection, initiallyFocused = false, onToggleDeckFlip, transition, error, deckActions, updateAction, cardAssessment, cardFrontAction, cardActions, onActiveCardChange, renderFocusedCard, renderCardBackFace, onOpenMedia, mediaViewerOpen = false, renderMediaOverlay, onFocusChange, onPreparationBusyChange }: DeckSceneProps) {
   const canonicalVersion = hasPersonalDeck(deck) ? null : deck.version;
   const videoGuard = useMemo(() => canonicalVersion === null ? undefined : publishedVideoGuard("deck", deck.deckTemplateId, canonicalVersion), [deck.deckTemplateId, canonicalVersion]);
   const cards = deck.cards;
@@ -172,6 +174,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
   const [focusedTraversalDirection, setFocusedTraversalDirection] = useState<FocusedTraversalDirection>("next");
   const [isDeckIntroExpanded, setIsDeckIntroExpanded] = useState(false);
   const [deckIntroPlaybackState, setDeckIntroPlaybackState] = useState<VideoPlaybackState>("idle");
+  useEffect(() => { onPreparationBusyChange?.(transitionPhase !== null || isDeckIntroExpanded); }, [onPreparationBusyChange, transitionPhase, isDeckIntroExpanded]);
   const deckDetailRef = useRef<HTMLElement | null>(null);
   const deckSceneFrameRef = useRef<HTMLDivElement | null>(null);
   const introPlayerRef = useRef<CloudflareHlsVideoPlayerHandle | null>(null);

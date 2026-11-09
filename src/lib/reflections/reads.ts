@@ -24,9 +24,11 @@ export async function readReflectionFeed(groups: GroupExperienceRepository, acto
 // The composed reader supplies already validated selected content. All queries
 // share its snapshot; the ordinary single-Card feed uses the same projection.
 export async function readReflectionFeedsInSession(groups: GroupExperienceRepository, actor: string, ids: string[], view: ReflectionView, session: ClientSession,
-  checked?: Awaited<ReturnType<GroupExperienceRepository["access"]>>, previewOnly = false): Promise<Record<string, ReflectionFeed>> {
+  checked?: Awaited<ReturnType<GroupExperienceRepository["access"]>>, previewOnly = false, inspectionAuthors?: string[]): Promise<Record<string, ReflectionFeed>> {
   const rows = groups.cards.db.collection<GroupReflection>(GROUP_REFLECTIONS);
   const authority = view.kind === "group" ? checked ?? await groups.access(actor, view.experienceId, "member", session, view.accessEpoch) : null;
+  if (inspectionAuthors) requireCondition(view.kind === "group" && view.mode === "group" && !!authority
+    && canInspectPeers(authority.experience, authority.member) && !inspectionAuthors.includes(actor), "GROUP_PERSPECTIVE_FORBIDDEN");
   if (authority && view.kind === "group") requireCondition(authority.member.userId === actor && authority.experience.experienceId === view.experienceId && authority.member.accessEpoch === view.accessEpoch, "GROUP_PERSPECTIVE_FORBIDDEN");
   if (authority && !checked) for (const card of ids) await selectedCard(groups.cards, authority.experience, card, session);
   if (view.kind === "group" && view.mode === "inspection") {
@@ -40,9 +42,10 @@ export async function readReflectionFeedsInSession(groups: GroupExperienceReposi
     const allRecords = currentOnly && view.kind === "personal" ? [] : await rows.find({ cardTemplateId: { $in: ids }, ...(owner ? { authorUserId: actor, ...(currentOnly && view.kind === "group" ? { experienceId: view.experienceId } : {}) } : {
       experienceId: (view as Extract<ReflectionView, {kind:"group"}>).experienceId, groupVisible: true, deleted: false, text: { $regex: "\\S" },
       ...(view.kind === "group" && view.mode === "inspection" ? { authorUserId: view.subjectUserId } : {}),
+      ...(inspectionAuthors ? { authorUserId: { $in: inspectionAuthors } } : {}),
     }) }, { session, projection: groupProjection }).sort({ createdAt: -1, reflectionId: 1 }).toArray();
     // Admin's own working slot is retained even when hidden/cleared; not a foreign grant.
-    if (!owner && view.kind === "group" && view.mode === "group" && authority!.member.isAdmin) {
+    if (!owner && !inspectionAuthors && view.kind === "group" && view.mode === "group" && authority!.member.isAdmin) {
       const own = await rows.find({ experienceId: view.experienceId, cardTemplateId: { $in: ids }, authorUserId: actor }, { session, projection: groupProjection }).toArray();
       for (const row of own) if (!allRecords.some(r => r.reflectionId === row.reflectionId)) allRecords.push(row);
     }
@@ -119,4 +122,19 @@ export async function readReflectionFeedsInSession(groups: GroupExperienceReposi
       }) };
     return [cardTemplateId, feed];
   }));
+}
+
+export async function subjectReflectionFeeds(groups: GroupExperienceRepository, actor: string, ids: string[], subjects: string[], session: ClientSession,
+  authority: Awaited<ReturnType<GroupExperienceRepository["access"]>>) {
+  requireCondition(canInspectPeers(authority.experience, authority.member) && !subjects.includes(actor), "GROUP_PERSPECTIVE_FORBIDDEN");
+  const shared = await readReflectionFeedsInSession(groups, actor, ids, { kind: "group", experienceId: authority.experience.experienceId,
+    mode: "group", accessEpoch: authority.member.accessEpoch }, session, authority, true, subjects);
+  return new Map(subjects.map(subjectUserId => [subjectUserId, Object.fromEntries(ids.map(cardTemplateId => {
+    const group = shared[cardTemplateId], view = { kind: "group" as const, experienceId: authority.experience.experienceId, mode: "inspection" as const, subjectUserId, accessEpoch: authority.member.accessEpoch };
+    const entries = group.items.filter(item => !item.empty && item.entry.groupVisible && item.entry.authorUserId === subjectUserId).map(item => item.entry);
+    const feed: ReflectionFeed = { viewerUserId: actor, cardTemplateId, view, accessEpoch: group.accessEpoch, adoptionRevision: group.adoptionRevision,
+      items: sharedReflectionItems({ ...view, viewerUserId: actor, cardTemplateId }, entries, subjectUserId).map(item => ({ ...item,
+        canEdit: false, canDelete: false, canHide: authority.member.isAdmin && item.entry.groupVisible, explanation: null })) };
+    return [cardTemplateId, feed];
+  }))]));
 }

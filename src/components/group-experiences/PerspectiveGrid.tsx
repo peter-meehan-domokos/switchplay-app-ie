@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Identity, type PerspectiveChoice } from "./PerspectivePicker";
+import { Identity, FollowerPreparationStatus, type FollowerReadiness, type PerspectiveChoice } from "./PerspectivePicker";
 
-export default function PerspectiveGrid({ choices, selected, groupName, onSelect, onCollapse }: {
+export default function PerspectiveGrid({ choices, selected, groupName, onSelect, onCollapse, followers }: {
   choices: PerspectiveChoice[]; selected: string; groupName: string; onSelect(choice: PerspectiveChoice): void; onCollapse(): void;
+  followers?: FollowerReadiness;
 }) {
   const reduced = useReducedMotion(), [height, setHeight] = useState<number>();
   useEffect(() => {
@@ -19,10 +20,10 @@ export default function PerspectiveGrid({ choices, selected, groupName, onSelect
     onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onCollapse(); } }}>
     <header><span>{groupName}{current && !current.group ? ` · ${current.name}` : ""}</span>
       <button type="button" onClick={onCollapse} aria-label="Collapse follower comparison">⌄</button></header>
-    <div className="group-comparison-scroll"><div className="group-comparison-grid">
+    <div className="group-comparison-scroll">{followers && !followers.ready ? <FollowerPreparationStatus state={followers}/> : <div className="group-comparison-grid">
       {choices.map(choice => <button type="button" className="group-identity-card" key={choice.key} title={choice.name}
         autoFocus={choice.key === selected}
         data-perspective-key={choice.key} aria-pressed={selected === choice.key} onClick={() => onSelect(choice)}><Identity choice={choice}/></button>)}
-    </div></div>
+    </div>}</div>
   </motion.section>;
 }

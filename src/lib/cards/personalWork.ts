@@ -76,6 +76,7 @@ export class PersonalWork {
     return () => this.locks.delete(scope);
   }
   hasWork(scope: PersonalWorkScope) { return [...this.entries.values()].some((entry) => overlaps(scope, entry.scope)); }
+  hasPending(scope: PersonalWorkScope) { return [...this.entries.values()].some((entry) => entry.promise && overlaps(scope, entry.scope)); }
   // Only the caller holding this exact settled operation can abandon its failure.
   // Never release an in-flight operation or a newer save occupying the same key.
   discardFailed(userId: string, key: string, operation: Promise<unknown>, context?: ContributionWorkContext) {

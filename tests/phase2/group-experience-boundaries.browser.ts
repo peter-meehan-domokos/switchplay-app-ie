@@ -33,14 +33,18 @@ test("remote peer revocation denies fresh requests and removes cached peer displ
     await admin.close();
   }
 });
-test("unverifiable peer cache is hidden on expiry and reduced-motion keyboard collapse retains perspective", async ({ page }) => {
+test("temporary verification failure retains a prepared peer read-only and reduced-motion collapse retains perspective", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" }); await login(page, "other"); await compare(page);
   await page.getByRole("button", { name: "Collapse follower comparison" }).focus();
   await page.getByRole("button", { name: "Collapse follower comparison" }).press("Escape");
   await expect(page.locator(".group-comparison-panel")).toHaveCount(0); await expect(page.locator(".focused-card-layer")).toBeVisible();
   await expect(page.locator(".group-picker-current")).toHaveText(/Alice/);
+  const selected = await page.locator(".group-experience").getAttribute("data-perspective-key");
+  const card = await page.locator(".focused-card-object").elementHandle();
   await page.route("**/api/group-experiences/**", async route => { if (route.request().method() === "GET") await route.abort(); else await route.continue(); });
-  await expect(page.locator(".group-experience")).toHaveAttribute("data-perspective-key", fixture!.otherId, { timeout: 6500 });
+  await expect(page.locator(".group-verification")).toBeVisible({ timeout: 6500 });
+  await expect(page.locator(".group-experience")).toHaveAttribute("data-perspective-key", selected!);
+  expect(await card!.evaluate(node => node.isConnected)).toBe(true);
   await expect(page.getByRole("button", { name: /Update step progress|Adjust .* reading/ })).toHaveCount(0);
 });
 test("group and own edits use separate APIs, retain private learning, and front counts stay on one line", async ({ page }) => {
@@ -92,13 +96,15 @@ test("group and own edits use separate APIs, retain private learning, and front 
       change: { kind: "completion", stepId: "group-0-a", completionStatus: "inProgress" } } });
   }
 });
-test("an open ordinary peer list hides identities when its authority lease cannot be renewed", async ({ page }) => {
+test("an already prepared ordinary peer list survives temporary renewal failure without granting edits", async ({ page }) => {
   await login(page, "other");
   await page.locator(".group-picker-current").click(); await page.getByRole("button", { name: "All followers", exact: true }).click();
   await expect(page.locator(".group-perspective-list")).toContainText("Alice");
   await page.route("**/api/group-experiences/**", async route => { if (route.request().method() === "GET") await route.abort(); else await route.continue(); });
-  await expect(page.locator(".group-perspective-list")).toHaveCount(0, { timeout: 6500 });
-  await expect(page.locator(".group-picker-current")).toBeDisabled();
+  await expect(page.locator(".group-verification")).toBeVisible({ timeout: 6500 });
+  await expect(page.locator(".group-perspective-list")).toContainText("Alice");
+  await expect(page.locator(".group-picker-current")).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Update step progress|Adjust .* reading/ })).toHaveCount(0);
 });
 test("adoption removes an active Card without reviving its navigation grant or breaking later selection", async ({ page }) => {
   assertDisposableDatabase();
