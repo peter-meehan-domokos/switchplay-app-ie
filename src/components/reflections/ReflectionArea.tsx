@@ -8,17 +8,20 @@ export type { ReflectionAreaContext } from "@/lib/reflections/controller";
 import { personalWork } from "@/lib/cards/personalWork";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import ReflectionModal from "./ReflectionModal";
+import type { GroupRefreshOwner } from "@/lib/groupExperiences/refreshOwner";
 import "./reflections.css";
 
 type EditorTarget = { source: ReflectionSource | CollectiveReflectionSource; text: string; revision: number; canEdit: boolean; canDelete: boolean; explanation: string | null };
 
-export default function ReflectionArea({ context, active = true, interactive = true, verticalOffset = 0, onModalChange }: {
+export default function ReflectionArea({ context, active = true, interactive = true, verticalOffset = 0, onModalChange, refreshOwner }: {
+  refreshOwner?: GroupRefreshOwner;
   context: ReflectionAreaContext; active?: boolean; interactive?: boolean; verticalOffset?: number; onModalChange?(open: boolean): void;
 }) {
   // Mount identity is the complete viewer/context/source authority, never Card alone.
-  return <ReflectionAreaSession key={JSON.stringify(context)} context={context} active={active} interactive={interactive} verticalOffset={verticalOffset} onModalChange={onModalChange} />;
+  return <ReflectionAreaSession key={JSON.stringify(context)} context={context} active={active} interactive={interactive} verticalOffset={verticalOffset} onModalChange={onModalChange} refreshOwner={refreshOwner} />;
 }
-function ReflectionAreaSession({ context, active, interactive, verticalOffset, onModalChange }: {
+function ReflectionAreaSession({ context, active, interactive, verticalOffset, onModalChange, refreshOwner }: {
+  refreshOwner?: GroupRefreshOwner;
   context: ReflectionAreaContext; active: boolean; interactive: boolean; verticalOffset: number; onModalChange?: (open: boolean) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -37,10 +40,10 @@ function ReflectionAreaSession({ context, active, interactive, verticalOffset, o
     if (!controller) return;
     alive.current = true; if (!controller.snapshot().feed) void controller.refresh();
     const reload = () => { if (document.visibilityState !== "hidden") void controller.refresh(); };
-    const timer = setInterval(reload, 5000);
-    window.addEventListener("focus", reload); document.addEventListener("visibilitychange", reload);
+    const timer = !refreshOwner ? setInterval(reload, 5000) : undefined;
+    if (!refreshOwner) { window.addEventListener("focus", reload); document.addEventListener("visibilitychange", reload); }
     return () => { alive.current = false; clearInterval(timer); window.removeEventListener("focus", reload); document.removeEventListener("visibilitychange", reload); if (timeout.current) clearTimeout(timeout.current); };
-  }, [controller]);
+  }, [controller, refreshOwner]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)"), change = () => setReduced(media.matches);
     change(); media.addEventListener("change", change); return () => media.removeEventListener("change", change);

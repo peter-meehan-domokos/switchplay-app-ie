@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 import { fetchMediaCentreMetadata } from "@/lib/mediaCollection/transport";
 import { useMediaCollection } from "./useMediaCollection";
+import type { GroupRefreshOwner } from "@/lib/groupExperiences/refreshOwner";
 import { collectionDisplayItem, collectionTarget } from "@/lib/mediaCollection/presentation";
 import { collectionKey, type MediaCollectionContext, type MediaCollectionItem } from "@/lib/mediaCollection/contracts";
 import { mediaRemoveOperation, type MediaCapabilities } from "@/lib/mediaCollection/permissions";
@@ -20,14 +21,15 @@ const hideNotice = "Removed from this Group. The creator still has their copy.";
 
 // The existing Media Centre shell and rails, fed by the shared source-aware
 // collection. It is deliberately separate from the thumbnail-opened Gallery.
-export default function CardMediaCentre({ context, personalTarget, groupUpload, legacyItems = [], onPersonalUpload, onPersonalRemove, onClose, backgroundRef, sourceRef, suspended = false, readOnly = false }: {
+export default function CardMediaCentre({ context, personalTarget, groupUpload, legacyItems = [], onPersonalUpload, onPersonalRemove, onClose, backgroundRef, sourceRef, suspended = false, readOnly = false, refreshOwner }: {
+  refreshOwner?: GroupRefreshOwner;
   readOnly?: boolean; suspended?: boolean; context: MediaCollectionContext; personalTarget?: UserCardMediaUploadTarget; groupUpload?: GroupUploadContext;
   legacyItems?: PersonalMediaDisplayItem[];
   onPersonalUpload?: (target: UserCardMediaUploadTarget, item: ModernUserCardMediaItem) => Promise<void>;
   onPersonalRemove?: (target: UserCardMediaUploadTarget, id: string) => Promise<void>;
   onClose(): void; backgroundRef?: RefObject<HTMLElement | null>; sourceRef?: RefObject<HTMLButtonElement | null>;
 }) {
-  const collection = useMediaCollection(context, Number.MAX_SAFE_INTEGER, "", fetchMediaCentreMetadata), close = useRef<HTMLButtonElement>(null);
+  const collection = useMediaCollection(context, Number.MAX_SAFE_INTEGER, "", fetchMediaCentreMetadata, false, undefined, refreshOwner), close = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(true);
   const [removing, setRemoving] = useState<Record<string, UserCardMediaRemovalState>>({}), [toast, setToast] = useState<string | null>(null);
   const [groupState, setGroupState] = useState(initialUserCardMediaUploadState);

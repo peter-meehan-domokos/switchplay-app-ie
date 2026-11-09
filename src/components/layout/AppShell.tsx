@@ -1,7 +1,7 @@
 "use client";
 import type { preparePersonalDeck } from "@/lib/cards/preparation";
 import { captureCardPreparation, acceptPersonalPreparation } from "@/lib/cards/preparationClient";
-import { workingRequest, WorkingRequestError } from "@/components/decks/updateClient";
+import { workingRequest, workingReadBatch, WorkingRequestError } from "@/components/decks/updateClient";
 import { personalWork } from "@/lib/cards/personalWork";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,6 +23,9 @@ import { presentGroupTile } from "@/components/group-experiences/groupPresentati
 import { groupFetch } from "@/components/group-experiences/groupClient";
 import type { GroupTiles } from "@/lib/groupExperiences/presentationReads";
 import { promoteCreatedGroup } from "@/components/group-experiences/groupManagementClient";
+import { preparePersonalIntroduction, openPersonalPreparation } from "@/lib/cards/personalPreparationClient";
+import { retainedGroupResource } from "@/components/group-experiences/groupResource";
+import { needsGroupLoginDefault } from "@/lib/groupExperiences/loginPerspective";
 const transition = { type: "spring", stiffness: 300, damping: 30 };
 type AppShellProps = { memberships: MembershipDTO[]; currentUserId: string; userName: string; groups?: GroupTiles };
 export default function AppShell(props: AppShellProps) {
@@ -55,6 +58,8 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
   const selectedLayout = useMemo(() => selected ? buildDeckLayout(selected, { currentUserId, users: [{ id: currentUserId, name: userName }] }) : null, [selected, currentUserId, userName]);
   const actorRef = useRef(currentUserId);
   const refreshGeneration = useRef(0);
+  const refreshPending = useRef<Promise<void> | null>(null), resumePaused = useRef(false);
+  const refreshToken = useRef<symbol | null>(null);
   const live = useRef(true);
   useEffect(() => {
     actorRef.current = currentUserId; live.current = true;
@@ -65,6 +70,13 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
   const active = records.filter((item) => item.archivedAt === null);
   const decks = buildMyDecksLayout(active.flatMap((item) => item.display ? [buildDeckLayout(item.display, { currentUserId, users: [{ id: currentUserId, name: userName }] })] : []));
   const opening = useRef<{ actor: string; id: string; requestKey: string; generation: number } | null>(null);
+  useEffect(() => workingCardStore.onClear(actor => {
+    if (actor !== currentUserId) return;
+    // A confirmed logout/account change also retires the shell projections,
+    // not just the per-Card controllers. Late collection reads cannot revive them.
+    refreshGeneration.current++; refreshToken.current = null; opening.current = null;
+    setSelected(null); setRecords([]); setGroupRecords(undefined); setPending(null); setRetryEntry(null); setVerified(false);
+  }), [currentUserId]);
   function acceptRecords(values: MembershipDTO[]) {
     setRecords(values.map(value => {
       const old = records.find(record => record.deckTemplateId === value.deckTemplateId)?.display;
@@ -82,6 +94,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     const requestKey = JSON.stringify([id, cardTemplateId, expectedVersion]);
     if (opening.current?.actor === currentUserId && opening.current.requestKey === requestKey) return;
     const generation = ++refreshGeneration.current;
+    refreshToken.current = null;
     const token = { actor: currentUserId, id, requestKey, generation };
     opening.current = token;
     setPending(id); setError(""); setVerified(false); setRetryEntry({ id, card: cardTemplateId, fromUrl });
@@ -114,10 +127,9 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
         await personalWork.wait(scope);
         if (!stillRequested()) return;
         const epoch = workingCardStore.epoch(currentUserId), session = workingCardStore.session(currentUserId);
-        const capture = captureCardPreparation(currentUserId);
-        const prepared = await workingRequest<Awaited<ReturnType<typeof preparePersonalDeck>>>(currentUserId, `/api/decks-data/${encodeURIComponent(id)}/preparation`, "POST", { localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}), ...(expectedVersion === null ? {} : { expectedCardVersion: Number(expectedVersion) }) });
+        const { prepared } = await openPersonalPreparation(currentUserId, id, { localDate: getTodayDateOnly(), ...(cardTemplateId ? { cardTemplateId } : {}), ...(expectedVersion === null ? {} : { expectedCardVersion: Number(expectedVersion) }) });
         if (!stillRequested()) return;
-        const deck = acceptPersonalPreparation(capture, prepared);
+        const deck = prepared.deck;
         if (deck.cards.some(card => (workingCardStore.personal(currentUserId, card.id)?.adoptedVersion ?? 0) > (card.adoptedVersion ?? 0))) throw new Error("The Card version changed during opening. Retry to load its current state.");
         if (expectedVersion !== null && deck.cards.find(card => card.cardTemplateId === cardTemplateId)?.adoptedVersion !== Number(expectedVersion)) throw new Error("The selected Card version changed. Return to Progress and refresh your choices.");
         workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards, undefined, epoch, session);
@@ -159,6 +171,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
   async function membershipAction(id: string, type: "archive" | "restore") {
     if (pending) return false;
     const generation = ++refreshGeneration.current;
+    refreshToken.current = null;
     setPending(id); setError("");
     try { await flushPersonalMutations(); await workingRequest(currentUserId, `/api/decks-data/${encodeURIComponent(id)}`, "PATCH", { type,
       ...(type === "restore" ? { membershipRevision: records.find((item) => item.deckTemplateId === id)?.membershipRevision } : {}) });
@@ -171,8 +184,8 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     catch (error) { if (live.current && actorRef.current === currentUserId && generation === refreshGeneration.current) setError(error instanceof Error ? error.message : "Membership update failed"); return false; }
     finally { if (live.current && actorRef.current === currentUserId && generation === refreshGeneration.current) setPending(null); }
   }
-  async function refreshWorking(command?: import("@/lib/cards/updateAdoption").UpdateCommand) {
-    if (!selected || !verified || opening.current) return;
+  async function readWorking(command?: import("@/lib/cards/updateAdoption").UpdateCommand) {
+    if (!selected || !verified && !resumePaused.current || opening.current) return;
     const beforeWaiting = refreshGeneration.current;
     const id = selected.deckTemplateId;
     const scope = { userId: currentUserId, ...(command?.kind === "card" ? {} : { deckId: id }), cardIds: command?.kind === "card" ? [command.entityId] : selected.cards.map((card) => card.id) };
@@ -187,7 +200,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     const epoch = workingCardStore.epoch(currentUserId);
     const session = workingCardStore.session(currentUserId), capture = captureCardPreparation(currentUserId);
     const url = `/api/decks-data/${encodeURIComponent(id)}/preparation`;
-    const [projection, membershipRecords] = await Promise.all([
+    const [projection, membershipRecords] = !command ? await workingReadBatch<[Awaited<ReturnType<typeof preparePersonalDeck>>, MembershipDTO[]]>(currentUserId, [url, "/api/decks-data"]) : await Promise.all([
       workingRequest<Awaited<ReturnType<typeof preparePersonalDeck>>>(currentUserId, url, command?.kind === "deck" ? "POST" : "GET", command?.kind === "deck" ? { localDate: getTodayDateOnly() } : undefined),
       workingRequest<MembershipDTO[]>(currentUserId, "/api/decks-data"),
     ]);
@@ -206,20 +219,37 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     acceptPersonalPreparation(capture, prepared);
     workingCardStore.accept(currentUserId, buildDeckLayout(deck, { currentUserId, users: [] }).cards, undefined, epoch, session);
     setSelected(deck); acceptRecords(membershipRecords);
+    resumePaused.current = false; setVerified(true);
+  }
+  function refreshWorking(command?: import("@/lib/cards/updateAdoption").UpdateCommand): Promise<void> {
+    if (command) { refreshToken.current = null; return readWorking(command); }
+    if (refreshPending.current) return refreshPending.current;
+    const token = Symbol(); refreshToken.current = token;
+    const operation = readWorking().catch(cause => {
+      if (!live.current || refreshToken.current !== token) return;
+      resumePaused.current = true; setVerified(false);
+      if (cause instanceof WorkingRequestError && ["Unauthorized", "UPDATE_SESSION_CONFLICT", "WORKING_DECK_REQUIRED", "MISSING_DECK_REFERENCE", "MISSING_CARD_REFERENCE"].includes(cause.code)) {
+        setSelected(null);
+        if (["Unauthorized", "UPDATE_SESSION_CONFLICT"].includes(cause.code)) { setRecords([]); workingCardStore.clearUser(currentUserId); router.refresh(); }
+      }
+      throw cause;
+    }).finally(() => { if (refreshPending.current === operation) refreshPending.current = null; });
+    refreshPending.current = operation; return operation;
   }
   useEffect(() => {
-    let reading = false;
     const refresh = () => {
-      if (!selected || !verified || opening.current || reading || document.visibilityState === "hidden") return;
-      reading = true;
-      void refreshWorking().catch((error) => setError(error instanceof Error ? error.message : "Unable to refresh My Decks")).finally(() => { reading = false; }); };
+      if (!selected || !verified && !resumePaused.current || opening.current || document.visibilityState === "hidden" || !navigator.onLine) return;
+      void refreshWorking().catch((error) => setError(error instanceof Error ? error.message : "Unable to refresh My Decks")); };
     const visibility = () => { if (document.visibilityState === "hidden") freshness.current.at = 0; else refresh(); };
     const blur = () => { freshness.current.at = 0; };
+    const offline = () => { if (selected) { resumePaused.current = true; setVerified(false); } };
     window.addEventListener("blur", blur); window.addEventListener("focus", refresh); window.addEventListener("pageshow", refresh); document.addEventListener("visibilitychange", visibility);
-    return () => { window.removeEventListener("blur", blur); window.removeEventListener("focus", refresh); window.removeEventListener("pageshow", refresh); document.removeEventListener("visibilitychange", visibility); };
+    window.addEventListener("offline", offline); window.addEventListener("online", refresh);
+    return () => { window.removeEventListener("offline", offline); window.removeEventListener("online", refresh); window.removeEventListener("blur", blur); window.removeEventListener("focus", refresh); window.removeEventListener("pageshow", refresh); document.removeEventListener("visibilitychange", visibility); };
   });
   async function close() {
     const generation = ++refreshGeneration.current;
+    refreshToken.current = null;
     opening.current = null;
     if (!verified) {
       // No edits were enabled. Unmount players/editors immediately; never let a
@@ -245,6 +275,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
     catch (error) { if (live.current && actorRef.current === currentUserId && generation === refreshGeneration.current) setError(error instanceof Error ? error.message : "Some changes could not be saved"); }
   }
   const leaveGroup = (accessRemoved = false) => {
+      const session = workingCardStore.session(currentUserId);
       if (accessRemoved) setGroupRecords(current => current ? { ...current, entries: current.entries.filter(row => row.experienceId !== experienceId) } : current);
       setExperienceId(null); window.history.replaceState(null, "", "/decks");
       void (async () => {
@@ -253,7 +284,7 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
           const page = await groupFetch<GroupTiles>(currentUserId, `/api/group-experiences/tiles?after=${encodeURIComponent(next.nextCursor)}`);
           next = { ...page, entries: [...next.entries, ...page.entries] };
         }
-        setGroupRecords(next);
+        if (live.current && actorRef.current === currentUserId && workingCardStore.session(currentUserId) === session) setGroupRecords(next);
       })().catch(() => router.refresh());
   };
   if (experienceId && groups) return <GroupExperienceDeck key={JSON.stringify([currentUserId, experienceId, search.get("progressScene") === "1" ? [search.get("openCard"), search.get("progressFace"), search.get("progressFocused"), search.get("progressPerspective"), search.get("progressSubject")] : null])} actor={currentUserId} experienceId={experienceId}
@@ -278,6 +309,11 @@ function WorkingShell({ memberships, currentUserId, userName, groups }: AppShell
       <OverviewMenu username={userName} userId={currentUserId} /><header className="overview-header"><p className="eyebrow">{userName}</p><h1>My Decks</h1></header>
       <CollectionReturnHighlight id={search.get("reveal")} ready={decks.some(deck => deck.id === search.get("reveal"))} scroll />
       <DeckGrid decks={promoteCreatedGroup([...decks, ...(groupRecords?.entries.map(presentGroupTile) ?? [])], groupRecords?.entries.some(row => row.experienceId === createdGroupId) ? createdGroupId : null)} instantiatingDeckTemplateId={pending} isInteractionLocked={pending !== null}
+        onPrepareDeck={id => {
+          if (groupRecords?.entries.some(row => row.experienceId === id)) {
+            void retainedGroupResource(currentUserId, id).prefetch(needsGroupLoginDefault(currentUserId, id) ? { perspective: "default" } : undefined).catch(() => {});
+          } else void preparePersonalIntroduction(currentUserId, id, records.find(row => row.deckTemplateId === id)?.display ?? undefined).catch(() => {});
+        }}
         onSelectDeck={(id) => { if (groupRecords?.entries.some(row => row.experienceId === id)) { setExperienceId(id); window.history.replaceState(null, "", `/decks?openExperience=${encodeURIComponent(id)}`); }
           else void open(id); }} transition={transition} />
       {active.filter((item) => item.availability === "unavailable").map((item) => <p key={item.deckTemplateId}>

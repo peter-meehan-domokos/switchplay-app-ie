@@ -12,16 +12,18 @@ import StepProgressStrip from "@/components/cards/StepProgressStrip";
 import AggregateValue from "./AggregateValue";
 import { signalReadingToNormalized } from "@/lib/signals";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
+import type { GroupRefreshOwner } from "@/lib/groupExperiences/refreshOwner";
 
 // Media is loaded through its own scoped collection, never through scalar learning or a foreign personal working store.
-export default function GroupCardBack({ reflectionInteractive = true, reflectionContext, onReflectionModalChange, readOnlyReason, card, focused = false, onChange, onSignalNavigateNext, onSignalNavigatePrevious, mediaContext = null, onOpenMedia, onEditMedia }: {
+export default function GroupCardBack({ refreshOwner, reflectionInteractive = true, reflectionContext, onReflectionModalChange, readOnlyReason, card, focused = false, onChange, onSignalNavigateNext, onSignalNavigatePrevious, mediaContext = null, onOpenMedia, onEditMedia }: {
+  refreshOwner?: GroupRefreshOwner;
   reflectionInteractive?: boolean; reflectionContext?: ReflectionAreaContext | null; onReflectionModalChange?: (open: boolean) => void;
   readOnlyReason?: string;
   mediaContext?: MediaCollectionContext | null; onOpenMedia?: OpenCardMedia; onEditMedia?: (cardId: string) => void;
   card: ExperienceCardPresentation; focused?: boolean; onChange?: (change: PersonalLearningChange) => void;
   onSignalNavigateNext?: () => void; onSignalNavigatePrevious?: () => void;
 }) {
-  const collection = useMediaCollection(mediaContext, 5, "", undefined, true);
+  const collection = useMediaCollection(mediaContext, 5, "", undefined, true, undefined, refreshOwner);
   const items = mediaContext && collection.page ? collection.page.items.map(i => collectionDisplayItem(i, mediaContext)) : [];
   return <div className={`focused-card-back-layout back-card-face-content ${focused ? "back-card-face-content--focused" : "back-card-face-content--preview"}`}>
     <CardSemanticAnchors card={card} dateLabel="" showProgress={false} variant="back" />
@@ -48,7 +50,7 @@ export default function GroupCardBack({ reflectionInteractive = true, reflection
           : <PassiveSignalRow key={step.stepId} signal={signal} heading={heading} />;
       })}
     </section>
-      {reflectionContext ? <ReflectionArea verticalOffset={items.length ? 0 : -10} context={reflectionContext} active={focused} interactive={focused && reflectionInteractive} onModalChange={onReflectionModalChange} /> : null}
+      {reflectionContext ? <ReflectionArea refreshOwner={refreshOwner} verticalOffset={items.length ? 0 : -10} context={reflectionContext} active={focused} interactive={focused && reflectionInteractive} onModalChange={onReflectionModalChange} /> : null}
     </div>
   </div>;
 }

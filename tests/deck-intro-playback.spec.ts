@@ -25,7 +25,7 @@ test.beforeAll(async () => {
         <DeckScene deck={decks[0]} onBack={()=>{}} transition={{duration:0}} />;
       createRoot(document.getElementById('root')).render(<React.StrictMode>{view}</React.StrictMode>);
     ` },
-    bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic",
+    bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" },
     define: { "process.env": JSON.stringify({ NODE_ENV: "development" }) },
   });
   bundle = compiled.outputFiles!.find(file => file.path.endsWith(".js"))!.text;

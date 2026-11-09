@@ -1,14 +1,16 @@
 "use client";
 import { useEffect, useRef, type RefObject } from "react";
 import { useMediaCollection } from "./useMediaCollection";
+import type { GroupRefreshOwner } from "@/lib/groupExperiences/refreshOwner";
 import { collectionDisplayItem } from "@/lib/mediaCollection/presentation";
 import { collectionKey, type MediaCollectionContext, type MediaCollectionPage } from "@/lib/mediaCollection/contracts";
 import CardMediaViewer from "./CardMediaViewer";
-export default function CollectionGallery({ context, selectedKey, sourceRef, backgroundRef, onClose, initialPage, suspended = false }: {
+export default function CollectionGallery({ context, selectedKey, sourceRef, backgroundRef, onClose, initialPage, suspended = false, refreshOwner }: {
+  refreshOwner?: GroupRefreshOwner;
   initialPage?: MediaCollectionPage; suspended?: boolean; context: MediaCollectionContext; selectedKey: string; sourceRef: RefObject<HTMLButtonElement | null>;
   backgroundRef: RefObject<HTMLElement | null>; onClose(): void;
 }) {
-  const collection = useMediaCollection(context, 30, "", undefined, false, initialPage ? { page: initialPage, selectedKey } : undefined), initial = useRef(false);
+  const collection = useMediaCollection(context, 30, "", undefined, false, initialPage ? { page: initialPage, selectedKey } : undefined, refreshOwner), initial = useRef(false);
   useEffect(() => {
     if (!collection.page || !collection.controller || initial.current) return;
     initial.current = true; collection.controller.select(selectedKey);

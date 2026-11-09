@@ -165,7 +165,7 @@ test("shared resource coalesces concurrent loads and expires cached peer authori
 test("a failed verification or changed structural generation never authorizes stale peer pages", async () => {
   const f = fixture(), resource = createGroupResource("alice", "e", { read: f.read });
   await resource.load(); f.authority.structureRevision++;
-  await resource.load(); assert.equal(resource.snapshot().verified, false); assert.equal(resource.snapshot().data?.followers.length, 0);
+  await resource.load(); assert.equal(resource.snapshot().verified, false); assert.equal(resource.snapshot().data?.followers.length ?? 0, 0);
   resource.dispose();
 });
 test("late account-disposed reads cannot repopulate a previous resource", async () => {
@@ -426,13 +426,14 @@ test("an older composed response cannot undo a newer confirmed authority scope",
  }
 });
 
-test("initial entries share only compatible in-flight perspective requests", async () => {
+test("entries share compatible in-flight work and authorise a prepared next perspective through actual open", async () => {
  const f = fixture(), held = gate(); const selections: unknown[] = [];
  const read: typeof groupFetch = async <T>(...args: Parameters<typeof groupFetch>) => {
   const response = structuredClone(await f.read<T>(...args));
-  if (args[1].includes("/preparation")) {
+  if (args[1].includes("/preparation") || args[1].endsWith("/open")) {
    const selection = (args[4] as { selection?: unknown })?.selection; selections.push(selection);
    if (selections.length === 1) await held.promise;
+   if (args[1].endsWith("/open")) return { ...f.authority, selection, activeCardId: null } as T;
    (response as { bootstrap: GroupBootstrap }).bootstrap.selection = selection as GroupBootstrap["selection"];
   }
   return response;
@@ -442,5 +443,6 @@ test("initial entries share only compatible in-flight perspective requests", asy
  assert.equal(resource.prepare({ perspective: "group" }), first);
  const other = resource.prepare({ perspective: "follower", subjectUserId: "bob" }); await tick(); assert.equal(selections.length, 1);
  held.release(); await Promise.all([first, other]); assert.equal(selections.length, 2);
+ assert.equal(f.calls.filter(url => url.includes("/preparation")).length, 1); assert.equal(f.calls.filter(url => url.endsWith("/open")).length, 1);
  assert.deepEqual(resource.snapshot().data!.bootstrap.selection, { perspective: "follower", subjectUserId: "bob" }); resource.dispose();
 });

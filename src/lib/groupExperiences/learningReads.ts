@@ -1,7 +1,6 @@
 import { ObjectId, type ClientSession } from "mongodb";
 import type { CardRepository } from "../cards/repository";
-import type { CardTemplateVersion } from "../cards/model";
-import { projectPersonalLearning, type LearningFields } from "../cards/learning";
+import { projectPersonalStepLearning, type LearningFields } from "../cards/learning";
 import { requireCondition } from "../cards/domain";
 import { id } from "./contracts";
 
@@ -11,12 +10,13 @@ export function userKey(value: string) {
   requireCondition(value === value.toLowerCase(), "INVALID_GROUP_USER_ID");
   return new ObjectId(value);
 }
-export type LearningProjection = ReturnType<typeof projectPersonalLearning>;
+export type LearningProjection = ReturnType<typeof projectPersonalStepLearning>;
+export type LearningSelection = { cardTemplateId: string; version: number; content: { steps: { stepId: string }[] } };
 type SelectedUser = { _id: ObjectId | string; cardsData: (LearningFields & { cardTemplateId: string })[] };
 
 // Foreign reads never load full CardData. Batches bound query inputs; the DTO
 // contains neither personal adoption pointers nor any private content/timestamps.
-export async function personalLearningForUsers(repo: CardRepository, userIds: string[], cards: CardTemplateVersion[], session: ClientSession) {
+export async function personalLearningForUsers(repo: CardRepository, userIds: string[], cards: LearningSelection[], session: ClientSession) {
   const output = new Map<string, LearningProjection[]>(userIds.map(userId => [userId, []]));
   for (let u = 0; u < userIds.length; u += 100) {
     const users = userIds.slice(u, u + 100);
@@ -55,7 +55,7 @@ export async function personalLearningForUsers(repo: CardRepository, userIds: st
         const user = selected.find(user => String(user._id) === userId)!;
         const ordinary = required.find(row => String(row._id) === userId);
         if (ordinary) requireCondition(ordinary.valid && Array.isArray(ordinary.requiredCards), "INVALID_GROUP_PERSONAL_DATA");
-        for (const card of batch) output.get(userId)!.push(projectPersonalLearning(card.cardTemplateId, card.version, card.content,
+        for (const card of batch) output.get(userId)!.push(projectPersonalStepLearning(card.cardTemplateId, card.version, card.content.steps,
           user.cardsData, !ordinary?.requiredCards.includes(card.cardTemplateId)));
       }
     }

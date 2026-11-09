@@ -95,4 +95,20 @@ export async function verifySelectedVisibility(repo: CardRepository, experience:
       requireCondition(root?.visibility === "public" && root.versions.some(row => row.version === ref.version && row.visibility === "public"), "GROUP_PUBLIC_CONTENT_FORBIDDEN");
     }
   }
+  return refs;
+}
+
+export async function selectedLearningContent(repo: CardRepository, experience: GroupExperience, session: ClientSession) {
+  const refs = await verifySelectedVisibility(repo, experience, session);
+  const cards: import("./learningReads").LearningSelection[] = [];
+  for (let start = 0; start < refs.length; start += 100) {
+    const batch = refs.slice(start, start + 100);
+    const rows = await repo.cardVersions().find({ $or: batch }, { session,
+      projection: { _id: 0, cardTemplateId: 1, version: 1, "content.steps.stepId": 1 } }).toArray();
+    for (const ref of batch) {
+      const row = rows.find(row => row.cardTemplateId === ref.cardTemplateId && row.version === ref.version);
+      requireCondition(row, "GROUP_PUBLIC_CONTENT_FORBIDDEN"); cards.push(row);
+    }
+  }
+  return cards;
 }

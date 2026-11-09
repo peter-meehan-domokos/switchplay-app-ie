@@ -31,6 +31,6 @@ export function query(request: Request, allowed: string[]) {
 }
 export function pagination(params: URLSearchParams) { return { after: params.get("after") ?? undefined, limit: params.has("limit") ? Number(params.get("limit")) : undefined }; }
 export function openCommand(value: unknown) {
-  exact(value, ["accessEpoch", "cardTemplateId"]);
-  return value as { accessEpoch: number; cardTemplateId?: string };
+  exact(value, ["accessEpoch", "cardTemplateId", "selection"]);
+  return value as { accessEpoch: number; cardTemplateId?: string; selection?: import("./model").GroupPreparationSelection };
 }

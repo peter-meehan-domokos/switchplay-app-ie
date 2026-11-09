@@ -29,12 +29,20 @@ export function assertLearningFields(data: LearningFields) {
 // Always constructs an allowlist. Even a full owner record passed here cannot
 // leak a private field through object spreading or a retained Step entry.
 export function projectLearning(content: CardContent, data: LearningFields): LearningFields {
-  assertCardContent(content); assertLearningFields(data);
+  assertCardContent(content);
+  return projectStepLearning(content.steps, data);
+}
+// Narrow refresh readers already verify the selected publication. They need
+// immutable Step identities, not instructional media and complete Card bodies.
+export function projectStepLearning(steps: readonly { stepId: string }[], data: LearningFields): LearningFields {
+  requireCondition(Array.isArray(steps) && steps.every(step => nonblank(step.stepId))
+    && new Set(steps.map(step => step.stepId)).size === steps.length, "INVALID_CARD_CONTENT");
+  assertLearningFields(data);
   const completions = new Map(data.items.map(item => [item.stepId, item.completionStatus]));
   const readings = new Map(data.signalReadings.map(signal => [signal.stepId, signal.reading]));
   return {
-    items: content.steps.map(({ stepId }) => ({ stepId, completionStatus: completions.get(stepId) ?? "todo" })),
-    signalReadings: content.steps.map(({ stepId }) => ({ stepId, reading: readings.get(stepId) ?? null })),
+    items: steps.map(({ stepId }) => ({ stepId, completionStatus: completions.get(stepId) ?? "todo" })),
+    signalReadings: steps.map(({ stepId }) => ({ stepId, reading: readings.get(stepId) ?? null })),
   };
 }
 
@@ -64,9 +72,14 @@ export function assertLearningChange(content: CardContent, change: PersonalLearn
 
 export function projectPersonalLearning(cardTemplateId: string, version: number, content: CardContent,
   records: readonly Pick<CardData, "cardTemplateId" | "items" | "signalReadings">[], allowUnstarted = false) {
+  assertCardContent(content);
+  return projectPersonalStepLearning(cardTemplateId, version, content.steps, records, allowUnstarted);
+}
+export function projectPersonalStepLearning(cardTemplateId: string, version: number, steps: readonly { stepId: string }[],
+  records: readonly Pick<CardData, "cardTemplateId" | "items" | "signalReadings">[], allowUnstarted = false) {
   requireCondition(nonblank(cardTemplateId), "INVALID_ENTITY_ID"); assertAdoption(version);
   const found = records.filter(record => record.cardTemplateId === cardTemplateId);
   requireCondition(found.length <= 1, "AMBIGUOUS_CARD_DATA");
   requireCondition(found.length === 1 || allowUnstarted, "MISSING_CARD_DATA");
-  return { cardTemplateId, version, ...projectLearning(content, found[0] ?? { items: [], signalReadings: [] }) };
+  return { cardTemplateId, version, ...projectStepLearning(steps, found[0] ?? { items: [], signalReadings: [] }) };
 }

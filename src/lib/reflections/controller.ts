@@ -95,7 +95,8 @@ export class ReflectionController {
       if (previous.collective && feed.collective && previous.collective.source.experienceId === feed.collective.source.experienceId
         && (this.pendingKey === keyFor(feed.collective.source, feed.viewerUserId) || (this.changes.get(keyFor(feed.collective.source, feed.viewerUserId)) ?? 0) > stamp || previous.collective.revision > feed.collective.revision)) feed = { ...feed, collective: previous.collective };
     }
-    this.set({ feed, error: null });
+    if (JSON.stringify(feed) !== JSON.stringify(this.state.feed)) this.set({ feed, error: null });
+    else if (this.state.error) this.set({ error: null });
     return true;
   }
   refresh = (): Promise<void> => {
@@ -185,6 +186,14 @@ export function retainedReflection(context: ReflectionAreaContext, request?: Tra
   const key = reflectionKey(context); let controller = retained.get(key);
   if (!controller) { controller = new ReflectionController(context, request); retained.set(key, controller); }
   return controller;
+}
+export function retireGroupReflections(actor: string, experience: string, current?: { accessEpoch: number; adoptionRevision: number; structureRevision: number }) {
+  for (const [key, controller] of retained) {
+    const c = controller.context;
+    if (c.viewerUserId !== actor || c.view.kind !== "group" || c.view.experienceId !== experience) continue;
+    if (current ? c.view.accessEpoch === current.accessEpoch && c.adoptionRevision === current.adoptionRevision && c.structureRevision === current.structureRevision : c.view.mode !== "inspection") continue;
+    controller.dispose(); retained.delete(key);
+  }
 }
 workingCardStore.onClear(actor => { for (const [key, controller] of retained) if (controller.context.viewerUserId === actor) { controller.dispose(); retained.delete(key); } });
 workingCardStore.onGroupClear((actor, experienceId) => {

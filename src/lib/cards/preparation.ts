@@ -11,6 +11,7 @@ import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { groupMediaAvailable } from "../groupExperiences/readiness";
 import { ownerPreviewPages } from "../mediaCollection/preparation";
 import { readReflectionFeedsInSession } from "../reflections/reads";
+import { personalPreparationIdentity } from "./preparationIdentity";
 
 // Known-empty pages/feeds are required entries, never omitted placeholders.
 export type PreparedContributions = { media: Record<string, MediaCollectionPage>; reflections: Record<string, ReflectionFeed> };
@@ -35,11 +36,17 @@ async function preparePersonalInSession(repo: CardRepository, actor: string, dec
 }
 
 
-export async function openPreparedPersonalDeck(repo: CardRepository, actor: string, deckId: string, localDate: string, cardId?: string, expectedVersion?: number) {
+export async function openPreparedPersonalDeck(repo: CardRepository, actor: string, deckId: string, localDate: string, cardId?: string, expectedVersion?: number, preparedComposition?: string) {
   const hasGroups = await groupMediaAvailable(repo);
   const result = await repo.openWorkingDeck(actor, deckId, localDate, cardId, expectedVersion, async (opened, session) => {
     const selection = workingSelection(actor, opened.user, opened.root, opened.version, opened.cards);
-    return preparePersonalInSession(repo, actor, await workingSelectionDTO(repo, actor, selection, session), session, hasGroups);
+    const deck = await workingSelectionDTO(repo, actor, selection, session);
+    // The browser already holds complete authorised preview resources. Actual
+    // entry still resolves current membership/content and initialises dates.
+    // A changed composition falls back to the full existing composed reader.
+    if (preparedComposition === personalPreparationIdentity(deck)) return { viewerUserId: actor, deck,
+      contributions: { media: {}, reflections: {} } as PreparedContributions, reusePrepared: true };
+    return preparePersonalInSession(repo, actor, deck, session, hasGroups);
   });
   requireCondition(result, "WORKING_DECK_REQUIRED"); return result;
 }

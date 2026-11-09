@@ -6,7 +6,7 @@ import { layoutCardLabels } from "../cards/layout";
 import { isIsoDateOnlyString } from "../dateOnly";
 import { progressObservationState } from "../frameworks/progressState";
 import { classifyProgress } from "../progress";
-import { selectedContent } from "./publicVersions";
+import { selectedContent, selectedLearningContent } from "./publicVersions";
 import { personalLearningForUsers, userKey } from "./learningReads";
 import { activeIdentities } from "./identities";
 import { identity, entry, metrics, aggregateLearning } from "./readModels";
@@ -78,7 +78,7 @@ export async function perspectivePage(repo: GroupExperienceRepository, actor: st
 export async function cardAggregates(repo: GroupExperienceRepository, actor: string, experienceId: string, offset = 0) {
   return repo.transaction(async session => {
     const { experience, member } = await repo.access(actor, experienceId, "member", session);
-    const { cards: all } = await selectedContent(repo.cards, experience, session), window = cardWindow(all.length, offset), cards = all.slice(window.start, window.end);
+    const all = await selectedLearningContent(repo.cards, experience, session), window = cardWindow(all.length, offset), cards = all.slice(window.start, window.end);
     const followers = await repo.members().find({ experienceId, followerStatus: "active" }, { session, projection: { userId: 1 } }).toArray();
     const personal = await personalLearningForUsers(repo.cards, followers.map(row => row.userId), cards, session);
     return { ...identity(actor, experience, member), ...aggregateLearning(await repo.groupLearning(experienceId, cards, session), [...personal.values()]), nextCardOffset: window.nextCardOffset };

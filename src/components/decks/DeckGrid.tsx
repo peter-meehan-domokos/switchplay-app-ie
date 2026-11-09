@@ -28,6 +28,7 @@ type DeckGridProps = {
   instantiatingDeckTemplateId: string | null;
   isInteractionLocked: boolean;
   onSelectDeck: (deckId: string) => void;
+  onPrepareDeck?: (deckId: string) => void;
   transition: object;
 };
 
@@ -37,6 +38,7 @@ export default function DeckGrid({
   instantiatingDeckTemplateId,
   isInteractionLocked,
   onSelectDeck,
+  onPrepareDeck,
   transition,
 }: DeckGridProps) {
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -139,7 +141,10 @@ export default function DeckGrid({
 
     console.log("[DIAG DECKGRID] calling loadMedia", { assetId: video.assetId, src: video.src, shouldPlay: true });
     playerRef.current?.loadMedia(video, { shouldPlay: true, ...(!hasPersonalDeck(deck) ? { beforeLoad: publishedVideoGuard("deck", deck.deckTemplateId, deck.version) } : {}) });
-  }, [applyPreviewAction, clearPreview, isInteractionLocked, onSelectDeck, updateHostRect]);
+    // Playback keeps its existing path. Preparation is read-only and never a
+    // prerequisite for starting, pausing or leaving the introduction.
+    queueMicrotask(() => onPrepareDeck?.(deck.id));
+  }, [applyPreviewAction, clearPreview, isInteractionLocked, onSelectDeck, onPrepareDeck, updateHostRect]);
 
   const handleOpenDeck = useCallback((deckId: string) => {
     clearPreview();

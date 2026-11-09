@@ -1,4 +1,6 @@
 import type { PreparedGroup } from "@/lib/groupExperiences/preparation";
+import type { GroupRefresh } from "@/lib/groupExperiences/refresh";
+import { assembledRefresh } from "@/lib/groupExperiences/refreshAssembly";
 import { captureCardPreparation, acceptCardPreparation, hasInitialGroupPreparation } from "@/lib/cards/preparationClient";
 import { PreparationAssembly, type PreparationPage } from "@/lib/groupExperiences/preparationPages";
 import { assembledGroup } from "@/lib/groupExperiences/primaryPreparationAssembly";
@@ -9,9 +11,13 @@ import type { PersonalLearningChange } from "@/lib/cards/learning";
 import { aggregateLearning, metrics } from "@/lib/groupExperiences/readModels";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { personalWork } from "@/lib/cards/personalWork";
+import { retireGroupMedia } from "@/lib/mediaCollection/controller";
+import { retireGroupReflections } from "@/lib/reflections/controller";
 import { groupFetch, GroupRequestError } from "./groupClient";
 
 export const GROUP_AUTHORITY_MS = 5_000;
+export const GROUP_REFRESH_MS = 4_000;
+export const GROUP_RENEW_MS = 2_000;
 export type LoadedGroup = { bootstrap: GroupBootstrap; followers: GroupPerspectivePage["followers"]; aggregates: GroupAggregates["cards"]; aggregatePending?: Record<string, { progress?: boolean; confidence?: boolean; progressSteps?: string[] }> };
 export type GroupResourceState = { data?: LoadedGroup; verified: boolean; loading: boolean; error?: string; mutationError?: string;
   preparation?: { followers: "idle" | "loading" | "ready" | "paused" | "error"; error?: string } };
@@ -29,7 +35,8 @@ function withChange(data: LoadedGroup, actor: string, cardId: string, owner: "gr
 }
 
 export function createGroupResource(actor: string, experienceId: string, options: { read?: Reader; now?: () => number;
-  schedule?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>; cancel?: (timer: ReturnType<typeof setTimeout>) => void } = {}) {
+  schedule?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>; cancel?: (timer: ReturnType<typeof setTimeout>) => void;
+  checkSession?: () => Promise<void> } = {}) {
   const read = options.read ?? groupFetch, now = options.now ?? Date.now, schedule = options.schedule ?? setTimeout, cancel = options.cancel ?? clearTimeout;
   workingCardStore.trackUser(actor);
   const base = `/api/group-experiences/${encodeURIComponent(experienceId)}`;
@@ -43,25 +50,45 @@ export function createGroupResource(actor: string, experienceId: string, options
   const live = () => !disposed && workingCardStore.session(actor) === session;
   let requiredStructureRevision = 0, requiredAccessEpoch = 0, requiredAdoptionRevision = 0, verificationOrder = 0, lastGrantedOrder = 0;
   let initialOpen: Promise<void> | undefined;
+  const intentRequests = new Map<string, Promise<void>>();
   const initialRequests = new Map<string, Promise<void>>();
   const perspectives = new Map<string, FollowupTask>();
   let followerTask: FollowupTask | undefined, followerReadyScope: string | undefined;
   let groupReadyScope: string | undefined;
   let backgroundAllowed: () => boolean = () => false;
   let pending: Promise<void> | undefined, renewal: Promise<boolean> | undefined, expiry: ReturnType<typeof setTimeout> | undefined, expiresAt = 0;
+  let mutable: { key: string; aggregates: boolean; stamp: number; promise: Promise<void> } | undefined, resumed: Promise<void> | undefined;
+  let checkedAuthorityAt = -Infinity, refreshedAt = -Infinity, watches = 0, visible = true, online = true;
+  let clock: ReturnType<typeof setTimeout> | undefined, resumeClock: ReturnType<typeof setTimeout> | undefined;
+  const sourceRefreshers = new Set<() => Promise<void>>();
+  let unwatchEvents: (() => void) | undefined;
   const abort = new AbortController(), listeners = new Set<() => void>(), lanes = new Map<string, Promise<void>>();
   const confirmed = new Map<string, PersonalLearningChange>(), fieldTokens = new Map<string, symbol>();
   let navigationTail = Promise.resolve(), navigationGeneration = 0;
-  function update(value: GroupResourceState) { if (live()) { state = value.data ? { ...value, data: { ...value.data, aggregatePending: Object.fromEntries([...dirty].map(([id, fields]) => {
+  function update(value: GroupResourceState) { if (live()) { const next = value.data ? { ...value, data: { ...value.data, aggregatePending: Object.fromEntries([...dirty].map(([id, fields]) => {
     const unknown = !followerRows(value.data!, id);
     return [id, { progress: unknown && fields.progress !== undefined, confidence: unknown && fields.confidence !== undefined, progressSteps: unknown ? [...(fields.progressSteps ?? [])] : [] }];
-  })) } } : value; for (const listener of listeners) listener(); } }
+  })) } } : value;
+    if (JSON.stringify(next) === JSON.stringify(state)) return;
+    if (next.data && state.data && JSON.stringify(next.data) === JSON.stringify(state.data)) next.data = state.data;
+    state = next; for (const listener of listeners) listener(); } }
   function invalidate() { expiresAt = 0; if (expiry) cancel(expiry); update({ ...state, verified: false }); }
   function grant(checkedAt: number, order: number) {
+    checkedAuthorityAt = Math.max(checkedAuthorityAt, checkedAt);
     lastGrantedOrder = Math.max(lastGrantedOrder, order);
     expiresAt = Math.max(expiresAt, checkedAt + GROUP_AUTHORITY_MS);
     if (expiry) cancel(expiry);
     expiry = schedule(() => { if (now() >= expiresAt) invalidate(); }, Math.max(0, expiresAt - now()));
+  }
+  function withdrawInspection() {
+    if (!state.data) return;
+    const current = state.data.bootstrap, fallback: PerspectiveSelection = { perspective: current.isAdmin ? "group" : "self" };
+    const selected = current.selection.perspective === "follower" ? fallback : current.selection;
+    const keep = current.selection.perspective !== "follower" || prepared(fallback);
+    retireGroupMedia(actor, experienceId); retireGroupReflections(actor, experienceId);
+    resetPreparation();
+    update({ ...state, data: keep ? { ...state.data, followers: state.data.followers.filter(row => row.userId === actor),
+      bootstrap: { ...current, canInspectFollowers: false, selection: selected } } : undefined, verified: false });
   }
   function verificationFailed(cause: unknown, order: number) {
     const hard = cause instanceof GroupRequestError && ([401, 403].includes(cause.status)
@@ -80,6 +107,7 @@ export function createGroupResource(actor: string, experienceId: string, options
       return;
     }
     else if (clearData) workingCardStore.clearGroup(actor, experienceId);
+    else if (cause instanceof GroupRequestError && cause.code === "GROUP_SCOPE_CONFLICT") withdrawInspection();
     invalidate(); update({ ...state, data: clearData ? undefined : state.data,
       loading: false, error: cause instanceof Error ? cause.message : "Unable to verify experience." });
   }
@@ -89,6 +117,15 @@ export function createGroupResource(actor: string, experienceId: string, options
     }
     if (value.structureRevision !== reference.structureRevision || value.accessEpoch !== reference.accessEpoch
       || value.adoptionRevision !== reference.adoptionRevision) throw new GroupRequestError("GROUP_SCOPE_CONFLICT", 409);
+    if (value.structureRevision < requiredStructureRevision || value.accessEpoch < requiredAccessEpoch
+      || value.adoptionRevision < requiredAdoptionRevision) throw new GroupRequestError("GROUP_SCOPE_CONFLICT", 409);
+  }
+  function observeAuthority(value: Authority) {
+    if (value.viewerUserId !== actor || value.experienceId !== experienceId
+      || ![value.structureRevision, value.accessEpoch, value.adoptionRevision].every(value => Number.isSafeInteger(value) && value >= 0)) throw new GroupRequestError("GROUP_CONTEXT_CONFLICT", 409);
+    requiredStructureRevision = Math.max(requiredStructureRevision, value.structureRevision);
+    requiredAccessEpoch = Math.max(requiredAccessEpoch, value.accessEpoch);
+    requiredAdoptionRevision = Math.max(requiredAdoptionRevision, value.adoptionRevision);
   }
   const scope = (data = state.data) => data ? JSON.stringify([preparationGeneration, data.bootstrap.viewerUserId, experienceId, data.bootstrap.accessEpoch,
     data.bootstrap.structureRevision, data.bootstrap.adoptionRevision, data.bootstrap.isAdmin, data.bootstrap.isFollower, data.bootstrap.canInspectFollowers,
@@ -157,8 +194,12 @@ export function createGroupResource(actor: string, experienceId: string, options
         }
         if (current.structureRevision !== reference.structureRevision || current.accessEpoch !== reference.accessEpoch
           || current.adoptionRevision !== reference.adoptionRevision) {
-          workingCardStore.clearGroup(actor, experienceId);
-          update({ ...state, data: { ...state.data, followers: state.data.followers.filter(row => row.userId === actor) }, verified: false });
+          // Confirmed scope changes withdraw inspection immediately. Keep a
+          // still-permitted primary Card complete while its new scope loads.
+          const fallback: PerspectiveSelection = { perspective: current.isAdmin ? "group" : "self" };
+          const selected = current.selection.perspective === "follower" ? fallback : current.selection;
+          withdrawInspection();
+          if (watches) { await load({ selection: selected }); return state.verified; }
         }
         checkAuthority(current, reference);
         if (reference.structureRevision < requiredStructureRevision || current.structureRevision < requiredStructureRevision) {
@@ -170,7 +211,7 @@ export function createGroupResource(actor: string, experienceId: string, options
         grant(checkedAt, order); update({ ...state, verified: true });
         return true;
       } catch (cause) {
-        if (!disposed && isCurrent()) verificationFailed(cause, order);
+        if (live() && (isCurrent() || cause instanceof GroupRequestError && (cause.status === 401 || cause.code === "GROUP_SESSION_CONFLICT"))) verificationFailed(cause, order);
         return state.verified;
       } finally { renewal = undefined; }
     })();
@@ -338,12 +379,17 @@ export function createGroupResource(actor: string, experienceId: string, options
   const unsubscribeClear = workingCardStore.onClear(user => { if (user === actor) dispose(); });
   const unsubscribeGroup = workingCardStore.onGroupClear((user, experience) => {
     if (user !== actor || experience !== experienceId) return;
+    resetPreparation();
+    invalidate(); update({ ...state, data: undefined });
+  });
+  function resetPreparation() {
     preparationGeneration++; perspectives.clear(); followerTask = undefined; followerReadyScope = undefined; groupReadyScope = undefined;
     acceptedLearning.clear(); acceptedAggregates.clear(); setPreparation("idle");
-  });
+  }
   function dispose() {
     if (disposed) return;
     disposed = true; unsubscribeLearning(); unsubscribeClear(); unsubscribeGroup(); generation++; abort.abort(); if (expiry) cancel(expiry);
+    stopClock(); if (resumeClock) cancel(resumeClock); unwatchEvents?.(); sourceRefreshers.clear();
     perspectives.clear(); followerTask = undefined;
     state = { loading: false, verified: false }; listeners.forEach(listener => listener()); listeners.clear();
   }
@@ -368,6 +414,9 @@ export function createGroupResource(actor: string, experienceId: string, options
   async function refreshAggregates(): Promise<void> {
     if (aggregateRead) return aggregateRead;
     if (!active || !live() || !dirty.size || writes || [...changes.values()].some(entry => entry.pending) || !state.data) return;
+    if (mutable?.aggregates && [...dirty.values()].every(fields => Math.max(fields.progress ?? 0, fields.confidence ?? 0) <= mutable!.stamp)) {
+      await mutable.promise; if (dirty.size) return refreshAggregates(); return;
+    }
     const reference = state.data.bootstrap, stamp = mutationStamp, order = ++readOrder;
     aggregateRead = (async () => {
       try {
@@ -387,6 +436,111 @@ export function createGroupResource(actor: string, experienceId: string, options
       if (active && live() && mutationStamp > stamp && dirty.size && !writes && ![...changes.values()].some(entry => entry.pending)) void refreshAggregates();
     });
     await aggregateRead;
+  }
+  async function refresh(): Promise<void> {
+    if (!live() || !online) return;
+    if (!state.data) { await load({}); return; }
+    const reference = state.data.bootstrap, selection = reference.selection, key = selectionKey(selection);
+    if (mutable) {
+      const prior = mutable;
+      await prior.promise;
+      if (prior.key !== key && live() && state.data?.bootstrap.selection && selectionKey(state.data.bootstrap.selection) === key) await refresh();
+      return;
+    }
+    const checkedAt = now(), order = ++verificationOrder, sourceOrder = ++readOrder, stamp = mutationStamp;
+    const capture = captureCardPreparation(actor), requestScope = scope(), includeAggregates = selection.perspective === "group" && !aggregateRead;
+    refreshedAt = checkedAt;
+    const promise = (async () => {
+      try {
+        const params = new URLSearchParams({ perspective: selection.perspective, ...(selection.perspective === "follower" ? { subjectUserId: selection.subjectUserId } : {}),
+          accessEpoch: String(reference.accessEpoch), structureRevision: String(reference.structureRevision), adoptionRevision: String(reference.adoptionRevision), aggregates: String(includeAggregates) });
+        let value: GroupRefresh;
+        const first = await read<GroupRefresh | PreparationPage>(actor, `${base}/refresh?${params}`, abort.signal);
+        if ("paged" in first) {
+          const progress: TransportProgress = { assembly: new PreparationAssembly() };
+          checkAuthority(reference, first); transportPage(progress, first);
+          while (progress.after) {
+            if (!active || !visible || !online || !live()) return;
+            params.set("after", progress.after);
+            const page = await read<PreparationPage>(actor, `${base}/refresh?${params}`, abort.signal);
+            checkAuthority(reference, page); transportPage(progress, page);
+          }
+          value = assembledRefresh(progress.assembly);
+        } else value = first;
+        if (!live() || !state.data || requestScope !== scope()) return;
+        checkAuthority(reference, value);
+        if (selectionKey(value.selection) !== key || JSON.stringify(value.cards) !== JSON.stringify(reference.deck.cards.map(card => ({ cardTemplateId: card.id, version: card.version })))) throw new GroupRequestError("GROUP_SCOPE_CONFLICT", 409);
+        const current = state.data;
+        const incoming = reconcileLearning({ ...current, bootstrap: { ...current.bootstrap, group: value.group,
+          ...(selection.perspective === "self" ? { own: value.learning, ownDates: value.ownDates } : {}) },
+          followers: current.followers.map(row => selection.perspective === "follower" && row.userId === selection.subjectUserId ? { ...row, learning: value.learning! } : row) }, stamp, sourceOrder);
+        if (value.aggregates) incoming.aggregates = mergeAggregates(value.aggregates, stamp, sourceOrder);
+        hydrate({ bootstrap: { ...reference, selection }, contributions: value.contributions }, capture);
+        if (now() - checkedAt < GROUP_AUTHORITY_MS) grant(checkedAt, order);
+        update({ ...state, data: reconcileCollective(incoming), verified: now() < expiresAt, error: undefined });
+        // Gallery cursors stay view-owned. Their protected page reads share
+        // this clock but cannot hold the Card authority renewal hostage.
+        void Promise.all([...sourceRefreshers].map(refresh => refresh())).catch(() => {});
+      } catch (cause) {
+        if (!live() || requestScope !== scope()) return;
+        verificationFailed(cause, order);
+        if (cause instanceof GroupRequestError && cause.code === "GROUP_SCOPE_CONFLICT" && live()) await load({ selection: state.data?.bootstrap.selection });
+      }
+    })().finally(() => { if (mutable?.promise === promise) mutable = undefined; });
+    mutable = { key, aggregates: includeAggregates, stamp, promise };
+    return promise;
+  }
+  const checkSession = options.checkSession ?? (async () => {
+    const response = await fetch("/api/auth/me", { cache: "no-store", signal: AbortSignal.timeout(15_000) });
+    if ([401, 403].includes(response.status)) throw new GroupRequestError("GROUP_SESSION_CONFLICT", 401);
+    if (!response.ok) throw Error("Your sign-in could not be checked. Retry when connected.");
+    const value = await response.json();
+    if (value.user?.id !== actor) throw new GroupRequestError("GROUP_SESSION_CONFLICT", 409);
+  });
+  async function resume() {
+    if (resumed) return resumed;
+    if (!live() || !online || !visible || !active) return;
+    resumed = (async () => {
+      try { await checkSession(); if (live()) await refresh(); }
+      catch (cause) { if (live()) verificationFailed(cause, ++verificationOrder); }
+    })().finally(() => { resumed = undefined; });
+    return resumed;
+  }
+  function stopClock() { if (clock) cancel(clock); clock = undefined; }
+  function runClock() {
+    stopClock();
+    if (!watches || !active || !visible || !online || !live()) return;
+    clock = schedule(() => {
+      clock = undefined;
+      if (!watches || !active || !visible || !online || !live()) return;
+      // Starts stay two seconds apart. A compatible content read also renews
+      // access, so content-due ticks do not send a second authority request.
+      if (now() - refreshedAt >= GROUP_REFRESH_MS && !pending) void refresh();
+      else if (!pending && now() - checkedAuthorityAt >= GROUP_RENEW_MS && (!mutable || now() - refreshedAt >= GROUP_RENEW_MS)) void renewAuthority();
+      runClock();
+    }, GROUP_RENEW_MS);
+  }
+  function watch() {
+    watches++; active = true;
+    if (watches === 1) {
+      if (refreshedAt === -Infinity) refreshedAt = now();
+      if (typeof window !== "undefined") {
+        visible = document.visibilityState !== "hidden"; online = navigator.onLine;
+        const wake = () => {
+          visible = document.visibilityState !== "hidden"; online = navigator.onLine;
+          stopClock();
+          if (!visible || !online) { if (!online) invalidate(); return; }
+          if (resumeClock) return;
+          resumeClock = schedule(() => { resumeClock = undefined; void resume(); runClock(); }, 0);
+        };
+        window.addEventListener("focus", wake); window.addEventListener("pageshow", wake); window.addEventListener("online", wake); window.addEventListener("offline", wake);
+        document.addEventListener("visibilitychange", wake);
+        unwatchEvents = () => { window.removeEventListener("focus", wake); window.removeEventListener("pageshow", wake); window.removeEventListener("online", wake); window.removeEventListener("offline", wake); document.removeEventListener("visibilitychange", wake); };
+      }
+      runClock();
+    }
+    let released = false;
+    return () => { if (released) return; released = true; if (--watches) return; active = false; stopClock(); if (resumeClock) cancel(resumeClock); resumeClock = undefined; unwatchEvents?.(); unwatchEvents = undefined; };
   }
   async function load(preparation?: { selection?: GroupPreparationSelection; cardTemplateId?: string; opening?: boolean }) {
     if (pending) return pending;
@@ -409,8 +563,10 @@ export function createGroupResource(actor: string, experienceId: string, options
           checkAuthority(reference, prepared);
           for (const row of prepared.followers) followers.set(row.userId, row);
           aggregates.push(...prepared.aggregates);
+          const ids = new Set(bootstrap.deck.cards.map(card => card.id));
+          for (const id of dirty.keys()) if (!ids.has(id)) dirty.delete(id);
           if (state.data && (state.data.bootstrap.structureRevision !== reference.structureRevision || state.data.bootstrap.accessEpoch !== reference.accessEpoch || state.data.bootstrap.adoptionRevision !== reference.adoptionRevision)) {
-            workingCardStore.clearGroup(actor, experienceId);
+            resetPreparation(); retireGroupMedia(actor, experienceId, reference); retireGroupReflections(actor, experienceId, reference);
             update({ ...state, data: { ...state.data, followers: state.data.followers.filter(row => row.userId === actor) }, loading: true, verified: false });
           }
         } else {
@@ -575,7 +731,19 @@ export function createGroupResource(actor: string, experienceId: string, options
     lanes.set(key, operation); return operation;
   }
   return { isDisposed: () => disposed, snapshot: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    load, prepare(selection?: GroupPreparationSelection, cardTemplateId?: string) {
+    load, refresh, resume, watch, onRefresh(listener: () => Promise<void>) { sourceRefreshers.add(listener); return () => { sourceRefreshers.delete(listener); }; },
+    prefetch(selection?: GroupPreparationSelection) {
+      const key = JSON.stringify(selection ?? null), existing = intentRequests.get(key);
+      if (existing) return existing;
+      const b = state.data?.bootstrap;
+      const target = selection?.perspective === "default" && b ? { perspective: b.isAdmin ? "group" as const : "self" as const } : selection ?? b?.selection;
+      if (target && target.perspective !== "default" && prepared(target)) return Promise.resolve();
+      const operation = (async () => { while (pending) await pending; await load({ selection }); })();
+      intentRequests.set(key, operation);
+      void operation.finally(() => { if (intentRequests.get(key) === operation) intentRequests.delete(key); });
+      return operation;
+    },
+    prepare(selection?: GroupPreparationSelection, cardTemplateId?: string) {
       const key = JSON.stringify([selection ?? null, cardTemplateId ?? null]), existing = initialRequests.get(key);
       if (existing) return existing;
       const previous = initialOpen;
@@ -583,6 +751,34 @@ export function createGroupResource(actor: string, experienceId: string, options
         // Only compatible initial requests share a result. An already running
         // refresh or another entry intent must finish before this scope starts.
         while (pending) await pending;
+        const b = state.data?.bootstrap;
+        const target = selection?.perspective === "default" && b ? { perspective: b.isAdmin ? "group" as const : "self" as const } : selection ?? b?.selection;
+        if (b && target && target.perspective !== "default" && prepared(target)) {
+          const checkedAt = now(), order = ++verificationOrder, nav = navigationGeneration;
+          try {
+            const ack = await read<Authority & { activeCardId: string | null; selection?: PerspectiveSelection }>(actor, `${base}/open`, abort.signal, "POST",
+              { accessEpoch: b.accessEpoch, ...(cardTemplateId ? { cardTemplateId } : {}), ...(selection ? { selection } : {}) });
+            if (!live() || !state.data) return;
+            observeAuthority(ack);
+            checkAuthority(b, ack);
+            const chosen = ack.selection ?? target;
+            if (!prepared(chosen)) { await load({ selection: chosen }); return; }
+            if (now() - checkedAt < GROUP_AUTHORITY_MS) grant(checkedAt, order);
+            update({ ...state, verified: now() < expiresAt, data: { ...state.data, bootstrap: { ...state.data.bootstrap,
+              ...(nav === navigationGeneration ? { selection: chosen, activeCardId: ack.activeCardId } : {}) } } });
+            return;
+          } catch (cause) {
+            if (cause instanceof GroupRequestError && cause.code === "GROUP_CARD_FORBIDDEN" && live()) {
+              // A retained return target may have been removed by adoption.
+              // The existing composed entry chooses the current valid Card.
+              workingCardStore.clearGroup(actor, experienceId);
+              await load({ selection, cardTemplateId, opening: true }); return;
+            }
+            verificationFailed(cause, order);
+            if (cause instanceof GroupRequestError && ["GROUP_SCOPE_CONFLICT", "GROUP_ACCESS_CONFLICT", "GROUP_STRUCTURE_CONFLICT"].includes(cause.code) && live()) await load({ selection, cardTemplateId, opening: true });
+            return;
+          }
+        }
         await load({ selection, cardTemplateId, opening: true });
       });
       initialOpen = operation; initialRequests.set(key, operation);
@@ -614,9 +810,10 @@ export function createGroupResource(actor: string, experienceId: string, options
       return current();
     },
     async navigate(selection: PerspectiveSelection, activeCardId?: string) {
-      const current = state.data?.bootstrap; if (!current || !state.verified) return;
+      const current = state.data?.bootstrap; if (!current || !state.verified && !prepared(selection)) return;
       const token = ++navigationGeneration;
       if (state.data) update({ ...state, data: { ...state.data, bootstrap: { ...current, selection, ...(activeCardId ? { activeCardId } : {}) } } });
+      if (!state.verified) return; // Retained read-only navigation is not an offline write queue.
       const body = { accessEpoch: current.accessEpoch, expectedStructureRevision: current.structureRevision, selection, ...(activeCardId ? { activeCardId } : {}) };
       // Visual switching is immediate. Persist in order so a slow earlier click
       // cannot become the remembered perspective after a later selection.

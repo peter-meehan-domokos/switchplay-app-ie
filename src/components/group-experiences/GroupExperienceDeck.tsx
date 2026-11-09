@@ -59,22 +59,9 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   useEffect(() => {
     // View lifetime owns timers, not accepted data or submitted work.
     if (!resource) return;
-    resource.setActive(true);
+    const unwatch = resource.watch();
     void resource.prepare(loginDefault ? { perspective: "default" } : restored?.selection, restored?.cardId);
-    const refresh = () => { if (document.visibilityState === "hidden") resource.invalidate(); else void resource.load(); };
-    const hidden = () => { resource.invalidate(); if (document.visibilityState !== "hidden") void resource.load(); };
-    const timer = window.setInterval(refresh, 4_000);
-    let stopped = false, authorityTimer: ReturnType<typeof setTimeout>;
-    const renewAuthority = async () => {
-      const started = Date.now();
-      if (document.visibilityState !== "hidden") await resource.renewAuthority();
-      // Keep request starts two seconds apart without skipping a whole interval
-      // when the hosted authority read itself takes slightly longer than that.
-      if (!stopped) authorityTimer = setTimeout(renewAuthority, Math.max(0, 2_000 - (Date.now() - started)));
-    };
-    authorityTimer = setTimeout(renewAuthority, 2_000);
-    window.addEventListener("focus", hidden); window.addEventListener("pageshow", hidden); document.addEventListener("visibilitychange", hidden);
-    return () => { stopped = true; resource.setActive(false); clearInterval(timer); clearTimeout(authorityTimer); window.removeEventListener("focus", hidden); window.removeEventListener("pageshow", hidden); document.removeEventListener("visibilitychange", hidden); };
+    return unwatch;
   }, [resource, restored?.selection, restored?.cardId, loginDefault]);
   const data = state.data?.bootstrap.viewerUserId === actor && state.data.bootstrap.experienceId === experienceId ? state.data : undefined;
   const initialSelection = restored?.selection ?? data?.bootstrap.selection;
@@ -104,7 +91,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       setSettingsOpen(false);
     }} /> : null;
   if (!data || !resource || !initialPresented && !initialComplete) return <main className="app-shell"><button type="button" onClick={onBack}>Back to My Decks</button>
-    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void (initialPresented ? resource?.load() : resource?.prepare(loginDefault ? { perspective: "default" } : restored?.selection, restored?.cardId))}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
+    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void (initialPresented ? resource?.resume() : resource?.prepare(loginDefault ? { perspective: "default" } : restored?.selection, restored?.cardId))}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
   const boot = data.bootstrap;
   const chosen = selection ?? boot.selection;
   const permitted = chosen.perspective === "group" || chosen.perspective === "self" && boot.isFollower
@@ -180,7 +167,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   };
   return <main ref={root} className="app-shell app-shell--deck group-experience" data-experience-id={experienceId} data-perspective-key={selectedKey}
     data-current-card={currentCardId} data-face={Math.abs(rotation % 360) === 180 ? "back" : "front"}>
-    {!state.verified ? <p className="group-verification" role="status">Verifying current access… <button type="button" onClick={() => void resource.load()}>Retry</button></p> : null}
+    {!state.verified ? <p className="group-verification" role="status">Verifying current access… <button type="button" onClick={() => void resource.resume()}>Retry</button></p> : null}
     <GroupUpdateControls key={`${actor}:${experienceId}`} actor={actor} experienceId={experienceId} deck={deck}
       enabled={state.verified && boot.isAdmin && effective.perspective === "group"} onAdopted={async command => {
         if (!await resource.revalidate(command.expectedStructureRevision + 1)) throw Error("Update saved; current Group could not be refreshed.");
@@ -204,17 +191,17 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       renderMediaOverlay={scene => {
         const context = validOverlay?.context, card = deck.cards.find(c => c.id === validOverlay?.cardId);
         if (!context || !validOverlay || !card || !isExperienceCard(card) || scene.transitioning || scene.activeCardId !== card.id) return null;
-        return validOverlay.kind === "gallery" ? <CollectionGallery key={`${mediaAuthority}:${card.id}`} context={context} selectedKey={validOverlay.selectedKey!} initialPage={validOverlay.initialPage} sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />
-          : <CardMediaCentre key={`${mediaAuthority}:${card.id}`} context={context} readOnly={!state.verified}
+        return validOverlay.kind === "gallery" ? <CollectionGallery refreshOwner={resource} key={`${mediaAuthority}:${card.id}`} context={context} selectedKey={validOverlay.selectedKey!} initialPage={validOverlay.initialPage} sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />
+          : <CardMediaCentre refreshOwner={resource} key={`${mediaAuthority}:${card.id}`} context={context} readOnly={!state.verified}
             groupUpload={{ viewerUserId: actor, experienceId, cardTemplateId: card.id, accessEpoch: boot.accessEpoch, version: card.version }}
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
-      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={false} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
+      renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack refreshOwner={resource} reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={false} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
       renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} onPreparationBusyChange={setFocusBusy} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
-        backFace={<GroupCardBack reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />}</GroupUpdateControls>
+        backFace={<GroupCardBack refreshOwner={resource} reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />}</GroupUpdateControls>
     {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} followers={followers} onCollapse={() => {
       compare(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />

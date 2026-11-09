@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { MongoServerError, type ClientSession } from "mongodb";
 import { CardRepository } from "../cards/repository";
 import { requireCondition } from "../cards/domain";
-import { assertLearningChange, projectLearning } from "../cards/learning";
+import { assertLearningChange, projectLearning, projectStepLearning } from "../cards/learning";
 import { ensurePersonalLearningInSession, mutatePersonalLearningInSession } from "../cards/personalLearning";
 import { mergeRetainedAssignments } from "../cards/retainedAssignments";
 import { cardContentPresentation } from "../cards/libraryProjection";
@@ -13,11 +13,11 @@ import type { GroupExperience, GroupMember, GroupCardData, GroupReceipt, Perspec
 import { authorize, type GroupRole } from "./authorization";
 import { createCommand, memberCommand, learningCommand, hash, id, page, revision } from "./contracts";
 import { publicCards, selectedCard, selectedContent, verifySelectedVisibility, validateCreationManifest } from "./publicVersions";
-import { personalLearningForUsers, userKey } from "./learningReads";
+import { personalLearningForUsers, userKey, type LearningSelection } from "./learningReads";
 import { aggregateLearning, entry, identity } from "./readModels";
 import { formerCardLearning, removalSnapshot, snapshotRemoval } from "./lifecycle";
 import { adoptGroupUpdate, reviewGroupUpdate } from "./adoption";
-import { canInspectPeers, assertSelection } from "./policy";
+import { canInspectPeers, assertSelection, canSelect, defaultPerspective } from "./policy";
 import { restoredPerspective, saveNavigation, saveSettings } from "./navigation";
 import { activeIdentities } from "./identities";
 import { bootstrap, perspectivePage, cardAggregates, collectionTiles } from "./presentationReads";
@@ -178,12 +178,18 @@ export class GroupExperienceRepository {
         isAdmin: row.isAdmin, followerStatus: row.followerStatus })), nextCursor: rows.length > paging.limit ? visible.at(-1)!.userId : null };
     });
   }
-  async open(actor: string, experienceId: string, accessEpoch: number, cardTemplateId?: string) {
+  async open(actor: string, experienceId: string, accessEpoch: number, cardTemplateId?: string, requested?: import("./model").GroupPreparationSelection) {
     revision(accessEpoch); if (cardTemplateId !== undefined) id(cardTemplateId);
     return this.transaction(async session => {
       const { experience, member } = await this.access(actor, experienceId, "member", session, accessEpoch);
       const { cards } = await selectedContent(this.cards, experience, session);
-      return this.openSelectedInSession(actor, experience, member, cards, session, cardTemplateId);
+      let selection = requested?.perspective === "default" ? defaultPerspective(member) : requested;
+      const subject = selection?.perspective === "follower" ? await this.members().findOne({ experienceId, userId: selection.subjectUserId }, { session }) : undefined;
+      if (selection && !canSelect(experience, member, selection, subject)) selection = await restoredPerspective(this, experience, member, session);
+      if (selection) assertSelection(experience, member, selection, selection.perspective === "follower" && selection.subjectUserId !== subject?.userId
+        ? await this.members().findOne({ experienceId, userId: selection.subjectUserId }, { session }) : subject);
+      const result = await this.openSelectedInSession(actor, experience, member, cards, session, cardTemplateId, requested?.perspective === "default" ? selection : undefined);
+      return { ...result, ...(selection ? { selection } : {}) };
     });
   }
   // Internal actual-entry helper. The caller has authorised this member and
@@ -205,14 +211,14 @@ export class GroupExperienceRepository {
     return { ...identity(actor, experience, member), activeCardId: member.activeCardId };
   }
 
-  async groupLearning(experienceId: string, cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession) {
+  async groupLearning(experienceId: string, cards: LearningSelection[], session: ClientSession) {
     const rows: GroupCardData[] = [];
     for (let start = 0; start < cards.length; start += 100) rows.push(...await this.cardData().find({ experienceId,
       cardTemplateId: { $in: cards.slice(start, start + 100).map(card => card.cardTemplateId) } }, {
       session, projection: { _id: 0, cardTemplateId: 1, items: 1, signalReadings: 1 },
     }).toArray());
     return cards.map(card => ({ cardTemplateId: card.cardTemplateId, version: card.version,
-      ...projectLearning(card.content, rows.find(row => row.cardTemplateId === card.cardTemplateId) ?? { items: [], signalReadings: [] }) }));
+      ...projectStepLearning(card.content.steps, rows.find(row => row.cardTemplateId === card.cardTemplateId) ?? { items: [], signalReadings: [] }) }));
   }
   async card(actor: string, experienceId: string, cardTemplateId: string, perspective: Perspective, subjectUserId?: string) {
     id(cardTemplateId); requireCondition(["group", "self", "follower"].includes(perspective), "INVALID_GROUP_PERSPECTIVE");
