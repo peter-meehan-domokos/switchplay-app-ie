@@ -190,7 +190,7 @@ export class GroupExperienceRepository {
   // resolved this composition in the same transaction. Preparation never calls
   // it unless this is an explicit actual-open operation.
   async openSelectedInSession(actor: string, experience: GroupExperience, member: GroupMember,
-    cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession, cardTemplateId?: string) {
+    cards: Awaited<ReturnType<typeof selectedContent>>["cards"], session: ClientSession, cardTemplateId?: string, selection?: import("./model").PerspectiveSelection) {
     if (cardTemplateId !== undefined) id(cardTemplateId);
     await this.fence([member], session);
     const selected = cards.find(card => card.cardTemplateId === (cardTemplateId ?? member.activeCardId)) ?? (cardTemplateId ? undefined : cards[0]);
@@ -200,7 +200,8 @@ export class GroupExperienceRepository {
       await ensurePersonalLearningInSession(this.cards, actor, selected, session, { scheduling: "experience" });
     }
     member.activeCardId = selected?.cardTemplateId ?? null; member.openedAt = new Date();
-    await this.members().updateOne({ experienceId: experience.experienceId, userId: actor }, { $set: { activeCardId: member.activeCardId, openedAt: member.openedAt } }, { session });
+    if (selection) member.lastPerspective = selection;
+    await this.members().updateOne({ experienceId: experience.experienceId, userId: actor }, { $set: { activeCardId: member.activeCardId, openedAt: member.openedAt, ...(selection ? { lastPerspective: selection } : {}) } }, { session });
     return { ...identity(actor, experience, member), activeCardId: member.activeCardId };
   }
 

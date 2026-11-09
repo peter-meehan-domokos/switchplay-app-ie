@@ -2,27 +2,28 @@ import { content, ownDates } from "./presentationReads";
 import { personalLearningForUsers } from "./learningReads";
 import { activeIdentities } from "./identities";
 import { entry, identity, aggregateLearning } from "./readModels";
-import { canInspectPeers, assertSelection, canSelect } from "./policy";
+import { canInspectPeers, assertSelection, canSelect, defaultPerspective } from "./policy";
 import { restoredPerspective } from "./navigation";
 import type { GroupExperienceRepository } from "./repository";
-import type { PerspectiveSelection } from "./model";
+import type { GroupPreparationSelection } from "./model";
 import { ownerPreviewPages, sharedPreviewPages } from "../mediaCollection/preparation";
 import { readReflectionFeedsInSession } from "../reflections/reads";
 import { ensureGroupReadiness } from "./readiness";
 
-export async function prepareGroup(repo: GroupExperienceRepository, actor: string, experienceId: string, requested?: PerspectiveSelection, opening?: { cardTemplateId?: string }) {
+export async function prepareGroup(repo: GroupExperienceRepository, actor: string, experienceId: string, requested?: GroupPreparationSelection, opening?: { cardTemplateId?: string }) {
   await ensureGroupReadiness(repo.cards, "media"); await ensureGroupReadiness(repo.cards, "reflections");
   return repo.transaction(async session => {
     const authority = await repo.access(actor, experienceId, "member", session), { experience, member } = authority;
     const selected = await content(repo, experience, session, 0, true), ids = selected.cards.map(card => card.cardTemplateId);
-    let selection = requested ?? await restoredPerspective(repo, experience, member, session);
+    let selection = requested?.perspective === "default" ? defaultPerspective(member) : requested ?? await restoredPerspective(repo, experience, member, session);
     let subject = selection.perspective === "follower" ? await repo.members().findOne({ experienceId, userId: selection.subjectUserId }, { session }) : undefined;
     if (requested && !canSelect(experience, member, selection, subject)) {
       selection = await restoredPerspective(repo, experience, member, session);
       subject = selection.perspective === "follower" ? await repo.members().findOne({ experienceId, userId: selection.subjectUserId }, { session }) : undefined;
     }
     assertSelection(experience, member, selection, subject);
-    if (opening) await repo.openSelectedInSession(actor, experience, member, selected.cards, session, opening.cardTemplateId && ids.includes(opening.cardTemplateId) ? opening.cardTemplateId : undefined);
+    if (opening) await repo.openSelectedInSession(actor, experience, member, selected.cards, session, opening.cardTemplateId && ids.includes(opening.cardTemplateId) ? opening.cardTemplateId : undefined,
+      requested?.perspective === "default" ? selection : undefined);
     const group = await repo.groupLearning(experienceId, selected.cards, session);
     // Preserve the current picker and comparison scalar matrix until CP3. This
     // does not prepare other perspectives' media/reflections or private fields.

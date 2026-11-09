@@ -1,7 +1,7 @@
 import { exact, id, revision, hash } from "./contracts";
 import { requireCondition } from "../cards/domain";
 import type { GroupExperienceRepository } from "./repository";
-import type { PerspectiveSelection } from "./model";
+import type { GroupPreparationSelection, PerspectiveSelection } from "./model";
 import { assertSelection, canSelect, defaultPerspective } from "./policy";
 import type { ClientSession } from "mongodb";
 import type { GroupExperience, GroupMember } from "./model";
@@ -12,6 +12,13 @@ export function selectionCommand(value: unknown): PerspectiveSelection {
   if (value.perspective === "follower") id(value.subjectUserId);
   else requireCondition(value.subjectUserId === undefined, "INVALID_GROUP_SUBJECT");
   return value as PerspectiveSelection;
+}
+export function preparationSelectionCommand(value: unknown): GroupPreparationSelection {
+  if (value && typeof value === "object" && "perspective" in value && value.perspective === "default") {
+    exact(value, ["perspective"]);
+    return { perspective: "default" };
+  }
+  return selectionCommand(value);
 }
 export async function restoredPerspective(repo: GroupExperienceRepository, experience: GroupExperience, member: GroupMember, session: ClientSession) {
   const selected = member.lastPerspective;

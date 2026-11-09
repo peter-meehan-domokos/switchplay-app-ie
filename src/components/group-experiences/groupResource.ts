@@ -1,7 +1,7 @@
 import type { PreparedGroup } from "@/lib/groupExperiences/preparation";
 import { captureCardPreparation, acceptCardPreparation } from "@/lib/cards/preparationClient";
 import type { GroupBootstrap, GroupPerspectivePage, GroupAggregates } from "@/lib/groupExperiences/presentationReads";
-import type { PerspectiveSelection } from "@/lib/groupExperiences/model";
+import type { GroupPreparationSelection, PerspectiveSelection } from "@/lib/groupExperiences/model";
 import type { PersonalLearningChange } from "@/lib/cards/learning";
 import { aggregateLearning, metrics } from "@/lib/groupExperiences/readModels";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
@@ -197,7 +197,7 @@ export function createGroupResource(actor: string, experienceId: string, options
     });
     await aggregateRead;
   }
-  async function load(preparation?: { selection?: PerspectiveSelection; cardTemplateId?: string; opening?: boolean }) {
+  async function load(preparation?: { selection?: GroupPreparationSelection; cardTemplateId?: string; opening?: boolean }) {
     if (pending) return pending;
     if (disposed) return;
     const token = ++generation, readStamp = mutationStamp, navigationAtRead = navigationGeneration;
@@ -385,7 +385,7 @@ export function createGroupResource(actor: string, experienceId: string, options
     lanes.set(key, operation); return operation;
   }
   return { isDisposed: () => disposed, snapshot: () => state, subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    load, prepare(selection?: PerspectiveSelection, cardTemplateId?: string) {
+    load, prepare(selection?: GroupPreparationSelection, cardTemplateId?: string) {
       const key = JSON.stringify([selection ?? null, cardTemplateId ?? null]), existing = initialRequests.get(key);
       if (existing) return existing;
       const previous = initialOpen;

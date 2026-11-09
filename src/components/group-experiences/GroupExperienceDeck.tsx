@@ -1,6 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { hasInitialGroupPreparation } from "@/lib/cards/preparationClient";
+import { acceptGroupLoginDefault, needsGroupLoginDefault } from "@/lib/groupExperiences/loginPerspective";
 import { groupProgressHref, rememberGroupReturn, readGroupDeckReturn, readProgressReturn, progressReturnHref } from "@/lib/frameworks/progressNavigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import CardMediaCentre from "@/components/media/CardMediaCentre";
@@ -30,7 +31,8 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const router = useRouter(), entryQuery = useSearchParams();
   // Router search params describe the incoming route before window.location
   // commits during a soft navigation. Reading the latter loses return geometry.
-  const [restored] = useState(() => readGroupDeckReturn(entryQuery, experienceId));
+  const [loginDefault] = useState(() => typeof window !== "undefined" && needsGroupLoginDefault(actor, experienceId));
+  const [restored] = useState(() => loginDefault ? undefined : readGroupDeckReturn(entryQuery, experienceId));
   const progressReturn = readProgressReturn(entryQuery);
   const resource = useMemo(() => typeof window === "undefined" ? undefined : retainedGroupResource(actor, experienceId), [actor, experienceId]);
   const state = useSyncExternalStore(resource?.subscribe ?? noSubscribe, resource?.snapshot ?? emptySnapshot, emptySnapshot);
@@ -49,7 +51,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     // View lifetime owns timers, not accepted data or submitted work.
     if (!resource) return;
     resource.setActive(true);
-    void resource.prepare(restored?.selection, restored?.cardId);
+    void resource.prepare(loginDefault ? { perspective: "default" } : restored?.selection, restored?.cardId);
     const refresh = () => { if (document.visibilityState === "hidden") resource.invalidate(); else void resource.load(); };
     const hidden = () => { resource.invalidate(); if (document.visibilityState !== "hidden") void resource.load(); };
     const timer = window.setInterval(refresh, 4_000);
@@ -64,12 +66,22 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
     authorityTimer = setTimeout(renewAuthority, 2_000);
     window.addEventListener("focus", hidden); window.addEventListener("pageshow", hidden); document.addEventListener("visibilitychange", hidden);
     return () => { stopped = true; resource.setActive(false); clearInterval(timer); clearTimeout(authorityTimer); window.removeEventListener("focus", hidden); window.removeEventListener("pageshow", hidden); document.removeEventListener("visibilitychange", hidden); };
-  }, [resource, restored?.selection, restored?.cardId]);
+  }, [resource, restored?.selection, restored?.cardId, loginDefault]);
   const data = state.data?.bootstrap.viewerUserId === actor && state.data.bootstrap.experienceId === experienceId ? state.data : undefined;
   const initialSelection = restored?.selection ?? data?.bootstrap.selection;
   const initialAllowed = data && initialSelection && (initialSelection.perspective === "group" || initialSelection.perspective === "self" && data.bootstrap.isFollower
     || initialSelection.perspective === "follower" && data.bootstrap.canInspectFollowers && data.followers.some(row => row.userId === initialSelection.subjectUserId));
   const initialComplete = !!data && hasInitialGroupPreparation(actor, data.bootstrap, initialAllowed ? initialSelection! : data.bootstrap.selection);
+  useEffect(() => {
+    if (!loginDefault || !initialComplete) return;
+    acceptGroupLoginDefault(actor, experienceId);
+    // A pre-login return URL must not revive its old perspective on reload.
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("openExperience") === experienceId && url.searchParams.has("progressScene")) {
+      for (const key of ["progressScene", "progressFace", "progressFocused", "progressPerspective", "progressSubject"]) url.searchParams.delete(key);
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  }, [loginDefault, initialComplete, actor, experienceId]);
   if (initialComplete && !initialPresented) setInitialPresented(true);
   // Keep the form mounted even if authority polling observes a committed
   // self-removal before its HTTP acknowledgement reaches this browser.
@@ -83,7 +95,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
       setSettingsOpen(false);
     }} /> : null;
   if (!data || !resource || !initialPresented && !initialComplete) return <main className="app-shell"><button type="button" onClick={onBack}>Back to My Decks</button>
-    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void (initialPresented ? resource?.load() : resource?.prepare(restored?.selection, restored?.cardId))}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
+    {"error" in state && state.error ? <p role="alert">{state.error} <button type="button" onClick={() => void (initialPresented ? resource?.load() : resource?.prepare(loginDefault ? { perspective: "default" } : restored?.selection, restored?.cardId))}>Retry</button></p> : <p role="status">Loading experience…</p>}{settings}</main>;
   const boot = data.bootstrap;
   const chosen = selection ?? boot.selection;
   const permitted = chosen.perspective === "group" || chosen.perspective === "self" && boot.isFollower

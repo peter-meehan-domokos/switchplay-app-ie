@@ -192,3 +192,21 @@ test("final narrow six-Card preparation query and payload measurements", async (
   console.log("CP2_FINAL_READER", name, JSON.stringify(samples));
  }
 });
+
+test("fresh login preparation selects current role defaults and persists them only on actual opening", async () => {
+ const f = await fixture(); const { prepareGroup } = await import("../src/lib/groupExperiences/preparation");
+ await f.repo.members().updateOne({ experienceId: f.experienceId, userId: "alice" }, { $set: { lastPerspective: { perspective: "follower", subjectUserId: "bob" } } });
+ const before = await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" });
+ const preview = await prepareGroup(f.repo, "alice", f.experienceId, { perspective: "default" });
+ assert.equal(preview.bootstrap.selection.perspective, "group");
+ assert.deepEqual(await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }), before);
+ await prepareGroup(f.repo, "alice", f.experienceId, { perspective: "default" }, {});
+ assert.deepEqual((await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }))!.lastPerspective, { perspective: "group" });
+ assert.equal((await prepareGroup(f.repo, "alice", f.experienceId)).bootstrap.selection.perspective, "group");
+ await f.repo.members().updateOne({ experienceId: f.experienceId, userId: "bob" }, { $set: { lastPerspective: { perspective: "group" } } });
+ assert.equal((await prepareGroup(f.repo, "bob", f.experienceId, { perspective: "default" }, {})).bootstrap.selection.perspective, "self");
+ assert.equal((await prepareGroup(f.repo, "bob", f.experienceId)).bootstrap.selection.perspective, "self");
+ await f.repo.members().updateOne({ experienceId: f.experienceId, userId: "bob" }, { $set: { isAdmin: true } });
+ assert.equal((await prepareGroup(f.repo, "bob", f.experienceId, { perspective: "default" })).bootstrap.selection.perspective, "group");
+ await assert.rejects(() => prepareGroup(f.repo, "outsider", f.experienceId, { perspective: "default" }));
+});
