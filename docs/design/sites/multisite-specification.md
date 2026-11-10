@@ -5,6 +5,7 @@
 **Status:** Ready for Copilot engineering review; not approved for implementation  
 **Replaces:** V1 and subsequent amendments in chat
 
+
 ## 1. Purpose
 
 The existing Next.js project contains both a public-facing website and the underlying learning application. We now need **three distinct public-facing websites**, one for each product, while retaining **one repository, one underlying application and shared infrastructure**.
