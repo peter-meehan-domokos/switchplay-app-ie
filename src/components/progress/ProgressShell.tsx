@@ -9,6 +9,9 @@ import styles from "./progress.module.css";
 import ItemCardDialog from "./ItemCardDialog";
 import AreaDeckDialog from "./AreaDeckDialog";
 import { readProgressPosition, rememberProgressPosition } from "@/lib/frameworks/progressNavigation";
+import { getFrameworkCustomFilters, type CustomFilterValues } from "@/lib/frameworks/customFilters";
+import { buildFrameworkProgressTableLayout } from "./frameworkProgressTableLayout";
+import CustomFilters from "./CustomFilters";
 
 export default function ProgressShell({ currentUserId, userName, experienceId }: { currentUserId: string; userName: string; experienceId?: string }) {
   if (experienceId) return <GroupProgressView key={JSON.stringify([currentUserId, experienceId])} actor={currentUserId} experienceId={experienceId} userName={userName} />;
@@ -20,7 +23,12 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
   const [area, setArea] = useState<{ id: string; title: string } | null>(null);
   const [item, setItem] = useState<{ id: string; title: string } | null>(null);
   const restoredPosition = useRef(false);
+  // Custom filter selections are local to this view and kept per Framework, so switching
+  // Frameworks and back retains them. Leaving and reopening Progress resets to defaults.
+  const [filterValues, setFilterValues] = useState<Readonly<Record<string, CustomFilterValues>>>({});
   const summary = useProgressSummary(actor, selected);
+  const customFilters = getFrameworkCustomFilters(selected);
+  const tableFramework = summary.data ? buildFrameworkProgressTableLayout(summary.data, customFilters, filterValues[selected] ?? {}) : undefined;
   useEffect(() => {
     if (!summary.data || summary.loading || restoredPosition.current) return;
     restoredPosition.current = true;
@@ -65,10 +73,12 @@ function ProgressSession({ actor, userName }: { actor: string; userName: string 
       <label className="progress-framework-selector">Framework<select aria-label="Framework" value={selected} onChange={(event) => select(event.target.value)}>
         {metadata.map((framework) => <option key={framework.id} value={framework.id}>{framework.title}</option>)}
       </select></label>
-      {summary.error ? <p className="progress-notice" role="alert">{summary.error} <button type="button" onClick={summary.refresh}>Refresh progress</button></p> : null}
+      <CustomFilters filters={customFilters} values={filterValues[selected] ?? {}}
+        onChange={(filterId, value) => setFilterValues((previous) => ({ ...previous, [selected]: { ...previous[selected], [filterId]: value } }))} />
+      {summary.error ?<p className="progress-notice" role="alert">{summary.error} <button type="button" onClick={summary.refresh}>Refresh progress</button></p> : null}
       {summary.loading ? <p className="progress-refresh" role="status">{summary.data ? "Refreshing progress…" : "Loading progress…"}</p> : null}
-      {summary.data ? <section aria-label={summary.data.title} aria-busy={summary.loading}>
-        <FrameworkProgressTable key={JSON.stringify([actor, selected])} actor={actor} framework={summary.data} unavailable={!!summary.error}
+      {summary.data && tableFramework ? <section aria-label={summary.data.title} aria-busy={summary.loading}>
+        <FrameworkProgressTable key={JSON.stringify([actor, selected])} actor={actor} framework={tableFramework} unavailable={!!summary.error}
           onArea={(id, title) => { setItem(null); setArea({ id, title }); }} onItem={(id, title) => { setArea(null); setItem({ id, title }); }} />
       </section> : null}
     </> : null}

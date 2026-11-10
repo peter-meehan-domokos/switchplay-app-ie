@@ -1,4 +1,5 @@
 import { createFrameworkAccess, type Framework } from "./configurationContracts";
+import { salvaSkillsPlan } from "./basketball/salva-skills-plan";
 export * from "./configurationContracts";
 
 // Sample curriculum for development/manual acceptance. Array order and identities
@@ -57,5 +58,50 @@ const catalogue: readonly Framework[] = Object.freeze([
       },
     ],
   },
+  //calculus
+  {
+    id: "functions-and-graphs",
+    title: "Functions and Graphs - Higher",
+    areas: [
+      {
+        id: "funcs1",
+        title: "Functions 1",
+        items: [
+          {
+            id: "cgcheac",
+            title: "enaegnac",
+            cardTemplateIds: ["card-978dd6c8-683b-476e-bd18-50f99018fe16", "card-a8e7ca26-2422-44b0-8f32-518ab483751f", "card-2ce6e32f-354a-420a-8766-abae800e1a0e", "card-0a2da2c9-8d4b-4779-a2f8-9e468313443a"],
+          },
+          {
+            id: "aegze",
+            title: "aeo.deod.e",
+            cardTemplateIds: [],
+          },
+        ],
+      },
+      {
+        id: "transformations",
+        title: "Transformations",
+        items: [
+          {
+            id: "ed.oed",
+            title: "en.goeeo.eo.",
+            cardTemplateIds: [],
+          },
+          {
+            id: "hodshdoshd",
+            title: "ehsoh h dhosd hod hs",
+            cardTemplateIds: [],
+          },
+        ],
+      },
+      {
+        id: "inverses",
+        title: "Inverses",
+        items: [], // no items for now
+      },
+    ]
+  },
+  salvaSkillsPlan
 ]);
 export const { getFrameworks, getFramework, getFrameworkItem } = createFrameworkAccess(catalogue);

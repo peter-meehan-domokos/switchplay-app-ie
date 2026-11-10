@@ -30,7 +30,12 @@ test("Area configured Card presence checks its Items, including empty Areas and 
 
 test("sample catalogue retains its identities/order; injected empty Frameworks, Areas, Items and mappings are valid", () => {
   assertFrameworkConfiguration(getFrameworks());
-  assert.deepEqual(getFrameworks().map((framework) => framework.id), ["leaving-cert-hl"]);
+  // The catalogue grows over time, so assert on membership and the leading Framework rather than an exact list.
+  const ids = getFrameworks().map((framework) => framework.id);
+  assert.equal(ids[0], "leaving-cert-hl");
+  for (const id of ["leaving-cert-hl", "functions-and-graphs", "salva-skills-plan"]) assert.ok(getFramework(id), id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.equal(getFramework("salvaSkillsPlan"), undefined);
   assert.deepEqual(getFrameworks()[0].areas.map((area) => area.id), ["algebra", "calculus", "trigonometry"]);
   assert.deepEqual(getFrameworks()[0].areas.flatMap((area) => area.items.map((item) => item.id)),
     ["quadratic-equations", "factor-theorem", "solving-cubics", "differentiation", "stationary-points", "integration"]);
