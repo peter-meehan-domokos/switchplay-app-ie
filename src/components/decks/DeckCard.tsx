@@ -18,6 +18,7 @@ type DeckCardProps = {
   isDeckFlipped: boolean;
   deckFlipRotationY: number;
   stackZone: "past" | "active" | "future";
+  layoutDependency: string;
   showHeader: boolean;
   showProgress: boolean;
   prepareContent?: boolean;
@@ -47,6 +48,7 @@ export default function DeckCard({
   isDeckFlipped,
   deckFlipRotationY,
   stackZone,
+  layoutDependency,
   showHeader,
   showProgress,
   prepareContent = false,
@@ -88,6 +90,7 @@ export default function DeckCard({
       className={`deck-card-slot deck-card ${cardStateClass}`}
       data-deck-flipped={isDeckFlipped ? "true" : "false"}
       layout
+      layoutDependency={layoutDependency}
       layoutId={`week-card-${cardPresentationIdentity(card)}`}
       role={onActivate ? "button" : undefined}
       tabIndex={onActivate ? 0 : undefined}

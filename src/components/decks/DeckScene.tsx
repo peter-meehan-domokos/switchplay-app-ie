@@ -508,6 +508,8 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
             latestPastGestureHandlers={latestPastGestures.handlers}
             activeGesturePreviewY={activeGesturePreviewY}
             suppressActiveCardActivation={suppressActiveCardActivation}
+            focusModeOpen={isFocusModeOpen}
+            sceneScale={deckSceneLayout.scale}
             transition={transition}
           /></PerspectiveExchange> : null}
         </div>

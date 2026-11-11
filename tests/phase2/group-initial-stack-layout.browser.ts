@@ -6,11 +6,11 @@ import { expect, test, type BrowserContext, type BrowserType, type Page } from "
 // position. Every animation frame is sampled from document start. The FIRST frame in which the
 // scene exists must already carry the final scale, height and Card positions.
 //
-// KNOWN RESIDUAL (not fixed here): when the scene is scaled below 1 (short viewports, e.g. Safari
-// with toolbars) Framer's layout measurement is thrown off by the plain-div scaler, so the back
-// Cards drift by about (1 - scale) x their translate whenever an ancestor re-renders, then ease
-// back. Strict "no later movement" is therefore asserted only where the scale is 1; scaled
-// viewports assert a bound so a larger regression is still caught.
+// Regression: when the scene is scaled below 1 (short viewports, e.g. iPhone Safari with toolbars)
+// Framer's pre-render snapshot is thrown off by the plain-div scaler. Without a layout dependency
+// every unrelated render (a resource reply after entry, or the re-render on returning to the app)
+// animated the back Cards down by up to 7px and back. Nothing may move after the first frame, at
+// any scale, on entry or on resume.
 const group = JSON.parse(process.env.PHASE2_GROUP_FIXTURE ?? "null") as { experienceId: string; deckId: string; cardIds: string[] } | null;
 test.skip(!group, "Requires disposable --group-experiences fixture");
 test.use({ trace: "off" });
@@ -70,12 +70,29 @@ async function assertStable(page: Page, { cold }: { cold: boolean }) {
   }
   // The stack is in its final place in the first painted frame.
   first.tops.forEach((top, i) => expect(Math.abs(top - last.tops[i]), `Card ${i} is displaced in the first frame`).toBeLessThan(.75));
-  const scaled = last.scale < .9995;
-  // Unscaled: nothing may move afterwards. Scaled: only the documented residual drift is tolerated.
-  const allowed = scaled ? 1 + (1 - last.scale) * 75 : .75;
-  if (scaled) test.info().annotations.push({ type: "known-residual", description: "Framer layout measurement under the scaled scene drifts the back Cards after re-renders" });
-  for (const frame of frames) frame.tops.forEach((top, i) => expect(Math.abs(top - last.tops[i]), `Card ${i} moved after the first frame (scale ${last.scale})`).toBeLessThan(allowed));
+  assertNoMovement(frames, last, "after the first frame");
   return last;
+}
+function assertNoMovement(frames: Frame[], last: Frame, when: string) {
+  for (const frame of frames) frame.tops.forEach((top, i) => expect(Math.abs(top - last.tops[i]), `Card ${i} moved ${when} (scale ${last.scale})`).toBeLessThan(.75));
+}
+// Returning to the app: the browser fires visibilitychange, pageshow and focus, and the Group
+// resource re-renders the Deck at once and again when its refresh replies arrive.
+async function assertStableOnResume(page: Page) {
+  await page.evaluate(() => {
+    const set = (state: "hidden" | "visible") => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => state === "hidden" });
+    };
+    set("hidden"); window.dispatchEvent(new Event("blur")); document.dispatchEvent(new Event("visibilitychange"));
+    window.__sceneFrames.length = 0;
+    set("visible"); document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })); window.dispatchEvent(new Event("focus"));
+  });
+  await page.waitForTimeout(2000);
+  const frames = await page.evaluate(() => window.__sceneFrames);
+  expect(frames.length).toBeGreaterThan(10);
+  assertNoMovement(frames, frames.at(-1)!, "after returning to the app");
 }
 async function finish(browser: { close(): Promise<void> }, context: BrowserContext) { await context.close(); await browser.close(); }
 
@@ -86,6 +103,7 @@ for (const engine of ["chromium", "webkit"] as const) {
       try {
         await page.goto(`/decks?openExperience=${group!.experienceId}`);
         await assertStable(page, { cold: true });
+        await assertStableOnResume(page);
       } finally { await finish(browser, context); }
     });
   }
@@ -108,6 +126,7 @@ for (const engine of ["chromium", "webkit"] as const) {
     try {
       await page.goto(`/decks?openDeck=${group!.deckId}`);
       await assertStable(page, { cold: false });
+      await assertStableOnResume(page);
     } finally { await finish(browser, context); }
   });
 }

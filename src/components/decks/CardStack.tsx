@@ -4,6 +4,7 @@ import type { MotionStyle } from "motion/react";
 import { cardPresentationIdentity, type PresentedCard, type CardBackPresentation } from "./presentation";
 import DeckCard from "@/components/decks/DeckCard";
 import type { DeckGestureHandlers } from "@/components/decks/gestures/gestureTypes";
+import { buildCardLayoutDependency, type CardStackZone } from "@/components/decks/cardStackLayout";
 import {
   ACTIVE_CARD_OCCLUSION_RELIEF,
   CARD_ASPECT_RATIO,
@@ -65,10 +66,10 @@ type CardStackProps = {
   latestPastGestureHandlers?: DeckGestureHandlers;
   activeGesturePreviewY?: number;
   suppressActiveCardActivation?: boolean;
+  focusModeOpen: boolean;
+  sceneScale: number;
   transition: object;
 };
-
-type CardStackZone = "past" | "active" | "future";
 
 export type CardTransitionPhase = {
   fromIndex: number;
@@ -318,6 +319,8 @@ export default function CardStack({
   latestPastGestureHandlers,
   activeGesturePreviewY = 0,
   suppressActiveCardActivation = false,
+  focusModeOpen,
+  sceneScale,
   transition,
 }: CardStackProps) {
   const displayedActiveCardIndex = transitionPhase?.fromIndex ?? activeCardIndex;
@@ -353,6 +356,7 @@ export default function CardStack({
               isDeckFlipped={isDeckFlipped}
               deckFlipRotationY={deckFlipRotationY}
               stackZone={baseStackStyle.zone}
+              layoutDependency={buildCardLayoutDependency({ zone: baseStackStyle.zone, focusModeOpen, sceneScale })}
               showHeader={baseStackStyle.showHeader}
               showProgress={baseStackStyle.showProgress}
               prepareContent={index === transitionPhase?.toIndex}
