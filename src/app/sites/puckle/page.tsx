@@ -3,7 +3,6 @@ import Image from "next/image";
 import { brandFontClassName } from "./components/BrandLink";
 import PublicLayout from "./components/PublicLayout";
 import PublicHeader from "./components/PublicHeader";
-import CreatorSection from "./components/CreatorSection";
 import BenefitSections from "./components/BenefitSections";
 import { FollowerInterestSection } from "./components/HowItWorksSection";
 import { SITE_TITLE_NAME } from "./siteInfo";
@@ -59,7 +58,6 @@ export default function Home() {
       <div className={brandFontClassName}>
         <BenefitSections />
       </div>
-      <CreatorSection />
       <FollowerInterestSection />
     </PublicLayout>
   );

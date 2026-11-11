@@ -1,18 +1,14 @@
 .sections {
   display: grid;
-  gap: 64px;
-  margin-top: 12px;
-  padding-bottom: 60px;
+  gap: 56px;
+  margin-top: 56px;
+  padding-bottom: 56px;
 }
 
 .section {
   display: grid;
   gap: 40px;
   scroll-margin-block-start: 24px;
-}
-
-.primary {
-  padding-top: 52px;
 }
 
 .secondary {
@@ -221,7 +217,7 @@
   margin: 0;
   overflow: hidden;
   border-radius: 20px;
-  width: 230px;
+  width: 200px;
 }
 
 .portraitImage {
@@ -231,7 +227,7 @@
 }
 
 .tuitionCopy,
-.progressCopy {
+.progressIntro {
   display: grid;
   gap: 16px;
   align-content: center;
@@ -260,7 +256,7 @@
 /* Section 3 */
 .ideas {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   color: var(--sp-site-text-muted);
@@ -292,14 +288,13 @@
 
 @media (min-width: 900px) {
   .sections {
-    gap: 96px;
-    margin-top: 0;
+    gap: 88px;
+    margin-top: 56px;
     padding-bottom: 72px;
   }
 
   .primary {
     gap: 56px;
-    padding-top: 32px;
   }
 
   .secondary {
@@ -348,36 +343,56 @@
   }
 
   .tuition {
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 56px;
-    align-items: center;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-areas:
+      "portrait header"
+      "portrait copy";
+    column-gap: 56px;
+    row-gap: 16px;
+    align-items: start;
+  }
+
+  .tuitionHeader {
+    grid-area: header;
+    align-self: end;
   }
 
   .portrait {
-    width: 280px;
+    grid-area: portrait;
+    width: 260px;
+  }
+
+  .tuitionCopy {
+    grid-area: copy;
+    align-content: start;
   }
 
   .progress {
     grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
     grid-template-areas:
-      "copy media"
+      "intro media"
+      "ideas media"
       "cta media";
     column-gap: 56px;
-    row-gap: 32px;
-    align-items: center;
+    row-gap: 24px;
+    align-items: start;
   }
 
-  .progressCopy {
-    grid-area: copy;
+  .progressIntro {
+    grid-area: intro;
     align-self: end;
   }
 
   .progressMedia {
     grid-area: media;
+    align-self: center;
+  }
+
+  .ideas {
+    grid-area: ideas;
   }
 
   .cta {
     grid-area: cta;
-    align-self: start;
   }
 }

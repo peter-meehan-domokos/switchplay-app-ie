@@ -5,18 +5,9 @@ import styles from "./BenefitSections.module.css";
 const cardSteps = ["Learn", "Explore", "Test yourself"] as const;
 
 const progressIdeas = [
-  {
-    title: "Make it yours",
-    body: "Reorganise or adapt Cards around your needs; add notes, photos and videos.",
-  },
-  {
-    title: "Learn from others",
-    body: "In a learning group, see another student’s helpful Info Card: a note, photo of working or short video.",
-  },
-  {
-    title: "See your progress",
-    body: "Keep an eye on progress towards the exam topics you are working on.",
-  },
+  { title: "Make it yours", body: "Save ideas and shape your own learning." },
+  { title: "Learn from others", body: "Share notes, working and explanations." },
+  { title: "See your progress", body: "Stay focused on your exam goals." },
 ] as const;
 
 const tuitionOptions = ["One-to-one", "Small groups", "Flexible focused sessions"] as const;
@@ -126,23 +117,23 @@ function LearningSection() {
 function TuitionSection() {
   return (
     <section className={`${styles.section} ${styles.secondary} ${styles.tuition}`} aria-labelledby="tuition-title">
+      <header className={`${styles.header} ${styles.tuitionHeader}`}>
+        <p className={styles.eyebrow}>PERSONAL SUPPORT</p>
+        <h2 className={styles.secondaryTitle} id="tuition-title">
+          Expert tuition, your way.
+        </h2>
+      </header>
       <figure className={styles.portrait}>
         <Image
           alt="Your Puckle maths teacher"
           className={styles.portraitImage}
           height={1280}
-          sizes="(min-width: 900px) 280px, 230px"
+          sizes="(min-width: 900px) 260px, 200px"
           src="/images/sites/puckle/puckle-tutor-photo.jpg"
           width={960}
         />
       </figure>
       <div className={styles.tuitionCopy}>
-        <header className={styles.header}>
-          <p className={styles.eyebrow}>PERSONAL SUPPORT</p>
-          <h2 className={styles.secondaryTitle} id="tuition-title">
-            Expert tuition, your way.
-          </h2>
-        </header>
         <p className={styles.body}>
           Learn with an experienced maths teacher who makes tricky ideas clear, engaging and relevant — with examples
           from sport, business and everyday life.
@@ -163,7 +154,7 @@ function TuitionSection() {
 function ProgressSection() {
   return (
     <section className={`${styles.section} ${styles.secondary} ${styles.progress}`} aria-labelledby="progress-title">
-      <div className={styles.progressCopy}>
+      <div className={styles.progressIntro}>
         <header className={styles.header}>
           <p className={styles.eyebrow}>YOUR LEARNING</p>
           <h2 className={styles.secondaryTitle} id="progress-title">
@@ -171,16 +162,8 @@ function ProgressSection() {
           </h2>
         </header>
         <p className={styles.body}>
-          Work on the maths that matters to you. Keep your own notes, photos and videos with the Cards, pick up ideas
-          from other students, and see how far you’ve come.
+          Make the learning yours, build on ideas from others and stay focused on your exam goals.
         </p>
-        <ul className={styles.ideas}>
-          {progressIdeas.map((idea) => (
-            <li key={idea.title}>
-              <strong>{idea.title}</strong> — {idea.body}
-            </li>
-          ))}
-        </ul>
       </div>
       <figure className={`${styles.media} ${styles.progressMedia}`}>
         <Image
@@ -192,6 +175,13 @@ function ProgressSection() {
           width={1440}
         />
       </figure>
+      <ul className={styles.ideas}>
+        {progressIdeas.map((idea) => (
+          <li key={idea.title}>
+            <strong>{idea.title}</strong> — {idea.body}
+          </li>
+        ))}
+      </ul>
       <div className={styles.cta}>
         <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
           Get tuition

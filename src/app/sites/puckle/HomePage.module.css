@@ -1,7 +1,7 @@
 .hero {
   display: grid;
   gap: 22px;
-  padding-block: 12px clamp(48px, 12vw, 96px);
+  padding-block: 12px 0;
 }
 
 .heroCopy {
@@ -47,7 +47,6 @@
     gap: clamp(18px, 6vw, 72px);
     grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.82fr);
     align-items: center;
-    min-height: calc(100svh - 150px - var(--sp-site-spacing-comfortable) - var(--sp-site-spacing-comfortable));
   }
 
   .heroCopy {
