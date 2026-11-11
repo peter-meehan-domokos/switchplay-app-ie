@@ -1,121 +1,42 @@
 .hero {
   display: grid;
-  gap: clamp(6px, 2.5vw, 72px);
-  padding-block: clamp(10px, 3vw, 24px) clamp(48px, 12vw, 96px);
+  gap: 22px;
+  padding-block: 12px clamp(48px, 12vw, 96px);
 }
 
 .heroCopy {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   max-width: 680px;
 }
 
 .title {
   color: var(--sp-site-text);
-  font-size: clamp(2.05rem, 10vw, 6.5rem);
-  font-weight: 850;
-  line-height: 0.98;
-  max-width: none;
-}
-
-.titleLine {
-  display: block;
-  white-space: nowrap;
-}
-
-.unofficialMark {
-  position: relative;
-  display: inline-block;
-  margin-inline: 0.01em 0.03em;
-  padding-bottom: 0.08em;
-  color: var(--sp-site-accent-orange);
-  transform: skewX(-3deg);
-  transform-origin: left bottom;
-}
-
-.unofficialMark::after {
-  position: absolute;
-  left: 17.5%;
-  bottom: -0.01em;
-  width: 59%;
-  height: clamp(1px, 0.034em, 3px);
-  border-radius: 999px 70% 999px 60%;
-  background: var(--sp-site-accent-orange);
-  content: "";
-  opacity: 0.88;
-  transform: rotate(-3deg);
-  transform-origin: left center;
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(1.9rem, 8.4vw, 2.6rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  max-width: 12ch;
+  text-wrap: balance;
 }
 
 .supportingText {
   color: var(--sp-site-text-muted);
-  font-size: clamp(0.96rem, 4.1vw, 1.28rem);
+  font-size: clamp(0.98rem, 4vw, 1.12rem);
   line-height: 1.55;
-  max-width: 31rem;
-}
-
-.supportingText span {
-  display: block;
-  white-space: nowrap;
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  width: fit-content;
-}
-
-.primaryAction {
-  min-height: 44px;
-  padding-inline: 20px;
-}
-
-.secondaryAction {
-  min-height: auto;
-  padding: 2px 0;
-  color: var(--sp-site-text-muted);
-  font-size: 0.93rem;
-  font-weight: 750;
-  text-decoration: underline;
-  text-decoration-color: rgba(168, 214, 228, 0.5);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 5px;
-}
-
-.secondaryAction:hover {
-  color: var(--sp-site-accent-blue);
+  max-width: 30rem;
 }
 
 .artworkPanel {
-  border: 1px solid rgba(168, 214, 228, 0.2);
   border-radius: var(--sp-site-card-radius);
-  background:
-    linear-gradient(135deg, rgba(255, 250, 240, 0.09), rgba(168, 214, 228, 0.08)),
-    rgba(255, 255, 255, 0.035);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
   justify-self: center;
-  max-width: 520px;
+  max-width: 380px;
   overflow: hidden;
   width: 100%;
 }
 
 .artworkImage {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.creatorArtworkPanel {
-  margin: clamp(36px, 8vw, 88px) auto clamp(16px, 4vw, 40px);
-  max-width: 900px;
-  overflow: hidden;
-  width: 100%;
-}
-
-.creatorArtworkImage {
   display: block;
   width: 100%;
   height: auto;
@@ -133,30 +54,12 @@
     gap: 18px;
   }
 
+  .artworkPanel {
+    max-width: 540px;
+  }
+
   .title {
-    font-size: clamp(2.65rem, 3.825vw, 3.9375rem);
+    font-size: clamp(2.6rem, 4vw, 3.6rem);
+    max-width: 14ch;
   }
-
-  .actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px 18px;
-    margin-top: 4px;
-    width: auto;
-  }
-
-  .primaryAction {
-    min-height: 48px;
-    padding-inline: 22px;
-  }
-
-  .secondaryAction {
-    min-height: 48px;
-    padding: 0 8px;
-    color: var(--sp-site-text);
-    font-size: 0.95rem;
-    text-decoration: none;
-  }
-
 }

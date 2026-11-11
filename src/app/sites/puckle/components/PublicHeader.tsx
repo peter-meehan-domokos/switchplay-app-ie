@@ -1,5 +1,7 @@
 import Link from "next/link";
 import BrandLink from "./BrandLink";
+import HeaderMenu from "./HeaderMenu";
+import buttonStyles from "./PublicButton.module.css";
 import { getCurrentUser } from "@/lib/auth";
 import styles from "./PublicHeader.module.css";
 
@@ -11,28 +13,23 @@ type PublicHeaderProps = {
 export default async function PublicHeader({ showJoinLink = true, showLoginLink = true }: PublicHeaderProps) {
   const user = await getCurrentUser();
   const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Log in" };
+  const menuLinks = [
+    { href: "/contact", label: "Contact" },
+    { href: "/step-visuals", label: "Step Visuals" },
+    ...(showLoginLink ? [authLink] : []),
+  ];
 
   return (
     <header className={styles.header}>
       <BrandLink />
-      <nav className={styles.nav} aria-label="Public navigation">
+      <div className={styles.actions}>
         {showJoinLink && !user ? (
-          <Link className={styles.navLink} href="/#early-access">
+          <Link className={`${buttonStyles.button} ${buttonStyles.primary} ${styles.joinButton}`} href="/#early-access">
             Join
           </Link>
         ) : null}
-        <Link className={styles.navLink} href="/contact">
-          Contact
-        </Link>
-        <Link className={styles.navLink} href="/step-visuals">
-          Step Visuals
-        </Link>
-        {showLoginLink ? (
-          <Link className={styles.navLink} href={authLink.href}>
-            {authLink.label}
-          </Link>
-        ) : null}
-      </nav>
+        <HeaderMenu links={menuLinks} />
+      </div>
     </header>
   );
 }

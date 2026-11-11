@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
-import { SITE_TITLE_NAME } from "../siteInfo";
+import { SITE_NAME, SITE_TITLE_NAME } from "../siteInfo";
 import styles from "./BrandLink.module.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -8,6 +8,8 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
   variable: "--sp-brand-font-family",
 });
+
+export const brandFontClassName = spaceGrotesk.variable;
 
 type BrandLinkProps = {
   className?: string;
@@ -20,7 +22,7 @@ export default function BrandLink({ className }: BrandLinkProps) {
 
   return (
     <Link className={linkClassName} href="/" aria-label={`${SITE_TITLE_NAME} home`}>
-      PUCKLE
+      {SITE_NAME}
     </Link>
   );
 }

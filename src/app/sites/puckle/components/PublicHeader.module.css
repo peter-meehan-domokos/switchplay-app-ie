@@ -1,45 +1,175 @@
 .header {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding-block: 4px clamp(8px, 3vw, 42px);
+  gap: 12px;
+  padding-block: 4px clamp(0px, 1vw, 24px);
 }
 
-.nav {
+.actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: clamp(6px, 2vw, 14px);
+  gap: 4px;
 }
 
-.navLink {
+.actions .joinButton {
+  position: relative;
+  min-height: 30px;
+  padding-inline: 13px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Keeps a 44px touch target around the smaller visual button. */
+.joinButton::after {
+  position: absolute;
+  inset: -7px -4px;
+  content: "";
+}
+
+.menu {
+  position: relative;
+}
+
+.menuButton {
   display: inline-flex;
-  min-height: 44px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  color: var(--sp-site-text-muted);
-  font-size: 0.92rem;
-  font-weight: 560;
-  line-height: 1;
-  padding: 0 8px;
-  text-decoration: none;
-}
-
-.navLink:hover {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--sp-site-text);
+  cursor: pointer;
+  padding: 0;
 }
 
-.navLink:focus-visible {
+.menuButton svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.menuButton:hover {
+  color: var(--sp-site-accent-blue);
+}
+
+.menuButton:focus-visible {
   outline: 3px solid var(--sp-site-accent-blue);
   outline-offset: 4px;
 }
 
-@media (min-width: 520px) {
+/* Mobile: the nav is a dropdown panel, closed by default. */
+.nav {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: none;
+  min-width: 200px;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid rgba(168, 214, 228, 0.2);
+  border-radius: var(--sp-site-card-radius);
+  background: #12151c;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  padding: 8px;
+}
+
+.nav[data-open="true"] {
+  display: flex;
+}
+
+.navLink {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  border-radius: 10px;
+  color: var(--sp-site-text);
+  font-size: 1rem;
+  font-weight: 560;
+  line-height: 1;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: rgba(255, 250, 240, 0.08);
+}
+
+.navLink:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: -3px;
+}
+
+/* Desktop: conventional horizontal navigation, no hamburger. */
+@media (min-width: 760px) {
+  .actions {
+    gap: 6px;
+  }
+
+  .actions .joinButton {
+    order: 2;
+    margin-left: 8px;
+    min-height: 34px;
+    padding-inline: 15px;
+  }
+
+  .menu {
+    order: 1;
+  }
+
+  .menuButton {
+    display: none;
+  }
+
+  .nav,
+  .nav[data-open="false"] {
+    position: static;
+    display: flex;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
   .navLink {
-    padding-inline: 12px;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--sp-site-text-muted);
+    font-size: 0.92rem;
+    padding: 0 12px;
+  }
+
+  .navLink:hover {
+    background: transparent;
+    color: var(--sp-site-text);
+  }
+
+  .navLink:focus-visible {
+    outline-offset: 4px;
+  }
+}
+
+/* Very narrow phones: keep brand, Join Puckle and the menu button on one row. */
+@media (max-width: 359px) {
+  .header {
+    gap: 8px;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+
+  .actions .joinButton {
+    padding-inline: 11px;
   }
 }

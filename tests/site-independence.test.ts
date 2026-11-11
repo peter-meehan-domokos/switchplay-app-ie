@@ -128,6 +128,6 @@ test("each website's forms post to that website's own endpoints", () => {
 test("only Puckle's header links to Step Visuals and each header shows the site's own brand", () => {
   for (const site of SITE_IDS) {
     const header = readFileSync(join(appDir, "sites", site, "components", "PublicHeader.tsx"), "utf8");
-    assert.equal(header.includes('href="/step-visuals"'), site === "puckle", site);
+    assert.equal(header.includes('"/step-visuals"'), site === "puckle", site);
   }
 });
