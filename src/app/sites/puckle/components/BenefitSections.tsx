@@ -1,16 +1,19 @@
+import { Caveat } from "next/font/google";
 import Image from "next/image";
 import buttonStyles from "./PublicButton.module.css";
 import styles from "./BenefitSections.module.css";
+
+const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
 
 const cardSteps = ["Learn", "Explore", "Test yourself"] as const;
 
 const progressIdeas = [
   { title: "Make it yours", body: "Save ideas and shape your own learning." },
-  { title: "Learn from others", body: "Share notes, working and explanations." },
+  { title: "Learn from others", body: "Share notes and explanations." },
   { title: "See your progress", body: "Stay focused on your exam goals." },
 ] as const;
 
-const tuitionOptions = ["One-to-one", "Small groups", "Flexible focused sessions"] as const;
+const tuitionOptions = ["One-to-one", "Small groups", "Quick topic check-ins"] as const;
 
 export default function BenefitSections() {
   return (
@@ -30,9 +33,6 @@ function LearningSection() {
         <h2 className={styles.primaryTitle} id="learning-title">
           Learning beyond the lesson.
         </h2>
-        <p className={styles.lead}>
-          Clear explanations, maths you can explore for yourself, and feedback that helps you improve your exam work.
-        </p>
         <ol className={styles.stepStrip} aria-label="How each Card works">
           {cardSteps.map((step) => (
             <li key={step}>{step}</li>
@@ -83,29 +83,44 @@ function LearningSection() {
       <div className={styles.beat}>
         <div className={styles.beatCopy}>
           <p className={styles.stepLabel}>Test yourself</p>
-          <h3 className={styles.beatTitle}>Show your working. Get feedback.</h3>
+          <h3 className={styles.beatTitle}>Comments on your work. Video feedback just for you.</h3>
           <p className={styles.body}>
-            Upload a photo of your exam answer and get targeted feedback on what to improve between lessons.
+            Upload your exam answers and get feedback that really helps — from comments directly on your working to
+            short, personalised videos explaining what to focus on next.
           </p>
         </div>
         <div
           className={styles.feedback}
           role="img"
-          aria-label="Illustration: a photo of an exam answer, and the teacher feedback “Good method. Check the final sign.”"
+          aria-label="Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
         >
-          <span className={styles.paper} aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-          </span>
-          <svg className={styles.arrow} aria-hidden="true" focusable="false" height="20" viewBox="0 0 24 20" width="24">
-            <path d="M2 10h19M14 3l7 7-7 7" />
-          </svg>
-          <span className={styles.feedbackCard} aria-hidden="true">
-            <span className={styles.feedbackLabel}>Teacher feedback</span>
-            <span className={styles.feedbackText}>Good method. Check the final sign.</span>
-          </span>
+          <div className={`${handwriting.className} ${styles.paper}`} aria-hidden="true">
+            <p className={styles.workingTitle}>Solve x² - 5x + 6 = 0</p>
+            <div className={styles.workingRow}>
+              <span className={styles.working}>x² - 5x + 6 = 0</span>
+            </div>
+            <div className={styles.workingRow}>
+              <span className={styles.working}>(x - 2)(x - 3) = 0</span>
+              <span className={`${styles.comment} ${styles.commentGood}`}>✓ Good factorising</span>
+            </div>
+            <div className={styles.workingRow}>
+              <span className={styles.working}>
+                x = <span className={styles.flagged}>-2 or x = -3</span>
+              </span>
+              <span className={styles.comment}>Check the signs</span>
+            </div>
+          </div>
+          <div className={styles.videoFeedback} aria-hidden="true">
+            <span className={styles.thumbnail}>
+              <Image alt="" height={1280} sizes="112px" src="/images/sites/puckle/puckle-tutor-photo.jpg" width={960} />
+              <span className={styles.play}>
+                <svg focusable="false" height="12" viewBox="0 0 12 12" width="12">
+                  <path d="M3 1.5v9l7.5-4.5z" />
+                </svg>
+              </span>
+            </span>
+            <span className={styles.videoLabel}>Personal video feedback</span>
+          </div>
         </div>
       </div>
 
@@ -184,7 +199,7 @@ function ProgressSection() {
       </ul>
       <div className={styles.cta}>
         <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
-          Get tuition
+          Let’s talk
         </a>
       </div>
     </section>

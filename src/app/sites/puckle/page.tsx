@@ -4,7 +4,7 @@ import { brandFontClassName } from "./components/BrandLink";
 import PublicLayout from "./components/PublicLayout";
 import PublicHeader from "./components/PublicHeader";
 import BenefitSections from "./components/BenefitSections";
-import { FollowerInterestSection } from "./components/HowItWorksSection";
+import TuitionEnquiryForm from "./components/TuitionEnquiryForm";
 import { SITE_TITLE_NAME } from "./siteInfo";
 import styles from "./HomePage.module.css";
 
@@ -57,8 +57,8 @@ export default function Home() {
       </section>
       <div className={brandFontClassName}>
         <BenefitSections />
+        <TuitionEnquiryForm />
       </div>
-      <FollowerInterestSection />
     </PublicLayout>
   );
 }

@@ -108,8 +108,13 @@ test("website styling stays in CSS modules", () => {
 test("each website writes to its own, correctly named collections", () => {
   const expected = { contact: "ContactSupportSubmissions", "early-access": "EarlyAccessSignups", "creator-interest": "CreatorInterestSubmissions" } as const;
   const legacy = ["creatorInterestSubmissions", "earlyAccessSignups", "contactSupportSubmissions"];
+  // Puckle's early-access URL now receives tuition enquiries, which have their own collection so historical
+  // early-access signups (and their unique indexes) are left untouched.
+  const suffixFor = (site: string, route: string, suffix: string) =>
+    site === "puckle" && route === "early-access" ? "TuitionEnquiries" : suffix;
   for (const site of SITE_IDS) {
-    for (const [route, suffix] of Object.entries(expected)) {
+    for (const [route, defaultSuffix] of Object.entries(expected)) {
+      const suffix = suffixFor(site, route, defaultSuffix);
       const source = readFileSync(join(appDir, "api", "public", site, route, "route.ts"), "utf8");
       assert.ok(source.includes(`"${site}${suffix}"`), `${site}/${route} should use ${site}${suffix}`);
       for (const name of legacy) assert.ok(!source.includes(`"${name}"`), `${site}/${route} must not use legacy collection ${name}`);

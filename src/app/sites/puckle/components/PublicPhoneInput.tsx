@@ -9,7 +9,9 @@ type PublicPhoneInputProps = {
   contactErrorId?: string;
   error?: string;
   forceInvalid?: boolean;
+  detectCountry?: boolean;
   idPrefix: string;
+  label?: string;
   maxLength: number;
   onPhoneChange: (value: string) => void;
   setRef: (element: HTMLInputElement | null) => void;
@@ -19,8 +21,10 @@ type PublicPhoneInputProps = {
 export default function PublicPhoneInput({
   contactErrorId,
   error,
+  detectCountry = true,
   forceInvalid = false,
   idPrefix,
+  label = "Mobile phone number",
   maxLength,
   onPhoneChange,
   setRef,
@@ -37,17 +41,17 @@ export default function PublicPhoneInput({
   ].filter(Boolean).join(" ");
 
   useEffect(() => {
-    if (didDetectCountryRef.current) {
+    if (!detectCountry || didDetectCountryRef.current) {
       return;
     }
 
     didDetectCountryRef.current = true;
     setDefaultCountry(getDefaultPhoneCountryCodeFromLocales(navigator.languages ?? [navigator.language]));
-  }, []);
+  }, [detectCountry]);
 
   return (
     <div className={styles.field}>
-      <label htmlFor={inputId}>Mobile phone number</label>
+      <label htmlFor={inputId}>{label}</label>
       <PhoneInput
         aria-describedby={describedBy}
         aria-invalid={error || forceInvalid ? "true" : "false"}

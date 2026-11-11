@@ -6,7 +6,7 @@ import { MongoClient, type Db } from "mongodb";
 const SITES = ["strat17", "puckle", "switchplay"] as const;
 const FORMS = [
   { route: "contact", suffix: "ContactSupportSubmissions", legacy: "contactSupportSubmissions", body: { name: "Sam Tester", email: "sam@example.com", purpose: "General enquiry", message: "Hello there" } },
-  { route: "early-access", suffix: "EarlyAccessSignups", legacy: "earlyAccessSignups", body: { name: "Sam Tester", email: "sam@example.com", goals: "Learn something", additionalInformation: "" } },
+  { route: "early-access", suffix: "EarlyAccessSignups", legacy: "earlyAccessSignups", puckleSuffix: "TuitionEnquiries", puckleBody: { enquirerType: "student-adult", contactName: "Sam Tester", mathsCourse: "gcse", email: "sam@example.com", preferredContactMethod: "email", message: "" }, body: { name: "Sam Tester", email: "sam@example.com", goals: "Learn something", additionalInformation: "" } },
   { route: "creator-interest", suffix: "CreatorInterestSubmissions", legacy: "creatorInterestSubmissions", body: { name: "Sam Tester", email: "sam@example.com", age: 30, location: "Dublin", creatorIdea: "A path about running", additionalInformation: "" } },
 ] as const;
 
@@ -39,16 +39,19 @@ test("each website's form handlers store only in that website's own collections"
   for (const site of SITES) {
     for (const form of FORMS) {
       const handler = (await import(`../src/app/api/public/${site}/${form.route}/route`)) as Handler;
-      const response = await post(handler, form.body);
+      const isPuckleEnquiry = site === "puckle" && form.route === "early-access";
+      const response = await post(handler, isPuckleEnquiry ? (form as typeof FORMS[1]).puckleBody : form.body);
       assert.equal(response.status, 201, `${site}/${form.route}: ${await response.clone().text()}`);
 
-      const expectedCollection = `${site}${form.suffix}`;
+      const expectedCollection = `${site}${isPuckleEnquiry ? (form as typeof FORMS[1]).puckleSuffix : form.suffix}`;
       assert.equal(await db.collection(expectedCollection).countDocuments(), 1, expectedCollection);
     }
   }
 
   const names = (await db.listCollections({}, { nameOnly: true }).toArray()).map(({ name }) => name).toSorted();
-  const expected = SITES.flatMap((site) => FORMS.map((form) => `${site}${form.suffix}`)).toSorted();
+  const expected = SITES.flatMap((site) =>
+    FORMS.map((form) => `${site}${site === "puckle" && form.route === "early-access" ? (form as typeof FORMS[1]).puckleSuffix : form.suffix}`),
+  ).toSorted();
   assert.deepEqual(names, expected);
   for (const form of FORMS) assert.equal(await db.collection(form.legacy).countDocuments(), 0, `legacy ${form.legacy} must stay untouched`);
 });
