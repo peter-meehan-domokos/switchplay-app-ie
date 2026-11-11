@@ -251,7 +251,10 @@ function getCardStackStyle(index: number, activeCardIndex: number, totalCards: n
         x: getFutureX(relativeIndex) + getFutureRotationXDrift(relativeIndex),
         y: -futureDepth - getFutureRotationYLift(relativeIndex),
         rotate: futureRotation,
-        transformOrigin: "100% 0%",
+        // Cards are Framer layout elements, and layout projection always renders them from the
+        // centre, so this is the origin they settle on. Declaring anything else here only paints
+        // a different look on the first frames of a fresh mount, until projection takes over.
+        transformOrigin: "50% 50%",
         scale: getScale(relativeIndex, CARD_SCALE_STEP),
         opacity: getOpacity(relativeIndex, CARD_OPACITY_STEP),
         "--future-brightness": Math.max(0.74, 0.9 - futureAtmosphericDepth * 0.04),

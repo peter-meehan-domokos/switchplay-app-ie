@@ -4,7 +4,7 @@ import { progressObservationState } from "@/lib/frameworks/progressState";
 import { classifyProgress } from "@/lib/progress";
 import PerspectiveExchange from "@/components/group-experiences/PerspectiveExchange";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import CardStack, { type CardTransitionPhase } from "./CardStack";
@@ -109,14 +109,22 @@ function useDeckSceneLayout(
   deckDetailRef: RefObject<HTMLElement | null>,
   deckSceneFrameRef: RefObject<HTMLDivElement | null>
 ) {
-  const [deckSceneLayout, setDeckSceneLayout] = useState<DeckSceneLayout>(defaultDeckSceneLayout);
+  // null until the first measurement. The scene mounts its Cards only once one exists. The Cards
+  // are Framer layout elements that record their box when they mount, so mounting them at the
+  // default scale and then correcting it makes Framer animate them across the difference.
+  const [measuredLayout, setMeasuredLayout] = useState<DeckSceneLayout | null>(null);
 
-  useEffect(() => {
+  // A layout effect, not a passive one: the first measurement must be applied before the
+  // browser paints. Otherwise a data-driven (cold) open paints one frame at the default
+  // scale and frame height, then springs the Cards into place when the real values arrive.
+  // The first update is flushed synchronously before paint; later re-measures are unchanged.
+  useLayoutEffect(() => {
     const scheduledTimeouts: number[] = [];
     const updateDeckSceneLayout = () => {
       const nextDeckSceneLayout = getDeckSceneLayout(deckDetailRef.current, deckSceneFrameRef.current);
 
-      setDeckSceneLayout((currentDeckSceneLayout) => {
+      setMeasuredLayout((currentDeckSceneLayout) => {
+        if (currentDeckSceneLayout === null) return nextDeckSceneLayout;
         const currentFrameHeight = currentDeckSceneLayout.frameHeight ?? -1;
         const nextFrameHeight = nextDeckSceneLayout.frameHeight ?? -1;
         const hasStableFrameHeight = Math.abs(currentFrameHeight - nextFrameHeight) < 0.5;
@@ -156,7 +164,7 @@ function useDeckSceneLayout(
     };
   }, [deckDetailRef, deckSceneFrameRef]);
 
-  return deckSceneLayout;
+  return { ...(measuredLayout ?? defaultDeckSceneLayout), measured: measuredLayout !== null };
 }
 
 // Working adoption reconciles composition in place; personal changes preserve
@@ -484,7 +492,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
         style={deckSceneLayout.frameHeight === null ? undefined : { height: deckSceneLayout.frameHeight }}
       >
         <div className="deck-scene-scaler" style={{ transform: `scale(${deckSceneLayout.scale})` }}>
-          <PerspectiveExchange kind="deck" disabled={isFocusModeOpen} identity={isExperienceDeck(deck) ? deck.cards[0]?.dataIdentity : undefined}><CardStack
+          {deckSceneLayout.measured ? <PerspectiveExchange kind="deck" disabled={isFocusModeOpen} identity={isExperienceDeck(deck) ? deck.cards[0]?.dataIdentity : undefined}><CardStack
             renderBackFace={renderCardBackFace}
             renderAssessment={cardAssessment}
             renderFrontAction={cardFrontAction}
@@ -501,7 +509,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
             activeGesturePreviewY={activeGesturePreviewY}
             suppressActiveCardActivation={suppressActiveCardActivation}
             transition={transition}
-          /></PerspectiveExchange>
+          /></PerspectiveExchange> : null}
         </div>
       </div> : null}
 
