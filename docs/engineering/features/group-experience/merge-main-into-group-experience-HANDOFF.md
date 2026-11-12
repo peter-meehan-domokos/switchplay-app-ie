@@ -4,7 +4,7 @@ Written for: the reviewing agent (Codex) who has not seen this work and will rev
 
 ## Update after the independent review (test and documentation changes only)
 
-An independent review (Codex) found that several tests and test descriptions claimed more than they established. This section records what changed. **Only tests and documentation were changed. No production code was touched, nothing was committed, pushed or deployed, and `feat/group-experience` is still at `40c7626`.** The changes are uncommitted working-tree edits in `/Users/peterdomokos/projects/switchplay-merge` on top of `12fcc38` (the branch tip is unchanged). The results in the rest of this document are historical, recorded before these changes; verification performed after them is in "Verification after the review corrections" below.
+An independent review (Codex) found that several tests and test descriptions claimed more than they established. This section records what changed. **Only tests and documentation were changed. No production code was touched, nothing was pushed or deployed, and `feat/group-experience` is still at `40c7626`.** The changes were first made as uncommitted edits on top of `12fcc38` and were then committed on the review branch: the test changes as `421269085480870a75e2aa64476248a36ddce269` (7) and this handoff, added to the repository, as `0cb5ee5b11be60f4c72df234a9226f214b79e6e5` (8). A later documentation commit (9) corrected this file to match; it is the current branch tip (`git log -1`). The results in the rest of this document are historical, recorded before these changes; verification performed after them is in "Verification after the review corrections" below.
 
 | Area | Correction |
 |---|---|
@@ -23,13 +23,13 @@ Corrections to claims made earlier in this document:
 
 ## Where everything is
 
-Full SHAs: merge `6abeda43c54badfdaa0467110d1a7c29004a7caa`, fixtures `93ec2c35e1e423cc522152709ac7ce433a243bf9`, tests `1bab5850bfdf6d82b4f1f808ec36375ab8a363e8`, dev origin `7a142aafe6b80e00b94b443ee3292b83a191f7e7`, Group image fix `43ef775da2769e9ba4749f7e845e9f92cbd37679`, new tests `12fcc38cfeb068f1844601f18231c1f87a9e8213`.
+Full SHAs: merge `6abeda43c54badfdaa0467110d1a7c29004a7caa`, fixtures `93ec2c35e1e423cc522152709ac7ce433a243bf9`, tests `1bab5850bfdf6d82b4f1f808ec36375ab8a363e8`, dev origin `7a142aafe6b80e00b94b443ee3292b83a191f7e7`, Group image fix `43ef775da2769e9ba4749f7e845e9f92cbd37679`, new tests `12fcc38cfeb068f1844601f18231c1f87a9e8213`, review corrections to the tests `421269085480870a75e2aa64476248a36ddce269`, handoff added `0cb5ee5b11be60f4c72df234a9226f214b79e6e5`.
 
 | Item | Value |
 |---|---|
 | Review worktree | `/Users/peterdomokos/projects/switchplay-merge` |
 | Review branch | `merge/main-into-group-experience` |
-| Branch tip | `12fcc38cfeb068f1844601f18231c1f87a9e8213` |
+| Branch tip | the documentation correction commit (9), the latest commit on the branch (`git log -1`). The tip was `12fcc38cfeb068f1844601f18231c1f87a9e8213` before the review corrections. |
 | Group Experience (parent 1) | `40c76265d79f21d781c2ef197b1597cdbd9b9e91` (`feat/group-experience`, unchanged) |
 | main (parent 2) | `69a4bc6a36817f28a49a62cffe0fce88ec703d5a` (`origin/main`) |
 | Merge base | `de7d378ddcd30e2e37a331c94b49b0f0cd336029` |
@@ -42,8 +42,11 @@ Commits on the review branch, oldest first:
 4. `7a142aa` chore: allow a phone to reach the dev server via configurable origin. `next.config.ts` and README.
 5. `43ef775` fix: give Group focused Cards the signed in viewer for instructional images. One-line source fix in `GroupExperienceDeck.tsx` (see Interaction gap found by the new tests).
 6. `12fcc38` test: cover Group Step media images and visual record ownership. Two new browser specs and one shared helper.
+7. `4212690` test: strengthen Group media and ownership tests, correct overstated descriptions. Review corrections; tests only (see the update section at the top).
+8. `0cb5ee5` docs: add merge handoff for main into Group Experience. Adds this file to the repository.
+9. The commit that corrects this file to record commits 7 and 8 (documentation only).
 
-Commits 4 to 6 were added in the final verification round. Commits 1 to 3 are unchanged. `git log --oneline 40c7626..HEAD` lists all six.
+Commits 4 to 6 were added in the final verification round, and 7 to 9 after the independent review. Commits 1 to 3 are unchanged. `git log --oneline 40c7626..HEAD` lists all nine. Sections below that mention `12fcc38` as the tip, and the test results tables, describe the state before commits 7 to 9.
 
 **One real integration gap was found and fixed (commit 5).** See the section below. It is the only source change after the merge commit.
 
@@ -172,7 +175,7 @@ Group Cards: the one-line fix (`playbackViewerUserId={actor}` on the Group `Focu
 
 ## Verification after the review corrections
 
-Run in `/Users/peterdomokos/projects/switchplay-merge` on the uncommitted changes, after the corrections (the earlier tables above are historical and unchanged):
+Run in `/Users/peterdomokos/projects/switchplay-merge` on the then uncommitted changes, which became commit 7 unchanged, after the corrections (the earlier tables above are historical and unchanged):
 
 | Check | Result |
 |---|---|
