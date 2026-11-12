@@ -33,7 +33,10 @@ let reviewHandler: Awaited<ReturnType<typeof createVisualReviewServer>> | undefi
 const imageObjects = new Map<string, { bytes: Buffer; headers: Record<string, string> }>();
 const mediaFixture = createMediaReviewHandler();
 const media = createServer(async (request, response) => {
-  if (await mediaFixture.handle(request, response)) return;
+  // Canonical instructional images use the object store below in every review mode;
+  // the Group media fixture must not shadow their upload and delivery paths.
+  const instructionalImageRequest = request.url?.startsWith("/upload?key=") || request.url?.startsWith("/assets/instructional-images/");
+  if (!instructionalImageRequest && await mediaFixture.handle(request, response)) return;
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "*");
