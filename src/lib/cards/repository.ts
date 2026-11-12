@@ -1,9 +1,10 @@
 import { assertNoGroupMediaReferences } from "../groupExperiences/media/registry";
+import { assertImageAttachments, assertImagePublication, inheritImageAllocations, prepareImagePublication } from "./instructionalImageOwnership";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { MongoServerError, ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { getDatabase, getMongoClient, withMongoTransaction } from "../mongodb";
-import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
+import { CardArchitectureError, assertAdoption, assertCardContent, assertDeckContent, assertStepMediaWrite, initialCardData, nonblank, requireCondition, swapConstructionSteps } from "./domain";
 import type { AdoptedVersion, CardContent, CardData, CardTemplateRoot, CardTemplateVersion, CreateAndAttachCardCommand, DeckContent, DeckData, DeckTemplateRoot, DeckTemplateVersion, PersonalUser, Visibility, DeckPublicationReview, CopyPublicationReceipt } from "./model";
 import type { CompletionStatus } from "../../components/decks/types";
 import { isIsoDateOnlyString, addDaysToDateOnly } from "../dateOnly";
@@ -56,8 +57,8 @@ export async function createFoundationIndexes(db: Db) {
 }
 
 export class CardRepository {
-  constructor(readonly db: Db, readonly client: MongoClient) {}
-  static async application() { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient()); }
+  constructor(readonly db: Db, readonly client: MongoClient, readonly stepMediaProtocol?: string | null) {}
+  static async application(stepMediaProtocol?: string | null) { assertApplicationDatabase(); return new CardRepository(await getDatabase(), await getMongoClient(), stepMediaProtocol); }
   cards() { return this.db.collection<CardTemplateRoot>(COLLECTIONS.cards); }
   cardVersions() { return this.db.collection<CardTemplateVersion>(COLLECTIONS.cardVersions); }
   decks() { return this.db.collection<DeckTemplateRoot>(COLLECTIONS.decks); }
@@ -403,6 +404,8 @@ export class CardRepository {
       }
       requireCondition(ownedAttachment || ref && (data?.cardTemplateVersion ?? ref.cardVersionAtPublish) === version.version, "FORK_OUTSIDE_PERSONAL_CONTEXT");
     }
+    assertCardContent(command.content);
+    assertStepMediaWrite(this.stepMediaProtocol, command.content, version.content);
     let content: CardContent = editedForkContent(version.content, command.source, command.stepIds,
       withInfoAttachmentDates(command.content, version.content), command.visibility !== undefined);
     requireCondition(command.visibility === undefined || command.visibility === "private" || command.visibility === "public", "INVALID_VISIBILITY");
@@ -417,6 +420,8 @@ export class CardRepository {
         && sameContent(existing.draft, content) && (existing.draftVisibility ?? "private") === (command.visibility ?? "private") && isDeepStrictEqual(existing.stepIds, command.stepIds), "CARD_FORK_RECOVERY_CONFLICT");
       return existing;
     }
+    await inheritImageAllocations(this.db, actor, { scope: "card", targetId: source.cardTemplateId }, { scope: "card", targetId: command.cardTemplateId }, version.content, content, session);
+    await assertImageAttachments(this.db, actor, { scope: "card", targetId: command.cardTemplateId }, content, session);
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId: command.cardTemplateId, ownerUserId: actor, visibility: "private",
       ...(command.visibility === "public" ? { draftVisibility: "public" as const } : {}), latestVersion: 0, draft: content, stepIds: [...command.stepIds], revision: 0, forkedFrom: command.source,
@@ -447,6 +452,7 @@ export class CardRepository {
           requireCondition(current && current.cards.some((ref) => ref.cardTemplateId === command.source.cardTemplateId), "CARD_OUTSIDE_DECK");
           const next = { ...current, cards: current.cards.map((ref) => ref.cardTemplateId === command.source.cardTemplateId ? { cardTemplateId: card.cardTemplateId } : ref) };
           requireCondition(isDeepStrictEqual(next, attach.nextDeckContent), "INVALID_FORK_ATTACHMENT");
+          await assertImageAttachments(this.db, actor, { scope: "deck", targetId: deck.deckTemplateId }, next, session, current);
           await this.deckReferences(actor, next, session);
           await this.recordReferenceChanges(deck.deckTemplateId, [command.source.cardTemplateId, card.cardTemplateId], session);
           const saved = await this.decks().updateOne({ deckTemplateId: deck.deckTemplateId, revision: attach.revision }, {
@@ -479,7 +485,7 @@ export class CardRepository {
       }
       requireCondition(command.newCards === undefined || Array.isArray(command.newCards), "INVALID_NEW_FORK_CARDS");
       for (const card of command.newCards ?? []) {
-        entityId(card.cardTemplateId); assertCardContent(card.content);
+        entityId(card.cardTemplateId); assertCardContent(card.content); assertStepMediaWrite(this.stepMediaProtocol, card.content);
         requireCondition(content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && !version.content.cards.some((ref) => ref.cardTemplateId === card.cardTemplateId)
           && sameContent(card.content, createDefaultCardContent(card.content.steps.map((step) => step.stepId))), "INVALID_NEW_FORK_CARD");
@@ -504,6 +510,8 @@ export class CardRepository {
       } else {
         await assertNoGroupMediaReferences(this.db, content, session);
         await validateForkAttachments(actor, { kind: "deck", source: command.source, targetId: command.deckTemplateId, context: command.context }, deckDraftContent(version.content), content, command.mediaProofs);
+        await inheritImageAllocations(this.db, actor, { scope: "deck", targetId: source.deckTemplateId }, { scope: "deck", targetId: command.deckTemplateId }, version.content, content, session);
+        await assertImageAttachments(this.db, actor, { scope: "deck", targetId: command.deckTemplateId }, content, session);
         const now = new Date();
         await this.recordReferenceChanges(command.deckTemplateId, content.cards.map((ref) => ref.cardTemplateId), session);
         await this.decks().insertOne({ deckTemplateId: command.deckTemplateId, ownerUserId: actor, visibility: "private", latestVersion: 0,
@@ -518,7 +526,7 @@ export class CardRepository {
     cards: { cardTemplateId: string; content: CardContent }[]) {
     entityId(deckTemplateId); assertDeckContent(content);
     requireCondition(Array.isArray(cards) && cards.length === content.cards.length && cards.every((card) => card && typeof card === "object") && new Set(cards.map((card) => card.cardTemplateId)).size === cards.length, "INVALID_INITIAL_GRAPH");
-    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content);
+    for (const card of cards) { entityId(card.cardTemplateId); assertCardContent(card.content); assertStepMediaWrite(this.stepMediaProtocol, card.content);
       requireCondition(card.content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED"); }
     requireCondition(content.cards.every((ref) => cards.some((card) => card.cardTemplateId === ref.cardTemplateId)), "INVALID_INITIAL_GRAPH");
     return this.transaction(async (session) => {
@@ -534,6 +542,8 @@ export class CardRepository {
       }
       const now = new Date();
       await this.guardInfoReferences(actor, cards.map(card => card.content), "private", session);
+      for (const card of cards) await assertImageAttachments(this.db, actor, { scope: "card", targetId: card.cardTemplateId }, card.content, session);
+      await assertImageAttachments(this.db, actor, { scope: "deck", targetId: deckTemplateId }, content, session);
       for (const card of cards) await this.cards().insertOne({ cardTemplateId: card.cardTemplateId, ownerUserId: actor,
         visibility: "private", latestVersion: 0, draft: withInfoAttachmentDates(card.content, null, now), stepIds: card.content.steps.map((step) => step.stepId),
         revision: 0, forkedFrom: null, createdAt: now, updatedAt: now }, { session });
@@ -544,7 +554,7 @@ export class CardRepository {
   }
   async createCardDraft(actor: string, content: CardContent, visibility: Visibility = "private", cardTemplateId: string = randomUUID()) {
     entityId(cardTemplateId);
-    assertCardContent(content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
+    assertCardContent(content); assertStepMediaWrite(this.stepMediaProtocol, content); requireCondition(["public", "private"].includes(visibility), "INVALID_VISIBILITY");
     requireCondition(content.steps.every((step) => step.forkedFrom === undefined), "FORK_OPERATION_REQUIRED");
     const now = new Date();
     const root: CardTemplateRoot = { cardTemplateId, ownerUserId: actor, visibility: "private", ...(visibility === "public" ? { draftVisibility: visibility } : {}), latestVersion: 0,
@@ -554,6 +564,7 @@ export class CardRepository {
       await this.assertUser(actor, session);
       const existing = await this.cards().findOne({ cardTemplateId }, { session });
       if (existing) { requireCondition(existing.ownerUserId === actor && existing.latestVersion === 0 && publicationVisibility(existing) === visibility && sameContent(existing.draft, withInfoAttachmentDates(content, existing.draft)), "INITIAL_CARD_CONFLICT"); return existing; }
+      await assertImageAttachments(this.db, actor, { scope: "card", targetId: cardTemplateId }, content, session);
       await this.guardInfoReferences(actor, [content], "private", session);
       await this.cards().insertOne(root, { session }); return root;
     });
@@ -596,6 +607,7 @@ export class CardRepository {
       const nextIds = nextDeckContent.cards.map((ref) => ref.cardTemplateId);
       await this.recordReferenceChanges(deckTemplateId, [...beforeIds.filter((id) => !nextIds.includes(id)),
         ...nextIds.filter((id) => id !== cardTemplateId && !beforeIds.includes(id))], session);
+      await assertImageAttachments(this.db, actor, { scope: "deck", targetId: deckTemplateId }, nextDeckContent, session, deck.draft ?? publishedContent);
       const result = await this.decks().updateOne({ deckTemplateId, revision: expectedDeckRevision }, {
         $set: { draft: nextDeckContent, updatedAt: now }, $inc: { revision: 1 },
       }, { session });
@@ -617,6 +629,7 @@ export class CardRepository {
     await this.transaction(async (session) => {
       await assertNoGroupMediaReferences(this.db, content, session);
       await this.assertUser(actor, session); await this.deckReferences(actor, content, session);
+      await assertImageAttachments(this.db, actor, { scope: "deck", targetId: root.deckTemplateId }, content, session);
       await this.recordReferenceChanges(root.deckTemplateId, content.cards.map((ref) => ref.cardTemplateId), session);
       await this.decks().insertOne(root, { session });
     }); return root;
@@ -631,6 +644,7 @@ export class CardRepository {
       requireCondition(root.latestVersion === 0 || latest !== null, "MISSING_CARD_VERSION");
       const current = root.draft ?? latest?.content;
       content = withInfoAttachmentDates(content, current);
+      assertStepMediaWrite(this.stepMediaProtocol, content, current);
       for (const step of content.steps) {
         const previous = current?.steps.find((item) => item.stepId === step.stepId) ?? latest?.content.steps.find((item) => item.stepId === step.stepId);
         requireCondition(isDeepStrictEqual(step.forkedFrom, previous?.forkedFrom), "STEP_LINEAGE_IMMUTABLE");
@@ -640,6 +654,7 @@ export class CardRepository {
       const saved = !content.intro.title?.trim() && content.intro.title !== current?.intro.title
         ? { ...content, intro: { ...content.intro, title: restoreCreatorCardTitle(content.intro.title, latest?.content.intro.title) } } : content;
       const draft = nextVisibility === root.visibility && latest && sameContent(saved, latest.content) ? null : saved;
+      await assertImageAttachments(this.db, actor, { scope: "card", targetId: cardTemplateId }, saved, session, current);
       await this.guardInfoReferences(actor, [saved], "private", session);
       const stepIds = [...new Set([...root.stepIds, ...content.steps.map((step) => step.stepId)])];
       // A root retains historical identities; no other Card may claim them.
@@ -664,6 +679,7 @@ export class CardRepository {
       const current = root.draft ?? publishedContent;
       const saved = !content.title.trim() && content.title !== current?.title
         ? { ...content, title: restoreCreatorDeckTitle(content.title, latest?.content.title) } : content;
+      await assertImageAttachments(this.db, actor, { scope: "deck", targetId: deckTemplateId }, saved, session, current);
       const previousIds = current?.cards.map((ref) => ref.cardTemplateId) ?? [], nextIds = content.cards.map((ref) => ref.cardTemplateId);
       const changedIds = [...new Set([...previousIds.filter((id) => !nextIds.includes(id)), ...nextIds.filter((id) => !previousIds.includes(id))])];
       await this.recordReferenceChanges(deckTemplateId, changedIds, session);
@@ -695,6 +711,8 @@ export class CardRepository {
     entityId(actor); entityId(cardTemplateId);
     requireCondition(Number.isInteger(expectedRevision) && expectedRevision >= 0, "INVALID_REVISION");
     const note = this.note(updateNote);
+    const candidate = await this.cards().findOne({ cardTemplateId, ownerUserId: actor, revision: expectedRevision });
+    if (candidate?.draft) await prepareImagePublication(this.db, actor, { scope: "card", targetId: cardTemplateId }, candidate.draft);
     return this.transaction(async (session) => {
       const existing = await this.cards().findOne({ cardTemplateId }, { session });
       requireCondition(existing?.ownerUserId === actor, "CARD_FORBIDDEN");
@@ -708,11 +726,13 @@ export class CardRepository {
       const root = existing;
       requireCondition(root.revision === expectedRevision, "STALE_REVISION");
       requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertCardContent(root.draft);
+      assertStepMediaWrite(this.stepMediaProtocol, root.draft);
       const user = await this.assertUser(actor, session);
       const latest = root.latestVersion >= 1 ? await this.getCardVersion(cardTemplateId, root.latestVersion, session) : null;
       const visibility = draftVisibility(root);
       const issue = cardPublicationIssue(root.latestVersion, root.draft, latest?.content ?? null, root);
       requireCondition(issue === null, issue ?? "NO_UNPUBLISHED_CHANGES");
+      await assertImagePublication(this.db, { scope: "card", targetId: cardTemplateId }, root.draft, session);
       await this.guardInfoReferences(actor, [root.draft], visibility, session);
       const version = root.latestVersion + 1; const now = new Date();
       await this.cardVersions().insertOne({ cardTemplateId, version, content: root.draft, visibility, ...note,
@@ -777,6 +797,8 @@ export class CardRepository {
   }
   async publishDeck(actor: string, deckTemplateId: string, expectedRevision: number, updateNote?: string,
     consent?: { review: DeckPublicationReview; acceptCardDrafts: boolean; acceptNewerForeignCards?: boolean }, forkEntry?: ForkDeckEntry) {
+    const candidate = await this.decks().findOne({ deckTemplateId, ownerUserId: actor, revision: expectedRevision });
+    if (candidate?.draft) await prepareImagePublication(this.db, actor, { scope: "deck", targetId: deckTemplateId }, candidate.draft);
     return this.transaction((session) => this.publishDeckInSession(actor, deckTemplateId, expectedRevision, session, updateNote, consent, undefined, forkEntry));
   }
   // Same publication rules/adoption writes for explicit Publish and atomic Copy.
@@ -804,6 +826,7 @@ export class CardRepository {
     const visibility = draftVisibility(root);
     requireCondition(!root.forkedFrom || root.latestVersion > 0 || forkEntry !== undefined, "FORK_ENTRY_REQUIRED");
     requireCondition(root.draft !== null, "NO_UNPUBLISHED_CHANGES"); assertDeckContent(root.draft);
+    await assertImagePublication(this.db, { scope: "deck", targetId: deckTemplateId }, root.draft, session);
     const cards = await this.deckReferences(actor, root.draft, session);
     if (consent) {
       requireCondition(isDeepStrictEqual(consent.review, this.publicationReview(root, cards)), "DECK_PUBLICATION_REVIEW_CONFLICT");

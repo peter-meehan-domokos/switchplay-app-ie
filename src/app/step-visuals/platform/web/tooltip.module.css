@@ -1,0 +1,5 @@
+.trigger { position: relative; display: inline-block; min-height: 24px; margin: -2px 0; padding: 2px 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; line-height: inherit; text-align: inherit; text-decoration-line: underline; text-decoration-style: dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; touch-action: manipulation; }
+.trigger:focus-visible { outline: 2px solid #28634f; outline-offset: 3px; border-radius: 2px; }
+.popup { position: fixed; z-index: 20; box-sizing: border-box; width: max-content; max-width: min(18rem, calc(100vw - 16px)); padding: 10px 12px; border: 1px solid #c5d3c6; border-radius: 8px; background: #fffdf8; color: #24332f; box-shadow: 0 4px 14px rgb(36 51 47 / 12%); font-family: Arial, Helvetica, sans-serif; font-size: .875rem; line-height: 1.45; overflow: auto; overflow-wrap: anywhere; }
+.popup strong { font-weight: 700; }
+.popup p { margin: 4px 0 0; }

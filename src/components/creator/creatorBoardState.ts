@@ -2,6 +2,7 @@ import type { DeckIntroduction, DeckTemplate, StepDescriptionSpan } from "@/comp
 import { getCreatorRows } from "@/components/creator/creatorDragLabGeometry";
 import { normalizeDeckIntroductionForRuntime } from "@/lib/deckApiTransforms";
 import type { MediaItem } from "@/lib/media";
+import { stepMediaItems, type StepMediaItem } from "@/lib/stepMedia";
 import { clientId } from "@/lib/clientId";
 import { createDefaultDeckContent, DEFAULT_CREATOR_CARD_TITLE, DEFAULT_DECK_CADENCE_DAYS, defaultCreatorThemeTitle, restoreCreatorCardTitle } from "@/lib/cards/creatorDefaults";
 
@@ -23,6 +24,7 @@ export type Column = {
   defaultCardTitle?: string;
   introDescription?: string | null;
   introMediaItem?: MediaItem | null;
+  introMediaItems?: StepMediaItem[];
   targetDate?: string;
 };
 
@@ -37,6 +39,7 @@ export type Pair = {
   stepTitle?: string | null;
   stepDescriptionContent?: StepDescriptionSpan[];
   stepMediaItem: MediaItem | null;
+  stepMediaItems?: StepMediaItem[];
   stepText: string | null;
 };
 
@@ -56,6 +59,7 @@ function isStepTextEmpty(pair: Pair): boolean {
 }
 
 export function isStepMediaEmpty(pairOrStepMediaItem: Pair | MediaItem | null): boolean {
+  if (pairOrStepMediaItem && "stepMediaItems" in pairOrStepMediaItem && pairOrStepMediaItem.stepMediaItems !== undefined) return pairOrStepMediaItem.stepMediaItems.length === 0;
   const stepMediaItem =
     pairOrStepMediaItem === null || "mediaType" in pairOrStepMediaItem
       ? pairOrStepMediaItem
@@ -82,6 +86,10 @@ export function getStepDisplayText(pair: Pair) {
 }
 
 export function getStepMediaDisplayText(pair: Pair) {
+  if (pair.stepMediaItems !== undefined) {
+    const items = stepMediaItems({ mediaItems: pair.stepMediaItems });
+    return items.length === 1 && items[0].kind !== "activity" ? items[0].media.description : items.map(item => item.label).join(" · ") || VIDEO_PLACEHOLDER_TEXT;
+  }
   return isStepMediaEmpty(pair) ? VIDEO_PLACEHOLDER_TEXT : pair.stepMediaItem?.description ?? VIDEO_PLACEHOLDER_TEXT;
 }
 
@@ -470,7 +478,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
         intro: {
           title: normalizeCreatorText(cardTitle),
           description: column.introDescription ?? null,
-          mediaItem: column.introMediaItem ?? null,
+          ...(column.introMediaItems !== undefined ? { mediaItems: column.introMediaItems } : { mediaItem: column.introMediaItem ?? null }),
         },
         steps: board.rows.map((row) => {
           const pair = getPairForTemplateSlot(board, column.id, row);
@@ -481,7 +489,7 @@ export function creatorBoardToDeckTemplate(board: BoardState): DeckTemplate {
             ...(normalizedTitle ? { title: normalizedTitle } : {}),
             description: normalizeCreatorText(pair?.stepText),
             descriptionContent: normalizeCreatorStepDescriptionContent(pair?.stepDescriptionContent),
-            mediaItem: pair?.stepMediaItem ?? null,
+            ...(pair?.stepMediaItems !== undefined ? { mediaItems: pair.stepMediaItems } : { mediaItem: pair?.stepMediaItem ?? null }),
           };
         }),
       };
@@ -578,6 +586,7 @@ function createTemplateColumns(template: DeckTemplate): Column[] {
       defaultCardTitle: cardTitle,
       introDescription: templateCard?.intro.description ?? null,
       introMediaItem: templateCard?.intro.mediaItem ?? null,
+      ...(templateCard?.intro.mediaItems !== undefined ? { introMediaItems: templateCard.intro.mediaItems } : {}),
       targetDate: templateCard?.suggestedTargetDate ?? "",
       ...(templateCard?.infoCardIds !== undefined ? { infoCardIds: [...templateCard.infoCardIds] } : {}),
       ...(templateCard?.infoCardAttachedAt ? { infoCardAttachedAt: { ...templateCard.infoCardAttachedAt } } : {}),
@@ -633,6 +642,7 @@ export function createCreatorBoardFromTemplate(template: DeckTemplate): BoardSta
               stepTitle: step.title ?? null,
               stepDescriptionContent: step.descriptionContent,
               stepMediaItem: step.mediaItem ?? null,
+              ...(step.mediaItems !== undefined ? { stepMediaItems: step.mediaItems } : {}),
               stepText: step.description,
             }
           : emptyPair;

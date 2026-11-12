@@ -1005,6 +1005,17 @@ input {
   white-space: normal;
 }
 
+@media (max-width: 640px) {
+  .creator-pair {
+    /* Keep the 16px media control and its padding inside short mobile cells. */
+    grid-template-rows: minmax(0, var(--creator-pair-step-track)) var(--creator-pair-handle-area-height) minmax(18px, var(--creator-pair-media-track));
+  }
+
+  .creator-pair-step {
+    max-height: min(100%, calc(var(--creator-pair-step-line-clamp, 4) * 1.2em));
+  }
+}
+
 .creator-pair-media {
   align-self: start;
   display: block;
@@ -1037,6 +1048,12 @@ input {
   min-width: 0;
   max-width: 100%;
   cursor: pointer;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
 }
 
 .creator-media-upload-slot--intro {
@@ -4691,7 +4708,7 @@ input {
   stroke-width: 1.5;
 }
 .creator-leave-modal .creator-modal-actions { flex-wrap: wrap; justify-content: flex-end; }
-.creator-navigation-status { font-size: 12px; padding: 0 16px; }
+.creator-navigation-status { font-size: 12px; }
 .creator-feedback .creator-save-message { position: static; width: auto; }
 .creator-entity-save-error {
   padding: 4px;

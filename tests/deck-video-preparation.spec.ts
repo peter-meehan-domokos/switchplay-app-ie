@@ -23,7 +23,8 @@ test.beforeAll(async () => {
           <FocusedCardView {...props} playbackViewerUserId={actor}/></>}/>:null;
     }
     createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
-  ` }, bundle: true, write: false, outfile: "fixture.js", loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" }, platform: "browser", format: "iife", jsx: "automatic", define: {
+  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic",
+    loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" }, define: {
     "process.env.NODE_ENV": JSON.stringify("test"), "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1"),
     "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": JSON.stringify("0"), "process.env": "{}",
   } });
@@ -131,9 +132,11 @@ test("100-Card Deck limits proactive work; rapid navigation and learner change d
   await expect(page.locator(".active-card-front--focused")).toContainText("Introduction 5");
   await page.evaluate(() => (window as unknown as Harness).switchActor());
   await expect(page.locator(".active-card-front--focused")).toHaveCount(0);
-  // StrictMode may abort/restart the two initial jobs on account remount.
-  // Verify the six authorised identities rather than counting cancelled attempts.
-  await expect.poll(() => new Set(f.requests.filter(r => r.actor === "bob" && r.kind === "grant").map(r => r.asset)).size).toBe(6);
+  // Strict Mode can dispatch the two in-flight grants before cleanup aborts
+  // them, then retry those same resources. Count the bounded resource window
+  // separately from these cancelled requests, whose timing varies by engine.
+  await expect.poll(() => [...new Set(f.requests.filter(r => r.actor === "bob").map(r => r.asset))].sort()).toEqual([1, 2, 3, 4, 5, 6].map(i => "intro" + i));
+  expect(f.requests.filter(r => r.actor === "bob").length).toBeLessThanOrEqual(8);
   await page.evaluate(() => (window as unknown as Harness).closeDeck());
   const count = f.requests.length;
   await page.waitForTimeout(150); expect(f.requests.length).toBe(count);

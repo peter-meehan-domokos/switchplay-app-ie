@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { activateVideoSession } from "@/lib/videoSessionPositions";
 
 type LogoutButtonProps = {
   username: string;
@@ -25,6 +26,7 @@ export default function LogoutButton({ username }: LogoutButtonProps) {
       return;
     }
 
+    activateVideoSession(undefined);
     startTransition(() => {
       router.refresh();
     });

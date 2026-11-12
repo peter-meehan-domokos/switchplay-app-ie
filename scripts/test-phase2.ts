@@ -7,12 +7,15 @@ import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
 import bcrypt from "bcryptjs";
 import { CardRepository, createFoundationIndexes } from "../src/lib/cards/repository";
+import { createVisualLearningRecordIndexes } from "../src/lib/visualLearningRecords/repository";
 import { createInfoCardIndexes, InfoCardRepository } from "../src/lib/infoCards/repository";
 import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
 import { forkCardContent } from "../src/lib/cards/forks";
 import { networkInterfaces } from "node:os";
 import { loadEnvConfig } from "@next/env";
 import { resolve } from "node:path";
+import { seedVisualReview } from "./fixtures/plugged-in-review";
+import { createVisualReviewServer } from "./fixtures/plugged-in-review-server";
 import { createMediaReviewHandler, seedMediaReview } from "../tests/helpers/mediaReviewFixture";
 import { seedLiveGroupProgress } from "../tests/helpers/groupProgressLiveReview";
 import { seedReflectionReview } from "../tests/helpers/reflectionReviewFixture";
@@ -26,13 +29,35 @@ import { createGroupExperienceIndexes } from "../src/lib/groupExperiences/indexe
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
 let progressPreview: Awaited<ReturnType<typeof startGroupProgressPreview>> | undefined;
+let reviewHandler: Awaited<ReturnType<typeof createVisualReviewServer>> | undefined;
+const imageObjects = new Map<string, { bytes: Buffer; headers: Record<string, string> }>();
 const mediaFixture = createMediaReviewHandler();
 const media = createServer(async (request, response) => {
   if (await mediaFixture.handle(request, response)) return;
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "*");
+  response.setHeader("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges");
+  if (reviewHandler && await reviewHandler(request, response)) return;
+  if (request.method === "PUT" && request.url?.startsWith("/upload?key=")) {
+    const key = new URL(request.url, "http://fixture").searchParams.get("key")!;
+    if (imageObjects.has(key) && request.headers["if-none-match"] === "*") { request.resume(); response.writeHead(412); response.end(); return; }
+    const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    imageObjects.set(key, { bytes: Buffer.concat(chunks), headers: Object.fromEntries(Object.entries(request.headers)
+      .filter(([key, value]) => typeof value === "string" && (key.startsWith("x-amz-meta-") || key === "content-type"))) as Record<string, string> });
+    response.end(); return;
+  }
+  if (["GET", "HEAD"].includes(request.method ?? "") && request.url?.startsWith("/assets/instructional-images/")) {
+    const key = decodeURIComponent(request.url.slice("/assets/".length)), image = imageObjects.get(key);
+    if (!image) { response.writeHead(404); response.end(); return; }
+    response.writeHead(200, { ...image.headers, "Content-Length": image.bytes.length });
+    response.end(request.method === "HEAD" ? undefined : image.bytes); return;
+  }
   if (request.method === "OPTIONS" || request.method === "PUT") { request.resume(); response.end(); return; }
+  if (request.method === "GET" && request.url?.startsWith("/assets/")) {
+    response.setHeader("Content-Type", "image/png");
+    response.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64")); return;
+  }
   response.setHeader("Content-Type", "application/json");
   response.end(JSON.stringify(request.url === "/stream" ? { uid: `fixture-${randomUUID()}`, uploadURL: `${mediaOrigin}/upload`, maxDurationSeconds: 3600 } : { status: "ready" }));
 });
@@ -47,6 +72,8 @@ const completeLoading = process.argv.includes("--complete-loading");
 const mediaReview = process.argv.includes("--group-media");
 const groupExperiences = mediaReview || process.argv.includes("--group-experiences") || groupProgress || liveProgress;
 const optimized = process.argv.includes("--optimized");
+const visualReview = process.argv.includes("--visual-review");
+if (visualReview && (!interactive || !lan || process.argv.includes("--live-info-media"))) throw new Error("Visual review requires --dev --lan and local providers only.");
 // Opt-in provider checks still own a disposable database. Never forward an
 // environment database URI; only the provider credentials are used live.
 const liveInfoMedia = process.argv.includes("--live-info-media");
@@ -66,7 +93,8 @@ async function main() {
 try {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   const uri = mongo.getUri(), database = `switchplay_phase2_browser_${randomUUID().replaceAll("-", "")}`;
-  client = await new MongoClient(uri).connect(); const db = client.db(database); await createFoundationIndexes(db); await createInfoCardIndexes(db);
+  client = await new MongoClient(uri).connect(); const db = client.db(database); await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await createInfoCardIndexes(db);
+  await createVisualLearningRecordIndexes(db);
   // Full-app My Decks always reads Group entries, including when none are seeded.
   await createGroupExperienceIndexes(db);
   const now = new Date(); const userId = new ObjectId();
@@ -127,7 +155,7 @@ try {
     await mkdir("phase2-test-results", { recursive: true });
     await writeFile(frameworkFixture, `export * from "../src/lib/frameworks/configurationContracts";\nimport { createFrameworkAccess } from "../src/lib/frameworks/configurationContracts";\nexport const { getFrameworks, getFramework, getFrameworkItem } = createFrameworkAccess(${JSON.stringify(liveProgressReview.frameworks)});\n`);
   }
-  media.listen(0, "127.0.0.1"); await once(media, "listening"); const address = media.address();
+  media.listen(visualReview ? Number(process.env.PHASE2_REVIEW_MEDIA_PORT ?? 0) : 0, visualReview ? "0.0.0.0" : "127.0.0.1"); await once(media, "listening"); const address = media.address();
   if (!address || typeof address === "string") throw new Error("Missing media fixture port");
   mediaOrigin = `http://127.0.0.1:${address.port}`;
   const probe = createServer(); probe.listen(0, "127.0.0.1"); await once(probe, "listening"); const appAddress = probe.address();
@@ -150,8 +178,15 @@ try {
     }
   }
   const reflectionReview = process.argv.includes("--group-reflections") && groupReview ? await seedReflectionReview(client, database, groupReview) : undefined;
+  const reviewHost = networkInterfaces().en0?.find(row => row.family === "IPv4" && !row.internal)?.address ?? lanIPs.find(ip => ip.startsWith("192.168.") || ip.startsWith("10."));
+  if (visualReview && !reviewHost) throw new Error("No local Wi-Fi address is available for phone review.");
+  const reviewMediaOrigin = visualReview ? `http://${reviewHost}:${address.port}` : undefined;
+  const deckPath = visualReview ? await seedVisualReview(db, client, userId.toHexString(), mediaOrigin, uri) : undefined;
+  const entryPath = visualReview ? `/review/${randomUUID()}` : undefined;
+  if (visualReview) reviewHandler = await createVisualReviewServer({ appOrigin: baseURL, appPort, hosts: ["localhost", "127.0.0.1", ...lanIPs], actor: userId.toHexString(), entryPath: entryPath!, deckPath: deckPath! });
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
     SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","),
+    NEXT_PUBLIC_PHASE2_VISUAL_REVIEW: visualReview ? "1" : "0", NEXT_PUBLIC_PHASE2_VISUAL_REVIEW_MEDIA_ORIGIN: reviewMediaOrigin ?? "",
     PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", PHASE2_OPTIMIZED: optimized ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin, PHASE2_MEDIA_REVIEW: mediaReview ? "1" : "0", ...(mediaReviewData ? { PHASE7_MEDIA_REVIEW: JSON.stringify(mediaReviewData) } : {}),
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
@@ -189,13 +224,15 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   if (process.argv.includes("--dev")) {
+    const reviewURL = visualReview ? `${reviewMediaOrigin}${entryPath}` : undefined;
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/${groupExperiences ? "decks" : "library?tab=info-cards"}`) : [];
-    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview, liveProgressReview, mediaReviewData, reflectionReview }, null, 2));
-    console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or ${liveProgressReview?.followerLogin ?? mediaReviewData?.follower ?? "other"} / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
-    if (mediaReviewData) console.log(`Media review: ${baseURL}/decks?openExperience=${mediaReviewData.experienceId}\nPersonal: ${baseURL}/decks?openDeck=${mediaReviewData.personalDeckId}\nFollower: Aoife Kelly / local-test-only\nImages and uploads use the local mock provider; live Stream video is not enabled.`);
-    if (liveProgressReview) console.log(`Live Group Progress: ${baseURL}/group-experiences/${liveProgressReview.experienceId}/progress?framework=${liveProgressReview.frameworkId}`);
-    if (personalReview) console.log(`Personal review: ${baseURL}/decks?openDeck=${personalReview.deckId}\nInherited review: ${baseURL}/decks?openDeck=${personalReview.inheritedDeckId}`);
-    if (groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: ${liveProgressReview?.followerLogin ?? mediaReviewData?.follower ?? "other"} / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
+    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, optimized, infoCards, personalReview, groupReview, liveProgressReview, mediaReviewData, reflectionReview, reviewURL, deckPath, mediaPort: address.port }, null, 2));
+    if (visualReview) console.log(`iPhone review: ${reviewURL}\nFour published demonstration cards are ready. This link signs into the disposable learner and opens the real deck.\nProgress lasts until this runner stops. Local silent MP4 samples do not validate Cloudflare HLS. PID ${process.pid}`);
+    else console.log(`Disposable app: ${baseURL}/${groupExperiences ? "decks" : "library?tab=info-cards"}\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or ${liveProgressReview?.followerLogin ?? mediaReviewData?.follower ?? "other"} / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+    if (!visualReview && mediaReviewData) console.log(`Media review: ${baseURL}/decks?openExperience=${mediaReviewData.experienceId}\nPersonal: ${baseURL}/decks?openDeck=${mediaReviewData.personalDeckId}\nFollower: Aoife Kelly / local-test-only\nImages and uploads use the local mock provider; live Stream video is not enabled.`);
+    if (!visualReview && liveProgressReview) console.log(`Live Group Progress: ${baseURL}/group-experiences/${liveProgressReview.experienceId}/progress?framework=${liveProgressReview.frameworkId}`);
+    if (!visualReview && personalReview) console.log(`Personal review: ${baseURL}/decks?openDeck=${personalReview.deckId}\nInherited review: ${baseURL}/decks?openDeck=${personalReview.inheritedDeckId}`);
+    if (!visualReview && groupReview) console.log(`Group review: ${baseURL}/decks?openExperience=${groupReview.experienceId}\nAdmin: phase2 / local-test-only\nFollower: ${liveProgressReview?.followerLogin ?? mediaReviewData?.follower ?? "other"} / local-test-only\nPeer-visible Galway U18, peer-hidden Galway development, Empty squad and No Cards yet are disposable fixtures.`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
     if (groupProgress) {
@@ -204,7 +241,7 @@ try {
       progressPreview = await startGroupProgressPreview(progress.data, baseURL);
       Object.assign(env, { PHASE5_PROGRESS_PREVIEW_URL: progressPreview.baseURL, PHASE5_PROGRESS_EXPERIENCE: progress.data.experienceId });
     }
-    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--group-progress-live", "--group-media", "--optimized", "--complete-loading"].includes(arg))], { env, stdio: "inherit" });
+    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--group-experiences", "--group-progress", "--group-progress-live", "--group-media", "--optimized", "--complete-loading", "--visuals"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));

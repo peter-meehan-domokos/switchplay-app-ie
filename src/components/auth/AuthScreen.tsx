@@ -37,8 +37,15 @@ export default function AuthScreen({ redirectTo }: AuthScreenProps) {
     // A successful sign-in starts a new client authority scope, including when
     // the previous account had only Group or preview resources in memory.
     workingCardStore.clearSession();
-    const { user } = await response.json();
-    startGroupLogin(user.id);
+    const result = await response.json();
+    startGroupLogin(result.user.id);
+    if (result.user?.id && result.visualGuest) {
+      // Progress association runs independently of successful account login and
+      // retains its journal across the existing internal return navigation.
+      void import("@/lib/visualLearningRecords/loginHandoff").then(({ startVisualGuestLoginHandoff }) =>
+        startVisualGuestLoginHandoff(result.user.id, result.visualGuest)).catch(() => {});
+    }
+
     startTransition(() => {
       if (redirectTo) {
         router.replace(redirectTo);

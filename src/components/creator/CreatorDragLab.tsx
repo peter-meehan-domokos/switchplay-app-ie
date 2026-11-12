@@ -57,13 +57,16 @@ import {
   type PairId,
 } from "@/components/creator/creatorBoardState";
 import CreatorMediaUploadSlot from "@/components/creator/CreatorMediaUploadSlot";
+import CreatorStepMediaModal from "./CreatorStepMediaModal";
+import { putStepMedia, uploadedStepMedia } from "./creatorStepMedia";
+import { MAX_STEP_MEDIA, withStepMedia, instructionalMedia, stepMediaItems, validStepMediaItems, validStepMediaLabels, type StepMediaItem } from "@/lib/stepMedia";
+import { stepMediaLabelsFit } from "@/components/decks/measureStepMediaTabs";
 import MediaUploadPanel from "@/components/media/MediaUploadPanel";
 import { useMediaUploadController, type CompletedMediaUpload } from "@/components/media/useMediaUploadController";
-import SupportErrorMessage from "@/components/support/SupportErrorMessage";
 import { CREATOR_GEOMETRY, getCreatorGeometryStyle } from "@/components/creator/creatorDragLabGeometry";
 import type { StepDescriptionSpan } from "@/components/decks/types";
 import type { ImageMediaItem, VideoMediaItem } from "@/lib/media";
-import { isAbortError, uploadVideoMedia, prospectiveAttachmentProof, type MediaUploadTarget } from "@/lib/mediaUploadClient";
+import { isAbortError, uploadVideoMedia, uploadImageMedia, validateImageUploadFile, validateVideoUploadFile, prospectiveAttachmentProof, type MediaUploadTarget } from "@/lib/mediaUploadClient";
 
 type EditTarget =
   | { type: "deck-title" }
@@ -112,7 +115,9 @@ type UploadSession = {
 
 const creatorGeometryStyle = getCreatorGeometryStyle();
 const STEP_TEXT_WARNING_LENGTH = 65;
-const SUPPORT_ERROR_MESSAGE = "support";
+const NAVIGATION_SAVE_ERROR_MESSAGE = "Your changes could not be saved. Try leaving again. If this repeats, keep this page open to preserve your edits.";
+const SAVE_RETRY_MESSAGE = "Your changes could not be saved. Select Retry Save to try again.";
+const SAVE_CONFLICT_MESSAGE = "Save conflict. Copy the local edits you need to keep before reloading.";
 
 function createStepLinkId() {
   return `step-link-${clientId()}`;
@@ -775,7 +780,7 @@ function PairBlock({
   isDragging = false,
   onCancelMediaUpload,
   onEdit,
-  onUploadMedia,
+  onOpenMedia,
 }: {
   isMediaUploading?: boolean;
   isMediaUploadBlocked?: boolean;
@@ -783,7 +788,7 @@ function PairBlock({
   isDragging?: boolean;
   onCancelMediaUpload: (pairId: PairId) => void;
   onEdit: (target: EditTarget) => void;
-  onUploadMedia: (pairId: PairId, file: File) => void;
+  onOpenMedia: (pairId: PairId, origin: HTMLButtonElement) => void;
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: pair.id,
@@ -822,14 +827,13 @@ function PairBlock({
         </button>
       </div>
       <CreatorMediaUploadSlot
-        ariaLabel="Upload step video"
+        ariaLabel="Manage step media"
         disabled={isMediaUploadBlocked}
         className={mediaClassName}
         isUploading={isMediaUploading}
-        mediaItem={pair.stepMediaItem}
+        items={stepMediaItems({ mediaItem: pair.stepMediaItem, mediaItems: pair.stepMediaItems })}
         onCancelUpload={() => onCancelMediaUpload(pair.id)}
-        onUpload={(file) => onUploadMedia(pair.id, file)}
-        placeholder="Upload video"
+        onOpen={origin => onOpenMedia(pair.id, origin)}
         size="pair"
       />
     </div>
@@ -896,7 +900,7 @@ function BoardCell({
   streamName,
   onEdit,
   onCancelMediaUpload,
-  onUploadMedia,
+  onOpenMedia,
   pair,
   row,
   uploadingMediaPairIds,
@@ -908,7 +912,7 @@ function BoardCell({
   streamName?: string;
   onCancelMediaUpload: (pairId: PairId) => void;
   onEdit: (target: EditTarget) => void;
-  onUploadMedia: (pairId: PairId, file: File) => void;
+  onOpenMedia: (pairId: PairId, origin: HTMLButtonElement) => void;
   pair?: Pair;
   row: number;
   uploadingMediaPairIds: ReadonlySet<PairId>;
@@ -938,7 +942,7 @@ function BoardCell({
           isMediaUploadBlocked={isMediaUploadBlocked}
           onCancelMediaUpload={onCancelMediaUpload}
           onEdit={onEdit}
-          onUploadMedia={onUploadMedia}
+          onOpenMedia={onOpenMedia}
         />
       ) : isLocked ? (
         <StreamRow streamName={streamName} onEdit={onEdit} row={row} />
@@ -990,6 +994,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [activePairId, setActivePairId] = useState<PairId | null>(null);
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [dateEditSession, setDateEditSession] = useState<DateEditSession | null>(null);
+  const [mediaSession, setMediaSession] = useState<{ cardTemplateId: string; stepId: string; pairId?: PairId; trigger: HTMLButtonElement } | null>(null);
   const [publishMessage, setPublishMessage] = useState("");
   const [publishStatus, setPublishStatus] = useState<PublishStatus>("idle");
   const [navigationPending, setNavigationPending] = useState(false);
@@ -1003,7 +1008,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const boardRef = useRef<BoardState>(initialBoard);
   const pairUploadSessionsRef = useRef<Map<PairId, UploadSession>>(new Map());
   const introUploadSessionsRef = useRef<Map<string, UploadSession>>(new Map());
-  const uploadFailuresRef = useRef<Map<string, string | null>>(new Map());
   const scrollShellRef = useRef<HTMLElement | null>(null);
   const suppressClickUntilRef = useRef(0);
   const panStateRef = useRef<{
@@ -1047,7 +1051,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     prepareTarget: (kind) => persistence.prepareUploadTarget(undefined, kind),
     onUploadStarted: handleDeckIntroductionUploadStarted,
     onUploadCompleted: handleDeckIntroductionUploadCompleted,
-    onUploadFailed: (kind) => { uploadFailuresRef.current.set(`deck:${kind}`, null); },
   });
   const renderingColumns = useMemo(() => layoutCreatorColumns(board), [board]);
   const deckPresentation = deckPublicationPresentation(persistence.deck, persistence.publicationReferences());
@@ -1080,7 +1083,11 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       setCanonical(persistence.presentation);
       const query = new URLSearchParams(window.location.search);
       if (navigation?.creating) query.set("entry", "create");
-      window.history.replaceState(null, "", `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${query.size ? `?${query}` : ""}`); persistence.routeInstalled();
+      const href = `/creator/edit/${encodeURIComponent(dto.root.deckTemplateId)}${query.size ? `?${query}` : ""}`;
+      // Save-state notifications must not repeatedly rewrite an unchanged URL:
+      // WebKit rate-limits history writes, including replaceState no-ops.
+      if (window.location.pathname + window.location.search + window.location.hash !== href) window.history.replaceState(null, "", href);
+      persistence.routeInstalled();
     }
     });
   }, [persistence, navigation?.creating]);
@@ -1205,7 +1212,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       router.push(creatorDraftHref(id, kind, currentDraftOrigin(window.location)));
     } catch {
       switchingRef.current = null; setSwitchingTo(null);
-      setDraftsError("Current work could not be saved. Close My Drafts and review the save or upload errors before switching.");
+      const conflict = [persistence.deck, ...persistence.cards.values()].some(lane => lane.error?.kind === "conflict" || lane.error?.kind === "recovery");
+      setDraftsError(conflict ? SAVE_CONFLICT_MESSAGE : "Your changes could not be saved. Use Retry Save for the affected Card or Deck, then select the draft again.");
     }
   }
 
@@ -1215,8 +1223,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     if (!anyPublishing && !navigationRef.current && !leaveConfirmationOpen) void leaveCreator(true);
   }
   async function prepareForNavigation() {
+    setPublishMessage(current => current === NAVIGATION_SAVE_ERROR_MESSAGE ? "" : current);
     await persistence.prepareToNavigate();
-    if ([...uploadFailuresRef.current.values()].some((id) => id === null || !persistence.cards.get(id)?.detached)) throw new Error("UPLOAD_INCOMPLETE");
   }
 
   function confirmDeckWarning(ids: string[], newer: import("@/lib/cards/model").DeckPublicationReview["cards"] = []) {
@@ -1264,7 +1272,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         navigateToReturnTarget();
       } catch {
         navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
-        setPublishMessage("New outstanding work or a save/upload failure remains. Review the current work before publishing and leaving again.");
+        setPublishMessage("You have new changes. Use Retry Save if shown, then select Publish and leave again.");
       }
     }
   }
@@ -1288,7 +1296,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     }
     catch {
       navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
-      setPublishMessage("Current work could not be saved. Review the save or upload errors before leaving.");
+      if (!persistence.deck.error && ![...persistence.cards.values()].some(lane => !lane.detached && lane.error)) setPublishMessage(NAVIGATION_SAVE_ERROR_MESSAGE);
     }
   }
   function handleDragStart(event: DragStartEvent) {
@@ -1545,68 +1553,84 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     clearIntroUploadState(cardTemplateId);
   }
 
-  async function uploadPairMedia(pairId: PairId, file: File) {
-    const sourceCell = findPairCell(boardRef.current.cells, pairId);
-    const cardTemplateId = boardRef.current.columns.find((column) => column.id === sourceCell?.split(":")[0])?.cardId;
-    const stepId = boardRef.current.pairs[pairId]?.stepId;
-    if (!cardTemplateId || !stepId || !await confirmForeignCard(cardTemplateId)) return;
-    const targetLane = persistence.cards.get(cardTemplateId);
-    if (targetLane?.locked && !targetLane.publishing) return;
-    if (file.type && !file.type.startsWith("video/")) { setPublishStatus("error"); setPublishMessage("Choose a video file."); return; }
-    const session = createPairUploadSession(pairId); session.cardTemplateId = cardTemplateId;
-    uploadFailuresRef.current.delete(pairId);
-    const finishOperation = persistence.beginCardUpload(cardTemplateId);
-    let uploaded = false;
-    try {
-      await persistence.flushCard(cardTemplateId);
-      // A transfer may have completed while creation/saving was awaited. Never
-      // authorize a Step upload against its former Card.
-      if (!persistence.cards.get(cardTemplateId)?.desired.steps.some((step) => step.stepId === stepId)) return;
-      const mediaItem = await uploadVideoMedia(await persistence.prepareUploadTarget(cardTemplateId, stepId), file, session.controller.signal);
-      persistence.recordMediaProof(cardTemplateId, prospectiveAttachmentProof(mediaItem));
-      uploaded = true;
-      if (!isActivePairUpload(pairId, session)) return;
-      const lane = persistence.cards.get(cardTemplateId)!;
-      persistence.editCard(cardTemplateId, { ...lane.desired, steps: lane.desired.steps.map((step) => step.stepId === stepId ? { ...step, mediaItem } : step) });
-      const current = boardRef.current;
-      if (current.pairs[pairId]) {
-        const next = { ...current, pairs: { ...current.pairs, [pairId]: { ...current.pairs[pairId], stepMediaItem: mediaItem } } };
-        boardRef.current = next; setBoard(next);
-      }
-      await persistence.flushCard(cardTemplateId);
-    } catch (error) {
-      if (!uploaded && !persistence.cards.get(cardTemplateId)?.error && !session.controller.signal.aborted && !isAbortError(error)) uploadFailuresRef.current.set(pairId, cardTemplateId);
-      if (!session.controller.signal.aborted && !isAbortError(error) && !persistence.cards.get(cardTemplateId)?.detached) { setPublishStatus("error"); setPublishMessage(SUPPORT_ERROR_MESSAGE); }
-    } finally { finishOperation(); finishPairUpload(pairId, session); }
+  function mediaDestination(cardTemplateId: string, stepId: string) {
+    const lane = persistence.cards.get(cardTemplateId);
+    return stepId === "intro" ? lane?.desired.intro : lane?.desired.steps.find(step => step.stepId === stepId);
   }
-
-  async function uploadIntroMedia(cardTemplateId: string, file: File) {
+  function editDestinationMedia(cardTemplateId: string, stepId: string, items: StepMediaItem[]) {
+    const lane = persistence.cards.get(cardTemplateId);
+    if (!lane || !mediaDestination(cardTemplateId, stepId) || lane.locked && !lane.publishing) throw new Error("This media destination is no longer editable.");
+    if (!validStepMediaItems(items) || !stepMediaLabelsFit(items.map(item => item.label))) throw new Error("Use short labels that fit together on a 320px screen.");
+    persistence.editCard(cardTemplateId, stepId === "intro" ? { ...lane.desired, intro: withStepMedia(lane.desired.intro, items) }
+      : { ...lane.desired, steps: lane.desired.steps.map(step => step.stepId === stepId ? withStepMedia(step, items) : step) });
+    const current = boardRef.current;
+    const column = current.columns.find(column => column.cardId === cardTemplateId);
+    if (!column) return; // Detached authorized uploads still save their original Card.
+    const pairId = current.rows.map(row => current.cells[getCreatorCellId(column.id, row)]?.pairId)
+      .find(id => id && current.pairs[id]?.stepId === stepId);
+    const next = stepId === "intro" ? { ...current, columns: current.columns.map(value => value.cardId === cardTemplateId ? { ...value, introMediaItem: null, introMediaItems: items } : value) }
+      : pairId ? { ...current, pairs: { ...current.pairs, [pairId]: { ...current.pairs[pairId], stepMediaItem: null, stepMediaItems: items } } } : current;
+    boardRef.current = next; setBoard(next);
+  }
+  async function openDestinationMedia(cardTemplateId: string, stepId: string, trigger: HTMLButtonElement, pairId?: PairId) {
     if (!await confirmForeignCard(cardTemplateId)) return;
-    if (file.type && !file.type.startsWith("video/")) { setPublishStatus("error"); setPublishMessage("Choose a video file."); return; }
-    const session = createIntroUploadSession(cardTemplateId);
-    uploadFailuresRef.current.delete(`intro:${cardTemplateId}`);
+    const lane = persistence.cards.get(cardTemplateId);
+    if (!lane || lane.locked || lane.detached || !mediaDestination(cardTemplateId, stepId)) return;
+    setMediaSession({ cardTemplateId, stepId, pairId, trigger });
+  }
+  function openPairMedia(pairId: PairId, trigger: HTMLButtonElement) {
+    const current = boardRef.current, cell = findPairCell(current.cells, pairId);
+    const cardId = current.columns.find(column => column.id === cell?.split(":")[0])?.cardId;
+    const stepId = current.pairs[pairId]?.stepId;
+    if (cardId && stepId) void openDestinationMedia(cardId, stepId, trigger, pairId);
+  }
+  async function uploadDestinationMedia(target: { cardTemplateId: string; stepId: string; pairId?: PairId }, kind: "image" | "video", file: File, replacementId?: string) {
+    const { cardTemplateId, stepId, pairId } = target;
+    const destination = mediaDestination(cardTemplateId, stepId), lane = persistence.cards.get(cardTemplateId);
+    if (!destination || !lane || lane.locked || (pairId ? pairUploadSessionsRef.current.has(pairId) : introUploadSessionsRef.current.has(cardTemplateId))) throw new Error("This media destination is busy or has changed.");
+    const validation = kind === "image" ? validateImageUploadFile(file) : validateVideoUploadFile(file);
+    if (validation) throw new Error(validation);
+    const before = stepMediaItems(destination), previous = before.find(item => item.id === replacementId);
+    if (replacementId && !previous || !replacementId && before.length >= MAX_STEP_MEDIA) throw new Error("The media destination has changed or already has four items.");
+    const labels = previous ? before.map(item => item.label) : [...before.map(item => item.label), kind === "image" ? "Image" : "Watch"];
+    if (!validStepMediaLabels(labels) || !stepMediaLabelsFit(labels)) throw new Error("Shorten the existing labels before adding this media.");
+    const session = pairId ? createPairUploadSession(pairId) : createIntroUploadSession(cardTemplateId);
+    session.cardTemplateId = cardTemplateId;
+    const isActive = () => pairId ? isActivePairUpload(pairId, session) : isActiveIntroUpload(cardTemplateId, session);
     const finishOperation = persistence.beginCardUpload(cardTemplateId);
     let uploaded = false;
     try {
       await persistence.flushCard(cardTemplateId);
-      const mediaItem = await uploadVideoMedia(await persistence.prepareUploadTarget(cardTemplateId, "intro"), file, session.controller.signal);
-      persistence.recordMediaProof(cardTemplateId, prospectiveAttachmentProof(mediaItem));
+      if (!mediaDestination(cardTemplateId, stepId) || !isActive()) return;
+      const uploadTarget = await persistence.prepareUploadTarget(cardTemplateId, stepId);
+      const media = await (kind === "image" ? uploadImageMedia : uploadVideoMedia)(uploadTarget, file, session.controller.signal);
       uploaded = true;
-      if (!isActiveIntroUpload(cardTemplateId, session)) return;
-      const lane = persistence.cards.get(cardTemplateId)!;
-      persistence.editCard(cardTemplateId, { ...lane.desired, intro: { ...lane.desired.intro, mediaItem } });
-      const current = boardRef.current;
-      const next = { ...current, columns: current.columns.map((column) => column.cardId === cardTemplateId ? { ...column, introMediaItem: mediaItem } : column) };
-      boardRef.current = next; setBoard(next);
+      if (!isActive()) return;
+      if (currentUserId) {
+        const current = await creatorRequest<{ user: { id: string } | null }>("/api/auth/me");
+        if (current.user?.id !== currentUserId) throw new Error("The signed-in creator changed. Reopen Creator before uploading.");
+      }
+      if (!isActive()) return;
+      const currentDestination = mediaDestination(cardTemplateId, stepId);
+      if (!currentDestination) throw new Error("The original step no longer belongs to this card.");
+      const currentItems = stepMediaItems(currentDestination);
+      if (previous && JSON.stringify(currentItems.find(item => item.id === replacementId)) !== JSON.stringify(previous)) throw new Error("The media being replaced changed during upload. Existing media is kept.");
+      const items = putStepMedia(currentItems, uploadedStepMedia(media, previous?.id ?? clientId(), previous), replacementId);
+      persistence.recordMediaProof(cardTemplateId, prospectiveAttachmentProof(media));
+      editDestinationMedia(cardTemplateId, stepId, items);
       await persistence.flushCard(cardTemplateId);
     } catch (error) {
-      if (!uploaded && !persistence.cards.get(cardTemplateId)?.error && !session.controller.signal.aborted && !isAbortError(error)) uploadFailuresRef.current.set(`intro:${cardTemplateId}`, cardTemplateId);
-      if (!session.controller.signal.aborted && !isAbortError(error) && !persistence.cards.get(cardTemplateId)?.detached) { setPublishStatus("error"); setPublishMessage(SUPPORT_ERROR_MESSAGE); }
-    } finally { finishOperation(); finishIntroUpload(cardTemplateId, session); }
+      if (!session.controller.signal.aborted && !isAbortError(error)) {
+        if (!uploaded && !persistence.cards.get(cardTemplateId)?.error) throw new Error(`${kind === "image" ? "Image" : "Video"} upload failed. You can try again or continue without the ${kind}.`);
+        throw error;
+      }
+    } finally {
+      finishOperation();
+      if (pairId) finishPairUpload(pairId, session); else finishIntroUpload(cardTemplateId, session);
+    }
   }
 
   async function uploadDeckIntroduction(kind: "image" | "video", file: File) {
-    uploadFailuresRef.current.delete(`deck:${kind}`);
     const finish = persistence.beginDeckUpload();
     try { if (kind === "image") await deckIntroductionUpload.uploadImage(file); else await deckIntroductionUpload.uploadVideo(file); }
     finally { finish(); }
@@ -1624,7 +1648,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   function removeDeckIntroductionImage() {
     updateBoardAndSaveDraft((currentBoard) => setBoardDeckIntroductionImage(currentBoard, null));
-    uploadFailuresRef.current.delete("deck:image");
     deckIntroductionUpload.clearImageError();
   }
 
@@ -1723,6 +1746,8 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     event.stopPropagation();
   }
 
+  const acknowledgedMediaContent = mediaSession ? persistence.cards.get(mediaSession.cardTemplateId)?.ack?.content : undefined;
+  const mediaSaveError = mediaSession ? persistence.cards.get(mediaSession.cardTemplateId)?.error : undefined;
   return (
     <main className="creator-lab" style={creatorGeometryStyle} data-creator-entry={mode}>
       <header className="creator-header" inert={navigationLocked}>
@@ -1732,7 +1757,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
             navigationRef.current = true; setNavigationPending(true);
             void prepareForNavigation().then(() => router.push("/creator/info-cards/new")).catch(() => {
               navigationRef.current = false; setNavigationPending(false); setPublishStatus("error");
-              setPublishMessage("Current work could not be saved. Review the save or upload errors before switching modes.");
+              if (!persistence.deck.error && ![...persistence.cards.values()].some(lane => !lane.detached && lane.error)) setPublishMessage(NAVIGATION_SAVE_ERROR_MESSAGE);
             });
           }} /> : <p className="creator-kicker">Edit Template</p>}
           <p className="creator-edit-hint">Tap text to edit</p>
@@ -1754,16 +1779,13 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
             {deckPresentation.visible ? <button className="creator-add-note" type="button" aria-label="Add note for Deck" disabled={publishStatus === "publishing"} onClick={() => setNoteSession({ key: "deck", label: "Deck", value: notes.deck ?? "" })}>Add note</button> : null}
           </div>
           <div className="creator-feedback">
+          {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
           {publishMessage ? (
-            publishStatus === "error" && publishMessage === SUPPORT_ERROR_MESSAGE ? (
-              <SupportErrorMessage className={`creator-save-message creator-save-message--${publishStatus}`} />
-            ) : (
               <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}</p>
-            )
           ) : null}
       {[{ id: "deck", label: "Deck", lane: persistence.deck }, ...getCardColumns(board.columns).map((column, index) => ({ id: column.cardId!, label: `Card ${index + 1}`, lane: persistence.cards.get(column.cardId!)! }))].filter(({ lane }) => lane.error).map(({ id, label, lane }) => (
         <p className="creator-entity-save-error" role="alert" key={id}>
-          {label}: {lane.error!.kind === "conflict" || lane.error!.kind === "recovery" ? "Save conflict. Local edits are retained; reload only after reviewing them." : "Changes could not be saved."}
+          {label}: {lane.error!.kind === "conflict" || lane.error!.kind === "recovery" ? SAVE_CONFLICT_MESSAGE : SAVE_RETRY_MESSAGE}
           {lane.error!.kind !== "conflict" && lane.error!.kind !== "recovery" ? <button type="button" aria-label={`Retry Save ${label}`} onClick={() => id === "deck" ? persistence.retryDeck() : persistence.retryCard(id)}>Retry Save</button> : null}
         </p>
       ))}
@@ -1778,7 +1800,6 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
       {copyConfirmation ? <CreatorCopyConfirmation entity={copyConfirmation.entity} onCancel={() => { copyConfirmation.resolve(false); setCopyConfirmation(null); }}
         onConfirm={() => { copyConfirmation.resolve(true); setCopyConfirmation(null); }} /> : null}
       {persistence.recovering ? <p role="status">Recovering your submitted edit…</p> : null}
-      {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
       {leaveConfirmationOpen ? <CreatorLeaveConfirmation onCancel={closeLeaveConfirmation}
         destinationUnavailable={persistence.deck.ack?.root.latestVersion === 0 || resolvedCreatorReturnTarget.label === "Library" && persistence.deck.ack?.root.visibility !== "public"}
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
@@ -1852,13 +1873,12 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                           </div> : null}
                         </div>
                         <CreatorMediaUploadSlot
-                          ariaLabel={`Upload intro video for ${column.cardTitle ?? column.cardLabel ?? "card"}`}
+                          ariaLabel={`Manage Introduction media for ${column.cardTitle ?? column.cardLabel ?? "card"}`}
                           className="creator-card-intro-media-slot"
                           isUploading={uploadingIntroMediaCardIds.has(column.cardId!)}
-                          mediaItem={column.introMediaItem ?? null}
+                          items={stepMediaItems({ mediaItem: column.introMediaItem, mediaItems: column.introMediaItems })}
                           onCancelUpload={() => cancelIntroMediaUpload(column.cardId!)}
-                          onUpload={(file) => void uploadIntroMedia(column.cardId!, file)}
-                          placeholder="Upload video"
+                          onOpen={origin => void openDestinationMedia(column.cardId!, "intro", origin)}
                           size="intro"
                         />
                       </>
@@ -1888,7 +1908,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
                           key={cellId}
                           onCancelMediaUpload={cancelPairMediaUpload}
                           onEdit={openEdit}
-                          onUploadMedia={uploadPairMedia}
+                          onOpenMedia={openPairMedia}
                           pair={board.cells[cellId].pairId ? board.pairs[board.cells[cellId].pairId] : undefined}
                           row={row}
                           uploadingMediaPairIds={uploadingMediaPairIds}
@@ -1911,6 +1931,21 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
         </DragOverlay>
       </DndContext>
+      {mediaSession && mediaDestination(mediaSession.cardTemplateId, mediaSession.stepId) ? <CreatorStepMediaModal
+        key={`${mediaSession.cardTemplateId}:${mediaSession.stepId}`}
+        title={mediaSession.stepId === "intro" ? "Introduction media" : "Step media"}
+        items={stepMediaItems(mediaDestination(mediaSession.cardTemplateId, mediaSession.stepId)!)}
+        acknowledgedMedia={acknowledgedMediaContent ? [...instructionalMedia(acknowledgedMediaContent), ...(acknowledgedMediaContent.mediaItem ? [acknowledgedMediaContent.mediaItem] : [])] : []}
+        readinessTarget={persistence.uploadTarget(mediaSession.cardTemplateId, mediaSession.stepId)}
+        returnFocus={mediaSession.trigger}
+        uploading={mediaSession.pairId ? uploadingMediaPairIds.has(mediaSession.pairId) : uploadingIntroMediaCardIds.has(mediaSession.cardTemplateId)}
+        disabled={anyPublishing || !!persistence.cards.get(mediaSession.cardTemplateId)?.locked}
+        saveError={mediaSaveError ? mediaSaveError.kind === "conflict" || mediaSaveError.kind === "recovery" ? SAVE_CONFLICT_MESSAGE : SAVE_RETRY_MESSAGE : undefined}
+        onChange={items => editDestinationMedia(mediaSession.cardTemplateId, mediaSession.stepId, items)}
+        onUpload={(kind, file, replacementId) => uploadDestinationMedia(mediaSession, kind, file, replacementId)}
+        onCancelUpload={() => mediaSession.pairId ? cancelPairMediaUpload(mediaSession.pairId) : cancelIntroMediaUpload(mediaSession.cardTemplateId)}
+        onClose={() => setMediaSession(null)}
+      /> : null}
       {editSession ? (
         <CreatorEditModal
           actor={currentUserId}

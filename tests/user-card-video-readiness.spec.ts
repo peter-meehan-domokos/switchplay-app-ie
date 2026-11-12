@@ -1,7 +1,27 @@
 import { expect, test } from "@playwright/test";
 import { startStreamVideoReadinessPolling, type StreamVideoReadinessState } from "@/components/media/useStreamVideoReadiness";
+import { StreamVideoReadinessRequestError } from "@/lib/mediaUploadClient";
 
 const target = { scope: "user-card", deckTemplateId: "deck-1", cardId: "card-1" } as const;
+
+test("genuine permission denial remains unavailable and does not retry", async () => {
+  const states: StreamVideoReadinessState[] = [], scheduled: number[] = [];
+  const stop = startStreamVideoReadinessPolling(target, "denied", state => states.push(state), {
+    requestStatus: async () => { throw new StreamVideoReadinessRequestError("MEDIA_OUTSIDE_CONTEXT", false); },
+    schedule: (_callback, delay) => { scheduled.push(delay); return 1; },
+  });
+  await Promise.resolve(); expect(states).toEqual([{ status: "unavailable" }]); expect(scheduled).toEqual([]); stop();
+});
+
+test("provider transport failure keeps the existing processing retry and eventual ready state", async () => {
+  const states: StreamVideoReadinessState[] = [], callbacks: (() => void)[] = [], delays: number[] = []; let calls = 0;
+  const stop = startStreamVideoReadinessPolling(target, "provider-retry", state => states.push(state), {
+    requestStatus: async () => { if (++calls === 1) throw new StreamVideoReadinessRequestError("Provider unavailable", true); return { status: "ready" }; },
+    schedule: (callback, delay) => { callbacks.push(callback); delays.push(delay); return 1; }, cancelScheduled: () => {},
+  });
+  await Promise.resolve(); expect(states).toEqual([{ status: "processing" }]); expect(delays).toEqual([3000]);
+  callbacks[0](); await Promise.resolve(); expect(states).toEqual([{ status: "processing" }, { status: "ready" }]); stop();
+});
 
 test("removing a processing video cancels its scheduled check", async () => {
   const states: StreamVideoReadinessState[] = [];

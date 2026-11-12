@@ -1,5 +1,7 @@
 import { motion, type Transition } from "motion/react";
-import { type PointerEvent, type MouseEvent, type ReactNode, type RefCallback } from "react";
+import { type PointerEvent, type MouseEvent, type ReactNode, type RefCallback, type CSSProperties } from "react";
+import type { StepMediaItem } from "@/lib/stepMedia";
+import { selectedStepMedia } from "@/lib/stepMediaPresentation";
 import InfoCardPouch, { type InfoCardPouchProps } from "@/components/info-cards/InfoCardPouch";
 import InfoCardStack from "@/components/info-cards/InfoCardStack";
 import styles from "./StepView.module.css";
@@ -33,6 +35,11 @@ type StepViewProps = {
   mediaPreview?: ReactNode;
   surfaceRef?: RefCallback<HTMLElement>;
   activity?: ReactNode;
+  selectedMedia?: StepMediaItem | null;
+  mediaTabs?: ReactNode;
+  mediaPanelId?: string;
+  mediaTabIndex?: number;
+  mediaScale?: number;
 };
 
 const stepViewTransition: Transition = {
@@ -64,8 +71,9 @@ function getStepViewItemContent(card: PresentedCard, item: StepViewItem) {
   return item.type === "step" ? card.steps[item.stepIndex]?.descriptionContent : undefined;
 }
 
-function getStepViewMediaItem(card: PresentedCard, item: StepViewItem) {
-  return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
+function getStepViewMediaItem(card: PresentedCard, item: StepViewItem, selection?: StepMediaItem | null) {
+  const attachment = selection ?? selectedStepMedia(item.type === "intro" ? card.intro : card.steps[item.stepIndex]);
+  return attachment && attachment.kind !== "activity" ? attachment.media : null;
 }
 
 function getStepViewVideoSurfaceModifierClass(mediaItem: CloudflareStreamVideoMediaItem | null) {
@@ -92,9 +100,10 @@ function renderStepViewMedia(
   card: PresentedCard,
   item: StepViewItem,
   cloudflareVideoAnchorRef?: RefCallback<HTMLDivElement>,
-  useCloudflareVideoHost = false
+  useCloudflareVideoHost = false,
+  selection?: StepMediaItem | null,
 ) {
-  const mediaItem = getStepViewMediaItem(card, item);
+  const mediaItem = getStepViewMediaItem(card, item, selection);
 
   if (!mediaItem) {
     return "Video placeholder";
@@ -125,16 +134,29 @@ export default function StepView({
   mediaPreview,
   surfaceRef,
   activity,
+  selectedMedia,
+  mediaTabs,
+  mediaPanelId,
+  mediaTabIndex,
+  mediaScale = 1,
 }: StepViewProps) {
   const itemLabel = getStepViewItemLabel(item);
   const itemTitle = getStepViewItemTitle(card, item);
   const itemText = getStepViewItemText(card, item);
   const itemContent = getStepViewItemContent(card, item);
   const hasItemContent = Boolean(itemContent?.length);
-  const mediaItem = getStepViewMediaItem(card, item);
+  const mediaItem = getStepViewMediaItem(card, item, selectedMedia);
   const cloudflareVideoMediaItem = isCloudflareStreamVideoMediaItem(mediaItem) ? mediaItem : null;
   const videoSurfaceModifierClass = getStepViewVideoSurfaceModifierClass(cloudflareVideoMediaItem);
   const videoPlaceholderClassName = `step-view-video-placeholder${videoSurfaceModifierClass ? ` ${videoSurfaceModifierClass}` : ""}`;
+  const mediaSurface = <div
+    id={mediaTabs ? mediaPanelId : undefined} role={mediaTabs ? "tabpanel" : undefined}
+    aria-labelledby={mediaTabs ? `${mediaPanelId}-tab-${mediaTabIndex}` : undefined}
+    className={`${videoPlaceholderClassName}${mediaPreview ? ` ${styles.mediaPreview}` : ""}${selectedMedia?.kind === "activity" ? ` ${styles.interactiveThumbnail}` : ""}`}
+    onClick={stopStepViewPropagation} onPointerDown={stopStepViewPropagation} onPointerMove={stopStepViewPropagation}
+    onPointerUp={stopStepViewPropagation} onPointerCancel={stopStepViewPropagation}>
+    {activity ?? mediaPreview ?? renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost, selectedMedia)}
+  </div>;
 
   return (
     <motion.section
@@ -167,16 +189,7 @@ export default function StepView({
             "No description yet."
           ) : null}
         </h2>
-        <div
-          className={`${videoPlaceholderClassName}${mediaPreview ? ` ${styles.mediaPreview}` : ""}`}
-          onClick={stopStepViewPropagation}
-          onPointerDown={stopStepViewPropagation}
-          onPointerMove={stopStepViewPropagation}
-          onPointerUp={stopStepViewPropagation}
-          onPointerCancel={stopStepViewPropagation}
-        >
-          {activity ?? mediaPreview ?? renderStepViewMedia(card, item, cloudflareVideoAnchorRef, useCloudflareVideoHost)}
-        </div>
+        {mediaTabs ? <div className={styles.multimedia} style={{ "--step-media-scale": mediaScale } as CSSProperties}>{mediaTabs}{mediaSurface}</div> : mediaSurface}
       </main>
       <footer className={`step-view-actions ${styles.actions}`} data-info-open={Boolean(infoCards && infoCards.count > 0 && infoCards.expanded)}>
         {infoCards && (infoCards.count > 0 || infoCards.allowEmpty) ? <div className={styles.pouch}><InfoCardPouch {...infoCards} /></div> : null}

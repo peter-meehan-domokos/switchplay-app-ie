@@ -1,4 +1,13 @@
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
+import type { VisualPersistence } from "@/lib/interactiveVisuals/persistence";
+import { stepMediaItems } from "@/lib/stepMedia";
+import { selectedStepMedia, stepVideoPreparations } from "@/lib/stepMediaPresentation";
+import { activateVideoSession, readVideoSessionPosition, saveVideoSessionPosition, videoPositionKey } from "@/lib/videoSessionPositions";
+import { createInstructionalImageResources } from "@/lib/instructionalImageResources";
+import StepMediaTabs from "./StepMediaTabs";
+import InstructionalImage from "./InstructionalImage";
+import InteractiveVisualPreview from "@/components/interactiveVisuals/InteractiveVisualPreview";
+import { useVisualLearningRecords } from "@/components/interactiveVisuals/VisualLearningRecordsProvider";
 import { cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from "react";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import type { Transition } from "motion/react";
@@ -42,12 +51,15 @@ export type FocusedCardViewProps = {
   comparisonFraction?: number;
   onFaceChange?: (rotationY: number) => void;
   personalDraftId?: string;
+  /** Explicit override for the internal review; production uses the account-scoped provider. */
+  interactiveVisualPersistence?: VisualPersistence;
   onOpenMedia?: OpenCardMedia;
   mediaViewerOpen?: boolean;
   card: PresentedCard;
   playbackViewerUserId?: string;
   cardIndex: number;
   deckTemplateId: string;
+  deckVersion?: number;
   isDeckFlipped: boolean;
   totalCards: number;
   onClose: () => void;
@@ -83,6 +95,7 @@ type FocusedFlipState = {
 type StepViewState = {
   cardId: string;
   itemIndex: number;
+  attachmentId?: string;
 };
 
 type VideoHostRect = {
@@ -116,8 +129,9 @@ function getStepViewSequence(card: PresentedCard): StepViewItem[] {
   ];
 }
 
-function getStepViewMediaItem(card: PresentedCard, item: StepViewItem): MediaItem | null {
-  return item.type === "intro" ? card.intro.mediaItem ?? null : card.steps[item.stepIndex]?.mediaItem ?? null;
+function getStepViewMediaItem(card: PresentedCard, item: StepViewItem, attachmentId?: string): MediaItem | null {
+  const attachment = selectedStepMedia(item.type === "intro" ? card.intro : card.steps[item.stepIndex], attachmentId);
+  return attachment && attachment.kind !== "activity" ? attachment.media : null;
 }
 
 function toVideoHostRect(rect: DOMRect): VideoHostRect {
@@ -226,9 +240,11 @@ function CardBackSlot({ content, onNext, onPrevious, onOpenMedia }: {
 
 export default function FocusedCardView({
   personalDraftId,
+  interactiveVisualPersistence,
   onOpenMedia, mediaViewerOpen = false,
   card,
   deckTemplateId,
+  deckVersion,
   cardIndex,
   comparisonFraction = 0,
   onFaceChange,
@@ -254,8 +270,11 @@ export default function FocusedCardView({
   traversalDirection,
   transition,
 }: FocusedCardViewProps) {
+  const visualRecords = useVisualLearningRecords();
+  const visualPersistence = interactiveVisualPersistence ?? visualRecords.service;
   const isPresent = useIsPresent();
   const consultationId = useId();
+  const mediaId = useId();
   const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
   const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement;
     status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest; selectedId?: string; personalSources?: PersonalInfoSource[] } | null>(null);
@@ -268,6 +287,10 @@ export default function FocusedCardView({
   const playbackActor = hasPersonalCard(card) ? card.dataOwnerUserId : playbackViewerUserId;
   const playbackVersion = hasPersonalCard(card) ? card.adoptedVersion : card.version;
   const playbackMode = hasPersonalCard(card) ? "working" : "canonical";
+  const instructionalImages = useMemo(() => createInstructionalImageResources(playbackActor, {
+    ...(card.cardTemplateId && playbackVersion ? { owner: { cardTemplateId: card.cardTemplateId, version: playbackVersion, mode: playbackMode } } : {}),
+  }), [playbackActor, card.cardTemplateId, playbackVersion, playbackMode]);
+  useEffect(() => () => instructionalImages.clear(), [instructionalImages]);
   const sharedPreparation = useDeckVideoResource(card);
   const sharedResource = sharedPreparation.resource;
   const preparationManager = sharedPreparation.manager;
@@ -312,8 +335,12 @@ export default function FocusedCardView({
   const videoHostElementRef = useRef<HTMLDivElement | null>(null);
   const videoFrameElementRef = useRef<HTMLDivElement | null>(null);
   const videoPlayerRef = useRef<CloudflareHlsVideoPlayerHandle | null>(null);
+  const positionOwnerRef = useRef<string | undefined>(undefined);
   const stepViewStateRef = useRef<StepViewState | null>(null);
   const videoPlaybackIntentRef = useRef<VideoPlaybackIntent>("idle");
+  const updateVideoPlaybackIntent = useCallback((intent: VideoPlaybackIntent) => {
+    videoPlaybackIntentRef.current = intent;
+  }, []);
   const activeVideoAssetIdRef = useRef<string | null>(null);
   const focusedCardScale = useFocusedCardScale(comparisonFraction);
   const deckSideFlipState: FocusedFlipState = {
@@ -323,8 +350,14 @@ export default function FocusedCardView({
   };
   const cardFlipState = flipState.cardId === card.id ? flipState : deckSideFlipState;
   const isFlipped = cardFlipState.side === "back";
-  const instructionalVideos = useMemo(() => [card.intro.mediaItem, ...card.steps.map(step => step.mediaItem)]
-    .filter(isCloudflareStreamVideoMediaItem), [card.intro.mediaItem, card.steps]);
+  const preparationDestination = stepViewState?.cardId === card.id ? [card.intro, ...card.steps][stepViewState.itemIndex] : undefined;
+  const preparationAttachments = preparationDestination ? stepMediaItems(preparationDestination) : [];
+  const preparationIndex = preparationAttachments.length > 1 && preparationAttachments.some(item => item.kind === "video") ? stepViewState?.itemIndex : undefined;
+  const preparationAttachmentId = preparationIndex === undefined ? undefined : stepViewState?.attachmentId;
+  // A legacy/single-media step change keeps the exact existing preparation pool
+  // and must not abort pending grant/thumbnail work merely because state moved.
+  const instructionalVideos = useMemo(() => stepVideoPreparations([card.intro, ...card.steps], preparationIndex === undefined
+    ? undefined : { index: preparationIndex, attachmentId: preparationAttachmentId }), [card.intro, card.steps, preparationIndex, preparationAttachmentId]);
   useEffect(() => {
     if (isFlipped) { preparePlayback.current = () => {}; return; }
     let preparation: AbortController | null = null, preparing = false, live = true;
@@ -363,7 +396,22 @@ export default function FocusedCardView({
       ? Math.min(stepViewState.itemIndex, stepViewSequence.length - 1)
       : null;
   const stepViewItem = stepViewItemIndex === null ? null : stepViewSequence[stepViewItemIndex] ?? null;
-  const stepActivity = stepViewItem ? renderStepActivity?.(stepViewItem) : null;
+  const stepDestination = stepViewItem?.type === "intro" ? card.intro : stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex] : null;
+  const attachments = stepDestination ? stepMediaItems(stepDestination) : [];
+  const selectedAttachment = selectedStepMedia(stepDestination ?? undefined, stepViewState?.attachmentId);
+  const mediaPanelId = `${mediaId}-${stepViewItemIndex}`;
+  const stepActivity = (stepViewItem ? renderStepActivity?.(stepViewItem) : null) ??
+    (selectedAttachment?.kind === "activity" ? !interactiveVisualPersistence && visualRecords.unavailable ? <p>Interactive visual unavailable.</p> : <InteractiveVisualPreview
+      key={`${contentIdentity}:${stepViewItemIndex}:${selectedAttachment.id}`} activityId={selectedAttachment.activityId} persistence={visualPersistence}
+      origin={{ kind: "card", cardId: card.cardTemplateId ?? card.id, cardVersion: playbackVersion, mode: playbackMode, deckId: deckTemplateId,
+        ...(deckVersion !== undefined ? { deckVersion } : {}),
+        stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id }}
+      onOpen={() => { videoPlayerRef.current?.setPlaybackSuspended(true); updateVideoPlaybackIntent("paused"); }} />
+      : selectedAttachment?.kind === "image" ? <InstructionalImage key={`${contentIdentity}:${stepViewItemIndex}:${selectedAttachment.id}`}
+        alt={selectedAttachment.alt} resources={instructionalImages} context={playbackActor && playbackVersion && deckVersion && card.cardTemplateId ? {
+          viewerUserId: playbackActor, cardTemplateId: card.cardTemplateId, version: playbackVersion, mode: playbackMode,
+          deckTemplateId, deckVersion, stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id,
+        } : undefined} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
   const personalEnabled = infoCards === undefined && hasPersonalCard(card) && !!playbackActor && !!playbackVersion && card.permissions?.canMutateCardData === true;
   const personalCount = hasPersonalCard(card) ? (card.personalInfoCardIds?.length ?? 0)
@@ -388,7 +436,7 @@ export default function FocusedCardView({
     }).finally(() => clearTimeout(timer));
     return () => { clearTimeout(timer); abort.abort(); refreshAbort.current?.abort(); };
   }, [consultationRequest, consultationIdentity]);
-  const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem) : null;
+  const activeStepViewMediaItem = stepViewItem && !stepActivity ? getStepViewMediaItem(card, stepViewItem, stepViewState?.attachmentId) : null;
   const activeCloudflareVideoMediaItem =
     activeStepViewMediaItem && isCloudflareStreamVideoMediaItem(activeStepViewMediaItem)
       ? activeStepViewMediaItem
@@ -398,6 +446,60 @@ export default function FocusedCardView({
   const isExpandedVideoLandscape =
     activeCloudflareVideoMediaItem ? isKnownLandscapeCloudflareStreamVideoMediaItem(activeCloudflareVideoMediaItem) : false;
   const activeVideoAssetId = activeCloudflareVideoMediaItem?.assetId ?? null;
+  const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
+  const positionKeyFor = (state: StepViewState | null) => {
+    const item = state && state.cardId === card.id ? stepViewSequence[state.itemIndex] : undefined;
+    const destination = item?.type === "intro" ? card.intro : item?.type === "step" ? card.steps[item.stepIndex] : undefined;
+    const attachment = selectedStepMedia(destination, state?.attachmentId);
+    return attachment?.kind === "video" ? videoPositionKey(card.cardTemplateId ?? card.id,
+      item?.type === "step" ? card.steps[item.stepIndex].stepId : "intro", attachment.id, attachment.media) : undefined;
+  };
+  const activePositionKey = positionKeyFor(stepViewState);
+  const captureVideoPosition = () => {
+    const key = positionKeyFor(stepViewStateRef.current), position = videoPlayerRef.current?.getPosition();
+    if (key && position) saveVideoSessionPosition(playbackActor, key, position.currentTime);
+  };
+  useLayoutEffect(() => { activateVideoSession(playbackActor); }, [playbackActor]);
+  useLayoutEffect(() => {
+    // Capture the handle while mounted: React clears the forwarded ref during
+    // deletion, but the outgoing Card still owns its last source position.
+    const player = videoPlayerRef.current;
+    positionOwnerRef.current = activePositionKey;
+    return () => {
+      const position = player?.getPosition();
+      if (activePositionKey && positionOwnerRef.current === activePositionKey && position?.assetId === activeVideoAssetId) saveVideoSessionPosition(playbackActor, activePositionKey, position.currentTime);
+    };
+  }, [activePositionKey, activeVideoAssetId, playbackActor, isVideoHostVisible]);
+  useLayoutEffect(() => {
+    if (!isVideoExpanded) return;
+    const host = videoHostElementRef.current;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    host?.querySelector<HTMLButtonElement>("button[aria-label='Close enlarged video']")?.focus({ preventScroll: true });
+    const nativeFullscreen = () => Boolean(document.fullscreenElement ||
+      (host?.querySelector("video") as (HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }) | null)?.webkitDisplayingFullscreen);
+    const retainFocus = (event: FocusEvent) => {
+      if (!nativeFullscreen() && event.target instanceof Node && !host?.contains(event.target)) host?.focus({ preventScroll: true });
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (nativeFullscreen()) return;
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setIsVideoExpanded(false); return; }
+      if (event.key !== "Tab" || !host) return;
+      const controls = [...host.querySelectorAll<HTMLElement>("video[controls], button:not(:disabled)")];
+      const first = controls[0], last = controls.at(-1), active = document.activeElement;
+      if (!controls.includes(active as HTMLElement) || (event.shiftKey && active === first) || (!event.shiftKey && active === last)) {
+        event.preventDefault(); (event.shiftKey ? last : first)?.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener("keydown", keydown, true);
+    document.addEventListener("focusin", retainFocus, true);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener("keydown", keydown, true);
+      document.removeEventListener("focusin", retainFocus, true);
+      queueMicrotask(() => host?.querySelector<HTMLButtonElement>("button[aria-label='Expand video']")?.focus({ preventScroll: true }));
+    };
+  }, [isVideoExpanded]);
   useEffect(() => {
     preparationManager?.setVideoOpen(activeVideoAssetId !== null);
   }, [preparationManager, activeVideoAssetId]);
@@ -414,7 +516,6 @@ export default function FocusedCardView({
     activeVideoAssetId && decodedVideoAssetId !== activeVideoAssetId
   );
   const shouldShowVideoPoster = Boolean(hasPosterFallback && (!isCurrentVideoRenderable || isPosterFadeOutActive));
-  const isVideoHostVisible = Boolean(activeCloudflareVideoMediaItem && (isVideoExpanded || videoHostRect));
   const dateLabel = hasPersonalCard(card) ? dateFormatter.format(dateOnlyToUtcDate(card.targetDate)) : "";
   const isFirstCard = cardIndex === 0;
   const isFinalCard = cardIndex === totalCards - 1;
@@ -438,9 +539,6 @@ export default function FocusedCardView({
       focusedGestureLockTimeoutRef.current = null;
     }, durationMs);
   };
-  const updateVideoPlaybackIntent = useCallback((intent: VideoPlaybackIntent) => {
-    videoPlaybackIntentRef.current = intent;
-  }, []);
   const resetVideoDisplayState = useCallback(() => {
     setDecodedVideoAssetId(null);
     setRenderableVideoAssetId(null);
@@ -491,7 +589,7 @@ export default function FocusedCardView({
       return;
     }
 
-    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.steps[stepIndex]?.mediaItem));
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(getStepViewMediaItem(card, { type: "step", stepIndex })));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -509,7 +607,7 @@ export default function FocusedCardView({
       return;
     }
 
-    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(card.intro.mediaItem));
+    preparationManager?.setVideoOpen(isCloudflareStreamVideoMediaItem(getStepViewMediaItem(card, { type: "intro" })));
 
     const nextStepViewState = {
       cardId: card.id,
@@ -524,6 +622,8 @@ export default function FocusedCardView({
   };
   const closeStepView = () => {
     if (consultationOpen) return;
+    captureVideoPosition();
+    positionOwnerRef.current = undefined;
     videoPlayerRef.current?.pauseAndReset();
     stepViewStateRef.current = null;
     activeVideoAssetIdRef.current = null;
@@ -533,6 +633,40 @@ export default function FocusedCardView({
     setVideoAnchorElement(null);
     setStepViewState(null);
   };
+  function transitionStepViewMedia(nextMediaItem: MediaItem | null, nextState: StepViewState) {
+    captureVideoPosition();
+    positionOwnerRef.current = positionKeyFor(nextState);
+    const video = isCloudflareStreamVideoMediaItem(nextMediaItem) ? nextMediaItem : null;
+    const shouldContinuePlayback = videoPlaybackIntentRef.current === "continue";
+    setIsVideoExpanded(false);
+    if (video) {
+      preparationManager?.setVideoOpen(true);
+      const sameSource = activeVideoAssetIdRef.current === video.assetId;
+      activeVideoAssetIdRef.current = video.assetId;
+      // The player deliberately reuses an identical source. Clearing its display
+      // here would wait for a new decoded callback that need not happen.
+      if (!sameSource) resetVideoDisplayState();
+      const key = positionKeyFor(nextState);
+      videoPlayerRef.current?.loadMedia(video, { shouldPlay: shouldContinuePlayback,
+        startAt: key ? readVideoSessionPosition(playbackActor, key) ?? 0 : 0 });
+    } else {
+      activeVideoAssetIdRef.current = null;
+      videoPlayerRef.current?.pauseAndReset();
+      resetVideoDisplayState(); updateVideoPlaybackIntent("idle");
+      preparationManager?.setVideoOpen(false);
+    }
+  }
+  function selectStepMedia(attachmentId: string) {
+    const current = stepViewStateRef.current;
+    if (!current || current.cardId !== card.id || consultationOpen) return;
+    const item = stepViewSequence[current.itemIndex];
+    const destination = item?.type === "intro" ? card.intro : item?.type === "step" ? card.steps[item.stepIndex] : undefined;
+    const attachment = destination && stepMediaItems(destination).find(entry => entry.id === attachmentId);
+    if (!attachment || selectedStepMedia(destination, current.attachmentId)?.id === attachmentId) return;
+    const next = { ...current, attachmentId };
+    transitionStepViewMedia(attachment.kind === "activity" ? null : attachment.media, next);
+    stepViewStateRef.current = next; setStepViewState(next);
+  }
   const goToStepViewItem = (direction: -1 | 1) => {
     const currentStepViewState = stepViewStateRef.current;
 
@@ -551,27 +685,12 @@ export default function FocusedCardView({
 
     const nextStepViewItem = stepViewSequence[nextItemIndex];
     const nextMediaItem = nextStepViewItem ? getStepViewMediaItem(card, nextStepViewItem) : null;
-    const nextCloudflareVideoMediaItem =
-      nextMediaItem && isCloudflareStreamVideoMediaItem(nextMediaItem) ? nextMediaItem : null;
-    const shouldContinuePlayback = videoPlaybackIntentRef.current === "continue";
     const nextStepViewState = {
       ...currentStepViewState,
       itemIndex: nextItemIndex,
+      attachmentId: undefined,
     };
-
-    setIsVideoExpanded(false);
-
-    if (nextCloudflareVideoMediaItem) {
-      preparationManager?.setVideoOpen(true);
-      activeVideoAssetIdRef.current = nextCloudflareVideoMediaItem.assetId;
-      resetVideoDisplayState();
-      videoPlayerRef.current?.loadMedia(nextCloudflareVideoMediaItem, { shouldPlay: shouldContinuePlayback });
-    } else {
-      activeVideoAssetIdRef.current = null;
-      videoPlayerRef.current?.pauseAndReset();
-      resetVideoDisplayState();
-      updateVideoPlaybackIntent("idle");
-    }
+    transitionStepViewMedia(nextMediaItem, nextStepViewState);
 
     stepViewStateRef.current = nextStepViewState;
     setStepViewState(nextStepViewState);
@@ -816,11 +935,12 @@ export default function FocusedCardView({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
     >
-      <motion.button type="button" className="focused-card-scrim" onClick={() => { if (!consultationOpen) onClose(); }} aria-label="Close focused card" />
+      <motion.button type="button" className="focused-card-scrim" inert={isVideoExpanded} onClick={() => { if (!consultationOpen) onClose(); }} aria-label="Close focused card" />
       <AnimatePresence mode="popLayout" initial={false} custom={traversalDirection}>
         <motion.article
           key={card.id}
           className="focused-card-stage"
+          inert={isVideoExpanded}
           layout
           layoutId={`week-card-${cardPresentationIdentity(card)}`}
           style={{ width: FOCUSED_CARD_STAGE_WIDTH, aspectRatio: CARD_ASPECT_RATIO }}
@@ -887,6 +1007,11 @@ export default function FocusedCardView({
                     allowEmpty: personalEnabled, expanded: consultationOpen && consultation?.status === "ready", controlsId: consultationId, onToggle: openConsultation } : stepViewInfoCards}
                   mediaPreview={stepViewMediaPreview}
                   activity={stepActivity}
+                  selectedMedia={selectedAttachment}
+                  mediaTabs={attachments.length > 1 && selectedAttachment ? <StepMediaTabs items={attachments} selectedId={selectedAttachment.id} panelId={mediaPanelId} onSelect={selectStepMedia} /> : undefined}
+                  mediaPanelId={mediaPanelId}
+                  mediaTabIndex={attachments.findIndex(attachment => attachment.id === selectedAttachment?.id)}
+                  mediaScale={focusedCardScale}
                 />
               ) : null}
             </AnimatePresence>
@@ -905,6 +1030,10 @@ export default function FocusedCardView({
           {isVideoExpanded ? <div className="switchplay-video-expanded-backdrop" /> : null}
           <div
             ref={videoHostElementRef}
+            role={isVideoExpanded ? "dialog" : undefined}
+            aria-modal={isVideoExpanded || undefined}
+            aria-label={isVideoExpanded ? "Enlarged step video" : undefined}
+            tabIndex={isVideoExpanded ? -1 : undefined}
             className={`switchplay-video-host${
               isVideoExpanded ? " switchplay-video-host--expanded" : " switchplay-video-host--embedded"
             }${isExpandedVideoPortrait ? " switchplay-video-host--portrait" : " switchplay-video-host--landscape"}${
@@ -955,6 +1084,9 @@ export default function FocusedCardView({
                     resolvePlayback={resolvePlayback}
                     externalLoadingPresentation
                     mediaItem={activeCloudflareVideoMediaItem}
+                    initialPosition={activePositionKey ? readVideoSessionPosition(playbackActor, activePositionKey) : undefined}
+                    onRequestExpand={() => setIsVideoExpanded(true)}
+                    onRequestCollapse={() => setIsVideoExpanded(false)}
                     onMediaDisplayStateChange={({ assetId, state }) => {
                       if (assetId !== activeVideoAssetIdRef.current) {
                         return;

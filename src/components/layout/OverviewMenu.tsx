@@ -2,13 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { activateVideoSession } from "@/lib/videoSessionPositions";
 
 type OverviewMenuProps = { username: string; userId: string };
 export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  useEffect(() => {
+    let active = true;
+    const resume = () => { void import("@/lib/visualLearningRecords/loginHandoff").then(({ resumeAccountVisualClaims }) => {
+      if (active) return resumeAccountVisualClaims(userId);
+    }).catch(() => {}); };
+    resume(); window.addEventListener("online", resume);
+    return () => { active = false; window.removeEventListener("online", resume); };
+  }, [userId]);
 
   async function handleLogout() {
     // Library may share this menu without initializing working infrastructure.
@@ -24,6 +33,7 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
     }
 
     workingCardStore.clearUser(userId);
+    activateVideoSession(undefined);
     startTransition(() => {
       router.refresh();
     });

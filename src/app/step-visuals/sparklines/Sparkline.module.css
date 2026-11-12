@@ -1,0 +1,11 @@
+.spvSparkline { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 8px; min-width: 0; color: #435349; font-family: Arial, Helvetica, sans-serif; }
+.spvSparklineGraph { display: block; max-width: 100%; background: #fffdf8; }
+.spvSparklineAxes { stroke: #7f8d83; stroke-width: 0.8; }
+.spvSparklineCurve { fill: none; stroke: #537969; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.spvSparklineFixedRoot { fill: #fffdf8; stroke: #7c887f; stroke-width: 1; }
+.spvSparklineMovingRoot { fill: #28634f; stroke: #fffdf8; stroke-width: 0.75; }
+.spvSparklineRootLabels { fill: #435349; font-size: 12px; font-weight: 600; }
+.spvSparklineNotation { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 0.25em; width: 100%; margin: 0; font-size: 0.875rem; line-height: 1.4; }
+.spvSparklineNotation span { white-space: nowrap; }
+.spvSparklineFixedFactor { color: #5b6861; }
+.spvSparklineMovingFactor { color: #28634f; font-weight: 700; }

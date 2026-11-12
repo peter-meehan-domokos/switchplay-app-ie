@@ -1,3 +1,4 @@
+import { imageAllocationId, INSTRUCTIONAL_IMAGE_ALLOCATIONS, type InstructionalImageAllocation } from "../src/lib/cards/instructionalImageOwnership";
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
@@ -7,7 +8,7 @@ import { authorizeCardPlayback, authorizeProtectedMedia } from "../src/lib/cards
 
 let server: MongoMemoryReplSet, client: MongoClient, repo: CardRepository;
 const alice = new ObjectId(), bob = new ObjectId();
-const image = (id: string) => ({ id, description: "fixture", mediaType: "image", provider: "cloudflare-r2", assetId: `${id}.png`, src: `https://assets.example.com/${id}.png` });
+const image = (id: string) => ({ id, description: "fixture", mediaType: "image", provider: "cloudflare-r2", assetId: id.endsWith("-personal") ? `user-cards/${id}/source/image.png` : `${id}.png`, src: `https://assets.example.com/${id.endsWith("-personal") ? `user-cards/${id}/source/image.png` : `${id}.png`}` });
 before(async () => {
   server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   client = await new MongoClient(server.getUri()).connect(); repo = new CardRepository(client.db("switchplay_test_protected_media"), client);
@@ -19,6 +20,14 @@ before(async () => {
     { cardTemplateId: "public", ownerUserId: bob.toHexString(), visibility: "public", latestVersion: 2, draft: { mediaItem: image("bob-draft") } },
     { cardTemplateId: "fork", ownerUserId: alice.toHexString(), visibility: "private", forkedFrom: { cardTemplateId: "public", version: 2 }, draft: { mediaItem: image("alice-draft") } },
   ]);
+  // Canonical fixture assets have explicit allocation evidence. Personal namespace
+  // fixtures retain the separate existing CardData permission contract.
+  await repo.db.collection<InstructionalImageAllocation>(INSTRUCTIONAL_IMAGE_ALLOCATIONS).insertMany([
+    ["public", "bob-draft", bob], ["fork", "alice-draft", alice], ["public", "private-era", bob], ["public", "public-era", bob],
+  ].map(([target, id, actor]) => { const item = image(String(id)), destination = { scope: "card" as const, targetId: String(target) }; return {
+    _id: imageAllocationId(destination as { scope: "card"; targetId: string }, item.assetId), ...item, destination,
+    ownerUserId: actor.toString(), destinationOwnerUserId: actor.toString(), uploadScope: "card" as const, uploadTargetId: String(target), ready: true, createdAt: new Date(),
+  }; }));
   await repo.db.collection("cardTemplateVersions").insertMany([
     { cardTemplateId: "public", version: 1, visibility: "private", content: { mediaItem: image("private-era") } },
     { cardTemplateId: "public", version: 2, visibility: "public", content: { mediaItem: image("public-era"), intro: { mediaItem: { id: "video", description: "video", mediaType: "video", provider: "cloudflare-stream", assetId: "public-video", src: "https://iframe.videodelivery.net/public-video" } } } },
