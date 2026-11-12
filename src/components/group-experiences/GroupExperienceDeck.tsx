@@ -197,7 +197,7 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
             sourceRef={mediaSourceRef} backgroundRef={scene.backgroundRef} onClose={() => setMediaOverlay(null)} />;
       }}
       renderCardBackFace={(card, options) => isExperienceCard(card) ? <GroupCardBack refreshOwner={resource} reflectionInteractive={state.verified} reflectionContext={!focused && card.id === currentCardId ? reflectionContext(card.id) : null} readOnlyReason={signalReadOnlyReason} card={card} focused={false} mediaContext={mediaContext(card.id)} onOpenMedia={options.onOpenMedia} onEditMedia={!focused && options.variant !== "preview" ? openCentre : undefined} /> : null}
-      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} onPreparationBusyChange={setFocusBusy} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
+      renderFocusedCard={props => isExperienceCard(props.card) ? <FocusedCardView {...props} playbackViewerUserId={actor} onPreparationBusyChange={setFocusBusy} frontAction={updates.cardButton(props.card.id)} interactionLocked={!!validOverlay || reflectionOpen || updates.open}
         comparisonFraction={comparisonOpen ? .38 : 0}
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
