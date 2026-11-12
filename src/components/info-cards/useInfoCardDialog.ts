@@ -20,12 +20,15 @@ export function useInfoCardDialog(dialog: RefObject<HTMLDialogElement | null>, i
     // Native video controls can blur the focused control even when their inert
     // ancestor prevents them receiving focus. Keep that escape inside the
     // topmost modal, without competing with the nested media dialog.
-    const retainFocus = () => queueMicrotask(() => {
+    // The check waits for a task, not a microtask: during a native focus change (a tap or click moving
+    // focus between fields) focusout runs while focus is still on the body, and a microtask would steal
+    // focus back before it lands on the tapped control.
+    const retainFocus = () => setTimeout(() => {
       const top = Array.from(document.querySelectorAll("dialog:modal")).at(-1);
       if (element.open && top === element && !element.contains(document.activeElement)) {
         initialFocus.current?.focus({ preventScroll: true });
       }
-    });
+    }, 0);
     document.addEventListener("focusout", retainFocus, true);
     document.addEventListener("focusin", retainFocus, true);
     return () => {

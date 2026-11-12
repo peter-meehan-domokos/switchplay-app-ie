@@ -296,6 +296,26 @@ for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: the
   } finally { await context.close(); await browser.close(); }
 });
 
+// The whole form is usable by touch after choosing a series: tapping each field focuses it and typing enters text.
+for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: after choosing a series the title and explanation can be tapped and typed into`, async ({ playwright }) => {
+  const browser = await playwright[engine].launch();
+  const context = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage(); page.setDefaultTimeout(20_000);
+    const f = await fixture(); await enter(page, f.deckId); await open(page, true);
+    await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).tap();
+    const series = editor(page).getByRole("combobox", { name: "Series", exact: true }), list = editor(page).getByRole("listbox", { name: "Series", exact: true });
+    const title = editor(page).getByRole("textbox", { name: "Title", exact: true }), body = editor(page).getByRole("textbox", { name: "Explanation", exact: true });
+    await series.tap(); await list.getByRole("option", { name: "Basics (phase2)", exact: true }).tap();
+    const activeId = () => page.evaluate(() => `${document.activeElement?.tagName}:${(document.activeElement as HTMLInputElement | null)?.labels?.[0]?.textContent ?? document.activeElement?.id}`);
+    await title.tap(); expect(await activeId(), "tapping the title focuses it").toMatch(/^INPUT:Title/);
+    await page.keyboard.type("Touch title"); await expect(title).toHaveValue("Touch title");
+    await body.tap(); expect(await activeId(), "tapping the explanation focuses it").toMatch(/^TEXTAREA:Explanation/);
+    await page.keyboard.type("Touch body"); await expect(body).toHaveValue("Touch body");
+    await title.tap(); expect(await activeId()).toMatch(/^INPUT:Title/);
+  } finally { await context.close(); await browser.close(); }
+});
+
 // ---- Image upload failure and recovery ----
 async function mockInfoUpload(page: Page, outcomes: ("fail-403" | "fail-network" | "ok")[]) {
   const puts: number[] = [];
