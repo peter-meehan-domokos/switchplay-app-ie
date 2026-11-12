@@ -16,6 +16,15 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+To open the development server on a phone over Wi-Fi, add the Mac's address to `.env.local` and restart
+the server (development only; nothing is allowed when it is unset, and production ignores it):
+
+```bash
+SWITCHPLAY_DEV_ORIGINS=192.168.1.38   # comma separated for several addresses
+```
+
+Then browse to `http://<that address>:3000` on the phone.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

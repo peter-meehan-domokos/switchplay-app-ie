@@ -26,6 +26,11 @@ return {
       }));
       return config;
    } } : {}),
+   // Development only: lets a phone open the dev server over Wi-Fi. Set SWITCHPLAY_DEV_ORIGINS to the
+   // Mac address(es), comma separated (for example in .env.local). Unset, nothing is allowed beyond
+   // localhost, and production builds never read it. The Phase 2 harness branch below takes precedence.
+   ...(phase === PHASE_DEVELOPMENT_SERVER && process.env.SWITCHPLAY_DEV_ORIGINS
+      ? { allowedDevOrigins: process.env.SWITCHPLAY_DEV_ORIGINS.split(",").map(origin => origin.trim()).filter(Boolean) } : {}),
    serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
    outputFileTracingIncludes: { "/api/info-cards/*/check-rendering": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/playwright-core/**", "./src/components/info-cards/fonts/**"] },
    ...(process.env.SWITCHPLAY_DATABASE_MODE === "disposable" && process.env.PHASE2_BROWSER_TEST === "1" && process.env.PHASE2_OPTIMIZED === "1" ? {
