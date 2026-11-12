@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { uploadInfoCardMedia } from "../src/components/info-cards/infoCardUpload";
+import { CreatorRequestError } from "../src/components/creator/creatorRequest";
+import { infoCardError } from "../src/components/info-cards/infoCardErrors";
 import { InfoCardEditorController } from "../src/components/info-cards/infoCardEditorController";
 import type { CreatorTransport } from "../src/components/creator/creatorRequest";
 import type { InfoMedia, InfoRoot } from "../src/lib/infoCards/model";
@@ -44,4 +46,23 @@ test("failed or cancelled replacement retains previous media and never installs 
 test("invalid file never allocates credentials or changes the draft", async () => {
   const f = fixture(); await assert.rejects(uploadInfoCardMedia(f.editor, new File(["text"], "a.txt", { type: "text/plain" }), new AbortController().signal), /INVALID_INFO_UPLOAD_FILE/);
   assert.equal(f.saves.length, 0); assert.equal(f.editor.desired.mediaItem, null);
+});
+
+for (const kind of ["image", "video"] as const) test(`a ${kind} transfer that never reaches storage reads as a failed transfer and leaves the draft untouched`, async t => {
+  const f = fixture(), previous = { ...media, id: "old", assetId: "old", src: "https://private.invalid/old.png" };
+  f.editor.edit({ ...f.editor.desired, mediaItem: previous }); await f.editor.flush();
+  // A browser network or CORS failure rejects fetch itself with a TypeError, not a response.
+  t.mock.method(globalThis, "fetch", async () => { throw new TypeError("Failed to fetch"); });
+  const file = kind === "image" ? new File(["image"], "a.png", { type: "image/png" }) : new File(["video"], "a.mp4", { type: "video/mp4" });
+  await assert.rejects(uploadInfoCardMedia(f.editor, file, new AbortController().signal), (error: unknown) =>
+    error instanceof CreatorRequestError && error.code === (kind === "image" ? "INFO_IMAGE_UPLOAD_FAILED" : "INFO_VIDEO_UPLOAD_FAILED"));
+  assert.deepEqual(f.editor.desired.mediaItem, previous, "the previous media reference is kept");
+  assert.match(infoCardError(new CreatorRequestError(0, kind === "image" ? "INFO_IMAGE_UPLOAD_FAILED" : "INFO_VIDEO_UPLOAD_FAILED")), new RegExp(`The ${kind} transfer failed\\. Retry the upload`));
+  f.editor.stopTimer();
+});
+test("a cancelled transfer stays an abort and is not reported as a failed transfer", async t => {
+  const f = fixture(), abort = new AbortController();
+  t.mock.method(globalThis, "fetch", async () => { abort.abort(); throw new DOMException("aborted", "AbortError"); });
+  await assert.rejects(uploadInfoCardMedia(f.editor, new File(["image"], "a.png", { type: "image/png" }), abort.signal), { name: "AbortError" });
+  f.editor.stopTimer();
 });

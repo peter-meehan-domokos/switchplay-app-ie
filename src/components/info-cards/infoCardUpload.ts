@@ -12,10 +12,17 @@ export async function uploadInfoCardMedia(controller: InfoCardEditorController, 
   await controller.flush(); await controller.ensureCreated(); assertActive();
   const allocation = await controller.request<Allocation>(`${controller.url}/upload`, "POST", { kind, ...(kind === "image" ? { contentType: file.type } : {}) });
   assertActive();
-  if (kind === "image") {
-    const response = await fetch(allocation.uploadURL, { method: "PUT", headers: allocation.headers, body: file, signal });
-    if (!response.ok) throw new CreatorRequestError(response.status, "INFO_IMAGE_UPLOAD_FAILED");
-  } else await uploadFileToCloudflareStream(allocation.uploadURL, file, signal);
+  // Only the byte transfer is classified here. A browser network or CORS failure rejects fetch itself
+  // (not a response), and must read as a failed transfer, never as a lost connection to the app.
+  try {
+    if (kind === "image") {
+      const response = await fetch(allocation.uploadURL, { method: "PUT", headers: allocation.headers, body: file, signal });
+      if (!response.ok) throw new CreatorRequestError(response.status, "INFO_IMAGE_UPLOAD_FAILED");
+    } else await uploadFileToCloudflareStream(allocation.uploadURL, file, signal);
+  } catch (cause) {
+    if (signal.aborted || cause instanceof CreatorRequestError) throw cause;
+    throw new CreatorRequestError(0, kind === "image" ? "INFO_IMAGE_UPLOAD_FAILED" : "INFO_VIDEO_UPLOAD_FAILED");
+  }
   assertActive();
   // Merge into the latest text, never the buffer captured when upload began.
   // Failed/cancelled transfers leave the previous media reference untouched.

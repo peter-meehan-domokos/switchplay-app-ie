@@ -39,6 +39,7 @@ export function infoCardError(error: unknown, visibleCapacityIssues: readonly In
     PUBLIC_VISIBILITY_PERMANENT: "A publicly published info card cannot be made private again.",
     INFO_MEDIA_FORBIDDEN: "This media could not be attached or accessed. Retry the upload; your text is retained.",
     INFO_IMAGE_UPLOAD_FAILED: "The image transfer failed. Retry the upload; your text and previous media are retained.",
+    INFO_VIDEO_UPLOAD_FAILED: "The video transfer failed. Retry the upload; your text and previous media are retained.",
     INFO_FORBIDDEN: "This info card is unavailable to your account.",
     INFO_PUBLICATION_RECOVERY_REQUIRED: "Confirm the previous publication outcome using Retry before leaving or editing.",
     INFO_RECOVERY_UNAVAILABLE: "Local recovery storage is unavailable. Keep this page open and allow session storage before editing.",

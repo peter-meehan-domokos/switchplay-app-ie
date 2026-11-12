@@ -21,6 +21,8 @@ import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
 import type { InfoMedia, MediaContext, PersonalInfoAssociation } from "@/lib/infoCards/model";
 import { currentDraftOrigin, infoCollectionTarget, infoEditorHref, type CreatorNavigation } from "../creator/creatorNavigation";
 const subscribeHydration = () => () => {};
+// Text edits are always saved independently, so only the unfinished transfer is at stake here.
+const UPLOAD_BLOCKS_LEAVING = "The upload failed. Retry it, or choose Cancel upload to leave without the media. Your text is saved.";
 
 export default function InfoCardEditor({ id, actor, username, initial, navigation, personal }: {
   id: string; actor: string; username: string; initial: InfoEditorDTO | null; navigation: CreatorNavigation;
@@ -48,6 +50,8 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const upload = useRef<{ controller: AbortController; task: Promise<void> } | null>(null);
   const uploadFailure = useRef("");
   const [uploading, setUploading] = useState(false), [uploadError, setUploadError] = useState("");
+  // The file whose upload failed, kept so Retry needs no second pick (a picker round trip is costly on a phone).
+  const [failedFile, setFailedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<{ media: InfoMedia; context: MediaContext } | null>(null);
   const videoStatus = useInfoVideoStatus(controller);
   const [mountLifetime] = useState(() => ({ epoch: 0 }));
@@ -105,7 +109,8 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   async function navigate(href: string, collectionReturn = false, confirmed = false) {
     setNavigating(true); setMessage("");
     try {
-      await upload.current?.task; if (uploadFailure.current) throw new Error("Upload incomplete"); await controller.flush();
+      await upload.current?.task; if (uploadFailure.current) { setNavigating(false); setMessage(UPLOAD_BLOCKS_LEAVING); return; }
+      await controller.flush();
       if (collectionReturn && !confirmed && controller.ack?.root.latestVersion === 0) { setNavigating(false); setLeaveDestination(href); return; }
       router.push(collectionReturn ? infoCollectionTarget(id, controller.confirmedPublicationVersion).href : href);
     }
@@ -130,7 +135,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   async function cancelPersonal() {
     setNavigating(true); setMessage("");
     try {
-      await upload.current?.task; if (uploadFailure.current) throw new Error("Upload incomplete");
+      await upload.current?.task; if (uploadFailure.current) { setNavigating(false); setMessage(UPLOAD_BLOCKS_LEAVING); return; }
       if (controller.pendingPublication !== undefined) await controller.retry();
       if (controller.confirmedPublicationVersion !== null && personal) { await personal.onSaved(id, controller.personalAssociation); return; }
       await controller.flush();
@@ -139,21 +144,22 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   }
   async function chooseMedia(file: File) {
     if (!ready) { setPrerequisiteFeedback(true); return; }
-    upload.current?.controller.abort(); uploadFailure.current = ""; setUploadError(""); setUploading(true);
+    // A new attempt supersedes earlier feedback, so no stale success or failure text survives it.
+    upload.current?.controller.abort(); uploadFailure.current = ""; setUploadError(""); setFailedFile(null); setMessage(""); setUploading(true);
     const abort = new AbortController();
     const operation = { controller: abort, task: Promise.resolve() };
     upload.current = operation;
     operation.task = uploadInfoCardMedia(controller, file, abort.signal).then(() => {
-      if (!abort.signal.aborted) setMessage("Media uploaded and saved.");
+      if (!abort.signal.aborted) { setFailedFile(null); setMessage("Media uploaded and saved."); }
     }).catch(cause => {
       if (abort.signal.aborted || upload.current !== operation) return;
-      uploadFailure.current = infoCardError(cause); setUploadError(uploadFailure.current);
+      uploadFailure.current = infoCardError(cause); setUploadError(uploadFailure.current); setFailedFile(file);
     }).finally(() => { if (upload.current === operation) { upload.current = null; setUploading(false); } });
     await operation.task;
   }
   function cancelUpload(remove = false) {
     upload.current?.controller.abort(); upload.current = null; uploadFailure.current = "";
-    setUploadError(""); setUploading(false);
+    setUploadError(""); setFailedFile(null); setUploading(false);
     if (remove) controller.edit({ ...controller.desired, mediaItem: null });
   }
   async function openMedia() {
@@ -192,7 +198,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       <div className={styles.heading}>
         {!isPersonal && navigation.creating && <CreatorModeSelector mode="info-card" disabled={locked} onChange={() => void navigate("/creator/new")} />}
         <h1>{navigation.creating ? "New Info Card" : "Edit Info Card"}</h1>
-        <span className={styles.saveStatus} role="status">{navigating ? "Finishing saves…" : controller.running ? "Saving…" : controller.dirty ? "Unsaved changes" : controller.ack ? "Saved" : ""}</span>
+        <span className={styles.saveStatus} role="status">{navigating ? "Finishing saves…" : controller.running ? "Saving…" : controller.dirty ? "Unsaved changes" : uploadError ? "Text saved; media not uploaded" : controller.ack ? "Saved" : ""}</span>
       </div>
       <div className={styles.actions}>
         {!isPersonal && <><button type="button" ref={draftsTrigger} disabled={locked} onClick={() => void openDrafts()}>My Drafts</button>
@@ -210,7 +216,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       <button type="button" onClick={() => { if (window.confirm("Replace your local edits with the saved version? Copy any text you want to keep first.")) { controller.discardSubmittedRecovery(); window.location.reload(); } }}>Reload saved version</button></div>}
     <div className={styles.layout}>
       <fieldset className={styles.form} disabled={locked} style={{ border: 0, padding: 0 }}>
-        <InfoSeriesSelector actor={actor} username={username} selected={series} request={controller.request} disabled={locked} invalid={showRequired && !content.seriesId}
+        <InfoSeriesSelector actor={actor} username={username} selected={series} request={controller.request} disabled={locked} invalid={showRequired && !content.seriesId} listbox={isPersonal}
           onSelect={selected => { setSeries(selected); controller.edit({ ...controller.desired, seriesId: selected.seriesId }); }} />
         <div><label>Title<input value={content.title} readOnly={!hasSelectedSeries} aria-disabled={!hasSelectedSeries || undefined}
           aria-invalid={titleRequired || !!titleCapacityIssue || undefined}
@@ -238,6 +244,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
               onClick={() => setPrerequisiteFeedback(true)}>Image/video (optional)</button>}
           {content.mediaItem && <p>{content.mediaItem.mediaType === "image" ? "Image attached" : "Video attached"}</p>}
           {uploading && <p role="status">Uploading media… Text edits continue to save.</p>}
+          {failedFile && !uploading && <button type="button" onClick={() => void chooseMedia(failedFile)}>Retry upload</button>}
           {(uploading || uploadError) && <button type="button" onClick={() => cancelUpload()}>Cancel upload</button>}
           {content.mediaItem && <button type="button" onClick={() => cancelUpload(true)}>Remove media</button>}
           {uploadError && <p role="alert">{uploadError}</p>}

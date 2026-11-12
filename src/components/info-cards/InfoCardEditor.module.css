@@ -25,3 +25,13 @@
 
 .diagnostic { margin-top: 14px; font-size: 14px; }
 .diagnostic img { display: block; max-width: none; }
+
+/* In-page series listbox (Personal editor only): no native picker, so focus never leaves the dialog. */
+.seriesBox { position: relative; }
+.form .seriesTrigger { width: 100%; text-align: left; min-height: 44px; padding: 9px; font-size: 16px; border: 1px solid #84909c; border-radius: 5px; background: white; color: #202b38; touch-action: manipulation; }
+.form .seriesTrigger::after { content: "▾"; float: right; }
+.seriesList { margin-top: 4px; max-height: min(40dvh, 280px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid #84909c; border-radius: 5px; background: white; color: #202b38; }
+.seriesGroupLabel { padding: 6px 9px 2px; font-size: 13px; color: #526170; }
+.seriesOption { padding: 11px 9px; font-size: 16px; cursor: pointer; touch-action: manipulation; }
+.seriesActive { background: #e3ebf2; }
+.seriesOption[aria-selected="true"] { font-weight: 600; }

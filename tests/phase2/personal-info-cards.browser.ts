@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient } from "mongodb";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHmac } from "node:crypto";
+import { SignJWT } from "jose";
 import { CardRepository } from "../../src/lib/cards/repository";
 import { InfoCardRepository } from "../../src/lib/infoCards/repository";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
@@ -37,9 +38,15 @@ async function action(page: Page, name: "+ New" | "Edit" | "Remove") {
   await current(page).getByRole("button", { name: "Info Card actions", exact: true }).click();
   await page.getByRole("menuitem", { name, exact: true }).click();
 }
+// The Personal editor uses an in-page listbox (a native iPhone picker could not stay open in the modal dialog).
+async function chooseSeries(page: Page, name = "Basics (phase2)") {
+  await editor(page).getByRole("combobox", { name: "Series", exact: true }).click();
+  await editor(page).getByRole("option", { name, exact: true }).click();
+  await expect(editor(page).getByRole("combobox", { name: "Series", exact: true })).toContainText(name);
+}
 async function fill(page: Page, title: string, body = "Keep the sign with its number.") {
   await expect(editor(page)).toBeVisible();
-  await editor(page).getByRole("combobox", { name: "Series", exact: true }).selectOption("demo-series-owner");
+  await chooseSeries(page);
   await editor(page).getByRole("textbox", { name: "Title", exact: true }).fill(title);
   if (body) await editor(page).getByRole("textbox", { name: "Explanation", exact: true }).fill(body);
 }
@@ -248,3 +255,125 @@ test("personal maths survives Save, reopening and Edit while account changes hid
   expect((await page.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } })).ok()).toBeTruthy();
   await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await expect(consult(page)).toHaveCount(0);
 });
+
+// ---- Series listbox (iPhone dropdown) ----
+for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: the Personal series listbox opens, selects, dismisses and keeps focus in the dialog`, async ({ playwright }) => {
+  const browser = await playwright[engine].launch();
+  const context = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage(); page.setDefaultTimeout(20_000);
+    const f = await fixture(); await enter(page, f.deckId); await open(page, true);
+    await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).tap();
+    const series = editor(page).getByRole("combobox", { name: "Series", exact: true }), list = editor(page).getByRole("listbox", { name: "Series", exact: true });
+    await expect(series).toBeVisible();
+    expect(await series.evaluate(node => node.tagName), "no native select, hence no operating-system picker").toBe("BUTTON");
+    await expect(series).toHaveAttribute("aria-expanded", "false"); await expect(series).toContainText("Choose a series");
+
+    await series.tap(); await expect(list).toBeVisible(); await expect(series).toHaveAttribute("aria-expanded", "true");
+    await expect(list.getByRole("option", { name: "Create a new series…", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.activeElement?.id), "focus stays on the trigger inside the dialog").toBe("info-series");
+    // Escape dismisses only the list; the dialog stays open.
+    await page.keyboard.press("Escape"); await expect(list).toHaveCount(0); await expect(editor(page)).toBeVisible();
+    // Tapping elsewhere in the dialog dismisses it.
+    await series.tap(); await expect(list).toBeVisible(); await editor(page).getByRole("heading", { level: 1 }).tap(); await expect(list).toHaveCount(0);
+    // Tapping the trigger again toggles it.
+    await series.tap(); await expect(list).toBeVisible(); await series.tap(); await expect(list).toHaveCount(0);
+
+    // Selecting by touch updates the field, closes the list, returns focus and enables the title.
+    await expect(editor(page).getByRole("textbox", { name: "Title", exact: true })).not.toBeEditable();
+    await series.tap(); await list.getByRole("option", { name: "Basics (phase2)", exact: true }).tap();
+    await expect(list).toHaveCount(0); await expect(series).toContainText("Basics (phase2)");
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe("info-series");
+    await expect(editor(page).getByRole("textbox", { name: "Title", exact: true })).toBeEditable();
+
+    // Keyboard: arrows move, Enter chooses, the chosen option is marked selected.
+    await series.focus(); await page.keyboard.press("ArrowDown"); await expect(list).toBeVisible();
+    await expect(list.getByRole("option", { name: "Basics (phase2)", exact: true })).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("End"); await page.keyboard.press("Home"); await page.keyboard.press("Enter");
+    await expect(list).toHaveCount(0); await expect(series).toContainText("Basics (phase2)");
+    // The editor itself still dismisses with Escape only when the list is closed.
+    await page.keyboard.press("Escape"); await expect(editor(page)).toHaveCount(0);
+  } finally { await context.close(); await browser.close(); }
+});
+
+// ---- Image upload failure and recovery ----
+async function mockInfoUpload(page: Page, outcomes: ("fail-403" | "fail-network" | "ok")[]) {
+  const puts: number[] = [];
+  await page.route("**/api/info-cards/*/upload", async route => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-2)!;
+    const root = (await (await page.request.get(`/api/info-cards/${id}`)).json()).root;
+    const media = { id: "image", provider: "cloudflare-r2", mediaType: "image", assetId: `info-cards/${root.ownerUserId}/${id}/image.png`, src: `https://private.invalid/info-cards/${id}/image.png`, description: "Image" };
+    const proof = await new SignJWT({ purpose: "info-upload", actor: root.ownerUserId, infoCardId: id, createdAt: root.createdAt, provider: media.provider, assetId: media.assetId, src: media.src })
+      .setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("5m")
+      .sign(createHmac("sha256", "local-phase2-browser-test-secret-only").update("switchplay:info-card-upload:v1").digest());
+    await route.fulfill({ json: { media, proof, uploadURL: `${new URL(page.url()).origin}/__fixture-info-upload`, headers: { "Content-Type": "image/png", "If-None-Match": "*" } } });
+  });
+  await page.route("**/__fixture-info-upload", async route => {
+    const outcome = outcomes[Math.min(puts.length, outcomes.length - 1)]; puts.push(route.request().postDataBuffer()?.length ?? 0);
+    if (outcome === "fail-network") return route.abort("failed");
+    return route.fulfill({ status: outcome === "ok" ? 200 : 403 });
+  });
+  return puts;
+}
+const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
+const media = (page: Page) => editor(page).getByRole("region", { name: "Info Card media", exact: true });
+const choosePicture = (page: Page) => editor(page).getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: pixel });
+
+for (const failure of ["fail-403", "fail-network"] as const) test(`a failed Personal image upload (${failure}) keeps the work, blocks a false Save, and Retry completes without choosing the file again`, async ({ page }) => {
+  const f = await fixture(); await enter(page, f.deckId); const puts = await mockInfoUpload(page, [failure, "ok"]);
+  await open(page, true); await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click();
+  await fill(page, "My note", "Words that must survive a failed upload.");
+  await choosePicture(page);
+
+  // Clear, accurate feedback; nothing claims success.
+  await expect(media(page).getByRole("alert")).toHaveText("The image transfer failed. Retry the upload; your text and previous media are retained.");
+  await expect(editor(page).getByRole("status").filter({ hasText: "Text saved; media not uploaded" })).toBeVisible();
+  await expect(editor(page).getByText("Media uploaded and saved.")).toHaveCount(0);
+  await expect(media(page).getByRole("button", { name: "Retry upload", exact: true })).toBeVisible();
+  await expect(media(page).getByRole("button", { name: "Cancel upload", exact: true })).toBeVisible();
+  // The work is preserved in the editor and on the server.
+  await expect(editor(page).getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Words that must survive a failed upload.");
+  const saved = async () => (await f.info.owner(f.owner, (await ownDraftId(f)) as string));
+  await expect.poll(async () => (await saved()).draft?.body).toBe("Words that must survive a failed upload.");
+
+  // Save is refused, not reported as a success; nothing is attached.
+  await editor(page).getByRole("button", { name: "Save", exact: true }).click();
+  await expect(editor(page).getByText("Finish, retry or cancel the upload before publishing.", { exact: true })).toBeVisible();
+  await expect(editor(page)).toBeVisible();
+  expect((await f.main.getPersonalUser(f.owner))!.cardsData.find(data => data.cardTemplateId === f.cardId)?.personalInfoCardIds ?? []).toEqual([]);
+  // Leaving is refused with an accurate explanation, not a misleading connection error.
+  await editor(page).getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(editor(page).getByText(/^The upload failed\. Retry it, or choose Cancel upload to leave without the media\. Your text is saved\.$/)).toBeVisible();
+  await expect(editor(page).getByText(/connection failed/)).toHaveCount(0);
+  await expect(editor(page)).toBeVisible();
+
+  // Retry re-sends the same file with no new selection.
+  await media(page).getByRole("button", { name: "Retry upload", exact: true }).click();
+  await expect(editor(page).getByText("Media uploaded and saved.", { exact: true })).toBeVisible();
+  await expect(media(page).getByRole("alert")).toHaveCount(0); await expect(media(page).getByRole("button", { name: "Retry upload", exact: true })).toHaveCount(0);
+  await expect(media(page).getByText("Image attached", { exact: true })).toBeVisible();
+  expect(puts).toHaveLength(2); expect(puts[1]).toBe(puts[0]);
+  expect((await saved()).draft?.mediaItem?.mediaType).toBe("image");
+  // With the transfer done, Save is no longer refused by the upload guard. (Whether the note then publishes
+  // depends on live object verification of the image, which the disposable harness cannot provide.)
+  await editor(page).getByRole("button", { name: "Save", exact: true }).click();
+  await expect(editor(page).getByText("Finish, retry or cancel the upload before publishing.", { exact: true })).toHaveCount(0);
+});
+
+test("after a failed Personal upload, Cancel upload releases the editor and keeps the saved text", async ({ page }) => {
+  const f = await fixture(); await enter(page, f.deckId); await mockInfoUpload(page, ["fail-403"]);
+  await open(page, true); await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click();
+  await fill(page, "Draft note", "Text kept after dismissing the failed image.");
+  await choosePicture(page); await expect(media(page).getByRole("alert")).toBeVisible();
+  await media(page).getByRole("button", { name: "Cancel upload", exact: true }).click();
+  await expect(media(page).getByRole("alert")).toHaveCount(0); await expect(media(page).getByRole("button", { name: "Retry upload", exact: true })).toHaveCount(0);
+  await expect(editor(page).getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Text kept after dismissing the failed image.");
+  await editor(page).getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(editor(page)).toHaveCount(0);
+  const draft = await f.info.owner(f.owner, (await ownDraftId(f)) as string);
+  expect(draft.draft?.body).toBe("Text kept after dismissing the failed image."); expect(draft.draft?.mediaItem ?? null).toBeNull();
+});
+async function ownDraftId(f: Awaited<ReturnType<typeof fixture>>) {
+  const root = await f.info.roots().find({ ownerUserId: f.owner, kind: "personal" }).sort({ createdAt: -1 }).limit(1).next();
+  return root?.infoCardId as string | undefined;
+}
