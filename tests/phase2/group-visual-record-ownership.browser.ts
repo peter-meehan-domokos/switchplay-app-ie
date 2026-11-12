@@ -1,10 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { login, openGroupStepView, seedGroupWithStepMedia, selectPerspective, type GroupStepMedia } from "./helpers/groupStepMediaFixture";
+import { enterGroup, expectSameScene, focusStepView, leaveStepView, login, markScene, openGroupStepView, seedGroupWithStepMedia, selectPerspective, switchPerspectiveInPlace, type GroupStepMedia } from "./helpers/groupStepMediaFixture";
 
 // Visual Learning Records belong to the signed-in user, whatever Group perspective is shown. An admin
 // who inspects a follower is still the actor: the visual starts from the admin's own state, every
 // record request names the admin, and the follower's records, attempts and events are never read into
-// the visual nor changed. Perspective switches expose nothing of another user. Requires --group-experiences.
+// the visual nor changed. Perspective switches expose nothing of another user. The first two tests enter
+// each perspective by loading the page; the third switches perspective IN PLACE through the picker, with
+// the Group scene mounted and no navigation. Requires --group-experiences.
 let g: GroupStepMedia;
 test.describe.configure({ mode: "serial" });
 test.beforeAll(async ({ browser }) => { test.setTimeout(240_000); g = await seedGroupWithStepMedia(browser); });
@@ -17,8 +19,6 @@ async function recordsOf(userId: string) {
   const events = await g.db.collection("visualEvents").find({ attemptId: { $in: attempts.map(attempt => attempt.attemptId) } }).sort({ eventId: 1 }).toArray();
   return { records, attempts, events };
 }
-// Reopening your own visual only advances that record's bookkeeping; its attempts and events are unchanged.
-const content = (data: Awaited<ReturnType<typeof recordsOf>>) => ({ ...data, records: data.records.map(record => Object.fromEntries(Object.entries(record).filter(([key]) => key !== "revision" && key !== "updatedAt"))) });
 const personalData = async (userId: string) => (await g.db.collection("users").findOne({ username: userId === g.followerId ? g.followerName : "phase2" }))!.cardsData;
 
 /** Records which learner every visual-record request names. */
@@ -27,14 +27,19 @@ function watchLearners(page: Page) {
   page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/visual-")) learners.push(request.headers()["x-visual-learner"] ?? "(none)"); });
   return learners;
 }
-async function startRoots(page: Page) {
-  const step = await openGroupStepView(page, g.experienceId);
+/** In a mounted Group scene: from the focused Card's Step View, opens the Roots and Factors visual. */
+async function openRootsFromStepView(page: Page, step: Locator) {
   await step.getByRole("button", { name: "Next", exact: true }).click(); await expect(step).toHaveCount(1);
   await step.getByRole("tab", { name: "Explore", exact: true }).click();
   await step.getByRole("button", { name: /^(Start|Continue): Roots and Factors$/ }).click();
   const dialog = page.getByRole("dialog", { name: "Roots and Factors", exact: true }); await expect(dialog).toBeVisible();
   return { dialog, slider: dialog.getByRole("slider") };
 }
+/** Initial page entry into the Group, then the visual. */
+async function startRoots(page: Page) { return openRootsFromStepView(page, await openGroupStepView(page, g.experienceId)); }
+/** Reopens the visual in the already mounted Group scene, without loading the page. */
+async function reopenRootsInMountedGroup(page: Page) { return openRootsFromStepView(page, await focusStepView(page)); }
+const closeVisual = async (page: Page, dialog: Locator) => { await dialog.getByRole("button", { name: "Close interactive visual" }).click(); await expect(dialog).toHaveCount(0); };
 const nudge = async (page: Page, slider: Locator, key: "ArrowLeft" | "ArrowRight", to: string) => {
   await slider.focus(); await page.keyboard.press(key); await expect(slider).toHaveAttribute("aria-valuenow", to);
 };
@@ -81,29 +86,55 @@ test("an admin viewing a follower works on their own record and cannot read or c
   expect(await recordsOf(g.followerId)).toEqual(follower);
 });
 
-test("switching between Group, follower and Me exposes and overwrites no other learner's work", async ({ browser, page }) => {
+test("switching perspective in place exposes and overwrites no other learner's work", async ({ browser, page }) => {
   page.setDefaultTimeout(20_000); await login(page, "phase2");
   const follower = await recordsOf(g.followerId), admin = await recordsOf(g.adminId);
-  // Admin: Group, then the follower perspective, then Group again. Always the admin's own value (4).
-  for (const selection of [{ perspective: "group" }, { perspective: "follower", subjectUserId: g.followerId }, { perspective: "group" }] as const) {
-    await selectPerspective(page, g.experienceId, g.cardId, selection);
-    const learners = watchLearners(page);
-    const { dialog, slider } = await startRoots(page);
-    await expect(slider).toHaveAttribute("aria-valuenow", "4"); await saved(dialog);
-    expect(new Set(learners)).toEqual(new Set([principal(g.adminId)]));
-  }
-  expect(content(await recordsOf(g.adminId)), "viewing again did not rewrite the admin work").toEqual(content(admin));
-  expect(await recordsOf(g.followerId), "the admin never touched the follower").toEqual(follower);
 
-  // The follower, in Me, still sees only their own value (5), never the admin's (4).
+  // Admin: Group -> follower -> Group. The page is entered once; every switch uses the picker on the mounted scene.
+  await selectPerspective(page, g.experienceId, g.cardId, { perspective: "group" });
+  await enterGroup(page, g.experienceId); await markScene(page);
+  const learners = watchLearners(page);
+  let expectedValue = "4"; // The admin's own saved value from the previous test, in every perspective.
+  for (const [index, key] of ["group", g.followerId, "group"].entries()) {
+    if (index > 0) await switchPerspectiveInPlace(page, key);
+    await expectSameScene(page, key);
+    if (key === g.followerId) await expect(page.locator(".group-picker-current")).toHaveText(new RegExp(g.followerName));
+    const from = learners.length;
+    const { dialog, slider } = await reopenRootsInMountedGroup(page);
+    await expect(slider, `the admin's own state is restored after switching to ${key}`).toHaveAttribute("aria-valuenow", expectedValue); await saved(dialog);
+    expect(new Set(learners.slice(from)), `every record request after switching to ${key} names the signed-in admin`).toEqual(new Set([principal(g.adminId)]));
+    if (index === 2) { // After the round trip, an edit is the admin's and reaches nobody else.
+      await nudge(page, slider, "ArrowLeft", "3"); await saved(dialog); expectedValue = "3";
+    }
+    await closeVisual(page, dialog); await leaveStepView(page);
+    await expectSameScene(page, key);
+  }
+  expect(await recordsOf(g.followerId), "the admin never touched the follower").toEqual(follower);
+  const afterEdit = await recordsOf(g.adminId);
+  expect(afterEdit.attempts, "only the admin attempt exists and it holds the edit").toHaveLength(1); expect(afterEdit.attempts[0].snapshot.state.root).toBe(3);
+  expect(afterEdit.attempts.length, "no attempt was added").toBe(admin.attempts.length);
+
+  // Follower: Me -> Group -> Me, in a separate authenticated context. Their own value (5) in every perspective, never the admin's.
   const context = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL });
   try {
     const fPage = await context.newPage(); fPage.setDefaultTimeout(20_000); await login(fPage, g.followerName);
     await selectPerspective(fPage, g.experienceId, g.cardId, { perspective: "self" });
-    const learners = watchLearners(fPage), { dialog, slider } = await startRoots(fPage);
-    await expect(slider).toHaveAttribute("aria-valuenow", "5"); await saved(dialog);
-    expect(new Set(learners)).toEqual(new Set([principal(g.followerId)]));
+    await enterGroup(fPage, g.experienceId); await markScene(fPage);
+    const fLearners = watchLearners(fPage);
+    let own = "5";
+    for (const [index, key] of [g.followerId, "group", g.followerId].entries()) {
+      if (index > 0) await switchPerspectiveInPlace(fPage, key);
+      await expectSameScene(fPage, key);
+      const from = fLearners.length;
+      const { dialog, slider } = await reopenRootsInMountedGroup(fPage);
+      await expect(slider, `the follower's own state is restored in ${key === "group" ? "Group" : "Me"}`).toHaveAttribute("aria-valuenow", own); await saved(dialog);
+      expect(new Set(fLearners.slice(from))).toEqual(new Set([principal(g.followerId)]));
+      if (index === 2) { await nudge(fPage, slider, "ArrowLeft", "4"); await saved(dialog); own = "4"; }
+      await closeVisual(fPage, dialog); await leaveStepView(fPage);
+      await expectSameScene(fPage, key);
+    }
   } finally { await context.close(); }
-  expect(content(await recordsOf(g.followerId))).toEqual(content(follower));
-  expect(content(await recordsOf(g.adminId))).toEqual(content(admin));
+  const followerAfter = await recordsOf(g.followerId);
+  expect(followerAfter.attempts).toHaveLength(1); expect(followerAfter.attempts[0].snapshot.state.root).toBe(4);
+  expect(await recordsOf(g.adminId), "the follower never touched the admin").toEqual(afterEdit);
 });

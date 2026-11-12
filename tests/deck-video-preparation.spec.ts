@@ -1,3 +1,10 @@
+// Test boundaries for protected video in a Deck scene. The real DeckScene and FocusedCardView are
+// bundled with NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA=1, but every network answer is simulated:
+// /api/media/protected grant and status responses, fixture thumbnails (a generated SVG) and the
+// videodelivery.net requests are all served or aborted by this file, and video playback is stubbed
+// (canPlayType, load, play). These tests establish how the component schedules, shares and discards
+// preparation work. They do NOT establish server authorisation, grant issuance, real video decoding
+// or live Cloudflare Stream playback, and they do not use a Group Card.
 import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";

@@ -1,23 +1,28 @@
 import { expect, test, type BrowserType, type Page } from "@playwright/test";
 
-// Regression: main wrapped the Deck scene in VisualLearningRecordsProvider. The provider creates its
-// account service asynchronously (a lazily loaded module) and its state changes once the module
-// arrives or fails to load. On a scaled mobile scene (viewport shorter than the natural scene) an
-// unrelated render of the Deck used to animate the back Cards by several pixels and back, so a
-// provider update arriving AFTER the presentation animation could make the stack vibrate.
+// STACK-STABILITY CHECK during delayed Visual Learning Records service-module release or failure.
 //
-// This test holds the real service module back until the Deck has finished presenting and its
-// scale/frame are settled, then lets the real provider update (service available, or service
-// unavailable) and samples every animation frame. The Cards must not move AT ALL: the comparison is
-// exact equality with the settled frame, with no movement tolerance. Normal Card transitions must
-// still work afterwards.
+// LIMITATION (read first): in the current code only FocusedCardView consumes the Visual Learning
+// Records provider; the Card stack does not subscribe to it. A provider update therefore does not
+// re-render the stack, and this test passes with or without the original layout fix
+// (layoutDependency). It does NOT independently establish that the original vibration fix is
+// effective, and removing that fix is not expected to fail it. The sampling of the stack on entry and
+// resume that does exercise the layout fix is tests/phase2/group-initial-stack-layout.browser.ts.
 //
-// Sensitivity (verified by temporary mutation, not committed): today only FocusedCardView consumes the
-// provider context, so a provider update does not re-render the CardStack and this test passes with or
-// without the layoutDependency fix. When the CardStack was made to subscribe to the provider (so an
-// update does reach it) and the layoutDependency was removed, all variants failed on the exact `tops`
-// comparison; with the fix kept they passed. The test therefore guards the provider-to-stack path
-// against any future change that lets an update reach the Cards without the fix.
+// What it does establish: main wraps the Deck scene in VisualLearningRecordsProvider, which creates
+// its account service from a lazily loaded module and changes state when that module arrives or
+// fails. This test holds the real service module back until the Deck has finished presenting and its
+// scale and frame are settled, then lets the real provider update (service available, or service
+// unavailable) and samples every animation frame on a scaled mobile scene (viewport shorter than the
+// natural scene). The Cards must not move AT ALL (exact equality with the settled frame, no
+// tolerance), and a normal vertical swipe must still change the active Card afterwards. It runs in
+// Chromium and WebKit at two scaled viewports.
+//
+// History (a one-off temporary mutation, not committed and not repeatable from this file): when the
+// stack was temporarily made to subscribe to the provider and the layoutDependency was also removed,
+// these variants failed on the exact `tops` comparison. That shows the assertion would detect
+// movement if a provider update ever reached the stack without the fix; it is a guard for that
+// future change, not evidence about the code as it stands.
 const group = JSON.parse(process.env.PHASE2_GROUP_FIXTURE ?? "null") as { experienceId: string; deckId: string; cardIds: string[] } | null;
 test.skip(!group, "Requires disposable --group-experiences fixture");
 // The held module is identified by its readable function name, which an optimised build minifies.
@@ -73,7 +78,7 @@ async function holdServiceModule(page: Page, outcome: "available" | "unavailable
 }
 
 for (const engine of ["chromium", "webkit"] as const) for (const outcome of ["available", "unavailable"] as const) for (const viewport of viewports) {
-  test(`${engine}: a Visual Learning Records provider update (service ${outcome}) after presentation does not move the Card stack at ${viewport.width}x${viewport.height}`, async ({ playwright }) => {
+  test(`${engine}: stack stability when the Visual Learning Records service module is released late (service ${outcome}): the Card stack does not move at ${viewport.width}x${viewport.height}`, async ({ playwright }) => {
     const { browser, context, page } = await open(playwright[engine], viewport);
     try {
       const { held, release } = await holdServiceModule(page, outcome);

@@ -1,3 +1,15 @@
+// Test boundaries for protected video in a focused Card. The real FocusedCardView, player and poster
+// code is bundled with NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA=1. What is real and what is simulated:
+// - Simulated grants: tests labelled "simulated grants" answer /api/media/protected themselves
+//   (mocked grant and status responses, fixture thumbnails) and control video readiness through
+//   stubbed media-element properties. They establish how the component requests, retains and releases
+//   grants and prepared images, NOT that the server authorises or issues a grant, and NOT that
+//   Cloudflare Stream plays the video.
+// - Real decoding: the "real local-WebM decoding" tests build a second bundle with protected mode
+//   DISABLED (so no grant is requested) and decode small local WebM fixtures in Chromium and WebKit.
+//   They establish compositing of the thumbnail-to-video handoff, not protected playback.
+// - Not covered here: Group Cards under protected mode (see the Group notes in the merge handoff),
+//   server grant issuance, and live Cloudflare Stream playback.
 import { expect, test, webkit, type Page } from "@playwright/test";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
@@ -85,7 +97,7 @@ async function controlledFrames(page: Page) {
   });
 }
 
-for (const mode of ["working", "canonical"]) test(`${mode}: each grant prepares its decoded image immediately; navigation moves the same images without new downloads`, async ({page}) => {
+for (const mode of ["working", "canonical"]) test(`simulated grants, ${mode}: each grant prepares its decoded image immediately; navigation moves the same images without new downloads`, async ({page}) => {
   const grants = new Map<string, () => Promise<void>>(), downloads: string[] = [];
   await controlledFrames(page);
   await page.route("https://fixture.invalid/**", async route => {
@@ -152,7 +164,7 @@ for (const mode of ["working", "canonical"]) test(`${mode}: each grant prepares 
   }
 });
 
-test("renewed grants replace thumbnails; learner/version changes and closing release retained image nodes", async ({page}) => {
+test("simulated grants: renewed grants replace thumbnails; learner/version changes and closing release retained image nodes", async ({page}) => {
   const counts=new Map<string,number>(), downloads:string[]=[];
   const start=Date.now(); await page.clock.setFixedTime(new Date(start)); await controlledFrames(page);
   await page.route("https://fixture.invalid/**", async route => {
@@ -194,7 +206,7 @@ test("renewed grants replace thumbnails; learner/version changes and closing rel
   await expect.poll(()=>page.evaluate(()=>{const image=(window as unknown as {closingImage:Element}).closingImage;return !image.isConnected&&!image.hasAttribute("src");})).toBe(true);
 });
 
-test("delayed and failed thumbnails leave a visible loading message; video readiness ends loading independently", async ({page}) => {
+test("simulated grants: delayed and failed thumbnails leave a visible loading message; video readiness ends loading independently", async ({page}) => {
   await page.setViewportSize({width:390,height:844}); await controlledFrames(page);
   let releaseImage!: () => Promise<void>;
   await page.route("https://fixture.invalid/**", async route => {
@@ -235,7 +247,7 @@ async function renderedPixel(page: Page) {
   return [...inflateSync(Buffer.concat(chunks)).subarray(1,4)];
 }
 
-for(const engine of ["chromium","webkit"]) for(const paused of [true,false]) test(`${engine} actual decoded frames: ${paused ? "paused" : "playing"} thumbnail handoff has no black composited gap`, async ({page:chromiumPage})=>{
+for(const engine of ["chromium","webkit"]) for(const paused of [true,false]) test(`${engine} real local-WebM decoding, protected mode disabled: ${paused ? "paused" : "playing"} thumbnail handoff has no black composited gap`, async ({page:chromiumPage})=>{
   const browser=engine==="webkit"?await webkit.launch():null;
   const page=browser?await browser.newPage({viewport:{width:1024,height:900}}):chromiumPage;
   const red=await readFile("tests/fixtures/handoff-red.webm"),green=await readFile("tests/fixtures/handoff-green.webm");
@@ -299,7 +311,7 @@ for(const engine of ["chromium","webkit"]) for(const paused of [true,false]) tes
   } finally {if(browser)await browser.close();}
 });
 type Harness = { mountCard(actor?: string, version?: number): void; unmountCard(): void; setHidden(hidden: boolean): void };
-for (const mode of ["working", "canonical"]) test(`${mode} focused Card prepares four independent grants and preserves them through Next/Previous`, async ({ page }) => {
+for (const mode of ["working", "canonical"]) test(`simulated grants, ${mode} focused Card prepares four independent grants and preserves them through Next/Previous`, async ({ page }) => {
   const grants: string[] = [], statuses: string[] = [];
   await page.route("https://fixture.invalid/**", async route => {
     const query = new URL(route.request().url()).searchParams;
@@ -332,7 +344,7 @@ for (const mode of ["working", "canonical"]) test(`${mode} focused Card prepares
 });
 
 
-test("actual focused Card cancels preparation on hiding, learner/version change and unmount", async ({page}) => {
+test("simulated grants: actual focused Card cancels preparation on hiding, learner/version change and unmount", async ({page}) => {
   const records: { actor: string | undefined; version: string | null; release: () => void }[] = [];
   let aborted = 0;
   page.on("requestfailed", request => { if (request.url().includes("format=grant")) aborted++; });

@@ -4,8 +4,12 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { build } from "esbuild";
 
-// Exercise the real route with fixture auth/provider boundaries, following the
-// existing API-test bundling convention. No MongoDB or provider requests occur.
+// Exercise the real route handler with fixture auth/provider boundaries, following the existing
+// API-test bundling convention. The authentication, repository, authorisation
+// (authorizeProtectedMedia / authorizeCardPlayback) and grant-issuance (streamPlaybackGrant)
+// collaborators are all replaced by fixtures, so these tests establish the route's own behaviour
+// (status codes, private headers, actor binding, sanitised errors, forwarding the context) and not
+// the real authorisation rules or real grant issuance. No MongoDB or provider requests occur.
 async function routeFixture() {
   const bundle = await build({ entryPoints: ["src/app/api/media/protected/route.ts"], bundle: true,
     platform: "node", format: "cjs", packages: "external", write: false,
@@ -63,7 +67,7 @@ test("protected image route catches asynchronous failures and returns a private 
 });
 
 
-test("Card playback descriptor is private, actor-bound and mints one grant for manifest and thumbnail", async (t) => {
+test("Card playback descriptor is private, actor-bound, calls the grant provider once and returns its descriptor", async (t) => {
   const previous = process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA;
   process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA = "1";
   const fixture = { actor: { id: "alice" } as { id: string } | null, denied: false, grantCalls: 0, context: {} };

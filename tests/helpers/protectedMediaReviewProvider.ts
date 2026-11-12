@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // The resource query avoids the exact bundler replacement, retaining the actual
-// authorisation functions. Only fixture byte delivery is substituted.
+// authorisation functions. Image byte delivery is substituted by the disposable fixture media
+// server, and Stream grant and token issuance is DISABLED (both throw), so protected video playback
+// cannot be exercised through this provider.
 const actual = require("../../src/lib/cards/protectedMedia?actual") as typeof import("../../src/lib/cards/protectedMedia");
 import { reviewMediaOrigin } from "./groupMediaReviewProvider";
 export const authorizeProtectedMedia = actual.authorizeProtectedMedia;

@@ -2,9 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 import { build } from "esbuild";
 
 // The real AuthScreen is bundled. Only its four collaborators are replaced by recorders, so the test
-// establishes exactly what one successful sign-in invokes and in which order: the Group Experience
-// branch needs a fresh client authority scope and the login perspective; main needs the visual guest
-// handoff. The response body is read once, and a failed sign-in invokes none of them.
+// establishes what one successful sign-in invokes: the Group Experience branch needs a fresh client
+// authority scope and the login perspective; main needs the visual guest handoff. The recorders only
+// show that each collaborator was INVOKED with the expected arguments; the real handoff, session and
+// perspective modules are not run here. Only the synchronous prefix (client scope, then Group login
+// perspective) is ordered; the handoff, refresh and navigation are asserted as a set. A rejected
+// sign-in invokes none of them.
 let bundle: string;
 test.beforeAll(async () => {
   const replacements: Record<string, string> = {
@@ -54,7 +57,7 @@ const afterPrefix = async (page: Page, prefix: unknown[][], rest: unknown[][]) =
   expect(all.slice(prefix.length).map(call => JSON.stringify(call)).sort()).toEqual(rest.map(call => JSON.stringify(call)).sort());
 };
 
-test("one successful sign-in clears the client scope, starts the Group login perspective and hands over the visual guest", async ({ page }) => {
+test("one successful sign-in clears the client scope, starts the Group login perspective and invokes the guest-handoff collaborator", async ({ page }) => {
   const requests: string[] = [], guest = { guestId: "guest-1", token: "opaque" };
   await mount(page, { status: 200, body: { user: { id: "user-1" }, visualGuest: guest } }, requests);
   await signIn(page);
@@ -68,7 +71,7 @@ test("a sign-in without a visual guest does not start a handoff but still starts
   await afterPrefix(page, [["clearSession"], ["startGroupLogin", "user-2"]], [["refresh"]]);
 });
 
-test("a pre-login return target is honoured after both are started", async ({ page }) => {
+test("a pre-login return target is honoured, alongside the Group perspective start and the guest-handoff invocation", async ({ page }) => {
   await mount(page, { status: 200, body: { user: { id: "user-3" }, visualGuest: { guestId: "g" } } }, [], "?redirect=1");
   await signIn(page);
   await afterPrefix(page, [["clearSession"], ["startGroupLogin", "user-3"]], [["visualHandoff", "user-3", { guestId: "g" }], ["replace", "/decks"]]);

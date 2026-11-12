@@ -1,3 +1,7 @@
+// Repository-level authorisation of stored media references against a real (in-memory) MongoDB:
+// who may be authorised to read which stored image, Stream asset or scoped playback context. These
+// tests establish the authorisation decisions only. They do not deliver bytes, issue a playback
+// grant or play video, and they do not go through the HTTP route.
 import { imageAllocationId, INSTRUCTIONAL_IMAGE_ALLOCATIONS, type InstructionalImageAllocation } from "../src/lib/cards/instructionalImageOwnership";
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";

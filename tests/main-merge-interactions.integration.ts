@@ -21,7 +21,17 @@ import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem } from 
 
 // Interactions between the two branches that neither branch tested alone:
 // step media collections (main) with Info Card attachment dates, Group media
-// restrictions and Card/Deck image ownership (Group Experience branch + main).
+// restrictions and Card image ownership (Group Experience branch + main).
+//
+// Coverage boundaries (what these tests do NOT establish):
+// - Nested mediaItems are exercised through the Card create and save paths only. Deck content and
+//   the graph write paths (createPrivateGraph / Deck saves) are not covered for the Group media
+//   restriction or for image ownership. A pre-existing validation defect on those paths would need a
+//   production change and is outside this test file.
+// - The Creator round trip runs the pure adapters (creatorBoard, privateGraph and the template
+//   conversions); it does not drive the Creator interface or its save requests.
+// - Image delivery is checked by resolving an authorised reference with resolveInstructionalImage.
+//   Object storage is a stubbed S3 client; no bytes are served over HTTP here.
 let mongo: MongoMemoryReplSet, client: MongoClient, sequence = 0;
 const objects = new Map<string, Record<string, string>>();
 before(async () => {
@@ -75,7 +85,7 @@ test("mediaItems and infoCardAttachedAt coexist through save, publish, Library, 
   assert.deepEqual(stored.intro.mediaItems, [activity]);
   assert.equal(Object.hasOwn(stored.intro, "mediaItem"), false, "a modern destination never keeps the legacy field");
 
-  // Creator round trip keeps both families of fields.
+  // Creator adapter round trip (pure functions, no Creator UI) keeps both families of fields.
   const dto = { root: { deckTemplateId: "graph" }, content: deck, cards: [{ root: { cardTemplateId: "main" }, content: stored, publishedContent: null }] };
   const board = creatorBoard(dto), saved = privateGraph(board, dto).cards[0].content;
   assert.deepEqual(saved.infoCardAttachedAt, stored.infoCardAttachedAt);
@@ -109,7 +119,7 @@ test("mediaItems and infoCardAttachedAt coexist through save, publish, Library, 
   assert.deepEqual(presented.intro.mediaItems, [activity, { id: "video", label: "Watch", kind: "video", media: video }]);
 });
 
-test("image ownership applies to mediaItems entries and survives publication and canonical delivery", async () => {
+test("image ownership applies to Card mediaItems entries and survives publication and canonical image-reference resolution", async () => {
   const { repo } = await setup();
   await repo.createCardDraft("alice", content(["a"]), "public", "card");
   const image = await allocateImage(repo, "card");
@@ -147,7 +157,7 @@ test("image ownership applies to mediaItems entries and survives publication and
   await assert.rejects(resolveInstructionalImage(repo, "learner", { ...context, stepId: "intro" }), /FORBIDDEN/);
 });
 
-test("Group media is refused inside nested mediaItems of Cards and Decks", async () => {
+test("Group media is refused inside nested mediaItems through the Card create and save paths", async () => {
   const { repo } = await setup();
   await repo.createCardDraft("alice", content(["a"]), "public", "card");
   const nested = (media: StepMediaItem): CardContent => ({ ...content(["a"]), intro: withStepMedia(content(["a"]).intro, [media]) });
