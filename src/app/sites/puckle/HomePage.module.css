@@ -28,6 +28,37 @@
   max-width: 30rem;
 }
 
+.artwork {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  margin-bottom: 8px;
+}
+
+.bridge {
+  display: grid;
+  gap: 4px;
+  max-width: 380px;
+  text-align: center;
+}
+
+.bridgeTitle {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: 1.3125rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.bridgeText {
+  color: var(--sp-site-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
 .artworkPanel {
   border-radius: var(--sp-site-card-radius);
   justify-self: center;
@@ -57,8 +88,47 @@
     max-width: 540px;
   }
 
+  .bridge {
+    max-width: 540px;
+  }
+
+  .bridgeTitle {
+    font-size: 1.5rem;
+  }
+
   .title {
     font-size: clamp(2.6rem, 4vw, 3.6rem);
     max-width: 14ch;
   }
+}
+
+.curriculumLine {
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+.footerInvite {
+  color: var(--sp-site-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.footerInvite a {
+  color: var(--sp-site-text);
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 214, 228, 0.5);
+  text-underline-offset: 3px;
+}
+
+.footerInvite a:hover {
+  text-decoration-color: var(--sp-site-accent-blue);
+}
+
+.footerInvite a:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 3px;
 }

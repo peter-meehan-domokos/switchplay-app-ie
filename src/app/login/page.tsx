@@ -33,7 +33,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <PublicLayout>
-      <PublicHeader showJoinLink={false} showStepVisualsLink={site === "puckle"} site={site} />
+      <PublicHeader showJoinLink={false} showStepVisualsLink={false} site={site} />
       <div className={styles.standaloneLogin}>
         <AuthScreen redirectTo={redirectTo} site={site} />
       </div>

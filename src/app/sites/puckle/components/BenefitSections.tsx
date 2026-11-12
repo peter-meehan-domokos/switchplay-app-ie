@@ -5,8 +5,6 @@ import styles from "./BenefitSections.module.css";
 
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
 
-const cardSteps = ["Learn", "Explore", "Test yourself"] as const;
-
 const progressIdeas = [
   { title: "Make it yours", body: "Save ideas and shape your own learning." },
   { title: "Learn from others", body: "Share notes and explanations." },
@@ -33,11 +31,6 @@ function LearningSection() {
         <h2 className={styles.primaryTitle} id="learning-title">
           Learning beyond the lesson.
         </h2>
-        <ol className={styles.stepStrip} aria-label="How each Card works">
-          {cardSteps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
       </header>
 
       <div className={styles.beat}>
@@ -45,7 +38,7 @@ function LearningSection() {
           <p className={styles.stepLabel}>Learn</p>
           <h3 className={styles.beatTitle}>Explanations that actually explain.</h3>
           <p className={styles.body}>
-            Short, focused videos show you why the maths works — not just which steps to copy.
+            Videos show you why the maths works — not just which steps to copy.
           </p>
         </div>
         <figure className={styles.media}>
@@ -65,7 +58,7 @@ function LearningSection() {
           <p className={styles.stepLabel}>Explore</p>
           <h3 className={styles.beatTitle}>See what changes. Understand why.</h3>
           <p className={styles.body}>
-            Move points, change graphs and investigate the ideas behind the questions you’ll meet in your exams.
+            Move points, change graphs and investigate the ideas behind questions you’ll meet in your exams.
           </p>
         </div>
         <figure className={`${styles.media} ${styles.mediaFeature}`}>
@@ -85,8 +78,7 @@ function LearningSection() {
           <p className={styles.stepLabel}>Test yourself</p>
           <h3 className={styles.beatTitle}>Comments on your work. Video feedback just for you.</h3>
           <p className={styles.body}>
-            Upload your exam answers and get feedback that really helps — from comments directly on your working to
-            short, personalised videos explaining what to focus on next.
+            Upload a photo of your work and find out what to improve and what to try next.
           </p>
         </div>
         <div
@@ -123,8 +115,6 @@ function LearningSection() {
           </div>
         </div>
       </div>
-
-      <p className={styles.bridge}>Your lessons, practice and feedback stay connected — so you keep moving forward.</p>
     </section>
   );
 }
@@ -147,6 +137,7 @@ function TuitionSection() {
           src="/images/sites/puckle/puckle-tutor-photo.jpg"
           width={960}
         />
+        <figcaption className={styles.credential}>15+ years teaching secondary maths · Thousands of students taught</figcaption>
       </figure>
       <div className={styles.tuitionCopy}>
         <p className={styles.body}>
@@ -158,9 +149,12 @@ function TuitionSection() {
             <li key={option}>{option}</li>
           ))}
         </ul>
-        <p className={styles.body}>
-          We focus on the topics you need most for your exams, with learning materials developed around your questions.
-        </p>
+        <p className={styles.optionsNote}>Different ways to get the help you need, with options for different budgets.</p>
+        <div className={styles.cta}>
+          <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
+            Request a free session
+          </a>
+        </div>
       </div>
     </section>
   );
@@ -176,9 +170,6 @@ function ProgressSection() {
             Built around your progress.
           </h2>
         </header>
-        <p className={styles.body}>
-          Make the learning yours, build on ideas from others and stay focused on your exam goals.
-        </p>
       </div>
       <figure className={`${styles.media} ${styles.progressMedia}`}>
         <Image
@@ -197,11 +188,6 @@ function ProgressSection() {
           </li>
         ))}
       </ul>
-      <div className={styles.cta}>
-        <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
-          Let’s talk
-        </a>
-      </div>
     </section>
   );
 }

@@ -5,6 +5,9 @@ import buttonStyles from "./PublicButton.module.css";
 import { getCurrentUser } from "@/lib/auth";
 import styles from "./PublicHeader.module.css";
 
+// Temporarily hidden from the menu. The /step-visuals page itself is unchanged and still reachable by URL.
+const SHOW_STEP_VISUALS_LINK = false;
+
 type PublicHeaderProps = {
   showJoinLink?: boolean;
   showLoginLink?: boolean;
@@ -15,7 +18,7 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
   const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Log in" };
   const menuLinks = [
     { href: "/contact", label: "Contact" },
-    { href: "/step-visuals", label: "Step Visuals" },
+    ...(SHOW_STEP_VISUALS_LINK ? [{ href: "/step-visuals", label: "Step Visuals" }] : []),
     ...(showLoginLink ? [authLink] : []),
   ];
 

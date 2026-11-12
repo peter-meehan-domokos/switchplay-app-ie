@@ -11,6 +11,10 @@
   scroll-margin-block-start: 24px;
 }
 
+.primary {
+  gap: 36px;
+}
+
 .secondary {
   gap: 24px;
 }
@@ -54,30 +58,16 @@
   line-height: 1.5;
 }
 
-/* Learn -> Explore -> Test yourself */
-.stepStrip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  margin: 4px 0 0;
-  padding: 0;
-  color: var(--sp-site-text);
-  font-size: 0.95rem;
-  font-weight: 650;
-  list-style: none;
-}
-
-.stepStrip li + li::before {
-  margin-right: 10px;
-  color: var(--sp-site-accent-blue);
-  content: "→";
-  font-weight: 400;
-}
-
 .beat {
   display: grid;
   gap: 20px;
+}
+
+/* Explore is the lead demonstration: the other two sit slightly narrower on mobile. */
+.beat:not(.beatReverse) .media,
+.beat:not(.beatReverse) .feedback {
+  justify-self: start;
+  width: 94%;
 }
 
 .beatCopy {
@@ -226,18 +216,11 @@
   line-height: 1.3;
 }
 
-.bridge {
-  color: var(--sp-site-text-muted);
-  font-size: 1rem;
-  line-height: 1.5;
-  max-width: 34rem;
-}
-
 /* Section 2 */
 .portrait {
+  display: grid;
+  gap: 10px;
   margin: 0;
-  overflow: hidden;
-  border-radius: 20px;
   width: 200px;
 }
 
@@ -245,6 +228,21 @@
   display: block;
   width: 100%;
   height: auto;
+  border-radius: 20px;
+}
+
+.credential {
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  max-width: 24rem;
+}
+
+.optionsNote {
+  margin-top: -4px;
+  color: var(--sp-site-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
 }
 
 .tuitionCopy,
@@ -286,6 +284,7 @@
 
 .cta {
   display: flex;
+  margin-top: 4px;
 }
 
 @media (max-width: 359px) {
@@ -315,6 +314,11 @@
     gap: 56px;
   }
 
+  .beat:not(.beatReverse) .media,
+  .beat:not(.beatReverse) .feedback {
+    width: 100%;
+  }
+
   .secondary {
     gap: 48px;
   }
@@ -329,8 +333,7 @@
 
   .body,
   .ideas,
-  .options,
-  .bridge {
+  .options {
     font-size: 1.0625rem;
   }
 
@@ -339,13 +342,13 @@
   }
 
   .beat {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 560px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
     gap: 48px;
     align-items: center;
   }
 
   .beatReverse {
-    grid-template-columns: minmax(0, 620px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 660px) minmax(0, 1fr);
   }
 
   .beatReverse .media {
@@ -396,8 +399,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
     grid-template-areas:
       "intro media"
-      "ideas media"
-      "cta media";
+      "ideas media";
     column-gap: 56px;
     row-gap: 24px;
     align-items: start;
@@ -417,7 +419,4 @@
     grid-area: ideas;
   }
 
-  .cta {
-    grid-area: cta;
-  }
 }

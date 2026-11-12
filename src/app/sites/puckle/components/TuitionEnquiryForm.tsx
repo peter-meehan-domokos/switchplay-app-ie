@@ -7,7 +7,6 @@ import {
   type ContactMethod,
   ENQUIRER_TYPES,
   ENQUIRY_LIMITS,
-  ENQUIRY_SUCCESS_MESSAGE,
   type EnquirerType,
   MATHS_COURSES,
   type MathsCourse,
@@ -66,6 +65,7 @@ export default function TuitionEnquiryForm() {
   const [fieldErrors, setFieldErrors] = useState<EnquiryFieldErrors>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [formError, setFormError] = useState(false);
+  const [submittedUnder18, setSubmittedUnder18] = useState(false);
   const isSubmittingRef = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const successRef = useRef<HTMLDivElement | null>(null);
@@ -164,6 +164,7 @@ export default function TuitionEnquiryForm() {
         return;
       }
 
+      setSubmittedUnder18(payload.enquirerType === "student-under-18");
       setStatus("success");
     } catch {
       setFormError(true);
@@ -187,20 +188,21 @@ export default function TuitionEnquiryForm() {
   return (
     <section className={styles.section} id="early-access" aria-labelledby="enquiry-title">
       <div className={styles.copy}>
-        <h2 id="enquiry-title">Let’s talk about your maths.</h2>
+        <h2 id="enquiry-title">Try Puckle for yourself.</h2>
         <p>
-          Start with a free 20–30 minute online conversation about your maths, your goals and how {SITE_NAME} could
-          help.
-        </p>
-        <p>
-          Personalised online tuition from a maths teacher with over 15 years of experience, supported by learning
-          materials tailored to your needs.
+          Start with a free 20–30 minute online session. We’ll talk about your maths, tackle something together and
+          give you a feel for how {SITE_NAME} works.
         </p>
       </div>
 
       {status === "success" ? (
         <div className={styles.success} ref={successRef} tabIndex={-1} role="status" aria-live="polite">
-          <p>{ENQUIRY_SUCCESS_MESSAGE}</p>
+          <h3>Thanks — I’ll be in touch!</h3>
+          <p>
+            {submittedUnder18
+              ? "I’ll contact your parent or guardian using their preferred method to arrange your free online session."
+              : "I’ll contact you using your preferred method to arrange your free online session."}
+          </p>
         </div>
       ) : (
         <div className={styles.formWrap}>
@@ -233,7 +235,7 @@ export default function TuitionEnquiryForm() {
                   {isUnder18 ? (
                     <p className={styles.note}>
                       Please provide your parent or guardian’s contact details with their permission. I’ll contact them
-                      to arrange the consultation.
+                      to arrange the free session.
                     </p>
                   ) : null}
                 </div>
@@ -348,7 +350,7 @@ export default function TuitionEnquiryForm() {
                     disabled={status === "submitting"}
                     type="submit"
                   >
-                    {status === "submitting" ? "Sending..." : "Request a free chat"}
+                    {status === "submitting" ? "Sending..." : "Request a free session"}
                   </button>
                   <p className={formStyles.statusText} role="status" aria-live="polite">
                     {status === "submitting" ? "Sending your enquiry." : ""}
