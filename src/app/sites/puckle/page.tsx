@@ -74,8 +74,8 @@ export default function Home() {
               Card by Card. Step by step.
             </p>
             <p className={styles.bridgeText}>
-              Every Card has three steps. Complete your Cards, see your progress build, and keep
-              moving.
+              Every card has three steps. Complete your <br className={styles.bridgeBreak} />
+              cards to build exam skills and see your progress.
             </p>
           </div>
         </div>

@@ -6,9 +6,8 @@ import styles from "./BenefitSections.module.css";
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
 
 const progressIdeas = [
-  { title: "Make it yours", body: "Save ideas and shape your own learning." },
-  { title: "Learn from others", body: "Share notes and explanations." },
-  { title: "See your progress", body: "Stay focused on your exam goals." },
+  { title: "Keep what helps.", body: "Add private notes, videos and photos to your cards." },
+  { title: "Learn from others.", body: "Discover explanations and ideas shared by other students." },
 ] as const;
 
 const tuitionOptions = ["One-to-one", "Small groups", "Quick topic check-ins"] as const;
@@ -38,7 +37,7 @@ function LearningSection() {
           <p className={styles.stepLabel}>Learn</p>
           <h3 className={styles.beatTitle}>Explanations that actually explain.</h3>
           <p className={styles.body}>
-            Videos show you why the maths works — not just which steps to copy.
+            Watch our videos when you need them. See why the maths works — not just which steps to copy.
           </p>
         </div>
         <figure className={styles.media}>
@@ -56,9 +55,9 @@ function LearningSection() {
       <div className={`${styles.beat} ${styles.beatReverse}`}>
         <div className={styles.beatCopy}>
           <p className={styles.stepLabel}>Explore</p>
-          <h3 className={styles.beatTitle}>See what changes. Understand why.</h3>
+          <h3 className={styles.beatTitle}>Interactive visuals you can play with.</h3>
           <p className={styles.body}>
-            Move points, change graphs and investigate the ideas behind questions you’ll meet in your exams.
+            Change graphs, move points and experiment with mathematical ideas for yourself.
           </p>
         </div>
         <figure className={`${styles.media} ${styles.mediaFeature}`}>
@@ -133,23 +132,32 @@ function TuitionSection() {
           alt="Your Puckle maths teacher"
           className={styles.portraitImage}
           height={1280}
-          sizes="(min-width: 900px) 260px, 200px"
+          sizes="(min-width: 900px) 286px, 220px"
           src="/images/sites/puckle/puckle-tutor-photo.jpg"
           width={960}
         />
-        <figcaption className={styles.credential}>15+ years teaching secondary maths · Thousands of students taught</figcaption>
+        <figcaption className={styles.credential}>
+          <span>15+ years teaching secondary maths</span>
+          <span>Thousands of students taught</span>
+        </figcaption>
       </figure>
       <div className={styles.tuitionCopy}>
         <p className={styles.body}>
-          Learn with an experienced maths teacher who makes tricky ideas clear, engaging and relevant — with examples
+          Learn with an experienced maths teacher who makes tricky ideas clear and relevant — with examples
           from sport, business and everyday life.
+        </p>
+        <p className={styles.body}>
+          <strong>Stuck on an exam question?</strong>
+          <br />
+          That’s where we start. Your questions shape what we teach and the
+          learning cards we create next.
         </p>
         <ul className={styles.options} aria-label="Ways to learn">
           {tuitionOptions.map((option) => (
             <li key={option}>{option}</li>
           ))}
         </ul>
-        <p className={styles.optionsNote}>Different ways to get the help you need, with options for different budgets.</p>
+        <p className={styles.deliveryNote}>Online tuition, with in-person options in Galway.</p>
         <div className={styles.cta}>
           <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
             Request a free session
@@ -167,7 +175,7 @@ function ProgressSection() {
         <header className={styles.header}>
           <p className={styles.eyebrow}>YOUR LEARNING</p>
           <h2 className={styles.secondaryTitle} id="progress-title">
-            Built around your progress.
+            Make the learning yours.
           </h2>
         </header>
       </div>
@@ -184,7 +192,8 @@ function ProgressSection() {
       <ul className={styles.ideas}>
         {progressIdeas.map((idea) => (
           <li key={idea.title}>
-            <strong>{idea.title}</strong> — {idea.body}
+            <strong>{idea.title}</strong>
+            <span>{idea.body}</span>
           </li>
         ))}
       </ul>

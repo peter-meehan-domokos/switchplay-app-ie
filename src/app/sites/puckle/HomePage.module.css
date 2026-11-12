@@ -59,6 +59,18 @@
   text-wrap: balance;
 }
 
+.bridgeBreak {
+  display: none;
+}
+
+/* Portrait phones only: both lines of the bridge text fit (line 2 is ~328px), so break after "your".
+   Narrower screens and tablet/desktop wrap naturally. */
+@media (min-width: 375px) and (max-width: 480px) and (orientation: portrait) {
+  .bridgeBreak {
+    display: inline;
+  }
+}
+
 .artworkPanel {
   border-radius: var(--sp-site-card-radius);
   justify-self: center;
