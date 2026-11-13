@@ -12,7 +12,10 @@ import { infoId, revision } from "./domain";
 import { isCreatorInfo, isPersonalInfo } from "./model";
 import { INFO_MEDIA_COLLECTION, type InfoMediaAllocation } from "./mediaRegistry";
 
-export interface InfoMediaSecurity { assertReady(actor: string, root: InfoRoot, media: InfoMedia): Promise<void> }
+// Readiness of the intended media. Wrong provenance or missing protection throws; a video that is still being
+// processed is "processing", and one the provider could not process is "failed". R2 images are verified at once.
+export type InfoMediaReadiness = "ready" | "processing" | "failed";
+export interface InfoMediaSecurity { readiness(actor: string, root: InfoRoot, media: InfoMedia): Promise<InfoMediaReadiness> }
 export function assertInfoMediaConfigured() {
   // Explicitly accepted small-scale trial: application ACLs still apply, but
   // R2 images may be read by direct URL. This is not storage verification.
@@ -52,10 +55,10 @@ export async function assertMediaAttachment(repo: InfoCardRepository, actor: str
 }
 
 export const productionMediaSecurity: InfoMediaSecurity = {
-  async assertReady(actor, root, media) {
+  async readiness(actor, root, media) {
     assertInfoMediaConfigured();
     if (media.provider === "cloudflare-r2") {
-      await verifyCloudflareR2InfoCardObject(actor, root.infoCardId, media); return;
+      await verifyCloudflareR2InfoCardObject(actor, root.infoCardId, media); return "ready";
     }
     requireCondition(/^[a-zA-Z0-9_-]+$/.test(media.assetId) && !!process.env.CLOUDFLARE_ACCOUNT_ID && !!process.env.CLOUDFLARE_STREAM_API_TOKEN, "INFO_MEDIA_CONFIGURATION_REQUIRED");
     const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(process.env.CLOUDFLARE_ACCOUNT_ID!)}/stream/${encodeURIComponent(media.assetId)}`, {
@@ -63,7 +66,8 @@ export const productionMediaSecurity: InfoMediaSecurity = {
     });
     const value = await response.json();
     requireCondition(response.ok && value.success && value.result?.creator === actor
-      && value.result?.requireSignedURLs === true && value.result?.readyToStream === true, "INFO_MEDIA_NOT_READY_OR_UNPROTECTED");
+      && value.result?.requireSignedURLs === true, "INFO_MEDIA_NOT_READY_OR_UNPROTECTED");
+    return value.result.readyToStream === true ? "ready" : value.result.status?.state === "error" ? "failed" : "processing";
   },
 };
 

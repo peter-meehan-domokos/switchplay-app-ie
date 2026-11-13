@@ -29,11 +29,16 @@ test("provider readiness requires matching Stream creator, signed URLs and actua
   t.mock.method(globalThis, "fetch", async () => Response.json({ success: true, result }));
   const root = { infoCardId: "a" } as InfoRoot;
   const media: InfoMedia = { id: "video", mediaType: "video", provider: "cloudflare-stream", assetId: "video", src: "https://iframe.videodelivery.net/video", description: "Video" };
-  await productionMediaSecurity.assertReady("alice", root, media);
-  for (const changed of [{ creator: "bob" }, { requireSignedURLs: false }, { readyToStream: false }]) {
+  assert.equal(await productionMediaSecurity.readiness("alice", root, media), "ready");
+  for (const changed of [{ creator: "bob" }, { requireSignedURLs: false }]) {
     result = { creator: "alice", requireSignedURLs: true, readyToStream: true, ...changed };
-    await assert.rejects(productionMediaSecurity.assertReady("alice", root, media), { code: "INFO_MEDIA_NOT_READY_OR_UNPROTECTED" });
+    await assert.rejects(productionMediaSecurity.readiness("alice", root, media), { code: "INFO_MEDIA_NOT_READY_OR_UNPROTECTED" });
   }
+  // A protected video from the right creator that is not ready yet is processing, or failed when Stream says so.
+  result = { creator: "alice", requireSignedURLs: true, readyToStream: false };
+  assert.equal(await productionMediaSecurity.readiness("alice", root, media), "processing");
+  result = { creator: "alice", requireSignedURLs: true, readyToStream: false, status: { state: "error" } } as typeof result;
+  assert.equal(await productionMediaSecurity.readiness("alice", root, media), "failed");
 });
 
 test("R2 upload is scoped to owner/card and signs conditional create to prevent overwriting published media", async t => {

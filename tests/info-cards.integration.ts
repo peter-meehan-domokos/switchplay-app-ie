@@ -8,7 +8,7 @@ import { authorizeInfoMedia, signInfoUpload, productionMediaSecurity, createInfo
 import { assertNotInfoMedia, INFO_MEDIA_COLLECTION } from "../src/lib/infoCards/mediaRegistry";
 import { createHmac } from "node:crypto";
 import { decodeJwt, SignJWT } from "jose";
-import { EMPTY_INFO_DRAFT, type InfoDraft, type InfoMedia } from "../src/lib/infoCards/model";
+import { EMPTY_INFO_DRAFT, type InfoDraft, type InfoMedia, type InfoPublication } from "../src/lib/infoCards/model";
 
 let server: MongoMemoryReplSet, client: MongoClient, seq = 0;
 before(async () => {
@@ -20,7 +20,7 @@ after(async () => { await client?.close(); await server?.stop(); });
 async function setup() {
   const db = client.db(`switchplay_info_cards_test_${seq++}`); await createInfoCardIndexes(db);
   await db.collection("users").insertMany(["alice", "bob", "carol"].map(id => ({ _id: id, username: `${id}-name` })) as never);
-  return new InfoCardRepository(db, client, { async assertReady() {} });
+  return new InfoCardRepository(db, client, { async readiness() { return "ready" as const; } });
 }
 const content = (seriesId = "s", title = "Signs"): InfoDraft => ({ title, body: "Keep the sign with its number.\n\nUse brackets to make it clear.", seriesId, mediaItem: null });
 async function draft(repo: InfoCardRepository, id = "a", owner = "alice", intent: "public" | "private" = "private", seriesId = "s") {
@@ -341,7 +341,7 @@ test("a late provider check cannot publish a concurrently replaced draft", async
   await repo.save("alice", "a", 1, { ...content(), mediaItem: image }, "private", await signInfoUpload(root, image));
   let release!: () => void, reached!: () => void;
   const gate = new Promise<void>(r => { release = r; }), entered = new Promise<void>(r => { reached = r; });
-  const guarded = new InfoCardRepository(repo.db, repo.client, { async assertReady() { reached(); await gate; } });
+  const guarded = new InfoCardRepository(repo.db, repo.client, { async readiness() { reached(); await gate; return "ready" as const; } });
   const publication = guarded.publish("alice", "a", 2); await entered;
   await repo.save("alice", "a", 2, content("s", "Replaced"), "private"); release();
   await assert.rejects(publication, { code: "STALE_INFO_REVISION" });
@@ -402,9 +402,9 @@ test("maths publication needs no browser/certificate, preserves source and remai
   const repo = await setup(); await draft(repo);
   const source = String.raw`General rule: $$\boldsymbol{\frac{a}{\frac{b}{c}}=\frac{ac}{b}}$$`;
   await repo.save("alice", "a", 1, { ...content(), body: source, bodyFormat: "latex-v1" }, "public");
-  const publication = await repo.publish("alice", "a", 2);
+  const publication = await repo.publish("alice", "a", 2) as InfoPublication;
   assert.equal(publication.content.body, source); assert.equal(publication.mathsValidation, undefined);
-  assert.equal((await repo.publish("alice", "a", 2)).version, 1);
+  assert.equal((await repo.publish("alice", "a", 2) as InfoPublication).version, 1);
   assert.equal((await publishedSnapshot(repo, "alice", ["a"]))[0].content.bodyFormat, "latex-v1");
   assert.equal((await infoCatalogue(repo, "alice")).items[0].content.body, source);
   await repo.versions().updateOne({ infoCardId: "a", version: 1 }, { $set: { mathsValidation: { version: 1 } } });
@@ -421,7 +421,7 @@ test("maths source/security validation remains, while geometry does not block pu
   }
   const root = await repo.owner("alice", "a");
   await repo.save("alice", "a", root.revision, { ...content(), bodyFormat: "latex-v1", body: "$$\\rule{400px}{1px}$$" }, "public");
-  assert.equal((await repo.publish("alice", "a", root.revision + 1)).version, 1);
+  assert.equal((await repo.publish("alice", "a", root.revision + 1) as InfoPublication).version, 1);
 });
 
 test("publication still rechecks its saved revision inside the transaction", async () => {
@@ -461,5 +461,5 @@ test("a stale or failed rendering check cannot affect source or publication", as
   }), { code: "STALE_INFO_REVISION" });
   await assert.rejects(repo.checkRendering("alice", "a", 3, async () => { throw new Error("Browser unavailable"); }));
   assert.equal((await repo.owner("alice", "a")).draft?.body, "$y$"); assert.equal(await repo.versions().countDocuments(), 0);
-  assert.equal((await repo.publish("alice", "a", 3)).version, 1);
+  assert.equal((await repo.publish("alice", "a", 3) as InfoPublication).version, 1);
 });

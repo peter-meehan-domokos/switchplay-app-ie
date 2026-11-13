@@ -177,6 +177,18 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
   });
 }
 
+// The Info Card consultation (pouch) for one Card resumes the owner's pending requests for the Info Cards it
+// shows: Personal notes made on this Card and the owner's own Creator Info Cards attached to it (checkpoint 10).
+// A completed request changes what the pouch shows, so the snapshot is read again only then.
+export async function resumingInfoConsultation(repo: InfoCardRepository, actor: string, mainCardId: string, context: MainInfoContext): Promise<InfoConsultationSnapshot> {
+  const first = await mainInfoConsultation(repo, actor, mainCardId, context);
+  const own = first.entries.flatMap(entry => entry.status === "available" && entry.info.ownerUserId === actor && entry.info.kind !== "personal" ? [entry.info.infoCardId] : []);
+  const publications = await repo.resumePendingPublications(actor, { $or: [{ infoCardId: { $in: own } },
+    ...(context.mode === "working" ? [{ kind: "personal" as const, originCardTemplateId: mainCardId }] : [])] });
+  const snapshot = publications.some(state => state.status === "published") ? await mainInfoConsultation(repo, actor, mainCardId, context) : first;
+  return publications.length ? { ...snapshot, publications } : snapshot;
+}
+
 export async function infoCatalogue(repo: InfoCardRepository, actor: string, query: InfoQuery = {}) {
   infoId(actor); const { search, offset, limit } = page(query);
   return repo.transaction(async session => {

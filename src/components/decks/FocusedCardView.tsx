@@ -24,7 +24,7 @@ import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle, type Vid
 import StepView, { type StepViewInfoCards, type StepViewItem } from "@/components/decks/StepView";
 import InfoCardConsultation, { type InfoCardConsultationCard } from "@/components/info-cards/InfoCardConsultation";
 import { loadInfoConsultation, type ConsultationRequest } from "@/components/info-cards/infoCardConsultationClient";
-import type { PersonalInfoSource } from "@/lib/infoCards/model";
+import type { PersonalInfoSource, PublicationRequestState } from "@/lib/infoCards/model";
 import { useDeckGestures } from "@/components/decks/gestures/useDeckGestures";
 import type { GestureCommitment, GestureVector } from "@/components/decks/gestures/gestureTypes";
 import { getCloudflareStreamThumbnailUrl } from "@/lib/cloudflareStreamPlayback";
@@ -277,7 +277,8 @@ export default function FocusedCardView({
   const mediaId = useId();
   const [stepViewElement, setStepViewElement] = useState<HTMLElement | null>(null);
   const [consultation, setConsultation] = useState<{ identity: string; cards: InfoCardConsultationCard[]; source: HTMLElement;
-    status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest; selectedId?: string; personalSources?: PersonalInfoSource[] } | null>(null);
+    status: "pending" | "ready" | "failed"; showLoading: boolean; request?: ConsultationRequest; selectedId?: string; personalSources?: PersonalInfoSource[];
+    publications?: PublicationRequestState[] } | null>(null);
   const refreshAbort = useRef<AbortController | null>(null);
   const recoveryOpened = useRef(false);
   const canonicalVersion = hasPersonalCard(card) ? null : card.version;
@@ -427,7 +428,7 @@ export default function FocusedCardView({
     const timer = setTimeout(() => setConsultation(current => current?.request === consultationRequest && current.status === "pending"
       ? { ...current, showLoading: true } : current), 1000);
     void loadInfoConsultation(consultationRequest, abort.signal, snapshot => setConsultation(current => current?.request === consultationRequest
-      ? { ...current, personalSources: snapshot.personalSources } : current)).then(cards => {
+      ? { ...current, personalSources: snapshot.personalSources, publications: snapshot.publications } : current)).then(cards => {
       if (!abort.signal.aborted) setConsultation(current => current?.request === consultationRequest
         ? { ...current, cards, status: "ready", showLoading: false } : current);
     }).catch(() => {
@@ -1117,16 +1118,16 @@ export default function FocusedCardView({
         recoveryId={personalDraftId} selectedId={consultation.selectedId}
         personalContext={personalEnabled ? { mainCardId: card.id, deckTemplateId, version: playbackVersion!,
           personalInfoRevision: consultation.personalSources?.find(source => source.cardTemplateId === card.id)?.personalInfoRevision ?? 0 } : undefined}
-        personalSources={consultation.personalSources}
+        personalSources={consultation.personalSources} publications={consultation.publications}
         onSelect={selectedId => setConsultation(current => current && current.request === consultation.request ? { ...current, selectedId } : current)}
         onReplace={(cards, selectedId) => setConsultation(current => current && current.request === consultation.request ? { ...current, cards, selectedId } : current)}
         onRefresh={async (selectedId, successors = []) => {
           if (!consultation.request) throw new Error("Info Cards unavailable.");
           refreshAbort.current?.abort(); const abort = new AbortController(); refreshAbort.current = abort;
-          let personalSources = consultation.personalSources;
-          const cards = await loadInfoConsultation(consultation.request, abort.signal, snapshot => { personalSources = snapshot.personalSources; });
+          let personalSources = consultation.personalSources, publications: PublicationRequestState[] | undefined;
+          const cards = await loadInfoConsultation(consultation.request, abort.signal, snapshot => { personalSources = snapshot.personalSources; publications = snapshot.publications; });
           if (abort.signal.aborted) throw new DOMException("Aborted", "AbortError");
-          setConsultation(current => current && current.request === consultation.request ? { ...current, cards, personalSources,
+          setConsultation(current => current && current.request === consultation.request ? { ...current, cards, personalSources, publications,
             selectedId: cards.some(card => card.id === selectedId) ? selectedId : successors.find(id => cards.some(card => card.id === id)) ?? cards[0]?.id } : current);
           return cards;
         }} /> : null}

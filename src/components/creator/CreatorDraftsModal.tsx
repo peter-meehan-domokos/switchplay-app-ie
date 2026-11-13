@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import type { CreatorDraftEntry } from "./creatorDraftEntries";
+import type { InfoCardPublicationNotice } from "../info-cards/infoCardPublicationLayout";
 
-export default function CreatorDraftsModal({ drafts, currentDeckTemplateId, currentInfoCardId, loading, error, switchingTo, onSelect, onClose }: {
+export default function CreatorDraftsModal({ drafts, notices = [], currentDeckTemplateId, currentInfoCardId, loading, error, switchingTo, onSelect, onClose }: {
   drafts: CreatorDraftEntry[];
+  notices?: readonly InfoCardPublicationNotice[];
   currentDeckTemplateId: string;
   currentInfoCardId?: string;
   loading: boolean;
@@ -32,6 +34,7 @@ export default function CreatorDraftsModal({ drafts, currentDeckTemplateId, curr
       </header>
       {loading ? <p>Loading drafts…</p> : null}
       {error ? <p role="alert" className="creator-modal-error">{error}</p> : null}
+      {notices.map(notice => <p key={notice.infoCardId} role="status" data-info-publication-notice={notice.infoCardId}>{notice.message}</p>)}
       {!loading && !error && drafts.length === 0 ? <p>No unfinished drafts.</p> : null}
       <ul className="creator-drafts-list">
         {drafts.map((draft) => { const id = draft.kind === "deck" ? draft.deckTemplateId : draft.infoCardId;
@@ -41,6 +44,7 @@ export default function CreatorDraftsModal({ drafts, currentDeckTemplateId, curr
             {draft.title || (draft.kind === "deck" ? "Untitled Deck" : "Untitled Info Card")}
             {draft.kind === "infoCard" ? <small> · Info Card</small> : null}
           </button>
+          {draft.kind === "infoCard" && draft.publication ? <p role={draft.publication.tone} data-info-publication-notice={draft.infoCardId}>{draft.publication.message}</p> : null}
         </li>; })}
       </ul>
       {switchingTo !== null ? <p role="status">Saving current work before switching…</p> : null}

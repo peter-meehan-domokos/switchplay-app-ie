@@ -1,13 +1,13 @@
-import { MongoServerError, type ClientSession, type Db, type MongoClient } from "mongodb";
+import { MongoServerError, type ClientSession, type Db, type Filter, type MongoClient } from "mongodb";
 import { CardRepository, COLLECTIONS as MAIN } from "../cards/repository";
 import { CardArchitectureError, requireCondition } from "../cards/domain";
 import { sameContent } from "../cards/publicationRules";
 import { withMongoTransaction } from "../mongodb";
 import { assertInfoDraft, infoId, infoReferences, revision, seriesName, visibility } from "./domain";
-import { CREATOR_INFO_FILTER, EMPTY_INFO_DRAFT, isCreatorInfo, isPersonalInfo, type PersonalInfoContext, type InfoContent, type InfoDraft, type InfoPublication, type InfoRoot, type InfoSeries } from "./model";
+import { CREATOR_INFO_FILTER, EMPTY_INFO_DRAFT, isCreatorInfo, isPersonalInfo, type PendingPublication, type PendingPublicationReceipt, type PersonalInfoContext, type PublicationRequestState, type InfoContent, type InfoDraft, type InfoPublication, type InfoRoot, type InfoSeries } from "./model";
 import type { Visibility } from "../cards/model";
 import { measureInfoCapacity } from "./capacity";
-import { assertMediaAttachment, productionMediaSecurity, type InfoMediaSecurity } from "./media";
+import { assertMediaAttachment, productionMediaSecurity, type InfoMediaReadiness, type InfoMediaSecurity } from "./media";
 import { InfoMathsError, type InfoRenderingChecker } from "./mathsValidation";
 import { validateInfoCardContent } from "../../components/info-cards/infoCardContentValidation";
 import { INFO_MEDIA_COLLECTION } from "./mediaRegistry";
@@ -30,6 +30,9 @@ export async function createInfoCardIndexes(db: Db) {
   await db.collection(INFO_MEDIA_COLLECTION).createIndex({ provider: 1, assetId: 1 }, { unique: true });
   await db.collection(INFO_MEDIA_COLLECTION).createIndex({ provider: 1, src: 1 });
 }
+type PersonalPublication = { context?: PersonalInfoContext; resume?: boolean };
+// At most this many of the owner's requests are checked per list visit; each check is one provider request.
+const RESUME_LIMIT = 10;
 export class InfoCapacityError extends CardArchitectureError {
   constructor(readonly capacity: ReturnType<typeof measureInfoCapacity>) { super("INFO_CAPACITY_EXCEEDED"); }
 }
@@ -155,6 +158,17 @@ export class InfoCardRepository {
     });
   }
 
+  // The caller's current Personal Info Card list for this note's origin Card, returned after a Save so the
+  // client can update its working copy. Null when the origin Card data is absent or ambiguous.
+  async personalAssociation(actor: string, id: string) {
+    const root = await this.owner(actor, id);
+    const user = await new CardRepository(this.db, this.client).getPersonalUser(actor);
+    const sources = user?.cardsData.filter(data => data.cardTemplateId === root.originCardTemplateId) ?? [];
+    const source = sources.length === 1 ? sources[0] : null;
+    return source ? { cardTemplateId: source.cardTemplateId, personalInfoRevision: source.personalInfoRevision ?? 0,
+      personalInfoCardIds: source.personalInfoCardIds ?? [], personalInfoCardAttachedAt: source.personalInfoCardAttachedAt ?? {} } : null;
+  }
+
   async createSeries(actor: string, id: string, titleInput: unknown) {
     infoId(actor); infoId(id); const name = seriesName(titleInput);
     const record: InfoSeries = { seriesId: id, ...name, createdByUserId: actor, createdAt: new Date() };
@@ -195,8 +209,10 @@ export class InfoCardRepository {
       if (content.seriesId) await this.eligibleSeries(actor, content.seriesId, effective?.seriesId ?? null, session);
       await assertMediaAttachment(this, actor, root, content.mediaItem, mediaProof, session);
       const draft = published && intent === root.visibility && sameContent(content, published.content) ? null : content;
+      // Any newer draft save cancels a pending Publish or Save (scenario E): an outdated revision is never published.
       await this.roots().updateOne({ infoCardId: id, revision: expected }, { $set: { draft, draftVisibility: intent,
-        ...(isPersonalInfo(root) ? { visibility: "private" as const } : {}), updatedAt: new Date() }, $inc: { revision: 1 } }, { session });
+        ...(isPersonalInfo(root) ? { visibility: "private" as const } : {}), updatedAt: new Date() },
+        $unset: { pendingPublication: "", lastPublicationFailure: "" }, $inc: { revision: 1 } }, { session });
       return (await this.owner(actor, id, session));
     });
   }
@@ -208,7 +224,10 @@ export class InfoCardRepository {
     await this.assertIndexesReady(true, true);
     return this.publishVersion(actor, id, expected, { context });
   }
-  private async publishVersion(actor: string, id: string, expected: number, personal?: { context?: PersonalInfoContext }) {
+  // Creator Publish and Personal Save share one path. Every check except media readiness runs first; a video
+  // that is still processing records a pending request instead of publishing (checkpoint 10).
+  private async publishVersion(actor: string, id: string, expected: number, personal?: PersonalPublication,
+    known?: InfoMediaReadiness): Promise<InfoPublication | PendingPublicationReceipt> {
     revision(expected);
     // External provider checks happen once, outside retriable Mongo callbacks.
     const before = await this.owner(actor, id);
@@ -220,7 +239,6 @@ export class InfoCardRepository {
       const current = await this.versions().findOne({ infoCardId: id, version: before.latestVersion }, { projection: { _id: 0 } });
       requireCondition(current?.visibility === "private", "INFO_FORBIDDEN"); return current;
     }
-    if (before.draft?.mediaItem) await this.mediaSecurity.assertReady(actor, before, before.draft.mediaItem);
     if (before.draft?.bodyFormat) {
       const draft = before.draft;
       assertInfoDraft(draft);
@@ -230,38 +248,22 @@ export class InfoCardRepository {
       const prepared = validateInfoCardContent(draft.body);
       if (prepared.invalid) throw new InfoMathsError({ result: { status: "invalid-input", generation: 0, diagnostics: prepared.diagnostics }, safe: false, headerFits: false });
     }
+    const readiness = before.draft?.mediaItem ? known ?? await this.mediaSecurity.readiness(actor, before, before.draft.mediaItem) : "ready";
+    // Never publish without the intended media.
+    requireCondition(readiness !== "failed", "INFO_MEDIA_PROCESSING_FAILED");
+    if (readiness === "processing") return this.requestPublication(actor, id, expected, personal);
     return this.transaction(async session => {
       const root = await this.owner(actor, id, session);
       requireCondition(personal ? isPersonalInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
       const receipt = await this.versions().findOne({ infoCardId: id, sourceRevision: expected }, { session, projection: { _id: 0 } });
       if (receipt) return receipt;
       requireCondition(root.revision === expected, "STALE_INFO_REVISION");
-      const content = root.draft;
-      requireCondition(content && content.seriesId, "INFO_PUBLICATION_INCOMPLETE");
-      const series = await this.eligibleSeries(actor, content.seriesId, content.seriesId, session);
-      if (content.bodyFormat) {
-        requireCondition(content.title.trim() && content.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
-        requireCondition(!/[\r\n\t\p{Cc}\p{Cf}]/u.test(content.title + series.title), "INVALID_INFO_TEXT");
-      } else {
-        const capacity = measureInfoCapacity({ ...content, seriesTitle: series.title, hasMedia: !!content.mediaItem });
-        if (!capacity.fits) throw new InfoCapacityError(capacity);
-      }
-      requireCondition(personal || root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
-      const publication: InfoPublication = { infoCardId: id, version: root.latestVersion + 1, content: content as InfoContent,
+      const { content, attachment } = await this.publicationChecks(actor, root, personal, session);
+      const publication: InfoPublication = { infoCardId: id, version: root.latestVersion + 1, content,
         visibility: personal ? "private" : root.draftVisibility, sourceRevision: expected, publishedAt: new Date(), publishedByUserId: actor };
-      if (personal && root.latestVersion === 0) {
-        requireCondition(personal.context, "PERSONAL_INFO_CONTEXT_REQUIRED");
-        const main = new CardRepository(this.db, this.client), context = personal.context;
-        await main.consultationCardVersion(actor, root.originCardTemplateId!, { mode: "working", ...context }, session);
-        const user = await main.getPersonalUser(actor, session);
-        const records = user?.cardsData.filter(data => data.cardTemplateId === root.originCardTemplateId);
-        requireCondition(records?.length === 1, "AMBIGUOUS_CARD_DATA");
-        const data = records[0]; revision(context.personalInfoRevision);
-        requireCondition((data.personalInfoRevision ?? 0) === context.personalInfoRevision, "STALE_PERSONAL_INFO_REVISION");
-        requireCondition(!infoReferences(data.personalInfoCardIds).includes(id), "PERSONAL_INFO_ALREADY_ATTACHED");
-        const source = root.originCardTemplateId!;
-        const result = await main.users().updateOne({ _id: user!._id, cardsData: { $elemMatch: { cardTemplateId: source,
-          ...(context.personalInfoRevision === 0 ? { $or: [{ personalInfoRevision: 0 }, { personalInfoRevision: { $exists: false } }] } : { personalInfoRevision: context.personalInfoRevision }) } } }, {
+      if (attachment) {
+        const result = await new CardRepository(this.db, this.client).users().updateOne({ _id: attachment.userId, cardsData: { $elemMatch: { cardTemplateId: attachment.source,
+          ...(attachment.personalInfoRevision === 0 ? { $or: [{ personalInfoRevision: 0 }, { personalInfoRevision: { $exists: false } }] } : { personalInfoRevision: attachment.personalInfoRevision }) } } }, {
           $push: { "cardsData.$.personalInfoCardIds": id },
           $set: { [`cardsData.$.personalInfoCardAttachedAt.${id}`]: publication.publishedAt },
           $inc: { "cardsData.$.personalInfoRevision": 1 },
@@ -269,11 +271,103 @@ export class InfoCardRepository {
         requireCondition(result.matchedCount === 1, "STALE_PERSONAL_INFO_REVISION");
       }
       await this.versions().insertOne({ ...publication }, { session });
+      // Publishing clears any pending request for this revision in the same conditional write, so a repeated or
+      // concurrent completion finds the receipt above and never creates a second version.
       await this.roots().updateOne({ infoCardId: id, revision: expected }, { $set: { latestVersion: publication.version,
         visibility: publication.visibility, draftVisibility: publication.visibility, draft: null, updatedAt: publication.publishedAt },
-        $inc: { revision: 1, ...(personal && root.latestVersion === 0 ? { referenceRevision: 1 } : {}) } }, { session });
+        $unset: { pendingPublication: "", lastPublicationFailure: "" },
+        $inc: { revision: 1, ...(attachment ? { referenceRevision: 1 } : {}) } }, { session });
       return publication;
     });
+  }
+  // The checks a publication of this exact revision must pass inside its transaction. Used both to publish and,
+  // without writing, to accept a pending request, so a request is only recorded when completion can succeed.
+  private async publicationChecks(actor: string, root: InfoRoot, personal: PersonalPublication | undefined, session: ClientSession) {
+    const content = root.draft;
+    requireCondition(content && content.seriesId, "INFO_PUBLICATION_INCOMPLETE");
+    const series = await this.eligibleSeries(actor, content.seriesId, content.seriesId, session);
+    if (content.bodyFormat) {
+      requireCondition(content.title.trim() && content.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
+      requireCondition(!/[\r\n\t\p{Cc}\p{Cf}]/u.test(content.title + series.title), "INVALID_INFO_TEXT");
+    } else {
+      const capacity = measureInfoCapacity({ ...content, seriesTitle: series.title, hasMedia: !!content.mediaItem });
+      if (!capacity.fits) throw new InfoCapacityError(capacity);
+    }
+    requireCondition(personal || root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
+    if (!personal || root.latestVersion !== 0) return { content: content as InfoContent, attachment: null };
+    requireCondition(personal.context, "PERSONAL_INFO_CONTEXT_REQUIRED");
+    const main = new CardRepository(this.db, this.client), context = personal.context;
+    await main.consultationCardVersion(actor, root.originCardTemplateId!, { mode: "working", deckTemplateId: context.deckTemplateId, version: context.version }, session);
+    const user = await main.getPersonalUser(actor, session);
+    const records = user?.cardsData.filter(data => data.cardTemplateId === root.originCardTemplateId);
+    requireCondition(records?.length === 1, "AMBIGUOUS_CARD_DATA");
+    const data = records[0], current = data.personalInfoRevision ?? 0;
+    // A resumed request uses the list revision as it is now; a direct Save keeps its compare-and-set.
+    if (!personal.resume) { revision(context.personalInfoRevision); requireCondition(current === context.personalInfoRevision, "STALE_PERSONAL_INFO_REVISION"); }
+    requireCondition(!infoReferences(data.personalInfoCardIds).includes(root.infoCardId), "PERSONAL_INFO_ALREADY_ATTACHED");
+    return { content: content as InfoContent, attachment: { userId: user!._id, source: root.originCardTemplateId!, personalInfoRevision: current } };
+  }
+  private async requestPublication(actor: string, id: string, expected: number, personal?: PersonalPublication): Promise<PendingPublicationReceipt> {
+    return this.transaction(async session => {
+      const root = await this.owner(actor, id, session);
+      requireCondition(personal ? isPersonalInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
+      requireCondition(root.revision === expected, "STALE_INFO_REVISION");
+      await this.publicationChecks(actor, root, personal, session);
+      const context = personal?.context && root.latestVersion === 0 ? { deckTemplateId: personal.context.deckTemplateId, version: personal.context.version } : undefined;
+      // Pressing again for the same revision keeps the original request.
+      const pending: PendingPublication = root.pendingPublication?.revision === expected ? root.pendingPublication
+        : { revision: expected, requestedAt: new Date(), ...(context ? { context } : {}) };
+      await this.roots().updateOne({ infoCardId: id, revision: expected }, { $set: { pendingPublication: pending }, $unset: { lastPublicationFailure: "" } }, { session });
+      return { status: "pending" as const, infoCardId: id, revision: expected };
+    });
+  }
+  // The single completion helper for pending requests (checkpoint 10). It runs only when the owner is looking at
+  // a relevant interface: the editor status poll, My Drafts, the Info Card list and the Info Card consultation.
+  // Ready publishes through publishVersion; failed clears the request and records the failure; processing waits.
+  async completePendingPublication(actor: string, id: string): Promise<PublicationRequestState | null> {
+    const root = await this.owner(actor, id);
+    const label = { infoCardId: id, title: root.draft?.title ?? "", kind: isPersonalInfo(root) ? "personal" as const : "creator" as const };
+    const pending = root.pendingPublication;
+    if (!pending) return root.lastPublicationFailure?.revision === root.revision ? { ...label, status: "failed", code: root.lastPublicationFailure.code } : null;
+    // A newer draft save always clears the request; a mismatch here is only a write still in flight.
+    if (pending.revision !== root.revision) return null;
+    const media = root.draft?.mediaItem;
+    let readiness: InfoMediaReadiness;
+    try { readiness = media ? await this.mediaSecurity.readiness(actor, root, media) : "ready"; }
+    catch (error) { if (error instanceof CardArchitectureError) return this.failPending(label, pending.revision, error.code); throw error; }
+    if (readiness === "processing") return { ...label, status: "pending" };
+    if (readiness === "failed") return this.failPending(label, pending.revision, "INFO_MEDIA_PROCESSING_FAILED");
+    try {
+      const result = await this.publishVersion(actor, id, pending.revision, isPersonalInfo(root)
+        ? { resume: true, ...(pending.context ? { context: { ...pending.context, personalInfoRevision: 0 } } : {}) } : undefined, "ready");
+      return "version" in result ? { ...label, status: "published", version: result.version } : { ...label, status: "pending" };
+    } catch (error) {
+      if (!(error instanceof CardArchitectureError)) throw error;
+      // An edit raced this check: the request is already cancelled.
+      if (error.code === "STALE_INFO_REVISION") return null;
+      return this.failPending(label, pending.revision, error.code);
+    }
+  }
+  private async failPending(label: Omit<PublicationRequestState, "status">, expected: number, code: string): Promise<PublicationRequestState> {
+    await this.roots().updateOne({ infoCardId: label.infoCardId, revision: expected, "pendingPublication.revision": expected },
+      { $unset: { pendingPublication: "" }, $set: { lastPublicationFailure: { revision: expected, at: new Date(), code } } });
+    return { ...label, status: "failed", code };
+  }
+  // Bounded resume of the owner's own pending requests when they open a list that shows them. Best effort: a
+  // provider or database hiccup leaves the request pending for the next visit and never fails the list.
+  // `scope` narrows the owner's own roots to the ones the visited interface shows.
+  async resumePendingPublications(actor: string, scope: Filter<InfoRoot> = {}) {
+    infoId(actor);
+    const roots = await this.roots().find({ ownerUserId: actor, deletedAt: { $exists: false }, $and: [scope,
+      { $or: [{ pendingPublication: { $exists: true } }, { lastPublicationFailure: { $exists: true } }] }] },
+      { projection: { _id: 0 } }).sort({ updatedAt: -1, infoCardId: 1 }).limit(RESUME_LIMIT).toArray();
+    const states = await Promise.all(roots.map(root => {
+      const label = { infoCardId: root.infoCardId, title: root.draft?.title ?? "", kind: isPersonalInfo(root) ? "personal" as const : "creator" as const };
+      return root.pendingPublication
+        ? this.completePendingPublication(actor, root.infoCardId).catch((): PublicationRequestState => ({ ...label, status: "pending" }))
+        : Promise.resolve(root.lastPublicationFailure?.revision === root.revision ? { ...label, status: "failed" as const, code: root.lastPublicationFailure.code } : null);
+    }));
+    return states.filter((state): state is PublicationRequestState => state !== null);
   }
 
   async checkRendering(actor: string, id: string, expected: number, check: InfoRenderingChecker) {

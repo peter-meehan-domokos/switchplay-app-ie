@@ -11,7 +11,7 @@ import { InfoCardRepository, createInfoCardIndexes } from "../src/lib/infoCards/
 import { discoverSeries, infoCatalogue, mainInfoConsultation, publishedSnapshot } from "../src/lib/infoCards/queries";
 import { authorizeInfoMedia, signInfoUpload } from "../src/lib/infoCards/media";
 import { withInfoAttachmentDates } from "../src/lib/infoCards/attachmentDates";
-import type { InfoDraft, PersonalInfoContext } from "../src/lib/infoCards/model";
+import type { InfoDraft, InfoPublication, PersonalInfoContext } from "../src/lib/infoCards/model";
 
 let mongo: MongoMemoryReplSet, client: MongoClient, seq = 0;
 before(async () => {
@@ -23,7 +23,7 @@ after(async () => { await client?.close(); await mongo?.stop(); });
 const body = (title = "Note"): InfoDraft => ({ title, body: "Keep the sign with its number.", seriesId: "personal-series", mediaItem: null });
 async function setup() {
   const db = client.db(`switchplay_test_personal_info_${seq++}`);
-  const main = new CardRepository(db, client), info = new InfoCardRepository(db, client, { async assertReady() {} });
+  const main = new CardRepository(db, client), info = new InfoCardRepository(db, client, { async readiness() { return "ready" as const; } });
   await createFoundationIndexes(db); await createInfoCardIndexes(db);
   await main.users().insertMany(["alice", "bob"].map(_id => ({ _id, username: _id, cardsData: [], decksData: [] })));
   await info.createSeries("alice", "personal-series", "Personal basics");
@@ -38,7 +38,7 @@ async function setup() {
 async function note(info: InfoCardRepository, context: PersonalInfoContext, id = "note", origin = "main") {
   await info.createPersonal("alice", id, origin, context);
   await info.save("alice", id, 0, body(), "private");
-  return info.savePersonal("alice", id, 1, context);
+  return await info.savePersonal("alice", id, 1, context) as InfoPublication;
 }
 test("shared dates are server assigned, retained through draft/retry/publication, and forged redating is ignored", async () => {
   const { main, info } = await setup();
@@ -270,7 +270,7 @@ test("deletion winning a delayed personal Save never leaves a dangling attachmen
   const media = { id: "image", provider: "cloudflare-r2" as const, mediaType: "image" as const, assetId: "race-image", src: "https://example.invalid/race.png", description: "Image" };
   await info.createPersonal("alice", "race-note", "main", context);
   await info.save("alice", "race-note", 0, { ...body(), mediaItem: media }, "private", await signInfoUpload(await info.owner("alice", "race-note"), media));
-  const delayed = new InfoCardRepository(main.db, client, { async assertReady() { entered(); await held; } });
+  const delayed = new InfoCardRepository(main.db, client, { async readiness() { entered(); await held; return "ready" as const; } });
   const saving = delayed.savePersonal("alice", "race-note", 1, context); await reached;
   await info.delete("alice", "race-note", 1); release(); await assert.rejects(saving, { code: "INFO_FORBIDDEN" });
   assert.equal((await main.getPersonalUser("alice"))!.cardsData[0].personalInfoCardIds, undefined);

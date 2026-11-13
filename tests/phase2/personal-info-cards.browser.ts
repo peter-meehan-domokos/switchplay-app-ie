@@ -533,3 +533,62 @@ async function ownDraftId(f: Awaited<ReturnType<typeof fixture>>) {
   const root = await f.info.roots().find({ ownerUserId: f.owner, kind: "personal" }).sort({ createdAt: -1 }).limit(1).next();
   return root?.infoCardId as string | undefined;
 }
+
+// ---- Checkpoint 10: a first Personal Save while the video processes ----
+// The disposable harness cannot reach Cloudflare Stream, so the save and status requests run the real repository
+// code against the same disposable database with an injected video readiness. Only the provider is stood in for.
+test("a first Personal Save while the video processes saves automatically once ready and opens the new note", async ({ page }) => {
+  const f = await fixture(); await enter(page, f.deckId);
+  let video: "processing" | "ready" = "processing";
+  const repo = new InfoCardRepository(f.main.db, client, { async readiness() { return video; } });
+  const sign = async (id: string, media: { provider: string; assetId: string; src: string }) => {
+    const root = await repo.owner(f.owner, id);
+    return new SignJWT({ purpose: "info-upload", actor: f.owner, infoCardId: id, createdAt: root.createdAt.toISOString(), provider: media.provider, assetId: media.assetId, src: media.src })
+      .setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("5m")
+      .sign(createHmac("sha256", "local-phase2-browser-test-secret-only").update("switchplay:info-card-upload:v1").digest());
+  };
+  const assetId = `fixture-${randomUUID()}`;
+  await page.route("**/api/info-cards/*/upload", async route => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-2)!;
+    const media = { id: "video", provider: "cloudflare-stream", mediaType: "video", assetId, src: "https://iframe.videodelivery.net/fixture", description: "Video" };
+    await route.fulfill({ json: { media, proof: await sign(id, media), uploadURL: `${new URL(page.url()).origin}/__fixture-info-video-upload` } });
+  });
+  await page.route("**/__fixture-info-video-upload", route => route.fulfill({ status: 200 }));
+  await page.route("**/api/info-cards/*/media/status?*", async route => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-3)!;
+    if (video === "processing") return route.fulfill({ json: { status: "processing", progress: 70 } });
+    const publication = await repo.completePendingPublication(f.owner, id);
+    const association = publication?.status === "published" ? await repo.personalAssociation(f.owner, id) : null;
+    return route.fulfill({ json: { status: "ready", ...(publication ? { publication: { ...publication, ...(association ? { association } : {}) } } : {}) } });
+  });
+  await page.route("**/api/info-cards/*/save", async route => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-2)!, body = route.request().postDataJSON();
+    const result = await repo.savePersonal(f.owner, id, body.revision, body.context);
+    if ("status" in result) return route.fulfill({ status: 202, json: result });
+    const association = await repo.personalAssociation(f.owner, id);
+    return route.fulfill({ json: { ...result, ...(association ? { association } : {}) } });
+  });
+  await open(page, true); await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click();
+  await fill(page, "Video note", "Watch the sign move.");
+  await editor(page).getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "clip.mp4", mimeType: "video/mp4", buffer: Buffer.from("provider transfer fixture") });
+  await expect(media(page).getByRole("status")).toHaveText("Video processing (70%)");
+
+  // One press: the editor stays open and says the note will be saved when the video is ready. Nothing is attached yet.
+  await editor(page).getByRole("button", { name: "Save", exact: true }).click();
+  await expect(media(page).getByRole("status")).toHaveText("Video processing (70%). Saving when the video is ready.");
+  await expect(editor(page).getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  const id = (await ownDraftId(f))!;
+  await expect.poll(async () => (await repo.owner(f.owner, id)).pendingPublication?.context?.deckTemplateId).toBe(f.deckId);
+  expect((await f.main.getPersonalUser(f.owner))!.cardsData.find(data => data.cardTemplateId === f.cardId)?.personalInfoCardIds ?? []).toEqual([]);
+
+  // Ready: saved without a second press, attached once, and opened as the focused card.
+  video = "ready";
+  await expect(editor(page)).toHaveCount(0);
+  await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
+  await expect(current(page)).toHaveAttribute("data-info-card-id", id);
+  await expect(current(page)).toContainText("Video note");
+  const source = (await f.main.getPersonalUser(f.owner))!.cardsData.find(data => data.cardTemplateId === f.cardId)!;
+  expect(source.personalInfoCardIds).toEqual([id]); expect(source.personalInfoRevision).toBe(1);
+  expect(await repo.versions().countDocuments({ infoCardId: id })).toBe(1);
+  expect((await repo.owner(f.owner, id)).pendingPublication).toBeUndefined();
+});

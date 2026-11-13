@@ -12,7 +12,20 @@ export type InfoRoot = {
   createdAt: Date; updatedAt: Date;
   // A content-free reservation after deletion prevents ID/publication reuse.
   deletedAt?: Date;
+  // Publish or Save pressed while the draft video was still processing (checkpoint 10). Optional: missing means
+  // none. Cleared by completion, by a recorded failure, or by any newer draft save.
+  pendingPublication?: PendingPublication;
+  // The last pending request that could not complete, kept so the failure can be shown for that revision.
+  lastPublicationFailure?: PublicationFailure;
 };
+// `context` keeps a standalone Personal first-save context without its list revision: completion reads the
+// user's current personalInfoRevision itself, so other notes saved meanwhile do not invalidate the request.
+export type PendingPublication = { revision: number; requestedAt: Date; context?: { deckTemplateId: string; version: number } };
+export type PublicationFailure = { revision: number; at: Date; code: string };
+export type PendingPublicationReceipt = { status: "pending"; infoCardId: string; revision: number };
+// The visible outcome of a pending request, for the editor and every list that resumes checking.
+export type PublicationRequestState = { infoCardId: string; title: string; kind: "creator" | "personal" } & (
+  { status: "pending" } | { status: "published"; version: number } | { status: "failed"; code: string });
 export type InfoPublication = {
   infoCardId: string; version: number; content: InfoContent; visibility: Visibility;
   publishedByUserId: string; publishedAt: Date; sourceRevision: number;
@@ -32,7 +45,8 @@ export type PersonalInfoSource = { cardTemplateId: string; personalInfoRevision:
 export type PersonalInfoAssociation = PersonalInfoSource & { personalInfoCardIds: string[]; personalInfoCardAttachedAt: Record<string, string> };
 export type InfoConsultationEntry = ({ status: "available"; info: PublishedInfo; source?: "shared" | "personal";
   sourceCardTemplateId?: string; attachedAt?: string | null } | { status: "unavailable" }) & { key?: string };
-export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[]; personalSources?: PersonalInfoSource[] };
+export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[]; personalSources?: PersonalInfoSource[];
+  publications?: PublicationRequestState[] };
 export type MainInfoContext = { mode: "working" | "canonical"; version: number; deckTemplateId?: string };
 export type PersonalInfoContext = { deckTemplateId: string; version: number; personalInfoRevision: number };
 export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {

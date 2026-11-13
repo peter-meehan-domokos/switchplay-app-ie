@@ -69,3 +69,20 @@ test("the layout does not mutate its input", () => {
   const input = Object.freeze({ ...base, mediaItem: Object.freeze({ mediaType: "video" as const }), videoStatus: Object.freeze({ state: "processing" as const, progress: 5, error: "" }) });
   assert.doesNotThrow(() => buildInfoCardMediaLayout(input));
 });
+
+// Checkpoint 10: a Publish or Save stored while the video processes is shown in the same media area.
+test("a stored request says it will publish or save when the video is ready, keeping the processing actions", () => {
+  const pending = (personal: boolean, videoStatus: InfoCardVideoStatus) => buildInfoCardMediaLayout({ ...base, mediaItem: video, videoStatus, publication: { requested: "pending", personal } });
+  assert.deepEqual(pending(false, { state: "processing", progress: 41.6, error: "" }), { state: "processing", tone: "status", actions: ["replace", "remove"],
+    message: "Video processing (42%). Publishing when the video is ready." });
+  assert.equal(pending(true, { state: "processing", error: "" }).message, "Video processing. Saving when the video is ready.");
+  assert.equal(pending(false, { state: "checking", error: "" }).message, "Checking video. Publishing when the video is ready.");
+  assert.equal(pending(false, { state: "ready", error: "" }).message, "Video ready. Publishing when the video is ready.");
+  // Without a request the wording is unchanged.
+  assert.equal(buildInfoCardMediaLayout({ ...base, mediaItem: video, videoStatus: { state: "processing", progress: 10, error: "" }, publication: { requested: null, personal: false } }).message, "Video processing (10%)");
+});
+test("a failed stored request names what was not published and offers the replacement path", () => {
+  const failed = buildInfoCardMediaLayout({ ...base, mediaItem: video, videoStatus: { state: "", error: "" }, publication: { requested: "failed", personal: true } });
+  assert.equal(failed.state, "failed-processing"); assert.equal(failed.tone, "alert"); assert.deepEqual(failed.actions, ["chooseAnother", "remove"]);
+  assert.equal(failed.message, "The video could not be processed, so the Info Card was not saved. Choose another file or remove it.");
+});

@@ -60,6 +60,37 @@ test("info processing route checks owner/exact revision before provider access a
   delete process.env.INFO_CARDS_PRIVATE_MEDIA_VERIFIED;
   assert.equal((await route.GET(request("info-cards/status/media/status?revision=4"), ctx)).status, 503);
 });
+test("publish while the video processes returns 202, and the status poll publishes it once when ready", async t => {
+  t.after(() => { fixture.actor = null; });
+  const config = { NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1", INFO_CARDS_PRIVATE_MEDIA_VERIFIED: "1", CLOUDFLARE_ACCOUNT_ID: "fixture", CLOUDFLARE_STREAM_API_TOKEN: "fixture" };
+  const prior = Object.fromEntries(Object.keys(config).map(key => [key, process.env[key]])); Object.assign(process.env, config);
+  t.after(() => { for (const [key, value] of Object.entries(prior)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+  const now = new Date();
+  await fixture.db!.collection("infoCardSeries").insertOne({ seriesId: "pending-series", title: "Pending", normalisedTitle: "pending", createdByUserId: "alice", createdAt: now });
+  await fixture.db!.collection("infoCards").insertOne({ infoCardId: "pending", ownerUserId: "alice", visibility: "private", draftVisibility: "private", revision: 2, latestVersion: 0, referenceRevision: 0, createdAt: now, updatedAt: now,
+    draft: { title: "Pending video", body: "Watch the sign.", seriesId: "pending-series", mediaItem: { id: "video", provider: "cloudflare-stream", mediaType: "video", assetId: "pending-video", src: "https://iframe.videodelivery.net/pending-video", description: "Video" } } });
+  let ready = false;
+  t.mock.method(globalThis, "fetch", async () => Response.json({ success: true, result: { creator: "alice", requireSignedURLs: true, readyToStream: ready, status: { state: ready ? "ready" : "inprogress", pctComplete: ready ? 100 : 60 } } }));
+  const ctx = { params: Promise.resolve({ infoCardId: "pending" }) };
+  fixture.actor = { id: "alice" };
+  const accepted = await routes["info-cards/[infoCardId]/publish"].POST(request("info-cards/pending/publish", "POST", { revision: 2 }), ctx);
+  assert.equal(accepted.status, 202); assert.deepEqual(await accepted.json(), { status: "pending", infoCardId: "pending", revision: 2 });
+  const status = () => routes["info-cards/[infoCardId]/media/status"].GET(request("info-cards/pending/media/status?revision=2"), ctx);
+  assert.deepEqual(await (await status()).json(), { status: "processing", progress: 60 });
+  assert.equal(await fixture.db!.collection("infoCardVersions").countDocuments({ infoCardId: "pending" }), 0);
+  // My Drafts reports the stored request while it waits.
+  const drafts = await (await routes["info-cards"].GET(request("info-cards?limit=50&offset=0"))).json();
+  assert.deepEqual(drafts.publications, [{ infoCardId: "pending", title: "Pending video", kind: "creator", status: "pending" }]);
+  ready = true;
+  assert.deepEqual(await (await status()).json(), { status: "ready", publication: { infoCardId: "pending", title: "Pending video", kind: "creator", status: "published", version: 1 } });
+  const root = await fixture.db!.collection("infoCards").findOne({ infoCardId: "pending" });
+  assert.equal(root?.latestVersion, 1); assert.equal(root?.pendingPublication, undefined);
+  assert.equal(await fixture.db!.collection("infoCardVersions").countDocuments({ infoCardId: "pending" }), 1);
+  // A repeated press for the same revision returns the receipt rather than another version.
+  const again = await routes["info-cards/[infoCardId]/publish"].POST(request("info-cards/pending/publish", "POST", { revision: 2 }), ctx);
+  assert.equal(again.status, 200); assert.equal((await again.json()).version, 1);
+  assert.equal(await fixture.db!.collection("infoCardVersions").countDocuments({ infoCardId: "pending" }), 1);
+});
 after(async () => { delete global.__infoApi; await fixture.client?.close(); await server?.stop(); });
 function request(path: string, method = "GET", body?: unknown, headers?: Record<string, string>) {
   return new Request(`http://local/api/${path}`, { method, headers: { ...headers, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },

@@ -19,6 +19,7 @@ import { uploadInfoCardMedia } from "./infoCardUpload";
 import { useInfoVideoStatus } from "./useInfoVideoStatus";
 import InfoCardMediaArea from "./InfoCardMediaArea";
 import { buildInfoCardMediaLayout } from "./infoCardMediaLayout";
+import { publicationNotice, type InfoCardPublicationNotice } from "./infoCardPublicationLayout";
 import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
 import type { InfoMedia, MediaContext, PersonalInfoAssociation } from "@/lib/infoCards/model";
 import { currentDraftOrigin, infoCollectionTarget, infoEditorHref, type CreatorNavigation } from "../creator/creatorNavigation";
@@ -28,7 +29,7 @@ const UPLOAD_BLOCKS_LEAVING = "The upload failed. Retry it, or choose Cancel upl
 
 export default function InfoCardEditor({ id, actor, username, initial, navigation, personal }: {
   id: string; actor: string; username: string; initial: InfoEditorDTO | null; navigation: CreatorNavigation;
-  personal?: PersonalEditorContext & { onSaved: (id: string, association?: PersonalInfoAssociation) => Promise<void>; onCancel: () => void; cancelRef?: React.RefObject<HTMLButtonElement | null> };
+  personal?: PersonalEditorContext & { onSaved: (id: string, association?: PersonalInfoAssociation) => Promise<void>; onCancel: (requested?: boolean) => void; cancelRef?: React.RefObject<HTMLButtonElement | null> };
 }) {
   const router = useRouter();
   const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
@@ -46,6 +47,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const [showRequired, setShowRequired] = useState(false), [prerequisiteFeedback, setPrerequisiteFeedback] = useState(false);
   const [titlePrerequisiteFeedback, setTitlePrerequisiteFeedback] = useState(false);
   const [drafts, setDrafts] = useState<CreatorDraftEntry[] | null>(null);
+  const [draftNotices, setDraftNotices] = useState<readonly InfoCardPublicationNotice[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false), [draftsError, setDraftsError] = useState("");
   const draftsTrigger = useRef<HTMLButtonElement>(null);
   const publishTrigger = useRef<HTMLButtonElement>(null), libraryTrigger = useRef<HTMLButtonElement>(null);
@@ -55,7 +57,12 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   // The file whose upload failed, kept so Retry needs no second pick (a picker round trip is costly on a phone).
   const [failedFile, setFailedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<{ media: InfoMedia; context: MediaContext } | null>(null);
-  const videoStatus = useInfoVideoStatus(controller);
+  // A stored request completes from the status poll while the editor stays open (checkpoint 10).
+  const videoStatus = useInfoVideoStatus(controller, state => void controller.settlePublication(state).then(async () => {
+    if (state.status !== "published" || controller.confirmedPublicationVersion !== state.version) return;
+    setSeries(controller.ack!.selectedSeries);
+    if (personal) await personal.onSaved(id, controller.personalAssociation); else setMessage(publicationNotice(state).message);
+  }).catch(cause => setMessage(infoCardError(cause))));
   const [mountLifetime] = useState(() => ({ epoch: 0 }));
   useEffect(() => {
     const epoch = ++mountLifetime.epoch;
@@ -106,7 +113,10 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const titleRequired = showRequired && !content.title.trim();
   const locked = !hydrated || navigating || confirmPublic || leaveDestination !== null || controller.publishing || controller.pendingPublication !== undefined;
   const ready = hasSelectedSeries && !!content.title.trim();
-  const mediaLayout = buildInfoCardMediaLayout({ mediaItem: content.mediaItem, uploading, failedFile: !!failedFile, uploadError, videoStatus, ready });
+  const requested = controller.requestedPublication;
+  const awaitingVideo = requested === "pending";
+  const mediaLayout = buildInfoCardMediaLayout({ mediaItem: content.mediaItem, uploading, failedFile: !!failedFile, uploadError, videoStatus, ready,
+    publication: { requested: awaitingVideo ? "pending" : requested?.code === "INFO_MEDIA_PROCESSING_FAILED" ? "failed" : null, personal: isPersonal } });
   const bodyRequired = showRequired && ready && !content.body.trim();
   const returnTarget = infoCollectionTarget(id, controller.confirmedPublicationVersion);
   async function navigate(href: string, collectionReturn = false, confirmed = false) {
@@ -114,7 +124,8 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
     try {
       await upload.current?.task; if (uploadFailure.current) { setNavigating(false); setMessage(UPLOAD_BLOCKS_LEAVING); return; }
       await controller.flush();
-      if (collectionReturn && !confirmed && controller.ack?.root.latestVersion === 0) { setNavigating(false); setLeaveDestination(href); return; }
+      // A stored request publishes when the user returns, so leaving is not "without publishing".
+      if (collectionReturn && !confirmed && controller.ack?.root.latestVersion === 0 && controller.requestedPublication !== "pending") { setNavigating(false); setLeaveDestination(href); return; }
       router.push(collectionReturn ? infoCollectionTarget(id, controller.confirmedPublicationVersion).href : href);
     }
     catch { setNavigating(false); setMessage("Current work could not be saved. Resolve the error before leaving."); }
@@ -129,8 +140,9 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   }
   async function publishNow() {
     try {
-      await controller.publish(); setSeries(controller.ack!.selectedSeries);
-      if (personal) await personal.onSaved(id, controller.personalAssociation); else setMessage(isPersonal ? "Saved." : "Published.");
+      const outcome = await controller.publish(); setSeries(controller.ack!.selectedSeries);
+      // Still processing: the media area shows that it will complete when the video is ready.
+      if (outcome === "published") { if (personal) await personal.onSaved(id, controller.personalAssociation); else setMessage(isPersonal ? "Saved." : "Published."); }
     } catch (cause) { if (!controller.error) setMessage(infoCardError(cause)); }
     requestAnimationFrame(() => (controller.error ? publishTrigger.current : libraryTrigger.current)?.focus({ preventScroll: true }));
   }
@@ -142,7 +154,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       if (controller.pendingPublication !== undefined) await controller.retry();
       if (controller.confirmedPublicationVersion !== null && personal) { await personal.onSaved(id, controller.personalAssociation); return; }
       await controller.flush();
-      if (personal) personal.onCancel(); else router.push("/creator/new?drafts=1");
+      if (personal) personal.onCancel(controller.requestedPublication === "pending"); else router.push("/creator/new?drafts=1");
     } catch (cause) { setNavigating(false); setMessage(infoCardError(cause)); }
   }
   async function chooseMedia(file: File) {
@@ -175,7 +187,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   }
   async function openDrafts() {
     setDrafts([]); setDraftsLoading(true); setDraftsError("");
-    try { await controller.flush(); const result = await loadCreatorDraftEntries(controller.request); setDrafts(result.items); setDraftsError(result.error); }
+    try { await controller.flush(); const result = await loadCreatorDraftEntries(controller.request); setDrafts(result.items); setDraftNotices(result.notices); setDraftsError(result.error); }
     catch (cause) { setDraftsError(infoCardError(cause)); }
     finally { setDraftsLoading(false); }
   }
@@ -187,7 +199,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       setDrafts([]); setDraftsLoading(true); setDraftsError("");
       try {
         await controller.flush(); const result = await loadCreatorDraftEntries(controller.request);
-        if (active) { setDrafts(result.items); setDraftsError(result.error); }
+        if (active) { setDrafts(result.items); setDraftNotices(result.notices); setDraftsError(result.error); }
       } catch (cause) { if (active) setDraftsError(infoCardError(cause)); }
       finally { if (active) setDraftsLoading(false); }
     });
@@ -207,7 +219,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
         {!isPersonal && <><button type="button" ref={draftsTrigger} disabled={locked} onClick={() => void openDrafts()}>My Drafts</button>
           <CreatorVisibilityControl label="Info Card" value={controller.visibility} publishedPublic={controller.ack?.root.visibility === "public"} disabled={locked}
             onChange={value => controller.edit(content, value)} /></>}
-        <button type="button" ref={publishTrigger} disabled={locked || !isPersonal && !controller.outstanding} onClick={() => void publish()}>
+        <button type="button" ref={publishTrigger} disabled={locked || awaitingVideo || !isPersonal && !controller.outstanding} onClick={() => void publish()}>
           {isPersonal ? controller.publishing ? "Saving…" : "Save" : controller.publishing ? "Publishing…" : controller.ack?.publication && !controller.outstanding ? "Published" : "Publish"}</button>
         {isPersonal ? <button type="button" ref={personal?.cancelRef ?? libraryTrigger} disabled={controller.publishing || navigating} onClick={() => void cancelPersonal()}>Cancel</button>
           : <button type="button" ref={libraryTrigger} disabled={locked} onClick={() => void navigate(returnTarget.href, true)}>{returnTarget.label}</button>}
@@ -286,7 +298,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       <button type="button" onClick={cancelPublicConfirmation}>Cancel</button>
       <button type="button" onClick={() => { setConfirmPublic(false); void publishNow(); }}>Publish publicly</button>
     </LibraryDialog>}
-    {drafts && <CreatorDraftsModal drafts={drafts} currentDeckTemplateId="" currentInfoCardId={id} loading={draftsLoading} error={draftsError}
+    {drafts && <CreatorDraftsModal drafts={drafts} notices={draftNotices} currentDeckTemplateId="" currentInfoCardId={id} loading={draftsLoading} error={draftsError}
       switchingTo={navigating ? "pending" : null} onClose={closeDrafts}
       onSelect={(selected, kind) => { if (kind === "infoCard" && selected === id) closeDrafts(); else void navigate(creatorDraftHref(selected, kind, currentDraftOrigin(window.location))); }} />}
     {mediaPreview && <InfoCardRemoteMediaViewer actor={actor} {...mediaPreview} onClose={() => setMediaPreview(null)} />}

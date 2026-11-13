@@ -3,6 +3,9 @@ import { randomUUID, createHmac } from "node:crypto";
 import { SignJWT } from "jose";
 import { MongoClient } from "mongodb";
 import { InfoCardRepository } from "../../src/lib/infoCards/repository";
+import { infoCatalogue } from "../../src/lib/infoCards/queries";
+import { CREATOR_INFO_FILTER } from "../../src/lib/infoCards/model";
+import type { InfoMediaReadiness } from "../../src/lib/infoCards/media";
 
 async function login(page: Page, username = "phase2") {
   expect((await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } })).ok()).toBeTruthy();
@@ -314,6 +317,118 @@ test("the media area shows one state at a time: empty, processing, failed proces
   await expect(area.getByRole("alert")).toHaveText("The video could not be processed. Choose another file or remove it.");
   expect(await buttons()).toEqual(["Choose another file", "Remove media"]);
   await expect(area.getByText(/_FAILED|INFO_/)).toHaveCount(0);
+});
+
+// Checkpoint 10. The disposable harness cannot reach Cloudflare Stream, so only the provider is stood in for: the
+// publish, status and Library requests run the real repository code against the same disposable database with an
+// injected video readiness. Everything the browser does, and every database effect, is the application's own.
+test("Publish while the video processes completes automatically while open, an edit cancels it, and it resumes after leaving", async ({ page }) => {
+  await login(page); const id = await create(page);
+  const root = (await (await page.request.get(`/api/info-cards/${id}`)).json()).root, owner = root.ownerUserId as string;
+  const origin = new URL(page.url()).origin;
+  const media = { id: "video", provider: "cloudflare-stream", mediaType: "video", assetId: `fixture-${randomUUID()}`, src: "https://iframe.videodelivery.net/fixture", description: "Video" };
+  const proof = await new SignJWT({ purpose: "info-upload", actor: owner, infoCardId: id, createdAt: root.createdAt, provider: media.provider, assetId: media.assetId, src: media.src })
+    .setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("5m")
+    .sign(createHmac("sha256", "local-phase2-browser-test-secret-only").update("switchplay:info-card-upload:v1").digest());
+  expect(process.env.MONGODB_DB).toMatch(/^switchplay_phase2_browser_/);
+  const client = await new MongoClient(process.env.MONGODB_URI!).connect();
+  try {
+    let video: InfoMediaReadiness = "processing";
+    const repo = new InfoCardRepository(client.db(process.env.MONGODB_DB), client, { async readiness() { return video; } });
+    await page.route(`**/api/info-cards/${id}/upload`, route => route.fulfill({ json: { media, proof, uploadURL: `${origin}/__fixture-info-video-upload` } }));
+    await page.route("**/__fixture-info-video-upload", route => route.fulfill({ status: 200 }));
+    await page.route(`**/api/info-cards/${id}/media/status?*`, async route => {
+      if (video === "processing") return route.fulfill({ json: { status: "processing", progress: 50 } });
+      const publication = await repo.completePendingPublication(owner, id);
+      return route.fulfill({ json: { status: "ready", ...(publication ? { publication } : {}) } });
+    });
+    await page.route(`**/api/info-cards/${id}/publish`, async route => {
+      const result = await repo.publish(owner, id, route.request().postDataJSON().revision);
+      return route.fulfill({ status: "status" in result ? 202 : 200, json: result });
+    });
+    await page.route("**/api/library/info-cards?*", async route => {
+      const publications = await repo.resumePendingPublications(owner, CREATOR_INFO_FILTER);
+      return route.fulfill({ json: { ...await infoCatalogue(repo, owner, { offset: 0, limit: 30 }), ...(publications.length ? { publications } : {}) } });
+    });
+    const area = page.getByRole("region", { name: "Info Card media", exact: true });
+    const publish = page.getByRole("button", { name: "Publish", exact: true });
+    await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "a.mp4", mimeType: "video/mp4", buffer: Buffer.from("provider transfer fixture") });
+    await expect(area.getByRole("status")).toHaveText("Video processing (50%)");
+
+    // Pressed once while processing: stored, not published, and the media area says what will happen.
+    await publish.click();
+    await expect(area.getByRole("status")).toHaveText("Video processing (50%). Publishing when the video is ready.");
+    await expect(publish).toBeDisabled();
+    await expect.poll(async () => (await repo.owner(owner, id)).pendingPublication?.revision).toBe(root.revision + 1);
+    expect(await repo.versions().countDocuments({ infoCardId: id })).toBe(0);
+
+    // Editing cancels the request; the user presses again afterwards.
+    await page.getByRole("textbox", { name: "Title", exact: true }).fill("Signs edited");
+    await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
+    await expect(area.getByRole("status")).toHaveText("Video processing (50%)");
+    expect((await repo.owner(owner, id)).pendingPublication).toBeUndefined();
+    await expect(publish).toBeEnabled();
+    await publish.click();
+    await expect(area.getByRole("status")).toHaveText("Video processing (50%). Publishing when the video is ready.");
+
+    // Leaving is not blocked and is not described as leaving without publishing.
+    await page.getByRole("button", { name: "Library", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Leave Info Card Creator?" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/library/);
+    await expect(page.locator(`[data-info-publication-notice="${id}"]`)).toHaveText("Publishing “Signs edited” when the video is ready.");
+    await expect(page.locator(`[data-info-id="${id}"]`)).toHaveCount(0);
+
+    // Returning to the editor resumes checking; once ready it publishes without another press.
+    await page.goto(`/creator/info-cards/${id}`);
+    await expect(page.getByRole("region", { name: "Info Card media", exact: true }).getByRole("status")).toHaveText("Video processing (50%). Publishing when the video is ready.");
+    video = "ready";
+    await expect(page.getByRole("status").filter({ hasText: "“Signs edited” has been published." })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Published", exact: true })).toBeVisible();
+    const versions = await repo.versions().find({ infoCardId: id }).toArray();
+    expect(versions).toHaveLength(1); expect(versions[0].content.title).toBe("Signs edited"); expect(versions[0].content.mediaItem?.assetId).toBe(media.assetId);
+    await page.getByRole("button", { name: "Library", exact: true }).click();
+    await expect(page.locator(`[data-info-id="${id}"]`)).toContainText("Keep the sign attached");
+    await expect(page.locator(`[data-info-publication-notice="${id}"]`)).toHaveCount(0);
+  } finally { await client.close(); }
+});
+
+test("a stored Publish whose video fails keeps the draft and offers Choose another file", async ({ page }) => {
+  await login(page); const id = await create(page);
+  const root = (await (await page.request.get(`/api/info-cards/${id}`)).json()).root, owner = root.ownerUserId as string;
+  const origin = new URL(page.url()).origin;
+  const media = { id: "video", provider: "cloudflare-stream", mediaType: "video", assetId: `fixture-${randomUUID()}`, src: "https://iframe.videodelivery.net/fixture", description: "Video" };
+  const proof = await new SignJWT({ purpose: "info-upload", actor: owner, infoCardId: id, createdAt: root.createdAt, provider: media.provider, assetId: media.assetId, src: media.src })
+    .setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("5m")
+    .sign(createHmac("sha256", "local-phase2-browser-test-secret-only").update("switchplay:info-card-upload:v1").digest());
+  const client = await new MongoClient(process.env.MONGODB_URI!).connect();
+  try {
+    let video: InfoMediaReadiness = "processing";
+    const repo = new InfoCardRepository(client.db(process.env.MONGODB_DB), client, { async readiness() { return video; } });
+    await page.route(`**/api/info-cards/${id}/upload`, route => route.fulfill({ json: { media, proof, uploadURL: `${origin}/__fixture-info-video-upload` } }));
+    await page.route("**/__fixture-info-video-upload", route => route.fulfill({ status: 200 }));
+    await page.route(`**/api/info-cards/${id}/media/status?*`, async route => {
+      if (video === "processing") return route.fulfill({ json: { status: "processing", progress: 20 } });
+      const publication = await repo.completePendingPublication(owner, id);
+      return route.fulfill({ json: { status: "failed", ...(publication ? { publication } : {}) } });
+    });
+    await page.route(`**/api/info-cards/${id}/publish`, async route => {
+      const result = await repo.publish(owner, id, route.request().postDataJSON().revision);
+      return route.fulfill({ status: "status" in result ? 202 : 200, json: result });
+    });
+    const area = page.getByRole("region", { name: "Info Card media", exact: true });
+    await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "a.mp4", mimeType: "video/mp4", buffer: Buffer.from("provider transfer fixture") });
+    await expect(area.getByRole("status")).toHaveText("Video processing (20%)");
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(area.getByRole("status")).toHaveText("Video processing (20%). Publishing when the video is ready.");
+    video = "failed";
+    await expect(area.getByRole("alert")).toHaveText("The video could not be processed, so the Info Card was not published. Choose another file or remove it.");
+    expect(await area.getByRole("button").allTextContents()).toEqual(["Choose another file", "Remove media"]);
+    await expect(page.getByText(/_FAILED|INFO_/)).toHaveCount(0);
+    const failed = await repo.owner(owner, id);
+    expect(failed.pendingPublication).toBeUndefined(); expect(failed.lastPublicationFailure?.code).toBe("INFO_MEDIA_PROCESSING_FAILED");
+    expect(failed.draft?.title).toBe("Signs"); expect(await repo.versions().countDocuments({ infoCardId: id })).toBe(0);
+    await expect(page.getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Keep the sign attached to its number.\n\nCheck each step before continuing.");
+  } finally { await client.close(); }
 });
 
 test("browser Back finishes a pending text save and account changes hide the old editor", async ({ page }) => {

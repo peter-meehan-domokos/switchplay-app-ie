@@ -1,7 +1,7 @@
 import type { InfoRenderingDiagnostic } from "@/lib/infoCards/mathsValidation";
 import type { Visibility } from "@/lib/cards/model";
 import { sameContent } from "@/lib/cards/publicationRules";
-import { EMPTY_INFO_DRAFT, isPersonalInfo, type InfoConsultationSnapshot, type PersonalInfoContext, type PersonalInfoAssociation, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
+import { EMPTY_INFO_DRAFT, isPersonalInfo, type InfoConsultationSnapshot, type PendingPublicationReceipt, type PersonalInfoContext, type PersonalInfoAssociation, type PublicationRequestState, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
 import { CreatorRequestError, type CreatorTransport } from "../creator/creatorRequest";
 
 export type SeriesOption = { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
@@ -9,6 +9,7 @@ export type InfoEditorDTO = { root: InfoRoot; publication: InfoPublication | nul
 type SaveCommand = { revision: number; content: InfoDraft; visibility: Visibility; mediaProof?: string };
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem"> & Partial<Pick<globalThis.Storage, "key" | "length">>;
 export type PersonalEditorContext = { originCardTemplateId: string; context?: PersonalInfoContext };
+export type SettledPublication = PublicationRequestState & { association?: PersonalInfoAssociation };
 type Recovery = { actor: string; id: string; save?: SaveCommand; publish?: number; personal?: PersonalEditorContext };
 const clone = <T>(value: T): T => structuredClone(value);
 const uncertain = (error: unknown) => !(error instanceof CreatorRequestError) || (error.status >= 500 || error.status === 408) && error.details?.publicationNotCommitted !== true;
@@ -54,6 +55,14 @@ export class InfoCardEditorController {
   get url() { return `/api/info-cards/${encodeURIComponent(this.id)}`; }
   get dirty() { return !sameContent(this.desired, this.ack?.root.draft ?? this.ack?.publication?.content ?? EMPTY_INFO_DRAFT)
     || this.visibility !== (this.ack?.root.draftVisibility ?? "private"); }
+  // A Publish or Save the server accepted while the video was still processing (checkpoint 10). Read from the
+  // acknowledged root, the single source of truth; any newer draft save clears it on the server.
+  get requestedPublication(): "pending" | { code: string } | null {
+    const root = this.ack?.root;
+    if (!root) return null;
+    if (root.pendingPublication?.revision === root.revision) return "pending";
+    return root.lastPublicationFailure?.revision === root.revision ? { code: root.lastPublicationFailure.code } : null;
+  }
   get outstanding() { return !this.ack?.publication || !sameContent(this.desired, this.ack.publication.content) || this.visibility !== this.ack.root.visibility; }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private changed() { for (const listener of this.listeners) listener(); }
@@ -174,24 +183,41 @@ export class InfoCardEditorController {
       if (generation === this.renderingGeneration) this.renderingCheckError = error;
     } finally { this.checkingRendering = false; this.changed(); }
   }
-  async publish() {
+  async publish(): Promise<"published" | "pending" | undefined> {
     if (this.publishing) return;
     this.publishing = true; this.error = null; this.changed();
     try {
       if (this.pendingPublication === undefined) { await this.flush(); await this.ensureCreated(); }
       this.pendingPublication ??= this.ack!.root.revision; this.journal();
-      const receipt = await this.request<InfoPublication & { association?: PersonalInfoAssociation }>(`${this.url}/${this.personal ? "save" : "publish"}`, "POST", {
+      const receipt = await this.request<(InfoPublication | PendingPublicationReceipt) & { association?: PersonalInfoAssociation }>(`${this.url}/${this.personal ? "save" : "publish"}`, "POST", {
         revision: this.pendingPublication, ...(this.personal?.context ? { context: this.personal.context } : {}) });
       // Receipt retry is safe even if another tab has made newer edits. Always
       // read the editor separately instead of synthesising current state from it.
       const remote = await this.request<InfoEditorDTO>(this.url);
       this.ack = remote; this.desired = clone(remote.root.draft ?? remote.publication!.content); this.visibility = remote.root.draftVisibility;
+      if ("status" in receipt) {
+        // Stored on the server: nothing is left to recover locally, and leaving the editor no longer loses it.
+        this.pendingPublication = undefined; this.errorOperation = null; this.journal(); return "pending";
+      }
       this.confirmedPublicationVersion = receipt.version;
       this.personalAssociation = receipt.association;
       this.pendingPublication = undefined; this.errorOperation = null; this.journal();
+      return "published";
     } catch (error) {
       if (!uncertain(error)) { this.pendingPublication = undefined; this.journal(); }
       this.error = error; if (this.errorOperation !== "save") this.errorOperation = "publish"; throw error;
     } finally { this.publishing = false; this.changed(); }
+  }
+  // The status poll reports what happened to a stored request. Re-read the editor rather than patching state.
+  async settlePublication(state: SettledPublication) {
+    if (state.status === "pending" || this.dirty || this.running || this.publishing) return;
+    const remote = await this.request<InfoEditorDTO>(this.url);
+    if (this.dirty || this.running || this.publishing) return;
+    this.ack = remote; this.desired = clone(remote.root.draft ?? remote.publication?.content ?? EMPTY_INFO_DRAFT); this.visibility = remote.root.draftVisibility;
+    if (state.status === "published") { this.confirmedPublicationVersion = state.version; this.personalAssociation = state.association; }
+    // A processing failure is shown by the media area with its own replacement path; anything else is an error
+    // that Retry answers by pressing Publish or Save again.
+    else if (state.code !== "INFO_MEDIA_PROCESSING_FAILED") { this.error = new CreatorRequestError(422, state.code); this.errorOperation = "publish"; }
+    this.changed();
   }
 }

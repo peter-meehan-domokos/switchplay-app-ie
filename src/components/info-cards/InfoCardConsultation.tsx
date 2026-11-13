@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { InfoCardFaceContent } from "./InfoCardFace";
-import type { InfoMedia, MediaContext, PersonalInfoSource, PersonalInfoContext, PersonalInfoAssociation } from "@/lib/infoCards/model";
+import type { InfoMedia, MediaContext, PersonalInfoSource, PersonalInfoContext, PersonalInfoAssociation, PublicationRequestState } from "@/lib/infoCards/model";
+import { buildInfoCardPublicationLayout } from "./infoCardPublicationLayout";
 import InfoCardPouch from "./InfoCardPouch";
 import InfoCardPhysicalStack from "./InfoCardPhysicalStack";
 import InfoCardEmptyPanel from "./InfoCardEmptyPanel";
@@ -35,7 +36,7 @@ function measure(anchor: HTMLElement) {
 }
 
 export default function InfoCardConsultation({ id, cards, anchor, source, onClose, status = "ready", loadingMessage = false, count = cards.length, actor,
-  personalContext, personalSources, selectedId, onSelect, onRefresh, onReplace, recoveryId }: {
+  personalContext, personalSources, publications, selectedId, onSelect, onRefresh, onReplace, recoveryId }: {
   id: string;
   cards: readonly InfoCardConsultationCard[];
   anchor: HTMLElement;
@@ -47,6 +48,8 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
   actor?: string;
   personalContext?: PersonalInfoContext & { mainCardId: string };
   personalSources?: PersonalInfoSource[];
+  // Pending Save or Publish requests this opening resumed on the server, with their outcome (checkpoint 10).
+  publications?: readonly PublicationRequestState[];
   selectedId?: string;
   onSelect?: (id: string) => void;
   onRefresh?: (selectedId?: string, successors?: readonly string[]) => Promise<InfoCardConsultationCard[]>;
@@ -122,6 +125,7 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
     } catch (cause) { if (live.current && token === operation.current) setError(infoCardError(cause)); }
     finally { if (live.current && token === operation.current) setMutation(false); }
   }
+  const notices = buildInfoCardPublicationLayout(publications);
   const [position, setPosition] = useState(1);
   const motionBusy = useRef(true);
   // The empty panel only appears when the user can add a Personal Info Card; otherwise there is no surface to animate.
@@ -194,7 +198,9 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       </div>}
       {(status === "failed" || status === "pending" && loadingMessage) && <p className={styles.status} style={statusStyle}
         role={status === "failed" ? "alert" : "status"}>{status === "failed" ? "Unable to load Info Cards." : "Loading Info Cards…"}</p>}
-      {error && <p role="alert" className={styles.status} style={statusStyle}>{error}</p>}
+      {error ? <p role="alert" className={styles.status} style={statusStyle}>{error}</p>
+        : status === "ready" && notices.length > 0 && !authoring && <div className={styles.status} style={statusStyle} data-info-publication-notices="">
+          {notices.map(notice => <p key={notice.infoCardId} role={notice.tone}>{notice.message}</p>)}</div>}
       <div className={styles.alignment} data-info-pouch-alignment="" style={{ left: pouchGeometry.left, top: pouchGeometry.top, width: pouchGeometry.width,
         height: pouchGeometry.height, borderRadius: pouchGeometry.borderRadius, transform: `scale(${pouchGeometry.scale})` }}>
         <div className={stepStyles.pouch}>
@@ -209,8 +215,10 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
     {authoring && actor && personalContext && <PersonalInfoEditorDialog key={authoring.id} {...authoring} actor={actor}
       context={{ originCardTemplateId: authoring.origin, context: authoring.origin === personalContext.mainCardId ? {
         deckTemplateId: personalContext.deckTemplateId, version: personalContext.version, personalInfoRevision: personalContext.personalInfoRevision } : undefined }}
-      onCancel={() => {
+      onCancel={requested => {
         setAuthoring(null);
+        // Closed while a Save waits for its video: read the pouch again so it says so.
+        if (requested) void onRefresh?.(selectedId).catch(() => {});
         // Native nested-dialog restoration can run before the pack loses inert.
         // Restore after that commit to the same persistent contextual control.
         requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>('[data-info-card-current="true"] [aria-label="Info Card actions"], [data-info-empty-panel] button')?.focus({ preventScroll: true }));

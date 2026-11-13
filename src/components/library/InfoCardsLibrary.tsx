@@ -6,13 +6,14 @@ import OverviewMenu from "../layout/OverviewMenu";
 import InfoCardFace from "../info-cards/InfoCardFace";
 import { actorCreatorTransport, CreatorRequestError, CreatorActorLifetime } from "../creator/creatorRequest";
 import { infoCardError } from "../info-cards/infoCardErrors";
-import type { PublishedInfo } from "@/lib/infoCards/model";
+import type { PublicationRequestState, PublishedInfo } from "@/lib/infoCards/model";
+import { buildInfoCardPublicationLayout, type InfoCardPublicationNotice } from "../info-cards/infoCardPublicationLayout";
 import LibraryTabs from "./LibraryTabs";
 import styles from "./InfoCardsLibrary.module.css";
 import InfoCardRemoteMediaViewer from "../info-cards/InfoCardRemoteMediaViewer";
 import CollectionReturnHighlight from "./CollectionReturnHighlight";
 
-type Page = { items: PublishedInfo[]; nextOffset: number | null };
+type Page = { items: PublishedInfo[]; nextOffset: number | null; publications?: PublicationRequestState[] };
 export default function InfoCardsLibrary({ actor, username, publishedId }: { actor: string; username: string; publishedId?: string }) {
   const active = useRef(true), sequence = useRef(0);
   const [lifetime] = useState(() => new CreatorActorLifetime());
@@ -20,12 +21,15 @@ export default function InfoCardsLibrary({ actor, username, publishedId }: { act
   const [items, setItems] = useState<PublishedInfo[]>([]), [next, setNext] = useState<number | null>(null);
   const [loading, setLoading] = useState(true), [error, setError] = useState("");
   const [mediaCard, setMediaCard] = useState<PublishedInfo | null>(null);
+  // The first page resumes the owner's pending Publish requests on the server and reports them (checkpoint 10).
+  const [notices, setNotices] = useState<readonly InfoCardPublicationNotice[]>([]);
   const read = useCallback(async (offset = 0) => {
     const token = ++sequence.current; setLoading(true); setError("");
     try {
       const page = await request<Page>(`/api/library/info-cards?${new URLSearchParams({ offset: String(offset), limit: "30" })}`);
       if (token !== sequence.current || !active.current) return;
       setItems(old => offset === 0 ? page.items : [...old, ...page.items.filter(item => !old.some(prior => prior.infoCardId === item.infoCardId))]); setNext(page.nextOffset);
+      if (offset === 0) setNotices(buildInfoCardPublicationLayout(page.publications));
     } catch (cause) {
       if (token !== sequence.current || !active.current) return;
       if (offset === 0 || cause instanceof CreatorRequestError && (cause.status === 401 || cause.code.includes("SESSION"))) { setItems([]); setNext(null); setMediaCard(null); }
@@ -45,6 +49,8 @@ export default function InfoCardsLibrary({ actor, username, publishedId }: { act
     <CollectionReturnHighlight id={publishedId ?? null} ready={items.some(item => item.infoCardId === publishedId && item.ownerUserId === actor)} />
     {error && <p role="alert">{error} <button type="button" onClick={() => void read()}>Retry Library</button></p>}
     {loading && <p role="status">Loading Info Cards…</p>}
+    {notices.map(notice => <p key={notice.infoCardId} role={notice.tone} data-info-publication-notice={notice.infoCardId}>{notice.message}
+      {notice.tone === "alert" && <> <Link href={`/creator/info-cards/${encodeURIComponent(notice.infoCardId)}`}>Open</Link></>}</p>)}
     {!loading && !error && !items.length && <p>No published Info Cards found.</p>}
     <div className={styles.grid}>{items.map(card => <div key={card.infoCardId} className={styles.item} data-info-id={card.infoCardId} data-collection-item-id={card.infoCardId}>
         <p className={styles.series}>{card.series.title} (series by {card.series.creatorUsername})</p>

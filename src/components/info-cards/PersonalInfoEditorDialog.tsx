@@ -10,7 +10,7 @@ import styles from "./InfoCardConsultation.module.css";
 
 export default function PersonalInfoEditorDialog({ id, actor, username, initial, context, source, onSaved, onCancel }: {
   id: string; actor: string; username: string; initial: InfoEditorDTO | null; context: PersonalEditorContext; source?: HTMLElement;
-  onSaved: (id: string, association?: PersonalInfoAssociation) => Promise<void>; onCancel: () => void;
+  onSaved: (id: string, association?: PersonalInfoAssociation) => Promise<void>; onCancel: (requested?: boolean) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null), cancel = useRef<HTMLButtonElement>(null);
   useInfoCardDialog(dialog, cancel, source, true);

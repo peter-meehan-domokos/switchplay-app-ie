@@ -27,6 +27,7 @@ import type { CreatorTransport } from "./creatorRequest";
 import { currentDraftOrigin, deckCollectionTarget, type CreatorNavigation } from "./creatorNavigation";
 import { clientId } from "@/lib/clientId";
 import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "./creatorDraftEntries";
+import type { InfoCardPublicationNotice } from "../info-cards/infoCardPublicationLayout";
 import CreatorPublishControl from "./CreatorPublishControl";
 import CreatorVisibilityControl from "./CreatorVisibilityControl";
 import CreatorPublicConfirmation from "./CreatorPublicConfirmation";
@@ -986,6 +987,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
   const [entryConfirmed, setEntryConfirmed] = useState(initialSession?.deck.kind !== "foreign");
   const [isDraftsOpen, setIsDraftsOpen] = useState(false);
   const [drafts, setDrafts] = useState<CreatorDraftEntry[]>([]);
+  const [draftNotices, setDraftNotices] = useState<readonly InfoCardPublicationNotice[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [draftsError, setDraftsError] = useState("");
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
@@ -1183,7 +1185,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
 
   async function openDrafts() {
     setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
-    try { const result = await loadCreatorDraftEntries(persistence.request); setDrafts(result.items); setDraftsError(result.error); }
+    try { const result = await loadCreatorDraftEntries(persistence.request); setDrafts(result.items); setDraftNotices(result.notices); setDraftsError(result.error); }
     catch { setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
     finally { setDraftsLoading(false); }
   }
@@ -1193,7 +1195,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
     void Promise.resolve().then(async () => {
       if (!active) return;
       setIsDraftsOpen(true); setDraftsLoading(true); setDraftsError("");
-      try { const result = await loadCreatorDraftEntries(persistence.request); if (active) { setDrafts(result.items); setDraftsError(result.error); } }
+      try { const result = await loadCreatorDraftEntries(persistence.request); if (active) { setDrafts(result.items); setDraftNotices(result.notices); setDraftsError(result.error); } }
       catch { if (active) setDraftsError("Drafts could not be loaded. Close and reopen My Drafts to try again."); }
       finally { if (active) setDraftsLoading(false); }
     });
@@ -1805,7 +1807,7 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
         onLeave={() => void leaveCreator(false)} onPublishAndLeave={() => void publishBeforeLeaving()} /> : null}
       {publicConfirmation ? <CreatorPublicConfirmation review={publicConfirmation.review}
         onCancel={() => closePublicConfirmation(false)} onConfirm={() => closePublicConfirmation(true)} /> : null}
-      {isDraftsOpen ? <CreatorDraftsModal drafts={drafts} currentDeckTemplateId={persistence.deckTemplateId} loading={draftsLoading} error={draftsError}
+      {isDraftsOpen ? <CreatorDraftsModal drafts={drafts} notices={draftNotices} currentDeckTemplateId={persistence.deckTemplateId} loading={draftsLoading} error={draftsError}
         switchingTo={switchingTo} onClose={closeDrafts} onSelect={(id, kind) => void switchDraft(id, kind)} /> : null}
       {blockedPublication ? <div className="creator-modal-backdrop"><div className="creator-modal" role="dialog" aria-modal="true" aria-label="Publication blocked"
         onKeyDown={(event) => { if (event.key === "Escape") closePublicationBlock(); if (event.key === "Tab") event.preventDefault(); }}>
