@@ -6,11 +6,13 @@ import { resumingInfoConsultation } from "@/lib/infoCards/queries";
 export async function GET(request: Request, context: { params: Promise<{ cardTemplateId: string }> }) {
   return personalUpdateRequest(request, async (main, actor) => {
     const query = new URL(request.url).searchParams, mode = query.get("mode");
-    requireCondition([...query.keys()].every(key => ["mode", "version", "deckTemplateId"].includes(key) && query.getAll(key).length === 1)
-      && (mode === "working" || mode === "canonical") && (mode === "working" || !query.has("deckTemplateId")), "INVALID_INFO_QUERY");
+    requireCondition([...query.keys()].every(key => ["mode", "version", "deckTemplateId", "experienceId"].includes(key) && query.getAll(key).length === 1)
+      && (mode === "working" || mode === "canonical" || mode === "experience") && (mode === "working" || !query.has("deckTemplateId"))
+      && (mode === "experience") === query.has("experienceId"), "INVALID_INFO_QUERY");
     const info = new InfoCardRepository(main.db, main.client); await info.assertIndexesReady();
     return resumingInfoConsultation(info, actor, (await context.params).cardTemplateId, {
       mode, version: Number(query.get("version")), ...(query.has("deckTemplateId") ? { deckTemplateId: query.get("deckTemplateId")! } : {}),
+      ...(query.has("experienceId") ? { experienceId: query.get("experienceId")! } : {}),
     });
   });
 }

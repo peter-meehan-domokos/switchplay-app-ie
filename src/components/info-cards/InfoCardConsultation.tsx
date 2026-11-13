@@ -26,8 +26,12 @@ export type AvailableConsultationCard = Omit<InfoCardFaceContent, "mediaKind"> &
   id: string;
   unavailable?: false;
   personalSource?: PersonalInfoSource;
+  // The viewer own Follower contribution (checkpoint 4.2): its originating Group and whether this context may
+  // edit and remove it (contributionIdentity.ts rules, decided by the consultation loader).
+  groupNote?: { experienceId: string; editable: boolean };
 } & ({ publication: MediaContext; media?: InfoMedia } | { publication?: undefined; media?: InfoCardMedia });
 export type InfoCardConsultationCard = AvailableConsultationCard | { id: string; unavailable: true };
+export type GroupNoteContext = { kind: "group"; mainCardId: string; experienceId: string; version: number; accessEpoch: number };
 
 function measure(anchor: HTMLElement) {
   const rect = anchor.getBoundingClientRect(), css = getComputedStyle(anchor);
@@ -46,7 +50,8 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
   loadingMessage?: boolean;
   count?: number;
   actor?: string;
-  personalContext?: PersonalInfoContext & { mainCardId: string };
+  // Where New creates a note: the standalone Card (CardData), or Me in a Group (a Follower contribution).
+  personalContext?: (PersonalInfoContext & { mainCardId: string; kind?: undefined }) | GroupNoteContext;
   personalSources?: PersonalInfoSource[];
   // Pending Save or Publish requests this opening resumed on the server, with their outcome (checkpoint 10).
   publications?: readonly PublicationRequestState[];
@@ -100,8 +105,13 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       if (auth.user?.id !== actor) throw new Error("Your account changed. Reload before continuing.");
       const target = draftId ?? card?.id;
       const initial = target ? await request<InfoEditorDTO>(`/api/info-cards/${encodeURIComponent(target)}`) : null;
-      if (initial && (initial.root.kind !== "personal" || initial.root.ownerUserId !== actor
-        || initial.root.originCardTemplateId !== personalContext.mainCardId && !personalSources?.some(source => source.cardTemplateId === initial.root.originCardTemplateId))) throw new Error("Info Card unavailable.");
+      const root = initial?.root;
+      const personalNote = root?.kind === "personal" && personalContext.kind !== "group"
+        && (root.originCardTemplateId === personalContext.mainCardId || !!personalSources?.some(source => source.cardTemplateId === root.originCardTemplateId));
+      // A Follower contribution is edited on the standalone Card, or in Me of its originating Group.
+      const groupNote = root?.kind === "group" && root.creationContext === "self" && root.originCardTemplateId === personalContext.mainCardId
+        && (personalContext.kind !== "group" || root.experienceId === personalContext.experienceId);
+      if (root && (root.ownerUserId !== actor || !personalNote && !groupNote)) throw new Error("Info Card unavailable.");
       if (token !== operation.current || !live.current) return;
       setAuthoring({ id: target ?? clientId(), initial, username: auth.user.username,
         origin: initial?.root.originCardTemplateId ?? personalContext.mainCardId, source: returnTo });
@@ -110,13 +120,20 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
     finally { if (live.current && token === operation.current) setMutation(false); }
   }
   async function remove(card: AvailableConsultationCard) {
-    if (!card.personalSource || !actor || mutation || authoring || motionBusy.current) return;
+    if (!card.personalSource && !card.groupNote?.editable || !actor || mutation || authoring || motionBusy.current) return;
     const token = ++operation.current; setMutation(true); setError("");
     try {
-      const association = await request<PersonalInfoAssociation>(`/api/cards-data/${encodeURIComponent(card.personalSource.cardTemplateId)}/personal-info-cards`, "PATCH",
-        { infoCardId: card.id, revision: card.personalSource.personalInfoRevision });
-      if (!live.current || token !== operation.current) return;
-      acceptAssociation(association);
+      if (card.personalSource) {
+        const association = await request<PersonalInfoAssociation>(`/api/cards-data/${encodeURIComponent(card.personalSource.cardTemplateId)}/personal-info-cards`, "PATCH",
+          { infoCardId: card.id, revision: card.personalSource.personalInfoRevision });
+        if (!live.current || token !== operation.current) return;
+        acceptAssociation(association);
+      } else {
+        // A Follower contribution is not attached to CardData: Remove deletes it, as a Group media Remove does.
+        const current = await request<InfoEditorDTO>(`/api/info-cards/${encodeURIComponent(card.id)}`);
+        await request(`/api/info-cards/${encodeURIComponent(card.id)}`, "DELETE", { revision: current.root.revision });
+        if (!live.current || token !== operation.current) return;
+      }
       const remaining = cards.filter(item => item.id !== card.id), oldIndex = cards.findIndex(item => item.id === card.id);
       const successors = cards.slice(oldIndex + 1).concat(cards.slice(0, oldIndex)).map(item => item.id);
       const successor = successors.find(id => remaining.some(next => next.id === id));
@@ -190,7 +207,7 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
         height: geometry.height, borderRadius: geometry.borderRadius, transform: `scale(${geometry.scale})` }}>
         {cards.length ? <InfoCardPhysicalStack id={id} cards={cards} selectedId={selectedId} onSelect={onSelect} closing={closing}
           blocked={Boolean(media || authoring || mutation)} closeRef={closeButton} pouch={source} pouchGeometry={pouchGeometry}
-          actions={personalContext ? card => ({ onNew: () => void edit(), ...(card && !card.unavailable && card.personal && card.personalSource ? {
+          actions={personalContext ? card => ({ onNew: () => void edit(), ...(card && !card.unavailable && card.personal && (card.personalSource || card.groupNote?.editable) ? {
             onEdit: () => void edit(card), onRemove: () => void remove(card) } : {}) }) : undefined}
           onRequestClose={requestClose} onExited={onClose} onBusyChange={onBusyChange} onOpenMedia={openMedia} onPositionChange={setPosition} />
           : personalContext && <InfoCardEmptyPanel id={id} pouch={source} closing={closing} settled={hadCards} disabled={mutation || !!authoring}
@@ -213,7 +230,9 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       ? <InfoCardRemoteMediaViewer media={media.media} context={media.publication} actor={actor ?? ""} onClose={() => setMedia(null)} returnFocus={mediaSource} />
       : <InfoCardMediaViewer media={media.media} onClose={() => setMedia(null)} returnFocus={mediaSource} /> : null}
     {authoring && actor && personalContext && <PersonalInfoEditorDialog key={authoring.id} {...authoring} actor={actor}
-      context={{ originCardTemplateId: authoring.origin, context: authoring.origin === personalContext.mainCardId ? {
+      context={personalContext.kind === "group" ? { originCardTemplateId: authoring.origin, group: { experienceId: personalContext.experienceId,
+        accessEpoch: personalContext.accessEpoch, version: personalContext.version } }
+        : { originCardTemplateId: authoring.origin, context: authoring.origin === personalContext.mainCardId && authoring.initial?.root.kind !== "group" ? {
         deckTemplateId: personalContext.deckTemplateId, version: personalContext.version, personalInfoRevision: personalContext.personalInfoRevision } : undefined }}
       onCancel={requested => {
         setAuthoring(null);

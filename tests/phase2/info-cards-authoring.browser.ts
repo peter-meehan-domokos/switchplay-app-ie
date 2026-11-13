@@ -531,7 +531,8 @@ test("Library preserves owner-first latest-publication ordering across its real 
       // Mix original dates independently of publication order and owner priority.
       await repo.roots().updateOne({ infoCardId: id }, { $set: { createdAt: new Date(Date.UTC(2025, 0, i % 9 + 1)) } });
     }
-    const roots = await repo.roots().find({ latestVersion: { $gt: 0 }, $or: [{ ownerUserId: own }, { visibility: "public" }] }).toArray();
+    // The Library lists Creator Info Cards only; private Personal and Group notes in the shared database are not in it.
+    const roots = await repo.roots().find({ $and: [CREATOR_INFO_FILTER], latestVersion: { $gt: 0 }, $or: [{ ownerUserId: own }, { visibility: "public" }] }).toArray();
     const publications = await repo.versions().find({ $or: roots.map(root => ({ infoCardId: root.infoCardId, version: root.latestVersion })) }).toArray();
     const time = (id: string) => publications.find(item => item.infoCardId === id)!.publishedAt.getTime();
     const expected = roots.sort((a, b) => Number(b.ownerUserId === own) - Number(a.ownerUserId === own) || time(b.infoCardId) - time(a.infoCardId) || a.infoCardId.localeCompare(b.infoCardId)).map(root => root.infoCardId);

@@ -8,6 +8,9 @@ import type { GroupAggregates } from "@/lib/groupExperiences/presentationReads";
 
 export type ExperienceCardPresentation = Omit<CanonicalCardPresentation, "surface" | "steps"> & {
   surface: "experience"; experienceId: string; viewerUserId: string; dataIdentity: string;
+  // The perspective this Card is presented in and the viewer access epoch, so Info Cards read and author in the
+  // matching context (Me shows and creates the viewer own Follower contributions). Absent on Group tiles.
+  perspective?: "group" | "self" | "follower"; accessEpoch?: number;
   steps: (CardTemplateStep & { completionStatus: CompletionStatus })[];
   learning: LearningFields; canWriteLearning: boolean; ownerDate?: string | null;
   completion: number | null; confidence: number | null;

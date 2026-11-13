@@ -1,14 +1,17 @@
 import type { InfoRenderingDiagnostic } from "@/lib/infoCards/mathsValidation";
 import type { Visibility } from "@/lib/cards/model";
 import { sameContent } from "@/lib/cards/publicationRules";
-import { EMPTY_INFO_DRAFT, isPersonalInfo, type InfoConsultationSnapshot, type PendingPublicationReceipt, type PersonalInfoContext, type PersonalInfoAssociation, type PublicationRequestState, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
+import { EMPTY_INFO_DRAFT, isNoteInfo, type InfoConsultationSnapshot, type PendingPublicationReceipt, type PersonalInfoContext, type PersonalInfoAssociation, type PublicationRequestState, type InfoDraft, type InfoPublication, type InfoRoot } from "@/lib/infoCards/model";
 import { CreatorRequestError, type CreatorTransport } from "../creator/creatorRequest";
 
 export type SeriesOption = { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
 export type InfoEditorDTO = { root: InfoRoot; publication: InfoPublication | null; selectedSeries: SeriesOption | null };
 type SaveCommand = { revision: number; content: InfoDraft; visibility: Visibility; mediaProof?: string };
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem" | "removeItem"> & Partial<Pick<globalThis.Storage, "key" | "length">>;
-export type PersonalEditorContext = { originCardTemplateId: string; context?: PersonalInfoContext };
+// A note is created either on the standalone Card (`context`, attached to CardData) or in Me in a Group (`group`,
+// a Follower contribution that never touches CardData). Both are saved through the same Save and pending path.
+export type PersonalEditorContext = { originCardTemplateId: string; context?: PersonalInfoContext;
+  group?: { experienceId: string; accessEpoch: number; version: number } };
 export type SettledPublication = PublicationRequestState & { association?: PersonalInfoAssociation };
 type Recovery = { actor: string; id: string; save?: SaveCommand; publish?: number; personal?: PersonalEditorContext };
 const clone = <T>(value: T): T => structuredClone(value);
@@ -46,8 +49,9 @@ export class InfoCardEditorController {
     // contain callbacks/DOM refs, which must never enter the recovery journal.
     this.personal = personal ? { originCardTemplateId: personal.originCardTemplateId,
       ...(personal.context ? { context: { deckTemplateId: personal.context.deckTemplateId, version: personal.context.version,
-        personalInfoRevision: personal.context.personalInfoRevision } } : {}) }
-      : initial && isPersonalInfo(initial.root) ? { originCardTemplateId: initial.root.originCardTemplateId! } : undefined;
+        personalInfoRevision: personal.context.personalInfoRevision } } : {}),
+      ...(personal.group ? { group: { experienceId: personal.group.experienceId, accessEpoch: personal.group.accessEpoch, version: personal.group.version } } : {}) }
+      : initial && isNoteInfo(initial.root) ? { originCardTemplateId: initial.root.originCardTemplateId! } : undefined;
     this.ack = initial;
     this.desired = clone(initial?.root.draft ?? initial?.publication?.content ?? EMPTY_INFO_DRAFT);
     this.visibility = initial?.root.draftVisibility ?? "private";
@@ -110,8 +114,12 @@ export class InfoCardEditorController {
   stopTimer() { clearTimeout(this.timer); }
   async ensureCreated() {
     if (this.ack) return;
-    const root = await this.request<InfoRoot>(this.personal ? `/api/cards-data/${encodeURIComponent(this.personal.originCardTemplateId)}/personal-info-cards` : "/api/info-cards", "POST", {
-      infoCardId: this.id, ...(this.personal ? { context: this.personal.context } : {}) });
+    const group = this.personal?.group;
+    const root = await this.request<InfoRoot>(group
+      ? `/api/group-experiences/${encodeURIComponent(group.experienceId)}/cards/${encodeURIComponent(this.personal!.originCardTemplateId)}/info-cards`
+      : this.personal ? `/api/cards-data/${encodeURIComponent(this.personal.originCardTemplateId)}/personal-info-cards` : "/api/info-cards", "POST", group
+      ? { infoCardId: this.id, accessEpoch: group.accessEpoch, version: group.version, creationContext: "self" }
+      : { infoCardId: this.id, ...(this.personal ? { context: this.personal.context } : {}) });
     this.ack = { root, publication: null, selectedSeries: null }; this.changed();
   }
   async flush(): Promise<void> {

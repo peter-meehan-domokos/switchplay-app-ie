@@ -1,12 +1,16 @@
 import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem } from "../media";
 import type { Visibility } from "../cards/model";
+import { isCreationContext, type CreationContext } from "../groupExperiences/media/contributionIdentity";
 
 export type InfoMedia = CloudflareR2ImageMediaItem | CloudflareStreamVideoMediaItem;
 export type InfoDraft = { title: string; body: string; seriesId: string | null; mediaItem: InfoMedia | null; bodyFormat?: "latex-v1" };
 export type InfoContent = Omit<InfoDraft, "seriesId"> & { seriesId: string };
 export type InfoRoot = {
-  kind?: "creator" | "personal";
+  kind?: "creator" | "personal" | "group";
   originCardTemplateId?: string;
+  // Group contributions only (kind "group", checkpoint 4.2), mirroring groupMediaContributions: the originating
+  // Group, the immutable creation identity (contributionIdentity.ts) and Group visibility, which admins may hide.
+  experienceId?: string; creationContext?: CreationContext; groupVisible?: boolean;
   infoCardId: string; ownerUserId: string; visibility: Visibility; draftVisibility: Visibility;
   draft: InfoDraft | null; latestVersion: number; revision: number; referenceRevision: number;
   createdAt: Date; updatedAt: Date;
@@ -34,8 +38,9 @@ export type InfoPublication = {
 };
 export type InfoSeries = { seriesId: string; title: string; normalisedTitle: string; createdByUserId: string; createdAt: Date };
 export type PublishedInfo = {
-  kind?: "creator" | "personal";
+  kind?: "creator" | "personal" | "group";
   originCardTemplateId?: string;
+  experienceId?: string; creationContext?: CreationContext;
   infoCardId: string; version: number; content: InfoContent; visibility: Visibility;
   ownerUserId: string; creatorUsername: string;
   series: { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
@@ -43,11 +48,15 @@ export type PublishedInfo = {
 export type MediaContext = { infoCardId: string } & ({ kind: "draft"; revision: number } | { kind: "publication"; version: number });
 export type PersonalInfoSource = { cardTemplateId: string; personalInfoRevision: number };
 export type PersonalInfoAssociation = PersonalInfoSource & { personalInfoCardIds: string[]; personalInfoCardAttachedAt: Record<string, string> };
-export type InfoConsultationEntry = ({ status: "available"; info: PublishedInfo; source?: "shared" | "personal";
-  sourceCardTemplateId?: string; attachedAt?: string | null } | { status: "unavailable" }) & { key?: string };
+// `source` "group" is the viewer own Follower contribution (checkpoint 4.2). `private` is set only where the
+// viewer own Info Cards are shown inside a Group (Me), with the meaning of the media private icon: not shared with
+// this Group, because it is standalone, from another Group, or hidden here.
+export type InfoConsultationEntry = ({ status: "available"; info: PublishedInfo; source?: "shared" | "personal" | "group";
+  sourceCardTemplateId?: string; attachedAt?: string | null; private?: boolean } | { status: "unavailable" }) & { key?: string };
 export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[]; personalSources?: PersonalInfoSource[];
   publications?: PublicationRequestState[] };
-export type MainInfoContext = { mode: "working" | "canonical"; version: number; deckTemplateId?: string };
+// "experience" is the follower own Me perspective of one Group: the Card at the Group selected version.
+export type MainInfoContext = { mode: "working" | "canonical" | "experience"; version: number; deckTemplateId?: string; experienceId?: string };
 export type PersonalInfoContext = { deckTemplateId: string; version: number; personalInfoRevision: number };
 export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
   return (root.kind === undefined || root.kind === "creator") && root.originCardTemplateId === undefined;
@@ -55,5 +64,11 @@ export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unk
 export function isPersonalInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
   return root.kind === "personal" && typeof root.originCardTemplateId === "string" && root.originCardTemplateId.trim().length > 0;
 }
+export function isGroupInfo(root: { kind?: unknown; originCardTemplateId?: unknown; experienceId?: unknown; creationContext?: unknown }) {
+  return root.kind === "group" && typeof root.originCardTemplateId === "string" && root.originCardTemplateId.trim().length > 0
+    && typeof root.experienceId === "string" && root.experienceId.trim().length > 0 && isCreationContext(root.creationContext);
+}
+// Private notes saved rather than published: standalone Personal Info Cards and Group contributions.
+export function isNoteInfo(root: Parameters<typeof isGroupInfo>[0]) { return isPersonalInfo(root) || isGroupInfo(root); }
 export const CREATOR_INFO_FILTER = { $or: [{ kind: { $exists: false } }, { kind: "creator" as const }], originCardTemplateId: { $exists: false } };
 export const EMPTY_INFO_DRAFT: InfoDraft = { title: "", body: "", seriesId: null, mediaItem: null };

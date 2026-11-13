@@ -23,7 +23,7 @@ export async function loadCreatorDraftEntries(request: CreatorTransport): Promis
         for (const root of page.items) if (!entries.some(entry => entry.kind === "infoCard" && entry.infoCardId === root.infoCardId)) {
           const state = states.find(item => item.infoCardId === root.infoCardId && item.status !== "published");
           entries.push({ kind: "infoCard", infoCardId: root.infoCardId, title: root.draft?.title ?? "", updatedAt: new Date(root.updatedAt).toISOString(),
-            ...(root.kind === "personal" ? { purpose: "personal" as const } : {}), ...(state ? { publication: publicationNotice(state) } : {}) });
+            ...(root.kind === "personal" || root.kind === "group" ? { purpose: "personal" as const } : {}), ...(state ? { publication: publicationNotice(state) } : {}) });
         }
         offset = page.nextOffset;
       } while (offset !== null);

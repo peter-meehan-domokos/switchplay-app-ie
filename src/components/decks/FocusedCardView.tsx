@@ -414,7 +414,12 @@ export default function FocusedCardView({
           deckTemplateId, deckVersion, stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id,
         } : undefined} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
-  const personalEnabled = infoCards === undefined && hasPersonalCard(card) && !!playbackActor && !!playbackVersion && card.permissions?.canMutateCardData === true;
+  // Me in a Group reads and creates the viewer own Follower contribution Info Cards (checkpoint 4.2); the Group
+  // perspective and Other followers keep the canonical Creator Info Cards until checkpoint 4.3.
+  const groupMe = isExperienceCard(card) && card.perspective === "self" && typeof card.accessEpoch === "number";
+  const groupNotes = infoCards === undefined && groupMe && card.canWriteLearning && !!playbackActor && !!playbackVersion;
+  const personalEnabled = infoCards === undefined && hasPersonalCard(card) && !!playbackActor && !!playbackVersion && card.permissions?.canMutateCardData === true
+    || groupNotes;
   const personalCount = hasPersonalCard(card) ? (card.personalInfoCardIds?.length ?? 0)
     + (card.personalHistory ?? []).filter(source => source.cardTemplateId !== card.id).reduce((sum, source) => sum + (source.personalInfoCardIds?.length ?? 0), 0) : 0;
   const attachmentCount = infoCards !== undefined ? infoCards.length : (card.infoCardIds?.length ?? 0) + (personalEnabled ? personalCount : 0);
@@ -713,8 +718,9 @@ export default function FocusedCardView({
       status: infoCards ? "ready" : playbackActor && playbackVersion ? "pending" : "failed",
       cards: infoCards ? structuredClone([...infoCards]) : [],
       ...(!infoCards && playbackActor && playbackVersion ? { request: { actor: playbackActor,
-        mainCardId: card.cardTemplateId!, version: playbackVersion, mode: playbackMode,
-        ...(playbackMode === "working" ? { deckTemplateId } : {}), attachmentIds: [...(card.infoCardIds ?? [])] } } : {}) });
+        mainCardId: card.cardTemplateId!, version: playbackVersion, mode: groupMe ? "experience" as const : playbackMode,
+        ...(playbackMode === "working" ? { deckTemplateId } : {}), ...(groupMe ? { experienceId: card.experienceId } : {}),
+        attachmentIds: [...(card.infoCardIds ?? [])] } } : {}) });
   };
   useEffect(() => {
     if (!personalDraftId || recoveryOpened.current || !personalEnabled || !stepViewElement) return;
@@ -1116,7 +1122,8 @@ export default function FocusedCardView({
         cards={consultation.cards} anchor={stepViewElement} source={consultation.source} status={consultation.status}
         count={consultation.status === "ready" ? consultation.cards.length : attachmentCount} loadingMessage={consultation.showLoading} actor={playbackActor} onClose={() => setConsultation(null)}
         recoveryId={personalDraftId} selectedId={consultation.selectedId}
-        personalContext={personalEnabled ? { mainCardId: card.id, deckTemplateId, version: playbackVersion!,
+        personalContext={groupNotes && isExperienceCard(card) ? { kind: "group", mainCardId: card.cardTemplateId, experienceId: card.experienceId, version: playbackVersion!, accessEpoch: card.accessEpoch! }
+          : personalEnabled ? { mainCardId: card.id, deckTemplateId, version: playbackVersion!,
           personalInfoRevision: consultation.personalSources?.find(source => source.cardTemplateId === card.id)?.personalInfoRevision ?? 0 } : undefined}
         personalSources={consultation.personalSources} publications={consultation.publications}
         onSelect={selectedId => setConsultation(current => current && current.request === consultation.request ? { ...current, selectedId } : current)}

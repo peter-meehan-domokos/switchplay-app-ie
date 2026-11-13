@@ -4,7 +4,7 @@ import { CardArchitectureError, requireCondition } from "../cards/domain";
 import { sameContent } from "../cards/publicationRules";
 import { withMongoTransaction } from "../mongodb";
 import { assertInfoDraft, infoId, infoReferences, revision, seriesName, visibility } from "./domain";
-import { CREATOR_INFO_FILTER, EMPTY_INFO_DRAFT, isCreatorInfo, isPersonalInfo, type PendingPublication, type PendingPublicationReceipt, type PersonalInfoContext, type PublicationRequestState, type InfoContent, type InfoDraft, type InfoPublication, type InfoRoot, type InfoSeries } from "./model";
+import { CREATOR_INFO_FILTER, EMPTY_INFO_DRAFT, isCreatorInfo, isGroupInfo, isNoteInfo, isPersonalInfo, type PendingPublication, type PendingPublicationReceipt, type PersonalInfoContext, type PublicationRequestState, type InfoContent, type InfoDraft, type InfoPublication, type InfoRoot, type InfoSeries } from "./model";
 import type { Visibility } from "../cards/model";
 import { measureInfoCapacity } from "./capacity";
 import { assertMediaAttachment, productionMediaSecurity, type InfoMediaReadiness, type InfoMediaSecurity } from "./media";
@@ -12,6 +12,10 @@ import { InfoMathsError, type InfoRenderingChecker } from "./mathsValidation";
 import { validateInfoCardContent } from "../../components/info-cards/infoCardContentValidation";
 import { INFO_MEDIA_COLLECTION } from "./mediaRegistry";
 import { creatorUsernames, UNKNOWN_CREATOR } from "../cards/creatorAttribution";
+import { GroupExperienceRepository } from "../groupExperiences/repository";
+import { GroupMediaRepository } from "../groupExperiences/media/repository";
+import { selectedCard } from "../groupExperiences/publicVersions";
+import { creationContextOf, isCreationContext } from "../groupExperiences/media/contributionIdentity";
 
 export const INFO_COLLECTIONS = { roots: "infoCards", versions: "infoCardVersions", series: "infoCardSeries" } as const;
 const readyIndexes = new WeakMap<MongoClient, Map<string, Promise<void>>>();
@@ -89,8 +93,9 @@ export class InfoCardRepository {
   async owner(actor: string, id: string, session?: ClientSession) {
     infoId(actor); infoId(id);
     const root = await this.roots().findOne({ infoCardId: id, ownerUserId: actor, deletedAt: { $exists: false } }, { session, projection: { _id: 0 } });
-    // Same response for absent and foreign IDs.
-    requireCondition(root && (isCreatorInfo(root) || isPersonalInfo(root)), "INFO_FORBIDDEN"); return root;
+    // Same response for absent and foreign IDs. The owner route acts as the Follower identity, so a Group
+    // contribution is editable here only if it was created in Me (contributionIdentity.ts, R1).
+    requireCondition(root && (isCreatorInfo(root) || isPersonalInfo(root) || isGroupInfo(root) && creationContextOf(root) === "self"), "INFO_FORBIDDEN"); return root;
   }
 
   async create(actor: string, id: string) {
@@ -135,6 +140,45 @@ export class InfoCardRepository {
     });
   }
 
+  // A Group contribution Info Card (checkpoint 4.2), created from Me as a Follower contribution and authorised
+  // exactly like a Group media upload from Me: an active follower at the current access epoch, with the Card in
+  // the Group manifest at that version. It is never attached to CardData. Admin creation is checkpoint 4.3.
+  async createGroup(actor: string, id: string, experienceId: string, cardTemplateId: string, input: { accessEpoch: unknown; version: unknown; creationContext: unknown }) {
+    infoId(actor); infoId(id); infoId(experienceId); infoId(cardTemplateId);
+    requireCondition(isCreationContext(input.creationContext), "INVALID_GROUP_MEDIA_PERSPECTIVE");
+    requireCondition(input.creationContext === "self", "INFO_GROUP_PERSPECTIVE_FORBIDDEN");
+    requireCondition(Number.isSafeInteger(input.accessEpoch) && Number(input.accessEpoch) >= 0 && Number.isSafeInteger(input.version) && Number(input.version) > 0, "INVALID_INFO_CONTEXT");
+    const media = new GroupMediaRepository(new GroupExperienceRepository(new CardRepository(this.db, this.client)));
+    return this.transaction(async session => {
+      await media.creationAuthority(actor, experienceId, cardTemplateId, Number(input.accessEpoch), Number(input.version), session, "self");
+      const existing = await this.roots().findOne({ infoCardId: id }, { session, projection: { _id: 0 } });
+      if (existing) {
+        requireCondition(existing.ownerUserId === actor && isGroupInfo(existing) && existing.experienceId === experienceId && existing.originCardTemplateId === cardTemplateId
+          && existing.creationContext === "self" && !existing.deletedAt && existing.revision === 0 && existing.latestVersion === 0 && sameContent(existing.draft, EMPTY_INFO_DRAFT), "INFO_CREATE_RECOVERY_CONFLICT");
+        return existing;
+      }
+      const now = new Date();
+      const root: InfoRoot = { infoCardId: id, ownerUserId: actor, kind: "group", originCardTemplateId: cardTemplateId, experienceId, creationContext: "self", groupVisible: true,
+        visibility: "private", draftVisibility: "private", draft: { ...EMPTY_INFO_DRAFT }, latestVersion: 0, revision: 0, referenceRevision: 0, createdAt: now, updatedAt: now };
+      await this.roots().insertOne({ ...root }, { session }); return root;
+    });
+  }
+  // Group hiding, exactly as for Group media: any current admin may hide any contribution originating in their
+  // Group. It never deletes and never changes the author draft or revision; the author still sees it, private.
+  async hideGroup(actor: string, experienceId: string, id: string, accessEpoch: unknown) {
+    infoId(actor); infoId(experienceId); infoId(id);
+    requireCondition(Number.isSafeInteger(accessEpoch) && Number(accessEpoch) >= 0, "INVALID_INFO_CONTEXT");
+    const groups = new GroupExperienceRepository(new CardRepository(this.db, this.client));
+    return this.transaction(async session => {
+      const { member } = await groups.access(actor, experienceId, "admin", session, Number(accessEpoch));
+      const root = await this.roots().findOne({ infoCardId: id, kind: "group", experienceId, deletedAt: { $exists: false }, latestVersion: { $gt: 0 } }, { session, projection: { _id: 0 } });
+      requireCondition(root && isGroupInfo(root), "INFO_FORBIDDEN");
+      await groups.fence([member], session);
+      if (root.groupVisible !== false) await this.roots().updateOne({ infoCardId: id, kind: "group", experienceId }, { $set: { groupVisible: false } }, { session });
+      return { infoCardId: id, experienceId, groupVisible: false };
+    });
+  }
+
   async removePersonal(actor: string, origin: string, id: string, expected: number) {
     infoId(actor); infoId(origin); infoId(id); revision(expected);
     await this.assertIndexesReady(true, true);
@@ -162,6 +206,8 @@ export class InfoCardRepository {
   // client can update its working copy. Null when the origin Card data is absent or ambiguous.
   async personalAssociation(actor: string, id: string) {
     const root = await this.owner(actor, id);
+    // Group contributions never belong to CardData, so they have no standalone list to report.
+    if (!isPersonalInfo(root)) return null;
     const user = await new CardRepository(this.db, this.client).getPersonalUser(actor);
     const sources = user?.cardsData.filter(data => data.cardTemplateId === root.originCardTemplateId) ?? [];
     const source = sources.length === 1 ? sources[0] : null;
@@ -199,7 +245,7 @@ export class InfoCardRepository {
     revision(expected); assertInfoDraft(content); visibility(intent);
     return this.transaction(async session => {
       const root = await this.owner(actor, id, session);
-      requireCondition(!isPersonalInfo(root) || intent === "private", "PERSONAL_INFO_PRIVATE_ONLY");
+      requireCondition(!isNoteInfo(root) || intent === "private", "PERSONAL_INFO_PRIVATE_ONLY");
       const published = root.latestVersion ? await this.versions().findOne({ infoCardId: id, version: root.latestVersion }, { session }) : null;
       const effective = root.draft ?? published?.content;
       requireCondition(!effective?.bodyFormat || content.bodyFormat === effective.bodyFormat, "INFO_FORMAT_CONFLICT");
@@ -211,7 +257,7 @@ export class InfoCardRepository {
       const draft = published && intent === root.visibility && sameContent(content, published.content) ? null : content;
       // Any newer draft save cancels a pending Publish or Save (scenario E): an outdated revision is never published.
       await this.roots().updateOne({ infoCardId: id, revision: expected }, { $set: { draft, draftVisibility: intent,
-        ...(isPersonalInfo(root) ? { visibility: "private" as const } : {}), updatedAt: new Date() },
+        ...(isNoteInfo(root) ? { visibility: "private" as const } : {}), updatedAt: new Date() },
         $unset: { pendingPublication: "", lastPublicationFailure: "" }, $inc: { revision: 1 } }, { session });
       return (await this.owner(actor, id, session));
     });
@@ -231,7 +277,7 @@ export class InfoCardRepository {
     revision(expected);
     // External provider checks happen once, outside retriable Mongo callbacks.
     const before = await this.owner(actor, id);
-    requireCondition(personal ? isPersonalInfo(before) : isCreatorInfo(before), "INFO_FORBIDDEN");
+    requireCondition(personal ? isNoteInfo(before) : isCreatorInfo(before), "INFO_FORBIDDEN");
     const prior = await this.versions().findOne({ infoCardId: id, sourceRevision: expected }, { projection: { _id: 0 } });
     if (prior) return prior;
     requireCondition(before.revision === expected, "STALE_INFO_REVISION");
@@ -254,7 +300,7 @@ export class InfoCardRepository {
     if (readiness === "processing") return this.requestPublication(actor, id, expected, personal);
     return this.transaction(async session => {
       const root = await this.owner(actor, id, session);
-      requireCondition(personal ? isPersonalInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
+      requireCondition(personal ? isNoteInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
       const receipt = await this.versions().findOne({ infoCardId: id, sourceRevision: expected }, { session, projection: { _id: 0 } });
       if (receipt) return receipt;
       requireCondition(root.revision === expected, "STALE_INFO_REVISION");
@@ -294,6 +340,17 @@ export class InfoCardRepository {
       if (!capacity.fits) throw new InfoCapacityError(capacity);
     }
     requireCondition(personal || root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
+    if (isGroupInfo(root)) {
+      // The first Save makes a Group contribution visible in its Group, so it rechecks the creation authority as
+      // a media commit does: still an active follower, with the Card still selected in that Group. Later Saves are
+      // the author editing their own contribution and need no membership (as deletion does not).
+      if (root.latestVersion === 0) {
+        const main = new CardRepository(this.db, this.client), groups = new GroupExperienceRepository(main);
+        const { experience } = await groups.access(actor, root.experienceId!, "follower", session);
+        await selectedCard(main, experience, root.originCardTemplateId!, session);
+      }
+      return { content: content as InfoContent, attachment: null };
+    }
     if (!personal || root.latestVersion !== 0) return { content: content as InfoContent, attachment: null };
     requireCondition(personal.context, "PERSONAL_INFO_CONTEXT_REQUIRED");
     const main = new CardRepository(this.db, this.client), context = personal.context;
@@ -310,7 +367,7 @@ export class InfoCardRepository {
   private async requestPublication(actor: string, id: string, expected: number, personal?: PersonalPublication): Promise<PendingPublicationReceipt> {
     return this.transaction(async session => {
       const root = await this.owner(actor, id, session);
-      requireCondition(personal ? isPersonalInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
+      requireCondition(personal ? isNoteInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
       requireCondition(root.revision === expected, "STALE_INFO_REVISION");
       await this.publicationChecks(actor, root, personal, session);
       const context = personal?.context && root.latestVersion === 0 ? { deckTemplateId: personal.context.deckTemplateId, version: personal.context.version } : undefined;
@@ -326,7 +383,7 @@ export class InfoCardRepository {
   // Ready publishes through publishVersion; failed clears the request and records the failure; processing waits.
   async completePendingPublication(actor: string, id: string): Promise<PublicationRequestState | null> {
     const root = await this.owner(actor, id);
-    const label = { infoCardId: id, title: root.draft?.title ?? "", kind: isPersonalInfo(root) ? "personal" as const : "creator" as const };
+    const label = { infoCardId: id, title: root.draft?.title ?? "", kind: isNoteInfo(root) ? "personal" as const : "creator" as const };
     const pending = root.pendingPublication;
     if (!pending) return root.lastPublicationFailure?.revision === root.revision ? { ...label, status: "failed", code: root.lastPublicationFailure.code } : null;
     // A newer draft save always clears the request; a mismatch here is only a write still in flight.
@@ -338,7 +395,7 @@ export class InfoCardRepository {
     if (readiness === "processing") return { ...label, status: "pending" };
     if (readiness === "failed") return this.failPending(label, pending.revision, "INFO_MEDIA_PROCESSING_FAILED");
     try {
-      const result = await this.publishVersion(actor, id, pending.revision, isPersonalInfo(root)
+      const result = await this.publishVersion(actor, id, pending.revision, isNoteInfo(root)
         ? { resume: true, ...(pending.context ? { context: { ...pending.context, personalInfoRevision: 0 } } : {}) } : undefined, "ready");
       return "version" in result ? { ...label, status: "published", version: result.version } : { ...label, status: "pending" };
     } catch (error) {
@@ -362,7 +419,7 @@ export class InfoCardRepository {
       { $or: [{ pendingPublication: { $exists: true } }, { lastPublicationFailure: { $exists: true } }] }] },
       { projection: { _id: 0 } }).sort({ updatedAt: -1, infoCardId: 1 }).limit(RESUME_LIMIT).toArray();
     const states = await Promise.all(roots.map(root => {
-      const label = { infoCardId: root.infoCardId, title: root.draft?.title ?? "", kind: isPersonalInfo(root) ? "personal" as const : "creator" as const };
+      const label = { infoCardId: root.infoCardId, title: root.draft?.title ?? "", kind: isNoteInfo(root) ? "personal" as const : "creator" as const };
       return root.pendingPublication
         ? this.completePendingPublication(actor, root.infoCardId).catch((): PublicationRequestState => ({ ...label, status: "pending" }))
         : Promise.resolve(root.lastPublicationFailure?.revision === root.revision ? { ...label, status: "failed" as const, code: root.lastPublicationFailure.code } : null);
@@ -380,7 +437,7 @@ export class InfoCardRepository {
     requireCondition(content.bodyFormat === "latex-v1", "INFO_MATHS_FORMAT_REQUIRED");
     const series = content.seriesId ? await this.series().findOne({ seriesId: content.seriesId }) : null;
     const names = await creatorUsernames(new CardRepository(this.db, this.client), [actor]);
-    const result = await check(content, series?.title ?? "Series", { creatorUsername: names.get(actor) ?? UNKNOWN_CREATOR, personal: isPersonalInfo(root) });
+    const result = await check(content, series?.title ?? "Series", { creatorUsername: names.get(actor) ?? UNKNOWN_CREATOR, personal: isNoteInfo(root) });
     // Diagnostics never write content, status, certificates or publications.
     const latest = await this.owner(actor, id);
     requireCondition(latest.revision === expected, "STALE_INFO_REVISION");
@@ -394,7 +451,8 @@ export class InfoCardRepository {
     const user = await new CardRepository(this.db, this.client).getPersonalUser(actor);
     const personal = (user?.cardsData ?? []).flatMap(data => (data.personalInfoCardIds ?? []).map(id => ({ kind: "personal" as const, originCardTemplateId: data.cardTemplateId, infoCardId: id })));
     const items = await this.roots().find({ ownerUserId: actor, deletedAt: { $exists: false }, draft: { $ne: null },
-      $or: [CREATOR_INFO_FILTER, { kind: "personal", latestVersion: 0, originCardTemplateId: { $type: "string" } }, ...personal] }, { projection: { _id: 0 } })
+      // Group contributions with unsaved work are the owner own Follower contributions (the owner route identity).
+      $or: [CREATOR_INFO_FILTER, { kind: "personal", latestVersion: 0, originCardTemplateId: { $type: "string" } }, { kind: "group", creationContext: "self" }, ...personal] }, { projection: { _id: 0 } })
       .sort({ updatedAt: -1, infoCardId: 1 }).skip(offset).limit(limit + 1).toArray();
     return { items: items.slice(0, limit), nextOffset: items.length > limit ? offset + limit : null };
   }

@@ -7,7 +7,10 @@ import { INFO_COLLECTIONS, type InfoCardRepository } from "./repository";
 import { assertInfoDraft, infoId, infoReferences, seriesName, visibility } from "./domain";
 import { measureInfoCapacity } from "./capacity";
 import type { InfoConsultationEntry, InfoConsultationSnapshot, MainInfoContext, InfoPublication, InfoRoot, InfoSeries, PublishedInfo } from "./model";
-import { CREATOR_INFO_FILTER, isCreatorInfo, isPersonalInfo } from "./model";
+import { CREATOR_INFO_FILTER, isCreatorInfo, isGroupInfo, isPersonalInfo } from "./model";
+import { creationContextOf, FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { GroupExperienceRepository } from "../groupExperiences/repository";
+import { selectedCard } from "../groupExperiences/publicVersions";
 import { personalHistorySegments } from "../cards/forks";
 
 export type InfoQuery = { search?: string; offset?: number; limit?: number; seriesId?: string };
@@ -59,6 +62,7 @@ async function decorate(repo: InfoCardRepository, rows: Joined[], session: Clien
   const names = await creatorUsernames(new CardRepository(repo.db, repo.client), rows.flatMap(r => [r.ownerUserId, r.series.createdByUserId]), session);
   return rows.map(r => ({ infoCardId: r.infoCardId, version: r.publication.version, visibility: r.publication.visibility,
     ...(isPersonalInfo(r) ? { kind: "personal" as const, originCardTemplateId: r.originCardTemplateId } : {}),
+    ...(isGroupInfo(r) ? { kind: "group" as const, originCardTemplateId: r.originCardTemplateId, experienceId: r.experienceId, creationContext: creationContextOf(r) } : {}),
     content: r.publication.content, ownerUserId: r.ownerUserId, creatorUsername: names.get(r.ownerUserId) ?? UNKNOWN_CREATOR,
     series: { seriesId: r.series.seriesId, title: r.series.title, createdByUserId: r.series.createdByUserId,
       creatorUsername: names.get(r.series.createdByUserId) ?? UNKNOWN_CREATOR } }));
@@ -111,7 +115,7 @@ function validPublication(row: Joined) {
 // Same resolution machinery as strict catalogue publication reads, but preserves
 // authorised main-reference positions without exposing why a slot is unavailable.
 export async function publicationSnapshotEntries(repo: InfoCardRepository, actor: string, ids: unknown, session?: ClientSession,
-  personalOrigins?: ReadonlyMap<string, ReadonlySet<string>>): Promise<InfoConsultationEntry[]> {
+  personalOrigins?: ReadonlyMap<string, ReadonlySet<string>>, ownGroupIds?: ReadonlySet<string>): Promise<InfoConsultationEntry[]> {
   infoId(actor); const ordered = infoReferences(ids);
   const read = async (snapshot: ClientSession): Promise<InfoConsultationEntry[]> => {
     const rows = await repo.roots().aggregate<Joined>([
@@ -120,7 +124,10 @@ export async function publicationSnapshotEntries(repo: InfoCardRepository, actor
     ], { session: snapshot }).toArray();
     const permitted = rows.filter(row => isCreatorInfo(row) || isPersonalInfo(row) && row.ownerUserId === actor
       && row.visibility === "private" && row.publication.visibility === "private"
-      && personalOrigins?.get(row.infoCardId)?.has(row.originCardTemplateId!));
+      && personalOrigins?.get(row.infoCardId)?.has(row.originCardTemplateId!)
+      // The viewer own Follower contributions, only where the caller authorised them for this read.
+      || isGroupInfo(row) && row.ownerUserId === actor && creationContextOf(row) === "self" && row.visibility === "private"
+      && row.publication.visibility === "private" && !!ownGroupIds?.has(row.infoCardId));
     const items = await decorate(repo, permitted.filter(validPublication), snapshot), byId = new Map(items.map(item => [item.infoCardId, item]));
     return ordered.map(id => { const info = byId.get(id); return info ? { status: "available", info } : { status: "unavailable" }; });
   };
@@ -128,27 +135,52 @@ export async function publicationSnapshotEntries(repo: InfoCardRepository, actor
   return repo.transaction(read);
 }
 
+// Info Cards for one Card in one context. Creator Info Cards come from the Card version; the viewer own private
+// notes are added in their own contexts only, following the Group media rules (contributionIdentity.ts):
+//   working (standalone Card): their standalone Personal Info Cards and all their Follower contributions;
+//   experience (their Me in a Group): the same, with `private` set on those not shared with this Group;
+//   canonical (Group perspective, Other followers, Library): Creator Info Cards only.
+// Admin contributions never appear in any of these. Group perspective reads are checkpoint 4.3.
 export async function mainInfoConsultation(repo: InfoCardRepository, actor: string, mainCardId: string, context: MainInfoContext): Promise<InfoConsultationSnapshot> {
   const main = new CardRepository(repo.db, repo.client);
   return repo.transaction(async session => {
-    const version = await main.consultationCardVersion(actor, mainCardId, context, session);
-    type Ref = { id: string; source: "shared" | "personal"; origin?: string; date?: string };
+    let version;
+    if (context.mode === "experience") {
+      infoId(context.experienceId);
+      const groups = new GroupExperienceRepository(main);
+      const { experience } = await groups.access(actor, context.experienceId!, "follower", session);
+      version = await selectedCard(main, experience, mainCardId, session);
+      requireCondition(version.version === context.version, "INFO_MAIN_VERSION_CONFLICT");
+    } else version = await main.consultationCardVersion(actor, mainCardId, context, session);
+    type Ref = { id: string; source: "shared" | "personal" | "group"; origin?: string; date?: string; private?: boolean };
     const refs: Ref[] = infoReferences(version.content.infoCardIds).map(id => ({ id, source: "shared", date: version.content.infoCardAttachedAt?.[id] }));
-    const origins = new Map<string, Set<string>>();
+    const origins = new Map<string, Set<string>>(), ownGroupIds = new Set<string>();
     let sources: { cardTemplateId: string; personalInfoRevision: number }[] | undefined;
-    if (context.mode === "working") {
+    if (context.mode !== "canonical") {
       const user = await main.getPersonalUser(actor, session);
-      requireCondition(user?.cardsData.filter(data => data.cardTemplateId === mainCardId).length === 1, "AMBIGUOUS_CARD_DATA");
-      infoReferences(user.cardsData.find(data => data.cardTemplateId === mainCardId)!.personalInfoCardIds);
-      const segments = personalHistorySegments(user.cardsData, mainCardId);
-      sources = segments.map(segment => ({ cardTemplateId: segment.cardTemplateId, personalInfoRevision: segment.personalInfoRevision ?? 0 }));
-      for (const segment of segments) for (const id of segment.personalInfoCardIds ?? []) {
-        const allowed = origins.get(id) ?? new Set<string>(); allowed.add(segment.cardTemplateId); origins.set(id, allowed);
-        refs.push({ id, source: "personal", origin: segment.cardTemplateId, date: segment.personalInfoCardAttachedAt?.[id] });
+      const data = user?.cardsData.filter(data => data.cardTemplateId === mainCardId) ?? [];
+      // The standalone Card requires its CardData; Me shows standalone notes only when the user has that Card.
+      requireCondition(context.mode === "experience" || data.length === 1, "AMBIGUOUS_CARD_DATA");
+      if (data.length === 1) {
+        infoReferences(data[0].personalInfoCardIds);
+        const segments = personalHistorySegments(user!.cardsData, mainCardId);
+        sources = segments.map(segment => ({ cardTemplateId: segment.cardTemplateId, personalInfoRevision: segment.personalInfoRevision ?? 0 }));
+        for (const segment of segments) for (const id of segment.personalInfoCardIds ?? []) {
+          const allowed = origins.get(id) ?? new Set<string>(); allowed.add(segment.cardTemplateId); origins.set(id, allowed);
+          refs.push({ id, source: "personal", origin: segment.cardTemplateId, date: segment.personalInfoCardAttachedAt?.[id], ...(context.mode === "experience" ? { private: true } : {}) });
+        }
+      }
+      // The owner own Follower contributions for this Card, from every Group (owner index on ownerUserId).
+      const contributions = await repo.roots().find({ ownerUserId: actor, kind: "group", originCardTemplateId: mainCardId, ...FOLLOWER_CONTRIBUTIONS,
+        latestVersion: { $gt: 0 }, deletedAt: { $exists: false } }, { session, projection: { _id: 0, infoCardId: 1, experienceId: 1, groupVisible: 1, createdAt: 1 } }).toArray();
+      for (const row of contributions) {
+        ownGroupIds.add(row.infoCardId);
+        refs.push({ id: row.infoCardId, source: "group", date: row.createdAt instanceof Date ? row.createdAt.toISOString() : undefined,
+          ...(context.mode === "experience" ? { private: row.experienceId !== context.experienceId || row.groupVisible === false } : {}) });
       }
     }
     const ids = [...new Set(refs.map(ref => ref.id))];
-    const resolved = await publicationSnapshotEntries(repo, actor, ids, session, origins);
+    const resolved = await publicationSnapshotEntries(repo, actor, ids, session, origins, ownGroupIds);
     const byId = new Map(ids.map((id, index) => [id, resolved[index]]));
     const availableIds = resolved.flatMap(entry => entry.status === "available" ? [entry.info.infoCardId] : []);
     const roots = availableIds.length ? await repo.roots().find({ infoCardId: { $in: availableIds } },
@@ -157,7 +189,8 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
     const seen = new Set<string>();
     const entries = refs.flatMap(ref => {
       const found = byId.get(ref.id);
-      const available = found?.status === "available" && (ref.source === "shared" ? found.info.kind !== "personal"
+      const available = found?.status === "available" && (ref.source === "shared" ? found.info.kind !== "personal" && found.info.kind !== "group"
+        : ref.source === "group" ? found.info.kind === "group" && found.info.originCardTemplateId === mainCardId
         : found.info.kind === "personal" && found.info.originCardTemplateId === ref.origin);
       if (available && seen.has(ref.id)) return [];
       if (available) seen.add(ref.id);
@@ -169,7 +202,8 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
         return createHmac("sha256", process.env.SESSION_SECRET!).update(JSON.stringify([actor, mainCardId, version.version, ref.source, ref.origin, ref.id])).digest("hex");
       })();
       const entry: InfoConsultationEntry = available ? { ...found, key, source: ref.source,
-        ...(ref.origin ? { sourceCardTemplateId: ref.origin } : {}), attachedAt: time !== null ? new Date(time).toISOString() : null }
+        ...(ref.origin ? { sourceCardTemplateId: ref.origin } : {}), attachedAt: time !== null ? new Date(time).toISOString() : null,
+        ...(ref.private !== undefined ? { private: ref.private } : {}) }
         : { status: "unavailable", key };
       return [{ entry, time, tie: available ? ref.id : key }];
     }).sort((a, b) => (b.time ?? -Infinity) - (a.time ?? -Infinity) || (a.tie < b.tie ? -1 : a.tie > b.tie ? 1 : 0));
@@ -184,7 +218,8 @@ export async function resumingInfoConsultation(repo: InfoCardRepository, actor: 
   const first = await mainInfoConsultation(repo, actor, mainCardId, context);
   const own = first.entries.flatMap(entry => entry.status === "available" && entry.info.ownerUserId === actor && entry.info.kind !== "personal" ? [entry.info.infoCardId] : []);
   const publications = await repo.resumePendingPublications(actor, { $or: [{ infoCardId: { $in: own } },
-    ...(context.mode === "working" ? [{ kind: "personal" as const, originCardTemplateId: mainCardId }] : [])] });
+    ...(context.mode !== "canonical" ? [{ kind: "personal" as const, originCardTemplateId: mainCardId },
+      { kind: "group" as const, originCardTemplateId: mainCardId, ...FOLLOWER_CONTRIBUTIONS }] : [])] });
   const snapshot = publications.some(state => state.status === "published") ? await mainInfoConsultation(repo, actor, mainCardId, context) : first;
   return publications.length ? { ...snapshot, publications } : snapshot;
 }

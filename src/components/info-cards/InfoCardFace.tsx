@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styles from "./InfoCardFace.module.css";
 import MathsRenderer from "../maths-renderer/MathsRenderer";
 import mathsStyles from "./InfoCardMaths.module.css";
+import VisibilityIndicator from "../media/VisibilityIndicator";
 import { combineInfoMathsMeasurement, infoMathsPresentation, type InfoMathsMeasurement, type InfoMathsPart } from "./infoCardMaths";
 import { buildInfoCardContentLayout, infoContentItems, type InfoCardContentLayout, type InfoContentItem } from "./infoCardContentLayout";
 import type { MathsResult } from "../maths-renderer/types";
@@ -22,6 +23,9 @@ export type InfoCardFaceContent = {
   body: string;
   bodyFormat?: "latex-v1";
   mediaKind?: "image" | "video";
+  /** The viewer own Info Card shown inside a Group (Me): the existing media visibility indicator, eye when shared
+   *  with this Group and eye-off when private (standalone, from another Group, or hidden here). */
+  groupVisibility?: "visible" | "private";
 };
 
 export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions }: {
@@ -117,7 +121,8 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
       ) : null}
       <div className={styles.creator} ref={creatorRef} data-info-card-creator="" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
         onBlur={() => setShowAuthor(false)} onKeyDown={event => { event.stopPropagation(); if (event.key === "Escape") { event.preventDefault(); setShowAuthor(false); } }}>
-        <span className={styles.typeLabel} data-info-card-type-label="">{type.label}</span>
+        <span className={styles.typeLabel} data-info-card-type-label="">{type.label}{card.groupVisibility &&
+          <span className={styles.visibility} data-info-card-visibility={card.groupVisibility}><VisibilityIndicator visible={card.groupVisibility === "visible"} /></span>}</span>
         <button type="button" aria-label={`Card by ${creator}`} aria-expanded={showAuthor} aria-describedby={showAuthor ? authorId : undefined}
           onFocus={event => { if (event.currentTarget.matches(":focus-visible")) setShowAuthor(true); }}
           onClick={() => setShowAuthor(value => !value)}>{creator}</button>
