@@ -203,6 +203,9 @@ test("mocked image transfer uses real proof-checked draft save; cancellation, pr
   await expect.poll(async () => (await (await page.request.get(`/api/info-cards/${id}`)).json()).root.draft?.body).toBe("Text changed during upload.");
   let requested = "";
   await page.route(`**/api/info-cards/${id}/media?*`, route => { requested = route.request().url(); return route.fulfill({ contentType: "image/png", body: pixel }); });
+  const imageButton = page.getByRole("button", { name: "View image", exact: true });
+  await expect(imageButton).toHaveAttribute("data-media-kind", "image"); await expect(imageButton).toHaveText(""); await expect(imageButton.locator("svg rect")).toHaveCount(1);
+  const imageBox = (await imageButton.boundingBox())!; expect(imageBox.width, "comfortable touch target").toBeGreaterThanOrEqual(32); expect(imageBox.height).toBeGreaterThanOrEqual(32);
   await page.getByRole("button", { name: "View image", exact: true }).click();
   const viewer = page.getByRole("dialog", { name: "Info card media", exact: true }); await expect(viewer.getByAltText("Image", { exact: true })).toBeVisible();
   expect(new URL(requested).searchParams.has("revision")).toBe(true);
@@ -267,6 +270,8 @@ test("video upload uses multipart transfer, processing feedback and an exact-con
   await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "a.mp4", mimeType: "video/mp4", buffer: Buffer.from("provider transfer fixture") });
   await expect(page.getByRole("status").filter({ hasText: "Processing video: 42%" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Video ready" })).toBeVisible();
+  const videoButton = page.getByRole("button", { name: "Watch video", exact: true });
+  await expect(videoButton).toHaveAttribute("data-media-kind", "video"); await expect(videoButton).toHaveText(""); await expect(videoButton.locator("svg rect")).toHaveCount(0);
   await page.getByRole("button", { name: "Watch video", exact: true }).click();
   await expect.poll(() => requestURL).toContain("revision="); expect(requestActor).toBe(root.ownerUserId);
   await page.getByRole("button", { name: "Close info card media", exact: true }).click();

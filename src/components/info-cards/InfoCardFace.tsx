@@ -31,11 +31,20 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
   const face = useRef<HTMLElement>(null), body = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const tooltipId = useId();
+  const creatorRef = useRef<HTMLDivElement>(null);
   const attribution = useRef<HTMLSpanElement>(null);
   const [showCreator, setShowCreator] = useState(false);
   const [showAuthor, setShowAuthor] = useState(false), authorId = useId();
   const creator = card.creatorUsername || "Unknown creator";
   const type = buildInfoCardTypeLayout(infoCardType(card));
+
+  // An outside tap closes the credit tooltip. iOS Safari does not blur a button on tap, so blur alone is not enough.
+  useEffect(() => {
+    if (!showAuthor) return;
+    const close = (event: PointerEvent) => { if (!(event.target instanceof Node) || !creatorRef.current?.contains(event.target)) setShowAuthor(false); };
+    document.addEventListener("pointerdown", close, true);
+    return () => document.removeEventListener("pointerdown", close, true);
+  }, [showAuthor]);
 
   useEffect(() => {
     if (!showCreator) return;
@@ -102,14 +111,14 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
       </div>
       <footer className={styles.footer} data-info-card-footer="">
       {card.mediaKind ? (
-        <button className={styles.media} data-info-card-media="" type="button" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowCreator(false); onOpenMedia?.(); }} disabled={!onOpenMedia}>
+        <button className={styles.media} data-info-card-media="" type="button" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowCreator(false); onOpenMedia?.(); }} disabled={!onOpenMedia}
+          aria-label={card.mediaKind === "video" ? "Watch video" : "View image"} data-media-kind={card.mediaKind}>
           <svg viewBox="0 0 20 20" aria-hidden="true">
             {card.mediaKind === "video" ? <path d="M6 3.5 16 10 6 16.5Z" /> : <><rect x="2" y="3" width="16" height="14" rx="2" /><path d="m3 14 4-5 4 4 3-3 3 4" /><circle cx="13" cy="7" r="1" /></>}
           </svg>
-          {card.mediaKind === "video" ? "Watch video" : "View image"}
         </button>
       ) : null}
-      <div className={styles.creator} data-info-card-creator="" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
+      <div className={styles.creator} ref={creatorRef} data-info-card-creator="" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
         onBlur={() => setShowAuthor(false)} onKeyDown={event => { event.stopPropagation(); if (event.key === "Escape") { event.preventDefault(); setShowAuthor(false); } }}>
         <span className={styles.typeLabel} data-info-card-type-label="">{type.label}</span>
         <button type="button" aria-label={`Card by ${creator}`} aria-expanded={showAuthor} aria-describedby={showAuthor ? authorId : undefined}

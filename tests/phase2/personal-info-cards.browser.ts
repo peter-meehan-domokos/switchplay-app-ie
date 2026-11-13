@@ -161,8 +161,20 @@ test("footer geometry, creator tooltip and menu keyboard/outside isolation at mo
     expect(bounds.target).toBeGreaterThanOrEqual(24); await info.attach(`footer-${width}`, { body: JSON.stringify(bounds), contentType: "application/json" });
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  const author = current(page).getByRole("button", { name: "Card by phase2", exact: true }); await author.click();
-  await expect(current(page).getByRole("tooltip")).toHaveText("phase2"); await author.press("Escape");
+  const author = current(page).getByRole("button", { name: "Card by phase2", exact: true });
+  // The type label moves down 2.5px towards the credit (gap 6px to 3.5px) while the credit text stays where it was.
+  const gap = await current(page).locator("[data-info-card-face]").evaluate(node => {
+    const label = node.querySelector<HTMLElement>("[data-info-card-type-label]")!, button = node.querySelector<HTMLElement>("[data-info-card-creator] button")!;
+    const scale = node.getBoundingClientRect().width / (node as HTMLElement).offsetWidth, range = document.createRange(); range.selectNodeContents(button);
+    const text = range.getBoundingClientRect(), glyphs = document.createRange(); glyphs.selectNodeContents(label);
+    return { gap: (text.top - glyphs.getBoundingClientRect().bottom) / scale, textTop: (text.top - node.getBoundingClientRect().top) / scale, buttonTop: (button.getBoundingClientRect().top - node.getBoundingClientRect().top) / scale };
+  });
+  expect(gap.gap, "gap was 6px; about 40% smaller").toBeGreaterThan(3); expect(gap.gap).toBeLessThan(4);
+  expect(gap.textTop - gap.buttonTop, "credit text stays where it was, 6px below its button top").toBeCloseTo(6, 0);
+  await author.click(); await expect(current(page).getByRole("tooltip")).toHaveText("phase2");
+  await page.locator("[data-info-card-current=\"true\"] [data-info-card-title]").click(); await expect(current(page).getByRole("tooltip"), "outside tap closes the tooltip").toHaveCount(0);
+  await author.click(); await expect(current(page).getByRole("tooltip")).toBeVisible(); await author.click(); await expect(current(page).getByRole("tooltip"), "second tap closes").toHaveCount(0);
+  await author.click(); await expect(current(page).getByRole("tooltip")).toBeVisible(); await author.press("Escape");
   await current(page).getByRole("button", { name: "Info Card actions", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "+ New", exact: true })).toBeFocused();
   await page.keyboard.press("Escape"); await expect(consult(page)).toBeVisible();
