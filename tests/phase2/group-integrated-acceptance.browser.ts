@@ -32,7 +32,7 @@ async function writeNote(page: Page, value: string) {
   await modal.getByRole("textbox").fill(value); await modal.getByRole("button", { name: "Save", exact: true }).click(); await expect(modal).toHaveCount(0); await expect(note(page)).toHaveText(value);
 }
 async function upload(request: APIRequestContext, base: string, filename: string) {
-  const allocated = await json(request.post(`${base}/media`, { data: { operationId: randomUUID(), accessEpoch: 0, version: 1, kind: "image", contentType: "image/png", size: png.length, originalFilename: filename } }));
+  const allocated = await json(request.post(`${base}/media`, { data: { operationId: randomUUID(), accessEpoch: 0, version: 1, kind: "image", contentType: "image/png", size: png.length, originalFilename: filename, creationContext: "self" } }));
   expect((await request.put(allocated.uploadURL, { data: png, headers: allocated.headers })).ok()).toBeTruthy();
   await json(request.post(`${base}/media/${allocated.contributionId}/commit`, { data: { expectedRevision: allocated.revision, proof: allocated.proof } })); return allocated.contributionId as string;
 }

@@ -9,6 +9,7 @@ import type { GroupRefreshOwner } from "@/lib/groupExperiences/refreshOwner";
 import { collectionDisplayItem, collectionTarget } from "@/lib/mediaCollection/presentation";
 import { collectionKey, type MediaCollectionContext, type MediaCollectionItem } from "@/lib/mediaCollection/contracts";
 import { mediaRemoveOperation, type MediaCapabilities } from "@/lib/mediaCollection/permissions";
+import { viewerIdentity } from "@/lib/groupExperiences/media/contributionIdentity";
 import { GroupMediaUpload, mutateCollectionItem, type GroupUploadContext } from "@/lib/mediaCollection/operations";
 import { useKeyedUserCardMediaUploadController, initialUserCardMediaUploadState, type CompletedUserCardMediaUpload, type UserCardMediaUploadTarget } from "./useKeyedUserCardMediaUploadController";
 import UserCardMediaUploadPanel, { type UserCardMediaRemovalState } from "./UserCardMediaUploadPanel";
@@ -63,7 +64,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
     const display = item as PersonalMediaDisplayItem;
     const value: MediaCollectionItem = display.collection ?? { source: { kind: "personal", cardTemplateId: display.sourceCardTemplateId ?? context.cardTemplateId, mediaItemId: display.id },
       authorUserId: context.viewerUserId, mediaType: display.mediaType, description: display.description, uploadedAt: null, originName: "Personal", private: false };
-    return { value, action: mediaRemoveOperation(context.viewerUserId, value, caps, context.experienceId) };
+    return { value, action: mediaRemoveOperation(context.viewerUserId, value, caps, context.experienceId, viewerIdentity(context)) };
   };
   const remove = async (item: MediaItem) => {
     const { value, action } = operation(item), key = personalMediaKey(item as PersonalMediaDisplayItem);

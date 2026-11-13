@@ -8,6 +8,8 @@ export type MediaCollectionItem = {
   originalFilename?: string; authorName?: string;
   uploadedAt: string | null; originName: string | null; private: boolean;
   revision?: number; media?: MediaItem;
+  // Group contributions only: the identity that created it (contributionIdentity.ts). Missing reads as "self".
+  creationContext?: import("../groupExperiences/media/contributionIdentity").CreationContext;
 };
 export type MediaCollectionPage = { capabilities?: import("./permissions").MediaCapabilities; viewerUserId: string; cardTemplateId: string; total: number; olderCount: number;
   items: MediaCollectionItem[]; start?: number; refresh?: string | null; older: string | null; newer: string | null;

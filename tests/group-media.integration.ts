@@ -24,8 +24,9 @@ async function fixture() {
     async deliver() { calls.deliver++; return Response.json({ grant: "signed-only" }); },
   };
   const media = new GroupMediaRepository(f.repo, provider);
-  const mediaCommand = (changes = {}) => ({ operationId: randomUUID(), accessEpoch: 0, version: 1, kind: "image", contentType: "image/jpeg", size: 100, ...changes });
-  const allocate = (actor = "bob", changes = {}, experienceId = f.experienceId) => media.allocate(actor, experienceId, f.ids[0], mediaCommand(changes));
+  const mediaCommand = (changes = {}) => ({ operationId: randomUUID(), accessEpoch: 0, version: 1, kind: "image", contentType: "image/jpeg", size: 100, creationContext: "self", ...changes });
+  // alice is the Group admin (not a follower), so her uploads are made from the Group perspective.
+  const allocate = (actor = "bob", changes = {}, experienceId = f.experienceId) => media.allocate(actor, experienceId, f.ids[0], mediaCommand({ creationContext: actor === "alice" ? "group" : "self", ...changes }));
   const attach = async (actor = "bob", changes = {}, experienceId = f.experienceId) => {
     const allocation = await allocate(actor, changes, experienceId);
     return media.commit(actor, experienceId, f.ids[0], allocation.contributionId, { expectedRevision: allocation.revision, proof: allocation.proof });
@@ -60,7 +61,9 @@ test("owner history spans Groups without membership or personal CardData; Group 
   const first = await f.attach(), second = await f.attach("bob", {}, other.experienceId);
   const admin = await f.attach("alice");
   assert.equal((await f.cards.getPersonalUser("alice"))!.cardsData.length, 0);
-  assert.equal((await f.media.ownerFeed("alice", f.ids[0])).items[0].contributionId, admin.contributionId);
+  // Checkpoint 4.0: an Admin contribution belongs to its Group only and never joins the author's owner history.
+  assert.deepEqual((await f.media.ownerFeed("alice", f.ids[0])).items, []);
+  assert.ok((await f.media.groupFeed("alice", f.experienceId, f.ids[0])).items.some(item => item.contributionId === admin.contributionId));
   await f.removeFollower();
   // Retained origin identity has no effect on owner history access.
   await f.repo.experiences().updateOne({ experienceId: f.experienceId }, { $set: { name: "Archived Galway U18" } });
@@ -194,7 +197,7 @@ test("bounded owner/Group pages use indexes; cursors cannot cross viewer or Grou
   await assert.rejects(f.media.ownerFeed("carol", f.ids[0], { after: first.next! }), { code: "INVALID_GROUP_MEDIA_PAGE" });
   await assert.rejects(f.media.ownerFeed("bob", f.ids[0], { limit: 31 }), { code: "INVALID_GROUP_MEDIA_PAGE" });
   for (const [filter, index] of [
-    [{ authorUserId: "bob", cardTemplateId: f.ids[0], state: "attached" }, "group_media_owner_history"],
+    [{ authorUserId: "bob", cardTemplateId: f.ids[0], state: "attached", creationContext: { $ne: "group" } }, "group_media_owner_history"],
     [{ experienceId: f.experienceId, cardTemplateId: f.ids[0], state: "attached", groupVisible: true }, "group_media_shared_history"],
   ] as const) {
     const plan = await f.media.records().find(filter).sort({ uploadedAt: -1, contributionId: -1 }).limit(31).explain("executionStats");
@@ -210,8 +213,8 @@ test("foreign query projects only allowed metadata; owner history does not consu
   t.mock.method(collection, "find", (filter: Filter<GroupMediaRecord>, options: FindOptions) => { calls.push({ filter, options }); return find(filter, options); });
   t.mock.method(f.media, "records", () => collection);
   await f.media.groupFeed("alice", f.experienceId, f.ids[0], { subjectUserId: "bob" });
-  assert.deepEqual(calls[0].filter, { cardTemplateId: f.ids[0], state: "attached", experienceId: f.experienceId, groupVisible: true, authorUserId: "bob" });
-  assert.deepEqual((calls[0].options as { projection: object }).projection, { _id: 0, contributionId: 1, authorUserId: 1, experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1 });
+  assert.deepEqual(calls[0].filter, { cardTemplateId: f.ids[0], state: "attached", experienceId: f.experienceId, groupVisible: true, authorUserId: "bob", creationContext: { $ne: "group" } });
+  assert.deepEqual((calls[0].options as { projection: object }).projection, { _id: 0, contributionId: 1, authorUserId: 1, experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1, creationContext: 1 });
   t.mock.method(f.repo, "members", () => { throw Error("owner history must not join membership"); });
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).items[0].contributionId, row.contributionId);
 });
@@ -237,11 +240,11 @@ test("attachment versus removal and hide versus delete preserve one serial outco
   const second = await f.attach("alice");
   await Promise.allSettled([
     f.media.hide("alice", f.experienceId, second.contributionId, { expectedRevision: second.revision, accessEpoch: 0 }),
-    f.media.delete("alice", second.contributionId, { expectedRevision: second.revision }),
+    f.media.delete("alice", second.contributionId, { expectedRevision: second.revision }, { experienceId: f.experienceId, accessEpoch: 0, perspective: "group" }),
   ]);
   const after = (await f.media.records().findOne({ contributionId: second.contributionId }))!;
   assert.equal(after.groupVisible, false);
-  if (after.state === "attached") await f.media.delete("alice", after.contributionId, { expectedRevision: after.revision });
+  if (after.state === "attached") await f.media.delete("alice", after.contributionId, { expectedRevision: after.revision }, { experienceId: f.experienceId, accessEpoch: 0, perspective: "group" });
   await assert.rejects(f.media.hide("alice", f.experienceId, second.contributionId, { expectedRevision: second.revision, accessEpoch: 0 }), { code: "GROUP_MEDIA_FORBIDDEN" });
 });
 
@@ -307,14 +310,14 @@ test("Group-context creator deletion requires matching origin and live membershi
   const f = await fixture();
   const other = await f.repo.create("alice", { ...f.creationCommand, operationId: "other-media-origin", name: "Galway development" });
   const own = await f.attach(), foreign = await f.attach("bob", {}, other.experienceId);
-  await assert.rejects(f.media.delete("bob", foreign.contributionId, { expectedRevision: foreign.revision }, { experienceId: f.experienceId, accessEpoch: 0 }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  await assert.rejects(f.media.delete("bob", foreign.contributionId, { expectedRevision: foreign.revision }, { experienceId: f.experienceId, accessEpoch: 0, perspective: "self" as const }), { code: "GROUP_MEDIA_FORBIDDEN" });
   await f.media.hide("alice", f.experienceId, own.contributionId, { expectedRevision: own.revision, accessEpoch: 0 });
   const hidden = await f.media.records().findOne({ contributionId: own.contributionId });
-  await assert.rejects(f.media.delete("bob", own.contributionId, { expectedRevision: hidden!.revision }, { experienceId: f.experienceId, accessEpoch: 99 }));
+  await assert.rejects(f.media.delete("bob", own.contributionId, { expectedRevision: hidden!.revision }, { experienceId: f.experienceId, accessEpoch: 99, perspective: "self" as const }));
   assert.equal((await f.media.records().findOne({ contributionId: own.contributionId }))!.state, "attached");
-  await f.media.delete("bob", own.contributionId, { expectedRevision: hidden!.revision }, { experienceId: f.experienceId, accessEpoch: 0 });
+  await f.media.delete("bob", own.contributionId, { expectedRevision: hidden!.revision }, { experienceId: f.experienceId, accessEpoch: 0, perspective: "self" as const });
   const retained = await f.attach(); await f.removeFollower();
-  await assert.rejects(f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision }, { experienceId: f.experienceId, accessEpoch: 0 }));
+  await assert.rejects(f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision }, { experienceId: f.experienceId, accessEpoch: 0, perspective: "self" as const }));
   assert.equal((await f.media.records().findOne({ contributionId: retained.contributionId }))!.state, "attached");
   assert.equal((await f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision })).state, "deleted");
   assert.equal((await f.media.records().findOne({ contributionId: foreign.contributionId }))!.state, "attached");

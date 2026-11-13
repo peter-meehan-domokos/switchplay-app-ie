@@ -4,6 +4,7 @@ import { requireCondition } from "../../cards/domain";
 import { hash, id } from "../contracts";
 import type { GroupMediaRepository } from "./repository";
 import type { GroupMediaRecord, MediaAuthority } from "./model";
+import { FOLLOWER_CONTRIBUTIONS, identityFilter, viewerIdentity } from "./contributionIdentity";
 export async function readMediaPage(repo: GroupMediaRepository, actor: string, cardTemplateId: string, authority: MediaAuthority, options: { after?: string; before?: string; limit?: number }) {
   id(actor); id(cardTemplateId);
   const limit = options.limit ?? 30;
@@ -25,15 +26,17 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
     const context = authority.kind === "owner" ? { viewerUserId: actor, cardTemplateId, kind: "owner" as const, capabilities: { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false } }
       : { ...await repo.groupAuthority(actor, authority.experienceId, cardTemplateId, session, authority.subjectUserId),
         kind: "group" as const, subjectUserId: authority.subjectUserId ?? null };
-    const filter: Filter<GroupMediaRecord> = { cardTemplateId, state: "attached", ...(authority.kind === "owner" ? { authorUserId: actor }
-      : { experienceId: authority.experienceId, groupVisible: true, ...(authority.subjectUserId ? { authorUserId: authority.subjectUserId } : {}) }) };
+    // Owner history and follower inspection list Follower contributions only; the Group feed lists both.
+    const filter: Filter<GroupMediaRecord> = { cardTemplateId, state: "attached", ...(authority.kind === "owner" ? { authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS }
+      : { experienceId: authority.experienceId, groupVisible: true, ...(authority.subjectUserId ? { authorUserId: authority.subjectUserId, ...FOLLOWER_CONTRIBUTIONS } : {}) }) };
     const rows = await repo.records().find({ ...filter, ...older }, { session, projection: { _id: 0, contributionId: 1, authorUserId: 1,
-      experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1 } })
+      experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1, creationContext: 1 } })
       .sort({ uploadedAt: sign, contributionId: sign }).limit(limit + 1).toArray();
     const total = await repo.records().countDocuments(filter, { session });
     // Creator removal is management even when this perspective cannot upload.
     // The query is within the same authorised shared feed and snapshot.
-    if (authority.kind === "group" && !context.capabilities.canManage && await repo.records().countDocuments({ ...filter, authorUserId: actor,
+    // "Own" means the acting identity's own: the Admin identity in the Group perspective, the Follower identity otherwise.
+    if (authority.kind === "group" && !context.capabilities.canManage && await repo.records().countDocuments({ ...filter, ...identityFilter(actor, viewerIdentity(authority)),
       ...(authority.subjectUserId && authority.subjectUserId !== actor ? { contributionId: { $in: [] } } : {}) }, { session })) context.capabilities = { ...context.capabilities, canManage: true };
     const page = rows.slice(0, limit); if (sign === 1) page.reverse();
     const last = page.at(-1), first = page[0];

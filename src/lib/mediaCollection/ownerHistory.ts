@@ -10,6 +10,7 @@ import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
 import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
 import type { GroupMediaRecord } from "../groupExperiences/media/model";
+import { FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 
 export type Order = [string, string, string, string, number, number];
@@ -76,7 +77,8 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
       sources.push(next); next = nonblank(matches[0].next) ? matches[0].next : undefined;
     }
     const pipeline = personalPipeline(actor, sources), groups = cards.db.collection<GroupMediaRecord>(GROUP_MEDIA_COLLECTION);
-    const baseGroup = { authorUserId: actor, cardTemplateId, state: "attached" as const };
+    // Follower contributions only: Admin contributions never join owner history. See contributionIdentity.ts.
+    const baseGroup = { authorUserId: actor, cardTemplateId, state: "attached" as const, ...FOLLOWER_CONTRIBUTIONS };
     const get = async (direction: "older" | "newer", boundary: Order | undefined, count: number, inclusive = false): Promise<Row[]> => {
       const sign = direction === "older" ? -1 : 1;
       const personal = sources.length ? await cards.users().aggregate(pipeline.concat(
@@ -103,7 +105,7 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
           .sort({ uploadedAt: sign, contributionId: sign }).limit(count).toArray();
         for (const g of result) rows.push({ order: [g.uploadedAt!.toISOString(), "group", "", g.contributionId, 0, 0], item: {
           source: { kind: "group", experienceId: g.experienceId, contributionId: g.contributionId }, authorUserId: actor, mediaType: g.kind,
-          description: `Group ${g.kind}`, originalFilename: g.originalFilename, uploadedAt: g.uploadedAt!.toISOString(), originName: null, revision: g.revision,
+          description: `Group ${g.kind}`, originalFilename: g.originalFilename, uploadedAt: g.uploadedAt!.toISOString(), originName: null, revision: g.revision, creationContext: "self",
           private: Boolean(options.experienceId && (options.experienceId !== g.experienceId || !g.groupVisible)) } });
       }
       return rows.sort((a, b) => sign * compare(a.order, b.order)).slice(0, count);

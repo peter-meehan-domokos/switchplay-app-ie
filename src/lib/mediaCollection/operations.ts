@@ -4,11 +4,13 @@ import { uploadFileToR2, uploadFileToCloudflareStream, validateImageUploadFile, 
 import { collectionKey, type MediaCollectionContext, type MediaCollectionItem } from "./contracts";
 import { mediaJson } from "./transport";
 import { notifyMediaCollectionChanged } from "./invalidation";
+import { sameIdentity, viewerIdentity, type CreationContext } from "../groupExperiences/media/contributionIdentity";
 const queue = new UserCardMediaMutationQueue();
 export function mutateCollectionItem(context: MediaCollectionContext, item: MediaCollectionItem, action: "delete" | "hide") {
   return queue.enqueue({ userId: context.viewerUserId, cardId: collectionKey(item), deckTemplateId: "media-collection" }, async () => {
     const source = item.source;
     if (action === "delete" && context.viewerUserId !== item.authorUserId) throw Error("Only the creator can delete this contribution.");
+    if (action === "delete" && !sameIdentity(item, context.viewerUserId, viewerIdentity(context))) throw Error("Delete this upload from the perspective it was added in.");
     if (action === "delete" && context.experienceId && (source.kind !== "group" || source.experienceId !== context.experienceId)) throw Error("Remove this upload in its original context or your Personal Card.");
     if (action === "delete" && context.experienceId && !Number.isSafeInteger(context.accessEpoch)) throw Error("Group authority changed. Reopen Media Centre.");
     let result;
@@ -16,14 +18,15 @@ export function mutateCollectionItem(context: MediaCollectionContext, item: Medi
       if (context.kind !== "group" || source.kind !== "group" || source.experienceId !== context.experienceId) throw Error("Invalid Group hiding source.");
       result = await mediaJson(context, `/api/group-experiences/${encodeURIComponent(context.experienceId)}/media/${encodeURIComponent(source.contributionId)}`, "PATCH", { expectedRevision: item.revision, accessEpoch: context.accessEpoch });
     } else if (source.kind === "group") result = context.experienceId
-      ? await mediaJson(context, `/api/group-experiences/${encodeURIComponent(context.experienceId)}/media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision, accessEpoch: context.accessEpoch })
+      ? await mediaJson(context, `/api/group-experiences/${encodeURIComponent(context.experienceId)}/media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision, accessEpoch: context.accessEpoch, perspective: viewerIdentity(context) })
       : await mediaJson(context, `/api/group-media/${encodeURIComponent(source.contributionId)}`, "DELETE", { expectedRevision: item.revision });
     else result = await mediaJson(context, `/api/cards-data/${encodeURIComponent(source.cardTemplateId)}/media/${encodeURIComponent(source.mediaItemId)}`, "DELETE");
     notifyMediaCollectionChanged(item.authorUserId, context.cardTemplateId, source.kind === "group" ? source.experienceId : undefined, { source, action });
     return result;
   });
 }
-export type GroupUploadContext = { viewerUserId: string; experienceId: string; cardTemplateId: string; accessEpoch: number; version: number };
+// `creationContext` is the perspective the upload is made from: "group" in the Group perspective, "self" in Me.
+export type GroupUploadContext = { viewerUserId: string; experienceId: string; cardTemplateId: string; accessEpoch: number; version: number; creationContext: CreationContext };
 type Allocation = { contributionId: string; revision: number; proof: string; state: string; uploadURL?: string; headers?: Record<string, string> };
 // A captured upload operation survives retry without borrowing the currently
 // displayed perspective. No Personal upload fallback exists.
@@ -40,7 +43,7 @@ export class GroupMediaUpload {
     const path = `/api/group-experiences/${encodeURIComponent(c.experienceId)}/cards/${encodeURIComponent(c.cardTemplateId)}/media`;
     try {
       // An exact retry recovers a receipt/refreshes its proof, never another file.
-      this.allocation = await mediaJson<Allocation>(c, path, "POST", { operationId: this.operationId, accessEpoch: c.accessEpoch, version: c.version, kind, contentType: this.file.type, size: this.file.size, ...(this.file.name ? { originalFilename: this.file.name } : {}) }, signal);
+      this.allocation = await mediaJson<Allocation>(c, path, "POST", { operationId: this.operationId, accessEpoch: c.accessEpoch, version: c.version, creationContext: c.creationContext, kind, contentType: this.file.type, size: this.file.size, ...(this.file.name ? { originalFilename: this.file.name } : {}) }, signal);
       if (this.allocation.state !== "attached" && !this.transferAttempted) {
         if (!this.allocation.uploadURL) throw Error("Upload allocation is unavailable.");
         this.transferAttempted = true;

@@ -126,7 +126,7 @@ test("Admin inspection Centre is remove-only; removal hides the Group contributi
   const playerContext = await page.context().browser()!.newContext({ baseURL: new URL(page.url()).origin }); const playerPage = await playerContext.newPage();
   await login(playerPage, "Aoife Kelly");
   const before = await (await playerPage.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}&experienceId=${fixture.experienceId}`)).json();
-  const allocation = await (await playerPage.request.post(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media`, { data: { operationId: crypto.randomUUID(), accessEpoch: 0, version: 1, kind: "image", contentType: "image/png", size: png.length, originalFilename: "team-passing.png" } })).json();
+  const allocation = await (await playerPage.request.post(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media`, { data: { operationId: crypto.randomUUID(), accessEpoch: 0, version: 1, kind: "image", contentType: "image/png", size: png.length, originalFilename: "team-passing.png", creationContext: "self" } })).json();
   expect(allocation.contributionId).toBeTruthy();
   await playerPage.request.put(allocation.uploadURL, { data: png, headers: allocation.headers });
   expect((await playerPage.request.post(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media/${allocation.contributionId}/commit`, { data: { expectedRevision: allocation.revision, proof: allocation.proof } })).ok()).toBeTruthy();
@@ -171,7 +171,9 @@ test("Group-wide Admin upload remains author-owned and exposes no Private media"
   await control.click(); await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
   await centre(page).getByLabel("Choose image").setInputFiles({ name: "coach-practice.png", mimeType: "image/png", buffer: png });
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(9);
-  const before = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}`)).json(); expect(before.total).toBe(9);
+  // Checkpoint 4.0: an Admin upload belongs to this Group only, so the standalone history total is unchanged.
+  const before = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}`)).json(); expect(before.total).toBe(8);
+  expect(before.items.some((item: { originalFilename?: string }) => item.originalFilename === "coach-practice.png")).toBe(false);
   await centre(page).locator(".user-card-media-tile").last().getByRole("button", { name: /Remove image/ }).click();
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8); await expect(centre(page).getByText("Removed from this Group. The creator still has their copy.")).toHaveCount(0);
 });
@@ -276,13 +278,11 @@ test("owner media survives explicit authority expiry while Group mutations remai
 test("read-only Group signals own mouse and touch gestures, explain permissions, and preserve outside flipping", async ({ page, browserName }) => {
   await login(page, "Aoife Kelly"); await selectPerspective(page, { perspective: "group" }); await openBack(page, true); await page.waitForTimeout(700);
   const back = page.locator(".focused-card-surface--back");
-  await back.getByRole("button", { name: "Media Centre", exact: true }).click();
-  await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
-  await expect(centre(page).locator(".user-card-media-tile-origin").filter({ hasText: "By: Aoife Kelly" })).toHaveCount(3);
-  await expect(centre(page).locator(".user-card-media-tile-origin").filter({ hasText: "By: phase2" })).toHaveCount(5);
-  await expect(centre(page).getByRole("button", { name: /Remove image/ })).toHaveCount(3);
-  const filenames = await centre(page).locator(".user-card-media-tile-name").allTextContents(); expect(new Set(filenames).size).toBe(8);
-  await centre(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(centre(page)).toHaveCount(0); await page.waitForTimeout(700);
+  // Checkpoint 4.0: a follower-only user has no Admin identity, so nothing in the Group perspective is theirs to
+  // manage there: the Gallery thumbnails remain, the Media Centre management control does not. They manage their
+  // own uploads from Me.
+  await expect(back.getByRole("region", { name: "Card media", exact: true }).getByRole("button", { name: /^Open image/ })).toHaveCount(5);
+  await expect(back.getByRole("button", { name: "Media Centre", exact: true })).toHaveCount(0);
   const writes: string[] = []; page.on("request", request => { if (/\/(personal|group)-learning$/.test(request.url()) && request.method() === "PATCH") writes.push(request.url()); });
   await dragSignal(page);
   await expect(page.getByRole("tooltip")).toHaveText("Only a Group Admin can change this value."); await expect(page.locator(".focused-card-object")).toHaveClass(/is-flipped/);

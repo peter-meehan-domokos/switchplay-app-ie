@@ -7,6 +7,7 @@ import { userKey } from "../groupExperiences/learningReads";
 import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
 import { compare, personalPipeline, type Order } from "./ownerHistory";
 import { memberMediaCapabilities } from "./permissions";
+import { FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 import type { GroupExperience, GroupMember } from "../groupExperiences/model";
 
@@ -37,7 +38,8 @@ export async function ownerPreviewPages(repo: CardRepository, actor: string, ids
     { $group: { _id: "$targets.card", total: { $sum: 1 }, items: { $firstN: { n: 5, input: "$$ROOT" } } } },
   ]), { session }).toArray();
   const group = hasGroups && ids.length ? await repo.db.collection(GROUP_MEDIA_COLLECTION).aggregate<Window>([
-    { $match: { authorUserId: actor, cardTemplateId: { $in: ids }, state: "attached" } },
+    // Owner previews and counts show Follower contributions only (contributionIdentity.ts).
+    { $match: { authorUserId: actor, cardTemplateId: { $in: ids }, state: "attached", ...FOLLOWER_CONTRIBUTIONS } },
     { $sort: { uploadedAt: -1, contributionId: -1 } },
     { $group: { _id: "$cardTemplateId", total: { $sum: 1 }, items: { $firstN: { n: 5, input: { contributionId: "$contributionId", experienceId: "$experienceId", kind: "$kind", uploadedAt: "$uploadedAt", groupVisible: "$groupVisible", revision: "$revision", originalFilename: "$originalFilename" } } } } },
   ], { session }).toArray() : [];
@@ -51,7 +53,7 @@ export async function ownerPreviewPages(repo: CardRepository, actor: string, ids
     } }] : []);
     for (const row of shared?.items ?? []) rows.push({ order: [(row.uploadedAt as Date).toISOString(), "group", "", row.contributionId as string, 0, 0], item: {
       source: { kind: "group", experienceId: row.experienceId as string, contributionId: row.contributionId as string }, authorUserId: actor, authorName: user.username?.trim() ? user.username : "Unknown user",
-      mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number,
+      mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number, creationContext: "self",
       originName: names.find(name => name.experienceId === row.experienceId)?.name ?? null, private: !!authority && (authority.experience.experienceId !== row.experienceId || !row.groupVisible),
     } });
     const selected = rows.sort((a, b) => compare(b.order, a.order)).slice(0, 5).reverse(), total = (own?.total ?? 0) + (shared?.total ?? 0);
@@ -69,9 +71,13 @@ export async function sharedPreviewPages(repo: CardRepository, actor: string, id
   const experienceId = authority.experience.experienceId;
   requireCondition(authority.member.userId === actor && authority.member.experienceId === experienceId, "GROUP_PERSPECTIVE_FORBIDDEN");
   const windows = !ids.length ? [] : await repo.db.collection(GROUP_MEDIA_COLLECTION).aggregate<Window>([
-    { $match: { experienceId, cardTemplateId: { $in: ids }, state: "attached", groupVisible: true, ...(subjectUserId ? { authorUserId: subjectUserId } : {}) } },
+    // Inspecting a follower shows their Follower contributions only; the Group feed shows both identities.
+    { $match: { experienceId, cardTemplateId: { $in: ids }, state: "attached", groupVisible: true, ...(subjectUserId ? { authorUserId: subjectUserId, ...FOLLOWER_CONTRIBUTIONS } : {}) } },
     { $sort: { uploadedAt: -1, contributionId: -1 } },
-    { $group: { _id: "$cardTemplateId", total: { $sum: 1 }, own: { $sum: { $cond: [{ $eq: ["$authorUserId", actor] }, 1, 0] } }, items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", kind: "$kind", uploadedAt: "$uploadedAt", revision: "$revision", originalFilename: "$originalFilename" } } } } },
+    // "Own" counts the acting identity only: Admin contributions in the Group perspective, Follower ones when inspecting.
+    { $group: { _id: "$cardTemplateId", total: { $sum: 1 }, own: { $sum: { $cond: [{ $and: [{ $eq: ["$authorUserId", actor] },
+      subjectUserId ? { $ne: ["$creationContext", "group"] } : { $eq: ["$creationContext", "group"] }] }, 1, 0] } },
+      items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", kind: "$kind", uploadedAt: "$uploadedAt", revision: "$revision", originalFilename: "$originalFilename", creationContext: "$creationContext" } } } } },
   ], { session }).toArray();
   const { creatorUsernames } = await import("../cards/creatorAttribution");
   const names = await creatorUsernames(repo, windows.flatMap(window => window.items.map(item => item.authorUserId as string)), session);
@@ -84,7 +90,7 @@ function sharedWindowPage(actor: string, card: string, authority: Authority, nam
     const page: MediaCollectionPage = { viewerUserId: actor, cardTemplateId: card, experienceId, accessEpoch: authority.member.accessEpoch, adoptionRevision: authority.experience.adoptionRevision, structureRevision: authority.experience.structureRevision,
       subjectUserId: subjectUserId ?? null, total, olderCount: Math.max(0, total - items.length), start: Math.max(0, total - items.length), older: total > items.length && items.at(-1) ? encode(items.at(-1)!) : null, newer: null, refresh: items[0] ? encode(items[0], true) : null,
       capabilities: memberMediaCapabilities(authority.member, subjectUserId, !!window?.own),
-      items: [...items].reverse().map(row => ({ source: { kind: "group", experienceId, contributionId: row.contributionId as string }, authorUserId: row.authorUserId as string, authorName: names.get(row.authorUserId as string) ?? "Unknown user", mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number, originName: authority.experience.name, private: false })) };
+      items: [...items].reverse().map(row => ({ source: { kind: "group", experienceId, contributionId: row.contributionId as string }, authorUserId: row.authorUserId as string, authorName: names.get(row.authorUserId as string) ?? "Unknown user", mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number, creationContext: row.creationContext === "group" ? "group" as const : "self" as const, originName: authority.experience.name, private: false })) };
     return page;
 }
 
@@ -93,10 +99,11 @@ function sharedWindowPage(actor: string, card: string, authority: Authority, nam
 export async function subjectPreviewPages(repo: CardRepository, actor: string, ids: string[], subjects: string[], session: ClientSession, authority: Authority) {
   requireCondition(authority.member.userId === actor, "GROUP_PERSPECTIVE_FORBIDDEN");
   const windows = !ids.length || !subjects.length ? [] : await repo.db.collection(GROUP_MEDIA_COLLECTION).aggregate<Omit<Window, "_id"> & { _id: { card: string; subject: string } }>([
-    { $match: { experienceId: authority.experience.experienceId, cardTemplateId: { $in: ids }, authorUserId: { $in: subjects }, state: "attached", groupVisible: true } },
+    // Followers are inspected through their Follower contributions only (contributionIdentity.ts).
+    { $match: { experienceId: authority.experience.experienceId, cardTemplateId: { $in: ids }, authorUserId: { $in: subjects }, state: "attached", groupVisible: true, ...FOLLOWER_CONTRIBUTIONS } },
     { $sort: { uploadedAt: -1, contributionId: -1 } },
     { $group: { _id: { card: "$cardTemplateId", subject: "$authorUserId" }, total: { $sum: 1 }, own: { $sum: { $cond: [{ $eq: ["$authorUserId", actor] }, 1, 0] } },
-      items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", kind: "$kind", uploadedAt: "$uploadedAt", revision: "$revision", originalFilename: "$originalFilename" } } } } },
+      items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", kind: "$kind", uploadedAt: "$uploadedAt", revision: "$revision", originalFilename: "$originalFilename", creationContext: "$creationContext" } } } } },
   ], { session }).toArray();
   const { creatorUsernames } = await import("../cards/creatorAttribution");
   const names = await creatorUsernames(repo, subjects, session);
