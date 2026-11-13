@@ -6,6 +6,7 @@ import type { InfoCardFaceContent } from "./InfoCardFace";
 import type { InfoMedia, MediaContext, PersonalInfoSource, PersonalInfoContext, PersonalInfoAssociation } from "@/lib/infoCards/model";
 import InfoCardPouch from "./InfoCardPouch";
 import InfoCardPhysicalStack from "./InfoCardPhysicalStack";
+import InfoCardEmptyPanel from "./InfoCardEmptyPanel";
 import InfoCardMediaViewer, { type InfoCardMedia } from "./InfoCardMediaViewer";
 import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
 import { containInfoCardFocus, isolateInfoCardEvent, useInfoCardDialog } from "./useInfoCardDialog";
@@ -123,10 +124,21 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
   }
   const [position, setPosition] = useState(1);
   const motionBusy = useRef(true);
-  const [readyWasEmpty, setReadyWasEmpty] = useState(status === "ready" && cards.length === 0);
-  if (!readyWasEmpty && status === "ready" && cards.length === 0) setReadyWasEmpty(true);
-  const onBusyChange = useCallback((busy: boolean) => { motionBusy.current = busy; }, []);
-  const requestClose = () => { if (!media && !authoring && !mutation) { if (status === "ready" && cards.length) setClosing(true); else onClose(); } };
+  // The empty panel only appears when the user can add a Personal Info Card; otherwise there is no surface to animate.
+  const hasSurface = status === "ready" && (cards.length > 0 || !!personalContext);
+  // True once the pack has been shown: an empty panel that replaces it (last Remove) does not fly in again.
+  const [hadCards, setHadCards] = useState(false);
+  if (!hadCards && status === "ready" && cards.length > 0) setHadCards(true);
+  // After the first Save the new card opens through the stack's normal animation; focus follows when it settles.
+  const focusAfterOpening = useRef(false);
+  const onBusyChange = useCallback((busy: boolean) => {
+    motionBusy.current = busy;
+    if (!busy && focusAfterOpening.current) {
+      focusAfterOpening.current = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>('[data-info-card-current="true"] [aria-label="Info Card actions"]')?.focus({ preventScroll: true })));
+    }
+  }, []);
+  const requestClose = () => { if (!media && !authoring && !mutation) { if (hasSurface) setClosing(true); else onClose(); } };
   useInfoCardDialog(dialog, closeButton, source, true);
   useLayoutEffect(() => {
     (status === "ready" ? closeButton.current : dialog.current?.querySelector<HTMLElement>("[data-info-card-pouch]"))?.focus({ preventScroll: true });
@@ -173,15 +185,12 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       {status === "ready" && <div className={styles.alignment} style={{ left: geometry.left, top: geometry.top, width: geometry.width,
         height: geometry.height, borderRadius: geometry.borderRadius, transform: `scale(${geometry.scale})` }}>
         {cards.length ? <InfoCardPhysicalStack id={id} cards={cards} selectedId={selectedId} onSelect={onSelect} closing={closing}
-          initiallySettled={readyWasEmpty}
           blocked={Boolean(media || authoring || mutation)} closeRef={closeButton} pouch={source} pouchGeometry={pouchGeometry}
           actions={personalContext ? card => ({ onNew: () => void edit(), ...(card && !card.unavailable && card.personal && card.personalSource ? {
             onEdit: () => void edit(card), onRemove: () => void remove(card) } : {}) }) : undefined}
           onRequestClose={requestClose} onExited={onClose} onBusyChange={onBusyChange} onOpenMedia={openMedia} onPositionChange={setPosition} />
-          : <div className={styles.empty} id={id} aria-label="Information cards" onClick={event => { if (event.target === event.currentTarget) requestClose(); }}>
-            {personalContext && <button type="button" className={styles.emptyPlus} aria-label="New personal Info Card" disabled={mutation || !!authoring} onClick={() => void edit()}>+</button>}
-            <button ref={closeButton} type="button" disabled={mutation || !!authoring} className={`${stepStyles.consultationClose} ${styles.emptyClose}`} aria-label="Close information card stack" onClick={requestClose}>×</button>
-          </div>}
+          : personalContext && <InfoCardEmptyPanel id={id} pouch={source} closing={closing} settled={hadCards} disabled={mutation || !!authoring}
+            addRef={closeButton} onAdd={() => void edit()} onExited={onClose} />}
       </div>}
       {(status === "failed" || status === "pending" && loadingMessage) && <p className={styles.status} style={statusStyle}
         role={status === "failed" ? "alert" : "status"}>{status === "failed" ? "Unable to load Info Cards." : "Loading Info Cards…"}</p>}
@@ -190,7 +199,7 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
         height: pouchGeometry.height, borderRadius: pouchGeometry.borderRadius, transform: `scale(${pouchGeometry.scale})` }}>
         <div className={stepStyles.pouch}>
           <InfoCardPouch count={count} allowEmpty={!!personalContext} position={count ? position : 0} expanded={status === "ready"} pending={status !== "ready"} controlsId={id}
-            onToggle={() => { if (!media && !authoring && !mutation) { if (status === "ready" && cards.length) setClosing(value => !value); else onClose(); } }} />
+            onToggle={() => { if (!media && !authoring && !mutation) { if (hasSurface) setClosing(value => !value); else onClose(); } }} />
         </div>
       </div>
     </dialog>
@@ -204,14 +213,15 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
         setAuthoring(null);
         // Native nested-dialog restoration can run before the pack loses inert.
         // Restore after that commit to the same persistent contextual control.
-        requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>('[data-info-card-current="true"] [aria-label="Info Card actions"], [aria-label="New personal Info Card"]')?.focus({ preventScroll: true }));
+        requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>('[data-info-card-current="true"] [aria-label="Info Card actions"], [data-info-empty-panel] button')?.focus({ preventScroll: true }));
       }} onSaved={async (savedId, association) => {
         if (!live.current) return;
         acceptAssociation(association);
         const oldIndex = cards.findIndex(card => card.id === savedId);
         const successors = oldIndex >= 0 ? cards.slice(oldIndex + 1).concat(cards.slice(0, oldIndex)).map(card => card.id) : [];
+        const firstCard = cards.length === 0;
         await onRefresh?.(savedId, successors);
-        if (live.current) { setAuthoring(null); requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>('[data-info-card-current="true"] [aria-label="Info Card actions"]')?.focus({ preventScroll: true })); }
+        if (live.current) { if (firstCard) focusAfterOpening.current = true; setAuthoring(null); if (!firstCard) requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>('[data-info-card-current="true"] [aria-label="Info Card actions"]')?.focus({ preventScroll: true })); }
       }} />}
   </>, document.body);
 }

@@ -5,6 +5,7 @@ import { motion, useAnimate, useMotionValue, useReducedMotion, useTransform, typ
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import InfoCardFace from "./InfoCardFace";
 import InfoCardMenu, { type InfoCardActions } from "./InfoCardMenu";
+import { hiddenPouchOffset, pouchClosingStep, pouchOpeningStep, POUCH_ANGLE_DEGREES } from "./infoCardPouchMotion";
 import { buildInfoCardStackLayout } from "./infoCardStackLayout";
 import type { InfoCardConsultationCard, AvailableConsultationCard } from "./InfoCardConsultation";
 import faceStyles from "./InfoCardFace.module.css";
@@ -74,23 +75,13 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
     callbacks.current.onBusyChange(true);
     // This phase mirrors an imperative animation; it does not own Step state.
     setPhase(closing ? "closing" : "opening");
-    const parent = pack.parentElement!;
-    const parentRect = parent.getBoundingClientRect(), pouchRect = pouch.getBoundingClientRect();
-    const scale = parentRect.width / parent.clientWidth;
-    const angle = 12 * Math.PI / 180;
-    const width = pack.offsetWidth, height = pack.offsetHeight;
-    // Place the top-right corner just behind the real pocket's upper endpoint.
-    // The existing rounded Step View clip and foreground pouch mask the bundle.
-    const hidden = {
-      x: (pouchRect.left - parentRect.left) / scale - pack.offsetLeft - width * Math.cos(angle) - height * Math.sin(angle) - 2,
-      y: (pouchRect.top - parentRect.top) / scale - pack.offsetTop - height - width * Math.sin(angle) + height * Math.cos(angle) + 2,
-    };
+    const hidden = hiddenPouchOffset(pack, pouch);
     const firstOpening = !positioned.current;
     if (firstOpening) {
       positioned.current = true;
       packX.set(reduced ? 0 : hidden.x);
       packY.set(reduced ? 0 : hidden.y);
-      packRotation.set(reduced ? 0 : 12);
+      packRotation.set(reduced ? 0 : POUCH_ANGLE_DEGREES);
     }
     if (!closing) opacity.set(reduced ? 0 : 1);
     const sequence: AnimationSequence = [];
@@ -100,17 +91,9 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
     if (closing) {
       // A close may interrupt a drag or turn: gather before returning the pack.
       sequence.push([pack.querySelectorAll<HTMLElement>("[data-info-card-layer]"), { x: 0, y: 0, rotate: 0 }, { duration: reduced ? 0 : 0.1 }]);
-      sequence.push([pack, reduced ? { opacity: 0 } : { x: hidden.x, y: hidden.y, rotate: 12 }, { duration: reduced ? 0.08 : 0.3, ease: "easeInOut" }]);
+      sequence.push(pouchClosingStep(pack, hidden, reduced));
     } else {
-      sequence.push([pack, firstOpening && !reduced
-        ? { x: [null, -4, 0], y: [null, 3, 0], rotate: [null, 0], opacity: [1, 1, 1] }
-        : { x: 0, y: 0, rotate: 0, opacity: 1 },
-      firstOpening && !reduced ? {
-        duration: 0.48, times: [0, 0.65, 1], ease: "easeInOut",
-        // Keep the two-stage translation/contact, but align rotation over the
-        // full journey instead of accelerating through 9 degrees at the end.
-        rotate: { times: [0, 1] },
-      } : { duration: reduced ? 0.08 : 0.48, ease: "easeInOut" }]);
+      sequence.push(pouchOpeningStep(pack, reduced, firstOpening));
       // Reversing a not-yet-complete return keeps this same session mounted.
       sequence.push([pack.querySelectorAll<HTMLElement>("[data-info-card-layer]"), { x: 0, y: 0, rotate: 0 }, { at: 0, duration: reduced ? 0 : 0.1 }]);
     }

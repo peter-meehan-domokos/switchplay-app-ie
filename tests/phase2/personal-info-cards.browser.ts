@@ -33,7 +33,7 @@ const editor = (page: Page) => page.getByRole("dialog", { name: "Personal Info C
 const current = (page: Page) => page.locator('[data-info-card-current="true"]');
 async function open(page: Page, empty = false) {
   await page.getByRole("button", { name: /^Open information cards/ }).click();
-  if (empty) await expect(consult(page).getByRole("button", { name: "New personal Info Card", exact: true })).toBeVisible();
+  if (empty) await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeVisible();
   else await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
 }
 async function action(page: Page, name: "+ New" | "Edit" | "Remove") {
@@ -68,9 +68,10 @@ test("empty pouch creates a private note with the existing editor, keeping the s
   expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe("undefined");
   await page.locator(".step-view-layer").evaluate(node => { (node as HTMLElement).dataset.personalMount = "retained"; });
   await open(page, true);
-  await expect(consult(page).getByRole("button", { name: "New personal Info Card", exact: true })).toHaveText("+");
+  await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toHaveText("Add Personal Info Card");
+  await expect(consult(page).getByRole("button", { name: "Close information card stack", exact: true }), "no Close button").toHaveCount(0);
   await expect(page.locator("[data-info-card-face]")).toHaveCount(0);
-  await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click(); await fill(page, "My note");
+  await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "My note");
   await expect(editor(page).getByRole("button", { name: "Publish", exact: true })).toHaveCount(0);
   await expect(editor(page).getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
   const id = await save(page);
@@ -104,19 +105,63 @@ test("shared menu offers only New; new Save, Edit, Cancel and Remove preserve st
   expect((await f.info.drafts(f.owner)).items.some(root => root.infoCardId === second)).toBe(false);
 });
 
-test("last Remove shows the true empty plus, remains open, and the pouch can close and reopen", async ({ page }) => {
+test("last Remove shows the compact empty panel, remains open, and the pouch can close and reopen", async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); await open(page, true);
-  await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click(); await fill(page, "Only note"); await save(page);
-  await action(page, "Remove"); await expect(consult(page).getByRole("button", { name: "New personal Info Card", exact: true })).toBeVisible();
+  await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "Only note"); await save(page);
+  await action(page, "Remove"); await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeVisible();
   await expect(page.locator("[data-info-card-stack]")).toHaveCount(0);
   await expect(consult(page).locator("[data-info-card-pouch-count]")).toHaveText("0");
-  await consult(page).getByRole("button", { name: "Close information card stack", exact: true }).click(); await expect(consult(page)).toHaveCount(0);
+  // Taps are ignored while the Remove is still settling, so wait until the panel is usable.
+  await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeEnabled();
+  await page.mouse.click(200, 120); await expect(consult(page)).toHaveCount(0);
   await open(page, true);
+});
+
+for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: the empty pouch opens a compact panel, outside tap and Escape dismiss it, and the first Save opens the card`, async ({ playwright }) => {
+  const browser = await playwright[engine].launch();
+  const context = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage(); page.setDefaultTimeout(20_000);
+    const f = await fixture(); await enter(page, f.deckId);
+    const panel = consult(page).locator("[data-info-empty-panel]"), add = consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true });
+    await page.getByRole("button", { name: /^Open information cards/ }).tap();
+    await expect(panel).toHaveAttribute("data-info-empty-phase", "open"); await expect(add).toBeVisible();
+    // Compact: a small panel, not a card-sized box, with no card face, stack or Close button.
+    const size = await panel.evaluate(node => ({ width: (node as HTMLElement).offsetWidth, height: (node as HTMLElement).offsetHeight }));
+    expect(size.width).toBeLessThan(200); expect(size.height).toBeLessThan(100);
+    expect((await add.boundingBox())!.height, "comfortable touch target").toBeGreaterThanOrEqual(44);
+    await expect(page.locator("[data-info-card-face], [data-info-card-stack]")).toHaveCount(0);
+    await expect(consult(page).getByRole("button", { name: "Close information card stack", exact: true })).toHaveCount(0);
+    await expect(add).toBeFocused();
+    await page.getByRole("button", { name: /^Close information cards \(/ }).tap(); await expect(consult(page)).toHaveCount(0);
+    // The panel really animates out of the pouch: sample its transform over the opening.
+    await page.evaluate(() => { const samples: string[] = []; (window as unknown as { __samples: string[] }).__samples = samples;
+      const tick = () => { const node = document.querySelector("[data-info-empty-panel]"); if (node) samples.push(getComputedStyle(node).transform); if (samples.length < 90) requestAnimationFrame(tick); }; tick(); });
+    await page.getByRole("button", { name: /^Open information cards/ }).tap();
+    await expect(panel).toHaveAttribute("data-info-empty-phase", "open");
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __samples: string[] }).__samples.length)).toBeGreaterThan(50);
+    const samples = await page.evaluate(() => (window as unknown as { __samples: string[] }).__samples);
+    expect(new Set(samples).size, "the transform changes over the opening").toBeGreaterThan(3);
+    expect(samples.at(-1) === "none" || /matrix\(1, 0, 0, 1, 0, 0\)/.test(samples.at(-1)!), "and settles in place").toBe(true);
+    // Outside tap dismisses (with the reverse animation); so does Escape.
+    await page.touchscreen.tap(200, 120); await expect(consult(page)).toHaveCount(0);
+    await page.getByRole("button", { name: /^Open information cards/ }).tap(); await expect(add).toBeVisible();
+    await page.keyboard.press("Escape"); await expect(consult(page)).toHaveCount(0);
+    // Add opens the existing editor; the first Save opens the new card in the stack's normal opening, focused.
+    await page.getByRole("button", { name: /^Open information cards/ }).tap(); await add.tap();
+    await fill(page, "First note");
+    await editor(page).getByRole("button", { name: "Save", exact: true }).tap(); await expect(editor(page)).toHaveCount(0);
+    await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", /^(opening|open)$/);
+    await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
+    await expect(current(page).locator("[data-info-card-title]")).toHaveText("First note");
+    await expect(current(page).getByRole("button", { name: "Info Card actions", exact: true })).toBeFocused();
+    await expect(panel).toHaveCount(0);
+  } finally { await context.close(); await browser.close(); }
 });
 
 test("unfinished personal work recovers through My Drafts on a fresh page and never appears in Library", async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); await open(page, true);
-  await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click(); await fill(page, "Recover personal", "");
+  await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "Recover personal", "");
   await editor(page).getByRole("button", { name: "Cancel", exact: true }).click(); await expect(editor(page)).toHaveCount(0);
   const root = (await f.info.drafts(f.owner)).items.find(root => root.draft?.title === "Recover personal")!; expect(root).toBeTruthy();
   await page.evaluate(() => sessionStorage.clear()); await page.goto("/creator/new"); await page.getByRole("button", { name: "My Drafts", exact: true }).click();
@@ -134,7 +179,7 @@ test("personal mutation response loss recovers one Save and keeps normal draft/p
     const response = await route.fetch();
     if (!lost) { lost = true; await route.abort(); } else await route.fulfill({ response });
   });
-  await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click(); await fill(page, "Recover Save");
+  await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "Recover Save");
   await editor(page).getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor(page).getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await editor(page).getByRole("button", { name: "Retry", exact: true }).click();
@@ -198,7 +243,7 @@ test("inherited notes Edit and Remove their real source without copied associati
   await enter(page, d.deckTemplateId); await open(page); await expect(current(page)).toHaveAttribute("data-info-card-id", id);
   await action(page, "Edit"); await editor(page).getByRole("textbox", { name: "Title", exact: true }).fill("Updated inherited"); await save(page);
   expect((await f.info.owner(f.owner, id)).originCardTemplateId).toBe(f.cardId);
-  await action(page, "Remove"); await expect(consult(page).getByRole("button", { name: "New personal Info Card", exact: true })).toBeEnabled();
+  await action(page, "Remove"); await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeEnabled();
   const user = (await f.main.getPersonalUser(f.owner))!;
   expect(user.cardsData.find(data => data.cardTemplateId === f.cardId)!.personalInfoCardIds).toEqual([]);
   expect(user.cardsData.find(data => data.cardTemplateId === target)!.personalInfoCardIds).toBeUndefined();
@@ -223,7 +268,7 @@ test("personal nested image keeps the selected exact publication and the open po
 
 test("durable Save survives a failed snapshot refresh and retry does not duplicate its attachment", async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); await open(page, true);
-  await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click(); await fill(page, "Saved safely");
+  await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "Saved safely");
   let fail = true;
   await page.route(`**/api/card-templates/${f.cardId}/info-cards?*`, async route => {
     if (fail) await route.fulfill({ status: 503, json: { error: "Temporary read failure" } }); else await route.continue();
@@ -257,7 +302,7 @@ test("Remove selects the next surviving prior-order neighbour when another note 
 
 test("personal maths survives Save, reopening and Edit while account changes hide the open private consultation", async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); await open(page, true);
-  await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click(); await fill(page, "My algebra", "Keep $x^2 + 1$ together.");
+  await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "My algebra", "Keep $x^2 + 1$ together.");
   const id = await save(page);
   await expect(current(page).locator(".katex").first()).toBeVisible();
   const publication = (await f.info.owner(f.owner, id!)).latestVersion;
@@ -277,7 +322,7 @@ for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: the
   try {
     const page = await context.newPage(); page.setDefaultTimeout(20_000);
     const f = await fixture(); await enter(page, f.deckId); await open(page, true);
-    await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).tap();
+    await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).tap();
     const series = editor(page).getByRole("combobox", { name: "Series", exact: true }), list = editor(page).getByRole("listbox", { name: "Series", exact: true });
     await expect(series).toBeVisible();
     expect(await series.evaluate(node => node.tagName), "no native select, hence no operating-system picker").toBe("BUTTON");
@@ -317,7 +362,7 @@ for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: aft
   try {
     const page = await context.newPage(); page.setDefaultTimeout(20_000);
     const f = await fixture(); await enter(page, f.deckId); await open(page, true);
-    await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).tap();
+    await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).tap();
     const series = editor(page).getByRole("combobox", { name: "Series", exact: true }), list = editor(page).getByRole("listbox", { name: "Series", exact: true });
     const title = editor(page).getByRole("textbox", { name: "Title", exact: true }), body = editor(page).getByRole("textbox", { name: "Explanation", exact: true });
     await series.tap(); await list.getByRole("option", { name: "Basics (phase2)", exact: true }).tap();
@@ -432,7 +477,7 @@ const choosePicture = (page: Page) => editor(page).getByLabel("Upload Info Card 
 
 for (const failure of ["fail-403", "fail-network"] as const) test(`a failed Personal image upload (${failure}) keeps the work, blocks a false Save, and Retry completes without choosing the file again`, async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); const puts = await mockInfoUpload(page, [failure, "ok"]);
-  await open(page, true); await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click();
+  await open(page, true); await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click();
   await fill(page, "My note", "Words that must survive a failed upload.");
   await choosePicture(page);
 
@@ -473,7 +518,7 @@ for (const failure of ["fail-403", "fail-network"] as const) test(`a failed Pers
 
 test("after a failed Personal upload, Cancel upload releases the editor and keeps the saved text", async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); await mockInfoUpload(page, ["fail-403"]);
-  await open(page, true); await consult(page).getByRole("button", { name: "New personal Info Card", exact: true }).click();
+  await open(page, true); await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click();
   await fill(page, "Draft note", "Text kept after dismissing the failed image.");
   await choosePicture(page); await expect(media(page).getByRole("alert")).toBeVisible();
   await media(page).getByRole("button", { name: "Cancel upload", exact: true }).click();
