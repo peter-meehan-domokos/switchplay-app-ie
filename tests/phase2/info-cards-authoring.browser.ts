@@ -125,7 +125,7 @@ test("My Drafts traverses more than one page and stays usable from Deck mode", a
 
 test("mobile editor and static Library retain fixed card dimensions and fit the viewport", async ({ page }, info) => {
   await login(page); await page.setViewportSize({ width: 390, height: 844 }); const id = await create(page);
-  const face = page.locator("[data-info-card-face]"); await expect(face).toHaveCSS("height", "204px"); await expect(face).toHaveCSS("width", "240px");
+  const face = page.locator("[data-info-card-face]"); await expect(face).toHaveCSS("height", "173px"); await expect(face).toHaveCSS("width", "240px");
   expect(await face.getByRole("button", { name: /^Series .*; show series creator$/ }).evaluate(node => node.getBoundingClientRect().height)).toBeLessThan(13);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("info-editor-mobile.png"), fullPage: true });

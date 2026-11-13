@@ -18,3 +18,7 @@
   white-space: nowrap;
 }
 .unavailable { display: grid; place-items: center; }
+
+/* A strip is the top edge of an upcoming card. It sits behind the top card, so only its first few
+   pixels show; colour and offset come from buildInfoCardStackLayout. */
+.strip { position: absolute; top: 0; bottom: 0; border: 1px solid rgba(179, 195, 217, 0.16); border-radius: 12px; pointer-events: none; }

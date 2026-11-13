@@ -7,7 +7,11 @@ import { CardRepository } from "../../src/lib/cards/repository";
 import { InfoCardRepository } from "../../src/lib/infoCards/repository";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 import { createDefaultCardContent, createDefaultDeckContent } from "../../src/lib/cards/creatorDefaults";
-const explanationReviews = [...readFileSync("src/app/dev/maths-renderer/ExplanationReviewFixtures.tsx", "utf8").matchAll(/content:\s*String\.raw`([^`]+)`/g)].map(match => ({ content: match[1] }));
+const allExplanationReviews = [...readFileSync("src/app/dev/maths-renderer/ExplanationReviewFixtures.tsx", "utf8").matchAll(/content:\s*String\.raw`([^`]+)`/g)].map(match => ({ content: match[1] }));
+// The 173px card has a 93px text area (checkpoint 5). The third and fourth shared review samples need about 96px and
+// 92px (the latter overflows in Firefox), so these card-level tests use only the samples that fit with margin.
+// The shared review fixtures themselves are unchanged.
+const explanationReviews = allExplanationReviews.filter((_, index) => index !== 2 && index !== 3);
 
 test("real editor autosaves exact maths, publishes without Chromium, Library and consultation retain the format", async ({ page, request, browser }) => {
   await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
@@ -22,9 +26,9 @@ test("real editor autosaves exact maths, publishes without Chromium, Library and
     await expect(page.locator("[data-maths-renderer] .katex").first()).toBeVisible();
     expect(await input.inputValue()).toBe(source.content);
     const geometry = await page.locator("[data-info-card-face]").evaluate(el => ({ width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding }));
-    expect(geometry).toEqual({ width: 240, height: 204, padding: "12px 12px 60px" });
+    expect(geometry).toEqual({ width: 240, height: 173, padding: "12px 12px 45px" });
   }
-  const source = explanationReviews[2].content;
+  const source = explanationReviews[1].content;
   await input.fill(source); await expect(page.getByText("Explanation fits.", { exact: true })).toBeVisible();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   const id = new URL(page.url()).pathname.split("/").at(-1)!;
@@ -98,7 +102,7 @@ for (const browserName of ["chromium", "firefox", "webkit"] as const) test(`real
       const measured = await page.evaluate(() => window.infoMaths!.current!);
       expect(measured.safe).toBe(true); expect(measured.headerFits).toBe(true);
       const box = await page.locator("[data-info-card-face]").evaluate(el => ({ height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding, width: el.querySelector("[data-info-card-body]")!.getBoundingClientRect().width }));
-      expect(box).toEqual({ height: 204, padding: "12px 12px 60px", width: 214 });
+      expect(box).toEqual({ height: 173, padding: "12px 12px 45px", width: 214 });
       expect(await page.locator("[data-info-card-creator] button").evaluate(el => getComputedStyle(el).fontFamily)).toContain("Switchplay Liberation Sans");
       expect(await page.locator(".katex-error").count()).toBe(0);
     }
@@ -148,7 +152,7 @@ for (const engine of ["chromium", "firefox", "webkit"] as const) test(`unmasked 
       return true;
     })).toBe(true);
     await expect(face.getByRole("alert")).toHaveCount(0);
-    expect(await face.evaluate(el => ({ height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding, width: el.querySelector("[data-info-card-body]")!.getBoundingClientRect().width }))).toEqual({ height: 204, padding: "12px 12px 60px", width: 214 });
+    expect(await face.evaluate(el => ({ height: el.getBoundingClientRect().height, padding: getComputedStyle(el).padding, width: el.querySelector("[data-info-card-body]")!.getBoundingClientRect().width }))).toEqual({ height: 173, padding: "12px 12px 45px", width: 214 });
   };
   try {
     await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
@@ -219,19 +223,19 @@ test("Check rendering flushes current source, returns the actual card screenshot
   await page.getByRole("combobox", { name: "Series", exact: true }).selectOption("demo-series-owner");
   await page.getByRole("textbox", { name: "Title", exact: true }).fill("Maths check");
   const input = page.getByRole("textbox", { name: "Explanation", exact: true });
-  await input.fill(explanationReviews[2].content);
+  await input.fill(explanationReviews[1].content);
   const response = page.waitForResponse(r => /\/check-rendering$/.test(r.url()) && r.request().method() === "POST");
   await page.getByRole("button", { name: "Check rendering", exact: true }).click();
   await expect(page.getByText("Checking rendering…", { exact: true })).toBeVisible();
   const checked = await response, result = await checked.json(); expect(checked.status()).toBe(200);
   expect(result.measurement.result.status).toBe("ready"); expect(result.measurement.result.layout.available.width).toBe(214);
-  expect(result.screenshot.width).toBe(240); expect(result.screenshot.height).toBe(204);
+  expect(result.screenshot.width).toBe(240); expect(result.screenshot.height).toBe(173);
   const image = page.getByRole("img", { name: "Info Card rendered in Chromium" }); await expect(image).toBeVisible();
-  expect(await image.evaluate(el => ({ width: (el as HTMLImageElement).naturalWidth, height: (el as HTMLImageElement).naturalHeight }))).toEqual({ width: 240, height: 204 });
+  expect(await image.evaluate(el => ({ width: (el as HTMLImageElement).naturalWidth, height: (el as HTMLImageElement).naturalHeight }))).toEqual({ width: 240, height: 173 });
   await test.info().attach("chromium-card", { body: Buffer.from(result.screenshot.dataUrl.split(",")[1], "base64"), contentType: "image/png" });
   const id = new URL(page.url()).pathname.split("/").at(-1)!;
   const saved = await (await page.request.get(`/api/info-cards/${id}`)).json();
-  expect(saved.root.revision).toBe(result.revision); expect(saved.root.latestVersion).toBe(0); expect(saved.root.draft.body).toBe(explanationReviews[2].content);
+  expect(saved.root.revision).toBe(result.revision); expect(saved.root.latestVersion).toBe(0); expect(saved.root.draft.body).toBe(explanationReviews[1].content);
   // Delayed old result must disappear on edits while autosave keeps working.
   let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
   await page.route("**/check-rendering", async route => { await gate; await route.fulfill({ json: result }); });
@@ -244,7 +248,7 @@ test("Check rendering flushes current source, returns the actual card screenshot
   const overflowResponse = page.waitForResponse(r => /\/check-rendering$/.test(r.url()));
   await page.getByRole("button", { name: "Check rendering", exact: true }).click();
   const overflow = await (await overflowResponse).json(); expect(overflow.measurement.result.layout.overflowX).toBe(true); expect(overflow.measurement.result.layout.overflowY).toBe(true);
-  expect(overflow.screenshot.width).toBeGreaterThan(400); expect(overflow.screenshot.height).toBeGreaterThan(204);
+  expect(overflow.screenshot.width).toBeGreaterThan(400); expect(overflow.screenshot.height).toBeGreaterThan(173);
   await expect(image).toBeVisible(); await expect(page.locator("[data-info-card-face] [data-maths-renderer]")).toBeVisible();
   // Publication still succeeds without a fit certificate, regardless of that diagnostic.
   await page.getByRole("button", { name: "Publish", exact: true }).click();

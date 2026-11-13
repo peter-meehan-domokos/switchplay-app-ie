@@ -18,7 +18,7 @@
 .dialog::backdrop { background: transparent; }
 .editorDialog { width: min(960px, calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); padding: 0; border: 1px solid #84909c; border-radius: 10px; overflow: auto; overscroll-behavior: contain; background: #eef1f3; color: #202b38; }
 .editorDialog::backdrop { background: transparent; }
-.empty { position: absolute; bottom: 15px; left: 6px; width: 240px; height: 204px; display: grid; place-items: center; }
+.empty { position: absolute; bottom: 15px; left: 6px; width: 240px; height: 173px; display: grid; place-items: center; }
 .emptyPlus { width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: #c9d0da; font: 30px/1 Arial, sans-serif; cursor: pointer; touch-action: manipulation; }
 .emptyClose { position: absolute; right: 6px; top: 0; }
 

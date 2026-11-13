@@ -7,6 +7,8 @@ import { InfoCardRepository } from "../../src/lib/infoCards/repository";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 import { createDefaultCardContent, createDefaultDeckContent } from "../../src/lib/cards/creatorDefaults";
 import { forkCardContent } from "../../src/lib/cards/forks";
+import { mathsHostToken } from "../../src/lib/infoCards/mathsHostAuth";
+import { mkdirSync, copyFileSync } from "node:fs";
 
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
@@ -73,7 +75,7 @@ test("empty pouch creates a private note with the existing editor, keeping the s
   await expect(editor(page).getByRole("combobox", { name: "Creator mode" })).toHaveCount(0);
   const id = await save(page);
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("My note");
-  await expect(current(page).locator("[data-info-card-face]")).toHaveCSS("background-color", "rgb(38, 59, 54)");
+  await expect(current(page).locator("[data-info-card-face]")).toHaveCSS("background-color", "rgb(48, 80, 71)");
   await expect(page.locator(".step-view-layer")).toHaveAttribute("data-personal-mount", "retained");
   const root = await f.info.owner(f.owner, id!); expect(root.kind).toBe("personal"); expect(root.visibility).toBe("private");
   expect((await f.main.getPersonalUser(f.owner))!.cardsData.find(data => data.cardTemplateId === f.cardId)!.personalInfoCardIds).toEqual([id]);
@@ -153,9 +155,9 @@ test("footer geometry, creator tooltip and menu keyboard/outside isolation at mo
       const credit = face.querySelector<HTMLElement>("[data-info-card-creator]")!.getBoundingClientRect();
       const menu = face.querySelector<HTMLElement>("[data-info-card-menu]")!.getBoundingClientRect();
       return { width: face.offsetWidth, height: face.offsetHeight, centreError: Math.abs(credit.left + credit.width / 2 - box.left - box.width / 2),
-        separated: credit.top >= menu.bottom, target: menu.width };
+        separated: credit.right <= menu.left && credit.top >= box.top && credit.bottom <= box.bottom, target: menu.width };
     });
-    expect(bounds.width).toBe(240); expect(bounds.height).toBe(204); expect(bounds.centreError).toBeLessThan(.1); expect(bounds.separated).toBe(true);
+    expect(bounds.width).toBe(240); expect(bounds.height).toBe(173); expect(bounds.centreError).toBeLessThan(.1); expect(bounds.separated).toBe(true);
     expect(bounds.target).toBeGreaterThanOrEqual(24); await info.attach(`footer-${width}`, { body: JSON.stringify(bounds), contentType: "application/json" });
   }
   await page.setViewportSize({ width: 390, height: 844 });
@@ -313,6 +315,83 @@ for (const engine of ["chromium", "webkit"] as const) test(`${engine} touch: aft
     await body.tap(); expect(await activeId(), "tapping the explanation focuses it").toMatch(/^TEXTAREA:Explanation/);
     await page.keyboard.type("Touch body"); await expect(body).toHaveValue("Touch body");
     await title.tap(); expect(await activeId()).toMatch(/^INPUT:Title/);
+  } finally { await context.close(); await browser.close(); }
+});
+
+// Checkpoint 5: the stack shows one coloured strip per upcoming card (up to four), so the mixture of
+// Creator and Personal cards is visible. Colours and labels follow the approved palette.
+const SCREENSHOT_DIR = process.env.CHECKPOINT5_SCREENSHOTS;
+for (const engine of ["chromium", "webkit"] as const) test(`${engine} 390x844: mixed stack shows typed strips, labels, palette and compact geometry`, async ({ playwright }) => {
+  const browser = await playwright[engine].launch();
+  const context = await browser.newContext({ baseURL: process.env.PHASE2_BASE_URL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await context.newPage(); page.setDefaultTimeout(20_000);
+    const f = await fixture(true);
+    // Three Creator cards (two seeded and one more) and two Personal cards on the same Card.
+    const third = randomUUID();
+    await f.info.create(f.owner, third);
+    await f.info.save(f.owner, third, 0, { title: "Third creator", body: "A third creator card.", seriesId: "demo-series-owner", mediaItem: null }, "public");
+    await f.info.publish(f.owner, third, 1);
+    const card = await f.main.createCardDraft(f.owner, { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]),
+      intro: { title: "Mixed stack", description: "Mixed Info Card types.", mediaItem: null }, infoCardIds: ["demo-owner-public", "demo-other-public", third] }, "public");
+    await f.main.publishCard(f.owner, card.cardTemplateId, 0);
+    const deck = await f.main.createDeckDraft(f.owner, { ...createDefaultDeckContent([]), title: "Mixed programme", cards: [{ cardTemplateId: card.cardTemplateId }] }, "public");
+    await f.main.publishDeck(f.owner, deck.deckTemplateId, 0); await f.main.ensureDeckData(f.owner, deck.deckTemplateId, 1);
+    for (const name of ["First personal", "Second personal"]) {
+      const id = randomUUID(), revision = (await f.main.getPersonalUser(f.owner))!.cardsData.find(data => data.cardTemplateId === card.cardTemplateId)?.personalInfoRevision ?? 0;
+      await f.info.createPersonal(f.owner, id, card.cardTemplateId, { deckTemplateId: deck.deckTemplateId, version: 1, personalInfoRevision: revision });
+      await f.info.save(f.owner, id, 0, { title: name, body: "A personal note.", seriesId: "demo-series-owner", mediaItem: null }, "private");
+      await f.info.savePersonal(f.owner, id, 1, { deckTemplateId: deck.deckTemplateId, version: 1, personalInfoRevision: revision });
+    }
+    await enter(page, deck.deckTemplateId); await open(page);
+    const stack = page.locator("[data-info-card-stack]");
+    const faceType = () => current(page).locator("[data-info-card-face]").getAttribute("data-info-card-type");
+    const strips = () => stack.locator("[data-info-card-backing]").evaluateAll(nodes => nodes.map(node => ({ type: node.getAttribute("data-strip-type"), offset: Number(node.getAttribute("data-strip-offset")),
+      background: getComputedStyle(node).backgroundColor || "", image: getComputedStyle(node).backgroundImage, top: node.getBoundingClientRect().top })));
+    const geometry = await current(page).locator("[data-info-card-face]").evaluate(node => {
+      const face = node as HTMLElement, header = face.querySelector<HTMLElement>("[data-info-card-header]")!.getBoundingClientRect();
+      const footer = face.querySelector<HTMLElement>("[data-info-card-footer]")!.getBoundingClientRect(), box = face.getBoundingClientRect();
+      // The Step View scales the pack to the phone width, so measure in the card's own CSS pixels.
+      const scale = box.width / face.offsetWidth;
+      return { width: face.offsetWidth, height: face.offsetHeight, scale, headerBottom: (header.bottom - box.top) / scale, footerTop: (footer.top - box.top) / scale, footerHeight: Math.round(footer.height / scale) };
+    });
+    expect(geometry.width).toBe(240); expect(geometry.height).toBe(173); expect(geometry.footerHeight).toBe(41);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight && document.documentElement.scrollWidth <= window.innerWidth), "no page scrolling").toBe(true);
+    // Strips: four of the five cards, each 5px further up, and together with the top card the 3+2 mixture.
+    const first = await strips(); expect(first).toHaveLength(4);
+    expect(first.map(strip => strip.offset)).toEqual([5, 10, 15, 20]);
+    const topTop = await current(page).locator("[data-info-card-face]").evaluate(node => node.getBoundingClientRect().top);
+    first.forEach((strip, index) => expect(Math.abs(strip.top - (topTop - 5 * geometry.scale * (index + 1))), `strip ${index} sits ${5 * (index + 1)}px above the top card`).toBeLessThan(2));
+    const mixture = (list: (string | null)[]) => list.reduce<Record<string, number>>((count, type) => ({ ...count, [type!]: (count[type!] ?? 0) + 1 }), {});
+    expect(mixture([await faceType(), ...first.map(strip => strip.type)])).toEqual({ creator: 3, personal: 2 });
+    for (const strip of first) {
+      if (strip.type === "personal") expect(strip.background).toBe("rgb(48, 80, 71)");
+      else expect(strip.image).toContain("linear-gradient");
+    }
+    // Type labels: visible text, not only colour.
+    await expect(current(page).locator("[data-info-card-type-label]")).toHaveText(await faceType() === "personal" ? "Personal" : "Creator");
+    if (SCREENSHOT_DIR) { mkdirSync(SCREENSHOT_DIR, { recursive: true }); const shot = test.info().outputPath(`${engine}-mixed-stack.png`); await page.screenshot({ path: shot }); copyFileSync(shot, `${SCREENSHOT_DIR}/${engine}-mixed-stack.png`); }
+    // Browsing: tap through every card; the strips keep following the actual upcoming cards.
+    const seen: string[] = [];
+    for (let step = 0; step < 5; step++) {
+      const type = await faceType(); seen.push(type!);
+      const list = await strips(); expect(list).toHaveLength(4);
+      expect(mixture([type, ...list.map(strip => strip.type)])).toEqual({ creator: 3, personal: 2 });
+      await page.keyboard.press("ArrowDown"); await expect(stack).toHaveAttribute("data-info-stack-phase", "open");
+    }
+    expect(mixture(seen)).toEqual({ creator: 3, personal: 2 });
+    // Group Admin fixture: the shared face host renders the third type with the teal palette and white text.
+    const host = await context.newPage(); await host.setExtraHTTPHeaders({ "x-info-maths-host": mathsHostToken() });
+    await host.goto("/internal/info-maths"); await host.waitForFunction(() => !!(window as unknown as { infoMaths?: unknown }).infoMaths);
+    for (const [infoType, label, background, colour] of [["groupAdmin", "Group", "rgb(20, 125, 108)", "rgb(255, 255, 255)"], ["personal", "Personal", "rgb(48, 80, 71)", "rgb(214, 221, 230)"]] as const) {
+      await host.evaluate(card => (window as unknown as { infoMaths: { mount(card: object): void } }).infoMaths.mount(card),
+        { title: "Typed", seriesTitle: "Basics", seriesCreatorUsername: "x", creatorUsername: "phase2", body: "Plain text body", bodyFormat: "latex-v1", infoType });
+      const face = host.locator("[data-info-card-face]"); await expect(face).toHaveAttribute("data-info-card-type", infoType);
+      await expect(face).toHaveCSS("background-color", background); await expect(face).toHaveCSS("color", colour);
+      await expect(host.locator("[data-info-card-type-label]")).toHaveText(label);
+      await expect(host.locator("[data-info-card-title]")).toHaveCSS("color", infoType === "groupAdmin" ? "rgb(255, 255, 255)" : "rgb(240, 242, 246)");
+      if (SCREENSHOT_DIR) { const shot = test.info().outputPath(`${engine}-${infoType}-face.png`); await face.screenshot({ path: shot }); copyFileSync(shot, `${SCREENSHOT_DIR}/${engine}-${infoType}-face.png`); }
+    }
   } finally { await context.close(); await browser.close(); }
 });
 

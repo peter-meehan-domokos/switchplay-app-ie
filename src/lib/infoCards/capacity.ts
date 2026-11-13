@@ -6,7 +6,7 @@ export const INFO_CAPACITY = { width: 240, height: 157, innerWidth: 214, headerW
   bodyFont: 9.5, seriesFont: 8.8, lineHeight: 11.875, paragraphGap: 7,
   // The series button makes the actual header ~11.984px tall. Reserve 12.125px
   // rather than assuming the body's 11.875px line box; round conservatively.
-  headerHeight: 12.125, headerGap: 9, mediaHeight: 36, innerHeight: 131, version: 1 } as const;
+  headerHeight: 12.125, headerGap: 9, mediaHeight: 36, innerHeight: 115, version: 1 } as const;
 
 export function textWidth(text: string, size = 9.5, weight: "regular" | "bold" = "regular") {
   const table = weight === "bold" ? bold : regular;

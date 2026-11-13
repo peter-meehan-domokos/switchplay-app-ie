@@ -5,6 +5,7 @@ import { motion, useAnimate, useMotionValue, useReducedMotion, useTransform, typ
 import { DECK_GESTURE_THRESHOLDS } from "@/components/decks/gestures/gestureThresholds";
 import InfoCardFace from "./InfoCardFace";
 import InfoCardMenu, { type InfoCardActions } from "./InfoCardMenu";
+import { buildInfoCardStackLayout } from "./infoCardStackLayout";
 import type { InfoCardConsultationCard, AvailableConsultationCard } from "./InfoCardConsultation";
 import faceStyles from "./InfoCardFace.module.css";
 import stepStyles from "@/components/decks/StepView.module.css";
@@ -147,8 +148,9 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
       [adjacent, { x: 0, y: 0, rotate: 0 }, { duration: duration * 2, ease: "easeInOut" }],
       [current, { x: -2, y: -6, rotate: -0.35 }, { at: 0, duration: duration * 2, ease: "easeInOut" }],
     ];
-    if (!reduced) pack.querySelectorAll<HTMLElement>("[data-info-card-backing]").forEach((backing, position) => {
-      const y = position === 0 ? -6 : -3;
+    if (!reduced) pack.querySelectorAll<HTMLElement>("[data-info-card-backing]").forEach(backing => {
+      // Each strip rests at its own offset above the top card (see infoCardStackLayout).
+      const y = -Number(backing.dataset.stripOffset);
       sequence.push([backing, { y: [y, y + 1.5, y] }, { at: 0, duration: duration * 2, ease: "easeInOut" }]);
     });
     // A newly revealed Motion layer replays its effects in Next's development
@@ -254,7 +256,9 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
     onClickCapture={event => {
       if (suppressClick.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; }
     }}>
-    {Array.from({ length: Math.min(2, cards.length - 1) }, (_, backing) => <div key={backing} className={stepStyles.backing} aria-hidden="true" data-info-card-backing="" />)}
+    {buildInfoCardStackLayout(cards, index).map(strip => <div key={`${strip.id}:${strip.offset}`} className={styles.strip} aria-hidden="true" data-info-card-backing=""
+      data-strip-offset={strip.offset} data-strip-type={strip.type}
+      style={{ background: strip.background, left: strip.inset, right: strip.inset, transform: `translateY(${-strip.offset}px)`, zIndex: -strip.offset }} />)}
     <div className={styles.cards} inert={locked}>
       {visible.map(cardIndex => {
         const card = cards[cardIndex], current = cardIndex === index;

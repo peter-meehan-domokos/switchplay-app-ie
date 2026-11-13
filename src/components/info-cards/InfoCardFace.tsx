@@ -6,11 +6,14 @@ import MathsRenderer from "../maths-renderer/MathsRenderer";
 import mathsStyles from "./InfoCardMaths.module.css";
 import { infoMathsMeasurement, infoMathsPresentation, type InfoMathsMeasurement } from "./infoCardMaths";
 import InfoCardMenu, { type InfoCardActions } from "./InfoCardMenu";
+import { buildInfoCardTypeLayout, infoCardType, type InfoCardType } from "./infoCardTypeLayout";
 
 // Presentation only: no publication, ownership or backend DTO assumptions.
 export type InfoCardFaceContent = {
   creatorUsername?: string;
   personal?: boolean;
+  /** Overrides the type derived from `personal`; Group Admin cards set it. */
+  infoType?: InfoCardType;
   title: string;
   seriesTitle: string;
   seriesCreatorUsername: string;
@@ -32,6 +35,7 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
   const [showCreator, setShowCreator] = useState(false);
   const [showAuthor, setShowAuthor] = useState(false), authorId = useId();
   const creator = card.creatorUsername || "Unknown creator";
+  const type = buildInfoCardTypeLayout(infoCardType(card));
 
   useEffect(() => {
     if (!showCreator) return;
@@ -54,7 +58,7 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
   }, [showCreator]);
 
   return (
-    <article ref={face} className={`${styles.face}${card.personal ? ` ${styles.personal}` : ""}${card.bodyFormat ? ` ${mathsStyles.mathsFace}` : ""}`} aria-labelledby={titleId} data-info-card-face="">
+    <article ref={face} className={`${styles.face}${type.type === "personal" ? ` ${styles.personal}` : type.type === "groupAdmin" ? ` ${styles.groupAdmin}` : ""}${card.bodyFormat ? ` ${mathsStyles.mathsFace}` : ""}`} aria-labelledby={titleId} data-info-card-face="" data-info-card-type={type.type}>
       <h3 id={titleId} className={styles.header} data-info-card-header="">
         <span
           ref={attribution}
@@ -107,6 +111,7 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
       ) : null}
       <div className={styles.creator} data-info-card-creator="" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
         onBlur={() => setShowAuthor(false)} onKeyDown={event => { event.stopPropagation(); if (event.key === "Escape") { event.preventDefault(); setShowAuthor(false); } }}>
+        <span className={styles.typeLabel} data-info-card-type-label="">{type.label}</span>
         <button type="button" aria-label={`Card by ${creator}`} aria-expanded={showAuthor} aria-describedby={showAuthor ? authorId : undefined}
           onFocus={event => { if (event.currentTarget.matches(":focus-visible")) setShowAuthor(true); }}
           onClick={() => setShowAuthor(value => !value)}>{creator}</button>
