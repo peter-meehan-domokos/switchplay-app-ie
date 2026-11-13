@@ -16,6 +16,12 @@
 .fieldError { margin: 6px 0 0; color: #8b2525; font-size: 14px; }
 .form input[aria-disabled="true"], .form textarea[aria-disabled="true"] { background: #e5e9ed; cursor: default; }
 .media { display: grid; gap: 8px; }
+.mediaMessage { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.mediaMessage[role="alert"] { color: #8b2525; }
+.mediaIcon { width: 18px; height: 18px; flex: none; }
+.mediaActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mediaActions:empty { display: none; }
+.form input.mediaFile { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .actions button, .form button { font: inherit; font-size: 14px; min-height: 36px; padding: 6px 10px; border: 1px solid #9aa9b7; border-radius: 6px; color: #243341; background: #f8fafb; cursor: pointer; }
 .actions select { min-height: 36px; }
 .actions button:disabled, .form button:disabled { opacity: .65; cursor: default; }

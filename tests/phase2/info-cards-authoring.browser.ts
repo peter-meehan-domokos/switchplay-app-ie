@@ -268,7 +268,7 @@ test("video upload uses multipart transfer, processing feedback and an exact-con
   await page.route("**/__fixture-info.m3u8", route => route.fulfill({ contentType: "application/vnd.apple.mpegurl", body: "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-ENDLIST\n" }));
   await page.route("**/__fixture-info.png", route => route.fulfill({ contentType: "image/png", body: pixel }));
   await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles({ name: "a.mp4", mimeType: "video/mp4", buffer: Buffer.from("provider transfer fixture") });
-  await expect(page.getByRole("status").filter({ hasText: "Processing video: 42%" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Video processing (42%)" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "Video ready" })).toBeVisible();
   const videoButton = page.getByRole("button", { name: "Watch video", exact: true });
   await expect(videoButton).toHaveAttribute("data-media-kind", "video"); await expect(videoButton).toHaveText(""); await expect(videoButton.locator("svg rect")).toHaveCount(0);
@@ -277,6 +277,43 @@ test("video upload uses multipart transfer, processing feedback and an exact-con
   await page.getByRole("button", { name: "Close info card media", exact: true }).click();
   await expect(page.getByRole("button", { name: "Watch video", exact: true })).toBeFocused();
   await expect(page.getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Keep the sign attached to its number.\n\nCheck each step before continuing.");
+});
+
+test("the media area shows one state at a time: empty, processing, failed processing and remove during processing", async ({ page }) => {
+  await login(page); const id = await create(page);
+  const root = (await (await page.request.get(`/api/info-cards/${id}`)).json()).root;
+  const origin = new URL(page.url()).origin;
+  const sign = (media: { provider: string; assetId: string; src: string }) => new SignJWT({ purpose: "info-upload", actor: root.ownerUserId, infoCardId: id, createdAt: root.createdAt, provider: media.provider, assetId: media.assetId, src: media.src })
+    .setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("5m")
+    .sign(createHmac("sha256", "local-phase2-browser-test-secret-only").update("switchplay:info-card-upload:v1").digest());
+  let attempt = 0, status: { status: string; progress?: number } = { status: "processing", progress: 30 };
+  await page.route(`**/api/info-cards/${id}/upload`, async route => {
+    const media = { id: `video${++attempt}`, provider: "cloudflare-stream", mediaType: "video", assetId: `fixture-${randomUUID()}`, src: "https://iframe.videodelivery.net/fixture", description: "Video" };
+    await route.fulfill({ json: { media, proof: await sign(media), uploadURL: `${origin}/__fixture-info-video-upload` } });
+  });
+  await page.route("**/__fixture-info-video-upload", route => route.fulfill({ status: 200 }));
+  await page.route(`**/api/info-cards/${id}/media/status?*`, route => route.fulfill({ json: status }));
+  const area = page.getByRole("region", { name: "Info Card media", exact: true });
+  const buttons = () => area.getByRole("button").allTextContents();
+  const file = { name: "a.mp4", mimeType: "video/mp4", buffer: Buffer.from("provider transfer fixture") };
+  await expect(area).toHaveAttribute("data-media-state", "empty");
+  await expect(area.getByText("Add an image or video (optional).", { exact: true })).toBeVisible();
+  expect(await buttons()).toEqual(["Choose file"]);
+  await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles(file);
+  await expect(area).toHaveAttribute("data-media-state", "processing");
+  await expect(area.getByRole("status")).toHaveText("Video processing (30%)");
+  expect(await buttons()).toEqual(["Replace media", "Remove media"]);
+  await expect(area.getByRole("alert")).toHaveCount(0);
+  // Removing while it is still processing returns to the empty state with only its own control.
+  await area.getByRole("button", { name: "Remove media", exact: true }).click();
+  await expect(area).toHaveAttribute("data-media-state", "empty"); expect(await buttons()).toEqual(["Choose file"]);
+  await expect(area.getByRole("status")).toHaveCount(0);
+  status = { status: "failed" };
+  await page.getByLabel("Upload Info Card media", { exact: true }).setInputFiles(file);
+  await expect(area).toHaveAttribute("data-media-state", "failed-processing");
+  await expect(area.getByRole("alert")).toHaveText("The video could not be processed. Choose another file or remove it.");
+  expect(await buttons()).toEqual(["Choose another file", "Remove media"]);
+  await expect(area.getByText(/_FAILED|INFO_/)).toHaveCount(0);
 });
 
 test("browser Back finishes a pending text save and account changes hide the old editor", async ({ page }) => {

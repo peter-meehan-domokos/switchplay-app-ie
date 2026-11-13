@@ -60,3 +60,10 @@ export function renderingCheckError(error: unknown): string {
   }
   return "Rendering check could not finish. Your card and publication are unchanged.";
 }
+
+// Media upload failures never show technical codes: anything without a specific message gets a plain one.
+export function infoCardMediaError(error: unknown): string {
+  const message = infoCardError(error);
+  return error instanceof CreatorRequestError && message.startsWith("The operation could not be completed (")
+    ? "The upload could not be completed. Your text is saved; retry or choose another file." : message;
+}

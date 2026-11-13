@@ -10,13 +10,15 @@ import CreatorVisibilityControl from "../creator/CreatorVisibilityControl";
 import { measureInfoCapacity } from "@/lib/infoCards/capacity";
 import InfoSeriesSelector from "./InfoSeriesSelector";
 import LibraryDialog from "../library/LibraryDialog";
-import { infoCardError, renderingCheckError } from "./infoCardErrors";
+import { infoCardError, infoCardMediaError, renderingCheckError } from "./infoCardErrors";
 import CreatorDraftsModal from "../creator/CreatorDraftsModal";
 import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } from "../creator/creatorDraftEntries";
 import styles from "./InfoCardEditor.module.css";
 import type { InfoMathsMeasurement } from "./infoCardMaths";
 import { uploadInfoCardMedia } from "./infoCardUpload";
 import { useInfoVideoStatus } from "./useInfoVideoStatus";
+import InfoCardMediaArea from "./InfoCardMediaArea";
+import { buildInfoCardMediaLayout } from "./infoCardMediaLayout";
 import InfoCardRemoteMediaViewer from "./InfoCardRemoteMediaViewer";
 import type { InfoMedia, MediaContext, PersonalInfoAssociation } from "@/lib/infoCards/model";
 import { currentDraftOrigin, infoCollectionTarget, infoEditorHref, type CreatorNavigation } from "../creator/creatorNavigation";
@@ -104,6 +106,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const titleRequired = showRequired && !content.title.trim();
   const locked = !hydrated || navigating || confirmPublic || leaveDestination !== null || controller.publishing || controller.pendingPublication !== undefined;
   const ready = hasSelectedSeries && !!content.title.trim();
+  const mediaLayout = buildInfoCardMediaLayout({ mediaItem: content.mediaItem, uploading, failedFile: !!failedFile, uploadError, videoStatus, ready });
   const bodyRequired = showRequired && ready && !content.body.trim();
   const returnTarget = infoCollectionTarget(id, controller.confirmedPublicationVersion);
   async function navigate(href: string, collectionReturn = false, confirmed = false) {
@@ -153,7 +156,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       if (!abort.signal.aborted) { setFailedFile(null); setMessage("Media uploaded and saved."); }
     }).catch(cause => {
       if (abort.signal.aborted || upload.current !== operation) return;
-      uploadFailure.current = infoCardError(cause); setUploadError(uploadFailure.current); setFailedFile(file);
+      uploadFailure.current = infoCardMediaError(cause); setUploadError(uploadFailure.current); setFailedFile(file);
     }).finally(() => { if (upload.current === operation) { upload.current = null; setUploading(false); } });
     await operation.task;
   }
@@ -237,19 +240,9 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
           {bodyRequired && <p id="info-body-error" role="alert">Enter an explanation.</p>}
           {bodyCapacityIssue && <p id="info-body-capacity" className={styles.fieldError} role="alert">{bodyCapacityIssue.message}</p>}</div>
         {!ready && prerequisiteFeedback && <p id="info-prerequisite" role="status">Choose a series and enter a title first.</p>}
-        <section className={styles.media} aria-label="Info Card media">
-          {ready ? <label>Image/video (optional)<input type="file" aria-label="Upload Info Card media" accept="image/*,video/*" disabled={uploading}
-            onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void chooseMedia(file); }} /></label> :
-            <button type="button" aria-disabled="true" aria-describedby={prerequisiteFeedback ? "info-prerequisite" : undefined}
-              onClick={() => setPrerequisiteFeedback(true)}>Image/video (optional)</button>}
-          {content.mediaItem && <p>{content.mediaItem.mediaType === "image" ? "Image attached" : "Video attached"}</p>}
-          {uploading && <p role="status">Uploading media… Text edits continue to save.</p>}
-          {failedFile && !uploading && <button type="button" onClick={() => void chooseMedia(failedFile)}>Retry upload</button>}
-          {(uploading || uploadError) && <button type="button" onClick={() => cancelUpload()}>Cancel upload</button>}
-          {content.mediaItem && <button type="button" onClick={() => cancelUpload(true)}>Remove media</button>}
-          {uploadError && <p role="alert">{uploadError}</p>}
-          {videoStatus.status && <p role="status">{videoStatus.status}</p>}{videoStatus.error && <p role="alert">{videoStatus.error}</p>}
-        </section>
+        <InfoCardMediaArea layout={mediaLayout} hasRetryFile={!!failedFile} onChoose={file => void chooseMedia(file)} onRetry={() => { if (failedFile) void chooseMedia(failedFile); }}
+          onCancel={() => cancelUpload()} onRemove={() => cancelUpload(true)} onUnavailable={() => setPrerequisiteFeedback(true)}
+          describedBy={prerequisiteFeedback ? "info-prerequisite" : undefined} />
       </fieldset>
       <section className={styles.preview} aria-label="Info Card preview">
         {content.bodyFormat && <div className={styles.actions}>
