@@ -139,14 +139,14 @@ test("account changed during a held private response cannot install its content"
   await expect(page.locator("[data-info-card-stack]")).toHaveCount(0); await expect(consultation(page)).not.toContainText("Private tip");
 });
 
-async function mediaFixture(kind: "image" | "video") {
+async function mediaFixture(kind: "image" | "video", size?: { width: number; height: number }) {
   const info = new InfoCardRepository(client.db(process.env.MONGODB_DB!), client), owner = process.env.PHASE2_USER_ID!, infoId = randomUUID();
   await info.create(owner, infoId);
   await info.save(owner, infoId, 0, { title: "Media tip", body: "Keep the explanation available.", seriesId: "demo-series-owner", mediaItem: null }, "public");
   await info.publish(owner, infoId, 1);
   const media: InfoMedia = kind === "image" ? { id: "fixture-image", provider: "cloudflare-r2", mediaType: "image", assetId: "fixture-image",
     src: "https://assets.example.invalid/info.png", description: "Reference image" } : { id: "consultation-video", provider: "cloudflare-stream", mediaType: "video",
-    assetId: "consultation-video", src: "https://iframe.videodelivery.net/consultation-video", description: "Reference video" };
+    assetId: "consultation-video", src: "https://iframe.videodelivery.net/consultation-video", description: "Reference video", ...size };
   // Explicit stored-provider fixture; no upload/publication gate is bypassed in
   // application code. Actual delivery remains fail-closed unless intercepted.
   await info.versions().updateOne({ infoCardId: infoId, version: 1 }, { $set: { "content.mediaItem": media } });
@@ -220,6 +220,40 @@ for (const invalid of ["expired", "wrong-asset"] as const) test(`nested video re
   expect(await step!.evaluate(node => node.isConnected)).toBe(true);
   await expect(consultation(page)).toBeVisible();
 });
+
+// The viewer sizes the video box to the video ratio, so portrait videos get no near-black bands above and below.
+// The ratio comes from stored dimensions when present, otherwise from the video metadata.
+for (const [label, stored, width, height] of [["portrait", true, 1080, 1920], ["landscape", true, 1920, 1080], ["portrait without stored dimensions", false, 720, 1280]] as const) {
+  test(`${label} Info Card video fills its own ratio in the attachment viewer at 390x844`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => { Object.defineProperty(HTMLVideoElement.prototype, "videoWidth", { get() { return (window as unknown as { __vw?: number }).__vw ?? 0; } });
+      Object.defineProperty(HTMLVideoElement.prototype, "videoHeight", { get() { return (window as unknown as { __vh?: number }).__vh ?? 0; } }); });
+    const f = await mediaFixture("video", stored ? { width, height } : undefined); await login(page);
+    await page.route(`**/api/info-cards/${f.infoId}/media?*`, route => route.fulfill({ json: { assetId: f.media.assetId, manifestUrl: "https://phase5-media.example.invalid/manifest.m3u8",
+      thumbnailUrl: "https://phase5-media.example.invalid/poster.jpg", expiresAt: Date.now() + 60000 } }));
+    await page.route("https://phase5-media.example.invalid/**", route => route.abort());
+    await enter(page, f.deckId); await open(page); await page.keyboard.press("ArrowDown");
+    await page.getByRole("button", { name: "Watch video", exact: true }).click();
+    const viewer = page.getByRole("dialog", { name: "Info card media", exact: true });
+    const box = viewer.locator("[class*='videoFit'], [class*='videoFill']");
+    if (!stored) {
+      // Before the metadata is known the player fills the viewer as before.
+      await expect(box).not.toHaveAttribute("data-info-video-ratio", /.+/);
+      await page.evaluate(([w, h]) => { (window as unknown as { __vw: number; __vh: number }).__vw = w; (window as unknown as { __vw: number; __vh: number }).__vh = h;
+        document.querySelector("dialog[aria-label='Info card media'] video")!.dispatchEvent(new Event("loadedmetadata")); }, [width, height]);
+    }
+    await expect(box).toHaveAttribute("data-info-video-ratio", /.+/);
+    const geometry = await page.evaluate(() => {
+      const dialog = document.querySelector("dialog[aria-label='Info card media']")!, fit = dialog.querySelector<HTMLElement>("[data-info-video-ratio]")!;
+      const shell = dialog.querySelector<HTMLElement>(".cloudflare-stream-player-shell")!, host = fit.parentElement!.getBoundingClientRect(), b = fit.getBoundingClientRect(), s = shell.getBoundingClientRect();
+      return { boxW: b.width, boxH: b.height, shellW: s.width, shellH: s.height, fits: b.left >= host.left - 0.5 && b.right <= host.right + 0.5 && b.top >= host.top - 0.5 && b.bottom <= host.bottom + 0.5 };
+    });
+    expect(geometry.boxW / geometry.boxH, "box ratio equals the video ratio").toBeCloseTo(width / height, 1);
+    expect(geometry.fits, "never cropped by the viewer").toBe(true);
+    expect(Math.abs(geometry.shellW - geometry.boxW) + Math.abs(geometry.shellH - geometry.boxH), "the player fills its box, leaving no bands").toBeLessThan(2);
+    await viewer.getByRole("button", { name: "Close info card media", exact: true }).click(); await expect(viewer).toHaveCount(0);
+  });
+}
 
 test("closing nested video aborts a pending grant; its late response cannot replace a fresh exact-publication request", async ({ page }) => {
   const f = await mediaFixture("video"); await login(page);

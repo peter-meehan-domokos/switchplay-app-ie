@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import CardMediaViewerImage from "@/components/media/CardMediaViewerImage";
 import CloudflareHlsVideoPlayer, { type CloudflareHlsVideoPlayerHandle } from "@/components/media/CloudflareHlsVideoPlayer";
@@ -19,6 +19,24 @@ export default function InfoCardMediaViewer({ media, onClose, imageSrc, resolveP
   const closeButton = useRef<HTMLButtonElement>(null);
   const player = useRef<CloudflareHlsVideoPlayerHandle>(null);
   useInfoCardDialog(dialog, closeButton, returnFocus);
+  // Portrait videos otherwise sit in a viewer-sized box and are painted with near-black bands above and below.
+  // Size the video box to the video's own ratio: stored dimensions if present, else the video's metadata.
+  const stored = media.mediaType === "video" && media.width && media.height ? media.width / media.height : null;
+  const [measured, setMeasured] = useState<{ assetId: string; ratio: number } | null>(null);
+  const videoBox = useRef<HTMLDivElement>(null);
+  const assetId = media.mediaType === "video" ? media.assetId : "";
+  useEffect(() => {
+    const box = videoBox.current;
+    if (!box || stored) return;
+    // loadedmetadata does not bubble, so listen in the capture phase from the wrapper.
+    const onMetadata = (event: Event) => {
+      const video = event.target as HTMLVideoElement;
+      if (video.videoWidth > 0 && video.videoHeight > 0) setMeasured({ assetId, ratio: video.videoWidth / video.videoHeight });
+    };
+    box.addEventListener("loadedmetadata", onMetadata, true);
+    return () => box.removeEventListener("loadedmetadata", onMetadata, true);
+  }, [stored, assetId]);
+  const ratio = stored ?? (measured && measured.assetId === assetId ? measured.ratio : null);
   const close = () => { player.current?.pausePlayback("info media close"); onClose(); };
   const fullscreen = () => Boolean(document.fullscreenElement ||
     (dialog.current?.querySelector("video") as (HTMLVideoElement & { webkitDisplayingFullscreen?: boolean }) | null)?.webkitDisplayingFullscreen);
@@ -34,9 +52,11 @@ export default function InfoCardMediaViewer({ media, onClose, imageSrc, resolveP
     <header className={styles.toolbar}>
       <button ref={closeButton} className={styles.mediaClose} type="button" onClick={close} aria-label="Close info card media">×</button>
     </header>
-    <div className={styles.mediaContent}>
+    <div className={media.mediaType === "video" ? `${styles.mediaContent} ${styles.videoHost}` : styles.mediaContent}>
       {media.mediaType === "image" ? <CardMediaViewerImage item={media} onNavigate={noNavigation} deliverySrc={imageSrc} /> :
-        <div className={mediaStyles.videoArea}><CloudflareHlsVideoPlayer ref={player} mediaItem={media} resolvePlayback={resolvePlayback} /></div>}
+        <div ref={videoBox} className={ratio ? styles.videoFit : styles.videoFill} data-info-video-ratio={ratio ?? undefined} style={ratio ? { "--video-ratio": ratio } as React.CSSProperties : undefined}>
+          <div className={mediaStyles.videoArea}><CloudflareHlsVideoPlayer ref={player} mediaItem={media} resolvePlayback={resolvePlayback} /></div>
+        </div>}
     </div>
   </dialog>, document.body);
 }

@@ -69,3 +69,9 @@
 }
 .mediaClose:focus-visible { outline: 2px solid #a8d6e4; outline-offset: 2px; }
 .mediaContent { display: flex; flex: 1; min-height: 0; min-width: 0; }
+.videoHost { container-type: size; }
+/* Before the video ratio is known the player fills the viewer as before. Once known, the box takes the largest
+   size of that ratio that fits the viewer, centred, so nothing is cropped or stretched and no bands appear. */
+.videoFill { display: flex; width: 100%; }
+.videoFit { display: flex; margin: auto; aspect-ratio: var(--video-ratio); width: min(100cqw, 100cqh * var(--video-ratio)); }
+.videoFit > * { height: 100%; }
