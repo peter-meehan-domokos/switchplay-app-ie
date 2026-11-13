@@ -11,3 +11,8 @@
 .mathsFace.mathsFace { font-family: "Switchplay Liberation Sans", "Switchplay Liberation Serif"; }
 .mathsFace [data-info-card-footer] button,
 .mathsFace [data-info-card-footer] [role="tooltip"] { font-family: inherit; }
+
+/* Checkpoint 9: inside Info Cards only, let KaTeX centre display maths across the full width, cancelling the
+   shared renderer's forced left alignment. Ordinary text keeps the face's left alignment. */
+.mathsFace.mathsFace [data-maths-expression="display"] :global(.katex-display),
+.mathsFace.mathsFace [data-maths-expression="display"] :global(.katex-display > .katex) { text-align: center; }

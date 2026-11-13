@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styles from "./InfoCardFace.module.css";
 import MathsRenderer from "../maths-renderer/MathsRenderer";
 import mathsStyles from "./InfoCardMaths.module.css";
-import { infoMathsMeasurement, infoMathsPresentation, type InfoMathsMeasurement } from "./infoCardMaths";
+import { combineInfoMathsMeasurement, infoMathsPresentation, type InfoMathsMeasurement, type InfoMathsPart } from "./infoCardMaths";
+import { buildInfoCardContentLayout, infoContentItems, type InfoCardContentLayout, type InfoContentItem } from "./infoCardContentLayout";
+import type { MathsResult } from "../maths-renderer/types";
 import InfoCardMenu, { type InfoCardActions } from "./InfoCardMenu";
 import { buildInfoCardTypeLayout, infoCardType, type InfoCardType } from "./infoCardTypeLayout";
 
@@ -100,13 +102,8 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
         <span className={styles.title} data-info-card-title="">{card.title}</span>
       </h3>
       <div ref={body} className={card.bodyFormat ? styles.mathsBody : styles.body} data-info-card-body="">
-        {card.bodyFormat ? <MathsRenderer key={JSON.stringify([card.title, card.seriesTitle, card.mediaKind])} content={card.body} presentation={infoMathsPresentation}
-          constraints={{ kind: "container", elementRef: body, height: "bounded" }}
-          onResult={result => {
-            if (!face.current || !body.current) return;
-            const measurement = infoMathsMeasurement(result, face.current, body.current);
-            onMathsResult?.(measurement);
-          }} />
+        {card.bodyFormat ? <InfoMathsBody body={card.body} renderKey={JSON.stringify([card.title, card.seriesTitle, card.mediaKind])}
+          onMeasured={parts => { if (face.current && body.current) onMathsResult?.(combineInfoMathsMeasurement(parts.parts, parts.diagnostics, face.current, body.current)); }} />
           : card.body.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
       </div>
       <footer className={styles.footer} data-info-card-footer="">
@@ -130,4 +127,43 @@ export default function InfoCardFace({ card, onOpenMedia, onMathsResult, actions
       </footer>
     </article>
   );
+}
+
+// Formatted maths body: one MathsRenderer per content item, laid out by buildInfoCardContentLayout. Untagged
+// content without extra blank lines is a single item, exactly as before. Results are reported once every item
+// has measured, so the combined measurement always describes the whole body.
+function InfoMathsBody({ body, renderKey, onMeasured }: {
+  body: string;
+  renderKey: string;
+  onMeasured: (measured: { parts: InfoMathsPart[]; diagnostics: InfoCardContentLayout["diagnostics"] }) => void;
+}) {
+  const layout = useMemo(() => {
+    const built = buildInfoCardContentLayout(body);
+    // An empty body still renders (and measures) one empty item.
+    return infoContentItems(built).length ? built : { ...built, blocks: [{ vCentre: false, items: [{ kind: "content" as const, source: body, offset: 0, centre: false }] }] };
+  }, [body]);
+  const items = infoContentItems(layout);
+  const key = `${renderKey}:${body}`;
+  const results = useRef<{ key: string; parts: Map<number, InfoMathsPart> }>({ key, parts: new Map() });
+  const report = (index: number, part: InfoMathsPart) => {
+    if (results.current.key !== key) results.current = { key, parts: new Map() };
+    results.current = { key, parts: new Map(results.current.parts).set(index, part) };
+    if (results.current.parts.size === items.length) onMeasured({ parts: items.map((_, i) => results.current.parts.get(i)!), diagnostics: layout.diagnostics });
+  };
+  const indexOf = (item: InfoContentItem) => items.indexOf(item);
+  return <>{layout.blocks.map((block, blockIndex) => <div key={blockIndex} className={block.vCentre ? styles.vCentre : styles.contentBlock} data-info-content-block={block.vCentre ? "v-centre" : ""}>
+    <div className={block.vCentre ? styles.vCentreInner : undefined}>
+      {block.items.map((item, itemIndex) => item.kind === "spacer"
+        ? <div key={itemIndex} aria-hidden="true" data-info-content-spacer={item.blankLines} style={{ height: item.heightEm * infoMathsPresentation.fontSizePx }} />
+        : <InfoMathsItem key={`${key}:${itemIndex}`} item={item} onResult={(result, root) => report(indexOf(item), { result, root, offset: item.offset })} />)}
+    </div>
+  </div>)}</>;
+}
+
+function InfoMathsItem({ item, onResult }: { item: InfoContentItem; onResult: (result: MathsResult, root: HTMLElement | null) => void }) {
+  const host = useRef<HTMLDivElement>(null);
+  return <div ref={host} className={item.centre ? `${styles.contentItem} ${styles.centre}` : styles.contentItem} data-info-content-item={item.centre ? "centre" : ""}>
+    <MathsRenderer content={item.source} presentation={infoMathsPresentation} constraints={{ kind: "container", elementRef: host, height: "unbounded" }}
+      onResult={result => onResult(result, host.current?.querySelector<HTMLElement>("[data-maths-renderer]") ?? null)} />
+  </div>;
 }

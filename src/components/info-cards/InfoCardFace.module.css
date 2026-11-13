@@ -141,5 +141,13 @@
   cursor: default;
 }
 
-.mathsBody { position: relative; min-height: 0; min-width: 0; }
+.mathsBody { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+/* Formatting (infoCardContentLayout): blocks stack in the body. A vertically centred block takes the free body
+   space between header and footer; its auto margins centre the content and collapse to zero if it is too tall,
+   so it can only overflow downwards, where the fit check reports it, never over the header. */
+.contentBlock { flex: none; min-width: 0; }
+.vCentre { flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0; }
+.vCentreInner { margin-block: auto; min-width: 0; }
+.contentItem { min-width: 0; }
+.centre { text-align: center; }
 .layoutFailure { position: absolute; inset: 0; margin: 0; }

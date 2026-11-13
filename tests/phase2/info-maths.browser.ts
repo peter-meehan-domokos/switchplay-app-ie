@@ -90,6 +90,137 @@ test("real editor autosaves exact maths, publishes without Chromium, Library and
   expect(failure.status()).toBe(422); expect((await failure.json()).error).toBe("INFO_MATHS_INVALID");
 });
 
+// Checkpoint 9 formatting, measured on the real shared face through the private maths host.
+for (const browserName of ["chromium", "webkit"] as const) test(`formatting · ${browserName}: centred display maths, centre and v-centre tags, blank lines and diagnostics`, async () => {
+  const browser = await ({ chromium, webkit })[browserName].launch();
+  const page = await browser.newPage({ baseURL: process.env.PHASE2_BASE_URL });
+  try {
+    await page.setExtraHTTPHeaders({ "x-info-maths-host": mathsHostToken() });
+    await page.goto("/internal/info-maths"); await page.waitForFunction(() => !!window.infoMaths);
+    const mount = async (body: string, mediaKind?: "image") => {
+      await page.evaluate(card => window.infoMaths!.mount(card), { title: "Maths", seriesTitle: "Basics", seriesCreatorUsername: "", bodyFormat: "latex-v1" as const, body, mediaKind });
+      await page.waitForFunction(() => window.infoMaths?.current && window.infoMaths.current.result.status !== "pending");
+      return page.evaluate(() => window.infoMaths!.current!);
+    };
+    // Geometry of a piece of text (by its words) or of KaTeX output, relative to the body, in CSS pixels.
+    const rect = (selector: string, text?: string) => page.evaluate(([selector, text]) => {
+      const body = document.querySelector<HTMLElement>("[data-info-card-body]")!, origin = body.getBoundingClientRect();
+      const nodes = [...body.querySelectorAll<HTMLElement>(selector)];
+      const range = document.createRange();
+      const boxes = nodes.flatMap(node => {
+        if (!text) return [node.getBoundingClientRect()];
+        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT); const found: DOMRect[] = [];
+        while (walker.nextNode()) { const value = walker.currentNode.textContent!; const at = value.indexOf(text); if (at >= 0) { range.setStart(walker.currentNode, at); range.setEnd(walker.currentNode, at + text.length); found.push(range.getBoundingClientRect()); } }
+        return found;
+      });
+      const box = boxes[0];
+      return { left: box.left - origin.left, right: box.right - origin.left, top: box.top - origin.top, bottom: box.bottom - origin.top, bodyWidth: origin.width, bodyHeight: origin.height };
+    }, [selector, text] as const);
+    const centreX = (box: { left: number; right: number }) => (box.left + box.right) / 2;
+
+    // Display maths: full width, centred by KaTeX; ordinary text stays left-aligned. One renderer, as before.
+    let measured = await mount("Left text\n$$x+1=2$$");
+    expect(measured.result.status).toBe("ready"); expect(measured.safe).toBe(true);
+    await expect(page.locator("[data-info-card-body] [data-maths-renderer]")).toHaveCount(1);
+    const display = await rect("[data-maths-expression='display'] .katex-html"), prose = await rect("[data-maths-paragraph]", "Left");
+    expect(Math.abs(centreX(display) - display.bodyWidth / 2), "display maths centred").toBeLessThan(1.5);
+    expect(prose.left, "prose left-aligned").toBeLessThan(0.5);
+    expect(await page.locator("[data-maths-expression='display']").evaluate(node => [node.getBoundingClientRect().width, getComputedStyle(node).paddingInlineStart]))
+      .toEqual([214, "0px"]);
+
+    // Horizontal centring; untagged lines around it stay left.
+    measured = await mount("Before\n[[centre]]\nShort\n[[/centre]]\nAfter");
+    expect(measured.result.status).toBe("ready"); expect(measured.safe).toBe(true);
+    const short = await rect("[data-info-content-item='centre']", "Short");
+    expect(Math.abs(centreX(short) - short.bodyWidth / 2)).toBeLessThan(1);
+    expect((await rect("[data-info-content-item='']", "After")).left).toBeLessThan(0.5);
+    await expect(page.locator("[data-info-card-body]")).not.toContainText("[[");
+
+    // Vertical centring: in the free space below the untagged line, identical with and without media.
+    const vertical: number[] = [];
+    for (const mediaKind of [undefined, "image"] as const) {
+      measured = await mount("Top line\n[[v-centre]]Middle[[/v-centre]]", mediaKind);
+      expect(measured.safe).toBe(true);
+      const top = await rect("[data-maths-paragraph]", "Top"), middle = await rect("[data-info-content-block='v-centre']", "Middle");
+      expect(Math.abs((middle.top + middle.bottom) / 2 - (top.bottom + middle.bodyHeight) / 2), `vertically centred${mediaKind ? " with media" : ""}`).toBeLessThan(1.5);
+      vertical.push(middle.top);
+    }
+    expect(Math.abs(vertical[0] - vertical[1])).toBeLessThan(0.5);
+    // The body ends above the footer, so vertically centred content never reaches the media button.
+    const clearance = await page.evaluate(() => document.querySelector("[data-info-card-footer]")!.getBoundingClientRect().top - document.querySelector("[data-info-card-body]")!.getBoundingClientRect().bottom);
+    expect(clearance).toBeGreaterThanOrEqual(0);
+
+    // Both tags together, in either order, centre on both axes.
+    const both: { x: number; y: number }[] = [];
+    for (const body of ["[[centre]][[v-centre]]$$\\frac{a}{b}$$[[/v-centre]][[/centre]]", "[[v-centre]]\n[[centre]]\n$$\\frac{a}{b}$$\n[[/centre]]\n[[/v-centre]]"]) {
+      measured = await mount(body); expect(measured.safe).toBe(true);
+      const box = await rect(".katex-html");
+      both.push({ x: centreX(box), y: (box.top + box.bottom) / 2 });
+      expect(Math.abs(centreX(box) - box.bodyWidth / 2)).toBeLessThan(1.5); expect(Math.abs((box.top + box.bottom) / 2 - box.bodyHeight / 2)).toBeLessThan(2);
+    }
+    expect(Math.abs(both[0].x - both[1].x) + Math.abs(both[0].y - both[1].y), "same result in either order").toBeLessThan(0.5);
+
+    // Too tall to centre: the content starts at the top of the body (never over the header) and is reported.
+    measured = await mount(`[[v-centre]]${Array(12).fill("Line").join("\n")}[[/v-centre]]`);
+    expect(measured.result.status).toBe("ready"); expect(measured.safe).toBe(false);
+    expect((await rect("[data-info-content-block='v-centre']", "Line")).top).toBeGreaterThanOrEqual(-0.5);
+
+    // Blank lines: a second blank line adds one line of space instead of collapsing.
+    measured = await mount("Alpha\n\nBeta"); const one = (await rect("[data-maths-renderer]", "Beta")).top - (await rect("[data-maths-renderer]", "Alpha")).bottom;
+    measured = await mount("Alpha\n\n\nBeta"); const two = (await rect("[data-maths-renderer]", "Beta")).top - (await rect("[data-maths-renderer]", "Alpha")).bottom;
+    expect(measured.safe).toBe(true);
+    expect(two - one, "one extra line height").toBeCloseTo(9.5 * 1.25, 0);
+    await expect(page.locator("[data-info-content-spacer='2']")).toHaveCount(1);
+
+    // Tags inside maths belong to the maths; malformed or unmatched tags are shown and reported, never dropped.
+    measured = await mount("$[[centre]]$ stays maths");
+    expect(measured.result.status).toBe("ready"); expect(await page.locator(".katex-error").count()).toBe(0);
+    for (const [body, message] of [["[[centre]]never closed", /has no matching \[\[\/centre\]\]/], ["[[center]]US[[/center]]", /is not a formatting tag/]] as const) {
+      measured = await mount(body);
+      expect(measured.result.status).toBe("invalid-input");
+      expect(measured.result.diagnostics.map(issue => issue.message).join(" ")).toMatch(message);
+      await expect(page.locator("[data-info-card-body]")).toContainText(body.slice(0, 10));
+    }
+    await page.locator("[data-info-card-face]").screenshot({ path: test.info().outputPath(`${browserName}-formatting-last.png`) });
+  } finally { await browser.close(); }
+});
+
+test("formatting renders the same in the editor preview and the published Library card, and publish validates tag-free maths", async ({ page }) => {
+  await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+  await page.goto("/creator/info-cards/new");
+  await page.getByRole("combobox", { name: "Series", exact: true }).selectOption({ label: "Basics (phase2)" });
+  await page.getByRole("textbox", { name: "Title", exact: true }).fill("Formatting");
+  const input = page.getByRole("textbox", { name: "Explanation", exact: true });
+  const geometry = (face: ReturnType<typeof page.locator>) => face.evaluate(node => {
+    const body = node.querySelector<HTMLElement>("[data-info-card-body]")!, origin = body.getBoundingClientRect(), scale = origin.width / body.offsetWidth;
+    return [...body.querySelectorAll<HTMLElement>("[data-info-content-item] .katex-html, [data-info-content-item] [data-maths-paragraph]")].map(element => {
+      const box = element.getBoundingClientRect();
+      return [box.left - origin.left, box.top - origin.top, box.width].map(value => Math.round(value / scale * 2) / 2);
+    });
+  });
+  // A broken tag is reported in the editor and blocks publication on the server, like any maths syntax error.
+  await input.fill("[[centre]]Unclosed");
+  await expect(page.getByText(/has no matching \[\[\/centre\]\]/)).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const id = new URL(page.url()).pathname.split("/").at(-1)!;
+  const draft = await (await page.request.get(`/api/info-cards/${id}`)).json();
+  const rejected = await page.request.post(`/api/info-cards/${id}/publish`, { data: { revision: draft.root.revision } });
+  expect(rejected.status()).toBe(422); expect(JSON.stringify(await rejected.json())).toContain("INFO_UNMATCHED_FORMAT_TAG");
+  const body = "Intro line\n\n\n[[centre]]\n$$\\frac{1}{2}$$\n[[/centre]]\n[[v-centre]][[centre]]Middle[[/centre]][[/v-centre]]";
+  await input.fill(body);
+  await expect(page.getByText("Explanation fits.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const preview = await geometry(page.locator("[data-info-card-face]"));
+  expect(preview.length).toBeGreaterThanOrEqual(3);
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Published", exact: true })).toBeVisible({ timeout: 45000 });
+  const published = await (await page.request.get(`/api/info-cards/${id}`)).json(); expect(published.publication.content.body).toBe(body);
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  const card = page.locator(`[data-info-id='${id}'] [data-info-card-face]`);
+  await expect(card.locator("[data-maths-renderer] .katex").first()).toBeVisible();
+  await expect.poll(() => geometry(card)).toEqual(preview);
+});
+
 for (const browserName of ["chromium", "firefox", "webkit"] as const) test(`real shared maths face · ${browserName}: media, padding and physical overflow`, async () => {
   const browser = await ({ chromium, firefox, webkit })[browserName].launch();
   const page = await browser.newPage({ baseURL: process.env.PHASE2_BASE_URL });
@@ -248,7 +379,11 @@ test("Check rendering flushes current source, returns the actual card screenshot
   const overflowResponse = page.waitForResponse(r => /\/check-rendering$/.test(r.url()));
   await page.getByRole("button", { name: "Check rendering", exact: true }).click();
   const overflow = await (await overflowResponse).json(); expect(overflow.measurement.result.layout.overflowX).toBe(true); expect(overflow.measurement.result.layout.overflowY).toBe(true);
-  expect(overflow.screenshot.width).toBeGreaterThan(400); expect(overflow.screenshot.height).toBeGreaterThan(173);
+  // Info Card display maths no longer has a 1em indent (checkpoint 9), so the rule ends about 9.5px further left
+  // than before (it was 400px only because of that indent). The expanded image must still frame the whole
+  // measured content and be wider than the card.
+  expect(overflow.screenshot.width).toBeGreaterThanOrEqual(Math.floor(overflow.measurement.result.layout.width)); expect(overflow.screenshot.width).toBeGreaterThan(240);
+  expect(overflow.screenshot.height).toBeGreaterThan(173);
   await expect(image).toBeVisible(); await expect(page.locator("[data-info-card-face] [data-maths-renderer]")).toBeVisible();
   // Publication still succeeds without a fit certificate, regardless of that diagnostic.
   await page.getByRole("button", { name: "Publish", exact: true }).click();

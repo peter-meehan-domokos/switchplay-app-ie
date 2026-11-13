@@ -9,7 +9,7 @@ import type { Visibility } from "../cards/model";
 import { measureInfoCapacity } from "./capacity";
 import { assertMediaAttachment, productionMediaSecurity, type InfoMediaSecurity } from "./media";
 import { InfoMathsError, type InfoRenderingChecker } from "./mathsValidation";
-import { prepareContent } from "../../components/maths-renderer/prepareContent";
+import { validateInfoCardContent } from "../../components/info-cards/infoCardContentValidation";
 import { INFO_MEDIA_COLLECTION } from "./mediaRegistry";
 import { creatorUsernames, UNKNOWN_CREATOR } from "../cards/creatorAttribution";
 
@@ -225,9 +225,9 @@ export class InfoCardRepository {
       const draft = before.draft;
       assertInfoDraft(draft);
       requireCondition(draft.seriesId && draft.title.trim() && draft.body.trim(), "INFO_PUBLICATION_INCOMPLETE");
-      // Reuse the renderer's pure source preparation for syntax/security only.
-      // This performs no DOM layout, capacity calculation or browser launch.
-      const prepared = prepareContent(draft.body);
+      // Reuse the renderer's pure source preparation for syntax/security only, on the same tag-free items the
+      // face renders (Info Card formatting tags never reach KaTeX). No DOM layout, capacity or browser launch.
+      const prepared = validateInfoCardContent(draft.body);
       if (prepared.invalid) throw new InfoMathsError({ result: { status: "invalid-input", generation: 0, diagnostics: prepared.diagnostics }, safe: false, headerFits: false });
     }
     return this.transaction(async session => {
