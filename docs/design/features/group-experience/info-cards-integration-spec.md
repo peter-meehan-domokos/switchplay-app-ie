@@ -1,6 +1,6 @@
 # Info Card Improvements — Product Specification and Engineering Planning Brief
 
-**Status:** Product decisions D0–D10 approved on 12 November 2026 and incorporated below. Open questions arising from them are listed under [Open product questions](#open-product-questions).
+**Status:** All product decisions are resolved and incorporated below: D0–D10, Q1–Q7, P1–P3 (12 November 2026) and R1 (13 November 2026).
 **Engineering plan:** [info-cards-integration-engineering-plan.md](../../../engineering/features/group-experience/info-cards-integration-engineering-plan.md)
 
 ## Purpose
@@ -9,29 +9,79 @@ This specification defines four phases of work to fix existing problems and impr
 
 The application is currently an MVP with very few trial users and no published Info Cards that need backward compatibility. Keep the engineering approach straightforward and proportionate. Avoid unnecessary abstractions, large refactors, feature flags or enterprise-style rollout procedures.
 
-## Info Card types
+## Terminology
 
-Three types of Info Card are referred to throughout this specification.
+The word *personal* has caused confusion because it has been used for a content type, a storage location and a viewing perspective. This specification uses the following terms precisely.
 
-| Type | Belongs to | Who sees it |
+### Info Card types (content types)
+
+| Type | Meaning |
+| --- | --- |
+| **Creator Info Card** | Published by a creator and attached to a Card template. Everyone who can view the Card sees it. |
+| **Personal Info Card** | Created on the fly by a user following a Card. The term describes the type of content only, not where it is stored, who can see it or which perspective it is viewed from. |
+| **Group Admin Info Card** | Created by a Group admin in the Group perspective, as Group content. |
+
+### Contexts (where a Card is being used)
+
+| Context | Meaning | Where Personal Info Cards created here belong |
 | --- | --- | --- |
-| **Creator Info Card** | The creator who published it; attached to a Card template | Everyone who can view the Card |
-| **Personal Info Card** | An individual user; attached to their own CardData | Only its owner |
-| **Group Info Card** | A Group Experience; created by Group admins on behalf of the Group | Members of that Group (see Phase 4) |
+| **Standalone context** | A Card used outside any Group Experience | The user's CardData |
+| **Group Experience context** | A Card used within a Group Experience | The Group Experience, following the existing Group media-item architecture (not the user's CardData) |
+
+A **standalone Personal Info Card** is one created in the standalone context. A **Group-created Personal Info Card** is one created by a follower in a Group Experience context.
+
+### Perspectives (within a Group Experience)
+
+| Perspective | Meaning |
+| --- | --- |
+| **Me** | A follower's own perspective on their own Card. |
+| **Group** | The collective perspective, where Group content and followers' Group-created content are brought together. For a Group admin, the Me perspective is effectively the Group perspective. |
+| **Other followers** | Viewing another follower's Card, where the Group's visibility settings permit it. |
+
+### Roles
+
+| Role | Meaning |
+| --- | --- |
+| **Follower** | A member participating in the Group Experience. |
+| **Admin** | A user managing the Group Experience and its collective content. |
+
+### Contribution identities (P1, P3)
+
+Content a user creates inside a Group Experience is either an **Admin contribution** or a **Follower contribution**. The perspective it was created in decides which, fixed at the moment of creation.
+
+| Created in | Contribution | Info Card type | Colour |
+| --- | --- | --- | --- |
+| The Group perspective | Admin contribution | Group Admin Info Card | Teal `#147D6C` |
+| The follower's Me perspective | Follower contribution | Personal Info Card | Muted green `#305047` |
+
+- A user who is both admin and follower in the same Group Experience has **two separate contribution identities**, treated as though they were two different users. Their Admin and Follower contributions never mix in storage, history, visibility, editing, deletion or presentation, even though both carry the same account.
+- Later role changes never reclassify an existing contribution.
+- **Follower contributions** keep the existing media-item owner history: the author sees them on their standalone Card and in their Me perspective in every Group Experience using that Card template, marked private where they did not originate in the current Group. They appear in their originating Group perspective under the existing sharing and hiding rules. Other users never gain access to the author's private cross-context content.
+- **Admin contributions** belong exclusively to their originating Group Experience. They appear in that Group's Group perspective under the existing visibility rules. They never appear on a standalone Card, in another Group Experience (even one the same admin manages) or in the same user's Me perspective, and never become Follower contributions.
+- These rules apply identically to **media items and Info Cards**.
+
+### Canonical reference for Info Card behaviour (Q1)
+
+**Media items are the sole canonical reference** for Info Card storage, ownership, visibility, privacy, permissions, attribution and perspective behaviour in Group Experiences. Reflections are not a reference: they are lightweight comments with a different contextual model.
+
+- Info Cards reproduce media-item behaviour. They do not get their own visibility, audience or permission system.
+- If the media-item implementation conflicts with an explicitly stated requirement in this specification, stop, report the conflict and ask for approval before proceeding.
+- Never silently change the requested Info Card behaviour to match the code. Never silently change media-item behaviour to match this specification.
+- The one approved, deliberate change to media-item behaviour is the contribution-identity correction above (P1): Admin contributions stop appearing in the author's other contexts. Media items and Info Cards then follow the same corrected rules.
 
 ### Approved colour palette (D1, D10)
 
-The same colours apply everywhere in the application, including every Group Experience perspective. There is no alternative Group colour scheme.
+The same colours apply in the standalone context and in every Group Experience perspective. There is no alternative Group colour scheme.
 
 | Type | Background | Text |
 | --- | --- | --- |
-| Creator Info Card | Existing slate gradient `#303947` → `#252D39` | Existing text styling |
-| Personal Info Card | Muted green `#305047` | Accessible light text |
-| Group Info Card | Prominent teal `#147D6C` | White `#FFFFFF` |
+| Creator Info Card | Slate gradient `linear-gradient(145deg, #303947, #252D39)` | Existing text styling |
+| Personal Info Card (standalone or Group-created) | Muted green `#305047` | Accessible light text |
+| Group Admin Info Card | Prominent teal `#147D6C` | White `#FFFFFF` |
 
-- Group Info Cards are the most visually prominent. Personal Info Cards are more subdued but clearly distinguishable from Creator Info Cards.
-- Text on every type must meet accessible contrast.
-- Card type must not be communicated by colour alone. The focused card must also identify its type in text.
+- Group Admin Info Cards are the most visually prominent. Personal Info Cards are comparatively subdued but clearly distinguishable from Creator Info Cards.
+- Text on every type meets accessible contrast.
+- Card type is never communicated by colour alone. The focused card also shows a visible type indication.
 
 ---
 
@@ -78,7 +128,7 @@ Phase 1 has been implemented, manually tested, committed and pushed. Do not reop
 
 ### Phase 1 completion
 
-All Phase 1 code is committed and pushed. The only remaining administrative step was committing this specification and its engineering plan (D0).
+All Phase 1 code is committed and pushed.
 
 ---
 
@@ -106,9 +156,9 @@ These are initial targets, subject to visual review on iPhone. Text capacity doe
 
 - Apply the approved colour palette to each Info Card type.
 - Replace the existing generic grey strips behind the top card with **four visible strips of about 5px each**. Each strip represents an actual upcoming Info Card and uses that card's type colour.
-- A user looking at a stack of, for example, three Creator Info Cards and two Personal Info Cards should recognise that mixture from the strips. The same applies to Group Info Cards once they exist.
+- A user looking at a stack of, for example, three Creator Info Cards and two Personal Info Cards recognises that mixture from the strips. The same applies to Group Admin Info Cards once they exist.
 - When fewer cards are upcoming, show only as many strips as there are upcoming cards.
-- The focused card identifies its type in text as well as colour.
+- The focused card shows a visible type indication as well as its colour.
 - Preserve the existing stacked-card interaction, navigation and animation.
 - Maintain a clean, mobile-first presentation without introducing unnecessary vertical scrolling.
 
@@ -223,102 +273,158 @@ Support `[[v-centre]]...[[/v-centre]]`. Content within these tags is centred ver
 
 ### 10. Automatic publication after media processing
 
-**Objective:** Allow creators to press Publish once, even when their intended media is still being processed.
+**Objective:** Let users press Publish or Save once, even when their intended media is still being processed.
 
-This applies to Creator Info Card **Publish** and to Personal Info Card **Save**, using the same behaviour (D6).
+One mechanism applies to Creator Info Card **Publish** and Personal Info Card **Save** (D6, Q7). The pending request is stored persistently. There is no background processing for the MVP: no scheduled jobs, webhooks, queues or workers.
 
-#### Required behaviour
+#### Scenario A — media is already ready
 
-- The user presses **Publish** (or **Save** for a Personal Info Card) once.
-- If all intended media is already ready, publication proceeds normally.
-- If media is still processing, the application keeps the request and waits for the media to become ready.
-- Once the intended media is ready, the application completes publication automatically.
-- The user can see that publication is pending.
-- The user receives a clear confirmation when publication succeeds.
+1. The user presses Publish or Save.
+2. The application verifies that the intended media is ready.
+3. Publication or saving completes normally.
+4. The user receives confirmation.
 
-#### Leaving before processing finishes (D5)
+#### Scenario B — media is processing and the user stays
 
-- If it can be done with existing infrastructure or another straightforward, low-cost mechanism, publication completes even after the user closes the browser.
-- Otherwise, the pending request is retained and publication completes when the user next opens the application.
-- Either way, the pending request is never lost silently, and the user is told the outcome next time they are in the application.
-- Do not build substantial new background-processing systems, complex webhooks, queues or services for this.
+1. The user presses Publish or Save once.
+2. The application records a pending request.
+3. While the relevant interface stays open, the application checks whether processing has finished.
+4. Once the intended media is ready, publication or saving completes and the pending request is cleared.
+5. The user receives confirmation.
 
-#### Failure handling
+The user does not press Publish or Save again.
 
-If media processing fails:
+#### Scenario C — media is processing and the user leaves
 
-- Do not publish an incomplete Info Card.
-- Preserve the draft or previously published version.
-- Show a clear error identifying the affected Info Card.
-- Provide a straightforward retry path.
-- Never publish without the media the user intended to include.
+1. The user presses Publish or Save, and the pending request is recorded.
+2. The user closes the browser or leaves the relevant interface.
+3. The pending request stays stored. The draft stays unpublished, or the existing published version stays unchanged.
+4. Nothing checks for completion while the user is away.
+5. When the user returns to the relevant Creator or Info Card interface, checking resumes.
+6. If the media is ready, publication or saving completes automatically and the pending request is cleared.
+7. The user receives confirmation.
 
-If the user edits the Info Card after pressing Publish and before publication completes, the pending request no longer matches what they confirmed. It must not publish the edited content without a fresh Publish.
+The user does not press Publish or Save again.
+
+#### Scenario D — processing fails
+
+- Never publish an Info Card without its intended media.
+- Preserve the draft or existing published version.
+- Keep enough of the pending context to show an accurate failure state.
+- Show a clear, human-readable error identifying the affected Info Card.
+- Provide a retry or replacement path.
+- Never silently publish incomplete content.
+
+#### Scenario E — the user edits while publication is pending
+
+- Editing the Info Card cancels its pending request.
+- The user may press Publish or Save again after making changes.
+- An outdated version is never published unexpectedly.
+
+#### Pending state
+
+The pending state must be understandable to the user wherever the affected Info Card appears in the relevant interface.
 
 ---
 
 ## Phase 4 — Info Cards within Group Experiences
 
-**Objective:** Extend Info Cards into Group Experience contexts, covering two separate concepts:
+**Objective:** Extend Info Cards into Group Experience contexts by reproducing the existing Group media-item behaviour exactly (Q1, Q6). There is no separate Info Card audience, sharing or visibility system.
 
-- **4A — Personal Info Cards in Groups:** a user's own private Personal Info Cards, available while they are in a Group Experience.
-- **4B — Group Info Cards:** Info Cards created by Group admins on behalf of the Group.
+Phase 4 covers:
 
-These are separate concepts and must never be confused. An admin's own private Personal Info Cards are not Group Info Cards, and creating a Group Info Card never creates or uses the admin's personal CardData.
+- **Standalone Personal Info Cards** as they appear inside a Group Experience.
+- **Group-created Personal Info Cards** created by followers.
+- **Group Admin Info Cards** created by admins in the Group perspective.
 
-### 4A — Personal Info Cards in Groups
+### Prerequisite: Group media correction (P1)
 
-**Approved principles (D7, D8):**
+Before any Phase 4 Info Card work, Group media items are corrected to follow the [contribution identities](#contribution-identities-p1-p3) rules. Today, media an admin adds in the Group perspective also appears on that admin's standalone Card and in other Group Experiences using the same Card template. After the correction it appears only in its originating Group perspective. Follower media behaviour is unchanged. Info Cards are then built on the corrected rules.
 
-- Personal Info Cards belong to individual users and remain private to their owners.
-- They are attached to the user's CardData. The same CardData is reused wherever the same Card template appears, so a user's Personal Info Cards for a Card are the same set in their personal Decks and in every Group Experience that uses that Card. They are never duplicated per Deck or Group.
-- Personal Info Cards follow the same ownership, storage, visibility and perspective rules as personal media attachments and reflections in Group Experiences. No separate set of visibility rules is created for them.
-- They must not automatically become shared Group content.
-- The existing Personal Info Card pouch and attachment behaviour stays consistent across personal and Group contexts.
-- Personal Info Cards use the muted green Personal colour in every perspective.
+### Storage and ownership (Q1, D8, P3)
 
-**Behaviour, applying the established personal media and reflection rules** (subject to the open questions below):
+| Info Card | Belongs to | Notes |
+| --- | --- | --- |
+| Standalone Personal Info Card | The user's CardData | Existing behaviour. Reused wherever the same Card template appears, as standalone media items are. |
+| Group-created Personal Info Card | The Group Experience context, as a Follower contribution | Never stored in the user's standalone CardData. |
+| Group Admin Info Card | The originating Group Experience only, as an Admin contribution | Never uses the admin's CardData. Separate from the same user's Follower contributions and standalone Info Cards. |
 
-| Perspective | Personal Info Cards shown |
+### Visibility (Q2, Q3, P1)
+
+Visibility mirrors the corrected media-item rules exactly.
+
+| Perspective | Info Cards shown, besides Creator Info Cards |
 | --- | --- |
-| The owner's ordinary personal Deck | The owner's own, as today |
-| The owner's own Card within a Group (Me) | The owner's own, marked as private to them |
-| Group perspective | None |
-| An admin inspecting a follower | None (the follower's are private; the admin's are not part of that view) |
+| **Standalone context** | The user's standalone Personal Info Cards and all their Follower contributions for the same Card template. Never their Admin contributions. |
+| **Me** (follower) | Their Follower contributions for the same Card template, and their standalone Personal Info Cards. Those not originating in the current Group (standalone ones, those from other Group Experiences, and those hidden here) carry the existing **private icon**. Never their own Admin contributions. |
+| **Group** | Admin contributions and Follower contributions originating in this Group Experience, under the established visibility and hiding rules. Never anyone's standalone Personal Info Cards. |
+| **Other followers** | That follower's Follower contributions originating in this Group, under the Group's sharing settings. Never their standalone Personal Info Cards, and never Admin contributions by the same person. |
 
-### 4B — Group Info Cards
+- Group Admin Info Cards appear only in the Group perspective of their originating Group Experience. Followers visit the Group perspective to see them.
+- Standalone Personal Info Cards are never exposed to admins or other followers, whether through the Group perspective or follower comparison.
 
-**Approved principles (D9):**
+### Permissions (Q4, P2)
 
-- Group admins can create Group Info Cards on behalf of the Group, mirroring the way admins add Group reflections and Group media.
-- Group Info Cards belong to the Group context, not to the admin's personal CardData.
-- They follow the existing Group reflection and Group media patterns for permissions, ownership, visibility and perspective.
-- They use the prominent teal Group colour with white text.
-- Followers can distinguish Group Info Cards from their own Personal Info Cards, by colour and by text.
-- They are never confused with the admin's own private Personal Info Cards.
-- Group Info Cards are a new concept for this phase. Do not introduce wider sharing features such as per-member audiences without approval.
+- **Editing:** only the original author may edit an Info Card, and only as the contribution identity that created it. Admin status alone never grants editing of another author's Info Card.
+- **Hiding:** Group admins may hide contributions from the Group under the existing Group media permissions. Hiding never deletes.
+- **Ownership versus acting identity:** the author always owns their contribution. Whether they may delete it depends on the contribution identity they are acting as, which comes from the perspective they are in: the Group perspective is the Admin identity; Me and the standalone Card are the Follower identity.
+- **Deleting (R1):**
+
+  | Contribution | Where its author may delete it |
+  | --- | --- |
+  | Admin contribution | The Group perspective of its originating Group |
+  | Follower contribution | The author's Me perspective or standalone Card |
+  | Another person's contribution | Nowhere |
+
+  - Admin status never grants deletion of another author's contribution. Admins can still hide contributions from the Group.
+  - A user with both roles is not offered Delete in the Group perspective for content they created as a follower, nor in Me for content they created as an admin.
+  - Follower-only users also delete through Me or the standalone Card, not from the Group perspective.
+  - These rules are enforced by the server, not only by which buttons are shown.
+- **Membership and role changes:** follow the existing Group media rules. A role change never reclassifies a contribution.
+
+### Known limitations (accepted)
+
+Because Admin contributions belong only to their originating Group:
+
+- If another admin hides an Admin contribution, its author may no longer be able to see or reach it.
+- If an admin leaves the Group, or can no longer view its Group perspective, they may lose access to their previous Admin contributions and be unable to delete them.
+
+These are accepted for the MVP. There is no private Admin view, no separate owner-only access route, and no change to the meaning of the private icon. A central place to manage one's own uploads across contexts is recorded as future work in the engineering plan.
+
+### Attribution (Q5)
+
+Attribution matches Group media attribution exactly, for both Group Admin Info Cards and follower Group-created Info Cards. The distinction between Group Admin Info Cards and Personal Info Cards also remains clear through their approved colours and type indications.
+
+### No audience-selection system (Q6)
+
+- No audience-selection controls.
+- No separate public, private or Group audience modes for Info Cards.
+- No Info Card-specific visibility conditions.
+- The objective is equivalent behaviour to media items, not a parallel system.
 
 ### Phase 4 rules
 
-- Distinguish confirmed requirements from recommendations.
+- Before implementing Phase 4, inspect the actual media-item code thoroughly.
+- Apply the mandatory consistency rule under [Canonical reference for Info Card behaviour](#canonical-reference-for-info-card-behaviour-q1).
 - Do not invent or lock additional Phase 4 behaviour without approval.
-- Any additional data-model or permission decisions are identified before implementation.
 
 ---
 
-## Open product questions
+## Resolved questions
 
-These arise from the approved decisions and need answers before the affected work starts. The engineering plan explains the evidence behind each.
-
-| # | Question | Affects |
-| --- | --- | --- |
-| Q1 | In the established Group pattern, media and reflections a member creates **from inside a Group** belong to that Group context and are shared with the Group by default (an admin can hide them). Applying that rule to Personal Info Cards would make them shared, which conflicts with "private to their owner" and "follow the user's CardData". Should a Personal Info Card created inside a Group stay private and attached to CardData (recommended), or follow the Group-origin sharing pattern? | 4A |
-| Q2 | Should a member's Personal Info Cards appear only in their own views (personal Deck and Me), never in the Group perspective or when an admin inspects them? This matches personal media and reflections. | 4A |
-| Q3 | Where do Group Info Cards appear: in the Group perspective only, or also on each member's own Card within that Group (Me)? D9 implies followers see them beside their own Personal Info Cards, but the collective Group reflection appears on the Group Card only. | 4B |
-| Q4 | Can every current Group admin edit and delete any Group Info Card (like the collective Group reflection), or only the admin who created it? | 4B |
-| Q5 | What does a Group Info Card show as its credit: the Group name or the admin who wrote it? | 4B |
-| Q6 | The earlier Group Experience plan described a much larger Group Info Card design (per-member audiences, private per-admin drafts, audience versions). Should the simpler model in this specification replace it for the MVP? | 4B |
-| Q7 | Completing publication after the browser has closed is possible with a small scheduled job on Vercel. It needs one new configuration entry and a secret. Is that acceptable, or should completion happen only when the user next opens the application? | 10 |
+| # | Resolution |
+| --- | --- |
+| Q1 | Media items are the sole canonical reference. Standalone Personal Info Cards stay on CardData. Group-created and Group Admin Info Cards belong to the Group Experience context, following Group media items. Reflections are not a reference. |
+| Q2 | Visibility mirrors media items exactly: own Group-created and standalone Info Cards in Me (standalone ones with the private icon); standalone ones never exposed to others. |
+| Q3 | Group Admin Info Cards appear only in the Group perspective. Follower-created Group Info Cards also appear there. |
+| Q4 | Editing, hiding and deleting follow existing Group media permissions. |
+| Q5 | Attribution matches Group media attribution. |
+| Q6 | No audience-selection system. The earlier audience-based Group Info Card proposal is withdrawn. |
+| Q7 | One persisted pending-publication mechanism for Publish and Save, resumed when the user returns. No background infrastructure. |
+| P1 | Follower contributions keep cross-context owner history. Admin contributions belong only to their originating Group. A dual-role user's Admin and Follower contributions are separate identities. Media items are corrected to these rules before Phase 4. |
+| P2 | Only the original author edits an Info Card. Admins hide under Group media permissions. Only the original author deletes. Admin status grants neither. |
+| P3 | Creation perspective fixes the contribution type: Group perspective means Admin contribution (Group Admin Info Card), Me means Follower contribution (Personal Info Card). Role changes never reclassify. |
+| R1 | Deletion respects the contribution identity: Admin contributions are deleted only from the Group perspective of their originating Group, Follower contributions only from Me or the standalone Card, and nobody deletes another person's contribution. Applies to media items and Info Cards, and is enforced by the server. |
 
 ---
 
@@ -367,7 +473,7 @@ The engineering plan, in the repository's existing documentation structure, cont
 3. **Checkpoint-by-checkpoint implementation plan:** files or modules likely to change, intended approach and acceptance criteria.
 4. **Testing strategy:** focused tests, regression tests and manual iPhone checks for each checkpoint.
 5. **Dependencies and sequencing:** work that should precede other work, and why.
-6. **Decisions:** approved decisions and any that remain open.
+6. **Decisions:** approved decisions, resolved questions and points still to confirm.
 7. **Risks and uncertainties:** only concrete, relevant concerns.
 8. **Execution strategy and implementation sequence:** checkpoint commits, approval gates and model recommendations.
 

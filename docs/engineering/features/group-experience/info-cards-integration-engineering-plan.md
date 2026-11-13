@@ -1,13 +1,28 @@
 # Info Card Improvements — Engineering Plan
 
-**Status:** Updated with approved product decisions D0–D10 (12 November 2026). Awaiting review before implementation. Nothing in Phases 2–4 has been implemented.
+**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026) and R1 (13 November 2026). All product decisions are resolved. Awaiting review before implementation. Nothing in Phases 2–4 has been implemented.
 **Specification:** [Info Card Improvements — Product Specification and Engineering Planning Brief](../../../design/features/group-experience/info-cards-integration-spec.md)
 **Branch:** `feat/group-experience`
 
 This plan turns the specification into checkpoints. It keeps the specification's phase boundaries and numbering (checkpoints 5–10, then Phase 4). The approach is proportionate to an MVP with few trial users and no published Info Cards needing backward compatibility: no feature flags, no new services, no large refactors.
 
-- Approved decisions are recorded in [section 6.1](#61-approved-decisions).
-- Open questions are in [section 6.2](#62-open-questions) and referenced inline as **Q1**, **Q2** and so on. They match the specification's open product questions.
+**Terminology** follows the specification exactly:
+
+| Term | Meaning |
+| --- | --- |
+| *Personal Info Card* | A content type only |
+| *Standalone* / *Group Experience* | Contexts |
+| *Me* / *Group* / *Other followers* | Perspectives |
+| *Follower* / *Admin* | Roles |
+| *Group-created Personal Info Card* | A Personal Info Card created by a follower in a Group Experience context |
+| *Group Admin Info Card* | An Info Card created by an admin in the Group perspective |
+| *Admin contribution* / *Follower contribution* | Content created in the Group perspective / in Me. Separate identities, even for one dual-role user (P1, P3) |
+| *Acting identity* | The identity a user acts as, set by the perspective they are in: Group perspective is the Admin identity; Me and the standalone Card are the Follower identity. Ownership is the author; permission to delete needs both author and matching acting identity (R1) |
+| `creationContext` | The proposed immutable field recording `"group"` (Admin contribution) or `"self"` (Follower contribution) |
+
+**Decisions:**
+- Approved decisions are in [section 6.1](#61-approved-decisions).
+- Resolved questions and points, including R1, are in [section 6.2](#62-resolved-questions-and-points).
 
 ---
 
@@ -24,8 +39,9 @@ This plan turns the specification into checkpoints. It keeps the specification's
 
 ### 1.2 Git state
 
-- `feat/group-experience` is at `13ab03a` and matches `origin/feat/group-experience`. All Phase 1 code is pushed.
-- The specification and this plan are committed together as one documentation commit (D0), and are not pushed.
+- `feat/group-experience`: `13ab03a` is pushed.
+- The first version of the specification and this plan was committed locally as `1424eb4`, not pushed.
+- This revision is not yet committed.
 
 ### 1.3 Environment facts that affect every checkpoint
 
@@ -45,7 +61,7 @@ This plan turns the specification into checkpoints. It keeps the specification's
 | Stack | [InfoCardPhysicalStack.tsx](../../../../src/components/info-cards/InfoCardPhysicalStack.tsx) | Renders up to **two generic backing strips** (`stepStyles.backing`, flat `#2c3543`) whatever the upcoming cards are, plus only the current card and, during a turn, the next card. |
 | Step View geometry | [StepView.module.css](../../../../src/components/decks/StepView.module.css) | `.preview` places the stack at `left/right: 6px; bottom: 15px`; `.backing` offsets are −3px and −6px. |
 | Consultation dialog | [InfoCardConsultation.tsx](../../../../src/components/info-cards/InfoCardConsultation.tsx) | Full-screen transparent native modal. The empty state is a full card-sized `.empty` box (240 × 204) with a "+" button and a × Close button. Opening and closing animations live in `InfoCardPhysicalStack`. |
-| Pouch | [InfoCardPouch.tsx](../../../../src/components/info-cards/InfoCardPouch.tsx) | Shown with zero cards only when `allowEmpty` (Personal context). |
+| Pouch | [InfoCardPouch.tsx](../../../../src/components/info-cards/InfoCardPouch.tsx) | Shown with zero cards only when `allowEmpty`. |
 | Focus handling | [useInfoCardDialog.ts](../../../../src/components/info-cards/useInfoCardDialog.ts) | Shared by both editors, the consultation and the media viewer; fixed in Phase 1. |
 
 ### 2.2 Info Card content and capacity
@@ -79,7 +95,8 @@ This plan turns the specification into checkpoints. It keeps the specification's
 - **Publish:** `publishVersion` in [repository.ts](../../../../src/lib/infoCards/repository.ts) calls `mediaSecurity.assertReady` **before** publishing.
   - Stream video must be `readyToStream`; otherwise `INFO_MEDIA_NOT_READY_OR_UNPROTECTED`.
   - R2 images are verified immediately, so only **video** can be "still processing".
-- **Background mechanisms:** none. There are no Stream webhooks, no Vercel cron jobs (`vercel.json` has none) and no queues.
+  - A `sourceRevision` receipt makes a repeated publish of the same revision return the existing version rather than create another.
+- **Background mechanisms:** none. There are no Stream webhooks, no Vercel cron jobs and no queues, and Q7 keeps it that way.
 
 ### 2.4 Info Card attachment viewer (portrait video bars)
 
@@ -87,52 +104,93 @@ This plan turns the specification into checkpoints. It keeps the specification's
 - The video is wrapped in `mediaStyles.videoArea` from [CardMediaViewer.module.css](../../../../src/components/media/CardMediaViewer.module.css). The player shell is stretched to `width: 100%; height: 100%` with `object-fit: contain`.
 - The shared player (`.cloudflare-stream-player` in `globals.css`) has a near-black background `#05070a`.
 - **Cause, by inspection:** a portrait video is contained inside a box the size of the whole viewer. On an iPhone the viewer is taller relative to its width than a 9:16 video, so the remaining height is painted near-black above and below.
-- The previous Step View investigation (all intro videos store portrait dimensions) was about Card introductions and does not apply here.
 
-### 2.5 Personal media and reflections in Group Experiences (D7 investigation)
+### 2.5 Group media items: the canonical reference (Q1)
 
-The authoritative rules are in the [Group Experience engineering plan](group-experience-engineering-plan.md) §11 ("Option B", approved 2 November 2026).
+Media items are the **only** reference for Info Card behaviour in Group Experiences. Reflections are not used. The approved storage design is [Group Experience engineering plan](group-experience-engineering-plan.md) §11 and §11.1 ("Option B"). The tables below describe the code **as it is today**. Phase 4 reproduces it **as corrected by checkpoint 4.0** (section 2.6), which removes Admin contributions from owner history and Other followers views.
 
 **Storage:**
 
-| Content | Personal origin | Group origin (created inside a Group) | Group-owned |
-| --- | --- | --- | --- |
-| Media | `users.cardsData[].mediaItems` (CardData) | `groupMediaContributions`: author-owned, immutable `experienceId` + `cardTemplateId` origin, `groupVisible` (default `true`) | None |
-| Reflection | `CardData.reflection` | `groupReflections`: unique `(authorUserId, cardTemplateId, experienceId)`, `groupVisible` (default `true`) | Collective reflection on `groupCardData` `(experienceId, cardTemplateId)`, edited by all current admins |
-| Personal Info Cards (today) | `cardsData[].personalInfoCardIds` + `infoCards` roots (`kind: "personal"`) | Not supported | None |
-
-**Visibility by perspective:**
-
-| Perspective | Media | Reflections |
+| Item | Where | Code |
 | --- | --- | --- |
-| Ordinary personal Deck | Owner's personal media plus all their Group-origin uploads for that Card, unlabelled | Personal reflection |
-| Owner's own Card within Group X (Me) | Owner's whole history; anything not currently shared with Group X is marked **Private** | Owner's Group X reflection only |
-| Group perspective | Only contributions currently shared with Group X, from any member | Collective note plus visible member contributions |
-| Admin inspecting a follower | Only that follower's contributions currently shared with Group X | Only that follower's visible Group X reflection |
+| Standalone media item | `users.cardsData[].mediaItems` (CardData) | existing personal media |
+| Group-created media item (follower in Me, or admin in Group perspective) | `groupMediaContributions`: one author-owned record per item with `authorUserId`, immutable `experienceId` + `cardTemplateId` origin, `groupVisible` (default `true`) and `state` `pending`/`attached`/`deleted`. Never copied into CardData. | [media/model.ts](../../../../src/lib/groupExperiences/media/model.ts), [media/repository.ts](../../../../src/lib/groupExperiences/media/repository.ts) |
+| Indexes | `group_media_owner_history` (author, Card, state, date) and `group_media_shared_history` (experience, Card, state, `groupVisible`, date) | [media/indexes.ts](../../../../src/lib/groupExperiences/media/indexes.ts) |
 
-**Permissions:**
-- The author deletes their own content from any context.
-- A Group admin can only **hide** content from the Group. Hiding is not deletion.
-- Foreign reads are narrow and visibility-filtered.
-- Admin-only users may have no CardData.
+There is **no Group-owned media item**. Media added by an admin from the Group perspective is a Group-origin contribution authored by that admin.
 
-**Findings that matter for Info Cards:**
-1. **Group-origin content is shared by default.** Under the established pattern, a member's media or reflection created inside a Group is a separate record shared with that Group. Applying that literally to Personal Info Cards would make them shared Group content. That conflicts with the specification ("private to their owners", "follow the user's CardData", "must not automatically become shared Group content"). **Q1.**
-2. **Personal-origin content never leaves the owner's own views.** Personal media and reflections do not appear in the Group perspective or when an admin inspects a follower. This gives a consistent rule for Personal Info Cards. **Q2.**
-3. **There are two Group-content patterns.** Media has no Group-owned item, only author-owned contributions. Reflections have the collective Group note, owned by the Group and edited by all admins. D9 ("belong to the Group context, not to the admin's personal CardData") matches the **collective reflection** pattern. **Q3**, **Q4**.
+**Who can add (`memberMediaCapabilities` in [mediaCollection/permissions.ts](../../../../src/lib/mediaCollection/permissions.ts)):**
+- In the Group perspective, only admins (`canUpload = isAdmin`).
+- In Me, the active follower themselves.
+- Never while viewing another follower.
 
-These are reported rather than resolved, as D7 requires.
+**Visibility (`authorized` and `groupAuthority` in the media repository; feeds in [media/reads.ts](../../../../src/lib/groupExperiences/media/reads.ts)):**
 
-### 2.6 Group Experiences and Info Cards today
+| Perspective | Media items shown |
+| --- | --- |
+| Standalone context | The owner's standalone items plus **all** their Group-created items for that Card, from every Group, unlabelled |
+| Me | The owner's whole history for that Card. Anything not currently shared with this Group (standalone items, items from other Groups, items hidden here) is marked **private** with the existing subdued date-lock glyph |
+| Group | Every contribution originating in this Group with `groupVisible: true`, from any author, including former members |
+| Other followers | Only that follower's contributions originating in this Group with `groupVisible: true`. Allowed when the viewer is an admin or the Group has `allowFollowerInspection` (`canInspectPeers` in [policy.ts](../../../../src/lib/groupExperiences/policy.ts)) |
+
+**Permissions today (`mediaRemoveOperation`, `hide` and `delete`; deletion is changed by checkpoint 4.0 under R1):**
+
+| Operation | Who | Notes |
+| --- | --- | --- |
+| Delete | The author only, as a tombstone, with best-effort provider cleanup | In a Group view, only for items originating in that exact Group. Standalone and other-Group items are read-only there. From the standalone context the author can delete any of their own items. |
+| Hide from this Group | Current admins only | Applies to any author's item originating in this Group, including other admins' items. It sets `groupVisible: false` and never deletes. The author still sees the item, marked private. |
+| Membership and role changes | — | The author keeps ownership and delete rights after leaving. Their visible items stay in the Group feed. Losing the admin role ends the right to hide. |
+| Editing | — | No equivalent: media items are immutable. |
+
+**Attribution:** each item carries `authorUserId` and its origin. The media gallery shows "By: *username*" and the origin name (Group name or "Personal").
+
+### 2.6 Group media contribution identity: the P1 gap and its correction
+
+**Why Admin media leaks today.** The server never records where a contribution was created, and every owner-history read selects by author and Card only:
+
+| Read | Code | Filter today | Used by |
+| --- | --- | --- | --- |
+| Owner history page | `readOwnerMediaPage` in [ownerHistory.ts](../../../../src/lib/mediaCollection/ownerHistory.ts) (`baseGroup`) | `{ authorUserId, cardTemplateId, state: "attached" }` | `/api/media/history`: the standalone Media Centre (no `experienceId`) and Me (with `experienceId`, marking other origins private) |
+| Owner previews and counts | `ownerPreviewPages` in [preparation.ts](../../../../src/lib/mediaCollection/preparation.ts) | the same | Card media previews and counts |
+| Owner feed | `readMediaPage` owner branch in [reads.ts](../../../../src/lib/groupExperiences/media/reads.ts) | `{ authorUserId, cardTemplateId, state }` | `GET /api/group-media` (no UI client today) |
+
+- The upload command (`allocationCommand` in [media/contracts.ts](../../../../src/lib/groupExperiences/media/contracts.ts)) carries no perspective.
+- `creationAuthority` in [media/repository.ts](../../../../src/lib/groupExperiences/media/repository.ts) checks only Group membership.
+- The rule that only admins upload in the Group perspective and only the follower uploads in Me exists only in the client (`memberMediaCapabilities`).
+- A dual-role user's perspective cannot be derived from stored data, so a field is required.
+
+**Is `creationContext` plus owner-history filtering sufficient for separate identities?** It fixes listing, but not on its own. Every place that compares `authorUserId` with the viewer must also compare the identity:
+
+| Place | Code | Problem without an identity check |
+| --- | --- | --- |
+| Owner-history listing | the three reads above | Admin contributions appear on the standalone Card and in Me (P1 itself). |
+| Other followers views | `subjectPreviewPages` in `preparation.ts`; `groupFeed` with `subjectUserId` (`readMediaPage`) | Viewing a dual-role user as a follower shows their Admin contributions as theirs. |
+| Delete offered in the UI | `mediaRemoveOperation` in [permissions.ts](../../../../src/lib/mediaCollection/permissions.ts) | In the Group perspective, a dual-role user is offered Delete on their own Follower contributions (author equals viewer). That lets the Admin identity delete the Follower identity's content. |
+| Delete enforced on the server | `delete` in `media/repository.ts`, reached through `/api/group-experiences/:id/media/:contributionId`, which both Me and the Group perspective call | Checks only author and originating Group, so it cannot tell which identity is acting. |
+| "Own" management count | `readMediaPage` group branch (`canManage`); the `own` sum in `sharedPreviewPages` | Counts both identities' contributions as the viewer's own. |
+
+**Unaffected:**
+- **Group feed visibility** (`groupFeed` without a subject, `sharedPreviewPages`): it filters by `experienceId` and `groupVisible`, so Admin and Follower contributions of this Group both appear, each as its own item.
+- **Hiding** (`hide`): any current admin may hide any contribution of this Group. That is consistent with two users.
+- **Private icon:** computed in `readOwnerMediaPage` and `ownerPreviewPages` as "other origin or hidden". Its meaning is unchanged; Admin contributions simply never reach those reads.
+- **Id-based owner access** (`authorized` with `kind: "owner"`): used for upload status polling and upload cancel (`GroupMediaUpload` in [operations.ts](../../../../src/lib/mediaCollection/operations.ts) calls `/api/group-media/:id`). It must keep working for the author's own items whatever their identity. It lists nothing, so it causes no cross-context visibility, and it is left unchanged.
+- **Role changes:** every role change increments the member's `accessEpoch` ([management.ts](../../../../src/lib/groupExperiences/management.ts), `repository.ts`). An in-flight upload whose role changes fails its commit, so `creationContext` always matches the role held at creation.
+
+**Existing records (read-only check, re-verified 12 November 2026):** 14 contributions. 12 are deleted (all by admin-only users) and excluded from every read. 2 are attached, both by follower-only users whose current `accessEpoch` equals the epoch stored at upload, so their role is unchanged since creation and both were created in Me. Treating a missing `creationContext` as `"self"` is therefore evidence-based. No migration is needed.
+
+**Indexes:** none needed. `group_media_owner_history` still drives the owner queries, and the extra condition is evaluated on rows already narrowed by author and Card.
+
+**Known limitations (accepted, not engineered around):** Admin contributions are reachable only through their originating Group perspective. An Admin contribution hidden by another admin is visible to nobody, its author included. An admin who leaves the Group, or can no longer view its Group perspective, cannot reach or delete their Admin contributions. There is no private Admin view, no owner-only route and no change to private-icon semantics. See [section 9](#9-future-work).
+
+### 2.7 Group Experiences and Info Cards today
 
 - Group Cards are `ExperienceCardPresentation` (`surface: "experience"`).
 - In `FocusedCardView`, `personalEnabled` requires `hasPersonalCard(card)`, which is false for any presentation with a `surface`. **Personal Info Cards are absent in every Group perspective today.**
 - Group Cards carry canonical `infoCardIds`, and the consultation requests them in canonical mode, so Creator Info Cards are expected to appear in Groups. No Group browser test covers this.
-- **Server:** `createPersonal` and the first `savePersonal` validate the Card through `consultationCardVersion(..., { mode: "working", deckTemplateId, version })`. That requires the user's own non-archived `decksData` membership for the Deck, with a matching working version. A Group follower may not hold the Deck personally, and the Group's pinned version may differ.
-- **Storage is version-independent:** `users.cardsData[].personalInfoCardIds` is keyed by `cardTemplateId` only, which satisfies D8 as it stands.
-- **Group Info Cards:** the earlier Group plan §11.3 and Phases 8–9 designed a large `kind: "group"` model with per-member audiences, audience epochs and private per-editor drafts. None of it is implemented. Section 3 proposes a much smaller model (**Q6**).
+- **Server:** `createPersonal` and the first `savePersonal` validate only a standalone Deck context (`consultationCardVersion(..., { mode: "working", … })`, which requires the user's own Deck membership). Standalone attachment is `users.cardsData[].personalInfoCardIds` per `cardTemplateId`.
+- **Withdrawn earlier design:** the earlier Group plan §11.3 and Phases 8–9 designed an audience-based Group Info Card model. None of it is implemented, and Q6 withdraws it.
 
-### 2.7 Project conventions applied
+### 2.8 Project conventions applied
 
 - **Layout pipeline rule** ([.claude/CLAUDE.md](../../../../.claude/CLAUDE.md)): new presentational logic goes into small pure `*Layout.ts` modules with `build…Layout` functions. Existing components are not refactored beyond the checkpoint's scope.
 - Immutable data, D3 where aggregation is needed, no in-place mutation.
@@ -145,15 +203,18 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
 
 ### Phase 2 — Improve the Info Card experience
 
-#### Checkpoint 5 — Card height, stack and colours
+#### Checkpoint 5 — Card dimensions, stack and colours
 
 **Approach:**
 
-1. **Type and colour.** Introduce one Info Card type, `"creator" | "personal" | "group"`, derived from existing data. Today that is the `personal` flag; `group` arrives in Phase 4B.
+1. **Type and colour.** Introduce one Info Card type, `"creator" | "personal" | "groupAdmin"`, derived from existing data. Today that is the `personal` flag; `groupAdmin` arrives in Phase 4.
    - Add `infoCardTypeLayout.ts` with `buildInfoCardTypeLayout(type)`. It returns the face class, strip colour and type label.
-   - Colours as specified: Creator keeps the slate gradient, Personal changes from `#263b36` to `#305047`, and Group is `#147D6C` with white text (`#FFFFFF` for all text on the face, including secondary text).
-   - Measured contrast: light text `#c9d0da` on `#305047` is 5.7:1; white on `#147D6C` is 5.0:1. Both pass WCAG AA for the small 8.8–9.5px card text. Tinted secondary text on teal (for example `#d9f2ec`, 4.3:1) would fail, so it is not used.
-   - **Not by colour alone:** add a short type label to the focused card's footer (for example "Personal" before the credit; a Group label in Phase 4B). The exact wording is part of the visual review. Strips are too small for text, so they are a supplementary cue only.
+   - Colours as specified:
+     - Creator keeps the slate gradient.
+     - Personal changes from `#263b36` to `#305047`.
+     - Group Admin is `#147D6C`, with all face text white `#FFFFFF`, including secondary text.
+   - Measured contrast: light text `#c9d0da` on `#305047` is 5.7:1; white on `#147D6C` is 5.0:1. Both pass WCAG AA for the 8.8–9.5px card text. Tinted secondary text on teal (for example `#d9f2ec`, 4.3:1) would fail, so it is not used.
+   - **Type indication:** add a short type label to the focused card's footer. The wording is settled in the visual review. Strips are too small for text, so colour is a supplementary cue there.
 2. **Strips.** Add `infoCardStackLayout.ts` with `buildInfoCardStackLayout(cards, index)`.
    - It returns up to **four** upcoming cards (wrapping, excluding the current one) as strips `{ id, type, offsetY, inset }`, each revealing about **5px**.
    - `InfoCardPhysicalStack` renders these instead of the two generic `backing` divs.
@@ -161,10 +222,9 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
    - The strips sit in existing space above the card, so the Step View does not grow.
 3. **Dimensions (D1).** Header 33px (unchanged), text area 93px, footer 45px, overall about 173px, width 240px.
    - Re-lay out the footer in 45px: media button, type label, credit and three-dot menu. The menu keeps its 32px tap target.
-   - Update `capacity.ts` geometry (`innerHeight`) to the new text area. No compatibility is kept for legacy test content (D1).
-   - Update the maths measurement, which reads the footer's top edge, and therefore the server Chromium check, automatically.
-   - Update the editor preview, which uses the same face.
-4. **Visual review.** Before committing, take Chromium and WebKit screenshots at 390 × 844 of a mixed stack (Creator and Personal, plus a Group fixture card).
+   - Update `capacity.ts` geometry (`innerHeight`) to the new text area. No compatibility is kept for legacy test content.
+   - Maths measurement reads the footer's top edge, so it, and therefore the server Chromium check, follows automatically. So does the editor preview, which uses the same face.
+4. **Visual review.** Before committing, take Chromium and WebKit screenshots at 390 × 844 of a mixed stack: Creator and Personal cards, plus a Group Admin fixture card.
 
 **Likely files:**
 - `InfoCardPhysicalStack.tsx` and `.module.css`
@@ -177,7 +237,7 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
 **Acceptance:**
 - A stack of three Creator and two Personal cards shows four strips in order, each in its card's colour.
 - Strips update while browsing. A one-card stack shows none; a three-card stack shows two.
-- The focused card names its type in text.
+- The focused card shows its type label.
 - Card dimensions match the targets.
 - Interaction and animation are unchanged.
 - No vertical scrolling at 390 × 844 or in short landscape.
@@ -190,14 +250,14 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
 
 **iPhone checks:** strip legibility and colours, card height, text contrast, type label, swipe feel.
 
-#### Checkpoint 6 — Empty pouch animation
+#### Checkpoint 6 — Empty pouch
 
 **Approach:**
 - Replace the card-sized `.empty` box in `InfoCardConsultation` with a small panel containing **Add Personal Info Card**.
 - **Animation (D2):** the panel animates out of the pouch using the **same opening sequence as the stack**: the hidden pouch position, 12° rotation and the 0.48s two-stage ease, with reduced-motion handling. Extract that geometry and sequence from `InfoCardPhysicalStack` into a small shared helper so the two cannot drift. The close animation reverses it.
 - There is no × button. The existing `dismissSurface` closes on an outside tap, and Escape keeps working.
 - The action calls the existing `edit()`.
-- **After the first save (D2):** the new card opens as the focused card. The current post-save refresh already selects the saved card; the change is that the stack replaces the panel using its normal opening animation.
+- **After the first save:** the new card opens as the focused card. The post-save refresh already selects the saved card; the change is that the stack replaces the panel with its normal opening animation.
 - Focus containment, the pouch toggle and editor return focus are reused unchanged.
 
 **Likely files:**
@@ -261,7 +321,7 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
 - Replace and remove.
 - A real video through processing on Preview (the harness mocks Stream).
 
-#### Checkpoint 8 — Portrait video black bars (Info Card attachment viewer)
+#### Checkpoint 8 — Portrait video borders (Info Card attachment viewer)
 
 **Approach (straightforward; no repeat investigation):**
 - In `InfoCardMediaViewer` only, size the video area to the video's own aspect ratio and centre it, instead of stretching the player over the whole viewer.
@@ -269,7 +329,7 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
   - Otherwise it comes from the `<video>` element's `videoWidth`/`videoHeight` on `loadedmetadata`.
   - The box is limited by the viewer's width and height, so it never crops.
 - The change is an Info-viewer-scoped wrapper and CSS module rule. `CloudflareHlsVideoPlayer`, `CardMediaViewer.module.css` and `globals.css` are not changed.
-- **Fallback (D3):** if this proves not straightforward (for example, the shared player resists being sized), stop and defer to the separate media-presentation task described below. Do not alter shared video infrastructure.
+- **Fallback (D3):** if this proves not straightforward, stop and defer to the separate media-presentation task below. Do not alter shared video infrastructure.
 
 **Likely files:** `InfoCardMediaViewer.tsx`, `InfoCardConsultation.module.css` (viewer rules).
 
@@ -287,7 +347,7 @@ Every checkpoint follows the execution strategy in [section 8](#8-execution-stra
 - black bars above and below Info Card portrait videos in the attachment viewer;
 - unwanted borders to the left and right of images elsewhere in the application.
 
-#### Checkpoint 9 — Content formatting
+#### Checkpoint 9 — Info Card formatting
 
 All changes stay in the Info Card layer (D4). The shared maths renderer is not modified.
 
@@ -307,7 +367,7 @@ All changes stay in the Info Card layer (D4). The shared maths renderer is not m
   - a `vCentre` segment is a flex item that takes the free space in the body area (between header and footer, already excluding the media button and fixed elements) and centres within it.
 - `infoMathsMeasurement` combines per-segment results: safe only if every segment is safe and the stacked content fits the same body box.
 - Untagged content renders as now: left-aligned, with existing spacing.
-- **Legacy plain-text test cards:** normal rendering is preserved and no new syntax is added (D4).
+- **Legacy plain-text test cards:** normal rendering is preserved and no new syntax is added.
 
 **Server:** publish syntax validation runs on the tag-stripped segments, so tags never reach KaTeX as text. The Chromium rendering check inherits the change through `InfoCardFace`.
 
@@ -339,129 +399,230 @@ All changes stay in the Info Card layer (D4). The shared maths renderer is not m
 
 #### Checkpoint 10 — Automatic publication
 
-**Facts:**
-- Only Stream video can be "processing".
-- The server already refuses to publish unready media, so a premature publication is impossible.
-- There is no background mechanism today.
+One persisted pending-request mechanism serves Creator **Publish** and Personal **Save**, in every context, for scenarios A–E of the specification (Q7). There is no background infrastructure: no cron, webhooks, queues or workers.
 
-**Approach — one mechanism for Creator Publish and Personal Save (D5, D6):**
+**Mechanism:**
 
-1. **Record the intent.** When Publish or Save is pressed while the draft's video is processing, the client calls the existing `publish`/`save` route with `whenMediaReady: true`.
-   - The server checks everything except readiness.
-   - It stores `pendingPublication: { revision, requestedAt, context? }` on the `infoCards` root. Personal Saves keep their first-save context.
-   - It returns `202 { status: "waiting" }`.
-   - The field is optional. Missing means none; no index and no migration.
-2. **Complete it.** One shared `completePendingPublication(actor, id)` helper in `repository.ts`:
+1. **Request.** Publish or Save always calls the existing `publish`/`save` route.
+   - The server runs every check except media readiness, then calls `assertReady`.
+   - **Ready (scenario A):** it publishes as today.
+   - **Still processing:** it stores `pendingPublication: { revision, requestedAt, context? }` on the `infoCards` root and returns `202 { status: "pending" }`. `context` holds a standalone Personal first-save context.
+
+   The field is optional; missing means none. No index and no migration.
+2. **Completion.** One shared `completePendingPublication(actor, id)` helper in `repository.ts`:
    - checks readiness;
-   - if ready, publishes through the existing `publishVersion` (idempotent through its `sourceRevision` receipt);
-   - if failed, clears the intent and records `lastPublicationFailure`;
+   - if ready, publishes through the existing `publishVersion` and clears the intent;
+   - if failed, clears the intent and records `lastPublicationFailure: { revision, at }` for an accurate failure state (scenario D);
    - if still processing, does nothing.
 
-   For a Personal first save, it reads the current `personalInfoRevision` itself, because the revision belongs to the same user.
-3. **Editor open.** The existing `useInfoVideoStatus` poll calls the status route, which runs the helper. The client then shows "Published" or "Saved" (a small status or toast), or the named failure with Retry and Choose another file.
-4. **Editor closed.**
-   - Leaving no longer blocks. The editor says "Will publish when the video is ready."
-   - The helper also runs, bounded, on the owner's next relevant request: the My Drafts list, the editor load, the consultation snapshot and the Creator Info list. My Drafts shows "Publishing when video is ready", "Published" or "Video failed: retry".
-5. **Edits cancel the intent.** The intent is bound to `revision`. Any later draft save clears it, so edited content is never published without a fresh press.
-6. **After the browser closes (Q7):**
-   - **Baseline:** completion happens on the owner's next visit, with no new infrastructure.
-   - **Optional low-cost addition:** a Vercel Cron route that calls the same helper for intents older than a minute. It needs one `crons` entry in `vercel.json` and a `CRON_SECRET` environment variable; cron frequency depends on the Vercel plan.
-   - Stream webhooks are not recommended: they need registration, signature verification and a public route.
+   The `sourceRevision` receipt plus a conditional clear (`pendingPublication.revision` must match) means repeated or concurrent checks create **at most one** version. For a standalone Personal first save, it reads the user's current `personalInfoRevision` itself.
+3. **Stays open (B).** The existing `useInfoVideoStatus` poll calls the media-status route, which runs the helper. The editor shows the pending state in the media area (checkpoint 7), then a confirmation or the named failure with Retry and Choose another file.
+4. **Leaves and returns (C).** Leaving the editor is no longer blocked by pending media. The helper runs, bounded to the user's own pending cards, when they open the relevant interfaces:
+   - the Info Card editor;
+   - My Drafts;
+   - the Creator Info list;
+   - the Info Card consultation (pouch) for that Card.
+
+   Each shows "Publishing when the video is ready", then a confirmation or failure.
+5. **Edit cancels (E).** Any draft save of a newer revision clears `pendingPublication`. The user presses again after editing.
+
+**Obvious limitations (stated, not engineered around):**
+- If the user never returns to one of those interfaces, the card stays unpublished, with the request kept.
+- Other users see the previous published version, or nothing, until the owner returns.
+- These are accepted under Q7.
 
 **Likely files:**
 - `repository.ts`, `model.ts`
 - the `publish`, `save` and `media/status` routes
 - `infoCardEditorController.ts`, `InfoCardEditor.tsx`, `infoCardMediaLayout.ts`
-- the My Drafts entry loader
-- for the optional cron: one route and `vercel.json`
+- the My Drafts entry loader, the consultation snapshot route
 
 **Acceptance:**
-- One press publishes once the media is ready.
-- A ready video publishes immediately.
-- A processing failure never publishes, keeps the draft or previous version, and shows a named error and a retry path.
-- An edit after pressing cancels the intent.
-- Closing and returning completes the publication.
+- Scenarios A–E behave as specified, identically for Publish and Save.
 - Duplicate or concurrent completions produce exactly one version.
-- Personal and Creator behave the same.
+- Failure never publishes and keeps the draft or previous version.
 
 **Tests:**
 - Integration tests with the injected `InfoMediaSecurity`, covering:
-  - intent recorded;
+  - ready → immediate publication;
+  - processing → intent recorded;
   - ready → one completion;
   - concurrent completions → one version;
-  - failure → cleared and nothing published;
-  - an edit invalidates the intent;
-  - Personal first save with a stale `personalInfoRevision`.
-- Browser test with mocked Stream status: press while processing, see the pending state, then the confirmation.
+  - failure → cleared, failure recorded, nothing published;
+  - an edit cancels the intent;
+  - standalone Personal first save with a changed `personalInfoRevision`.
+- Browser test with mocked Stream status: press while processing, see pending, then the confirmation. Also leave and reopen the editor, and see the completion.
 - Run the `info-cards-release` and `personal-info-cards` suites.
 
 **iPhone and Preview checks:**
 - A real video: press, wait.
-- Press, close Safari, reopen.
+- Press, close Safari, reopen the Creator or the pouch.
 - A failed or rejected video.
 
 ### Phase 4 — Info Cards within Group Experiences
 
-The specification separates **4A — Personal Info Cards in Groups** from **4B — Group Info Cards**. Below, confirmed requirements are listed apart from recommendations. Nothing here starts until Q1–Q6 are answered.
+Phase 4 first corrects Group media to the contribution-identity rules (checkpoint 4.0). It then reproduces the corrected media-item behaviour for Info Cards. It is **not** based on reflections and has **no** audience system (Q1, Q6).
 
 **Confirmed requirements:**
-- Personal Info Cards are private, attached to CardData, the same set wherever the Card template appears, never shared automatically, and follow personal media and reflection rules (D7, D8).
-- Group Info Cards are created by admins on behalf of the Group, belong to the Group context and never to the admin's CardData, follow the Group reflection and media patterns, are teal with white text, and are distinguishable from Personal Info Cards (D9).
-- Colours are the same in every perspective, and strips reflect actual card types (D10).
+- Standalone Personal Info Cards stay on CardData (D8).
+- Group-created Personal Info Cards are Follower contributions; Group Admin Info Cards are Admin contributions. Neither is stored in CardData (Q1, P3).
+- A dual-role user's Admin and Follower contributions are separate identities in storage, history, visibility, editing, deletion and presentation (P1).
+- Follower contributions keep cross-context owner history. Admin contributions appear only in their originating Group perspective (P1, Q3).
+- Only the original author edits or deletes, as the identity that created the content. Admins hide (P2).
+- Colours are the same in every context and perspective (D10).
 
-#### Checkpoint 4.1 — Verification (no behaviour change)
+#### Checkpoint 4.0 — Group media contribution identity correction
 
-- Group browser coverage that Creator Info Cards appear correctly in the Group, Me and follower perspectives.
-- Privacy assertions that one user's Personal Info Cards never reach another user, in any perspective or API.
+A small, independent correction of existing Group media, with its own tests and commit, before any Info Card work. Section 2.6 has the evidence.
 
-#### Checkpoint 4.2 — Personal Info Cards in Groups (4A)
+**Changes:**
+1. **Record the identity.**
+   - Add `creationContext: "self" | "group"` to `allocationCommand` (`media/contracts.ts`) and `GroupMediaRecord` (`media/model.ts`), and store it in `allocate` (`media/repository.ts`). It is part of the existing `operationHash`, so a retry cannot change it.
+   - In `creationAuthority`, accept `"group"` only from a current admin and `"self"` only from an active follower. This is server enforcement of the rule the client already applies.
+   - The client sends it from the upload context: Me sends `"self"`, the Group perspective sends `"group"` (`GroupUploadContext` and `GroupMediaUpload` in `mediaCollection/operations.ts`, set by `CardMediaCentre` / `GroupExperienceDeck`).
+   - A missing value reads as `"self"` (section 2.6 evidence).
+2. **One shared identity module.** Add `src/lib/groupExperiences/media/contributionIdentity.ts` with:
+   - the follower-history filter (`creationContext` is not `"group"`, missing counting as `"self"`);
+   - `viewerIdentity(perspective)`: Group perspective gives `"group"`; Me and standalone give `"self"`;
+   - `sameIdentity(item, viewerUserId, identity)`.
 
-**Recommended (pending Q1 and Q2):**
-- **Server:** extend `PersonalInfoContext` with `{ mode: "group", experienceId, version }`.
-  - Validate it through the existing Group authorisation: the user is a current member, the access epoch matches, and the Card is in the Group manifest at that version.
-  - Reuse the same `users.cardsData` attachment. The existing `working` path is not loosened, and unknown modes stay denied.
-  - Followers already have CardData from Group-origin materialisation. Personal Info Cards are not offered in perspectives where the viewer has no own Card (Q2), so no admin CardData is created.
-- **Client:** enable the pouch for the viewer's own Card within a Group (Me), passing the Group context.
-  - Personal Info Cards show in Personal green with their text label. If Q1 keeps them private, they are marked private, as personal media is in own Group views.
-  - They are not shown in the Group perspective or in follower inspection.
+   Every read and permission below uses it, so the rule lives in one place.
+3. **Owner history excludes Admin contributions:**
+   - `baseGroup` in `readOwnerMediaPage`, which also corrects its totals and paging counts;
+   - the group match in `ownerPreviewPages`;
+   - the owner branch of `readMediaPage`.
+4. **Other followers views exclude Admin contributions:** `subjectPreviewPages`, and `readMediaPage` when `subjectUserId` is set.
+5. **Deletion respects the acting identity (R1).**
 
-**Acceptance:**
-- An owner sees the same Personal Info Cards in their personal Deck and in Me.
-- No admin or follower sees another user's Personal Info Cards anywhere.
-- Group removal does not delete them.
+   | Contribution | Delete allowed from | Server check |
+   | --- | --- | --- |
+   | Admin contribution (`"group"`) | The Group perspective of its originating Group | Group-context delete with acting perspective `"group"`; author matches; `row.experienceId` matches |
+   | Follower contribution (`"self"`) | Me or the standalone Card | Group-context delete with acting perspective `"self"`, or the owner route; author matches |
+   | Another author's contribution | Nowhere (admins may only hide) | Rejected |
 
-#### Checkpoints 4.3 and 4.4 — Group Info Cards (4B)
+   - `mediaRemoveOperation` uses `viewerIdentity` and `sameIdentity` from `contributionIdentity.ts`. Delete is offered only when the viewer is the author **and** the acting identity matches.
+   - Follower-only users therefore lose Delete in the Group perspective and keep it in Me and on the standalone Card. A dual-role user is never offered a cross-identity Delete.
+   - The Group-context delete command (`/api/group-experiences/:id/media/:contributionId` DELETE) carries the acting perspective. `delete` in `media/repository.ts` requires `row.creationContext` to equal it.
+   - **Group perspective is the Admin identity only for admins.** A follower-only user viewing the Group perspective has no Admin identity, so the server rejects a `"group"` delete from them. Their Follower contributions are deleted from Me.
+   - The owner route (`/api/group-media/:id` DELETE) accepts attached Follower contributions only. It also accepts **pending** contributions of either identity, so upload cancel (`GroupMediaUpload` in `operations.ts`) keeps working; nothing pending is listed anywhere.
+   - Role changes never reclassify: the check compares the stored `creationContext`, never the current role.
+6. **"Own" counts use the identity:** `canManage` in `readMediaPage` and the `own` sum in `sharedPreviewPages`.
+7. **Unchanged:**
+   - the Group feed without a subject;
+   - `hide`;
+   - id-based owner access (`authorized` with owner authority) for upload status, cancel and cleanup;
+   - private-icon semantics;
+   - indexes.
 
-**Recommended data model**, following the collective Group reflection pattern and pending Q3–Q6:
+**Required explanatory comment:** at the top of `contributionIdentity.ts`, with a one-line pointer from `baseGroup` in `readOwnerMediaPage`, the place most likely to be edited in future. The comment explains why the filtering exists:
+- Follower-created contributions join the author's cross-context history.
+- Admin-created contributions belong only to their originating Group.
+- A dual-role user's Admin and Follower contributions are separate identities.
+- Classification comes from the creation perspective, never the current role.
+- Info Cards must follow the same distinction.
 
-| Element | Recommendation |
+**Tests**, using existing infrastructure (`tests/group-media.integration.ts`, `tests/media-collection.integration.ts`, `tests/group-media-routes.test.ts`, `tests/media-collection-operations.test.ts`, existing Group media browser specs):
+- **Coach scenario:** a coach uploads in Group A's Group perspective. They also administer Group B with the same Card template and hold that Card in a standalone Deck. The item:
+  - appears in Group A's Group feed and previews;
+  - is absent from Group B (Group and Me);
+  - is absent from the coach's standalone history and previews.
+- **Follower scenario:** a follower uploads in Me. The item appears in their standalone history, in Me in other Groups marked private, and in its own Group feed. Unchanged.
+- **Dual-role user in one Group:**
+  - an Admin and a Follower upload each;
+  - Me and standalone show only the Follower one;
+  - the Group feed shows both as separate items;
+  - viewing them as Other followers shows only the Follower one;
+  - Delete is offered only in the creating perspective;
+  - the server rejects a cross-identity delete through both the Group-context route and the owner route.
+- **Follower-only deletion:** no Delete offered in the Group perspective; Delete works from Me and the standalone Card; a `"group"` delete from a non-admin is rejected.
+- **Upload cancel:** cancelling a pending Admin or Follower upload through the owner route still works.
+- **Management controls:** `canManage` and the `own` counts reflect only the acting identity's contributions.
+- **Role changes after creation:** promotion and demotion never reclassify. An in-flight upload across a role change fails its commit.
+- **Server enforcement:** `"group"` from a non-admin and `"self"` from a non-follower are rejected.
+- **Hiding:** an admin hides another author's contribution and the same user's Follower contribution; nothing is deleted.
+- **Private icon:** unchanged for Follower contributions (other origin or hidden).
+- **Existing records:** a record without `creationContext` behaves as `"self"`.
+- **Counts and paging:** owner-history totals, `olderCount` and older/newer cursors are consistent with the filtered set.
+
+**Acceptance:** all the tests above pass; existing Group media and media-collection suites pass unchanged except where they encoded the old leak.
+
+**iPhone checks:** coach uploads in Group A, then checks Group B and the standalone Card; a follower's Me and standalone views are unchanged.
+
+#### Proposed Info Card persistence: one mapping, not a parallel system
+
+| Corrected media item | Info Card equivalent |
 | --- | --- |
-| Identity | Reuse `infoCards` and `infoCardVersions` with `kind: "group"`, `experienceId`, `originCardTemplateId` and `createdByUserId`. `ownerUserId` is not used for authority. |
-| Attachment | An `infoCardIds` list (plus `infoCardAttachedAt` and an `infoRevision` counter) on existing `groupCardData` `(experienceId, cardTemplateId)`. This mirrors `personalInfoCardIds` on CardData and the collective reflection's home. |
-| Authority | Current Group admins create, edit and delete (Q4), checked with the existing Group authorisation and fences, never with `ownerUserId === actor`. Current members read, per Q3. |
-| Drafts | One shared draft on the root with revision compare-and-swap, as the collective reflection does. No per-admin private drafts. |
-| Audience | Whole Group only. Per-member audiences and audience epochs from the earlier Group plan §11.3 are not built (Q6). |
-| Visibility | Group perspective, plus members' own Cards within that Group if Q3 says so. Never in personal Decks or other Groups. |
-| Media | The existing Info Card media pipeline, with delivery authorised for current Group members on the exact publication. |
-| Series | The existing series selector with the acting admin's eligible series. |
-| Credit | Group name or authoring admin (Q5), plus the Group type label. |
-| Removal and lifecycle | Leaving or losing the admin role ends editing. The card stays with the Group. |
+| `groupMediaContributions` record per item | `infoCards` root with `kind: "group"` |
+| `authorUserId` | `ownerUserId` (the author) |
+| `experienceId`, `cardTemplateId` origin | `experienceId`, `originCardTemplateId` (immutable) |
+| `creationContext: "self" \| "group"` | the same field and values, set by the creation perspective |
+| `groupVisible` (default `true`) | `groupVisible` (default `true`) |
+| `state` attached/deleted | the existing `latestVersion > 0` / `deletedAt` |
+| `group_media_owner_history` index | an equivalent `infoCards` index on owner, origin Card and date |
+| `group_media_shared_history` index | an equivalent `infoCards` index on experience, origin Card, `groupVisible` and date |
 
-- **4.3 (backend):** a group branch in the Info domain (`model`, `domain`, `repository`, `queries`), Group routes reusing `infoRequest`, and integration tests:
-  - admin-only writes and member reads;
+- **Identity rules:** the same `contributionIdentity.ts` filters and checks are used for Info Card reads, edit and delete. Media and Info Cards cannot diverge.
+- **Colour:** `"group"` gives a Group Admin Info Card (teal); `"self"` gives a Personal Info Card (green).
+- **New indexes:** the two Info Card indexes are new and need explicit approval before installation in Atlas (section 8.3).
+- **Delivery:** as `authorized()` in the media repository. The owner by id; a current member when the card is shared with that Group.
+- **Ownership checks:** standalone Personal Info Cards keep their existing CardData path unchanged. Group checks use explicit branches and never `author === actor || isAdmin`.
+
+#### Checkpoint 4.1 — Verify media patterns
+
+- Re-read the corrected media code against the specification and confirm the mapping above.
+- Add Group browser coverage that Creator Info Cards appear correctly in Group, Me and Other followers perspectives.
+- Add privacy assertions that standalone Personal Info Cards never reach another user.
+- **Gate:** if a contradiction with an explicit requirement is found, stop and report it with code references (specification mandatory consistency rule). Otherwise continue.
+
+#### Checkpoint 4.2 — Personal Info Cards in Groups
+
+- **Server:**
+  - Create and save a `kind: "group"`, `creationContext: "self"` Info Card from Me, authorised like media upload from Me: an active follower, the current access epoch, and the Card in the Group manifest at that version.
+  - Edit and delete only by the author acting as the Follower identity, from Me or the standalone Card (P2, R1). Hide by current admins.
+- **Reads:**
+  - **Me:** the author's Follower contributions for this Card from every Group, and their standalone Personal Info Cards. Those not originating in this Group, or hidden here, carry the existing private glyph. Their Admin contributions are never shown.
+  - **Standalone context:** their standalone Personal Info Cards plus all their Follower contributions. Their Admin contributions are never shown.
+- **Client:**
+  - Enable the pouch on the follower's own Card in Me, using the existing editor with a Group transport.
+  - Apply the private glyph, Personal green and the type label.
+- **Acceptance:**
+  - Creation from Me never writes CardData.
+  - Me and standalone show the correct sets and glyphs.
+  - Edit, delete and hide follow the identity rules.
+  - No other user sees a standalone Personal Info Card.
+
+#### Checkpoint 4.3 — Group Info Card backend
+
+- **Group perspective reads:** all `kind: "group"` Info Cards originating in this Group with `groupVisible: true`, Admin and Follower contributions alike, including former members, ordered as the media feed is.
+- **Other followers reads:** that follower's Follower contributions for this Group, allowed by `canInspectPeers`.
+- **Create:** a Group Admin Info Card (`creationContext: "group"`) from the Group perspective, admin-only as for media.
+- **Edit and delete:** only by the author acting as the Admin identity, from the Group perspective of the originating Group (P2, R1). Hide as for media.
+- **Integration tests:**
+  - admin-only creation in the Group perspective;
+  - the coach and dual-role scenarios from 4.0 applied to Info Cards;
+  - member reads;
+  - inspection permission and `allowFollowerInspection`;
+  - hide and delete semantics;
+  - former members;
   - foreign-Group denial;
-  - removed admin;
-  - concurrent admin edits conflict rather than overwrite;
-  - no CardData is created.
+  - no CardData written.
 
-  **Possible index:** deleting a Group Info Card checks references. That check needs either a `groupCardData` multikey index on `infoCardIds` or a bounded lookup by `(experienceId, cardTemplateId)`, which already has a unique index. Prefer the latter, so no new index is needed. If an index turns out to be required, stop for approval.
-- **4.4 (client):** the Group perspective pouch and consultation include Group Info Cards in teal. Admins get New, Edit and Remove through the existing editor with a Group transport. Followers are read-only. Browser tests cover each perspective and the colours of mixed stacks.
+#### Checkpoint 4.4 — Group Info Card client
+
+- The Group perspective pouch and consultation show Group Admin Info Cards in teal and Follower contributions in green, with type labels.
+- Attribution as media: the author username, plus the Group origin where media shows it.
+- **Admins** get New and Hide in the Group perspective, with Edit and Delete only on their own Admin contributions.
+- **Followers** have no admin actions there.
+- Group Admin Info Cards never appear in Me, on a standalone Card or in another Group.
+- Browser tests per perspective and for the colours of mixed stacks.
 
 **iPhone checks (4.2–4.4):**
-- Follower Me: own Personal and Group cards are distinguishable.
-- Admin Group perspective: create a Group Info Card.
-- Follower sees it, read-only.
-- No other user's Personal Info Cards are visible anywhere.
+- Follower Me: their Follower contributions plus standalone cards with the private icon.
+- Group perspective: Group Admin cards in teal and follower cards in green.
+- Admin creates, hides and deletes their own.
+- A dual-role user sees their two identities kept apart.
+- Inspecting another follower shows only their shared Follower contributions.
+- No standalone card leaks.
 
 ---
 
@@ -470,10 +631,10 @@ The specification separates **4A — Personal Info Cards in Groups** from **4B �
 | Layer | Command | Used by |
 | --- | --- | --- |
 | Unit | `npm run test:unit`; new `*Layout` unit tests | Every checkpoint |
-| Integration | `node --import tsx --test --test-concurrency=1 tests/info-cards.integration.ts tests/info-card-attachments.integration.ts tests/personal-info-cards.integration.ts tests/info-cards-release.integration.ts`, plus the Group integration suites for Phase 4 | 9 (server validation), 10, Phase 4 |
+| Integration | `node --import tsx --test --test-concurrency=1 tests/info-cards.integration.ts tests/info-card-attachments.integration.ts tests/personal-info-cards.integration.ts tests/info-cards-release.integration.ts`, plus `tests/group-media.integration.ts`, `tests/media-collection.integration.ts` and the Group suites for Phase 4 | 9 (server validation), 10, 4.0, Phase 4 |
 | Browser (disposable) | `npm run test:phase2 -- --info-cards <files>` with an explicit file list; `--group-experiences` for Group specs | Every UI checkpoint |
 | Static | `npm run typecheck`, `npx eslint <changed files>` | Every checkpoint |
-| Regression gate per checkpoint | All Info Card browser specs (84 tests at Phase 1) plus `creator-upload-recovery.browser.ts`; video specs for checkpoint 8; Group specs for Phase 4 | Every checkpoint |
+| Regression gate per checkpoint | All Info Card browser specs (84 tests at Phase 1) plus `creator-upload-recovery.browser.ts`; video specs for checkpoint 8; Group media and perspective specs for Phase 4 | Every checkpoint |
 
 - **Device behaviour:** WebKit and Chromium touch emulation catches some iPhone issues but does not replace physical-device checks. Each approval report lists exactly what needs an iPhone.
 - **Real media providers:** `info-cards-live-media.browser.ts` is restricted to authorised live runs. Real Stream processing and R2 verification are checked manually on Preview.
@@ -482,12 +643,14 @@ The specification separates **4A — Personal Info Cards in Groups** from **4B �
 
 ## 5. Dependencies and sequencing
 
-1. **5 before everything else in Phase 2.** It introduces the type and colour layout that 6, 4.2 and 4.4 rely on, and it fixes the card dimensions that 6's panel and 9's measurements depend on.
-2. **5 before 6.** Both change the consultation geometry. 6 also extracts the opening animation that 5 must leave unchanged.
-3. **7 before 10.** The pending and failure states of automatic publication are shown in the new media area.
-4. **9 after 5.** Both edit `InfoCardFace` and capacity geometry. 9's measurement uses the new 93px text area.
+1. **5 first.** It introduces the type and colour layout that 6 and Phase 4 rely on, and fixes the dimensions that 6's panel and 9's measurement depend on.
+2. **5 before 6.** Both change the consultation geometry. 6 extracts the opening animation that 5 must leave unchanged.
+3. **7 before 10.** The pending and failure states are shown in the new media area.
+4. **9 after 5.** Both edit `InfoCardFace` and capacity geometry.
 5. **8 is independent.** It is small and can run in any slot.
-6. **Phase 4 last.** It depends on the Q1–Q6 answers and on stable editor, pouch and stack. 4.1 can run earlier as pure verification. 4.3 precedes 4.4.
+6. **10 before Phase 4.** Group Info Cards use the same Save and pending mechanism.
+7. **4.0 before all Phase 4 Info Card work.** It corrects the media rules that 4.1–4.4 reproduce. It depends on nothing in Phases 2–3, so it could be done earlier, but placing it directly before 4.1 keeps the Info Card phases together and lets 4.1 verify the corrected code.
+8. **Phase 4 in order.** 4.0, then 4.1, 4.2, 4.3 and 4.4.
 
 ---
 
@@ -497,41 +660,49 @@ The specification separates **4A — Personal Info Cards in Groups** from **4B �
 
 | # | Decision | Effect on this plan |
 | --- | --- | --- |
-| D0 | Commit the specification and plan as one docs commit; do not push. | Done with this update. |
-| D1 | Header 33px, text 93px, footer 45px, about 173px total, width 240px; four strips of about 5px in type colours; Creator gradient, Personal `#305047`, Group `#147D6C` with white text; no capacity compatibility for legacy test content; accessible contrast and not colour-only. | Checkpoint 5 |
+| D0 | Commit the specification and plan as one docs commit; do not push. | First version committed as `1424eb4`; this revision awaits review before commit. |
+| D1 | Header 33px, text 93px, footer 45px, about 173px total, width 240px; four strips of about 5px in type colours; no capacity compatibility for legacy test content; accessible contrast and a type indication. | Checkpoint 5 |
 | D2 | Compact panel with "Add Personal Info Card"; animates out of the pouch with the existing opening animation; outside tap dismisses; no Close; the first saved card opens focused. | Checkpoint 6 |
-| D3 | The bars are in the Info Card attachment viewer, above and below portrait videos. Fix if straightforward; otherwise defer to a separate media-presentation task. | Checkpoint 8 (cause identified; simple scoped fix) |
-| D4 | Formatting entirely in the Info Card layer; renderer unchanged; plain-text test cards need only normal function. | Checkpoint 9 |
-| D5 | One press; complete after media is ready; no substantial new infrastructure; otherwise complete on next open; clear pending, success and failure states; never publish without the media; retry. | Checkpoint 10 (Q7 for the optional cron) |
+| D3 | Bars above and below portrait videos in the Info Card attachment viewer. Fix if straightforward; otherwise defer. | Checkpoint 8 |
+| D4 | Formatting entirely in the Info Card layer; renderer unchanged. | Checkpoint 9 |
+| D5 | One press; completion after the media is ready; no substantial new infrastructure. | Checkpoint 10, refined by Q7 |
 | D6 | The same mechanism for Personal Save. | Checkpoint 10 |
-| D7 | Personal Info Cards follow personal media and reflection rules in Groups; report inconsistencies. | Section 2.5; Q1, Q2 |
-| D8 | They follow CardData across Decks and Groups; never duplicated. | 4.2; already true in storage |
-| D9 | Admins create Group Info Cards on behalf of the Group; Group context, not admin CardData; follow Group reflection and media patterns. | 4.3, 4.4; Q3–Q6 |
+| D7 | Info Card behaviour in Groups follows established patterns; inconsistencies are reported. The canonical pattern is narrowed to media items by Q1. | Sections 2.5 and 2.6 |
+| D8 | Standalone Personal Info Cards follow CardData across Decks and Groups; never duplicated. | Unchanged standalone path |
+| D9 | Admins create Group Admin Info Cards as Group content, never in their CardData. Its pattern is narrowed to media items by Q1. | 4.3, 4.4 |
 | D10 | One palette everywhere; strips reflect actual types in every perspective. | Checkpoints 5 and 4.4 |
 
-### 6.2 Open questions
+### 6.2 Resolved questions and points
 
-| # | Question | Recommendation | Blocks |
-| --- | --- | --- | --- |
-| Q1 | The established pattern makes content created inside a Group Group-origin and shared by default. For Personal Info Cards this conflicts with privacy and D8. Should Personal Info Cards created in a Group stay private on CardData? | Yes: private, on CardData, marked private in own Group views. This is a deliberate, documented exception to the Group-origin rule, justified by the specification. | 4.2 |
-| Q2 | Should Personal Info Cards appear only in the owner's own views (personal Deck, Me), never in the Group perspective or follower inspection? | Yes, matching personal media and reflections. | 4.2 |
-| Q3 | Do Group Info Cards appear only in the Group perspective, or also on members' own Cards within that Group? | Both, so followers see them beside their own Personal Info Cards, as D9 implies. Not in personal Decks or other Groups. | 4.3, 4.4 |
-| Q4 | Can every current admin edit or delete any Group Info Card? | Yes, like the collective Group reflection. | 4.3 |
-| Q5 | What does a Group Info Card's credit show: Group name or authoring admin? | Group name. | 4.4 |
-| Q6 | Should the simpler whole-Group model replace the earlier Group plan's §11.3 and Phases 8–9 design (audiences, epochs, per-editor drafts) for the MVP? | Yes; record it in that plan when implemented. | 4.3 |
-| Q7 | Add a small Vercel Cron to complete publication after the browser closes (one `vercel.json` entry and a `CRON_SECRET`)? | Start with completion on next visit. Add the cron only if you approve it, and confirm that the Vercel plan allows a useful frequency. | Checkpoint 10 (optional part) |
+| # | Resolution | Replaces |
+| --- | --- | --- |
+| Q1 | Media items are the sole canonical reference. Standalone Personal Info Cards stay on CardData; Group-created and Group Admin Info Cards belong to the Group Experience context like Group media items. Reflections are not a reference. | The earlier recommendation that Group-created Personal Info Cards stay private on CardData |
+| Q2 | Mirror media visibility: own Group-created and standalone cards in Me, standalone ones with the private icon; standalone cards never exposed to others. | The earlier "owner's own views only" recommendation |
+| Q3 | Group Admin Info Cards only in the Group perspective; follower-created Group Info Cards also appear there. | The earlier "Group and Me" recommendation |
+| Q4 | Follow Group media permissions. | The earlier "all admins edit" recommendation |
+| Q5 | Match Group media attribution. | The earlier "Group name" recommendation |
+| Q6 | No audience-selection system; the audience-based design is withdrawn. | The earlier simpler-audience recommendation |
+| Q7 | One persisted pending mechanism, resumed on return; no background infrastructure. | The optional Vercel Cron |
+| P1 | Follower contributions keep cross-context owner history; Admin contributions belong only to their originating Group; a dual-role user's two identities stay separate. Media is corrected first (4.0). Hidden and departed Admin contributions are an accepted limitation with no workaround. | The earlier choice between mirroring media exactly or making an Info Card exception |
+| P2 | Only the original author edits an Info Card; admins hide; only the original author deletes; admin status grants neither. | The earlier editing options |
+| P3 | Immutable `creationContext` set by the creation perspective: Group perspective gives Admin contribution, Me gives Follower contribution; role changes never reclassify. Shared by media and Info Cards. | The earlier Info Card-only `createdAs` proposal |
+| R1 | Deletion needs author **and** matching acting identity: Admin contributions only from the Group perspective of their originating Group; Follower contributions only from Me or the standalone Card; never another author's. Server-enforced; media and Info Cards alike. | Current media behaviour, which lets an author delete from the Group perspective whatever the identity |
 
 ---
 
 ## 7. Risks and uncertainties
 
 - **Shared production database.** Local or phone testing outside the disposable runner writes production data.
-- **Smaller text area (5).** Existing test cards may no longer fit and will show overflow states. This is accepted under D1; the editor already reports it.
+- **Smaller text area (5).** Existing test cards may no longer fit and will show overflow states. This is accepted under D1.
 - **Measurement complexity (9).** Per-segment rendering multiplies measurement callbacks, and the trusted Chromium check must combine them identically. This is the highest-effort Phase 2 checkpoint.
-- **Shared opening animation (6).** Extracting it from the stack must not change the stack's timing. Existing motion tests guard this.
-- **Lazy publication (10).** Without the optional cron, completion waits for the owner to return. My Drafts must make that state visible.
-- **Phase 4 authorisation surface.** Adding Group context and a Group-owned kind touches ownership checks. Use explicit Group branches, keep unknown kinds denied, and never use `author === actor || isAdmin` checks.
-- **Pattern inconsistency (Q1, Q3).** If the answers depart from the media and reflection rules, record the exception in the Group engineering plan so the patterns do not silently diverge.
+- **Shared opening animation (6).** Extracting it must not change the stack's timing. Existing motion tests guard this.
+- **Return-only completion (10).** Pending cards complete only when the owner returns to a relevant interface. My Drafts and the pouch must make that visible.
+- **New indexes (Phase 4).** The owner and shared Info Card indexes need approval and explicit installation in Atlas before 4.2 is deployed.
+- **Ownership checks (Phase 4).** A Group branch beside the existing owner checks must stay explicit. Unknown kinds stay denied.
+- **Identity drift (4.0 onwards).** Any new query or permission that compares `authorUserId` with the viewer without the identity check would re-mix a dual-role user's contributions. All such checks go through `contributionIdentity.ts`, and the comment there explains why.
+- **Owner-history paging (4.0).** The owner page merges two sources with separate counts. The filter must be on the shared `baseGroup`, not only on the page query, or totals and cursors drift.
+- **Upload retries across a deploy (4.0).** An upload retried by a client from before the change, without `creationContext`, is rejected by the stricter command. Client and server ship together, so this affects only an upload in flight during deployment.
+- **Known limitations (accepted).** Hidden Admin contributions are unreachable even by their author; departed or demoted admins without Group perspective access cannot reach or delete their Admin contributions (section 2.6, section 9).
 
 ---
 
@@ -539,27 +710,32 @@ The specification separates **4A — Personal Info Cards in Groups** from **4B �
 
 ### 8.1 Every checkpoint
 
-1. Investigate the relevant code, implement only the agreed scope, and add or update focused tests.
+1. Investigate the relevant existing code. Implement only the approved scope.
 2. Run the checkpoint's focused tests, its regression gate (section 4), `npm run typecheck` and lint on changed files.
 3. **Commit the checkpoint separately**, with a descriptive commit message without apostrophes, even when human review follows.
-4. Record in the report: commit hash, summary of changes, test results, remaining risks.
+4. Report: commit hash, summary of changes, test results, remaining risks.
 5. Never push, merge or deploy without explicit authorisation.
 
 ### 8.2 Approval gates and model recommendations
 
-| Checkpoint | Model | Effort | Human approval |
+| Checkpoint | Recommended model | Effort | Human approval |
 | --- | --- | --- | --- |
-| 5. Card height, stack and colours | Sonnet | Medium | Yes |
-| 6. Empty pouch animation | Sonnet | Medium | Yes |
-| 7. Media attachment UI | Sonnet | High | Yes |
-| 8. Portrait video black bars | Sonnet | Low | No, if straightforward |
-| 9. Content formatting | Opus | High | Yes |
-| 10. Automatic publication | Opus | High | No, if within agreed scope |
-| Phase 4. Group integration | Opus | High | Yes |
+| 5 — Card dimensions, stack and colours | Sonnet | Medium | Yes |
+| 6 — Empty pouch | Sonnet | Medium | Yes |
+| 7 — Media attachment UI | Sonnet | High | Yes |
+| 8 — Portrait video borders | Sonnet | Low | No, if straightforward |
+| 9 — Info Card formatting | Opus | High | Yes |
+| 10 — Automatic publication | Opus | High | No, if within approved scope |
+| Phase 4.0 — Group media contribution identity correction | Opus | High | Yes |
+| Phase 4.1 — Verify media patterns | Opus | High | No, unless discrepancies found |
+| Phase 4.2 — Personal Info Cards in Groups | Opus | High | Yes |
+| Phase 4.3 — Group Info Card backend | Opus | High | No, if within approved scope |
+| Phase 4.4 — Group Info Card client | Opus | High | Yes |
 
 - **Approval checkpoints:** test, commit, report the changes with a concise manual testing checklist, then **stop and wait** for approval.
-- **Other checkpoints (8, 10):** test, commit, record the report, and **continue automatically** to the next checkpoint.
-- **Phase 4:** stop for approval after 4.2 and after 4.4. 4.1 and 4.3 continue automatically when their tests pass.
+- **Other checkpoints:** test, commit, record the report and **continue automatically**.
+- **4.0:** an approval gate after implementation and testing, before 4.1, because it changes permission-sensitive media behaviour that is already in use.
+- **4.1:** becomes an approval gate if it finds a contradiction between the media implementation and an explicit requirement.
 
 ### 8.3 Exceptions: stop and ask
 
@@ -567,9 +743,10 @@ Stop and ask for approval, at any checkpoint, if:
 
 - a consequential product decision arises that the specification does not cover;
 - a change would materially expand the agreed scope;
-- a database migration, a new index or a potentially destructive operation becomes necessary;
+- a database migration, a new index or a potentially destructive operation becomes necessary (this includes the Phase 4 Info Card indexes);
 - automated tests reveal a significant unresolved regression;
-- new infrastructure would be needed beyond what was approved (for example the optional cron without a Q7 answer).
+- new infrastructure would be needed beyond what was approved;
+- the media-item implementation contradicts an explicit requirement (specification mandatory consistency rule).
 
 Do not stop for routine implementation decisions, minor technical trade-offs or issues adequately covered by automated tests.
 
@@ -581,14 +758,32 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 
 ### 8.5 Implementation sequence
 
-1. **Checkpoint 5:** card height, stack and colours. **Approval gate.**
-2. **Checkpoint 6:** empty pouch animation. **Approval gate.**
+1. **Checkpoint 5:** card dimensions, stack and colours. **Approval gate.**
+2. **Checkpoint 6:** empty pouch. **Approval gate.**
 3. **Checkpoint 7:** media attachment UI. **Approval gate.**
-4. **Checkpoint 8:** portrait video bars in the attachment viewer. Continues automatically; defers if not straightforward.
-5. **Checkpoint 9:** content formatting. **Approval gate.**
-6. **Checkpoint 10:** automatic publication. Continues automatically if within scope. The optional cron is built only with a Q7 answer.
-7. **Phase 4:**
-   - 4.1 verification (automatic);
-   - 4.2 Personal Info Cards in Groups, after Q1 and Q2 (**approval gate**);
-   - 4.3 Group Info Card backend, after Q3, Q4 and Q6 (automatic);
-   - 4.4 Group Info Card client, after Q5 (**approval gate**).
+4. **Checkpoint 8:** portrait video borders. Continues automatically; defers if not straightforward.
+5. **Checkpoint 9:** Info Card formatting. **Approval gate.**
+6. **Checkpoint 10:** automatic publication. Continues automatically if within scope.
+7. **Phase 4.0:** correct Group media contribution identities. **Approval gate.**
+8. **Phase 4.1:** verify media patterns. Continues automatically unless discrepancies are found.
+9. **Phase 4.2:** Personal Info Cards in Groups. **Approval gate.** Index installation needs its own approval.
+10. **Phase 4.3:** Group Info Card backend. Continues automatically if within scope.
+11. **Phase 4.4:** Group Info Card client. **Approval gate.**
+
+---
+
+## 9. Future work
+
+### Central media management (investigation only; not in scope)
+
+**Problem:**
+- Media items can originate in standalone Cards, in followers' Me perspectives and in Group Admin perspectives, and where they can be found and managed depends on that context.
+- After the 4.0 correction, hidden Admin contributions, departed members and role changes can leave authors unable to locate or manage their own uploads.
+
+**Possible future solution:** a central Media Centre, independent of individual Decks, Cards and Group Experiences. It would hold references to a user's uploads across contexts and give one consistent place to find and manage them, while preserving each item's original ownership and visibility rules.
+
+**Status:**
+- To investigate in future.
+- Do not build a Media Centre, management UI or additional access routes as part of this work.
+- The Group Experience engineering plan has no existing backlog entry for this; its closest notes are the deferred moderation and history interfaces in §11.2.
+
