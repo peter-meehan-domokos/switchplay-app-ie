@@ -192,7 +192,7 @@ test("a long Group name in the menu origin wraps inside the card at phone width,
   expect(await origin.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
 });
 
-test("an unsaved Group draft reopens from My Drafts directly in the editor, names its origin, and returns there once saved", async ({ page }) => {
+test("an unsaved Group draft reopens from My Drafts directly in the editor, names its origin, and stays open on Saved.", async ({ page }) => {
   const f = await fixture(); await login(page);
   const id = randomUUID();
   await f.info.createGroup(f.owner, id, f.experienceId, f.cardId, { accessEpoch: 0, version: 1, creationContext: "self" });
@@ -214,9 +214,10 @@ test("an unsaved Group draft reopens from My Drafts directly in the editor, name
   await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
   expect((await f.info.owner(f.owner, id)).draft?.body).toBe("Finished from My Drafts.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/creator\/new\?drafts=1/);
+  await expect(page.getByText("Saved.", { exact: true })).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/info-cards/${id}`));
   const saved = await f.info.owner(f.owner, id);
   expect(saved).toMatchObject({ kind: "group", experienceId: f.experienceId, creationContext: "self", latestVersion: 1, draft: null });
+  await page.goto("/creator/new?drafts=1");
   await expect(page.getByRole("dialog", { name: "My Drafts", exact: true }).getByRole("button", { name: /Unfinished squad note/ })).toHaveCount(0);
   // Once saved, the Creator route no longer opens it for editing.
   await page.goto(`/creator/info-cards/${id}`);
@@ -363,7 +364,7 @@ test("Other followers shows only the inspected follower's shared contributions; 
   expect(await menu(page)).toEqual(["Hide from Group"]);
 });
 
-test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and saving returns to My Drafts", async ({ page }) => {
+test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and saving keeps the editor open on Saved.", async ({ page }) => {
   const f = await fixture(); await login(page);
   const id = randomUUID(), member = (await f.groups.members().findOne({ experienceId: f.experienceId, userId: f.owner }))!;
   await f.info.createGroup(f.owner, id, f.experienceId, f.cardId, { accessEpoch: member.accessEpoch, version: 1, creationContext: "group" });
@@ -377,7 +378,7 @@ test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and 
   await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Group");
   await expect(page.locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page).toHaveURL(/\/creator\/new\?drafts=1/);
+  await expect(page.getByText("Saved.", { exact: true })).toBeVisible(); await expect(page).toHaveURL(new RegExp(`/creator/info-cards/${id}`));
   expect(await f.info.owner(f.owner, id)).toMatchObject({ creationContext: "group", latestVersion: 1, draft: null });
   await page.goto(`/creator/info-cards/${id}`);
   await expect(page.getByText("Info Card unavailable.")).toBeVisible();

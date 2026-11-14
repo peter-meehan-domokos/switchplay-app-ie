@@ -5,9 +5,9 @@ import styles from "./InfoCardFace.module.css";
 
 // `origin` names where the displayed note was created, shown read-only outside that context (C1). `onNew` is
 // absent where the viewer cannot create; `onHide` is the Group admin Hide, which never deletes (C2).
-export type InfoCardActions = { onNew?: () => void; onEdit?: () => void; onRemove?: () => void; onHide?: () => void; origin?: string; disabled?: boolean };
+export type InfoCardActions = { onNew?: () => void; onEdit?: () => void; onRemove?: () => void; onHide?: () => void; removeLabel?: "Remove" | "Delete"; origin?: string; disabled?: boolean };
 
-export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, origin, disabled }: InfoCardActions) {
+export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, removeLabel, origin, disabled }: InfoCardActions) {
   const [open, setOpen] = useState(false), id = useId();
   const region = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const isOpen = useRef(false), swallowClick = useRef(false);
@@ -26,7 +26,7 @@ export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, origin, 
     return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("click", click, true); };
   }, []);
   const items = [...(onNew ? [{ label: "+ New", action: onNew }] : []), ...(onEdit ? [{ label: "Edit", action: onEdit }] : []),
-    ...(onRemove ? [{ label: "Delete", action: onRemove }] : []), ...(onHide ? [{ label: "Hide from Group", action: onHide }] : [])];
+    ...(onRemove ? [{ label: removeLabel ?? "Delete", action: onRemove }] : []), ...(onHide ? [{ label: "Hide from Group", action: onHide }] : [])];
   return <div ref={region} className={styles.menu} data-info-card-menu="" onPointerDown={event => event.stopPropagation()}
     onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();

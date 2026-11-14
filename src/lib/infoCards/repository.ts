@@ -23,6 +23,10 @@ export async function createInfoCardIndexes(db: Db) {
   await db.collection(INFO_COLLECTIONS.roots).createIndex({ infoCardId: 1 }, { unique: true });
   await db.collection(INFO_COLLECTIONS.roots).createIndex({ ownerUserId: 1, updatedAt: -1, infoCardId: 1 });
   await db.collection(INFO_COLLECTIONS.roots).createIndex({ visibility: 1, latestVersion: 1, infoCardId: 1 });
+  // Group Info Cards (checkpoints 4.2-4.4), as group_media_owner_history and group_media_shared_history do for media.
+  // Performance only: no query or readiness check depends on them being installed.
+  await db.collection(INFO_COLLECTIONS.roots).createIndex({ ownerUserId: 1, originCardTemplateId: 1, createdAt: -1, infoCardId: 1 }, { name: "group_info_owner_history" });
+  await db.collection(INFO_COLLECTIONS.roots).createIndex({ experienceId: 1, originCardTemplateId: 1, groupVisible: 1, createdAt: -1, infoCardId: 1 }, { name: "group_info_shared_history" });
   await db.collection(INFO_COLLECTIONS.versions).createIndex({ infoCardId: 1, version: 1 }, { unique: true });
   await db.collection(INFO_COLLECTIONS.versions).createIndex({ infoCardId: 1, sourceRevision: 1 }, { unique: true });
   await db.collection(INFO_COLLECTIONS.versions).createIndex({ "content.seriesId": 1, visibility: 1, infoCardId: 1 });

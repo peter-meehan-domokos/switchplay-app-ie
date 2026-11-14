@@ -427,7 +427,11 @@ The interface uses exactly two management actions for media items and Info Cards
 - **Delete** permanently deletes an item. Only its author can do it, from the context where it was created (C1).
 - **Hide from Group** removes an item from Group visibility without deleting it. It is available to current Group admins under the permissions above (C2).
 
-"Remove" and a bare "Hide" are no longer used for these two actions, in the Media Centre, the Info Card three-dot menu, notices or error messages. This is wording only: who may act, creation contexts, Group visibility, storage and routes are unchanged, as are **Created in:** and **+ New**. Unrelated uses of Remove stay, such as removing a follower, an attachment from a draft, or media from a draft Card. Earlier text in this document that says Remove or Hide for these two actions refers to Delete and Hide from Group.
+"Remove" and a bare "Hide" are no longer used for these two actions, in the Media Centre, the Info Card three-dot menu, notices or error messages.
+
+**Third term: Remove (standalone Personal Info Cards only).** Remove on a standalone Personal Info Card only detaches it from the Card. The record stays in the database, unreachable, because a Personal Info Card may later be converted into a Creator Info Card. It is not a Delete, so it keeps its own label. No Group Info Card or media item uses Remove for a management action.
+
+**My Drafts:** after Save, the editor stays open and shows "Saved.", as the other editors do; it no longer returns to the My Drafts list. No notice is shown after Hide from Group on an Info Card. This is wording only: who may act, creation contexts, Group visibility, storage and routes are unchanged, as are **Created in:** and **+ New**. Unrelated uses of Remove stay, such as removing a follower, an attachment from a draft, or media from a draft Card. Earlier text in this document that says Remove or Hide for these two actions refers to Delete and Hide from Group.
 
 ### Drafts and My Drafts (C3)
 

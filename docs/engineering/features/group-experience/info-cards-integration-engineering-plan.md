@@ -814,7 +814,10 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 - The Media Centre label follows the operation from `mediaRemoveOperation` (`"delete"` or `"hide"`) through a `getRemoveAction` prop on the upload panel. Internal names (`onRemove`, `mediaRemoveOperation`, the `"hide"` action) are unchanged.
 - Unrelated Remove actions are unchanged: Remove attachment, Remove media in the Info Card editor, the Creator media modal, followers and Reflections.
 - Text above that says Remove or Hide for these actions means Delete and Hide from Group.
-- **Open point:** the Personal Info Card menu item on the standalone Card now reads Delete but still detaches the card, as before. Review whether it needs a distinct label or a behaviour change.
+- **Remove stays for standalone Personal Info Cards (decision):** the menu item detaches the card from the Card and keeps the record, so a Personal Info Card can later be converted into a Creator Info Card. `buildInfoCardMenuLayout` returns `removeLabel` ("Remove" for a standalone Personal card, "Delete" for a Group note) and the menu shows it; an inline comment in `infoCardMenuLayout.ts` explains the difference. Existing removed cards stay as unreachable records; no clean-up or migration.
+- **My Drafts (decision):** after Save, an unsaved Group draft reopened from My Drafts keeps the editor open on "Saved.". The earlier return to the My Drafts list is withdrawn. No notice after Hide from Group; the pouch count may lag as described for 4.4.
+- **Indexes (approved):** `group_info_owner_history` (`ownerUserId`, `originCardTemplateId`, `createdAt`) and `group_info_shared_history` (`experienceId`, `originCardTemplateId`, `groupVisible`, `createdAt`) are now created by `createInfoCardIndexes`. Performance only; no readiness check depends on them. They still need installing in Atlas, which has not been done.
+- **Not decided:** whether Admin Info Cards (and Admin media) should appear in followers' Me perspectives. Nothing has changed.
 
 **iPhone checks (4.2–4.4):**
 - Follower Me: their Follower contributions plus standalone cards with the private icon.

@@ -28,8 +28,8 @@ const subscribeHydration = () => () => {};
 const UPLOAD_BLOCKS_LEAVING = "The upload failed. Retry it, or choose Cancel upload to leave without the media. Your text is saved.";
 
 // `origin` is set for an unsaved Group draft reopened from My Drafts (C3): the editor names its creation context
-// and, once the draft is saved, returns to My Drafts instead of continuing to edit a saved card.
-const MY_DRAFTS = "/creator/new?drafts=1";
+// and, once the draft is saved, the editor stays open on "Saved.", as the other editors do.
+const MY_DRAFTS = "/creator/new?drafts=1";  // Also where leaving an unsaved draft returns to.
 export default function InfoCardEditor({ id, actor, username, initial, navigation, personal, origin }: {
   id: string; actor: string; username: string; initial: InfoEditorDTO | null; navigation: CreatorNavigation; origin?: string;
   personal?: PersonalEditorContext & { onSaved: (id: string, association?: PersonalInfoAssociation) => Promise<void>; onCancel: (requested?: boolean) => void; cancelRef?: React.RefObject<HTMLButtonElement | null> };
@@ -66,7 +66,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
   const videoStatus = useInfoVideoStatus(controller, state => void controller.settlePublication(state).then(async () => {
     if (state.status !== "published" || controller.confirmedPublicationVersion !== state.version) return;
     setSeries(controller.ack!.selectedSeries);
-    if (personal) await personal.onSaved(id, controller.personalAssociation); else if (origin) router.push(MY_DRAFTS); else setMessage(publicationNotice(state).message);
+    if (personal) await personal.onSaved(id, controller.personalAssociation); else setMessage(publicationNotice(state).message);
   }).catch(cause => setMessage(infoCardError(cause))));
   const [mountLifetime] = useState(() => ({ epoch: 0 }));
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
     try {
       const outcome = await controller.publish(); setSeries(controller.ack!.selectedSeries);
       // Still processing: the media area shows that it will complete when the video is ready.
-      if (outcome === "published") { if (personal) await personal.onSaved(id, controller.personalAssociation); else if (origin) { router.push(MY_DRAFTS); return; } else setMessage(isPersonal ? "Saved." : "Published."); }
+      if (outcome === "published") { if (personal) await personal.onSaved(id, controller.personalAssociation); else setMessage(isPersonal || origin ? "Saved." : "Published."); }
     } catch (cause) { if (!controller.error) setMessage(infoCardError(cause)); }
     requestAnimationFrame(() => (controller.error ? publishTrigger.current : libraryTrigger.current)?.focus({ preventScroll: true }));
   }
