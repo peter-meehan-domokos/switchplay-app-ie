@@ -19,7 +19,8 @@
     "migration:phase8": "node --import tsx scripts/prepare-phase8.ts",
     "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit",
     "test:phase2": "node --import tsx scripts/test-phase2.ts",
-    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev"
+    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev",
+    "prepare:puckle-membership": "node --import tsx scripts/prepare-puckle-membership.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

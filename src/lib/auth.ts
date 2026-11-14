@@ -1,3 +1,5 @@
+import type { UserSafeguarding } from "./userSafeguarding";
+import type { UserPermissions } from "./userPermissions";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
@@ -17,6 +19,12 @@ type SessionUser = {
 };
 
 export type UserDocument = {
+	safeguarding?: UserSafeguarding;
+	permissions?: UserPermissions;
+	emailVerifiedAt?: Date;
+	sessionVersion?: number;
+	passwordChangedAt?: Date;
+	publicPublishingRevision?: number;
 	email: string;
 	username: string;
 	passwordHash: string;

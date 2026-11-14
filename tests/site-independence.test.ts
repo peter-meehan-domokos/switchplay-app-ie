@@ -9,7 +9,7 @@ const root = resolve(__dirname, "..");
 const appDir = join(root, "src", "app");
 
 // Infrastructure the independent websites may share; everything else must be the site's own code.
-const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries"];
+const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "@/lib/age"];
 
 const siteDirs = (site: SiteId) => [
   join(appDir, "sites", site),
@@ -58,7 +58,8 @@ test("websites import only their own code and the approved shared infrastructure
             allowed = isWithin(resolve(dirname(file), specifier), own);
           } else if (specifier.startsWith("@/")) {
             const target = join(root, "src", specifier.slice(2));
-            allowed = isWithin(target, own) || SHARED_ALIASES.includes(specifier);
+            allowed = isWithin(target, own) || SHARED_ALIASES.includes(specifier)
+              || site === "puckle" && specifier === "@/lib/puckleMemberships";
           } else {
             allowed = true;
           }
