@@ -9,11 +9,18 @@ import bcrypt from "bcryptjs";
 import { createFoundationIndexes } from "../src/lib/cards/repository";
 import { createInfoCardIndexes, InfoCardRepository } from "../src/lib/infoCards/repository";
 import { networkInterfaces } from "node:os";
+import { preparePuckleMembership } from "./prepare-puckle-membership";
 import { loadEnvConfig } from "@next/env";
 
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
+const capturedEmails: unknown[] = [];
 const media = createServer((request, response) => {
+  if (request.url === "/emails" && request.method === "GET") { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(capturedEmails)); return; }
+  if (request.url === "/email" && request.method === "POST") {
+    let body = ""; request.on("data", chunk => { body += chunk; });
+    request.on("end", () => { capturedEmails.push(JSON.parse(body)); response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify({ id: "fixture-accepted" })); }); return;
+  }
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "*");
@@ -44,7 +51,7 @@ async function main() {
 try {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   const uri = mongo.getUri(), database = `switchplay_phase2_browser_${randomUUID().replaceAll("-", "")}`;
-  client = await new MongoClient(uri).connect(); const db = client.db(database); await createFoundationIndexes(db); await createInfoCardIndexes(db);
+  client = await new MongoClient(uri).connect(); const db = client.db(database); await createFoundationIndexes(db); await createInfoCardIndexes(db); await preparePuckleMembership(db);
   const now = new Date(); const userId = new ObjectId();
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
     decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
@@ -76,7 +83,12 @@ try {
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
-    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture" };
+    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture",
+    ACCOUNT_EMAIL_SECRET: "local-only-email-secret-at-least-32-bytes", ACCOUNT_EMAIL_TEST_ENDPOINT: `${mediaOrigin}/email`,
+    ACCOUNT_EMAIL_PUCKLE_ORIGIN: baseURL, ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle fixture <security@example.invalid>",
+    ACCOUNT_EMAIL_SWITCHPLAY_ORIGIN: baseURL, ACCOUNT_EMAIL_SWITCHPLAY_FROM: "Switchplay fixture <security@example.invalid>",
+    ACCOUNT_EMAIL_STRAT17_ORIGIN: baseURL, ACCOUNT_EMAIL_STRAT17_FROM: "Strat17 fixture <security@example.invalid>",
+  };
   if (liveInfoMedia) Object.assign(env, {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("CLOUDFLARE_"))),
     PHASE2_LIVE_INFO_MEDIA: "1", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "0", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1",
@@ -103,6 +115,13 @@ try {
   } else {
     const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
+  }
+  if (process.argv.includes("membership-security.browser.ts")) {
+    for (const message of capturedEmails as { text: string }[]) {
+      for (const match of message.text.matchAll(/#([A-Za-z0-9_-]{43})/g)) {
+        if (output.join("").includes(match[1])) throw new Error("Security test: action secret appeared in server logs");
+      }
+    }
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));
 } catch (error) {

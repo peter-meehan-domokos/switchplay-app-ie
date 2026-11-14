@@ -1,4 +1,4 @@
-import { authenticateUser, setSession } from "@/lib/auth";
+import { signInWithPassword } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await authenticateUser(identifier, password);
+    const user = await signInWithPassword(identifier, password);
 
     if (!user) {
       return Response.json(
@@ -21,8 +21,6 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
-
-    await setSession(user);
 
     return Response.json({ user });
   } catch (error) {

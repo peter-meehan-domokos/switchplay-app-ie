@@ -82,6 +82,7 @@ export default function AuthScreen({ redirectTo, site = "switchplay" }: AuthScre
             {isPending ? "Signing in..." : "Sign in"}
           </button>
         </form>
+        <a href="/login/forgot-password">Forgot password?</a>
       </section>
     </section>
   );
