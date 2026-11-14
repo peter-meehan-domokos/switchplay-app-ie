@@ -33,7 +33,8 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
   onPositionChange: (position: number) => void;
   selectedId?: string;
   onSelect?: (id: string) => void;
-  actions?: (card: InfoCardConsultationCard) => InfoCardActions;
+  // Undefined for a card with no menu in this context.
+  actions?: (card: InfoCardConsultationCard) => InfoCardActions | undefined;
   initiallySettled?: boolean;
 }) {
   const [scope, animate] = useAnimate<HTMLElement>();
@@ -244,15 +245,15 @@ export default function InfoCardPhysicalStack({ id, cards, closing, blocked, clo
       style={{ background: strip.background, left: strip.inset, right: strip.inset, transform: `translateY(${-strip.offset}px)`, zIndex: -strip.offset }} />)}
     <div className={styles.cards} inert={locked}>
       {visible.map(cardIndex => {
-        const card = cards[cardIndex], current = cardIndex === index;
+        const card = cards[cardIndex], current = cardIndex === index, cardActions = actions?.(card);
         return <motion.div key={card.id} className={`${styles.card} ${stepStyles.topCard}`} data-info-card-layer="" data-info-card-id={card.id}
           data-info-card-current={current} aria-hidden={!current || undefined} inert={!current}
           initial={current ? false : { x: turn?.direction === -1 ? 8 : -2, y: turn?.direction === -1 ? (reduced ? 12 : turn.height * 0.72) : -6, rotate: turn?.direction === -1 ? (reduced ? 0 : 3) : -0.35 }}
           style={current ? { zIndex: 3, y: dragY, rotate: dragRotation } : { zIndex: 2 }}>
           {card.unavailable ? <article className={`${faceStyles.face} ${styles.unavailable}`} data-info-card-unavailable="">
             <p>This Info Card is unavailable.</p>
-            {actions && <footer className={faceStyles.footer}><InfoCardMenu {...actions(card)} disabled={locked} /></footer>}
-          </article> : <InfoCardFace card={{ ...card, mediaKind: card.media?.mediaType }} actions={actions ? { ...actions(card), disabled: locked } : undefined}
+            {cardActions && <footer className={faceStyles.footer}><InfoCardMenu {...cardActions} disabled={locked} /></footer>}
+          </article> : <InfoCardFace card={{ ...card, mediaKind: card.media?.mediaType }} actions={cardActions ? { ...cardActions, disabled: locked } : undefined}
             onOpenMedia={card.media ? () => { if (!busy.current && !closing && !blocked) onOpenMedia(card); } : undefined} />}
         </motion.div>;
       })}

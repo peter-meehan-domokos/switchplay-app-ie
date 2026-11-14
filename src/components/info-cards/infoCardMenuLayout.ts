@@ -1,12 +1,19 @@
 import type { InfoCardConsultationCard } from "./InfoCardConsultation";
 
-// The three-dot menu of a card in the viewer's own pouch (checkpoint 4.2b, C1). + New is always offered: it
-// creates a new Info Card in the current context and changes nothing displayed. Edit and Remove appear only on
-// the viewer's own note in its exact creation context. Outside it, the menu names where the note was created
-// instead; never a disabled Edit or Remove. Creator Info Cards carry no origin.
-export type InfoCardMenuLayout = { manage: boolean; origin: string | null };
-export function buildInfoCardMenuLayout(card: InfoCardConsultationCard | undefined): InfoCardMenuLayout {
-  if (!card || card.unavailable || !card.personal) return { manage: false, origin: null };
-  const manage = Boolean(card.personalSource || card.groupNote?.editable);
-  return { manage, origin: manage ? null : card.origin ?? null };
+// The three-dot menu of a card in a pouch (checkpoints 4.2b and 4.4, C1 and C2).
+//   + New: wherever the viewer may create in the current context; it changes nothing displayed.
+//   Edit and Remove: only on the viewer's own note in its exact creation context. Remove permanently deletes.
+//   Hide: a current admin, for any other contribution shared with their Group, their own Follower one included.
+//     It only removes the contribution from the Group and never deletes.
+//   Origin: the viewer's own note outside its creation context names where it was created; never a disabled
+//     Edit or Remove. Creator Info Cards carry no origin.
+// Null when the card has no menu at all in this context.
+export type InfoCardMenuLayout = { create: boolean; manage: boolean; hide: boolean; origin: string | null };
+export function buildInfoCardMenuLayout(card: InfoCardConsultationCard | undefined, canCreate = true): InfoCardMenuLayout | null {
+  const available = card && !card.unavailable ? card : undefined;
+  const manage = Boolean(available?.personal && (available.personalSource || available.groupNote?.editable));
+  const hide = !manage && available?.groupNote?.canHide === true;
+  const origin = available?.personal && !manage ? available.origin ?? null : null;
+  if (!canCreate && !manage && !hide && !origin) return null;
+  return { create: canCreate, manage, hide, origin };
 }

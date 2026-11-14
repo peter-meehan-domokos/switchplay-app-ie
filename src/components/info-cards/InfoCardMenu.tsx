@@ -3,10 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import styles from "./InfoCardFace.module.css";
 
-// `origin` names where the displayed note was created, shown read-only outside that context (C1).
-export type InfoCardActions = { onNew: () => void; onEdit?: () => void; onRemove?: () => void; origin?: string; disabled?: boolean };
+// `origin` names where the displayed note was created, shown read-only outside that context (C1). `onNew` is
+// absent where the viewer cannot create; `onHide` is the Group admin Hide, which never deletes (C2).
+export type InfoCardActions = { onNew?: () => void; onEdit?: () => void; onRemove?: () => void; onHide?: () => void; origin?: string; disabled?: boolean };
 
-export default function InfoCardMenu({ onNew, onEdit, onRemove, origin, disabled }: InfoCardActions) {
+export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, origin, disabled }: InfoCardActions) {
   const [open, setOpen] = useState(false), id = useId();
   const region = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const isOpen = useRef(false), swallowClick = useRef(false);
@@ -24,7 +25,8 @@ export default function InfoCardMenu({ onNew, onEdit, onRemove, origin, disabled
     document.addEventListener("pointerdown", outside, true); document.addEventListener("click", click, true);
     return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("click", click, true); };
   }, []);
-  const items = [{ label: "+ New", action: onNew }, ...(onEdit ? [{ label: "Edit", action: onEdit }] : []), ...(onRemove ? [{ label: "Remove", action: onRemove }] : [])];
+  const items = [...(onNew ? [{ label: "+ New", action: onNew }] : []), ...(onEdit ? [{ label: "Edit", action: onEdit }] : []),
+    ...(onRemove ? [{ label: "Remove", action: onRemove }] : []), ...(onHide ? [{ label: "Hide", action: onHide }] : [])];
   return <div ref={region} className={styles.menu} data-info-card-menu="" onPointerDown={event => event.stopPropagation()}
     onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();
@@ -40,9 +42,9 @@ export default function InfoCardMenu({ onNew, onEdit, onRemove, origin, disabled
     <button ref={trigger} type="button" className={styles.menuTrigger} aria-label="Info Card actions" aria-haspopup="menu"
       aria-expanded={open && !disabled} aria-controls={open && !disabled ? id : undefined} disabled={disabled}
       onClick={() => {
-        if (open) close(); else { isOpen.current = true; setOpen(true); requestAnimationFrame(() => region.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()); }
+        if (open) close(); else { isOpen.current = true; setOpen(true); requestAnimationFrame(() => (region.current?.querySelector<HTMLElement>('[role="menuitem"]') ?? region.current?.querySelector<HTMLElement>('[role="menu"]'))?.focus()); }
       }}>⋯</button>
-    {open && !disabled && <div className={styles.menuItems} id={id} role="menu" aria-label="Info Card actions">
+    {open && !disabled && <div className={styles.menuItems} id={id} role="menu" aria-label="Info Card actions" tabIndex={-1}>
       {origin && <p className={styles.menuOrigin} role="none" data-info-card-origin=""><span>Created in:</span><span>{origin}</span></p>}
       {items.map(item => <button key={item.label} type="button" role="menuitem" tabIndex={-1} onClick={() => { close(false); item.action(); }}>{item.label}</button>)}
     </div>}

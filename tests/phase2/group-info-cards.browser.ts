@@ -14,6 +14,8 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../../src/li
 // visibility indicator; the standalone Card shows them too; nobody else sees them before checkpoint 4.3.
 // Checkpoint 4.2b (C1, C3): Edit and Remove only in the creation context; elsewhere the menu names it beside
 // + New. An unsaved Group draft reopens from My Drafts directly in the shared editor.
+// Checkpoint 4.4: the Group perspective shows every contribution shared with the Group; admins create Group Admin
+// Info Cards there, Edit and Remove their own, and Hide the others without deleting them.
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
 test.afterAll(async () => { await client?.close(); });
@@ -245,4 +247,139 @@ test("the owner's standalone Personal Info Card is refused to another user throu
   // The owner's CardData still holds it, untouched by the Group.
   const user = await f.main.users().findOne({ _id: new ObjectId(f.owner) });
   expect(user!.cardsData.find(data => data.cardTemplateId === f.cardId)?.personalInfoCardIds).toEqual([f.noteId]);
+});
+
+// A saved contribution of this fixture, made directly as its creation perspective would make it.
+async function contribution(f: Fixture, actor: string, creationContext: "self" | "group", title: string, experienceId = f.experienceId) {
+  const id = randomUUID(), member = (await f.groups.members().findOne({ experienceId, userId: actor }))!;
+  await f.info.createGroup(actor, id, experienceId, f.cardId, { accessEpoch: member.accessEpoch, version: 1, creationContext });
+  await f.info.save(actor, id, 0, { title, body: "Shared with the squad.", seriesId: actor === f.owner ? "demo-series-owner" : "demo-series-other", mediaItem: null }, "private");
+  await f.info.savePersonal(actor, id, 1);
+  return id;
+}
+// Browses the open stack with its existing ArrowDown key until the given card is current.
+async function showCard(page: Page, id: string) {
+  for (let turn = 0; turn < 8 && await current(page).getAttribute("data-info-card-id") !== id; turn++) {
+    const before = await current(page).getAttribute("data-info-card-id");
+    await page.locator("[data-info-card-stack]").dispatchEvent("keydown", { key: "ArrowDown", bubbles: true });
+    await expect.poll(() => current(page).getAttribute("data-info-card-id")).not.toBe(before);
+    await expect(page.locator("[data-info-card-layer]")).toHaveCount(1);
+  }
+  await expect(current(page)).toHaveAttribute("data-info-card-id", id);
+}
+const actions = (page: Page) => current(page).getByRole("button", { name: "Info Card actions", exact: true });
+
+test("an admin creates, edits and removes a Group Admin Info Card in the Group perspective, in teal and never in CardData", async ({ page }) => {
+  const f = await fixture(); await login(page);
+  await select(page, f, { perspective: "group" });
+  await openPouch(page, f);
+  const before = JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData);
+  // + New is offered on a Creator Info Card, where the admin may create.
+  expect(await menu(page)).toEqual(["+ New"]); await page.getByRole("menuitem", { name: "+ New", exact: true }).click();
+  await write(page, "Squad plan");
+  const id = (await current(page).getAttribute("data-info-card-id"))!;
+  expect(await f.info.owner(f.owner, id)).toMatchObject({ kind: "group", creationContext: "group", experienceId: f.experienceId, latestVersion: 1 });
+  await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
+  await expect(current(page).locator("[data-info-card-type-label]")).toHaveText("Group");
+  expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
+  // In its creation context the author edits and removes it; Remove is permanent.
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); expect(await menuOrigin(page)).toBeNull();
+  await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
+  await write(page, "Squad plan, edited");
+  await expect(current(page).locator("[data-info-card-title]")).toHaveText("Squad plan, edited");
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); await page.getByRole("menuitem", { name: "Remove", exact: true }).click();
+  await expect(page.locator(`[data-info-card-id="${id}"]`)).toHaveCount(0);
+  expect((await f.info.roots().findOne({ infoCardId: id }))?.deletedAt).toBeInstanceOf(Date);
+});
+
+test("the Group perspective shows contributions shared with the Group; a follower has no menu on others' cards", async ({ page }) => {
+  const f = await fixture();
+  const admin = await contribution(f, f.owner, "group", "Admin note"), follower = await contribution(f, f.other, "self", "Other note");
+  const elsewhere = await contribution(f, f.owner, "group", "Admin note elsewhere", f.secondId);
+  await login(page, "other"); await select(page, f, { perspective: "group" });
+  // The closed pouch counts the Group's contributions with the Creator Info Cards.
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  await page.locator(".deck-card.is-active").press("Enter"); await page.locator(".focused-card-layer .active-card-identity").click();
+  await expect(page.getByRole("button", { name: "Open information cards (4 attached)", exact: true })).toBeVisible();
+  const ids = await openPouch(page, f);
+  expect(ids).toEqual([...CREATOR_CARDS, admin, follower].toSorted());
+  expect(ids).not.toContain(elsewhere); expect(ids).not.toContain(f.noteId);
+  await showCard(page, admin);
+  await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
+  await expect(actions(page)).toHaveCount(0);
+  // Their own Follower contribution shows where it was created; nothing else, as they cannot create here.
+  await showCard(page, follower);
+  await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "personal");
+  expect(await menu(page)).toEqual([]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Me"]);
+});
+
+test("an admin hides a follower contribution, and their own Follower one with its origin, without deleting either", async ({ page }) => {
+  const f = await fixture();
+  const theirs = await contribution(f, f.other, "self", "Other note"), mine = await contribution(f, f.owner, "self", "My follower note");
+  await login(page); await select(page, f, { perspective: "group" });
+  await openPouch(page, f);
+  await showCard(page, mine);
+  expect(await menu(page)).toEqual(["+ New", "Hide"]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Me"]);
+  await page.getByRole("menuitem", { name: "Hide", exact: true }).click();
+  await expect(page.locator(`[data-info-card-id="${mine}"]`)).toHaveCount(0);
+  await showCard(page, theirs);
+  expect(await menu(page)).toEqual(["+ New", "Hide"]); expect(await menuOrigin(page)).toBeNull();
+  await page.getByRole("menuitem", { name: "Hide", exact: true }).click();
+  await expect(page.locator(`[data-info-card-id="${theirs}"]`)).toHaveCount(0);
+  for (const [owner, id] of [[f.owner, mine], [f.other, theirs]] as const) {
+    const root = await f.info.owner(owner, id);
+    expect(root.groupVisible).toBe(false); expect(root.deletedAt).toBeUndefined(); expect(root.latestVersion).toBe(1);
+  }
+  // The author still has a hidden contribution in Me, marked private, and edits it there.
+  await select(page, f, { perspective: "self" });
+  const entries = await openPouchEntries(page, f);
+  expect(entries.find(entry => entry.info?.infoCardId === mine)).toMatchObject({ source: "group", private: true });
+});
+
+test("a dual-role admin keeps two identities apart: Admin cards only in the Group perspective, Follower cards edited in Me", async ({ page }) => {
+  const f = await fixture();
+  const admin = await contribution(f, f.owner, "group", "Admin note"), follower = await contribution(f, f.owner, "self", "Follower note");
+  await login(page);
+  await select(page, f, { perspective: "self" });
+  const me = await openPouch(page, f);
+  expect(me).toContain(follower); expect(me).not.toContain(admin);
+  await showCard(page, follower);
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]);
+  // The standalone Card and the other Group never show the Admin card.
+  expect(await openPouch(page, f, `/decks?openDeck=${f.deckId}`)).not.toContain(admin);
+  const current2 = await (await page.request.get(`/api/group-experiences/${f.secondId}`)).json();
+  expect((await page.request.patch(`/api/group-experiences/${f.secondId}/navigation`, { data: { accessEpoch: current2.accessEpoch,
+    expectedStructureRevision: current2.structureRevision, activeCardId: f.cardId, selection: { perspective: "group" } } })).ok()).toBeTruthy();
+  expect(await openPouch(page, f, `/decks?openExperience=${f.secondId}`)).not.toContain(admin);
+});
+
+test("Other followers shows only the inspected follower's shared contributions; an admin may hide them", async ({ page }) => {
+  const f = await fixture();
+  const theirs = await contribution(f, f.other, "self", "Other note"), admin = await contribution(f, f.owner, "group", "Admin note");
+  await login(page); await select(page, f, { perspective: "follower", subjectUserId: f.other });
+  const ids = await openPouch(page, f);
+  expect(ids).toEqual([...CREATOR_CARDS, theirs].toSorted()); expect(ids).not.toContain(admin);
+  await showCard(page, theirs);
+  expect(await menu(page)).toEqual(["Hide"]);
+});
+
+test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and saving returns to My Drafts", async ({ page }) => {
+  const f = await fixture(); await login(page);
+  const id = randomUUID(), member = (await f.groups.members().findOne({ experienceId: f.experienceId, userId: f.owner }))!;
+  await f.info.createGroup(f.owner, id, f.experienceId, f.cardId, { accessEpoch: member.accessEpoch, version: 1, creationContext: "group" });
+  await f.info.save(f.owner, id, 0, { title: "Unfinished squad plan", body: "Started in the Group perspective.", seriesId: "demo-series-owner", mediaItem: null }, "private");
+  await page.goto("/creator/new");
+  await page.getByRole("button", { name: "My Drafts", exact: true }).click();
+  const entry = page.getByRole("dialog", { name: "My Drafts", exact: true }).getByRole("button", { name: /Unfinished squad plan/ });
+  await expect(entry).toContainText("Created in: Info squad · Group");
+  await entry.click();
+  await expect(page).toHaveURL(new RegExp(`/creator/info-cards/${id}`));
+  await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Group");
+  await expect(page.locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/creator\/new\?drafts=1/);
+  expect(await f.info.owner(f.owner, id)).toMatchObject({ creationContext: "group", latestVersion: 1, draft: null });
+  await page.goto(`/creator/info-cards/${id}`);
+  await expect(page.getByText("Info Card unavailable.")).toBeVisible();
+  await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Group");
 });

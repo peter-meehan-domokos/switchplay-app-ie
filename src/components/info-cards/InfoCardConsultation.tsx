@@ -20,6 +20,7 @@ import { actorCreatorTransport, creatorRequest, CreatorActorLifetime } from "../
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { infoCardError } from "./infoCardErrors";
 import { clientId } from "@/lib/clientId";
+import { creationContextOf, type CreationContext } from "@/lib/groupExperiences/media/contributionIdentity";
 
 // Presentation input, not an authorisation or persistence model. Phase 4 supplies
 // an authorised publication snapshot. Phase 1 supplies temporary fixture data.
@@ -27,14 +28,17 @@ export type AvailableConsultationCard = Omit<InfoCardFaceContent, "mediaKind"> &
   id: string;
   unavailable?: false;
   personalSource?: PersonalInfoSource;
-  // The viewer own Follower contribution (checkpoint 4.2): its originating Group and whether this context may
-  // edit and remove it (contributionIdentity.ts rules, decided by the consultation loader).
-  groupNote?: { experienceId: string; editable: boolean };
+  // A Group contribution: its originating Group, whether this context may edit and remove it (the viewer own,
+  // in its creation context) and whether the viewer may hide it as a Group admin (contributionIdentity.ts rules,
+  // decided by the consultation loader).
+  groupNote?: { experienceId: string; editable: boolean; canHide?: boolean };
   // The viewer own note: where it was created, shown in the menu outside that context (C1).
   origin?: string;
 } & ({ publication: MediaContext; media?: InfoMedia } | { publication?: undefined; media?: InfoCardMedia });
 export type InfoCardConsultationCard = AvailableConsultationCard | { id: string; unavailable: true };
-export type GroupNoteContext = { kind: "group"; mainCardId: string; experienceId: string; version: number; accessEpoch: number };
+// Where New creates a Group contribution: Me ("self", a Follower contribution) or the Group perspective ("group",
+// an Admin contribution, checkpoint 4.4).
+export type GroupNoteContext = { kind: "group"; mainCardId: string; experienceId: string; version: number; accessEpoch: number; creationContext: CreationContext };
 
 function measure(anchor: HTMLElement) {
   const rect = anchor.getBoundingClientRect(), css = getComputedStyle(anchor);
@@ -43,7 +47,7 @@ function measure(anchor: HTMLElement) {
 }
 
 export default function InfoCardConsultation({ id, cards, anchor, source, onClose, status = "ready", loadingMessage = false, count = cards.length, actor,
-  personalContext, personalSources, publications, selectedId, onSelect, onRefresh, onReplace, recoveryId }: {
+  personalContext, hideContext, personalSources, publications, selectedId, onSelect, onRefresh, onReplace, recoveryId }: {
   id: string;
   cards: readonly InfoCardConsultationCard[];
   anchor: HTMLElement;
@@ -55,6 +59,8 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
   actor?: string;
   // Where New creates a note: the standalone Card (CardData), or Me in a Group (a Follower contribution).
   personalContext?: (PersonalInfoContext & { mainCardId: string; kind?: undefined }) | GroupNoteContext;
+  // The Group whose contributions a current admin may hide here (the Group perspective and follower inspection).
+  hideContext?: { experienceId: string; accessEpoch: number };
   personalSources?: PersonalInfoSource[];
   // Pending Save or Publish requests this opening resumed on the server, with their outcome (checkpoint 10).
   publications?: readonly PublicationRequestState[];
@@ -111,14 +117,34 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       const root = initial?.root;
       const personalNote = root?.kind === "personal" && personalContext.kind !== "group"
         && (root.originCardTemplateId === personalContext.mainCardId || !!personalSources?.some(source => source.cardTemplateId === root.originCardTemplateId));
-      // A Follower contribution is edited only in Me of its originating Group (C1).
-      const groupNote = root?.kind === "group" && root.creationContext === "self" && root.originCardTemplateId === personalContext.mainCardId
-        && personalContext.kind === "group" && root.experienceId === personalContext.experienceId;
+      // A Group contribution is edited only in its creation context (C1): Me of its Group for a Follower
+      // contribution, the Group perspective of its Group for an Admin contribution.
+      const groupNote = root?.kind === "group" && root.originCardTemplateId === personalContext.mainCardId && personalContext.kind === "group"
+        && root.experienceId === personalContext.experienceId && creationContextOf(root) === personalContext.creationContext;
       if (root && (root.ownerUserId !== actor || !personalNote && !groupNote)) throw new Error("Info Card unavailable.");
       if (token !== operation.current || !live.current) return;
       setAuthoring({ id: target ?? clientId(), initial, username: auth.user.username,
         origin: initial?.root.originCardTemplateId ?? personalContext.mainCardId, source: returnTo });
       if (draftId) { const url = new URL(window.location.href); url.searchParams.delete("personalDraft"); window.history.replaceState(null, "", url.pathname + url.search); }
+    } catch (cause) { if (live.current && token === operation.current) setError(infoCardError(cause)); }
+    finally { if (live.current && token === operation.current) setMutation(false); }
+  }
+  // After Remove or Hide the card leaves this pouch; the stack moves to its successor and reads the pouch again.
+  async function withdraw(card: AvailableConsultationCard) {
+    const remaining = cards.filter(item => item.id !== card.id), oldIndex = cards.findIndex(item => item.id === card.id);
+    const successors = cards.slice(oldIndex + 1).concat(cards.slice(0, oldIndex)).map(item => item.id);
+    const successor = successors.find(id => remaining.some(next => next.id === id));
+    onReplace?.(remaining, successor);
+    await onRefresh?.(successor, successors);
+  }
+  // Group admin Hide (C2): the contribution leaves the Group; nothing is deleted and its author keeps it.
+  async function hide(card: AvailableConsultationCard) {
+    if (!card.groupNote?.canHide || !hideContext || !actor || mutation || authoring || motionBusy.current) return;
+    const token = ++operation.current; setMutation(true); setError("");
+    try {
+      await request(`/api/group-experiences/${encodeURIComponent(hideContext.experienceId)}/info-cards/${encodeURIComponent(card.id)}`, "PATCH", { accessEpoch: hideContext.accessEpoch });
+      if (!live.current || token !== operation.current) return;
+      await withdraw(card);
     } catch (cause) { if (live.current && token === operation.current) setError(infoCardError(cause)); }
     finally { if (live.current && token === operation.current) setMutation(false); }
   }
@@ -137,11 +163,7 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
         await request(`/api/info-cards/${encodeURIComponent(card.id)}`, "DELETE", { revision: current.root.revision });
         if (!live.current || token !== operation.current) return;
       }
-      const remaining = cards.filter(item => item.id !== card.id), oldIndex = cards.findIndex(item => item.id === card.id);
-      const successors = cards.slice(oldIndex + 1).concat(cards.slice(0, oldIndex)).map(item => item.id);
-      const successor = successors.find(id => remaining.some(next => next.id === id));
-      onReplace?.(remaining, successor);
-      await onRefresh?.(successor, successors);
+      await withdraw(card);
     } catch (cause) { if (live.current && token === operation.current) setError(infoCardError(cause)); }
     finally { if (live.current && token === operation.current) setMutation(false); }
   }
@@ -210,12 +232,14 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
         height: geometry.height, borderRadius: geometry.borderRadius, transform: `scale(${geometry.scale})` }}>
         {cards.length ? <InfoCardPhysicalStack id={id} cards={cards} selectedId={selectedId} onSelect={onSelect} closing={closing}
           blocked={Boolean(media || authoring || mutation)} closeRef={closeButton} pouch={source} pouchGeometry={pouchGeometry}
-          actions={personalContext ? card => { const menu = buildInfoCardMenuLayout(card);
-            return { onNew: () => void edit(), ...(menu.manage && !card.unavailable ? { onEdit: () => void edit(card), onRemove: () => void remove(card) } : {}),
-              ...(menu.origin ? { origin: menu.origin } : {}) }; } : undefined}
+          actions={card => { const menu = buildInfoCardMenuLayout(card, !!personalContext);
+            if (!menu) return undefined;
+            return { ...(menu.create ? { onNew: () => void edit() } : {}), ...(menu.manage && !card.unavailable ? { onEdit: () => void edit(card), onRemove: () => void remove(card) } : {}),
+              ...(menu.hide && !card.unavailable ? { onHide: () => void hide(card) } : {}), ...(menu.origin ? { origin: menu.origin } : {}) }; }}
           onRequestClose={requestClose} onExited={onClose} onBusyChange={onBusyChange} onOpenMedia={openMedia} onPositionChange={setPosition} />
           : personalContext && <InfoCardEmptyPanel id={id} pouch={source} closing={closing} settled={hadCards} disabled={mutation || !!authoring}
-            addRef={closeButton} onAdd={() => void edit()} onExited={onClose} />}
+            addRef={closeButton} onAdd={() => void edit()} onExited={onClose}
+            label={personalContext.kind === "group" && personalContext.creationContext === "group" ? "Add Group Info Card" : undefined} />}
       </div>}
       {(status === "failed" || status === "pending" && loadingMessage) && <p className={styles.status} style={statusStyle}
         role={status === "failed" ? "alert" : "status"}>{status === "failed" ? "Unable to load Info Cards." : "Loading Info Cards…"}</p>}
@@ -235,7 +259,7 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       : <InfoCardMediaViewer media={media.media} onClose={() => setMedia(null)} returnFocus={mediaSource} /> : null}
     {authoring && actor && personalContext && <PersonalInfoEditorDialog key={authoring.id} {...authoring} actor={actor}
       context={personalContext.kind === "group" ? { originCardTemplateId: authoring.origin, group: { experienceId: personalContext.experienceId,
-        accessEpoch: personalContext.accessEpoch, version: personalContext.version } }
+        accessEpoch: personalContext.accessEpoch, version: personalContext.version, creationContext: personalContext.creationContext } }
         : { originCardTemplateId: authoring.origin, context: authoring.origin === personalContext.mainCardId && authoring.initial?.root.kind !== "group" ? {
         deckTemplateId: personalContext.deckTemplateId, version: personalContext.version, personalInfoRevision: personalContext.personalInfoRevision } : undefined }}
       onCancel={requested => {

@@ -9,7 +9,7 @@ import InfoCardMediaViewer from "./InfoCardMediaViewer";
 export default function InfoCardRemoteMediaViewer({ media, context, actor, onClose, returnFocus }: {
   media: InfoMedia; context: MediaContext; actor: string; onClose: () => void; returnFocus?: HTMLElement;
 }) {
-  const query = context.kind === "draft" ? `revision=${context.revision}` : `version=${context.version}`;
+  const query = context.kind === "draft" ? `revision=${context.revision}` : `version=${context.version}${context.experienceId ? `&experienceId=${encodeURIComponent(context.experienceId)}` : ""}`;
   const url = `/api/info-cards/${encodeURIComponent(context.infoCardId)}/media?${query}`;
   const resolve = useCallback(async (item: CloudflareStreamVideoMediaItem, signal: AbortSignal) => {
     const response = await fetch(url, { cache: "no-store", signal, headers: { "X-Creator-Actor": actor } });

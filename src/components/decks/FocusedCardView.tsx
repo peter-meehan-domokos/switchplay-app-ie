@@ -414,19 +414,41 @@ export default function FocusedCardView({
           deckTemplateId, deckVersion, stepId: stepViewItem?.type === "step" ? card.steps[stepViewItem.stepIndex]?.stepId : "intro", attachmentId: selectedAttachment.id,
         } : undefined} /> : null);
   const consultationIdentity = JSON.stringify([contentIdentity, playbackActor, deckTemplateId, stepViewItemIndex]);
-  // Me in a Group reads and creates the viewer own Follower contribution Info Cards (checkpoint 4.2); the Group
-  // perspective and Other followers keep the canonical Creator Info Cards until checkpoint 4.3.
+  // Me in a Group reads and creates the viewer own Follower contribution Info Cards (checkpoint 4.2). The Group
+  // perspective reads every contribution shared with the Group, and its admins create Admin contributions there;
+  // Other followers reads the inspected follower's shared Follower contributions (checkpoint 4.4).
   const groupMe = isExperienceCard(card) && card.perspective === "self" && typeof card.accessEpoch === "number";
+  const groupShared = isExperienceCard(card) && (card.perspective === "group" || card.perspective === "follower" && !!card.subjectUserId) && typeof card.accessEpoch === "number";
   const groupNotes = infoCards === undefined && groupMe && card.canWriteLearning && !!playbackActor && !!playbackVersion;
+  const groupAdminNotes = infoCards === undefined && groupShared && isExperienceCard(card) && card.perspective === "group" && card.canWriteLearning && !!playbackActor && !!playbackVersion;
   const personalEnabled = infoCards === undefined && hasPersonalCard(card) && !!playbackActor && !!playbackVersion && card.permissions?.canMutateCardData === true
-    || groupNotes;
+    || groupNotes || groupAdminNotes;
+  const infoRequest = (): ConsultationRequest | undefined => !infoCards && playbackActor && playbackVersion ? { actor: playbackActor,
+    mainCardId: card.cardTemplateId!, version: playbackVersion, mode: groupMe ? "experience" as const : groupShared ? "group" as const : playbackMode,
+    ...(playbackMode === "working" && !groupShared ? { deckTemplateId } : {}), ...((groupMe || groupShared) && isExperienceCard(card) ? { experienceId: card.experienceId } : {}),
+    ...(groupShared && isExperienceCard(card) && card.perspective === "follower" ? { subjectUserId: card.subjectUserId } : {}),
+    attachmentIds: [...(card.infoCardIds ?? [])] } : undefined;
+  // The Group's contributions are not part of the Card, so the closed pouch counts them from one consultation
+  // snapshot, read again whenever the pouch closes (its contents may have changed).
+  const [sharedCount, setSharedCount] = useState<{ key: string; count: number } | null>(null);
+  const sharedKey = groupShared ? JSON.stringify([consultationIdentity, infoRequest() ?? null]) : null;
   const personalCount = hasPersonalCard(card) ? (card.personalInfoCardIds?.length ?? 0)
     + (card.personalHistory ?? []).filter(source => source.cardTemplateId !== card.id).reduce((sum, source) => sum + (source.personalInfoCardIds?.length ?? 0), 0) : 0;
-  const attachmentCount = infoCards !== undefined ? infoCards.length : (card.infoCardIds?.length ?? 0) + (personalEnabled ? personalCount : 0);
+  const attachmentCount = infoCards !== undefined ? infoCards.length : sharedKey && sharedCount?.key === sharedKey ? sharedCount.count
+    : (card.infoCardIds?.length ?? 0) + (personalEnabled ? personalCount : 0);
   const consultationOpen = Boolean(consultation && consultation.identity === consultationIdentity && stepViewItem && stepViewElement && isPresent && !mediaViewerOpen);
   useEffect(() => { onPreparationBusyChange?.(isFocusedGestureLocked || !!stepViewItem || consultationOpen); }, [onPreparationBusyChange, isFocusedGestureLocked, stepViewItem, consultationOpen]);
   if (consultation && (consultation.identity !== consultationIdentity || !stepViewItem || !isPresent || mediaViewerOpen)) setConsultation(null);
   const consultationRequest = consultation?.request;
+  const sharedCountKey = sharedKey && stepViewItem && !consultationOpen ? sharedKey : null;
+  useEffect(() => {
+    const request = sharedCountKey ? (JSON.parse(sharedCountKey) as [string, ConsultationRequest | null])[1] : null;
+    if (!sharedCountKey || !request) return;
+    const abort = new AbortController();
+    void loadInfoConsultation(request, abort.signal)
+      .then(cards => { if (!abort.signal.aborted) setSharedCount({ key: sharedCountKey, count: cards.length }); }).catch(() => {});
+    return () => abort.abort();
+  }, [sharedCountKey]);
   useEffect(() => {
     if (!consultationRequest) return;
     const abort = new AbortController();
@@ -717,10 +739,7 @@ export default function FocusedCardView({
     setConsultation({ identity: consultationIdentity, source, showLoading: false,
       status: infoCards ? "ready" : playbackActor && playbackVersion ? "pending" : "failed",
       cards: infoCards ? structuredClone([...infoCards]) : [],
-      ...(!infoCards && playbackActor && playbackVersion ? { request: { actor: playbackActor,
-        mainCardId: card.cardTemplateId!, version: playbackVersion, mode: groupMe ? "experience" as const : playbackMode,
-        ...(playbackMode === "working" ? { deckTemplateId } : {}), ...(groupMe ? { experienceId: card.experienceId } : {}),
-        attachmentIds: [...(card.infoCardIds ?? [])] } } : {}) });
+      ...(infoRequest() ? { request: infoRequest()! } : {}) });
   };
   useEffect(() => {
     if (!personalDraftId || recoveryOpened.current || !personalEnabled || !stepViewElement) return;
@@ -1122,7 +1141,9 @@ export default function FocusedCardView({
         cards={consultation.cards} anchor={stepViewElement} source={consultation.source} status={consultation.status}
         count={consultation.status === "ready" ? consultation.cards.length : attachmentCount} loadingMessage={consultation.showLoading} actor={playbackActor} onClose={() => setConsultation(null)}
         recoveryId={personalDraftId} selectedId={consultation.selectedId}
-        personalContext={groupNotes && isExperienceCard(card) ? { kind: "group", mainCardId: card.cardTemplateId, experienceId: card.experienceId, version: playbackVersion!, accessEpoch: card.accessEpoch! }
+        hideContext={groupShared && isExperienceCard(card) ? { experienceId: card.experienceId, accessEpoch: card.accessEpoch! } : undefined}
+        personalContext={(groupNotes || groupAdminNotes) && isExperienceCard(card) ? { kind: "group", mainCardId: card.cardTemplateId, experienceId: card.experienceId,
+          version: playbackVersion!, accessEpoch: card.accessEpoch!, creationContext: groupAdminNotes ? "group" : "self" }
           : personalEnabled ? { mainCardId: card.id, deckTemplateId, version: playbackVersion!,
           personalInfoRevision: consultation.personalSources?.find(source => source.cardTemplateId === card.id)?.personalInfoRevision ?? 0 } : undefined}
         personalSources={consultation.personalSources} publications={consultation.publications}

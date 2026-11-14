@@ -8,7 +8,9 @@ import styles from "./InfoCardConsultation.module.css";
 
 // The compact panel shown by an empty pouch. It leaves and returns to the pouch with the same motion as the
 // physical stack (infoCardPouchMotion). Dismissal is the dialog's outside tap, Escape or the pouch itself.
-export default function InfoCardEmptyPanel({ id, pouch, closing, settled, disabled, addRef, onAdd, onExited }: {
+export default function InfoCardEmptyPanel({ id, pouch, closing, settled, disabled, addRef, onAdd, onExited, label = "Add Personal Info Card" }: {
+  // An admin in the Group perspective adds a Group Admin Info Card (checkpoint 4.4).
+  label?: string;
   id: string;
   pouch: HTMLElement;
   closing: boolean;
@@ -41,6 +43,6 @@ export default function InfoCardEmptyPanel({ id, pouch, closing, settled, disabl
 
   return <motion.div ref={scope} id={id} className={`${stepStyles.preview} ${styles.emptyPanel}`} aria-label="Information cards" data-info-empty-panel=""
     data-info-empty-phase={closing ? "closing" : "open"} style={{ x, y, rotate, opacity }}>
-    <button ref={addRef} type="button" className={styles.emptyAdd} disabled={disabled} onClick={onAdd}>Add Personal Info Card</button>
+    <button ref={addRef} type="button" className={styles.emptyAdd} disabled={disabled} onClick={onAdd}>{label}</button>
   </motion.div>;
 }

@@ -5,12 +5,14 @@ import { actingOrigin, infoCardOrigin, originLabel, sameOrigin, STANDALONE_ORIGI
 export type ConsultationRequest = MainInfoContext & { actor: string; mainCardId: string; attachmentIds: readonly string[] };
 
 // No content cache: every genuine opening obtains one new immutable snapshot.
-// Modes: working (standalone Card), experience (the viewer own Me in a Group) and canonical (everything else).
+// Modes: working (standalone Card), experience (the viewer own Me in a Group), group (the Group perspective, or
+// with subjectUserId follower inspection, checkpoint 4.4) and canonical (everything else).
 export async function loadInfoConsultation(context: ConsultationRequest, signal: AbortSignal,
   onSnapshot?: (snapshot: InfoConsultationSnapshot) => void): Promise<InfoCardConsultationCard[]> {
   const query = new URLSearchParams({ mode: context.mode, version: String(context.version),
     ...(context.mode === "working" ? { deckTemplateId: context.deckTemplateId! } : {}),
-    ...(context.mode === "experience" ? { experienceId: context.experienceId! } : {}) });
+    ...(context.mode === "experience" || context.mode === "group" ? { experienceId: context.experienceId! } : {}),
+    ...(context.mode === "group" && context.subjectUserId ? { subjectUserId: context.subjectUserId } : {}) });
   const response = await fetch(`/api/card-templates/${encodeURIComponent(context.mainCardId)}/info-cards?${query}`, {
     signal, cache: "no-store", headers: { "X-Personal-Viewer": context.actor },
   });
@@ -18,7 +20,8 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
   const snapshot = await response.json() as InfoConsultationSnapshot;
   if (snapshot.mainCardId !== context.mainCardId || snapshot.mainCardVersion !== context.version
     || !Array.isArray(snapshot.entries)) throw new Error("Invalid consultation snapshot");
-  const ownNotes = context.mode === "working" || context.mode === "experience";
+  const ownNotes = context.mode === "working" || context.mode === "experience", groupMode = context.mode === "group";
+  if (snapshot.canHide !== undefined && (!groupMode || typeof snapshot.canHide !== "boolean")) throw new Error("Invalid consultation snapshot");
   const modern = snapshot.personalSources !== undefined || snapshot.entries.some(entry => entry.key !== undefined || entry.status === "available" && entry.source !== undefined);
   if ((!modern || context.mode === "canonical") && snapshot.entries.length !== context.attachmentIds.length) throw new Error("Invalid consultation snapshot");
   if (snapshot.personalSources && (!ownNotes || !Array.isArray(snapshot.personalSources)
@@ -41,23 +44,32 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
       if (!ownNotes || !source || info.kind !== "personal" || info.ownerUserId !== context.actor
         || info.visibility !== "private" || info.originCardTemplateId !== source.cardTemplateId) throw new Error("Invalid personal entry");
     } else if (entry.source === "group") {
-      // The viewer own Follower contribution (checkpoint 4.2), only in their own contexts.
-      if (!ownNotes || info.kind !== "group" || info.creationContext !== "self" || info.ownerUserId !== context.actor
-        || info.visibility !== "private" || info.originCardTemplateId !== context.mainCardId || typeof info.experienceId !== "string") throw new Error("Invalid Group note entry");
+      // In the viewer own contexts, their own Follower contributions (checkpoint 4.2). In the Group perspective,
+      // any contribution of this Group; in follower inspection, only that follower's Follower contributions (4.4).
+      if (info.kind !== "group" || info.visibility !== "private" || info.originCardTemplateId !== context.mainCardId || typeof info.experienceId !== "string"
+        || (ownNotes ? info.creationContext !== "self" || info.ownerUserId !== context.actor
+          : !groupMode || info.experienceId !== context.experienceId || !!context.subjectUserId && (info.creationContext !== "self" || info.ownerUserId !== context.subjectUserId))) throw new Error("Invalid Group note entry");
     } else if (info.kind === "personal" || info.kind === "group" || (modern ? !context.attachmentIds.includes(info.infoCardId) : info.infoCardId !== context.attachmentIds[index])) throw new Error("Invalid shared entry");
     if (entry.private !== undefined && (context.mode !== "experience" || entry.source === "shared" || typeof entry.private !== "boolean")) throw new Error("Invalid visibility");
     if (entry.originName !== undefined && (entry.source !== "group" || entry.originName !== null && typeof entry.originName !== "string")) throw new Error("Invalid origin");
-    // Edit and Remove only in the exact creation context (C1): standalone notes on the standalone Card, Follower
-    // contributions in Me of their own Group. Elsewhere the menu names where the note was created.
-    const acting = actingOrigin(context.mode === "experience" ? context.experienceId : undefined, "self");
-    const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable: sameOrigin(infoCardOrigin(info), acting) } : undefined;
-    const origin = entry.source === "group" ? originLabel(infoCardOrigin(info), entry.originName) : entry.source === "personal" ? originLabel(STANDALONE_ORIGIN) : undefined;
+    // Edit and Remove only on the viewer own note in its exact creation context (C1): standalone notes on the
+    // standalone Card, Follower contributions in Me of their Group, Admin contributions in the Group perspective of
+    // their Group. Elsewhere the viewer own note names where it was created. A Group admin may hide any other
+    // contribution shown in the Group perspective or follower inspection (C2).
+    const own = info.ownerUserId === context.actor;
+    const acting = actingOrigin(context.mode === "experience" || groupMode ? context.experienceId : undefined, groupMode && !context.subjectUserId ? "group" : "self");
+    const editable = own && sameOrigin(infoCardOrigin(info), acting);
+    const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable, ...(groupMode && snapshot.canHide && !editable ? { canHide: true } : {}) } : undefined;
+    const origin = !own ? undefined : entry.source === "group" ? originLabel(infoCardOrigin(info), entry.originName) : entry.source === "personal" ? originLabel(STANDALONE_ORIGIN) : undefined;
     return { id: info.infoCardId, title: info.content.title, body: info.content.body, bodyFormat: info.content.bodyFormat, seriesTitle: info.series.title,
       creatorUsername: info.creatorUsername, personal: entry.source === "personal" || entry.source === "group",
+      // A card's type follows where it was created (D1): Admin contributions are Group Admin Info Cards.
+      ...(entry.source === "group" && info.creationContext === "group" ? { infoType: "groupAdmin" as const } : {}),
       ...(source && context.mode === "working" ? { personalSource: source } : {}), ...(groupNote ? { groupNote } : {}), ...(origin ? { origin } : {}),
       ...(entry.private !== undefined ? { groupVisibility: entry.private ? "private" as const : "visible" as const } : {}),
       seriesCreatorUsername: info.series.creatorUsername, ...(info.content.mediaItem ? { media: info.content.mediaItem } : {}),
-      publication: { infoCardId: info.infoCardId, kind: "publication", version: info.version } };
+      // A Group contribution read in the Group is delivered to its members through that Group.
+      publication: { infoCardId: info.infoCardId, kind: "publication", version: info.version, ...(groupMode && entry.source === "group" ? { experienceId: context.experienceId! } : {}) } };
   });
   if (cards.length < context.attachmentIds.length) throw new Error("Missing shared positions");
   onSnapshot?.(snapshot);
