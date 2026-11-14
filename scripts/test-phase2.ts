@@ -55,6 +55,8 @@ try {
   const now = new Date(); const userId = new ObjectId();
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
     permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
+  // Manual review only: an account that starts WITHOUT public-publishing approval, so denial can be tested without editing the database.
+  if (interactive) await db.collection("users").insertOne({ _id: new ObjectId(), email: "phase2-unapproved@example.invalid", username: "unapproved", passwordHash: bcrypt.hashSync("local-test-only", 4), permissions: { publicPublishing: false }, decksData: [], cardsData: [], sharedDeckData: [], createdAt: now, updatedAt: now });
   if (infoCards) {
     const repo = new InfoCardRepository(db, client), other = (await db.collection("users").findOne({ username: "other" }))!._id.toString();
     for (const [actor, suffix] of [[userId.toHexString(), "owner"], [other, "other"]]) {

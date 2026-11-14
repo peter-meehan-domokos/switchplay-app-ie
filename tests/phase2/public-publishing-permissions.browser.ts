@@ -83,6 +83,9 @@ test("Info Card UI preserves its saved draft when public publication is denied",
   await page.getByRole("dialog", { name: "Publish Info Card publicly?" }).getByRole("button", { name: "Publish publicly", exact: true }).click();
   await expect(page.getByText("Public publishing requires approval. Your draft is saved and private work remains available.")).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Keep the sign with its number.");
+  await page.getByRole("alert").getByRole("button", { name: "OK", exact: true }).click();
+  await expect(page.getByText("Public publishing requires approval")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Keep the sign with its number.");
   expect(await f.info.versions().countDocuments({ infoCardId: f.id })).toBe(0);
 });
 for (const kind of ["Card", "Deck"]) test(`${kind} Creator publication feedback preserves the saved draft`, async ({ page }) => {
@@ -93,7 +96,83 @@ for (const kind of ["Card", "Deck"]) test(`${kind} Creator publication feedback 
   await page.getByRole("button", { name: kind === "Card" ? "Publish Card 1" : "Publish Deck", exact: true }).click();
   await page.getByRole("dialog", { name: "Confirm public publication" }).getByRole("button", { name: "Publish publicly", exact: true }).click();
   await expect(page.locator(".creator-save-message--error")).toContainText("Public publishing requires approval");
+  await page.locator(".creator-save-message--error").getByRole("button", { name: "OK", exact: true }).click();
+  await expect(page.locator(".creator-save-message--error")).toHaveCount(0);
   expect(await f.main.cardVersions().countDocuments({ cardTemplateId: f.card.cardTemplateId })).toBe(0);
   expect(await f.main.deckVersions().countDocuments({ deckTemplateId: f.deck.deckTemplateId })).toBe(0);
   expect((await f.main.cards().findOne({ cardTemplateId: f.card.cardTemplateId }))!.draft!.intro.title).toBe("Permission practice");
+});
+
+// --- Public stays in the one dropdown; unapproved users get an explanation instead of the selection ---
+type Kind = "Deck" | "Card" | "Info Card";
+async function open(page: import("@playwright/test").Page, f: Awaited<ReturnType<typeof setup>>, kind: Kind) {
+  await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+  if (kind === "Info Card") { await page.goto(`/creator/info-cards/${f.id}`); return page.getByRole("combobox", { name: "Info Card publication visibility", exact: true }); }
+  const target = kind === "Card" ? await f.main.createDeckDraft(actor, { ...createDefaultDeckContent([]), title: "Card editor", cards: [{ cardTemplateId: f.card.cardTemplateId }] }) : f.deck;
+  await page.goto(`/creator/edit/${target.deckTemplateId}`);
+  return page.getByRole("combobox", { name: kind === "Card" ? "Card 1 publication visibility" : "Deck publication visibility", exact: true });
+}
+const within = async (locator: import("@playwright/test").Locator, page: import("@playwright/test").Page) => {
+  const box = (await locator.boundingBox())!, viewport = page.viewportSize()!;
+  expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width); expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+};
+for (const kind of ["Deck", "Card", "Info Card"] as Kind[]) test(`unapproved ${kind}: greyed Public explains approval, OK dismisses it and private work continues`, async ({ page }) => {
+  await grant({ publicPublishing: false }); const f = await setup("private");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const select = await open(page, f, kind);
+  await expect(select).toHaveValue("private");
+  await expect(select.locator("option[value=public]")).toHaveText("Public (requires approval)");
+  await select.selectOption("public");
+  const dialog = page.getByRole("alertdialog", { name: "Public publishing requires approval" });
+  await expect(dialog).toContainText("Public publishing requires approval. You can continue creating and publishing privately.");
+  await within(dialog, page); await within(dialog.getByRole("button", { name: "OK", exact: true }), page);
+  await expect(select).toHaveValue("private");
+  await dialog.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(select).toHaveValue("private");
+  await expect(page.getByText("Public publishing requires approval")).toHaveCount(0);
+  if (kind === "Info Card") await expect(page.getByRole("textbox", { name: "Explanation", exact: true })).toHaveValue("Keep the sign with its number.");
+  // Private publication still works straight after dismissal.
+  await page.getByRole("button", { name: kind === "Info Card" ? "Publish" : kind === "Card" ? "Publish Card 1" : "Publish Deck", exact: true }).click();
+  if (kind === "Info Card") await expect.poll(() => f.info.versions().countDocuments({ infoCardId: f.id, visibility: "private" })).toBe(1);
+  else if (kind === "Deck") await expect.poll(() => f.main.deckVersions().countDocuments({ deckTemplateId: f.deck.deckTemplateId, visibility: "private" })).toBe(1);
+  else await expect.poll(() => f.main.cardVersions().countDocuments({ cardTemplateId: f.card.cardTemplateId, visibility: "private" })).toBe(1);
+  expect(await f.main.cardVersions().countDocuments({ visibility: "public", publishedByUserId: actor, cardTemplateId: f.card.cardTemplateId })).toBe(0);
+});
+for (const kind of ["Deck", "Info Card"] as Kind[]) test(`approved ${kind}: Public is an ordinary selectable option with no prompt`, async ({ page }) => {
+  await grant({ publicPublishing: true }); const f = await setup("private");
+  await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+  await page.goto(kind === "Deck" ? `/creator/edit/${f.deck.deckTemplateId}` : `/creator/info-cards/${f.id}`);
+  const select = page.getByRole("combobox", { name: `${kind} publication visibility`, exact: true });
+  await select.selectOption("public");
+  await expect(select).toHaveValue("public");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});
+for (const kind of ["Deck", "Info Card"] as Kind[]) test(`${kind}: revocation after approval gives dismissible server feedback and a later refresh greys Public`, async ({ page }) => {
+  await grant({ publicPublishing: true }); const f = await setup("private");
+  await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });
+  await page.goto(kind === "Deck" ? `/creator/edit/${f.deck.deckTemplateId}` : `/creator/info-cards/${f.id}`);
+  const select = page.getByRole("combobox", { name: `${kind} publication visibility`, exact: true });
+  await expect(select).toBeVisible(); await page.waitForTimeout(500);       // let the advisory read settle as approved
+  await grant({ publicPublishing: false });                                     // revoked while the page stays open and stale
+  await select.selectOption("public");
+  await page.getByRole("button", { name: kind === "Deck" ? "Publish Deck" : "Publish", exact: true }).click();
+  await page.getByRole("dialog", { name: kind === "Deck" ? "Confirm public publication" : "Publish Info Card publicly?" }).getByRole("button", { name: "Publish publicly", exact: true }).click();
+  const feedback = kind === "Deck" ? page.locator(".creator-save-message--error") : page.getByRole("alert").filter({ hasText: "requires approval" });
+  await expect(feedback).toContainText("requires approval");
+  await feedback.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(page.getByText("Public publishing requires approval")).toHaveCount(0);
+  await select.selectOption("private");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));        // a refresh now sees the revocation
+  await expect(select.locator("option[value=public]")).toHaveText("Public (requires approval)");
+});
+test("a grant made while the page is open is honoured when Public is tapped", async ({ page }) => {
+  await grant({ publicPublishing: false }); const f = await setup("private");
+  const select = await open(page, f, "Deck");
+  await expect(select.locator("option[value=public]")).toHaveText("Public (requires approval)");
+  await grant({ publicPublishing: true });
+  await select.selectOption("public");
+  await expect(select).toHaveValue("public");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
 });
