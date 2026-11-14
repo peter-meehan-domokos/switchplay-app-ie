@@ -27,6 +27,7 @@ export function infoCardError(error: unknown, visibleCapacityIssues: readonly In
   }
   if (error.code === "INVALID_INFO_UPLOAD_FILE" && typeof error.details?.message === "string") return error.details.message;
   const messages: Record<string, string> = {
+    PUBLIC_PUBLISHING_FORBIDDEN: "Public publishing requires approval. Your draft is saved and private work remains available.",
     INFO_PUBLICATION_INCOMPLETE: "Choose a series and complete the title and explanation before publishing.",
     INFO_MEDIA_PROVIDER_VERIFICATION_REQUIRED: "Media is unavailable until protected Cloudflare delivery has been verified. Your text draft is safe.",
     INFO_MEDIA_NOT_READY_OR_UNPROTECTED: "The video is still processing or its protection could not be verified. Check its status and retry.",

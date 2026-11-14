@@ -16,7 +16,7 @@ before(async () => { mongo = await MongoMemoryReplSet.create({ replSet: { count:
 after(async () => { await client?.close(); await mongo?.stop(); });
 async function setup() {
   const repo = new CardRepository(client.db(`switchplay_test_library_${sequence++}`), client); await createFoundationIndexes(repo.db);
-  await repo.users().insertMany(["alice", "bob", "carol"].map((_id) => ({ _id, username: _id, decksData: [], cardsData: [] })));
+  await repo.users().insertMany(["alice", "bob", "carol"].map((_id) => ({ _id, permissions: { publicPublishing: true }, username: _id, decksData: [], cardsData: [] })));
   return repo;
 }
 async function card(repo: CardRepository, owner = "bob", visibility: Visibility = "public", title = "Published Card") {

@@ -16,7 +16,9 @@ const routes: Record<string, Route> = {};
 before(async () => {
   server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   fixture.client = await new MongoClient(server.getUri()).connect(); fixture.db = fixture.client.db("switchplay_info_api_tests");
-  await createInfoCardIndexes(fixture.db); global.__infoApi = fixture;
+  await createInfoCardIndexes(fixture.db);
+  await fixture.db.collection("users").insertOne({ _id: "alice", permissions: { publicPublishing: true } } as never);
+  global.__infoApi = fixture;
   for (const name of ["info-cards", "info-cards/[infoCardId]", "info-cards/[infoCardId]/publish", "info-cards/[infoCardId]/check-rendering", "info-cards/[infoCardId]/publication", "info-cards/[infoCardId]/upload", "info-cards/[infoCardId]/media", "info-cards/[infoCardId]/media/status", "info-card-series", "library/info-cards", "media/card", "media/protected"]) {
     const bundle = await build({ entryPoints: [`src/app/api/${name}/route.ts`], bundle: true, platform: "node", format: "cjs", packages: "external", write: false,
       plugins: [{ name: "info-api-auth-and-disposable-db", setup(builder) {

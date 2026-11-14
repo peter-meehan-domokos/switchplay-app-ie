@@ -14,6 +14,7 @@ export function requiresPublicInfoAttachments(deck: VisibilityLane, card: Visibi
 
 export function creatorPublicationErrorMessage(error: unknown): string {
   const code = error instanceof CreatorRequestError ? error.code : error instanceof Error ? error.message : "";
+  if (code === "PUBLIC_PUBLISHING_FORBIDDEN") return "Public publishing requires approval. Your edits are retained and private work remains available.";
   if (code === "PRIVATE_INFO_BLOCKS_PUBLICATION") return "Cannot publish publicly. One or more attached Info Cards are private. Remove them or publish those Info Cards publicly first.";
   if (code === "PUBLIC_PUBLICATION_REVIEW_CHANGED") return "The changes awaiting public publication changed. Review them and confirm again. Earlier successful publications are retained.";
   if (code === "DECK_PUBLICATION_REVIEW_CONFLICT") return "The Cards or Deck changed during publication review. Review and confirm again. Earlier successful publications are retained.";

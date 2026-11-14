@@ -1,3 +1,4 @@
+import { requirePublicPublishing } from "../userPermissions";
 import { MongoServerError, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { CardRepository, COLLECTIONS as MAIN } from "../cards/repository";
 import { CardArchitectureError, requireCondition } from "../cards/domain";
@@ -176,6 +177,7 @@ export class InfoCardRepository {
       requireCondition(root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
       const publication: InfoPublication = { infoCardId: id, version: root.latestVersion + 1, content: content as InfoContent,
         visibility: root.draftVisibility, sourceRevision: expected, publishedAt: new Date(), publishedByUserId: actor };
+      if (publication.visibility === "public") await requirePublicPublishing(this.db, actor, session);
       await this.versions().insertOne({ ...publication }, { session });
       await this.roots().updateOne({ infoCardId: id, revision: expected }, { $set: { latestVersion: publication.version,
         visibility: publication.visibility, draft: null, updatedAt: publication.publishedAt }, $inc: { revision: 1 } }, { session });

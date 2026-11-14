@@ -22,7 +22,7 @@ async function setup() {
   const db = client.db(`switchplay_migration_integration_${sequence++}`);
   await createFoundationIndexes(db);
   const repo = new CardRepository(db, client);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, decksData: [], cardsData: [] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [] })));
   return repo;
 }
 

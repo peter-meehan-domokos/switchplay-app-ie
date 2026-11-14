@@ -23,7 +23,7 @@ async function deck(repo: CardRepository, ids: string[]) {
 }
 async function fixture() {
   const repo = new CardRepository(client.db(`switchplay_test_updates_${sequence++}`), client); await createFoundationIndexes(repo.db);
-  await repo.users().insertMany(["alice", "bob", "carol"].map((_id) => ({ _id, decksData: [], cardsData: [] })));
+  await repo.users().insertMany(["alice", "bob", "carol"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [] })));
   const ids = [await card(repo), await card(repo)], id = await deck(repo, ids);
   await repo.ensureDeckData("alice", id, 1); return { repo, ids, id };
 }

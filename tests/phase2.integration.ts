@@ -18,7 +18,7 @@ after(async () => { await client?.close(); await server?.stop(); });
 async function setup() {
   const db = client.db(`switchplay_phase2_integration_${sequence++}`); await createFoundationIndexes(db);
   const repo = new CardRepository(db, client);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, decksData: [], cardsData: [], sharedDeckData: [{ parked: "unchanged" }] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ parked: "unchanged" }] })));
   const cards = [0, 1].map(() => ({ cardTemplateId: randomUUID(), content: { intro: { title: "Practice", description: null, mediaItem: null },
     suggestedTargetDate: "", steps: [createStep("One"), createStep("Two"), createStep("Three")] } satisfies CardContent }));
   const content: DeckContent = { title: "Private", introduction: null, categories: [], themes: [], cadence: { intervalDays: 7 }, labelPrefix: "Card", cards: cards.map(({ cardTemplateId }) => ({ cardTemplateId })) };
