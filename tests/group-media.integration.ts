@@ -31,11 +31,15 @@ async function fixture() {
     const allocation = await allocate(actor, changes, experienceId);
     return media.commit(actor, experienceId, f.ids[0], allocation.contributionId, { expectedRevision: allocation.revision, proof: allocation.proof });
   };
-  const removeFollower = async () => {
+  const changeFollower = async (kind: "remove-follower" | "add-follower") => {
     const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
-    await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: "bob", kind: "remove-follower" });
+    await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: "bob", kind });
   };
-  return { ...f, creationCommand: f.command, media, provider, calls, mediaCommand, allocate, attach, removeFollower };
+  const removeFollower = () => changeFollower("remove-follower"), rejoin = () => changeFollower("add-follower");
+  // Delete in the creation context of bob's Follower contributions: Me of the originating Group (C1).
+  const deleteFromMe = async (contributionId: string, expectedRevision: number) => media.delete("bob", contributionId, { expectedRevision },
+    { experienceId: f.experienceId, accessEpoch: (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!.accessEpoch, perspective: "self" });
+  return { ...f, creationCommand: f.command, media, provider, calls, mediaCommand, allocate, attach, removeFollower, rejoin, deleteFromMe };
 }
 
 test("allocation retries reserve one asset, trusted origin, no personal data; attachment is idempotent", async () => {
@@ -75,7 +79,9 @@ test("owner history spans Groups without membership or personal CardData; Group 
 
 });
 
-test("hide is visibility only; creator can read/delete after removal; application Admin cannot delete", async () => {
+// Checkpoint 4.2b (C1, C4): after leaving, the creator still reads their contribution but deletes it only once they
+// have rejoined, from Me of its Group; the standalone Card (owner route) never deletes an attached contribution.
+test("hide is visibility only; creator can read after removal and delete after rejoining; application Admin cannot delete", async () => {
   const f = await fixture(), row = await f.attach();
   const originalAsset = (await f.media.records().findOne({ contributionId: row.contributionId }))!.asset;
   await assert.rejects(f.media.delete("outsider", row.contributionId, { expectedRevision: row.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
@@ -86,7 +92,11 @@ test("hide is visibility only; creator can read/delete after removal; applicatio
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).items[0].groupVisible, false);
   await assert.rejects(f.media.deliver("carol", row.contributionId, { kind: "group", experienceId: f.experienceId }, "playback"), { code: "GROUP_MEDIA_FORBIDDEN" });
   await f.removeFollower(); await f.media.deliver("bob", row.contributionId, { kind: "owner" }, "playback");
-  const gone = await f.media.delete("bob", row.contributionId, { expectedRevision: hidden.revision });
+  await assert.rejects(f.media.delete("bob", row.contributionId, { expectedRevision: hidden.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  await assert.rejects(f.deleteFromMe(row.contributionId, hidden.revision), { code: "GROUP_FORBIDDEN" });
+  assert.equal(f.calls.delete, 0);
+  await f.rejoin();
+  const gone = await f.deleteFromMe(row.contributionId, hidden.revision);
   assert.equal(gone.state, "deleted"); assert.equal(gone.cleanup, "succeeded"); assert.equal(f.calls.delete, 1);
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).items.length, 0);
 });
@@ -283,7 +293,7 @@ test("cleanup acknowledgement failure cannot turn successful logical deletion in
     return update(...args);
   });
   t.mock.method(f.media, "records", () => collection);
-  const result = await f.media.delete("bob", attached.contributionId, { expectedRevision: attached.revision });
+  const result = await f.deleteFromMe(attached.contributionId, attached.revision);
   assert.equal(result.state, "deleted"); assert.equal(result.cleanup, "pending");
   assert.equal((await f.media.ownerFeed("bob", f.ids[0])).total, 0);
 });
@@ -306,7 +316,7 @@ test("original filenames survive image/video attachment and hiding; legacy alloc
   await assert.rejects(f.allocate("bob", { originalFilename: "../private.jpg" }), { code: "INVALID_GROUP_MEDIA_FILENAME" });
 });
 
-test("Group-context creator deletion requires matching origin and live membership; ordinary owner deletion survives leaving", async () => {
+test("Group-context creator deletion requires matching origin and live membership; leaving ends deletion until rejoining", async () => {
   const f = await fixture();
   const other = await f.repo.create("alice", { ...f.creationCommand, operationId: "other-media-origin", name: "Galway development" });
   const own = await f.attach(), foreign = await f.attach("bob", {}, other.experienceId);
@@ -319,6 +329,10 @@ test("Group-context creator deletion requires matching origin and live membershi
   const retained = await f.attach(); await f.removeFollower();
   await assert.rejects(f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision }, { experienceId: f.experienceId, accessEpoch: 0, perspective: "self" as const }));
   assert.equal((await f.media.records().findOne({ contributionId: retained.contributionId }))!.state, "attached");
-  assert.equal((await f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision })).state, "deleted");
+  // C4: the standalone Card is no back door after leaving; rejoining restores deletion from Me.
+  await assert.rejects(f.media.delete("bob", retained.contributionId, { expectedRevision: retained.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  assert.equal((await f.media.records().findOne({ contributionId: retained.contributionId }))!.state, "attached");
+  await f.rejoin();
+  assert.equal((await f.deleteFromMe(retained.contributionId, retained.revision)).state, "deleted");
   assert.equal((await f.media.records().findOne({ contributionId: foreign.contributionId }))!.state, "attached");
 });

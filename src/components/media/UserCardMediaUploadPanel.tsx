@@ -23,6 +23,8 @@ type UserCardMediaUploadPanelProps = {
   canUpload?: boolean;
   mutationDisabled?: boolean;
   canRemoveMedia?: (item: MediaItem) => boolean;
+  // The viewer's own item outside its creation context: where it was created, shown in place of Delete (C1).
+  getCreatedIn?: (item: MediaItem) => string | null;
   showPrivate?: boolean;
   getReadinessTarget?: (item: VideoMediaItem) => GalleryMediaRequest | undefined;
   images: ImageMediaItem[];
@@ -37,8 +39,13 @@ type UserCardMediaUploadPanelProps = {
   getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
-function VideoTile({ item, target, removalState, onRemove, canRemove = true, mutationDisabled = false, showPrivate = false, readinessTarget, getMetadata }: {
-  getMetadata?: UserCardMediaUploadPanelProps["getMetadata"];
+// Non-interactive: a small "Created in:" above the originating context name.
+function CreatedIn({ label }: { label: string | null | undefined }) {
+  return label ? <p className="user-card-media-tile-created-in"><span className="user-card-media-tile-created-in-label">Created in:</span><span>{label}</span></p> : null;
+}
+
+function VideoTile({ item, target, removalState, onRemove, canRemove = true, mutationDisabled = false, showPrivate = false, readinessTarget, getMetadata, createdIn }: {
+  getMetadata?: UserCardMediaUploadPanelProps["getMetadata"]; createdIn?: string | null;
   item: VideoMediaItem; canRemove?: boolean; mutationDisabled?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
   target: UserCardMediaUploadTarget;
   removalState?: UserCardMediaRemovalState;
@@ -87,6 +94,7 @@ function VideoTile({ item, target, removalState, onRemove, canRemove = true, mut
           Check again
         </button>
       ) : null}
+      <CreatedIn label={createdIn} />
       {canRemove ? <button
         aria-label={`Remove video ${item.description} (${item.id})`}
         className="creator-modal-secondary user-card-media-tile-remove"
@@ -110,7 +118,7 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
-  getMetadata, canUpload = true, mutationDisabled = false, canRemoveMedia = () => true, showPrivate = false, getReadinessTarget,
+  getMetadata, canUpload = true, mutationDisabled = false, canRemoveMedia = () => true, getCreatedIn = () => null, showPrivate = false, getReadinessTarget,
   getMediaKey = (item) => item.id,
   getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
@@ -172,6 +180,7 @@ export default function UserCardMediaUploadPanel({
                 {showPrivate ? <span className="media-centre-private-label"><VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} /></span> : null}
                 <p className="user-card-media-tile-name" title={getMetadata?.(item).filename ?? item.description}>{getMetadata?.(item).filename ?? item.description}</p>
                 {getMetadata ? <p className="user-card-media-tile-origin">{getMetadata(item).uploader !== undefined ? `By: ${getMetadata(item).uploader}` : `In: ${getMetadata(item).origin}`}</p> : null}
+                <CreatedIn label={getCreatedIn(item)} />
                 {canRemoveMedia(item) ? <button
                   aria-label={`Remove image ${item.description} (${item.id})`}
                   className="creator-modal-secondary user-card-media-tile-remove"
@@ -218,7 +227,7 @@ export default function UserCardMediaUploadPanel({
           {videos.map((item) => (
             <VideoTile
               item={item}
-              getMetadata={getMetadata} showPrivate={showPrivate} canRemove={canRemoveMedia(item)} mutationDisabled={mutationDisabled} readinessTarget={getReadinessTarget?.(item)}
+              getMetadata={getMetadata} showPrivate={showPrivate} canRemove={canRemoveMedia(item)} createdIn={getCreatedIn(item)} mutationDisabled={mutationDisabled} readinessTarget={getReadinessTarget?.(item)}
               key={getMediaKey(item)}
               onRemove={() => onRemoveMedia(item)}
               removalState={removalStatesById[getMediaKey(item)]}

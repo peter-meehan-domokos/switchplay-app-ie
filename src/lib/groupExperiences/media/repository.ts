@@ -13,7 +13,7 @@ import type { GroupMediaRecord, GroupMediaProvider, MediaAuthority } from "./mod
 import { signGroupUpload, verifyGroupUpload } from "./proof";
 import { productionGroupMediaProvider } from "./providers";
 import { readMediaPage } from "./reads";
-import { creationContextOf, type CreationContext } from "./contributionIdentity";
+import { creationContextOf, identityRole, type CreationContext } from "./contributionIdentity";
 
 export class GroupMediaRepository {
   constructor(readonly groups: GroupExperienceRepository, readonly provider: GroupMediaProvider = productionGroupMediaProvider) {}
@@ -28,7 +28,7 @@ export class GroupMediaRepository {
     // Server enforcement of the perspective rule: Admin contributions only from a current admin, Follower
     // contributions only from an active follower. A role change also changes accessEpoch, so an in-flight
     // upload across it fails here and its stored creationContext always matches the role at creation.
-    requireCondition(creationContext === "group" ? member.isAdmin : member.followerStatus === "active", "GROUP_MEDIA_PERSPECTIVE_FORBIDDEN");
+    requireCondition(identityRole(creationContext) === "admin" ? member.isAdmin : member.followerStatus === "active", "GROUP_MEDIA_PERSPECTIVE_FORBIDDEN");
     const card = await selectedCard(this.groups.cards, experience, cardTemplateId, session);
     requireCondition(card.version === version && (adoptionRevision === undefined || adoptionRevision === experience.adoptionRevision), "GROUP_MEDIA_SCOPE_CONFLICT");
     // Reuse the Group-assessment adoption fence: every adoption touches its
@@ -134,23 +134,24 @@ export class GroupMediaRepository {
       return { contributionId, revision: row.revision + 1, groupVisible: false };
     });
   }
-  // Deletion follows the contribution identity (R1). From a Group context the acting perspective must match the
-  // stored creationContext: an Admin contribution from the Group perspective of its originating Group (the Admin
-  // identity exists only for a current admin), a Follower contribution from Me. The owner route, used by the
-  // standalone Card and by upload cancellation, deletes Follower contributions and unattached uploads of either
-  // identity. The stored identity is compared, never the current role, and nobody deletes another author's item.
+  // Deletion happens only in the exact creation context (C1, refining R1). From a Group context the acting
+  // perspective must match the stored creationContext, in the originating Group, and the author must currently hold
+  // that identity's role there: an admin for an Admin contribution (Group perspective), an active follower for a
+  // Follower contribution (Me). A former follower or admin therefore cannot delete until they rejoin (C4). The
+  // owner route has no creation context: it only cancels unattached uploads of either identity. The stored
+  // identity is compared, never the current role, and nobody deletes another author's item.
   async delete(actor: string, contributionId: string, input: unknown, context?: { experienceId: string; accessEpoch: number; perspective: CreationContext }) {
     id(actor); id(contributionId); const cmd = mutationCommand(input, "delete");
     const row = await this.transaction(async session => {
       if (context) {
         id(context.experienceId);
-        const { member } = await this.groups.access(actor, context.experienceId, context.perspective === "group" ? "admin" : "member", session, context.accessEpoch);
+        const { member } = await this.groups.access(actor, context.experienceId, identityRole(context.perspective), session, context.accessEpoch);
         await this.groups.fence([member], session);
       }
       const current = await this.records().findOne({ contributionId, authorUserId: actor }, { session });
       requireCondition(current, "GROUP_MEDIA_FORBIDDEN");
       requireCondition(!context || current.experienceId === context.experienceId, "GROUP_MEDIA_FORBIDDEN");
-      requireCondition(context ? creationContextOf(current) === context.perspective : current.state !== "attached" || creationContextOf(current) === "self", "GROUP_MEDIA_FORBIDDEN");
+      requireCondition(context ? creationContextOf(current) === context.perspective : current.state !== "attached", "GROUP_MEDIA_FORBIDDEN");
       if (current.state === "deleted") return current;
       requireCondition(current.revision === cmd.expectedRevision, "GROUP_MEDIA_REVISION_CONFLICT");
       await this.records().updateOne({ contributionId, revision: current.revision }, { $set: { state: "deleted", groupVisible: false,

@@ -12,6 +12,8 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../../src/li
 // never reaches another user or the Group and Other followers perspectives.
 // Checkpoint 4.2: Me shows and creates the viewer own Follower contribution Info Cards, with the media
 // visibility indicator; the standalone Card shows them too; nobody else sees them before checkpoint 4.3.
+// Checkpoint 4.2b (C1, C3): Edit and Remove only in the creation context; elsewhere the menu names it beside
+// + New. An unsaved Group draft reopens from My Drafts directly in the shared editor.
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
 test.afterAll(async () => { await client?.close(); });
@@ -79,6 +81,11 @@ async function menu(page: Page) {
   const items = await page.getByRole("menuitem").allTextContents();
   return items;
 }
+// The read-only origin of the open menu, or null when it has none.
+async function menuOrigin(page: Page) {
+  const origin = current(page).locator("[data-info-card-origin]");
+  return await origin.count() ? (await origin.locator("span").allTextContents()) : null;
+}
 async function write(page: Page, title: string) {
   await expect(editor(page)).toBeVisible();
   const series = editor(page).getByRole("combobox", { name: "Series", exact: true });
@@ -119,6 +126,7 @@ test("Me shows Creator Info Cards and the viewer own notes; those not shared wit
   await expect(current(page).locator("[data-info-card-visibility]")).toHaveAttribute("data-info-card-visibility", "private");
   await expect(current(page).getByRole("img", { name: "Private in this Group", exact: true })).toHaveCount(1);
   expect(await menu(page)).toEqual(["+ New"]);
+  expect(await menuOrigin(page)).toEqual(["Created in:", "Other squad · Me"]);
 });
 
 test("a follower creates, edits and removes a Group note from Me without touching CardData", async ({ page }) => {
@@ -136,8 +144,9 @@ test("a follower creates, edits and removes a Group note from Me without touchin
   await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "personal");
   await expect(current(page).getByRole("img", { name: "Visible to this Group", exact: true })).toHaveCount(1);
   expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
-  // Its author edits it here, and Remove deletes it.
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
+  // Its author edits it here, in its creation context, and Remove deletes it.
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); expect(await menuOrigin(page)).toBeNull();
+  await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
   await write(page, "Squad note, edited");
   await expect(current(page)).toHaveAttribute("data-info-card-id", id);
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("Squad note, edited");
@@ -147,14 +156,71 @@ test("a follower creates, edits and removes a Group note from Me without touchin
   expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
 });
 
-test("the standalone Card shows the owner's Group notes with Edit and Remove, and no visibility indicator", async ({ page }) => {
+test("the standalone Card shows the owner's Group notes read-only with their origin, and no visibility indicator", async ({ page }) => {
   const f = await fixture(); await login(page);
   const entries = await openPouchEntries(page, f, `/decks?openDeck=${f.deckId}`);
   expect(entries.map(entry => entry.info?.infoCardId).toSorted()).toEqual([...CREATOR_CARDS, f.noteId, f.elsewhereId].toSorted());
   expect(entries.every(entry => entry.private === undefined)).toBe(true);
   await expect(current(page)).toHaveAttribute("data-info-card-id", f.elsewhereId);
   await expect(current(page).locator("[data-info-card-visibility]")).toHaveCount(0);
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]);
+  // C1: a Group note is edited only in Me of its Group; here the menu names it beside + New.
+  expect(await menu(page)).toEqual(["+ New"]);
+  expect(await menuOrigin(page)).toEqual(["Created in:", "Other squad · Me"]);
+});
+
+test("a long Group name in the menu origin wraps inside the card at phone width, without clipping", async ({ page }) => {
+  const f = await fixture(); await login(page); await page.setViewportSize({ width: 320, height: 640 });
+  const name = "Under fourteen development squad, Saturday morning extended practice group";
+  const long = await f.groups.create(f.owner, { operationId: randomUUID(), name, adminIds: [], followerIds: [f.owner],
+    manifest: { deckTemplateId: f.deckId, deckVersion: 1, cards: [{ cardTemplateId: f.cardId, version: 1 }] } });
+  const id = randomUUID();
+  await f.info.createGroup(f.owner, id, long.experienceId, f.cardId, { accessEpoch: 0, version: 1, creationContext: "self" });
+  await f.info.save(f.owner, id, 0, { title: "From the long squad", body: "Saved there.", seriesId: "demo-series-owner", mediaItem: null }, "private");
+  await f.info.savePersonal(f.owner, id, 1);
+  await select(page, f, { perspective: "self" });
+  await openPouch(page, f);
+  await expect(current(page)).toHaveAttribute("data-info-card-id", id);
+  expect(await menu(page)).toEqual(["+ New"]);
+  const origin = current(page).locator("[data-info-card-origin]");
+  await expect(origin).toContainText(`${name} · Me`);
+  const [box, card] = [(await origin.boundingBox())!, (await current(page).boundingBox())!];
+  expect(box.x).toBeGreaterThanOrEqual(card.x - 0.5); expect(box.x + box.width).toBeLessThanOrEqual(card.x + card.width + 0.5);
+  expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(320);
+  expect(box.height, "the name wraps onto several lines").toBeGreaterThan(30);
+  expect(await origin.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+});
+
+test("an unsaved Group draft reopens from My Drafts directly in the editor, names its origin, and returns there once saved", async ({ page }) => {
+  const f = await fixture(); await login(page);
+  const id = randomUUID();
+  await f.info.createGroup(f.owner, id, f.experienceId, f.cardId, { accessEpoch: 0, version: 1, creationContext: "self" });
+  await f.info.save(f.owner, id, 0, { title: "Unfinished squad note", body: "Started in Me.", seriesId: "demo-series-owner", mediaItem: null }, "private");
+  // A saved Group note with an unsaved edit is continued in its creation context, never from My Drafts.
+  await f.info.save(f.owner, f.elsewhereId, 2, { title: "From the other squad, edited", body: "Edited in the other Group.", seriesId: "demo-series-owner", mediaItem: null }, "private");
+  await page.goto("/creator/new");
+  await page.getByRole("button", { name: "My Drafts", exact: true }).click();
+  const drafts = page.getByRole("dialog", { name: "My Drafts", exact: true });
+  const entry = drafts.getByRole("button", { name: /Unfinished squad note/ });
+  await expect(entry).toContainText("Created in: Info squad · Me");
+  await expect(drafts.getByRole("button", { name: /From the other squad/ })).toHaveCount(0);
+  await entry.click();
+  await expect(page).toHaveURL(new RegExp(`/creator/info-cards/${id}`));
+  await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Me");
+  await expect(page.getByRole("textbox", { name: "Title", exact: true })).toHaveValue("Unfinished squad note");
+  // Autosave continues the draft, authorised against its Group.
+  await page.getByRole("textbox", { name: "Explanation", exact: true }).fill("Finished from My Drafts.");
+  await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
+  expect((await f.info.owner(f.owner, id)).draft?.body).toBe("Finished from My Drafts.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/creator\/new\?drafts=1/);
+  const saved = await f.info.owner(f.owner, id);
+  expect(saved).toMatchObject({ kind: "group", experienceId: f.experienceId, creationContext: "self", latestVersion: 1, draft: null });
+  await expect(page.getByRole("dialog", { name: "My Drafts", exact: true }).getByRole("button", { name: /Unfinished squad note/ })).toHaveCount(0);
+  // Once saved, the Creator route no longer opens it for editing.
+  await page.goto(`/creator/info-cards/${id}`);
+  await expect(page.getByText("Info Card unavailable.")).toBeVisible();
+  await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Me");
+  await expect(page.getByRole("textbox", { name: "Title", exact: true })).toHaveCount(0);
 });
 
 test("nobody else sees a follower Group note: not the Group perspective, Other followers, or another user", async ({ page }) => {

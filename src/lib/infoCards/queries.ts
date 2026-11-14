@@ -8,7 +8,7 @@ import { assertInfoDraft, infoId, infoReferences, seriesName, visibility } from 
 import { measureInfoCapacity } from "./capacity";
 import type { InfoConsultationEntry, InfoConsultationSnapshot, MainInfoContext, InfoPublication, InfoRoot, InfoSeries, PublishedInfo } from "./model";
 import { CREATOR_INFO_FILTER, isCreatorInfo, isGroupInfo, isPersonalInfo } from "./model";
-import { creationContextOf, FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { creationContextOf, FOLLOWER_CONTRIBUTIONS, infoCardOrigin, originLabel } from "../groupExperiences/media/contributionIdentity";
 import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
 import { personalHistorySegments } from "../cards/forks";
@@ -24,6 +24,17 @@ export async function infoEditor(repo: InfoCardRepository, actor: string, id: st
     return { root, publication, selectedSeries: series ? { seriesId: series.seriesId, title: series.title,
       createdByUserId: series.createdByUserId, creatorUsername: names.get(series.createdByUserId) ?? UNKNOWN_CREATOR } : null };
   });
+}
+// A Group Info Card opened through My Drafts (C3): editable there only while never saved, and only while the
+// author can still act in its creation context (the same guard as every write). Its origin is always named.
+export async function groupDraftAccess(repo: InfoCardRepository, actor: string, root: InfoRoot) {
+  requireCondition(root.ownerUserId === actor && isGroupInfo(root), "INFO_FORBIDDEN");
+  const groups = new GroupExperienceRepository(new CardRepository(repo.db, repo.client));
+  const experience = await groups.experiences().findOne({ experienceId: root.experienceId! }, { projection: { _id: 0, name: 1 } });
+  const origin = originLabel(infoCardOrigin(root), experience?.name);
+  if (root.latestVersion > 0) return { origin, editable: false };
+  try { await repo.transaction(session => repo.manageable(actor, root.infoCardId, session)); return { origin, editable: true }; }
+  catch (error) { if (error instanceof CardArchitectureError) return { origin, editable: false }; throw error; }
 }
 // Owner unfinished-work recovery only. Reuse real working membership and the
 // existing actor history; a URL/origin cannot grant access to a parent/fork.
@@ -152,7 +163,7 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
       version = await selectedCard(main, experience, mainCardId, session);
       requireCondition(version.version === context.version, "INFO_MAIN_VERSION_CONFLICT");
     } else version = await main.consultationCardVersion(actor, mainCardId, context, session);
-    type Ref = { id: string; source: "shared" | "personal" | "group"; origin?: string; date?: string; private?: boolean };
+    type Ref = { id: string; source: "shared" | "personal" | "group"; origin?: string; date?: string; private?: boolean; experienceId?: string };
     const refs: Ref[] = infoReferences(version.content.infoCardIds).map(id => ({ id, source: "shared", date: version.content.infoCardAttachedAt?.[id] }));
     const origins = new Map<string, Set<string>>(), ownGroupIds = new Set<string>();
     let sources: { cardTemplateId: string; personalInfoRevision: number }[] | undefined;
@@ -175,10 +186,15 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
         latestVersion: { $gt: 0 }, deletedAt: { $exists: false } }, { session, projection: { _id: 0, infoCardId: 1, experienceId: 1, groupVisible: 1, createdAt: 1 } }).toArray();
       for (const row of contributions) {
         ownGroupIds.add(row.infoCardId);
-        refs.push({ id: row.infoCardId, source: "group", date: row.createdAt instanceof Date ? row.createdAt.toISOString() : undefined,
+        refs.push({ id: row.infoCardId, source: "group", experienceId: row.experienceId, date: row.createdAt instanceof Date ? row.createdAt.toISOString() : undefined,
           ...(context.mode === "experience" ? { private: row.experienceId !== context.experienceId || row.groupVisible === false } : {}) });
       }
     }
+    // The originating Group names of the owner's own Group contributions, for "Created in" outside their context.
+    // One bounded lookup, as the media owner history does; the author needs no membership to see their own.
+    const groupIds = [...new Set(refs.flatMap(ref => ref.experienceId ? [ref.experienceId] : []))];
+    const groupNames = new Map(groupIds.length ? (await new GroupExperienceRepository(main).experiences().find({ experienceId: { $in: groupIds } },
+      { session, projection: { _id: 0, experienceId: 1, name: 1 } }).toArray()).map(group => [group.experienceId, group.name]) : []);
     const ids = [...new Set(refs.map(ref => ref.id))];
     const resolved = await publicationSnapshotEntries(repo, actor, ids, session, origins, ownGroupIds);
     const byId = new Map(ids.map((id, index) => [id, resolved[index]]));
@@ -203,7 +219,7 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
       })();
       const entry: InfoConsultationEntry = available ? { ...found, key, source: ref.source,
         ...(ref.origin ? { sourceCardTemplateId: ref.origin } : {}), attachedAt: time !== null ? new Date(time).toISOString() : null,
-        ...(ref.private !== undefined ? { private: ref.private } : {}) }
+        ...(ref.private !== undefined ? { private: ref.private } : {}), ...(ref.experienceId ? { originName: groupNames.get(ref.experienceId) ?? null } : {}) }
         : { status: "unavailable", key };
       return [{ entry, time, tie: available ? ref.id : key }];
     }).sort((a, b) => (b.time ?? -Infinity) - (a.time ?? -Infinity) || (a.tie < b.tie ? -1 : a.tie > b.tie ? 1 : 0));

@@ -5,13 +5,18 @@ import type { MediaCollectionContext, MediaCollectionItem } from "../src/lib/med
 const context: MediaCollectionContext = { kind: "owner", viewerUserId: "bob", cardTemplateId: "card" };
 const item: MediaCollectionItem = { source: { kind: "group", experienceId: "origin", contributionId: "upload" }, authorUserId: "bob", mediaType: "image", description: "Video", uploadedAt: null, originName: "Galway U18", private: true, revision: 2 };
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "X-Group-Viewer": "bob" } });
-test("creator deletion uses original source from another context; hiding is a separate current-Group command", async t => {
+// Checkpoint 4.2b (C1): a Follower contribution is deleted only from Me of its originating Group, never from the
+// standalone Card (which previously used the owner route). Hiding stays a separate current-Group command.
+test("creator deletion happens only in the creation context; hiding is a separate current-Group command", async t => {
   const calls: { url: string; method?: string; body: unknown }[] = [];
   t.mock.method(globalThis, "fetch", async (input: unknown, init?: RequestInit) => { calls.push({ url: String(input), method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null }); return json({ state: "deleted" }); });
-  await mutateCollectionItem(context, item, "delete");
-  assert.deepEqual(calls[0], { url: "/api/group-media/upload", method: "DELETE", body: { expectedRevision: 2 } });
+  await assert.rejects(mutateCollectionItem(context, item, "delete"), /where it was created/);
+  await assert.rejects(mutateCollectionItem({ ...context, experienceId: "other", accessEpoch: 4 }, item, "delete"), /where it was created/);
+  assert.equal(calls.length, 0, "no request leaves the client outside the creation context");
+  await mutateCollectionItem({ ...context, experienceId: "origin", accessEpoch: 4 }, item, "delete");
+  assert.deepEqual(calls.shift(), { url: "/api/group-experiences/origin/media/upload", method: "DELETE", body: { expectedRevision: 2, accessEpoch: 4, perspective: "self" } });
   const group = { kind: "group" as const, viewerUserId: "bob", cardTemplateId: "card", experienceId: "origin", accessEpoch: 4, adoptionRevision: 1 };
-  await mutateCollectionItem(group, item, "hide"); assert.equal(calls[1].method, "PATCH"); assert.deepEqual(calls[1].body, { accessEpoch: 4, expectedRevision: 2 });
+  await mutateCollectionItem(group, item, "hide"); assert.equal(calls[0].method, "PATCH"); assert.deepEqual(calls[0].body, { accessEpoch: 4, expectedRevision: 2 });
   await assert.rejects(mutateCollectionItem({ ...context, viewerUserId: "alice" }, item, "delete"));
 });
 test("Group upload retry retains operation and original origin, and never re-transfers after successful upload", async t => {

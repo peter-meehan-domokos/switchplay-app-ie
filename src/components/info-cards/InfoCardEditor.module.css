@@ -4,6 +4,8 @@
 .heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .heading h1 { font-size: 20px; margin: 0; }
 .saveStatus { font-size: 13px; color: #526170; }
+.origin { margin: 0; font-size: 13px; color: #526170; overflow-wrap: anywhere; }
+.origin span { font-size: 11px; }
 .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .layout { display: grid; grid-template-columns: minmax(0, 420px) minmax(240px, 1fr); gap: 28px; max-width: 950px; margin: auto; }
 .form { display: grid; align-content: start; gap: 16px; min-width: 0; }

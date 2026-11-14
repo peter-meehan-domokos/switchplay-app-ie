@@ -1515,6 +1515,22 @@ input {
   font-size: 0.72rem;
 }
 
+/* Read-only origin in place of Delete outside an item's creation context (C1). */
+.user-card-media-tile-created-in {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  color: #3c4550;
+}
+
+.user-card-media-tile-created-in-label {
+  font-size: 0.6rem;
+  color: #5f6871;
+}
+
 .user-card-media-tile-retry {
   border: 0;
   background: transparent;
@@ -4695,6 +4711,7 @@ input {
   overflow-wrap: anywhere;
 }
 .creator-drafts-list button[aria-current="true"] { background: rgba(17, 19, 24, 0.045); }
+.creator-drafts-list .creator-draft-origin { display: block; margin-top: 2px; color: #5f6871; }
 .creator-modal--card-title:has(.creator-copy-to[data-open="true"]) {
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -4933,12 +4950,12 @@ input {
 .user-card-media-rail--visibility .media-centre-private-label { grid-row: 2; margin-top: 6px; }
 .user-card-media-rail--visibility .user-card-media-tile-name { grid-row: 3; margin-top: 6px; }
 .user-card-media-rail--visibility .user-card-media-tile-origin { grid-row: 4; margin-top: 6px; }
-.user-card-media-rail--visibility .user-card-media-tile-remove { grid-row: 5; margin-top: 6px; }
+.user-card-media-rail--visibility .user-card-media-tile-remove, .user-card-media-rail--visibility .user-card-media-tile-created-in { grid-row: 5; margin-top: 6px; }
 .user-card-media-rail--visibility .creator-modal-error { grid-row: 6; margin-top: 6px; }
 .user-card-media-rail--visibility.user-card-media-rail--videos { grid-template-rows: 88px 15px auto auto auto auto auto auto; }
 .user-card-media-rail--visibility.user-card-media-rail--videos > .user-card-media-tile { grid-row: 1 / span 8; }
 .user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-status { grid-row: 5; margin-top: 6px; }
 .user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-retry { grid-row: 6; margin-top: 6px; }
-.user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-remove { grid-row: 7; }
+.user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-remove, .user-card-media-rail--visibility.user-card-media-rail--videos .user-card-media-tile-created-in { grid-row: 7; }
 .user-card-media-rail--visibility.user-card-media-rail--videos .creator-modal-error { grid-row: 8; }
 .media-removal-toast { font-size: .8rem; color: #b9c2ce; }

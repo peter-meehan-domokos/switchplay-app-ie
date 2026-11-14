@@ -41,6 +41,8 @@ export function infoCardError(error: unknown, visibleCapacityIssues: readonly In
     INFO_IMAGE_UPLOAD_FAILED: "The image transfer failed. Retry the upload; your text and previous media are retained.",
     INFO_VIDEO_UPLOAD_FAILED: "The video transfer failed. Retry the upload; your text and previous media are retained.",
     INFO_FORBIDDEN: "This info card is unavailable to your account.",
+    // The creation-context guard (C4): the author no longer holds the role in the originating Group.
+    GROUP_FORBIDDEN: "This Info Card was created in a Group where you can no longer edit it. It is unchanged.",
     INFO_PUBLICATION_RECOVERY_REQUIRED: "Confirm the previous publication outcome using Retry before leaving or editing.",
     INFO_RECOVERY_UNAVAILABLE: "Local recovery storage is unavailable. Keep this page open and allow session storage before editing.",
   };

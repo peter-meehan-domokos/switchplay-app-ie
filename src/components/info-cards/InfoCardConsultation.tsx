@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { InfoCardFaceContent } from "./InfoCardFace";
 import type { InfoMedia, MediaContext, PersonalInfoSource, PersonalInfoContext, PersonalInfoAssociation, PublicationRequestState } from "@/lib/infoCards/model";
 import { buildInfoCardPublicationLayout } from "./infoCardPublicationLayout";
+import { buildInfoCardMenuLayout } from "./infoCardMenuLayout";
 import InfoCardPouch from "./InfoCardPouch";
 import InfoCardPhysicalStack from "./InfoCardPhysicalStack";
 import InfoCardEmptyPanel from "./InfoCardEmptyPanel";
@@ -29,6 +30,8 @@ export type AvailableConsultationCard = Omit<InfoCardFaceContent, "mediaKind"> &
   // The viewer own Follower contribution (checkpoint 4.2): its originating Group and whether this context may
   // edit and remove it (contributionIdentity.ts rules, decided by the consultation loader).
   groupNote?: { experienceId: string; editable: boolean };
+  // The viewer own note: where it was created, shown in the menu outside that context (C1).
+  origin?: string;
 } & ({ publication: MediaContext; media?: InfoMedia } | { publication?: undefined; media?: InfoCardMedia });
 export type InfoCardConsultationCard = AvailableConsultationCard | { id: string; unavailable: true };
 export type GroupNoteContext = { kind: "group"; mainCardId: string; experienceId: string; version: number; accessEpoch: number };
@@ -108,9 +111,9 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
       const root = initial?.root;
       const personalNote = root?.kind === "personal" && personalContext.kind !== "group"
         && (root.originCardTemplateId === personalContext.mainCardId || !!personalSources?.some(source => source.cardTemplateId === root.originCardTemplateId));
-      // A Follower contribution is edited on the standalone Card, or in Me of its originating Group.
+      // A Follower contribution is edited only in Me of its originating Group (C1).
       const groupNote = root?.kind === "group" && root.creationContext === "self" && root.originCardTemplateId === personalContext.mainCardId
-        && (personalContext.kind !== "group" || root.experienceId === personalContext.experienceId);
+        && personalContext.kind === "group" && root.experienceId === personalContext.experienceId;
       if (root && (root.ownerUserId !== actor || !personalNote && !groupNote)) throw new Error("Info Card unavailable.");
       if (token !== operation.current || !live.current) return;
       setAuthoring({ id: target ?? clientId(), initial, username: auth.user.username,
@@ -207,8 +210,9 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
         height: geometry.height, borderRadius: geometry.borderRadius, transform: `scale(${geometry.scale})` }}>
         {cards.length ? <InfoCardPhysicalStack id={id} cards={cards} selectedId={selectedId} onSelect={onSelect} closing={closing}
           blocked={Boolean(media || authoring || mutation)} closeRef={closeButton} pouch={source} pouchGeometry={pouchGeometry}
-          actions={personalContext ? card => ({ onNew: () => void edit(), ...(card && !card.unavailable && card.personal && (card.personalSource || card.groupNote?.editable) ? {
-            onEdit: () => void edit(card), onRemove: () => void remove(card) } : {}) }) : undefined}
+          actions={personalContext ? card => { const menu = buildInfoCardMenuLayout(card);
+            return { onNew: () => void edit(), ...(menu.manage && !card.unavailable ? { onEdit: () => void edit(card), onRemove: () => void remove(card) } : {}),
+              ...(menu.origin ? { origin: menu.origin } : {}) }; } : undefined}
           onRequestClose={requestClose} onExited={onClose} onBusyChange={onBusyChange} onOpenMedia={openMedia} onPositionChange={setPosition} />
           : personalContext && <InfoCardEmptyPanel id={id} pouch={source} closing={closing} settled={hadCards} disabled={mutation || !!authoring}
             addRef={closeButton} onAdd={() => void edit()} onExited={onClose} />}

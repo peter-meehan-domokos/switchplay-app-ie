@@ -52,7 +52,9 @@ export type PersonalInfoAssociation = PersonalInfoSource & { personalInfoCardIds
 // viewer own Info Cards are shown inside a Group (Me), with the meaning of the media private icon: not shared with
 // this Group, because it is standalone, from another Group, or hidden here.
 export type InfoConsultationEntry = ({ status: "available"; info: PublishedInfo; source?: "shared" | "personal" | "group";
-  sourceCardTemplateId?: string; attachedAt?: string | null; private?: boolean } | { status: "unavailable" }) & { key?: string };
+  sourceCardTemplateId?: string; attachedAt?: string | null; private?: boolean;
+  // The owner's own Group contribution only: its originating Group name, or null when unavailable.
+  originName?: string | null } | { status: "unavailable" }) & { key?: string };
 export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[]; personalSources?: PersonalInfoSource[];
   publications?: PublicationRequestState[] };
 // "experience" is the follower own Me perspective of one Group: the Card at the Group selected version.

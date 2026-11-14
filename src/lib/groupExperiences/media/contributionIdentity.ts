@@ -19,6 +19,16 @@
 //     the existing data), so it reads as "self". No migration.
 //   - Info Cards in Group Experiences must follow the same distinction, using these same helpers.
 //
+// Creation-context management (checkpoint 4.2b, decisions C1 to C4):
+//   - An item is edited or permanently deleted only by its author, in the exact context where it was created:
+//     the standalone Card, Group A Me ("self" in A) or Group A Group ("group" in A). Group A and Group B are
+//     different contexts even for the same Card template.
+//   - The stored record is the only authority for that context: a Group record carries experienceId and
+//     creationContext, a standalone item is identified by living in CardData. A client never declares it.
+//   - Visibility and hiding do not follow this rule. Admins still hide any contribution from their Group.
+//   - The interface decides where Edit, Remove and Delete appear (sameOrigin); the server checks the author and
+//     the current role in the originating Group (identityRole) on every write.
+//
 // Every owner-history read, follower inspection, delete permission and "own" count uses this module, so the rule
 // lives in one place. It is pure and shared by the server and the client.
 export type CreationContext = "self" | "group";
@@ -43,4 +53,32 @@ export function viewerIdentity(perspective: { kind: "owner" } | { kind: "group";
 }
 export function sameIdentity(item: { authorUserId: string; creationContext?: CreationContext | null }, viewerUserId: string, identity: CreationContext) {
   return item.authorUserId === viewerUserId && creationContextOf(item) === identity;
+}
+
+// The exact context an item was created in (C1).
+export type CreationOrigin = { kind: "standalone" } | { kind: "group"; experienceId: string; identity: CreationContext };
+export const STANDALONE_ORIGIN: CreationOrigin = { kind: "standalone" };
+// A media item: personal sources live in CardData; Group sources carry their Group and stored identity.
+export function mediaOrigin(item: { source: { kind: "personal" } | { kind: "group"; experienceId: string }; creationContext?: CreationContext | null }): CreationOrigin {
+  return item.source.kind === "group" ? { kind: "group", experienceId: item.source.experienceId, identity: creationContextOf(item) } : STANDALONE_ORIGIN;
+}
+// An Info Card note: a Group root carries its Group and stored identity; anything else is standalone.
+export function infoCardOrigin(root: { kind?: string; experienceId?: string | null; creationContext?: CreationContext | null }): CreationOrigin {
+  return root.kind === "group" && typeof root.experienceId === "string" ? { kind: "group", experienceId: root.experienceId, identity: creationContextOf(root) } : STANDALONE_ORIGIN;
+}
+// The context a viewer is acting in: no Group is the standalone Card; in a Group, the identity of the perspective.
+export function actingOrigin(experienceId: string | undefined | null, identity: CreationContext): CreationOrigin {
+  return experienceId ? { kind: "group", experienceId, identity } : STANDALONE_ORIGIN;
+}
+export function sameOrigin(a: CreationOrigin, b: CreationOrigin) {
+  return a.kind === "standalone" ? b.kind === "standalone" : b.kind === "group" && a.experienceId === b.experienceId && a.identity === b.identity;
+}
+// The Group role an identity needs to act: an admin for Admin contributions, an active follower for Follower ones.
+export function identityRole(identity: CreationContext): "admin" | "follower" {
+  return identity === "group" ? "admin" : "follower";
+}
+// The read-only "Created in" name shown outside an item's creation context.
+export function originLabel(origin: CreationOrigin, groupName?: string | null) {
+  if (origin.kind === "standalone") return "Personal Card";
+  return `${groupName?.trim() || "Group unavailable"} · ${origin.identity === "group" ? "Group" : "Me"}`;
 }

@@ -1,5 +1,6 @@
 import type { MainInfoContext, InfoConsultationSnapshot } from "@/lib/infoCards/model";
 import type { InfoCardConsultationCard } from "./InfoCardConsultation";
+import { actingOrigin, infoCardOrigin, originLabel, sameOrigin, STANDALONE_ORIGIN } from "@/lib/groupExperiences/media/contributionIdentity";
 
 export type ConsultationRequest = MainInfoContext & { actor: string; mainCardId: string; attachmentIds: readonly string[] };
 
@@ -45,12 +46,15 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
         || info.visibility !== "private" || info.originCardTemplateId !== context.mainCardId || typeof info.experienceId !== "string") throw new Error("Invalid Group note entry");
     } else if (info.kind === "personal" || info.kind === "group" || (modern ? !context.attachmentIds.includes(info.infoCardId) : info.infoCardId !== context.attachmentIds[index])) throw new Error("Invalid shared entry");
     if (entry.private !== undefined && (context.mode !== "experience" || entry.source === "shared" || typeof entry.private !== "boolean")) throw new Error("Invalid visibility");
-    // Edit and Remove follow the Group media rules: on the standalone Card every own note; in Me only Follower
-    // contributions originating in this Group. Standalone notes and other Groups are read-only in Me.
-    const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable: context.mode === "working" || info.experienceId === context.experienceId } : undefined;
+    if (entry.originName !== undefined && (entry.source !== "group" || entry.originName !== null && typeof entry.originName !== "string")) throw new Error("Invalid origin");
+    // Edit and Remove only in the exact creation context (C1): standalone notes on the standalone Card, Follower
+    // contributions in Me of their own Group. Elsewhere the menu names where the note was created.
+    const acting = actingOrigin(context.mode === "experience" ? context.experienceId : undefined, "self");
+    const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable: sameOrigin(infoCardOrigin(info), acting) } : undefined;
+    const origin = entry.source === "group" ? originLabel(infoCardOrigin(info), entry.originName) : entry.source === "personal" ? originLabel(STANDALONE_ORIGIN) : undefined;
     return { id: info.infoCardId, title: info.content.title, body: info.content.body, bodyFormat: info.content.bodyFormat, seriesTitle: info.series.title,
       creatorUsername: info.creatorUsername, personal: entry.source === "personal" || entry.source === "group",
-      ...(source && context.mode === "working" ? { personalSource: source } : {}), ...(groupNote ? { groupNote } : {}),
+      ...(source && context.mode === "working" ? { personalSource: source } : {}), ...(groupNote ? { groupNote } : {}), ...(origin ? { origin } : {}),
       ...(entry.private !== undefined ? { groupVisibility: entry.private ? "private" as const : "visible" as const } : {}),
       seriesCreatorUsername: info.series.creatorUsername, ...(info.content.mediaItem ? { media: info.content.mediaItem } : {}),
       publication: { infoCardId: info.infoCardId, kind: "publication", version: info.version } };

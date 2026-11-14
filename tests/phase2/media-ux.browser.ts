@@ -6,8 +6,10 @@ async function login(page: Page, player = "phase2") { expect((await page.request
 // history is several days old and is never reset, hidden or deleted here.
 async function cleanRecentUploads(page: Page) {
   const history = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}`)).json();
+  // Checkpoint 4.2b (C1): an attached Follower contribution is deleted only from Me of its originating Group.
   for (const item of history.items ?? []) if (item.source.kind === "group" && Date.parse(item.uploadedAt) > Date.now() - 86400000) {
-    expect((await page.request.delete(`/api/group-media/${item.source.contributionId}`, { data: { expectedRevision: item.revision } })).ok()).toBeTruthy();
+    const { accessEpoch } = await (await page.request.get(`/api/group-experiences/${item.source.experienceId}`)).json();
+    expect((await page.request.delete(`/api/group-experiences/${item.source.experienceId}/media/${item.source.contributionId}`, { data: { expectedRevision: item.revision, accessEpoch, perspective: "self" } })).ok()).toBeTruthy();
   }
 }
 test.beforeEach(async ({ page }) => {
@@ -41,7 +43,13 @@ test("Personal icon/count, exact Gallery selection, separate Centre, upload and 
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
   await expect(gallery).toHaveCount(0);
   await expect(centre(page).locator(".user-card-media-tile-origin").filter({ hasText: "In: Personal" })).toHaveCount(2);
-  await expect(centre(page).getByRole("button", { name: /Remove image/ })).toHaveCount(8);
+  // Checkpoint 4.2b (C1): only the standalone media is deleted here; each Group contribution shows where it was
+  // created in place of Remove, with no disabled control.
+  await expect(centre(page).getByRole("button", { name: /Remove image/ })).toHaveCount(2);
+  const createdIn = centre(page).locator(".user-card-media-tile-created-in");
+  await expect(createdIn).toHaveCount(6);
+  for (const text of await createdIn.allTextContents()) expect(text).toMatch(/^Created in:.+ · Me$/);
+  await expect(centre(page).locator(".user-card-media-tile").filter({ hasText: "In: Personal" }).locator(".user-card-media-tile-created-in")).toHaveCount(0);
   await centre(page).getByLabel("Choose image").setInputFiles({ name: "added-training.png", mimeType: "image/png", buffer: png });
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(9);
   const added = centre(page).locator(".user-card-media-tile").filter({ hasText: "added-training.png" });
@@ -148,7 +156,12 @@ test("Admin inspection Centre is remove-only; removal hides the Group contributi
   expect(await (await playerPage.request.get(`/api/group-media/${allocation.contributionId}`)).body()).toEqual(png);
   expect(relogged.items.filter((i: { source: { contributionId?: string } }) => i.source.contributionId !== allocation.contributionId).map((i: { source: unknown }) => i.source)).toEqual(before.items.map((i: { source: unknown }) => i.source));
 
-  expect((await playerPage.request.delete(`/api/group-media/${allocation.contributionId}`, { data: { expectedRevision: hidden.revision } })).ok()).toBeTruthy();
+  // Checkpoint 4.2b (C1): the creator deletes it only from Me of its originating Group, never through the
+  // standalone owner route, and Delete is a genuine deletion even after the admin hid it.
+  expect((await playerPage.request.delete(`/api/group-media/${allocation.contributionId}`, { data: { expectedRevision: hidden.revision } })).status()).toBe(403);
+  const playerEpoch = (await (await playerPage.request.get(`/api/group-experiences/${fixture.experienceId}`)).json()).accessEpoch;
+  const deleted = await playerPage.request.delete(`/api/group-experiences/${fixture.experienceId}/media/${allocation.contributionId}`, { data: { expectedRevision: hidden.revision, accessEpoch: playerEpoch, perspective: "self" } });
+  expect(deleted.ok()).toBeTruthy(); expect((await deleted.json()).state).toBe("deleted");
   await playerContext.close();
 });
 

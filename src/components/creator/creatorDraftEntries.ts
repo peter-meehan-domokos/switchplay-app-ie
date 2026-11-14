@@ -3,9 +3,12 @@ import type { InfoRoot, PublicationRequestState } from "@/lib/infoCards/model";
 import { publicationNotice, type InfoCardPublicationNotice } from "../info-cards/infoCardPublicationLayout";
 import type { CreatorTransport } from "./creatorRequest";
 import { safeDraftOrigin } from "./creatorNavigation";
+import { infoCardOrigin, originLabel } from "@/lib/groupExperiences/media/contributionIdentity";
 
 export type CreatorDraftEntry = (CreatorDraftSummary & { kind: "deck" }) | {
   kind: "infoCard"; infoCardId: string; title: string; updatedAt: string; purpose?: "personal";
+  // An unsaved Group draft: where it was created, for example "Group A · Me" (C3).
+  origin?: string;
   // A stored Publish or Save still waiting for its video, or one that failed (checkpoint 10).
   publication?: InfoCardPublicationNotice;
 };
@@ -18,12 +21,14 @@ export async function loadCreatorDraftEntries(request: CreatorTransport): Promis
     (async () => {
       const entries: CreatorDraftEntry[] = []; let offset: number | null = 0;
       do {
-        const page: { items: InfoRoot[]; nextOffset: number | null; publications?: PublicationRequestState[] } = await request(`/api/info-cards?limit=50&offset=${offset}`);
+        const page: { items: InfoRoot[]; nextOffset: number | null; publications?: PublicationRequestState[]; groupNames?: Record<string, string> } = await request(`/api/info-cards?limit=50&offset=${offset}`);
         states.push(...page.publications ?? []);
         for (const root of page.items) if (!entries.some(entry => entry.kind === "infoCard" && entry.infoCardId === root.infoCardId)) {
           const state = states.find(item => item.infoCardId === root.infoCardId && item.status !== "published");
           entries.push({ kind: "infoCard", infoCardId: root.infoCardId, title: root.draft?.title ?? "", updatedAt: new Date(root.updatedAt).toISOString(),
-            ...(root.kind === "personal" || root.kind === "group" ? { purpose: "personal" as const } : {}), ...(state ? { publication: publicationNotice(state) } : {}) });
+            ...(root.kind === "personal" || root.kind === "group" ? { purpose: "personal" as const } : {}),
+            ...(root.kind === "group" && root.experienceId ? { origin: originLabel(infoCardOrigin(root), page.groupNames?.[root.experienceId]) } : {}),
+            ...(state ? { publication: publicationNotice(state) } : {}) });
         }
         offset = page.nextOffset;
       } while (offset !== null);

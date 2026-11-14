@@ -73,7 +73,8 @@ export const productionMediaSecurity: InfoMediaSecurity = {
 
 export async function createInfoUpload(repo: InfoCardRepository, actor: string, id: string,
   kind: "image" | "video", contentType?: string) {
-  const root = await repo.owner(actor, id); assertInfoMediaConfigured();
+  // Checked before any provider upload is created, and again in the allocation transaction below.
+  const root = await repo.transaction(session => repo.manageable(actor, id, session)); assertInfoMediaConfigured();
   requireCondition(kind === "image" || kind === "video", "INVALID_INFO_MEDIA");
   let media: InfoMedia, uploadURL: string, headers: Record<string, string> | undefined;
   if (kind === "image") {
@@ -89,7 +90,7 @@ export async function createInfoUpload(repo: InfoCardRepository, actor: string, 
     media = { id: uid, mediaType: "video", provider: "cloudflare-stream", assetId: uid, src: `https://iframe.videodelivery.net/${uid}`, description: "Video" };
   }
   await repo.transaction(async session => {
-    await repo.owner(actor, id, session);
+    await repo.manageable(actor, id, session);
     // Serialize with deletion; never return an upload proof for a retired ID.
     await repo.roots().updateOne({ infoCardId: id }, { $inc: { referenceRevision: 1 } }, { session });
     await repo.db.collection<InfoMediaAllocation>(INFO_MEDIA_COLLECTION).insertOne({ provider: media.provider, assetId: media.assetId,

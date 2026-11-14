@@ -4,14 +4,14 @@ import { uploadFileToR2, uploadFileToCloudflareStream, validateImageUploadFile, 
 import { collectionKey, type MediaCollectionContext, type MediaCollectionItem } from "./contracts";
 import { mediaJson } from "./transport";
 import { notifyMediaCollectionChanged } from "./invalidation";
-import { sameIdentity, viewerIdentity, type CreationContext } from "../groupExperiences/media/contributionIdentity";
+import { actingOrigin, mediaOrigin, sameOrigin, viewerIdentity, type CreationContext } from "../groupExperiences/media/contributionIdentity";
 const queue = new UserCardMediaMutationQueue();
 export function mutateCollectionItem(context: MediaCollectionContext, item: MediaCollectionItem, action: "delete" | "hide") {
   return queue.enqueue({ userId: context.viewerUserId, cardId: collectionKey(item), deckTemplateId: "media-collection" }, async () => {
     const source = item.source;
     if (action === "delete" && context.viewerUserId !== item.authorUserId) throw Error("Only the creator can delete this contribution.");
-    if (action === "delete" && !sameIdentity(item, context.viewerUserId, viewerIdentity(context))) throw Error("Delete this upload from the perspective it was added in.");
-    if (action === "delete" && context.experienceId && (source.kind !== "group" || source.experienceId !== context.experienceId)) throw Error("Remove this upload in its original context or your Personal Card.");
+    // Delete only in the exact creation context (C1); the server checks the same against the stored record.
+    if (action === "delete" && !sameOrigin(mediaOrigin(item), actingOrigin(context.experienceId, viewerIdentity(context)))) throw Error("Delete this upload where it was created.");
     if (action === "delete" && context.experienceId && !Number.isSafeInteger(context.accessEpoch)) throw Error("Group authority changed. Reopen Media Centre.");
     let result;
     if (action === "hide") {

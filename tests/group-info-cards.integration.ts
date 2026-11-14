@@ -5,8 +5,8 @@ import { MongoClient } from "mongodb";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { groupFixture } from "./helpers/groupExperiences";
 import { InfoCardRepository, createInfoCardIndexes } from "../src/lib/infoCards/repository";
-import { mainInfoConsultation, resumingInfoConsultation } from "../src/lib/infoCards/queries";
-import { authorizeInfoMedia, signInfoUpload, type InfoMediaReadiness } from "../src/lib/infoCards/media";
+import { groupDraftAccess, mainInfoConsultation, resumingInfoConsultation } from "../src/lib/infoCards/queries";
+import { authorizeInfoMedia, createInfoUpload, signInfoUpload, type InfoMediaReadiness } from "../src/lib/infoCards/media";
 import type { InfoConsultationSnapshot, InfoDraft, InfoMedia, InfoPublication, InfoRoot } from "../src/lib/infoCards/model";
 
 // Checkpoint 4.2: Personal Info Cards in Groups. A Follower contribution Info Card is created from Me as a
@@ -48,7 +48,11 @@ async function fixture() {
   const canonical = (actor: string) => mainInfoConsultation(info, actor, f.ids[0], { mode: "canonical", version: 1 });
   const shown = (snapshot: InfoConsultationSnapshot) => snapshot.entries.flatMap(entry => entry.status === "available" ? [[entry.info.infoCardId, entry.source, entry.private ?? null] as const] : [])
     .toSorted((a, b) => a[0].localeCompare(b[0]));
-  return { ...f, info, groupB, epoch, create, note, me, standalone, canonical, shown, setVideo: (value: InfoMediaReadiness) => { video = value; } };
+  const membership = async (target: string, kind: "add-follower" | "remove-follower") => {
+    const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
+    await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: target, kind });
+  };
+  return { ...f, info, groupB, epoch, create, note, me, standalone, canonical, shown, membership, setVideo: (value: InfoMediaReadiness) => { video = value; } };
 }
 
 test("creation from Me makes a Follower contribution that never writes CardData", async () => {
@@ -148,14 +152,17 @@ test("only the author edits and deletes; admins hide without deleting", async ()
   await f.info.hideGroup("alice", f.experienceId, id, await f.epoch("alice"));
   const hidden = await f.info.owner("bob", id);
   assert.equal(hidden.groupVisible, false); assert.equal(hidden.revision, before.revision); assert.equal(hidden.latestVersion, 1);
-  // The author edits and deletes as the Follower identity, from Me or the standalone Card (the owner route).
+  // The author edits and deletes as the Follower identity while an active follower of its Group (C1: from Me of
+  // that Group; the interface offers Edit and Remove nowhere else).
   await f.info.save("bob", id, 2, draft("Bob note, edited"), "private");
   assert.equal((await f.info.savePersonal("bob", id, 3) as InfoPublication).version, 2);
   assert.deepEqual(await f.info.delete("bob", id, 4), { deleted: true });
   assert.deepEqual(f.shown(await f.me("bob")).map(([value]) => value), ["bob-standalone"]);
 });
 
-test("the first Save rechecks membership; a departed author keeps their own contribution", async () => {
+// Checkpoint 4.2b (C4): leaving the Group ends editing and deletion of its Follower contributions; the saved
+// contribution stays visible where the visibility rules allow, and rejoining restores management.
+test("the first Save rechecks membership; a departed author can no longer edit or delete until rejoining", async () => {
   const f = await fixture();
   const unsaved = await f.create("bob"), saved = await f.note("bob", "Saved before leaving");
   await f.info.save("bob", unsaved, 0, draft("Unsaved"), "private");
@@ -164,8 +171,13 @@ test("the first Save rechecks membership; a departed author keeps their own cont
   await assert.rejects(f.info.savePersonal("bob", unsaved, 1), { code: "GROUP_FORBIDDEN" });
   assert.equal((await f.info.owner("bob", unsaved)).latestVersion, 0, "nothing new becomes visible in a Group the author left");
   await assert.rejects(f.me("bob"), { code: "GROUP_FORBIDDEN" }, "Me is for active followers");
-  // Their saved contribution is still theirs, on the standalone Card, where they can still delete it.
+  // Their saved contribution stays visible on the standalone Card, but is no longer theirs to edit or delete.
   assert.ok(f.shown(await f.standalone("bob")).some(([id]) => id === saved));
+  await assert.rejects(f.info.save("bob", unsaved, 1, draft("Unsaved, edited"), "private"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.info.save("bob", saved, 2, draft("Edited after leaving"), "private"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.info.delete("bob", saved, 2), { code: "GROUP_FORBIDDEN" });
+  assert.equal((await f.info.owner("bob", saved)).revision, 2, "nothing changed");
+  await f.membership("bob", "add-follower");
   assert.deepEqual(await f.info.delete("bob", saved, 2), { deleted: true });
 });
 
@@ -196,4 +208,87 @@ test("unsaved Group notes are recoverable from My Drafts and owner media deliver
   const image: InfoMedia = { id: "image", provider: "cloudflare-r2", mediaType: "image", assetId: `info-cards/bob/${id}/a.png`, src: "https://private.invalid/a.png", description: "Image" };
   await f.info.save("bob", id, 1, draft("Draft in Me", image), "private", await signInfoUpload(await f.info.owner("bob", id), image));
   assert.equal((await authorizeInfoMedia(f.info, "bob", { infoCardId: id, kind: "draft", revision: 2 })).assetId, image.assetId);
+});
+
+// Checkpoint 4.2b: every Info Card write is authorised from the creation context stored on the record
+// (InfoCardRepository.manageable), never from anything the client declares.
+test("every write checks the author's current role in the stored creation context and fences the membership", async () => {
+  const f = await fixture();
+  const id = await f.create("bob");
+  const fence = async () => (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!.writeFence ?? 0;
+  const before = await fence();
+  await f.info.save("bob", id, 0, draft("Autosaved in Me"), "private");
+  assert.ok(await fence() > before, "autosave fences the current membership record");
+  // Only the author: another follower, an admin and an outsider are refused.
+  for (const actor of ["carol", "alice", "outsider"]) await assert.rejects(f.info.save(actor, id, 1, draft("Taken"), "private"), { code: "INFO_FORBIDDEN" });
+  // Leaving refuses autosave, Save, upload and Remove; nothing is written and no provider upload is created.
+  await f.membership("bob", "remove-follower");
+  await assert.rejects(f.info.save("bob", id, 1, draft("After leaving"), "private"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.info.savePersonal("bob", id, 1), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(createInfoUpload(f.info, "bob", id, "image", "image/png"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.info.delete("bob", id, 1), { code: "GROUP_FORBIDDEN" });
+  const root = await f.info.owner("bob", id);
+  assert.equal(root.revision, 1); assert.equal(root.draft?.title, "Autosaved in Me"); assert.equal(root.latestVersion, 0);
+  // Rejoining restores every write, and the first Save still checks the Card is selected in the Group.
+  await f.membership("bob", "add-follower");
+  await f.info.save("bob", id, 1, draft("After rejoining"), "private");
+  assert.equal((await f.info.savePersonal("bob", id, 2) as InfoPublication).version, 1);
+  // Standalone Personal Info Cards keep their owner-only rule, with no Group involved.
+  await f.info.save("bob", "bob-standalone", 2, draft("Standalone, edited"), "private");
+});
+
+test("a pending Save completes only while the author can act in the creation context, and fails after leaving", async () => {
+  const f = await fixture();
+  const clip: InfoMedia = { id: "clip", provider: "cloudflare-stream", mediaType: "video", assetId: "leaving-clip", src: "https://iframe.videodelivery.net/leaving-clip", description: "Video" };
+  const id = await f.create("bob");
+  await f.info.save("bob", id, 0, draft("Pending when leaving", clip), "private", await signInfoUpload(await f.info.owner("bob", id), clip));
+  f.setVideo("processing");
+  assert.deepEqual(await f.info.savePersonal("bob", id, 1), { status: "pending", infoCardId: id, revision: 1 });
+  assert.deepEqual(await f.info.completePendingPublication("bob", id), { infoCardId: id, title: "Pending when leaving", kind: "personal", status: "pending" });
+  await f.membership("bob", "remove-follower");
+  // Failed at once, without waiting for the video, and recorded so every interface shows it.
+  assert.deepEqual(await f.info.completePendingPublication("bob", id), { infoCardId: id, title: "Pending when leaving", kind: "personal", status: "failed", code: "GROUP_FORBIDDEN" });
+  f.setVideo("ready");
+  assert.deepEqual(await f.info.resumePendingPublications("bob"), [{ infoCardId: id, title: "Pending when leaving", kind: "personal", status: "failed", code: "GROUP_FORBIDDEN" }]);
+  const root = await f.info.owner("bob", id);
+  assert.equal(root.pendingPublication, undefined); assert.equal(root.lastPublicationFailure?.code, "GROUP_FORBIDDEN"); assert.equal(root.latestVersion, 0);
+  assert.equal(await f.info.versions().countDocuments({ infoCardId: id }), 0, "no version is created");
+});
+
+test("My Drafts lists only unsaved Group drafts the author can still continue, identified by their Group", async () => {
+  const f = await fixture();
+  const unsaved = await f.create("bob"), saved = await f.note("bob", "Saved note"), otherGroup = await f.create("bob", f.groupB);
+  await f.info.save("bob", unsaved, 0, draft("Unsaved in A"), "private");
+  await f.info.save("bob", otherGroup, 0, draft("Unsaved in B"), "private");
+  await f.info.save("bob", saved, 2, draft("Saved note, unsaved edit"), "private");
+  const listed = async () => { const page = await f.info.drafts("bob"); return { ids: page.items.map(item => item.infoCardId), names: page.groupNames ?? {} }; };
+  let page = await listed();
+  assert.ok(page.ids.includes(unsaved) && page.ids.includes(otherGroup));
+  assert.ok(!page.ids.includes(saved), "a saved Group note with unsaved edits is continued in its creation context, not My Drafts");
+  assert.equal(page.names[f.groupB], "Group B");
+  assert.ok(page.ids.includes("bob-standalone") === false, "a clean standalone note is not a draft");
+  // Opening from My Drafts: editable only while unsaved and the author can act in the creation context.
+  const name = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!.name;
+  assert.deepEqual(await groupDraftAccess(f.info, "bob", await f.info.owner("bob", unsaved)), { origin: `${name} · Me`, editable: true });
+  assert.deepEqual(await groupDraftAccess(f.info, "bob", await f.info.owner("bob", saved)), { origin: `${name} · Me`, editable: false });
+  // After leaving Group A its draft leaves My Drafts and cannot be continued; Group B is unaffected.
+  await f.membership("bob", "remove-follower");
+  page = await listed();
+  assert.ok(!page.ids.includes(unsaved) && page.ids.includes(otherGroup));
+  assert.deepEqual(await groupDraftAccess(f.info, "bob", await f.info.owner("bob", unsaved)), { origin: `${name} · Me`, editable: false });
+  assert.equal((await f.info.owner("bob", unsaved)).draft?.title, "Unsaved in A", "the draft itself is retained");
+  await f.membership("bob", "add-follower");
+  assert.ok((await listed()).ids.includes(unsaved));
+});
+
+test("the author's Group contributions carry their originating Group name for the menu origin", async () => {
+  const f = await fixture();
+  const inA = await f.note("bob", "In A"), inB = await f.note("bob", "In B", f.groupB);
+  const name = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!.name;
+  for (const snapshot of [await f.me("bob"), await f.standalone("bob")]) {
+    const originName = (id: string) => snapshot.entries.flatMap(entry => entry.status === "available" && entry.info.infoCardId === id ? [entry] : [])[0]?.originName;
+    assert.equal(originName(inA), name);
+    assert.equal(originName(inB), "Group B");
+    assert.equal(originName("bob-standalone"), undefined, "only Group contributions carry a Group name");
+  }
 });

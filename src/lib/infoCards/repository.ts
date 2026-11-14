@@ -15,7 +15,7 @@ import { creatorUsernames, UNKNOWN_CREATOR } from "../cards/creatorAttribution";
 import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { GroupMediaRepository } from "../groupExperiences/media/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
-import { creationContextOf, isCreationContext } from "../groupExperiences/media/contributionIdentity";
+import { creationContextOf, FOLLOWER_CONTRIBUTIONS, identityRole, isCreationContext } from "../groupExperiences/media/contributionIdentity";
 
 export const INFO_COLLECTIONS = { roots: "infoCards", versions: "infoCardVersions", series: "infoCardSeries" } as const;
 const readyIndexes = new WeakMap<MongoClient, Map<string, Promise<void>>>();
@@ -96,6 +96,20 @@ export class InfoCardRepository {
     // Same response for absent and foreign IDs. The owner route acts as the Follower identity, so a Group
     // contribution is editable here only if it was created in Me (contributionIdentity.ts, R1).
     requireCondition(root && (isCreatorInfo(root) || isPersonalInfo(root) || isGroupInfo(root) && creationContextOf(root) === "self"), "INFO_FORBIDDEN"); return root;
+  }
+  // The guard every Info Card write uses (checkpoint 4.2b, C1 and C4): the author, and for a Group contribution
+  // the author's current role in its originating Group for its stored identity, an active follower for "self"
+  // and a current admin for "group". Everything comes from the stored root, never from the client. The current
+  // membership record is fenced in the same transaction, so a concurrent removal, demotion or rejoin conflicts.
+  // Creator and standalone Personal Info Cards keep their existing owner-only rule.
+  async manageable(actor: string, id: string, session: ClientSession) {
+    const root = await this.owner(actor, id, session);
+    if (isGroupInfo(root)) {
+      const groups = new GroupExperienceRepository(new CardRepository(this.db, this.client));
+      const { member } = await groups.access(actor, root.experienceId!, identityRole(creationContextOf(root)), session);
+      await groups.fence([member], session);
+    }
+    return root;
   }
 
   async create(actor: string, id: string) {
@@ -244,7 +258,7 @@ export class InfoCardRepository {
   async save(actor: string, id: string, expected: number, content: InfoDraft, intent: Visibility, mediaProof?: string) {
     revision(expected); assertInfoDraft(content); visibility(intent);
     return this.transaction(async session => {
-      const root = await this.owner(actor, id, session);
+      const root = await this.manageable(actor, id, session);
       requireCondition(!isNoteInfo(root) || intent === "private", "PERSONAL_INFO_PRIVATE_ONLY");
       const published = root.latestVersion ? await this.versions().findOne({ infoCardId: id, version: root.latestVersion }, { session }) : null;
       const effective = root.draft ?? published?.content;
@@ -299,7 +313,7 @@ export class InfoCardRepository {
     requireCondition(readiness !== "failed", "INFO_MEDIA_PROCESSING_FAILED");
     if (readiness === "processing") return this.requestPublication(actor, id, expected, personal);
     return this.transaction(async session => {
-      const root = await this.owner(actor, id, session);
+      const root = await this.manageable(actor, id, session);
       requireCondition(personal ? isNoteInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
       const receipt = await this.versions().findOne({ infoCardId: id, sourceRevision: expected }, { session, projection: { _id: 0 } });
       if (receipt) return receipt;
@@ -341,12 +355,12 @@ export class InfoCardRepository {
     }
     requireCondition(personal || root.visibility !== "public" || root.draftVisibility === "public", "PUBLIC_VISIBILITY_PERMANENT");
     if (isGroupInfo(root)) {
-      // The first Save makes a Group contribution visible in its Group, so it rechecks the creation authority as
-      // a media commit does: still an active follower, with the Card still selected in that Group. Later Saves are
-      // the author editing their own contribution and need no membership (as deletion does not).
+      // Every write already passed manageable: the author holds the role of the stored identity in the
+      // originating Group. The first Save also makes the contribution visible in its Group, so it rechecks, as a
+      // media commit does, that the Card is still selected in that Group.
       if (root.latestVersion === 0) {
         const main = new CardRepository(this.db, this.client), groups = new GroupExperienceRepository(main);
-        const { experience } = await groups.access(actor, root.experienceId!, "follower", session);
+        const { experience } = await groups.access(actor, root.experienceId!, identityRole(creationContextOf(root)), session);
         await selectedCard(main, experience, root.originCardTemplateId!, session);
       }
       return { content: content as InfoContent, attachment: null };
@@ -366,7 +380,7 @@ export class InfoCardRepository {
   }
   private async requestPublication(actor: string, id: string, expected: number, personal?: PersonalPublication): Promise<PendingPublicationReceipt> {
     return this.transaction(async session => {
-      const root = await this.owner(actor, id, session);
+      const root = await this.manageable(actor, id, session);
       requireCondition(personal ? isNoteInfo(root) : isCreatorInfo(root), "INFO_FORBIDDEN");
       requireCondition(root.revision === expected, "STALE_INFO_REVISION");
       await this.publicationChecks(actor, root, personal, session);
@@ -388,6 +402,12 @@ export class InfoCardRepository {
     if (!pending) return root.lastPublicationFailure?.revision === root.revision ? { ...label, status: "failed", code: root.lastPublicationFailure.code } : null;
     // A newer draft save always clears the request; a mismatch here is only a write still in flight.
     if (pending.revision !== root.revision) return null;
+    // A Group contribution completes only while its author can still act in its creation context (C4). Checked
+    // before media readiness, so a request made before leaving the Group fails now rather than waiting.
+    if (isGroupInfo(root)) {
+      try { await this.transaction(session => this.manageable(actor, id, session)); }
+      catch (error) { if (error instanceof CardArchitectureError) return this.failPending(label, pending.revision, error.code); throw error; }
+    }
     const media = root.draft?.mediaItem;
     let readiness: InfoMediaReadiness;
     try { readiness = media ? await this.mediaSecurity.readiness(actor, root, media) : "ready"; }
@@ -448,13 +468,25 @@ export class InfoCardRepository {
   async drafts(actor: string, offset = 0, limit = 30) {
     infoId(actor);
     requireCondition(Number.isSafeInteger(offset) && offset >= 0 && Number.isSafeInteger(limit) && limit > 0 && limit <= 50, "INVALID_INFO_PAGE");
-    const user = await new CardRepository(this.db, this.client).getPersonalUser(actor);
+    const main = new CardRepository(this.db, this.client), groups = new GroupExperienceRepository(main);
+    const user = await main.getPersonalUser(actor);
     const personal = (user?.cardsData ?? []).flatMap(data => (data.personalInfoCardIds ?? []).map(id => ({ kind: "personal" as const, originCardTemplateId: data.cardTemplateId, infoCardId: id })));
+    // Group contributions are listed only while never saved (C3): a saved one is edited from its creation context,
+    // never through My Drafts. Only Groups where the author can still act as the stored identity count (C4).
+    const memberships = await groups.members().find({ userId: actor }, { projection: { _id: 0, experienceId: 1, isAdmin: 1, followerStatus: 1 } }).toArray();
+    const following = memberships.filter(member => member.followerStatus === "active").map(member => member.experienceId);
+    const administering = memberships.filter(member => member.isAdmin).map(member => member.experienceId);
     const items = await this.roots().find({ ownerUserId: actor, deletedAt: { $exists: false }, draft: { $ne: null },
-      // Group contributions with unsaved work are the owner own Follower contributions (the owner route identity).
-      $or: [CREATOR_INFO_FILTER, { kind: "personal", latestVersion: 0, originCardTemplateId: { $type: "string" } }, { kind: "group", creationContext: "self" }, ...personal] }, { projection: { _id: 0 } })
+      $or: [CREATOR_INFO_FILTER, { kind: "personal", latestVersion: 0, originCardTemplateId: { $type: "string" } },
+        { kind: "group", latestVersion: 0, experienceId: { $in: following }, ...FOLLOWER_CONTRIBUTIONS },
+        { kind: "group", latestVersion: 0, experienceId: { $in: administering }, creationContext: "group" }, ...personal] }, { projection: { _id: 0 } })
       .sort({ updatedAt: -1, infoCardId: 1 }).skip(offset).limit(limit + 1).toArray();
-    return { items: items.slice(0, limit), nextOffset: items.length > limit ? offset + limit : null };
+    const page = items.slice(0, limit);
+    // The originating Group name for each Group draft, so the entry stays identified with its context.
+    const experienceIds = [...new Set(page.flatMap(root => isGroupInfo(root) ? [root.experienceId!] : []))];
+    const named = experienceIds.length ? await groups.experiences().find({ experienceId: { $in: experienceIds } }, { projection: { _id: 0, experienceId: 1, name: 1 } }).toArray() : [];
+    return { items: page, nextOffset: items.length > limit ? offset + limit : null,
+      ...(named.length ? { groupNames: Object.fromEntries(named.map(group => [group.experienceId, group.name])) } : {}) };
   }
 
   // Internal Phase 4 primitive. Caller MUST derive ids from the authorised main
@@ -487,7 +519,7 @@ export class InfoCardRepository {
     return this.transaction(async session => {
       const retired = await this.roots().findOne({ infoCardId: id, ownerUserId: actor, deletedAt: { $exists: true } }, { session });
       if (retired && retired.revision === expected + 1) return { deleted: true };
-      const root = await this.owner(actor, id, session);
+      const root = await this.manageable(actor, id, session);
       requireCondition(root.revision === expected, "STALE_INFO_REVISION");
       await this.roots().updateOne({ infoCardId: id }, { $inc: { referenceRevision: 1 } }, { session });
       const draft = !!await this.db.collection(MAIN.cards).findOne({ "draft.infoCardIds": id }, { session, projection: { _id: 1 } });

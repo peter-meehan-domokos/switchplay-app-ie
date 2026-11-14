@@ -3,9 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import styles from "./InfoCardFace.module.css";
 
-export type InfoCardActions = { onNew: () => void; onEdit?: () => void; onRemove?: () => void; disabled?: boolean };
+// `origin` names where the displayed note was created, shown read-only outside that context (C1).
+export type InfoCardActions = { onNew: () => void; onEdit?: () => void; onRemove?: () => void; origin?: string; disabled?: boolean };
 
-export default function InfoCardMenu({ onNew, onEdit, onRemove, disabled }: InfoCardActions) {
+export default function InfoCardMenu({ onNew, onEdit, onRemove, origin, disabled }: InfoCardActions) {
   const [open, setOpen] = useState(false), id = useId();
   const region = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const isOpen = useRef(false), swallowClick = useRef(false);
@@ -42,6 +43,7 @@ export default function InfoCardMenu({ onNew, onEdit, onRemove, disabled }: Info
         if (open) close(); else { isOpen.current = true; setOpen(true); requestAnimationFrame(() => region.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus()); }
       }}>⋯</button>
     {open && !disabled && <div className={styles.menuItems} id={id} role="menu" aria-label="Info Card actions">
+      {origin && <p className={styles.menuOrigin} role="none" data-info-card-origin=""><span>Created in:</span><span>{origin}</span></p>}
       {items.map(item => <button key={item.label} type="button" role="menuitem" tabIndex={-1} onClick={() => { close(false); item.action(); }}>{item.label}</button>)}
     </div>}
   </div>;

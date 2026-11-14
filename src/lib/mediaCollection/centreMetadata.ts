@@ -1,5 +1,14 @@
 import { isOriginalMediaFilename, type MediaItem } from "../media";
 import type { PersonalMediaDisplayItem } from "../cards/personalHistoryProjection";
+import type { MediaCollectionItem } from "./contracts";
+import { outsideCreationContext } from "./permissions";
+import { mediaOrigin, originLabel, type CreationContext } from "../groupExperiences/media/contributionIdentity";
+
+// The read-only origin shown in place of Delete for the viewer's own item outside its creation context (C1),
+// for example "Group A · Me". Null wherever Delete applies or the item is not the viewer's own.
+export function mediaCentreCreatedIn(viewer: string, item: MediaCollectionItem, experienceId?: string, identity: CreationContext = "self") {
+  return outsideCreationContext(viewer, item, experienceId, identity) ? originLabel(mediaOrigin(item), item.originName) : null;
+}
 
 // Preserve filename-shaped legacy upload labels as a display fallback, without
 // backfilling originalFilename or treating arbitrary descriptions as filenames.

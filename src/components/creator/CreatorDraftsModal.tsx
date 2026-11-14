@@ -43,6 +43,7 @@ export default function CreatorDraftsModal({ drafts, notices = [], currentDeckTe
             disabled={switchingTo !== null} onClick={() => onSelect(id, draft.kind)}>
             {draft.title || (draft.kind === "deck" ? "Untitled Deck" : "Untitled Info Card")}
             {draft.kind === "infoCard" ? <small> · Info Card</small> : null}
+            {draft.kind === "infoCard" && draft.origin ? <small className="creator-draft-origin" data-info-draft-origin={draft.infoCardId}>Created in: {draft.origin}</small> : null}
           </button>
           {draft.kind === "infoCard" && draft.publication ? <p role={draft.publication.tone} data-info-publication-notice={draft.infoCardId}>{draft.publication.message}</p> : null}
         </li>; })}

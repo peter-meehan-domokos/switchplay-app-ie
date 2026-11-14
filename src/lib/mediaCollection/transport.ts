@@ -16,9 +16,11 @@ export async function fetchMediaCollection(context: MediaCollectionContext, curs
   const parsed: { after?: string; before?: string } = cursor ? JSON.parse(cursor) : {};
   const url = `/api/group-experiences/${encodeURIComponent(context.experienceId)}/cards/${encodeURIComponent(context.cardTemplateId)}/media?${new URLSearchParams({ limit: String(limit), ...(parsed.after ? { after: parsed.after } : {}), ...(parsed.before ? { before: parsed.before } : {}), ...(context.subjectUserId ? { subjectUserId: context.subjectUserId } : {}) })}`;
   const page = await mediaJson<{ capabilities: import("./permissions").MediaCapabilities; viewerUserId: string; cardTemplateId: string; experienceId: string; subjectUserId: string | null; accessEpoch: number; adoptionRevision: number; structureRevision: number; total: number; start: number; next: string | null; previous: string | null; refresh: string | null;
-    items: { contributionId: string; experienceId: string; authorUserId: string; authorName?: string; kind: "image" | "video"; revision: number; originalFilename?: string; uploadedAt: string; originName: string | null }[] }>(context, url, "GET", undefined, signal);
+    items: { contributionId: string; experienceId: string; authorUserId: string; authorName?: string; kind: "image" | "video"; revision: number; originalFilename?: string; uploadedAt: string; originName: string | null; creationContext?: import("../groupExperiences/media/contributionIdentity").CreationContext }[] }>(context, url, "GET", undefined, signal);
   const items: MediaCollectionItem[] = page.items.map(i => ({ source: { kind: "group" as const, contributionId: i.contributionId, experienceId: i.experienceId },
-    authorUserId: i.authorUserId, authorName: i.authorName, mediaType: i.kind, description: `Group ${i.kind}`, originalFilename: i.originalFilename, revision: i.revision, uploadedAt: i.uploadedAt, originName: i.originName, private: false })).reverse();
+    authorUserId: i.authorUserId, authorName: i.authorName, mediaType: i.kind, description: `Group ${i.kind}`, originalFilename: i.originalFilename, revision: i.revision, uploadedAt: i.uploadedAt, originName: i.originName, private: false,
+    // The stored identity decides Delete versus Hide (C2); dropping it made an own Admin upload read as "self".
+    ...(i.creationContext ? { creationContext: i.creationContext } : {}) })).reverse();
   return { ...page, items, start: page.start, olderCount: Math.max(0, page.total - items.length),
     older: page.next ? JSON.stringify({ after: page.next }) : null, newer: page.previous ? JSON.stringify({ before: page.previous }) : null,
     refresh: page.refresh ? JSON.stringify({ after: page.refresh }) : null };

@@ -29,7 +29,8 @@ test("Remove operation is source/creator based and requires server capabilities"
   const item: MediaCollectionItem = { source: { kind: "group", experienceId: "galway", contributionId: "id" }, authorUserId: "bob", mediaType: "image", description: "Practice", uploadedAt: null, private: false, originName: null };
   const caps = { canUpload: false, canRemoveOwn: true, canHideOthers: true, canManage: true };
   assert.equal(mediaRemoveOperation("bob", item, caps, "galway"), "delete");
-  assert.equal(mediaRemoveOperation("bob", item, caps), "delete");
+  // C1 (checkpoint 4.2b): a Follower contribution is no longer deleted from the standalone Card.
+  assert.equal(mediaRemoveOperation("bob", item, caps), null);
   assert.equal(mediaRemoveOperation("bob", item, caps, "another"), null);
   assert.equal(mediaRemoveOperation("bob", { ...item, private: true }, caps, "galway"), "delete");
   const personal = { ...item, source: { kind: "personal" as const, cardTemplateId: "card", mediaItemId: "personal" } };

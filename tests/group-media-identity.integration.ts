@@ -53,7 +53,11 @@ async function fixture() {
     const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
     await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: target, kind: "set-admin", isAdmin });
   };
-  return { ...f, media, groupB, epoch, allocate, attach, history, previews, groupPreviews, inspected, keys, setAdmin };
+  const membership = async (target: string, kind: "add-follower" | "remove-follower") => {
+    const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
+    await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: target, kind });
+  };
+  return { ...f, media, groupB, epoch, allocate, attach, history, previews, groupPreviews, inspected, keys, setAdmin, membership };
 }
 
 test("coach scenario: an Admin contribution appears only in its originating Group perspective", async () => {
@@ -112,7 +116,8 @@ test("a dual-role user has separate Admin and Follower histories, views and dele
   assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), groupCaps, f.experienceId, viewerIdentity(groupContext)), "hide");
   assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), meCaps, f.experienceId, viewerIdentity(meContext)), "delete");
   assert.equal(mediaRemoveOperation("alice", item(admin.contributionId, "group"), meCaps, f.experienceId, viewerIdentity(meContext)), null);
-  assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false }, undefined, "self"), "delete");
+  // C1 (checkpoint 4.2b): the standalone Card is not the creation context of a Follower contribution.
+  assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false }, undefined, "self"), null);
 
   // The server rejects cross-identity deletes through the Group-context route and the owner route.
   const epoch = member.accessEpoch;
@@ -120,12 +125,14 @@ test("a dual-role user has separate Admin and Follower histories, views and dele
   await assert.rejects(f.media.delete("alice", follower.contributionId, { expectedRevision: follower.revision }, { experienceId: f.experienceId, accessEpoch: epoch, perspective: "group" }), { code: "GROUP_MEDIA_FORBIDDEN" });
   await assert.rejects(f.media.delete("alice", admin.contributionId, { expectedRevision: admin.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
   assert.equal((await f.media.records().countDocuments({ state: "attached" })), 2, "nothing was deleted");
-  // Each identity deletes its own.
+  // The owner route no longer deletes an attached Follower contribution either (C1).
+  await assert.rejects(f.media.delete("alice", follower.contributionId, { expectedRevision: follower.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  // Each identity deletes its own, in its creation context.
   assert.equal((await f.media.delete("alice", admin.contributionId, { expectedRevision: admin.revision }, { experienceId: f.experienceId, accessEpoch: epoch, perspective: "group" })).state, "deleted");
-  assert.equal((await f.media.delete("alice", follower.contributionId, { expectedRevision: follower.revision })).state, "deleted");
+  assert.equal((await f.media.delete("alice", follower.contributionId, { expectedRevision: follower.revision }, { experienceId: f.experienceId, accessEpoch: epoch, perspective: "self" })).state, "deleted");
 });
 
-test("a follower-only user has no Admin identity: no Group-perspective delete, deletion works from Me and standalone", async () => {
+test("a follower-only user has no Admin identity: no Group-perspective delete, deletion works from Me only", async () => {
   const f = await fixture();
   const first = await f.attach("bob", "self"), second = await f.attach("bob", "self");
   const member = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!;
@@ -135,7 +142,9 @@ test("a follower-only user has no Admin identity: no Group-perspective delete, d
   assert.equal(mediaRemoveOperation("bob", item, memberMediaCapabilities(member, "bob"), f.experienceId, "self"), "delete");
   await assert.rejects(f.media.delete("bob", first.contributionId, { expectedRevision: first.revision }, { experienceId: f.experienceId, accessEpoch: member.accessEpoch, perspective: "group" }), { code: "GROUP_FORBIDDEN" });
   assert.equal((await f.media.delete("bob", first.contributionId, { expectedRevision: first.revision }, { experienceId: f.experienceId, accessEpoch: member.accessEpoch, perspective: "self" })).state, "deleted");
-  assert.equal((await f.media.delete("bob", second.contributionId, { expectedRevision: second.revision })).state, "deleted");
+  // C1: the standalone Card (owner route) cannot delete an attached Follower contribution.
+  await assert.rejects(f.media.delete("bob", second.contributionId, { expectedRevision: second.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  assert.equal(mediaRemoveOperation("bob", { ...item, source: { kind: "group", experienceId: f.experienceId, contributionId: second.contributionId } }, memberMediaCapabilities(member, "bob"), undefined, "self"), null);
   // Nobody deletes another author's contribution, whatever identity they claim.
   const carol = await f.attach("carol", "self");
   const alice = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }))!;
@@ -248,4 +257,72 @@ test("owner-history totals, olderCount and cursors count Follower contributions 
   assert.deepEqual(f.keys([...feed.items, ...rest.items]), follower.toSorted());
   // The Group feed still lists all six, each once.
   assert.equal((await f.media.groupFeed("carol", f.experienceId, f.ids[0])).total, 6);
+});
+
+// Checkpoint 4.2b (C1, C2, C4): Delete is permanent, only by the author, only in the exact creation context, and
+// never performs Hide; Hide is an admin action that never deletes. The client operation and the server agree.
+const groupItem = (f: { experienceId: string }, id: string, authorUserId: string, creationContext: "self" | "group", experienceId = f.experienceId): MediaCollectionItem =>
+  ({ source: { kind: "group", experienceId, contributionId: id }, authorUserId, mediaType: "image", description: "Group image", uploadedAt: null, originName: "Group A", private: false, creationContext });
+
+test("Delete genuinely deletes in the creation context and Hide never deletes, for both identities and a dual-role user", async () => {
+  const f = await fixture();
+  const adminUpload = await f.attach("alice", "group"), ownFollower = await f.attach("alice", "self"), bobUpload = await f.attach("bob", "self");
+  const alice = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }))!, bob = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!;
+  const groupCaps = memberMediaCapabilities(alice), aliceMe = memberMediaCapabilities(alice, "alice"), bobMe = memberMediaCapabilities(bob, "bob");
+  // The operations the client offers.
+  assert.equal(mediaRemoveOperation("alice", groupItem(f, adminUpload.contributionId, "alice", "group"), groupCaps, f.experienceId, "group"), "delete", "own Admin upload in the Group perspective");
+  assert.equal(mediaRemoveOperation("alice", groupItem(f, ownFollower.contributionId, "alice", "self"), groupCaps, f.experienceId, "group"), "hide", "own Follower upload seen in the Group perspective");
+  assert.equal(mediaRemoveOperation("alice", groupItem(f, ownFollower.contributionId, "alice", "self"), aliceMe, f.experienceId, "self"), "delete", "own Follower upload in Me");
+  assert.equal(mediaRemoveOperation("alice", groupItem(f, bobUpload.contributionId, "bob", "self"), groupCaps, f.experienceId, "group"), "hide", "another author's upload");
+  assert.equal(mediaRemoveOperation("bob", groupItem(f, bobUpload.contributionId, "bob", "self"), bobMe, f.experienceId, "self"), "delete", "follower in Me of the originating Group");
+
+  // Hide keeps the record attached; only its Group visibility changes.
+  await f.media.hide("alice", f.experienceId, ownFollower.contributionId, { expectedRevision: ownFollower.revision, accessEpoch: alice.accessEpoch });
+  const hidden = (await f.media.records().findOne({ contributionId: ownFollower.contributionId }))!;
+  assert.equal(hidden.state, "attached"); assert.equal(hidden.groupVisible, false); assert.equal(hidden.deletedAt, undefined);
+
+  // Delete removes the record permanently, from each creation context.
+  const remove = (actor: string, row: { contributionId: string }, perspective: "self" | "group", accessEpoch: number) => f.media.records().findOne({ contributionId: row.contributionId })
+    .then(current => f.media.delete(actor, row.contributionId, { expectedRevision: current!.revision }, { experienceId: f.experienceId, accessEpoch, perspective }));
+  assert.equal((await remove("alice", adminUpload, "group", alice.accessEpoch)).state, "deleted");
+  assert.equal((await remove("bob", bobUpload, "self", bob.accessEpoch)).state, "deleted");
+  assert.equal((await remove("alice", ownFollower, "self", alice.accessEpoch)).state, "deleted");
+  for (const row of [adminUpload, bobUpload, ownFollower]) {
+    const record = (await f.media.records().findOne({ contributionId: row.contributionId }))!;
+    assert.equal(record.state, "deleted"); assert.ok(record.deletedAt instanceof Date);
+  }
+});
+
+test("deletion outside the creation context is refused by the server, including from another Group", async () => {
+  const f = await fixture();
+  const upload = await f.attach("alice", "self");
+  // Me of Group B is a different context, even for the same Card template.
+  await assert.rejects(f.media.delete("alice", upload.contributionId, { expectedRevision: upload.revision }, { experienceId: f.groupB, accessEpoch: await f.epoch("alice", f.groupB), perspective: "self" }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  assert.equal(mediaRemoveOperation("alice", groupItem(f, upload.contributionId, "alice", "self"), memberMediaCapabilities({ userId: "alice", isAdmin: true, followerStatus: "active" }, "alice"), f.groupB, "self"), null);
+  // The standalone Card has no route that deletes an attached Group contribution.
+  await assert.rejects(f.media.delete("alice", upload.contributionId, { expectedRevision: upload.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  assert.equal((await f.media.records().findOne({ contributionId: upload.contributionId }))!.state, "attached");
+});
+
+test("leaving a Group ends deletion of its Follower contributions; rejoining restores it; visibility and hiding are unchanged", async () => {
+  const f = await fixture();
+  const upload = await f.attach("bob", "self");
+  await f.membership("bob", "remove-follower");
+  await assert.rejects(f.media.delete("bob", upload.contributionId, { expectedRevision: upload.revision }, { experienceId: f.experienceId, accessEpoch: await f.epoch("bob", f.experienceId), perspective: "self" }), { code: "GROUP_FORBIDDEN" });
+  assert.ok(f.keys((await f.media.groupFeed("carol", f.experienceId, f.ids[0])).items).includes(upload.contributionId), "still visible in its Group");
+  assert.deepEqual(f.keys((await f.history("bob")).items), [upload.contributionId], "still in the author's history");
+  await f.membership("bob", "add-follower");
+  assert.equal((await f.media.delete("bob", upload.contributionId, { expectedRevision: upload.revision }, { experienceId: f.experienceId, accessEpoch: await f.epoch("bob", f.experienceId), perspective: "self" })).state, "deleted");
+});
+
+test("an admin who is no longer an active follower cannot delete their Follower contribution", async () => {
+  const f = await fixture();
+  const upload = await f.attach("alice", "self");
+  await f.membership("alice", "remove-follower");
+  const alice = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }))!;
+  assert.equal(alice.isAdmin, true);
+  await assert.rejects(f.media.delete("alice", upload.contributionId, { expectedRevision: upload.revision }, { experienceId: f.experienceId, accessEpoch: alice.accessEpoch, perspective: "self" }), { code: "GROUP_FORBIDDEN" });
+  // Still an admin: they may hide it, which never deletes.
+  await f.media.hide("alice", f.experienceId, upload.contributionId, { expectedRevision: upload.revision, accessEpoch: alice.accessEpoch });
+  assert.equal((await f.media.records().findOne({ contributionId: upload.contributionId }))!.state, "attached");
 });
