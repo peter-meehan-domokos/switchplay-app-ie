@@ -645,7 +645,7 @@ Visibility, hiding, uploading, playback, automatic publication, owner-history or
 - `identityRole(identity)`: `"group"` gives `"admin"`, `"self"` gives `"follower"`. It is extracted from `creationAuthority`, which then uses it, and every Group-context write uses it.
 - `originLabel(origin, groupName)`: "Personal Card", "{Group} · Me" or "{Group} · Group". A missing name uses the existing "Group unavailable".
 
-**Delete and Hide (C2).** Delete permanently removes; Hide sets `groupVisible: false` and never deletes. Their routes, commands and server authorisation stay separate and unchanged except as listed below. The client decides between them with one pure function, so an author in their creation context always gets Delete and never Hide:
+**Delete and Hide (C2).** Delete permanently removes; Hide sets `groupVisible: false` and never deletes. Their routes, commands and server authorisation stay separate and unchanged except as listed below. The client decides between them with one pure function, so an author in their creation context always gets Delete and never Hide. **Superseded in part by V10 (refinement after 4.5c):** an admin's own Admin contribution in its originating Group perspective gets both, Delete then Hide from Group; the function now returns the list of actions (`mediaRemoveOperations`). The rest of the table stands:
 
 | Viewer and item | Operation |
 | --- | --- |
@@ -821,7 +821,7 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 
 #### Checkpoints 4.5a–4.5c — Admin contributions in followers' Me, and the inspection toggle
 
-**Purpose.** Apply decisions V1–V7 of the specification: Admin contributions (Info Cards and media) also appear in every active follower's Me of the originating Group; inspecting a follower shows only their contributions unless the central **Include Group content** toggle is on. Nothing is implemented yet. **Model and effort:** Opus, High.
+**Purpose.** Apply decisions V1–V7 of the specification: Admin contributions (Info Cards and media) also appear in every active follower's Me of the originating Group; inspecting a follower shows only their contributions unless the central **Include Group content** toggle is on. Implemented as 31f8202, 8871154 and cf0813e. **Refined after 4.5c by V8–V10** (see the next section): the toggle is renamed Include admin content, governs own Me too, has a role-based default and is never dimmed, and the tag is "+ Admin". **Model and effort:** Opus, High.
 
 **Step 0 — Atlas index installation (approved; completed 14 November 2026, run by the owner and verified from the index listing: `group_info_owner_history` and `group_info_shared_history` exist on `infoCards` in the `switchplay` database, and the readiness check reported "Info Cards indexes ready.").** The steps were:
 1. Read-only: list the indexes on `infoCards` in Atlas, confirm the database and that `group_info_owner_history` and `group_info_shared_history` do not exist.
@@ -868,6 +868,39 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 - Inspecting a follower shows only that follower's contributions by default; with Include Group content on, the Group's items join, and the "+ Group" tag shows.
 - The toggle stays fixed at the bottom of both choosers while names scroll, and the tag does not enlarge the chip.
 - It resets after leaving the Group deck.
+
+#### Refinement after 4.5c — Include admin content and both actions (V8–V10)
+
+**Purpose.** Apply decisions V8–V10 of the specification: one **Include admin content** toggle, with a role-based default, for every follower perspective including own Me; the renamed labels; and both Delete and Hide from Group on an admin's own Admin contribution in its originating Group perspective. **Model and effort:** Opus, High. Implemented on `feat/group-experience`; awaiting approval.
+
+**Pre-implementation check (reported and decided).** Allowing both actions conflicted with no permission rule: the server already let any current admin hide any contribution originating in their Group, their own Admin ones included, and C2 says so. The one consequence was that a self-hidden Admin contribution leaves every view, and Delete is offered only where it no longer appears, so it can no longer be deleted through the interface. Decided: Option A, accepted limitation, no confirmation, undo or workaround.
+
+**Toggle (V8, V9).**
+- `defaultIncludeAdminContent({ isAdmin })` in `contributionIdentity.ts` is the single role default: on unless the viewer is an admin. The Group deck holds `null` until the viewer changes it, so it shows the default, and resets to it on leaving or reload.
+- `buildAdminContentToggleLayout` (renamed from `buildGroupContentToggleLayout`) has no disabled state; `applies` is true in own Me and in an inspection when on, never in the Group perspective; the tag is "+ Admin". It is visible wherever the chooser lists a follower perspective (`isFollower || canInspectFollowers`).
+- Internal names follow the labels: `includeAdminContent`, `AdminContentToggle`, `admin-content-*` classes, and the query parameter `includeAdminContent=1`.
+
+**Info Cards in own Me.** `mainInfoConsultation`'s experience mode adds the Group's Admin roots only with `includeAdminContent`; the route accepts it in experience mode or with a subject; the client sends it from Me and inspection alike and accepts Admin entries in Me only with it.
+
+**Media in own Me.**
+- The owner context of Me carries `includeAdminContent?: true`; the preview cache key includes it for owner contexts too, so the two states never share a window.
+- `readOwnerMediaPage` and `/api/media/history` take `includeAdminContent` (only with `experienceId`). The Admin `$or` branch of `baseGroup` applies only then. Cursors are bound to the state through `ownerCursorContext`, so a cursor of one state is refused in the other.
+- `ownerPreviewPages` prepares own Me in the role-default state (`defaultIncludeAdminContent(member)`), and the client keys the prepared pages with the same default (`ownMeMediaContext`). The other state is read on first display, as inspection with the toggle already was.
+
+**Both actions (V10).**
+- Info Cards: the consultation client offers Hide (`canHide`) on the admin's own Admin card in the Group perspective; it is still withheld on that card in an inspection, where only its origin shows. `buildInfoCardMenuLayout` returns `hide` alongside `manage` and `extendDown` when both apply; the menu then anchors one 28px row lower (`.menuItemsExtended`), so + New, Edit and Delete keep their positions and Hide from Group sits directly beneath Delete.
+- Media: `mediaRemoveOperations` returns the actions in display order; the Media Centre renders one button per action, and two stack in a `.user-card-media-tile-actions` cell in the grid row a single action uses. Only the acting button shows Deleting… or Hiding…; both stay disabled meanwhile.
+- No server change: routes, commands and authorisation are unchanged.
+
+**Tests.** Unit: toggle layout and role default, chooser rendering with "+ Admin" in own Me and inspection, never disabled; the media action list for author, other admin, follower, dual-role and other Group; the stacked Media Centre buttons and per-action progress; owner transport and cache key; the prepared own-Me context; menu layout for both actions and the extended anchor. Integration: own Me with and without the toggle for Info Cards and media, cursor binding, the role-default previews, the self-hide (hidden, not deleted, out of every view), another admin hiding but not deleting. Browser: the menu geometry against a three-item menu, self-hide, the follower-only default in own Me and inspection with pouch counts, the dual-role default and turning it on, the Group perspective keeping it enabled, stacked media buttons, and the media self-hide.
+
+**iPhone checks (refinement):**
+- As a follower-only user, Me shows the Admin cards and media at once, with "+ Admin" after the name; switching Include admin content off removes them and updates the pouch count and thumbnails.
+- As an admin, Me and inspections start without Admin content; switching on adds it, with "+ Admin".
+- The switch is enabled on the Group perspective and keeps its setting; reloading or leaving the Group deck restores the role default.
+- On your own Admin card in the Group perspective, the menu shows + New, Edit, Delete, then Hide from Group beneath, with the first three where they always are.
+- In the Media Centre of the Group perspective, your own Admin upload shows Delete with Hide from Group beneath.
+- Hide from Group on your own Admin item removes it with no confirmation; it is then gone from the Group perspective and every Me.
 
 **iPhone checks (4.2–4.4):**
 - Follower Me: their Follower contributions plus standalone cards with the private icon.
@@ -945,6 +978,7 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 | C2 | Delete and Hide are separate: Delete is permanent, author-only and only in the creation context, and never silently hides; Hide is for current admins on any contribution originating in their Group, including their own Follower contributions seen in the Group perspective. | The earlier open point on dual-role Hide (O2) |
 | C3 | All four Info Card workflows (Creator, standalone Personal, follower Group, admin Group) keep unfinished drafts in the existing My Drafts. Unsaved Group drafts reopen directly in the shared editor, identified by origin and authorised from the stored context. Saved cards are never edited through My Drafts. An exception to C1's navigation only. | Redirecting Group drafts through Group and Card navigation (O3); a client-supplied `groupContext` |
 | V1–V7 | Admin contributions (Info Cards and media) also appear in the Me of every active follower of their Group, sorted like all items, with no private icon and no mute. Inspecting a follower shows only their contributions unless the central **Include Group content** toggle is on (off by default, reset on leaving the deck, a "+ Group" tag, no extra height). A later per-contribution option, `audience: "group-perspective-only"`, needs no migration. Supersedes "Admin contributions never appear in Me" for followers of the originating Group (specification, V1–V7). | Admin content reaching only followers who open the Group perspective |
+| V8–V10 | One **Include admin content** toggle governs Admin Info Cards and media in every follower perspective, own Me included; default on for follower-only viewers, off for admins and dual-role admins; always enabled; reset to the role default on leaving the deck or reloading. Labels "Include admin content" and "+ Admin"; configurable role names backlog (section 9). An admin's own Admin contribution in its originating Group perspective has Delete and Hide from Group, Hide beneath Delete; a self-hidden one is an accepted limitation. | The unconditional Admin content in own Me (4.5a, 4.5b), the dimmed toggle (V4), and the Delete-over-Hide interface rule (4.2b) |
 | C4 | A former follower or admin cannot edit or delete contributions created in that Group context; rejoining with the role restores it. Visibility and hiding unchanged. Managing past Groups' items is backlog (section 9). | The earlier open point O1 |
 
 ---
@@ -961,7 +995,7 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 - **Identity drift (4.0 onwards).** Any new query or permission that compares `authorUserId` with the viewer without the identity check would re-mix a dual-role user's contributions. All such checks go through `contributionIdentity.ts`, and the comment there explains why.
 - **Owner-history paging (4.0).** The owner page merges two sources with separate counts. The filter must be on the shared `baseGroup`, not only on the page query, or totals and cursors drift.
 - **Upload retries across a deploy (4.0).** An upload retried by a client from before the change, without `creationContext`, is rejected by the stricter command. Client and server ship together, so this affects only an upload in flight during deployment.
-- **Known limitations (accepted).** Hidden Admin contributions are unreachable even by their author; departed or demoted admins without Group perspective access cannot reach or delete their Admin contributions (section 2.6, section 9).
+- **Known limitations (accepted).** Hidden Admin contributions are unreachable even by their author, including those the author hid themselves (V10); departed or demoted admins without Group perspective access cannot reach or delete their Admin contributions (section 2.6, section 9).
 - **Admin content in Me (4.5).** The Me media page assumes every row is the viewer's own (totals, cursors, author name, delivery). A third source must keep totals, cursors and `start` in step, or paging drifts. Existing Admin content becomes visible in followers' Me on deploy, and followers cannot mute it, so a heavy posting admin can crowd a stack; the per-contribution option (V6) is the planned relief.
 - **Inspection toggle (4.5c).** Changing the follower list and grid DOM can disturb scrolling, focus and selection. The state must reset on leaving the deck, or an admin may mistake Group content for a follower's own work; the "+ Group" tag guards against this.
 - **Creation-context drift (4.2b onwards).** Any new write path for a Group item that skips the shared guard would reopen cross-context management. Media deletes go through `contributionIdentity.ts`, and every Info Card write goes through `manageable`, which reads the context from the stored record.
@@ -1041,6 +1075,7 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 14. **Phase 4.5a:** Info Cards in followers' Me. Continues automatically if within scope.
 15. **Phase 4.5b:** media in followers' Me. **Approval gate.**
 16. **Phase 4.5c:** the Include Group content toggle. **Approval gate.**
+17. **Refinement after 4.5c (V8–V10):** Include admin content with role defaults in every follower perspective, the renamed labels, and both Delete and Hide from Group for an admin's own Admin contribution. **Approval gate.**
 
 ---
 
@@ -1050,7 +1085,13 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 
 - Followers should be able to see quickly which media in the Media Centre came from admins. Info Cards already distinguish Admin content by their teal colour and "Group" type label; media has no equivalent beyond the "By:" attribution.
 - Backlog only: find a subtle, low-height distinction for Admin media. It is not part of checkpoints 4.5a–4.5c.
-- Considered and **abandoned** for now: extending the "Include Group content" toggle to the Group perspective (a narrow Admin-only default there). The toggle stays an inspection control only. Reasons: it would change the Group perspective's default and complicate admin moderation, and Admin content already reaches followers through Me (V1).
+- Considered and **abandoned** for now: extending the toggle (now "Include admin content") to the Group perspective (a narrow Admin-only default there). Since V8 it governs every follower perspective, own Me included, but still never the Group perspective. Reasons: it would change the Group perspective's default and complicate admin moderation, and Admin content already reaches followers through Me (V1).
+
+### Configurable role names (backlog only; not in scope)
+
+- Group settings may later let each Group name its roles, for example Coaches and Players, or Teachers and Students.
+- The toggle and tag labels ("Include admin content", "+ Admin") would then use the configured Admin name.
+- Not built now: no setting, storage or label change.
 
 ### Central media management (investigation only; not in scope)
 
@@ -1063,6 +1104,6 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 **Status:**
 - To investigate in future.
 - Do not build a Media Centre, management UI or additional access routes as part of this work.
-- It would also be the place for users to manage contributions from Groups they have left (C4). Backlog only.
+- It would also be the place for users to manage contributions from Groups they have left (C4), and hidden Admin contributions, including those an admin hid themselves (V10). Backlog only.
 - The Group Experience engineering plan has no existing backlog entry for this; its closest notes are the deferred moderation and history interfaces in §11.2.
 
