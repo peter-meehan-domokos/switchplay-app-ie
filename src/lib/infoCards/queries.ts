@@ -11,6 +11,7 @@ import { CREATOR_INFO_FILTER, isCreatorInfo, isGroupInfo, isPersonalInfo } from 
 import { creationContextOf, FOLLOWER_CONTRIBUTIONS, infoCardOrigin, originLabel } from "../groupExperiences/media/contributionIdentity";
 import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
+import { canInspectPeers } from "../groupExperiences/policy";
 import { personalHistorySegments } from "../cards/forks";
 
 export type InfoQuery = { search?: string; offset?: number; limit?: number; seriesId?: string };
@@ -125,20 +126,25 @@ function validPublication(row: Joined) {
 
 // Same resolution machinery as strict catalogue publication reads, but preserves
 // authorised main-reference positions without exposing why a slot is unavailable.
+// `sharedGroupIds` are Group contributions of any author that the caller authorised as shared with a Group the
+// viewer currently belongs to, in the same transaction (the Group perspective and follower inspection, 4.3).
 export async function publicationSnapshotEntries(repo: InfoCardRepository, actor: string, ids: unknown, session?: ClientSession,
-  personalOrigins?: ReadonlyMap<string, ReadonlySet<string>>, ownGroupIds?: ReadonlySet<string>): Promise<InfoConsultationEntry[]> {
+  personalOrigins?: ReadonlyMap<string, ReadonlySet<string>>, ownGroupIds?: ReadonlySet<string>, sharedGroupIds?: ReadonlySet<string>): Promise<InfoConsultationEntry[]> {
   infoId(actor); const ordered = infoReferences(ids);
+  const shared = [...sharedGroupIds ?? []];
   const read = async (snapshot: ClientSession): Promise<InfoConsultationEntry[]> => {
     const rows = await repo.roots().aggregate<Joined>([
-      { $match: { infoCardId: { $in: ordered }, latestVersion: { $gt: 0 }, $or: [{ ownerUserId: actor }, { visibility: "public" }] } },
-      ...latestJoin(), { $match: access(actor) },
+      { $match: { infoCardId: { $in: ordered }, latestVersion: { $gt: 0 }, $or: [{ ownerUserId: actor }, { visibility: "public" }, ...(shared.length ? [{ infoCardId: { $in: shared } }] : [])] } },
+      ...latestJoin(), { $match: shared.length ? { $or: [access(actor), { infoCardId: { $in: shared } }] } : access(actor) },
     ], { session: snapshot }).toArray();
     const permitted = rows.filter(row => isCreatorInfo(row) || isPersonalInfo(row) && row.ownerUserId === actor
       && row.visibility === "private" && row.publication.visibility === "private"
       && personalOrigins?.get(row.infoCardId)?.has(row.originCardTemplateId!)
       // The viewer own Follower contributions, only where the caller authorised them for this read.
       || isGroupInfo(row) && row.ownerUserId === actor && creationContextOf(row) === "self" && row.visibility === "private"
-      && row.publication.visibility === "private" && !!ownGroupIds?.has(row.infoCardId));
+      && row.publication.visibility === "private" && !!ownGroupIds?.has(row.infoCardId)
+      // Contributions shared with the Group, of either identity and any author, where the caller authorised them.
+      || isGroupInfo(row) && row.visibility === "private" && row.publication.visibility === "private" && !!sharedGroupIds?.has(row.infoCardId));
     const items = await decorate(repo, permitted.filter(validPublication), snapshot), byId = new Map(items.map(item => [item.infoCardId, item]));
     return ordered.map(id => { const info = byId.get(id); return info ? { status: "available", info } : { status: "unavailable" }; });
   };
@@ -146,28 +152,56 @@ export async function publicationSnapshotEntries(repo: InfoCardRepository, actor
   return repo.transaction(read);
 }
 
-// Info Cards for one Card in one context. Creator Info Cards come from the Card version; the viewer own private
-// notes are added in their own contexts only, following the Group media rules (contributionIdentity.ts):
+// Info Cards for one Card in one context. Creator Info Cards come from the Card version; Group contributions and
+// the viewer own private notes follow the Group media rules exactly (contributionIdentity.ts, readMediaPage):
 //   working (standalone Card): their standalone Personal Info Cards and all their Follower contributions;
 //   experience (their Me in a Group): the same, with `private` set on those not shared with this Group;
-//   canonical (Group perspective, Other followers, Library): Creator Info Cards only.
-// Admin contributions never appear in any of these. Group perspective reads are checkpoint 4.3.
+//   group (the Group perspective): every contribution originating in this Group and shared with it, Admin and
+//     Follower alike and including former members; with `subjectUserId` (follower inspection), only that
+//     follower's Follower contributions shared with this Group, where the Group allows inspection;
+//   canonical (Library and other read-only contexts): Creator Info Cards only.
+// Admin contributions appear only in the group mode of their originating Group; standalone Personal Info Cards
+// never appear there.
 export async function mainInfoConsultation(repo: InfoCardRepository, actor: string, mainCardId: string, context: MainInfoContext): Promise<InfoConsultationSnapshot> {
   const main = new CardRepository(repo.db, repo.client);
   return repo.transaction(async session => {
-    let version;
+    let version, canHide: boolean | undefined;
     if (context.mode === "experience") {
       infoId(context.experienceId);
       const groups = new GroupExperienceRepository(main);
       const { experience } = await groups.access(actor, context.experienceId!, "follower", session);
       version = await selectedCard(main, experience, mainCardId, session);
       requireCondition(version.version === context.version, "INFO_MAIN_VERSION_CONFLICT");
+    } else if (context.mode === "group") {
+      // Authorised exactly as the Group media feed (GroupMediaRepository.groupAuthority).
+      infoId(context.experienceId);
+      const groups = new GroupExperienceRepository(main);
+      const { experience, member } = await groups.access(actor, context.experienceId!, "member", session);
+      version = await selectedCard(main, experience, mainCardId, session);
+      requireCondition(version.version === context.version, "INFO_MAIN_VERSION_CONFLICT");
+      if (context.subjectUserId !== undefined) {
+        infoId(context.subjectUserId);
+        requireCondition(context.subjectUserId === actor || canInspectPeers(experience, member), "GROUP_FORBIDDEN");
+        requireCondition(await groups.members().findOne({ experienceId: context.experienceId!, userId: context.subjectUserId, followerStatus: "active" },
+          { session, projection: { _id: 1 } }), "GROUP_FORBIDDEN");
+      }
+      canHide = member.isAdmin;
     } else version = await main.consultationCardVersion(actor, mainCardId, context, session);
     type Ref = { id: string; source: "shared" | "personal" | "group"; origin?: string; date?: string; private?: boolean; experienceId?: string };
     const refs: Ref[] = infoReferences(version.content.infoCardIds).map(id => ({ id, source: "shared", date: version.content.infoCardAttachedAt?.[id] }));
-    const origins = new Map<string, Set<string>>(), ownGroupIds = new Set<string>();
+    const origins = new Map<string, Set<string>>(), ownGroupIds = new Set<string>(), sharedGroupIds = new Set<string>();
     let sources: { cardTemplateId: string; personalInfoRevision: number }[] | undefined;
-    if (context.mode !== "canonical") {
+    if (context.mode === "group") {
+      const subject = context.subjectUserId;
+      const shared = await repo.roots().find({ kind: "group", experienceId: context.experienceId!, originCardTemplateId: mainCardId, groupVisible: { $ne: false },
+        latestVersion: { $gt: 0 }, deletedAt: { $exists: false }, ...(subject ? { ownerUserId: subject, ...FOLLOWER_CONTRIBUTIONS } : {}) },
+        { session, projection: { _id: 0, infoCardId: 1, experienceId: 1, createdAt: 1 } }).toArray();
+      for (const row of shared) {
+        sharedGroupIds.add(row.infoCardId);
+        refs.push({ id: row.infoCardId, source: "group", experienceId: row.experienceId, date: row.createdAt instanceof Date ? row.createdAt.toISOString() : undefined });
+      }
+    }
+    if (context.mode === "working" || context.mode === "experience") {
       const user = await main.getPersonalUser(actor, session);
       const data = user?.cardsData.filter(data => data.cardTemplateId === mainCardId) ?? [];
       // The standalone Card requires its CardData; Me shows standalone notes only when the user has that Card.
@@ -190,13 +224,13 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
           ...(context.mode === "experience" ? { private: row.experienceId !== context.experienceId || row.groupVisible === false } : {}) });
       }
     }
-    // The originating Group names of the owner's own Group contributions, for "Created in" outside their context.
-    // One bounded lookup, as the media owner history does; the author needs no membership to see their own.
+    // The originating Group names of the Group contributions shown, for "Created in" outside their context. One
+    // bounded lookup, as the media owner history does; the author needs no membership to see their own.
     const groupIds = [...new Set(refs.flatMap(ref => ref.experienceId ? [ref.experienceId] : []))];
     const groupNames = new Map(groupIds.length ? (await new GroupExperienceRepository(main).experiences().find({ experienceId: { $in: groupIds } },
       { session, projection: { _id: 0, experienceId: 1, name: 1 } }).toArray()).map(group => [group.experienceId, group.name]) : []);
     const ids = [...new Set(refs.map(ref => ref.id))];
-    const resolved = await publicationSnapshotEntries(repo, actor, ids, session, origins, ownGroupIds);
+    const resolved = await publicationSnapshotEntries(repo, actor, ids, session, origins, ownGroupIds, sharedGroupIds);
     const byId = new Map(ids.map((id, index) => [id, resolved[index]]));
     const availableIds = resolved.flatMap(entry => entry.status === "available" ? [entry.info.infoCardId] : []);
     const roots = availableIds.length ? await repo.roots().find({ infoCardId: { $in: availableIds } },
@@ -223,19 +257,22 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
         : { status: "unavailable", key };
       return [{ entry, time, tie: available ? ref.id : key }];
     }).sort((a, b) => (b.time ?? -Infinity) - (a.time ?? -Infinity) || (a.tie < b.tie ? -1 : a.tie > b.tie ? 1 : 0));
-    return { mainCardId, mainCardVersion: version.version, ...(sources ? { personalSources: sources } : {}), entries: entries.map(item => item.entry) };
+    return { mainCardId, mainCardVersion: version.version, ...(sources ? { personalSources: sources } : {}), entries: entries.map(item => item.entry),
+      ...(canHide !== undefined ? { canHide } : {}) };
   });
 }
 
 // The Info Card consultation (pouch) for one Card resumes the owner's pending requests for the Info Cards it
-// shows: Personal notes made on this Card and the owner's own Creator Info Cards attached to it (checkpoint 10).
+// shows: Personal notes made on this Card and the owner's own Creator Info Cards attached to it (checkpoint 10),
+// and in the Group perspective the owner's own Admin contributions for this Card in this Group (checkpoint 4.3).
 // A completed request changes what the pouch shows, so the snapshot is read again only then.
 export async function resumingInfoConsultation(repo: InfoCardRepository, actor: string, mainCardId: string, context: MainInfoContext): Promise<InfoConsultationSnapshot> {
   const first = await mainInfoConsultation(repo, actor, mainCardId, context);
   const own = first.entries.flatMap(entry => entry.status === "available" && entry.info.ownerUserId === actor && entry.info.kind !== "personal" ? [entry.info.infoCardId] : []);
   const publications = await repo.resumePendingPublications(actor, { $or: [{ infoCardId: { $in: own } },
-    ...(context.mode !== "canonical" ? [{ kind: "personal" as const, originCardTemplateId: mainCardId },
-      { kind: "group" as const, originCardTemplateId: mainCardId, ...FOLLOWER_CONTRIBUTIONS }] : [])] });
+    ...(context.mode === "working" || context.mode === "experience" ? [{ kind: "personal" as const, originCardTemplateId: mainCardId },
+      { kind: "group" as const, originCardTemplateId: mainCardId, ...FOLLOWER_CONTRIBUTIONS }] : []),
+    ...(context.mode === "group" && !context.subjectUserId ? [{ kind: "group" as const, originCardTemplateId: mainCardId, experienceId: context.experienceId!, creationContext: "group" as const }] : [])] });
   const snapshot = publications.some(state => state.status === "published") ? await mainInfoConsultation(repo, actor, mainCardId, context) : first;
   return publications.length ? { ...snapshot, publications } : snapshot;
 }

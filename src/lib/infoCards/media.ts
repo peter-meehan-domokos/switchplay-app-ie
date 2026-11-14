@@ -9,7 +9,9 @@ import { readProtectedImage, streamPlaybackGrant } from "../cards/protectedMedia
 import type { InfoCardRepository } from "./repository";
 import type { InfoMedia, InfoRoot, MediaContext } from "./model";
 import { infoId, revision } from "./domain";
-import { isCreatorInfo, isNoteInfo } from "./model";
+import { isCreatorInfo, isGroupInfo, isNoteInfo } from "./model";
+import { CardRepository } from "../cards/repository";
+import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { INFO_MEDIA_COLLECTION, type InfoMediaAllocation } from "./mediaRegistry";
 
 // Readiness of the intended media. Wrong provenance or missing protection throws; a video that is still being
@@ -105,8 +107,15 @@ export async function authorizeInfoMedia(repo: InfoCardRepository, actor: string
   requireCondition(context.kind === "draft" || context.kind === "publication", "INVALID_INFO_MEDIA_CONTEXT");
   return repo.transaction(async session => {
     const root = await repo.roots().findOne({ infoCardId: context.infoCardId }, { session });
-    // Private notes (standalone Personal Info Cards and Group contributions) are delivered to their owner only here.
-    requireCondition(root && !root.deletedAt && (isCreatorInfo(root) || isNoteInfo(root) && root.ownerUserId === actor), "INFO_MEDIA_FORBIDDEN");
+    // A published Group contribution shared with its Group is delivered to that Group's current members, exactly as
+    // Group media are (GroupMediaRepository.authorized). Otherwise private notes reach their owner only.
+    const groupShared = context.kind === "publication" && context.experienceId !== undefined;
+    if (groupShared) {
+      infoId(context.experienceId);
+      requireCondition(root && !root.deletedAt && isGroupInfo(root) && root.experienceId === context.experienceId && root.groupVisible !== false, "INFO_MEDIA_FORBIDDEN");
+      await new GroupExperienceRepository(new CardRepository(repo.db, repo.client)).access(actor, context.experienceId!, "member", session);
+    }
+    requireCondition(root && !root.deletedAt && (isCreatorInfo(root) || isNoteInfo(root) && (root.ownerUserId === actor || groupShared)), "INFO_MEDIA_FORBIDDEN");
     if (context.kind === "draft") {
       revision(context.revision);
       requireCondition(root.ownerUserId === actor && root.revision === context.revision && root.draft?.mediaItem, "INFO_MEDIA_FORBIDDEN");
@@ -114,7 +123,7 @@ export async function authorizeInfoMedia(repo: InfoCardRepository, actor: string
     }
     revision(context.version); requireCondition(context.version > 0, "INVALID_INFO_MEDIA_CONTEXT");
     const published = await repo.versions().findOne({ infoCardId: context.infoCardId, version: context.version }, { session });
-    requireCondition(published && context.version <= root.latestVersion && (root.ownerUserId === actor
+    requireCondition(published && context.version <= root.latestVersion && (root.ownerUserId === actor || groupShared
       || (root.visibility === "public" && published.visibility === "public")) && published.content.mediaItem, "INFO_MEDIA_FORBIDDEN");
     return published.content.mediaItem;
   });

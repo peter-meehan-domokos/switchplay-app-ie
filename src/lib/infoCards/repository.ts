@@ -93,9 +93,9 @@ export class InfoCardRepository {
   async owner(actor: string, id: string, session?: ClientSession) {
     infoId(actor); infoId(id);
     const root = await this.roots().findOne({ infoCardId: id, ownerUserId: actor, deletedAt: { $exists: false } }, { session, projection: { _id: 0 } });
-    // Same response for absent and foreign IDs. The owner route acts as the Follower identity, so a Group
-    // contribution is editable here only if it was created in Me (contributionIdentity.ts, R1).
-    requireCondition(root && (isCreatorInfo(root) || isPersonalInfo(root) || isGroupInfo(root) && creationContextOf(root) === "self"), "INFO_FORBIDDEN"); return root;
+    // Same response for absent and foreign IDs. The author reads their own Group contributions of either
+    // identity here; every write is then authorised from the stored creation context by manageable (C1).
+    requireCondition(root && (isCreatorInfo(root) || isPersonalInfo(root) || isGroupInfo(root)), "INFO_FORBIDDEN"); return root;
   }
   // The guard every Info Card write uses (checkpoint 4.2b, C1 and C4): the author, and for a Group contribution
   // the author's current role in its originating Group for its stored identity, an active follower for "self"
@@ -160,19 +160,21 @@ export class InfoCardRepository {
   async createGroup(actor: string, id: string, experienceId: string, cardTemplateId: string, input: { accessEpoch: unknown; version: unknown; creationContext: unknown }) {
     infoId(actor); infoId(id); infoId(experienceId); infoId(cardTemplateId);
     requireCondition(isCreationContext(input.creationContext), "INVALID_GROUP_MEDIA_PERSPECTIVE");
-    requireCondition(input.creationContext === "self", "INFO_GROUP_PERSPECTIVE_FORBIDDEN");
+    const creationContext = input.creationContext;
     requireCondition(Number.isSafeInteger(input.accessEpoch) && Number(input.accessEpoch) >= 0 && Number.isSafeInteger(input.version) && Number(input.version) > 0, "INVALID_INFO_CONTEXT");
     const media = new GroupMediaRepository(new GroupExperienceRepository(new CardRepository(this.db, this.client)));
     return this.transaction(async session => {
-      await media.creationAuthority(actor, experienceId, cardTemplateId, Number(input.accessEpoch), Number(input.version), session, "self");
+      // Exactly as a Group media upload: a Follower contribution from Me needs an active follower, an Admin
+      // contribution from the Group perspective a current admin (checkpoint 4.3), the Card in the manifest.
+      await media.creationAuthority(actor, experienceId, cardTemplateId, Number(input.accessEpoch), Number(input.version), session, creationContext);
       const existing = await this.roots().findOne({ infoCardId: id }, { session, projection: { _id: 0 } });
       if (existing) {
         requireCondition(existing.ownerUserId === actor && isGroupInfo(existing) && existing.experienceId === experienceId && existing.originCardTemplateId === cardTemplateId
-          && existing.creationContext === "self" && !existing.deletedAt && existing.revision === 0 && existing.latestVersion === 0 && sameContent(existing.draft, EMPTY_INFO_DRAFT), "INFO_CREATE_RECOVERY_CONFLICT");
+          && existing.creationContext === creationContext && !existing.deletedAt && existing.revision === 0 && existing.latestVersion === 0 && sameContent(existing.draft, EMPTY_INFO_DRAFT), "INFO_CREATE_RECOVERY_CONFLICT");
         return existing;
       }
       const now = new Date();
-      const root: InfoRoot = { infoCardId: id, ownerUserId: actor, kind: "group", originCardTemplateId: cardTemplateId, experienceId, creationContext: "self", groupVisible: true,
+      const root: InfoRoot = { infoCardId: id, ownerUserId: actor, kind: "group", originCardTemplateId: cardTemplateId, experienceId, creationContext, groupVisible: true,
         visibility: "private", draftVisibility: "private", draft: { ...EMPTY_INFO_DRAFT }, latestVersion: 0, revision: 0, referenceRevision: 0, createdAt: now, updatedAt: now };
       await this.roots().insertOne({ ...root }, { session }); return root;
     });

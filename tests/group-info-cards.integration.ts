@@ -48,11 +48,15 @@ async function fixture() {
   const canonical = (actor: string) => mainInfoConsultation(info, actor, f.ids[0], { mode: "canonical", version: 1 });
   const shown = (snapshot: InfoConsultationSnapshot) => snapshot.entries.flatMap(entry => entry.status === "available" ? [[entry.info.infoCardId, entry.source, entry.private ?? null] as const] : [])
     .toSorted((a, b) => a[0].localeCompare(b[0]));
+  const setAdmin = async (target: string, isAdmin: boolean) => {
+    const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
+    await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: target, kind: "set-admin", isAdmin });
+  };
   const membership = async (target: string, kind: "add-follower" | "remove-follower") => {
     const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
     await f.repo.changeMember("alice", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: target, kind });
   };
-  return { ...f, info, groupB, epoch, create, note, me, standalone, canonical, shown, membership, setVideo: (value: InfoMediaReadiness) => { video = value; } };
+  return { ...f, info, groupB, epoch, create, note, me, standalone, canonical, shown, membership, setAdmin, setVideo: (value: InfoMediaReadiness) => { video = value; } };
 }
 
 test("creation from Me makes a Follower contribution that never writes CardData", async () => {
@@ -73,10 +77,10 @@ test("creation from Me makes a Follower contribution that never writes CardData"
   assert.equal(await f.info.roots().countDocuments({ infoCardId: "retry" }), 1);
 });
 
-test("the server authorises creation exactly as a Group media upload from Me", async () => {
+test("the server authorises creation exactly as a Group media upload from the same perspective", async () => {
   const f = await fixture();
-  // Admin creation from the Group perspective is checkpoint 4.3; only the Follower identity exists here.
-  await assert.rejects(f.create("alice", f.experienceId, { creationContext: "group" }), { code: "INFO_GROUP_PERSPECTIVE_FORBIDDEN" });
+  // Checkpoint 4.3: an Admin contribution comes only from a current admin; a follower-only user has no Admin identity.
+  await assert.rejects(f.create("bob", f.experienceId, { creationContext: "group" }), { code: "GROUP_MEDIA_PERSPECTIVE_FORBIDDEN" });
   await assert.rejects(f.create("bob", f.experienceId, { creationContext: "admin" }), { code: "INVALID_GROUP_MEDIA_PERSPECTIVE" });
   await assert.rejects(f.info.createGroup("outsider", randomUUID(), f.experienceId, f.ids[0], { accessEpoch: 0, version: 1, creationContext: "self" }), { code: "GROUP_FORBIDDEN" });
   const adminOnly = (await f.repo.create("alice", { ...f.command, operationId: randomUUID(), name: "Admin only", followerIds: ["bob"] })).experienceId;
@@ -85,6 +89,8 @@ test("the server authorises creation exactly as a Group media upload from Me", a
   await assert.rejects(f.create("bob", f.experienceId, { version: 2 }), { code: "GROUP_MEDIA_SCOPE_CONFLICT" });
   await assert.rejects(f.info.createGroup("bob", randomUUID(), f.experienceId, "not-in-group", { accessEpoch: 0, version: 1, creationContext: "self" }));
   assert.equal(await f.info.roots().countDocuments({ kind: "group" }), 0);
+  // An admin who is not a follower creates Admin contributions only.
+  assert.equal((await f.info.owner("alice", await f.create("alice", adminOnly, { creationContext: "group" }))).creationContext, "group");
 });
 
 test("Me shows the author's Follower contributions from every Group and their standalone notes, with the private icon", async () => {
@@ -127,10 +133,12 @@ test("a dual-role user never sees Admin contributions in Me or on the standalone
   await f.cards.ensureDeckData("alice", f.deckId, 1);
   assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id), [follower]);
   assert.deepEqual(f.shown(await f.standalone("alice")).map(([id]) => id), [follower]);
-  // The owner route acts as the Follower identity: it cannot reach the Admin contribution at all.
-  await assert.rejects(f.info.owner("alice", "alice-admin"), { code: "INFO_FORBIDDEN" });
-  await assert.rejects(f.info.delete("alice", "alice-admin", 2), { code: "INFO_FORBIDDEN" });
-  await assert.rejects(f.info.save("alice", "alice-admin", 2, draft("Edited"), "private"), { code: "INFO_FORBIDDEN" });
+  // Checkpoint 4.3: its author reads it, and writes it only while a current admin of its Group (manageable, C1).
+  assert.equal((await f.info.owner("alice", "alice-admin")).creationContext, "group");
+  await f.setAdmin("bob", true); await f.setAdmin("alice", false);
+  await assert.rejects(f.info.save("alice", "alice-admin", 2, draft("Edited"), "private"), { code: "GROUP_FORBIDDEN" });
+  await assert.rejects(f.info.delete("alice", "alice-admin", 2), { code: "GROUP_FORBIDDEN" });
+  assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id), [follower], "demotion never reclassifies");
 });
 
 test("only the author edits and deletes; admins hide without deleting", async () => {

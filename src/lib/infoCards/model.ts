@@ -45,20 +45,27 @@ export type PublishedInfo = {
   ownerUserId: string; creatorUsername: string;
   series: { seriesId: string; title: string; createdByUserId: string; creatorUsername: string };
 };
-export type MediaContext = { infoCardId: string } & ({ kind: "draft"; revision: number } | { kind: "publication"; version: number });
+// `experienceId` reads a Group contribution shared with that Group as one of its current members (checkpoint 4.3),
+// as Group media are delivered; without it only the owner, or a public Creator Info Card, is delivered.
+export type MediaContext = { infoCardId: string } & ({ kind: "draft"; revision: number } | { kind: "publication"; version: number; experienceId?: string });
 export type PersonalInfoSource = { cardTemplateId: string; personalInfoRevision: number };
 export type PersonalInfoAssociation = PersonalInfoSource & { personalInfoCardIds: string[]; personalInfoCardAttachedAt: Record<string, string> };
-// `source` "group" is the viewer own Follower contribution (checkpoint 4.2). `private` is set only where the
+// `source` "group" is a Group contribution: the viewer own Follower contribution in their own contexts (checkpoint
+// 4.2), or any contribution shared with the Group in the Group perspective and follower inspection (checkpoint 4.3). `private` is set only where the
 // viewer own Info Cards are shown inside a Group (Me), with the meaning of the media private icon: not shared with
 // this Group, because it is standalone, from another Group, or hidden here.
 export type InfoConsultationEntry = ({ status: "available"; info: PublishedInfo; source?: "shared" | "personal" | "group";
   sourceCardTemplateId?: string; attachedAt?: string | null; private?: boolean;
-  // The owner's own Group contribution only: its originating Group name, or null when unavailable.
+  // Group contributions only: their originating Group name, or null when unavailable.
   originName?: string | null } | { status: "unavailable" }) & { key?: string };
 export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: number; entries: InfoConsultationEntry[]; personalSources?: PersonalInfoSource[];
-  publications?: PublicationRequestState[] };
+  publications?: PublicationRequestState[];
+  // Group mode only: whether the viewer, as a current admin of this Group, may hide its contributions (C2).
+  canHide?: boolean };
 // "experience" is the follower own Me perspective of one Group: the Card at the Group selected version.
-export type MainInfoContext = { mode: "working" | "canonical" | "experience"; version: number; deckTemplateId?: string; experienceId?: string };
+// "group" is the Group perspective of one Group, or, with `subjectUserId`, the inspection of one of its followers
+// (checkpoint 4.3), at the Group selected version.
+export type MainInfoContext = { mode: "working" | "canonical" | "experience" | "group"; version: number; deckTemplateId?: string; experienceId?: string; subjectUserId?: string };
 export type PersonalInfoContext = { deckTemplateId: string; version: number; personalInfoRevision: number };
 export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
   return (root.kind === undefined || root.kind === "creator") && root.originCardTemplateId === undefined;
