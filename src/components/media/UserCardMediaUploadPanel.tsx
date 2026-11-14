@@ -41,6 +41,10 @@ type UserCardMediaUploadPanelProps = {
   getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
 
+// An Admin contribution of the Group shown in Me (V1) is Group content: its slot stays, so tiles keep their
+// geometry, but it carries no visibility indicator, which is only about the viewer's own items.
+const groupContent = (item: MediaItem) => (item as PersonalMediaDisplayItem).collection?.creationContext === "group";
+
 // Non-interactive: a small "Created in:" above the originating context name.
 function CreatedIn({ label }: { label: string | null | undefined }) {
   return label ? <p className="user-card-media-tile-created-in"><span className="user-card-media-tile-created-in-label">Created in:</span><span>{label}</span></p> : null;
@@ -85,7 +89,7 @@ function VideoTile({ item, target, removalState, onRemove, canRemove = true, mut
           <img alt="" onError={() => setThumbnailFailed(true)} src={isCloudflareStreamVideoMediaItem(item) ? (item as PersonalMediaDisplayItem).collection?.source.kind === "group" ? item.thumbnailSrc : getCloudflareStreamThumbnailUrl(item) : item.thumbnailSrc ?? item.src} />
         ) : <span aria-hidden="true">Video</span>}
       </div>
-      {showPrivate ? <span className="media-centre-private-label"><VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} /></span> : null}
+      {showPrivate ? <span className="media-centre-private-label">{groupContent(item) ? null : <VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} />}</span> : null}
       <p className="user-card-media-tile-name" title={getMetadata?.(item).filename ?? item.description}>{getMetadata?.(item).filename ?? item.description}</p>
       {getMetadata ? <p className="user-card-media-tile-origin">{getMetadata(item).uploader !== undefined ? `By: ${getMetadata(item).uploader}` : `In: ${getMetadata(item).origin}`}</p> : null}
       <p className="user-card-media-tile-status" role={state.status === "failed" || state.status === "unavailable" ? "alert" : "status"}>
@@ -179,7 +183,7 @@ export default function UserCardMediaUploadPanel({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img alt={item.description} src={imageDeliveryUrl(item.src)} />
                 </div>
-                {showPrivate ? <span className="media-centre-private-label"><VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} /></span> : null}
+                {showPrivate ? <span className="media-centre-private-label">{groupContent(item) ? null : <VisibilityIndicator visible={(item as PersonalMediaDisplayItem).collection?.private === false} />}</span> : null}
                 <p className="user-card-media-tile-name" title={getMetadata?.(item).filename ?? item.description}>{getMetadata?.(item).filename ?? item.description}</p>
                 {getMetadata ? <p className="user-card-media-tile-origin">{getMetadata(item).uploader !== undefined ? `By: ${getMetadata(item).uploader}` : `In: ${getMetadata(item).origin}`}</p> : null}
                 <CreatedIn label={getCreatedIn(item)} />

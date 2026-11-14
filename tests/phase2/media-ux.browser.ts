@@ -191,6 +191,56 @@ test("Group-wide Admin upload remains author-owned and exposes no Private media"
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8); await expect(centre(page).getByText("Hidden from this Group. The creator still has their copy.")).toHaveCount(0);
 });
 
+// Checkpoint 4.5b (V1): an admin's Admin upload also appears in every follower's Me, as Group content.
+test("a follower's Me shows Admin media with its author, read-only, delivered through the Group, with no visibility icon", async ({ page, baseURL }) => {
+  // The admin posts an Admin image in the Group perspective (creationContext "group").
+  await login(page, "Aoife Kelly");
+  const adminContext = await page.context().browser()!.newContext({ baseURL }), adminPage = await adminContext.newPage();
+  await login(adminPage);
+  const admin = await (await adminPage.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
+  const allocation = await (await adminPage.request.post(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media`, { data: { operationId: crypto.randomUUID(),
+    accessEpoch: admin.accessEpoch, version: 1, kind: "image", contentType: "image/png", size: png.length, originalFilename: "coach-briefing.png", creationContext: "group" } })).json();
+  expect(allocation.contributionId).toBeTruthy();
+  await adminPage.request.put(allocation.uploadURL, { data: png, headers: allocation.headers });
+  expect((await adminPage.request.post(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media/${allocation.contributionId}/commit`, { data: { expectedRevision: allocation.revision, proof: allocation.proof } })).ok()).toBeTruthy();
+  try {
+    // The follower's Me history lists it with its author, never private; the standalone Card never does.
+    const me = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}&experienceId=${fixture.experienceId}`)).json();
+    const listed = me.items.find((i: { source: { contributionId?: string } }) => i.source.contributionId === allocation.contributionId);
+    expect(listed).toMatchObject({ creationContext: "group", private: false, originalFilename: "coach-briefing.png" });
+    expect(listed.authorName).not.toBe("Aoife Kelly");
+    const standalone = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}`)).json();
+    expect(standalone.items.some((i: { source: { contributionId?: string } }) => i.source.contributionId === allocation.contributionId)).toBe(false);
+    // Delivered to the follower through the Group, never through the owner route.
+    expect(await (await page.request.get(`/api/group-media/${allocation.contributionId}?action=playback&experienceId=${fixture.experienceId}`)).body()).toEqual(png);
+    expect((await page.request.get(`/api/group-media/${allocation.contributionId}?action=playback`)).status()).toBe(403);
+    // In the Me Media Centre: the tile names its author, offers neither Delete nor Hide from Group, and has no icon.
+    const current = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
+    expect((await page.request.patch(`/api/group-experiences/${fixture.experienceId}/navigation`, { data: { accessEpoch: current.accessEpoch, expectedStructureRevision: current.structureRevision, activeCardId: fixture.cardId, selection: { perspective: "self" } } })).ok()).toBeTruthy();
+    await page.goto(`/decks?openExperience=${fixture.experienceId}`);
+    await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-layer")).toBeVisible();
+    // Honour the focus gesture lock before flipping, as loading-retention.browser.ts does.
+    await page.waitForTimeout(700);
+    const box = (await page.locator(".focused-card-surface--front .card-title-anchor").boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 180, box.y + box.height / 2, { steps: 12 }); await page.mouse.up();
+    await expect(page.locator(".focused-card-object")).toHaveClass(/is-flipped/);
+    await page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true }).click();
+    const tile = centre(page).locator(`[data-media-item-id*="${allocation.contributionId}"]`); await expect(tile).toBeVisible();
+    await expect(tile.locator(".user-card-media-tile-name")).toHaveText("coach-briefing.png");
+    await expect(tile.locator(".user-card-media-tile-origin")).toHaveText(`By: ${listed.authorName}`);
+    await expect(tile.getByRole("button", { name: /Delete image|Hide image/ })).toHaveCount(0);
+    await expect(tile.locator(".media-centre-private-label")).toHaveCount(1);
+    await expect(tile.locator(".media-centre-private-label svg")).toHaveCount(0);
+  } finally {
+    // The admin deletes it from the Group perspective, its creation context, so the shared fixture is unchanged.
+    const status = await (await adminPage.request.get(`/api/group-media/${allocation.contributionId}?action=status&experienceId=${fixture.experienceId}`)).json().catch(() => ({}));
+    const latest = await (await adminPage.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
+    await adminPage.request.delete(`/api/group-experiences/${fixture.experienceId}/media/${allocation.contributionId}`, { data: { expectedRevision: status.revision ?? allocation.revision + 1, accessEpoch: latest.accessEpoch, perspective: "group" } });
+    await adminContext.close();
+  }
+});
+
 test("peer inspection is Gallery-only and revocation closes/purges the foreign Gallery", async ({ page }) => {
   await login(page, "Alice");
   const current = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();

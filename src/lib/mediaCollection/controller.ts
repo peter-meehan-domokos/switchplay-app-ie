@@ -1,5 +1,5 @@
 import { workingCardStore } from "../cards/workingCardStore";
-import { collectionKey, type MediaCollectionContext, type MediaCollectionPage, type MediaSource } from "./contracts";
+import { collectionKey, isFollowerSharedAdminItem, type MediaCollectionContext, type MediaCollectionPage, type MediaSource } from "./contracts";
 import { fetchMediaCollection } from "./transport";
 export type CollectionLoader = (context: MediaCollectionContext, cursor?: string, signal?: AbortSignal, limit?: number) => Promise<MediaCollectionPage>;
 export type GallerySeed = { page: MediaCollectionPage; selectedKey: string };
@@ -30,7 +30,8 @@ export class MediaCollectionController {
       || (this.context.kind === "group" && (page.accessEpoch !== this.context.accessEpoch || page.adoptionRevision !== this.context.adoptionRevision || (this.context.structureRevision !== undefined && page.structureRevision !== this.context.structureRevision) || (page.subjectUserId ?? null) !== (this.context.subjectUserId ?? null)))) throw Object.assign(Error("Media authority changed. Reopen the Card."), { status: 409 });
     if (!Array.isArray(page.items) || page.items.length > this.limit || !Number.isSafeInteger(page.total) || page.total < page.items.length
       || new Set(page.items.map(collectionKey)).size !== page.items.length
-      || page.items.some(i => this.context.kind === "owner" ? i.authorUserId !== this.context.viewerUserId
+      // Owner pages hold the viewer's own items; Me of a Group also this Group's Admin contributions (V1, 4.5b).
+      || page.items.some(i => this.context.kind === "owner" ? i.authorUserId !== this.context.viewerUserId && !isFollowerSharedAdminItem(i, this.context.experienceId)
         : i.private || i.source.kind !== "group" || i.source.experienceId !== this.context.experienceId
         || Boolean(this.context.subjectUserId && i.authorUserId !== this.context.subjectUserId))) throw Object.assign(Error("Invalid media collection response."), { status: 409 });
   }

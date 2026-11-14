@@ -132,3 +132,18 @@ test("composed media preparation cannot resurrect a removed item or replace a ne
  await c.load(); const source = c.snapshot().page!.items[0].source; assert.equal(source.kind === "personal" && source.mediaItemId, "newer");
  c.dispose(); assert.equal(c.acceptPrepared(page([])), false);
 });
+// Checkpoint 4.5b (V1): Me of a Group also holds that Group's Admin contributions; nothing else of another author.
+test("a follower's Me page accepts this Group's Admin items only, never another follower's or another Group's", async () => {
+  const me: MediaCollectionContext = { viewerUserId: "bob", cardTemplateId: "card", kind: "owner", experienceId: "galway" };
+  const item = (contributionId: string, authorUserId: string, creationContext: "self" | "group", experienceId = "galway", isPrivate = false) => ({
+    source: { kind: "group" as const, experienceId, contributionId }, authorUserId, mediaType: "image" as const, description: "Group image", uploadedAt: null, originName: "Galway", private: isPrivate, creationContext });
+  const load = async (items: MediaCollectionPage["items"], ctx = me) => {
+    const c = new MediaCollectionController(ctx, async () => ({ viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway", total: items.length, olderCount: 0, older: null, newer: null, items }));
+    await c.load(); const loaded = c.snapshot().page; c.dispose(); return loaded;
+  };
+  assert.ok(await load([item("own", "bob", "self"), item("coach", "alice", "group")]), "own items and this Group's Admin items");
+  assert.equal(await load([item("peer", "carol", "self")]), null, "another follower's contribution");
+  assert.equal(await load([item("elsewhere", "alice", "group", "other")]), null, "another Group's Admin item");
+  assert.equal(await load([item("hidden", "alice", "group", "galway", true)]), null, "never a private Admin item");
+  assert.equal(await load([item("coach", "alice", "group")], { viewerUserId: "bob", cardTemplateId: "card", kind: "owner" }), null, "never on the standalone Card");
+});

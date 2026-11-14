@@ -14,6 +14,11 @@ export type MediaCollectionItem = {
 export type MediaCollectionPage = { capabilities?: import("./permissions").MediaCapabilities; viewerUserId: string; cardTemplateId: string; total: number; olderCount: number;
   items: MediaCollectionItem[]; start?: number; refresh?: string | null; older: string | null; newer: string | null;
   experienceId?: string; subjectUserId?: string | null; accessEpoch?: number; adoptionRevision?: number; structureRevision?: number };
+// An Admin contribution of the current Group shown in a follower's Me (V1, checkpoint 4.5b). It is Group content:
+// another identity's item, read and delivered through the Group, never private and never managed from Me.
+export function isFollowerSharedAdminItem(item: Pick<MediaCollectionItem, "source" | "creationContext" | "private">, experienceId?: string) {
+  return !!experienceId && item.source.kind === "group" && item.source.experienceId === experienceId && item.creationContext === "group" && !item.private;
+}
 export function collectionKey(item: Pick<MediaCollectionItem, "source">) {
   const s = item.source; return JSON.stringify(s.kind === "personal" ? ["personal", s.cardTemplateId, s.mediaItemId] : ["group", s.experienceId, s.contributionId]);
 }

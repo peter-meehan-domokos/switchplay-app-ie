@@ -10,7 +10,8 @@ import { GroupExperienceRepository } from "../groupExperiences/repository";
 import { selectedCard } from "../groupExperiences/publicVersions";
 import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
 import type { GroupMediaRecord } from "../groupExperiences/media/model";
-import { FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS, creationContextOf, FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { creatorUsernames } from "../cards/creatorAttribution";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 
 export type Order = [string, string, string, string, number, number];
@@ -60,7 +61,9 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
     if (options.experienceId) {
       const groups = new GroupExperienceRepository(cards), access = await groups.access(actor, options.experienceId, "member", session);
       await selectedCard(cards, access.experience, cardTemplateId, session);
-      capabilities = memberMediaCapabilities(access.member, actor);
+      // Hide from Group is a Group perspective action (C2): never offered in Me, even to an admin, now that Me
+      // also lists the Group's Admin contributions (V1).
+      capabilities = { ...memberMediaCapabilities(access.member, actor), canHideOthers: false };
       authority = { experienceId: options.experienceId, accessEpoch: access.member.accessEpoch,
         adoptionRevision: access.experience.adoptionRevision, structureRevision: access.experience.structureRevision };
     }
@@ -77,8 +80,12 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
       sources.push(next); next = nonblank(matches[0].next) ? matches[0].next : undefined;
     }
     const pipeline = personalPipeline(actor, sources), groups = cards.db.collection<GroupMediaRecord>(GROUP_MEDIA_COLLECTION);
-    // Follower contributions only: Admin contributions never join owner history. See contributionIdentity.ts.
-    const baseGroup = { authorUserId: actor, cardTemplateId, state: "attached" as const, ...FOLLOWER_CONTRIBUTIONS };
+    // The viewer's own Follower contributions; the viewer's Admin contributions never join owner history. See
+    // contributionIdentity.ts. In Me of a Group, also that Group's Admin contributions shared with its followers
+    // (V1, checkpoint 4.5b), of any admin; the two sets never overlap. Totals, cursors and start all use baseGroup.
+    const ownGroup = { authorUserId: actor, cardTemplateId, state: "attached" as const, ...FOLLOWER_CONTRIBUTIONS };
+    const baseGroup: Document = options.experienceId ? { $or: [ownGroup, { experienceId: options.experienceId, cardTemplateId, state: "attached" as const,
+      groupVisible: true, ...ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS }] } : ownGroup;
     const get = async (direction: "older" | "newer", boundary: Order | undefined, count: number, inclusive = false): Promise<Row[]> => {
       const sign = direction === "older" ? -1 : 1;
       const personal = sources.length ? await cards.users().aggregate(pipeline.concat(
@@ -101,12 +108,17 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
             range = { $or: [{ uploadedAt: { [cmp]: date } }, ...(equal ? [equal] : [])] };
           }
         }
-        const result = await groups.find({ ...baseGroup, ...range }, { session, projection: { _id: 0, contributionId: 1, experienceId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, groupVisible: 1, revision: 1 } })
+        const result = await groups.find({ $and: [baseGroup, range] }, { session, projection: { _id: 0, contributionId: 1, authorUserId: 1, experienceId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, groupVisible: 1, revision: 1, creationContext: 1 } })
           .sort({ uploadedAt: sign, contributionId: sign }).limit(count).toArray();
-        for (const g of result) rows.push({ order: [g.uploadedAt!.toISOString(), "group", "", g.contributionId, 0, 0], item: {
-          source: { kind: "group", experienceId: g.experienceId, contributionId: g.contributionId }, authorUserId: actor, mediaType: g.kind,
-          description: `Group ${g.kind}`, originalFilename: g.originalFilename, uploadedAt: g.uploadedAt!.toISOString(), originName: null, revision: g.revision, creationContext: "self",
-          private: Boolean(options.experienceId && (options.experienceId !== g.experienceId || !g.groupVisible)) } });
+        for (const g of result) {
+          const admin = creationContextOf(g) === "group";
+          rows.push({ order: [g.uploadedAt!.toISOString(), "group", "", g.contributionId, 0, 0], item: {
+            source: { kind: "group", experienceId: g.experienceId, contributionId: g.contributionId }, authorUserId: g.authorUserId, mediaType: g.kind,
+            description: `Group ${g.kind}`, originalFilename: g.originalFilename, uploadedAt: g.uploadedAt!.toISOString(), originName: null, revision: g.revision,
+            creationContext: admin ? "group" : "self",
+            // Admin contributions are shared with the Group, so never private; the marker is about the viewer's own items.
+            private: !admin && Boolean(options.experienceId && (options.experienceId !== g.experienceId || !g.groupVisible)) } });
+        }
       }
       return rows.sort((a, b) => sign * compare(a.order, b.order)).slice(0, count);
     };
@@ -116,14 +128,16 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
     const total = personalCount + (hasGroups ? await groups.countDocuments(baseGroup, { session }) : 0);
     const origins = [...new Set(rows.flatMap(r => r.item.source.kind === "group" ? [r.item.source.experienceId] : []))];
     const names = origins.length ? await cards.db.collection<{ experienceId: string; name: string }>("groupExperiences").find({ experienceId: { $in: origins } }, { session, projection: { _id: 0, experienceId: 1, name: 1 } }).toArray() : [];
-    for (const row of rows) row.item.authorName = typeof user.username === "string" && user.username.trim() ? user.username : "Unknown user";
+    const others = await creatorUsernames(cards, rows.flatMap(r => r.item.authorUserId === actor ? [] : [r.item.authorUserId]), session);
+    for (const row of rows) row.item.authorName = row.item.authorUserId !== actor ? others.get(row.item.authorUserId) ?? "Unknown user"
+      : typeof user.username === "string" && user.username.trim() ? user.username : "Unknown user";
     for (const row of rows) if (row.item.source.kind === "group") row.item.originName = names.find(g => g.experienceId === (row.item.source as { experienceId: string }).experienceId)?.name ?? null;
     let start = 0;
     if (rows[0]) {
       const boundary = rows[0].order;
       const personalBefore = sources.length ? (await cards.users().aggregate(pipeline.concat([{ $match: { $expr: { $lt: [tuple, { $literal: boundary }] } } }, { $count: "total" }]), { session }).next())?.total ?? 0 : 0;
-      const groupBefore = !hasGroups || !boundary[0] ? 0 : await groups.countDocuments({ ...baseGroup, $or: [{ uploadedAt: { $lt: new Date(boundary[0]) } },
-        ...(boundary[1] === "personal" ? [{ uploadedAt: new Date(boundary[0]) }] : [{ uploadedAt: new Date(boundary[0]), contributionId: { $lt: boundary[3] } }])] }, { session });
+      const groupBefore = !hasGroups || !boundary[0] ? 0 : await groups.countDocuments({ $and: [baseGroup, { $or: [{ uploadedAt: { $lt: new Date(boundary[0]) } },
+        ...(boundary[1] === "personal" ? [{ uploadedAt: new Date(boundary[0]) }] : [{ uploadedAt: new Date(boundary[0]), contributionId: { $lt: boundary[3] } }])] }] }, { session });
       start = personalBefore + groupBefore;
     }
     const encode = (direction: Cursor["direction"], order: Order, inclusive = false) => Buffer.from(JSON.stringify({ context, direction, order, inclusive })).toString("base64url");

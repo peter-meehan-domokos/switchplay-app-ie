@@ -61,7 +61,9 @@ export default function BackCardMediaCarousel({ items, onOpen, showPrivate = fal
     >
       {renderedItems.map((item, index) => privateLabels ? <span className="media-private-slot" key={personalMediaKey(item)}>
         <MediaItem index={index} count={items.length} onOpen={onOpen} item={item} />
-        <span className="media-private-label"><VisibilityIndicator visible={item.collection?.private === false} /></span>
+        <span className="media-private-label">{item.collection?.creationContext === "group" ? null
+          /* Group content in Me (V1): the slot keeps the geometry, but no visibility indicator. */
+          : <VisibilityIndicator visible={item.collection?.private === false} />}</span>
       </span> : <MediaItem index={index} count={items.length} onOpen={onOpen} key={personalMediaKey(item)} item={item} />)}
     </section>
   );

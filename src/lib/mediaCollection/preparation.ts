@@ -7,7 +7,8 @@ import { userKey } from "../groupExperiences/learningReads";
 import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
 import { compare, personalPipeline, type Order } from "./ownerHistory";
 import { memberMediaCapabilities } from "./permissions";
-import { FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS, FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { creatorUsernames } from "../cards/creatorAttribution";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 import type { GroupExperience, GroupMember } from "../groupExperiences/model";
 
@@ -38,12 +39,15 @@ export async function ownerPreviewPages(repo: CardRepository, actor: string, ids
     { $group: { _id: "$targets.card", total: { $sum: 1 }, items: { $firstN: { n: 5, input: "$$ROOT" } } } },
   ]), { session }).toArray();
   const group = hasGroups && ids.length ? await repo.db.collection(GROUP_MEDIA_COLLECTION).aggregate<Window>([
-    // Owner previews and counts show Follower contributions only (contributionIdentity.ts).
-    { $match: { authorUserId: actor, cardTemplateId: { $in: ids }, state: "attached", ...FOLLOWER_CONTRIBUTIONS } },
+    // Owner previews and counts show the viewer's Follower contributions only (contributionIdentity.ts), and in Me
+    // of a Group also that Group's Admin contributions shared with its followers (V1, checkpoint 4.5b).
+    { $match: { cardTemplateId: { $in: ids }, state: "attached", ...(authority ? { $or: [{ authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS },
+      { experienceId: authority.experience.experienceId, groupVisible: true, ...ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS }] } : { authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS }) } },
     { $sort: { uploadedAt: -1, contributionId: -1 } },
-    { $group: { _id: "$cardTemplateId", total: { $sum: 1 }, items: { $firstN: { n: 5, input: { contributionId: "$contributionId", experienceId: "$experienceId", kind: "$kind", uploadedAt: "$uploadedAt", groupVisible: "$groupVisible", revision: "$revision", originalFilename: "$originalFilename" } } } } },
+    { $group: { _id: "$cardTemplateId", total: { $sum: 1 }, items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", creationContext: "$creationContext", experienceId: "$experienceId", kind: "$kind", uploadedAt: "$uploadedAt", groupVisible: "$groupVisible", revision: "$revision", originalFilename: "$originalFilename" } } } } },
   ], { session }).toArray() : [];
   const origins = [...new Set(group.flatMap(window => window.items.map(item => item.experienceId as string)))];
+  const authors = await creatorUsernames(repo, group.flatMap(window => window.items.flatMap(item => item.authorUserId === actor ? [] : [item.authorUserId as string])), session);
   const names = origins.length ? await repo.db.collection<{ experienceId: string; name: string }>("groupExperiences").find({ experienceId: { $in: origins } }, { session, projection: { _id: 0, experienceId: 1, name: 1 } }).toArray() : [];
   return Object.fromEntries(ids.map(card => {
     const own = personal.find(window => window._id === card), shared = group.find(window => window._id === card);
@@ -51,17 +55,24 @@ export async function ownerPreviewPages(repo: CardRepository, actor: string, ids
       source: { kind: "personal" as const, cardTemplateId: row.sourceId as string, mediaItemId: row.media.id }, authorUserId: actor, authorName: user.username?.trim() ? user.username : "Unknown user",
       mediaType: row.media.mediaType, description: row.media.description, originalFilename: row.media.originalFilename, uploadedAt: row.at as string || null, originName: "Personal", private: !!authority, media: row.media as MediaItem,
     } }] : []);
-    for (const row of shared?.items ?? []) rows.push({ order: [(row.uploadedAt as Date).toISOString(), "group", "", row.contributionId as string, 0, 0], item: {
-      source: { kind: "group", experienceId: row.experienceId as string, contributionId: row.contributionId as string }, authorUserId: actor, authorName: user.username?.trim() ? user.username : "Unknown user",
-      mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number, creationContext: "self",
-      originName: names.find(name => name.experienceId === row.experienceId)?.name ?? null, private: !!authority && (authority.experience.experienceId !== row.experienceId || !row.groupVisible),
-    } });
+    for (const row of shared?.items ?? []) {
+      // An Admin contribution of this Group shown in Me (V1): its own author, shared with the Group, never private.
+      const admin = row.creationContext === "group", author = row.authorUserId as string;
+      rows.push({ order: [(row.uploadedAt as Date).toISOString(), "group", "", row.contributionId as string, 0, 0], item: {
+        source: { kind: "group", experienceId: row.experienceId as string, contributionId: row.contributionId as string }, authorUserId: author,
+        authorName: author !== actor ? authors.get(author) ?? "Unknown user" : user.username?.trim() ? user.username : "Unknown user",
+        mediaType: row.kind as "image" | "video", description: `Group ${row.kind}`, originalFilename: row.originalFilename as string | undefined, uploadedAt: (row.uploadedAt as Date).toISOString(), revision: row.revision as number,
+        creationContext: admin ? "group" : "self", originName: names.find(name => name.experienceId === row.experienceId)?.name ?? null,
+        private: !admin && !!authority && (authority.experience.experienceId !== row.experienceId || !row.groupVisible),
+      } });
+    }
     const selected = rows.sort((a, b) => compare(b.order, a.order)).slice(0, 5).reverse(), total = (own?.total ?? 0) + (shared?.total ?? 0);
     const context = hash({ actor, cardTemplateId: card, experienceId: authority?.experience.experienceId ?? null });
     const encode = (order: Order, inclusive = false) => Buffer.from(JSON.stringify({ context, direction: "older", order, inclusive })).toString("base64url");
     const page: MediaCollectionPage = { viewerUserId: actor, cardTemplateId: card, items: selected.map(row => row.item), total, start: Math.max(0, total - selected.length), olderCount: Math.max(0, total - selected.length),
       older: total > selected.length && selected[0] ? encode(selected[0].order) : null, newer: null, refresh: selected.at(-1) ? encode(selected.at(-1)!.order, true) : null,
-      capabilities: authority ? memberMediaCapabilities(authority.member, actor) : { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true },
+      // Hide from Group is a Group perspective action (C2), never offered in Me (as readOwnerMediaPage).
+      capabilities: authority ? { ...memberMediaCapabilities(authority.member, actor), canHideOthers: false } : { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true },
       ...(authority ? { experienceId: authority.experience.experienceId, accessEpoch: authority.member.accessEpoch, adoptionRevision: authority.experience.adoptionRevision, structureRevision: authority.experience.structureRevision } : {}) };
     return [card, page];
   }));

@@ -124,3 +124,18 @@ test("Media Centre labels exactly two actions: Delete and Hide from Group", asyn
   assert.ok(html.includes('aria-label="Hide image Other (other) from Group"') && html.includes(">Hide from Group</button>"));
   assert.ok(!html.includes("Remove"));
 });
+// Checkpoint 4.5b (V1): an Admin contribution in a follower's Me is Group content, read through the Group.
+test("Admin media in Me is delivered through the Group and keeps its slot without a visibility icon", () => {
+  const context = { kind: "owner" as const, viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway" };
+  const own: MediaCollectionItem = { source: { kind: "group", experienceId: "galway", contributionId: "own" }, authorUserId: "bob", mediaType: "image", description: "Practice", uploadedAt: null, private: false, originName: "Galway", creationContext: "self" };
+  const admin: MediaCollectionItem = { ...own, source: { kind: "group", experienceId: "galway", contributionId: "coach" }, authorUserId: "alice", creationContext: "group" };
+  const [ownItem, adminItem] = [own, admin].map(i => collectionDisplayItem(i, context));
+  assert.equal(ownItem.src, "/api/group-media/own?action=playback", "the viewer's own item through the owner route, as before");
+  assert.equal(adminItem.src, "/api/group-media/coach?action=playback&experienceId=galway");
+  const html = renderToStaticMarkup(<BackCardMediaCarousel items={[ownItem, adminItem]} showPrivate />);
+  assert.equal((html.match(/class="media-private-label"/g) ?? []).length, 2, "both keep the slot, so the geometry is unchanged");
+  assert.equal((html.match(/group-visibility-icon|lucide-eye/g) ?? []).length > 0, true);
+  assert.equal((html.match(/aria-label="Visible to this Group"/g) ?? []).length, 1, "only the viewer's own item has the indicator");
+  // Never Delete or Hide in Me on another author's Admin item, even for an admin (canHideOthers is off in Me).
+  assert.equal(mediaRemoveOperation("bob", admin, { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true }, "galway", "self"), null);
+});

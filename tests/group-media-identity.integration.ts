@@ -16,6 +16,8 @@ import type { MediaCollectionItem } from "../src/lib/mediaCollection/contracts";
 // Checkpoint 4.0: Group media contribution identities. Follower contributions ("self", made in Me) join the
 // author's cross-context history; Admin contributions ("group", made in the Group perspective) belong only to
 // their originating Group perspective. A dual-role user's two identities are separate.
+// Checkpoint 4.5b (V1): Admin contributions also appear, as Group content, in the Me of every follower of their
+// Group. They never join anyone's owner history elsewhere, and Hide stays a Group perspective action.
 let mongo: MongoMemoryReplSet, client: MongoClient;
 before(async () => { process.env.SESSION_SECRET = "disposable-identity-test-secret"; mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } }); client = await new MongoClient(mongo.getUri()).connect(); });
 after(async () => { await client?.close(); await mongo?.stop(); });
@@ -60,7 +62,7 @@ async function fixture() {
   return { ...f, media, groupB, epoch, allocate, attach, history, previews, groupPreviews, inspected, keys, setAdmin, membership };
 }
 
-test("coach scenario: an Admin contribution appears only in its originating Group perspective", async () => {
+test("coach scenario: an Admin contribution appears only in its originating Group, its Group perspective and followers' Me", async () => {
   const f = await fixture();
   const admin = await f.attach("alice", "group");
   assert.equal(admin.creationContext, "group");
@@ -70,10 +72,56 @@ test("coach scenario: an Admin contribution appears only in its originating Grou
   // Not in Group B, neither its Group perspective nor Me there.
   assert.deepEqual((await f.media.groupFeed("alice", f.groupB, f.ids[0])).items, []);
   assert.deepEqual((await f.history("alice", f.groupB)).items, []); assert.equal((await f.previews("alice", f.groupB)).total, 0);
-  // Not on the standalone Card, nor in the author's own Me in Group A.
-  for (const page of [await f.history("alice"), await f.history("alice", f.experienceId)]) { assert.deepEqual(page.items, []); assert.equal(page.total, 0); }
-  assert.equal((await f.previews("alice")).total, 0); assert.equal((await f.previews("alice", f.experienceId)).total, 0);
+  // Not on the standalone Card, and never in the author's owner history.
+  const standalone = await f.history("alice"); assert.deepEqual(standalone.items, []); assert.equal(standalone.total, 0);
+  assert.equal((await f.previews("alice")).total, 0);
   assert.deepEqual((await f.media.ownerFeed("alice", f.ids[0])).items, []);
+  // In Me of Group A, for every follower (the dual-role author included), as Group content (V1).
+  for (const viewer of ["alice", "bob", "carol"]) {
+    const page = await f.history(viewer, f.experienceId), preview = await f.previews(viewer, f.experienceId);
+    assert.deepEqual(f.keys(page.items), [admin.contributionId], viewer); assert.equal(page.total, 1); assert.equal(preview.total, 1);
+    assert.deepEqual([page.items[0].authorUserId, page.items[0].creationContext, page.items[0].private], ["alice", "group", false]);
+    assert.equal(page.capabilities?.canHideOthers, false, "Hide from Group is never offered in Me");
+  }
+});
+
+test("followers' Me lists every admin's Admin media with their own, by date, with correct totals, paging and exclusions", async () => {
+  const f = await fixture();
+  await f.setAdmin("carol", true);
+  // Uploaded in this order: alice's Admin item, bob's own, carol's Admin item, another of alice's, then bob's second.
+  const a1 = await f.attach("alice", "group"), own1 = await f.attach("bob", "self"), c1 = await f.attach("carol", "group");
+  const a2 = await f.attach("alice", "group"), own2 = await f.attach("bob", "self");
+  const carolFollower = await f.attach("carol", "self"), elsewhere = await f.attach("alice", "group", f.groupB);
+  const order = [a1, own1, c1, a2, own2].map(item => item.contributionId);
+  const listed = await f.history("bob", f.experienceId);
+  assert.equal(listed.total, 5, "own and Admin items only: never another follower's or another Group's");
+  assert.deepEqual(listed.items.map(item => item.source.kind === "group" ? item.source.contributionId : ""), order, "oldest to newest, by upload date");
+  assert.ok(!listed.items.some(item => item.source.kind === "group" && [carolFollower.contributionId, elsewhere.contributionId].includes(item.source.contributionId)));
+  // Attribution per author; Admin items are never private.
+  const byId = new Map(listed.items.map(item => [item.source.kind === "group" ? item.source.contributionId : "", item]));
+  assert.equal(byId.get(c1.contributionId)?.authorUserId, "carol"); assert.equal(byId.get(own1.contributionId)?.authorUserId, "bob");
+  assert.ok(byId.get(c1.contributionId)?.authorName); assert.notEqual(byId.get(c1.contributionId)?.authorName, byId.get(own1.contributionId)?.authorName);
+  for (const id of [a1, c1, a2]) assert.equal(byId.get(id.contributionId)?.private, false);
+  // A follower reads Admin media through the Group (the delivery Me now uses), never through the owner route.
+  assert.equal((await f.media.authorized("bob", c1.contributionId, { kind: "group", experienceId: f.experienceId })).row.authorUserId, "carol");
+  await assert.rejects(f.media.authorized("bob", c1.contributionId, { kind: "owner" }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  // Paging two at a time walks the same five items, with consistent start positions and no duplicates.
+  const pages = [await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 2 })];
+  while (pages.at(-1)!.older) pages.push(await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 2, cursor: pages.at(-1)!.older! }));
+  assert.deepEqual(pages.flatMap(page => page.items).map(item => item.source.kind === "group" ? item.source.contributionId : "").toSorted(), order.toSorted());
+  assert.deepEqual(pages.map(page => [page.start, page.total]), [[3, 5], [1, 5], [0, 5]]);
+  // Previews show the newest five with the same total.
+  const preview = await f.previews("bob", f.experienceId);
+  assert.equal(preview.total, 5); assert.deepEqual(f.keys(preview.items), order.toSorted());
+  // Hidden or Group-perspective-only Admin items leave Me; the Group feed keeps the latter (V6, no migration).
+  await f.media.hide("alice", f.experienceId, a1.contributionId, { expectedRevision: a1.revision, accessEpoch: await f.epoch("alice", f.experienceId) });
+  await f.media.records().updateOne({ contributionId: c1.contributionId }, { $set: { audience: "group-perspective-only" } });
+  const after = await f.history("bob", f.experienceId);
+  assert.deepEqual(after.items.map(item => item.source.kind === "group" ? item.source.contributionId : ""), [own1, a2, own2].map(item => item.contributionId));
+  assert.equal(after.total, 3); assert.equal((await f.previews("bob", f.experienceId)).total, 3);
+  assert.ok(f.keys((await f.media.groupFeed("bob", f.experienceId, f.ids[0])).items).includes(c1.contributionId));
+  // The standalone Card never shows Admin media.
+  assert.deepEqual(f.keys((await f.history("bob")).items), [own1, own2].map(item => item.contributionId).toSorted());
 });
 
 test("follower scenario: a Follower contribution keeps its cross-context history, private outside its Group", async () => {
@@ -92,9 +140,12 @@ test("follower scenario: a Follower contribution keeps its cross-context history
 test("a dual-role user has separate Admin and Follower histories, views and delete rights", async () => {
   const f = await fixture();
   const admin = await f.attach("alice", "group"), follower = await f.attach("alice", "self");
-  // Me and the standalone Card show only the Follower contribution.
-  for (const page of [await f.history("alice"), await f.history("alice", f.experienceId)]) assert.deepEqual(f.keys(page.items), [follower.contributionId]);
+  // The standalone Card shows only the Follower contribution; Me also shows the Admin one, as Group content (V1).
+  assert.deepEqual(f.keys((await f.history("alice")).items), [follower.contributionId]);
   assert.deepEqual(f.keys((await f.previews("alice")).items), [follower.contributionId]);
+  const me = await f.history("alice", f.experienceId);
+  assert.deepEqual(me.items.map(item => [item.source.kind === "group" ? item.source.contributionId : "", item.creationContext]).toSorted(),
+    [[admin.contributionId, "group"], [follower.contributionId, "self"]].toSorted());
   // The Group feed shows both, as separate items.
   const feed = await f.media.groupFeed("carol", f.experienceId, f.ids[0]);
   assert.deepEqual(f.keys(feed.items), [admin.contributionId, follower.contributionId].toSorted());
