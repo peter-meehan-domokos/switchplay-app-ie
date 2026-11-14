@@ -147,3 +147,19 @@ test("a follower's Me page accepts this Group's Admin items only, never another 
   assert.equal(await load([item("hidden", "alice", "group", "galway", true)]), null, "never a private Admin item");
   assert.equal(await load([item("coach", "alice", "group")], { viewerUserId: "bob", cardTemplateId: "card", kind: "owner" }), null, "never on the standalone Card");
 });
+// Checkpoint 4.5c: Include Group content adds this Group's Admin items to a follower inspection, and only then.
+test("an inspection page accepts this Group's Admin items only with Include Group content", async () => {
+  const base = { kind: "group" as const, viewerUserId: "coach", cardTemplateId: "card", experienceId: "galway", subjectUserId: "bob", accessEpoch: 2, adoptionRevision: 3 };
+  const item = (contributionId: string, authorUserId: string, creationContext: "self" | "group", experienceId = "galway") => ({
+    source: { kind: "group" as const, experienceId, contributionId }, authorUserId, mediaType: "image" as const, description: "Group image", uploadedAt: null, originName: "Galway", private: false, creationContext });
+  const load = async (items: MediaCollectionPage["items"], ctx: MediaCollectionContext) => {
+    const c = new MediaCollectionController(ctx, async () => ({ viewerUserId: "coach", cardTemplateId: "card", experienceId: "galway", subjectUserId: "bob", accessEpoch: 2, adoptionRevision: 3,
+      total: items.length, olderCount: 0, older: null, newer: null, items }));
+    await c.load(); const loaded = c.snapshot().page; c.dispose(); return loaded;
+  };
+  const both = [item("own", "bob", "self"), item("coach", "alice", "group")];
+  assert.equal(await load(both, base), null, "off: only the inspected follower's items");
+  assert.ok(await load(both, { ...base, includeGroupContent: true }));
+  assert.equal(await load([item("peer", "carol", "self")], { ...base, includeGroupContent: true }), null, "never another follower's");
+  assert.equal(await load([item("elsewhere", "alice", "group", "other")], { ...base, includeGroupContent: true }), null, "never another Group's");
+});

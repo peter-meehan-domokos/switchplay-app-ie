@@ -4,7 +4,7 @@ import { requireCondition } from "../../cards/domain";
 import { hash, id } from "../contracts";
 import type { GroupMediaRepository } from "./repository";
 import type { GroupMediaRecord, MediaAuthority } from "./model";
-import { FOLLOWER_CONTRIBUTIONS, identityFilter, viewerIdentity } from "./contributionIdentity";
+import { ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS, FOLLOWER_CONTRIBUTIONS, identityFilter, viewerIdentity } from "./contributionIdentity";
 export async function readMediaPage(repo: GroupMediaRepository, actor: string, cardTemplateId: string, authority: MediaAuthority, options: { after?: string; before?: string; limit?: number }) {
   id(actor); id(cardTemplateId);
   const limit = options.limit ?? 30;
@@ -26,9 +26,11 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
     const context = authority.kind === "owner" ? { viewerUserId: actor, cardTemplateId, kind: "owner" as const, capabilities: { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false } }
       : { ...await repo.groupAuthority(actor, authority.experienceId, cardTemplateId, session, authority.subjectUserId),
         kind: "group" as const, subjectUserId: authority.subjectUserId ?? null };
-    // Owner history and follower inspection list Follower contributions only; the Group feed lists both.
+    // Owner history and follower inspection list Follower contributions only; the Group feed lists both. With
+    // Include Group content, inspection adds the Group's Admin contributions shared with followers (4.5c).
+    const subject = authority.kind === "group" && authority.subjectUserId ? { authorUserId: authority.subjectUserId, ...FOLLOWER_CONTRIBUTIONS } : undefined;
     const filter: Filter<GroupMediaRecord> = { cardTemplateId, state: "attached", ...(authority.kind === "owner" ? { authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS }
-      : { experienceId: authority.experienceId, groupVisible: true, ...(authority.subjectUserId ? { authorUserId: authority.subjectUserId, ...FOLLOWER_CONTRIBUTIONS } : {}) }) };
+      : { experienceId: authority.experienceId, groupVisible: true, ...(subject ? authority.includeGroupContent ? { $or: [subject, ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS] } : subject : {}) }) } as Filter<GroupMediaRecord>;
     const rows = await repo.records().find({ ...filter, ...older }, { session, projection: { _id: 0, contributionId: 1, authorUserId: 1,
       experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1, creationContext: 1 } })
       .sort({ uploadedAt: sign, contributionId: sign }).limit(limit + 1).toArray();
@@ -49,7 +51,8 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
       { uploadedAt: last.uploadedAt, contributionId: { $lt: last.contributionId } }] }, { session }) : 0;
     return { ...context, total, start, refresh: first ? encode(first, true) : null, previous: first && start + page.length < total ? encode(first) : null, items: page.map(row => ({ ...repo.dto(row), authorName: authors.get(row.authorUserId) ?? "Unknown user", originName: origins.find(g => g.experienceId === row.experienceId)?.name ?? null,
       sourceKind: "group-contribution" as const,
-      deliveryUrl: `/api/group-media/${encodeURIComponent(row.contributionId)}?action=playback${authority.kind === "owner" ? "" : `&experienceId=${encodeURIComponent(authority.experienceId)}${authority.subjectUserId ? `&subjectUserId=${encodeURIComponent(authority.subjectUserId)}` : ""}`}` })),
+      // An Admin contribution included in an inspection is delivered as Group content, not as the subject's.
+      deliveryUrl: `/api/group-media/${encodeURIComponent(row.contributionId)}?action=playback${authority.kind === "owner" ? "" : `&experienceId=${encodeURIComponent(authority.experienceId)}${authority.subjectUserId && row.creationContext !== "group" ? `&subjectUserId=${encodeURIComponent(authority.subjectUserId)}` : ""}`}` })),
       next: start > 0 && last ? encode(last) : null };
   });
 }

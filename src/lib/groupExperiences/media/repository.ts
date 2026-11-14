@@ -234,7 +234,9 @@ export class GroupMediaRepository {
       groupVisible: row.groupVisible, creationContext: creationContextOf(row), ...(row.originalFilename !== undefined ? { originalFilename: row.originalFilename } : {}) };
   }
   ownerFeed(actor: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number } = {}) { return readMediaPage(this, actor, cardTemplateId, { kind: "owner" }, options); }
-  groupFeed(actor: string, experienceId: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number; subjectUserId?: string } = {}) {
-    return readMediaPage(this, actor, cardTemplateId, { kind: "group", experienceId, subjectUserId: options.subjectUserId }, options);
+  async groupFeed(actor: string, experienceId: string, cardTemplateId: string, options: { after?: string; before?: string; limit?: number; subjectUserId?: string; includeGroupContent?: boolean } = {}) {
+    requireCondition(!options.includeGroupContent || options.subjectUserId !== undefined, "INVALID_GROUP_MEDIA_PAGE");
+    return readMediaPage(this, actor, cardTemplateId, { kind: "group", experienceId, subjectUserId: options.subjectUserId,
+      ...(options.includeGroupContent ? { includeGroupContent: true } : {}) }, options);
   }
 }

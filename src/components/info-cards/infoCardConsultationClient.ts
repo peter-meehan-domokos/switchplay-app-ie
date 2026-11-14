@@ -64,7 +64,10 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
     const own = info.ownerUserId === context.actor;
     const acting = actingOrigin(context.mode === "experience" || groupMode ? context.experienceId : undefined, groupMode && !context.subjectUserId ? "group" : "self");
     const editable = own && sameOrigin(infoCardOrigin(info), acting);
-    const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable, ...(groupMode && snapshot.canHide && !editable ? { canHide: true } : {}) } : undefined;
+    // The viewer's own Admin contribution outside the Group perspective (an inspection with Include Group content,
+    // 4.5c) is managed only where it was created, as for media: its origin, never Hide.
+    const hideable = groupMode && snapshot.canHide && !editable && !(own && info.creationContext === "group");
+    const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable, ...(hideable ? { canHide: true } : {}) } : undefined;
     const origin = !own ? undefined : entry.source === "group" ? originLabel(infoCardOrigin(info), entry.originName) : entry.source === "personal" ? originLabel(STANDALONE_ORIGIN) : undefined;
     return { id: info.infoCardId, title: info.content.title, body: info.content.body, bodyFormat: info.content.bodyFormat, seriesTitle: info.series.title,
       creatorUsername: info.creatorUsername, personal: entry.source === "personal" || entry.source === "group",

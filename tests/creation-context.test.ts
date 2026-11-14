@@ -228,5 +228,9 @@ test("follower inspection accepts the Group's Admin cards only with Include Grou
   const { calls, cards } = await groupConsultation(t, "ann", true, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")], "bea", "group", true);
   assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=group&version=3&experienceId=A&subjectUserId=bea&includeGroupContent=1");
   assert.equal(cards.get("annAdmin")?.infoType, "groupAdmin");
+  // Checkpoint 4.5c: the viewer's own Admin card there names its origin and is never hidden from here (as media).
+  assert.deepEqual(buildInfoCardMenuLayout(cards.get("annAdmin"), false), { create: false, manage: false, removeLabel: null, hide: false, origin: "Group A · Group" });
+  const { cards: other } = await groupConsultation(t, "ann", true, [contribution("deeAdmin", "dee", "group")], "bea", "group", true);
+  assert.deepEqual(buildInfoCardMenuLayout(other.get("deeAdmin"), false), { create: false, manage: false, removeLabel: null, hide: true, origin: null }, "another admin's: Hide, as in the Group perspective");
   await assert.rejects(groupConsultation(t, "ann", true, [contribution("ceeNote", "cee", "self")], "bea", "group", true), /Invalid Group note entry/, "never another follower's");
 });

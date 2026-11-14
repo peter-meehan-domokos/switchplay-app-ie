@@ -1,5 +1,5 @@
 import { workingCardStore } from "../cards/workingCardStore";
-import { collectionKey, isFollowerSharedAdminItem, type MediaCollectionContext, type MediaCollectionPage, type MediaSource } from "./contracts";
+import { collectionKey, isFollowerSharedAdminItem, isIncludedGroupAdminItem, type MediaCollectionContext, type MediaCollectionPage, type MediaSource } from "./contracts";
 import { fetchMediaCollection } from "./transport";
 export type CollectionLoader = (context: MediaCollectionContext, cursor?: string, signal?: AbortSignal, limit?: number) => Promise<MediaCollectionPage>;
 export type GallerySeed = { page: MediaCollectionPage; selectedKey: string };
@@ -33,7 +33,7 @@ export class MediaCollectionController {
       // Owner pages hold the viewer's own items; Me of a Group also this Group's Admin contributions (V1, 4.5b).
       || page.items.some(i => this.context.kind === "owner" ? i.authorUserId !== this.context.viewerUserId && !isFollowerSharedAdminItem(i, this.context.experienceId)
         : i.private || i.source.kind !== "group" || i.source.experienceId !== this.context.experienceId
-        || Boolean(this.context.subjectUserId && i.authorUserId !== this.context.subjectUserId))) throw Object.assign(Error("Invalid media collection response."), { status: 409 });
+        || Boolean(this.context.subjectUserId && i.authorUserId !== this.context.subjectUserId && !isIncludedGroupAdminItem(i, this.context)))) throw Object.assign(Error("Invalid media collection response."), { status: 409 });
   }
   activate() {
     if (this.revoked || workingCardStore.session(this.context.viewerUserId) !== this.session) return;
@@ -110,7 +110,8 @@ export class MediaCollectionController {
 
 // Only Card preview windows are retained. Gallery cursor/selection stays local.
 const previews = new Map<string, MediaCollectionController>();
-const previewKey = (c: MediaCollectionContext) => JSON.stringify([c.viewerUserId, c.cardTemplateId, c.kind, c.experienceId ?? null, c.kind === "group" ? c.subjectUserId ?? null : null, c.accessEpoch ?? null, c.kind === "group" ? c.adoptionRevision : null, c.kind === "group" ? c.structureRevision ?? null : null]);
+const previewKey = (c: MediaCollectionContext) => JSON.stringify([c.viewerUserId, c.cardTemplateId, c.kind, c.experienceId ?? null, c.kind === "group" ? c.subjectUserId ?? null : null, c.accessEpoch ?? null, c.kind === "group" ? c.adoptionRevision : null, c.kind === "group" ? c.structureRevision ?? null : null,
+  c.kind === "group" ? c.includeGroupContent ?? null : null]);
 export function hasPreparedMedia(context: MediaCollectionContext) { return !!previews.get(previewKey(context))?.snapshot().page; }
 export function captureMediaPreparation(actor: string) { return new Map([...previews].filter(([, c]) => c.context.viewerUserId === actor).map(([key, c]) => [key, c.preparationToken()])); }
 export function acceptMediaPreparation(context: MediaCollectionContext, page: MediaCollectionPage, tokens: Map<string, number>) {

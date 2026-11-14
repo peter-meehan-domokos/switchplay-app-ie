@@ -18,7 +18,9 @@ export type GroupMediaRecord = {
   uploadExpiresAt?: Date; createdAt: Date; uploadedAt?: Date; deletedAt?: Date;
   cleanup?: "pending" | "succeeded" | "failed";
 };
-export type MediaAuthority = { kind: "owner" } | { kind: "group"; experienceId: string; subjectUserId?: string };
+// `includeGroupContent` (follower inspection only, checkpoint 4.5c) adds the Group's Admin contributions to the
+// inspected follower's own, as the Include Group content toggle does for Info Cards.
+export type MediaAuthority = { kind: "owner" } | { kind: "group"; experienceId: string; subjectUserId?: string; includeGroupContent?: boolean };
 export type MediaStatus = { status: "ready" | "processing" | "failed" };
 export interface GroupMediaProvider {
   checkConfiguration(kind: GroupMediaRecord["kind"]): void;

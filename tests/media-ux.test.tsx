@@ -139,3 +139,10 @@ test("Admin media in Me is delivered through the Group and keeps its slot withou
   // Never Delete or Hide in Me on another author's Admin item, even for an admin (canHideOthers is off in Me).
   assert.equal(mediaRemoveOperation("bob", admin, { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true }, "galway", "self"), null);
 });
+test("an Admin item included in an inspection is delivered as Group content, without the subject", () => {
+  const context = { kind: "group" as const, viewerUserId: "coach", cardTemplateId: "card", experienceId: "galway", subjectUserId: "bob", accessEpoch: 1, adoptionRevision: 1, includeGroupContent: true as const };
+  const own: MediaCollectionItem = { source: { kind: "group", experienceId: "galway", contributionId: "own" }, authorUserId: "bob", mediaType: "image", description: "Practice", uploadedAt: null, private: false, originName: "Galway", creationContext: "self" };
+  const admin: MediaCollectionItem = { ...own, source: { kind: "group", experienceId: "galway", contributionId: "coach" }, authorUserId: "alice", creationContext: "group" };
+  assert.equal(collectionDisplayItem(own, context).src, "/api/group-media/own?action=playback&experienceId=galway&subjectUserId=bob");
+  assert.equal(collectionDisplayItem(admin, context).src, "/api/group-media/coach?action=playback&experienceId=galway");
+});

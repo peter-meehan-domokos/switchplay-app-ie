@@ -426,7 +426,7 @@ export default function FocusedCardView({
   const infoRequest = (): ConsultationRequest | undefined => !infoCards && playbackActor && playbackVersion ? { actor: playbackActor,
     mainCardId: card.cardTemplateId!, version: playbackVersion, mode: groupMe ? "experience" as const : groupShared ? "group" as const : playbackMode,
     ...(playbackMode === "working" && !groupShared ? { deckTemplateId } : {}), ...((groupMe || groupShared) && isExperienceCard(card) ? { experienceId: card.experienceId } : {}),
-    ...(groupShared && isExperienceCard(card) && card.perspective === "follower" ? { subjectUserId: card.subjectUserId } : {}),
+    ...(groupShared && isExperienceCard(card) && card.perspective === "follower" ? { subjectUserId: card.subjectUserId, ...(card.includeGroupContent ? { includeGroupContent: true } : {}) } : {}),
     attachmentIds: [...(card.infoCardIds ?? [])] } : undefined;
   // The Group's contributions are not part of the Card, so the closed pouch counts them from one consultation
   // snapshot, read again whenever the pouch closes (its contents may have changed). Me counts this way too since

@@ -7,7 +7,8 @@ import type { ExperienceDeckPresentation } from "@/components/decks/presentation
 import { requireCondition } from "@/lib/cards/domain";
 import type { GroupTiles } from "@/lib/groupExperiences/presentationReads";
 
-export function presentGroup(data: LoadedGroup, selection: PerspectiveSelection, verified: boolean): ExperienceDeckPresentation {
+// `includeGroupContent` is the Include Group content toggle (checkpoint 4.5c); it applies to follower inspection only.
+export function presentGroup(data: LoadedGroup, selection: PerspectiveSelection, verified: boolean, includeGroupContent = false): ExperienceDeckPresentation {
   const boot = data.bootstrap, own = selection.perspective === "self";
   const rows = selection.perspective === "group" ? boot.group : own ? boot.own
     : data.followers.find(row => row.userId === selection.subjectUserId)?.learning;
@@ -24,7 +25,7 @@ export function presentGroup(data: LoadedGroup, selection: PerspectiveSelection,
           version: content.version, ...selection }),
         learning, canWriteLearning: verified && (selection.perspective === "group" ? boot.isAdmin : own && boot.isFollower),
         perspective: selection.perspective, accessEpoch: boot.accessEpoch,
-        ...(selection.perspective === "follower" ? { subjectUserId: selection.subjectUserId } : {}),
+        ...(selection.perspective === "follower" ? { subjectUserId: selection.subjectUserId, ...(includeGroupContent ? { includeGroupContent: true as const } : {}) } : {}),
         ...(own ? { ownerDate: boot.ownDates?.find(row => row.cardTemplateId === content.cardTemplateId)?.targetDate ?? null } : {}),
         completion: values.completion, confidence: values.confidence,
         aggregates: selection.perspective === "group" ? data.aggregates.find(row => row.cardTemplateId === content.cardTemplateId) : undefined,

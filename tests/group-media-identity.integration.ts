@@ -124,6 +124,32 @@ test("followers' Me lists every admin's Admin media with their own, by date, wit
   assert.deepEqual(f.keys((await f.history("bob")).items), [own1, own2].map(item => item.contributionId).toSorted());
 });
 
+test("inspection adds the Group's Admin media only with Include Group content, with its own paging and delivery", async () => {
+  const f = await fixture();
+  await f.repo.experiences().updateOne({ experienceId: f.experienceId }, { $set: { allowFollowerInspection: true } });
+  const admin = await f.attach("alice", "group"), bob = await f.attach("bob", "self"), carol = await f.attach("carol", "self");
+  const elsewhere = await f.attach("alice", "group", f.groupB);
+  const off = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob" });
+  assert.deepEqual(f.keys(off.items), [bob.contributionId], "off: that follower's contributions only");
+  const on = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true });
+  assert.deepEqual(f.keys(on.items), [admin.contributionId, bob.contributionId].toSorted(), "never another follower's or another Group's");
+  assert.equal(on.total, 2); assert.ok(!f.keys(on.items).includes(carol.contributionId) && !f.keys(on.items).includes(elsewhere.contributionId));
+  // The Admin item is delivered as Group content (no subject); the subject's own keeps the inspection authority.
+  const delivered = new Map(on.items.map(item => [item.contributionId, item.deliveryUrl]));
+  assert.equal(delivered.get(admin.contributionId), `/api/group-media/${admin.contributionId}?action=playback&experienceId=${f.experienceId}`);
+  assert.equal(delivered.get(bob.contributionId), `/api/group-media/${bob.contributionId}?action=playback&experienceId=${f.experienceId}&subjectUserId=bob`);
+  // Paging one at a time walks both items with cursors bound to this view.
+  const first = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true, limit: 1 });
+  const second = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true, limit: 1, after: first.next! });
+  assert.deepEqual([...f.keys(first.items), ...f.keys(second.items)].toSorted(), [admin.contributionId, bob.contributionId].toSorted());
+  await assert.rejects(f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", limit: 1, after: first.next! }), { code: "INVALID_GROUP_MEDIA_PAGE" }, "a cursor never crosses views");
+  // Only for inspection, and under the existing inspection checks; hidden Admin media stays out.
+  await assert.rejects(f.media.groupFeed("carol", f.experienceId, f.ids[0], { includeGroupContent: true }), { code: "INVALID_GROUP_MEDIA_PAGE" });
+  await assert.rejects(f.media.groupFeed("carol", f.groupB, f.ids[0], { subjectUserId: "bob", includeGroupContent: true }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  await f.media.hide("alice", f.experienceId, admin.contributionId, { expectedRevision: admin.revision, accessEpoch: await f.epoch("alice", f.experienceId) });
+  assert.deepEqual(f.keys((await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true })).items), [bob.contributionId]);
+});
+
 test("follower scenario: a Follower contribution keeps its cross-context history, private outside its Group", async () => {
   const f = await fixture();
   const own = await f.attach("bob", "self");

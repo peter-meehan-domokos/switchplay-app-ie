@@ -1,4 +1,4 @@
-import { collectionKey, isFollowerSharedAdminItem, type MediaCollectionItem, type MediaCollectionContext } from "./contracts";
+import { collectionKey, isFollowerSharedAdminItem, isIncludedGroupAdminItem, type MediaCollectionItem, type MediaCollectionContext } from "./contracts";
 import type { PersonalMediaDisplayItem } from "../cards/personalHistoryProjection";
 import type { GalleryMediaRequest as CardMediaRequest } from "../cardMediaViewer";
 export function groupMediaUrl(source: { contributionId: string }, action: string, authority?: { experienceId: string; subjectUserId?: string }, file = false) {
@@ -6,9 +6,10 @@ export function groupMediaUrl(source: { contributionId: string }, action: string
     ...(authority ? { experienceId: authority.experienceId, ...(authority.subjectUserId ? { subjectUserId: authority.subjectUserId } : {}) } : {}) })}`;
 }
 // Group contributions are delivered through the Group in the Group perspective and inspection, and so is an Admin
-// contribution shown in a follower's Me (V1); the viewer's own Follower contributions use their owner route.
+// contribution shown in a follower's Me (V1); the viewer's own Follower contributions use their owner route. An
+// Admin contribution included in an inspection (4.5c) is Group content, so it is delivered without the subject.
 function deliveryAuthority(item: MediaCollectionItem, context?: MediaCollectionContext) {
-  return context?.kind === "group" ? { experienceId: context.experienceId, subjectUserId: context.subjectUserId }
+  return context?.kind === "group" ? { experienceId: context.experienceId, subjectUserId: isIncludedGroupAdminItem(item, context) ? undefined : context.subjectUserId }
     : context?.kind === "owner" && isFollowerSharedAdminItem(item, context.experienceId) ? { experienceId: context.experienceId! } : undefined;
 }
 export function collectionDisplayItem(item: MediaCollectionItem, context: MediaCollectionContext): PersonalMediaDisplayItem {

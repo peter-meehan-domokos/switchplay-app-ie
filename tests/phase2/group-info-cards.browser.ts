@@ -414,3 +414,107 @@ test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and 
   await expect(page.getByText("Info Card unavailable.")).toBeVisible();
   await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Group");
 });
+
+// Checkpoint 4.5c: the Include Group content toggle, one setting for the Group deck, off by default.
+const toggle = (page: Page) => page.getByRole("switch", { name: "Include Group content", exact: true });
+test("Include Group content adds the Group's Admin cards to an inspection, keeps its setting across followers and resets on reload", async ({ page }) => {
+  const f = await fixture();
+  const theirs = await contribution(f, f.other, "self", "Other note"), admin = await contribution(f, f.owner, "group", "Admin note");
+  await login(page); await select(page, f, { perspective: "follower", subjectUserId: f.other });
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  const chip = page.locator(".group-picker-current"); await expect(chip).toBeVisible();
+  const height = (await chip.boundingBox())!.height;
+  await chip.click();
+  await expect(toggle(page)).toHaveAttribute("aria-checked", "false"); await expect(toggle(page)).toBeEnabled();
+  // A fixed row below the names, outside their scrolling area.
+  await expect(page.locator(".group-perspective-list > .group-content-row").getByRole("switch")).toHaveCount(1);
+  await expect(page.locator(".group-perspective-scroll").getByRole("switch")).toHaveCount(0);
+  await toggle(page).click();
+  await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator(".group-perspective-list")).toBeVisible();
+  await expect(chip.locator(".group-content-tag")).toHaveText("+ Group");
+  expect((await chip.boundingBox())!.height, "the tag adds no height").toBe(height);
+  // On the Group perspective it is shown but disabled, and keeps its setting for the next follower.
+  await page.locator('.group-perspective-list [data-perspective-key="group"]').click();
+  await expect(chip).toHaveText(/Info squad/); await chip.click();
+  await expect(toggle(page)).toBeDisabled(); await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
+  await expect(chip.locator(".group-content-tag")).toHaveCount(0);
+  await page.getByRole("button", { name: "All followers", exact: true }).click();
+  await page.locator(`.group-perspective-list [data-perspective-key="${f.other}"]`).click();
+  await expect(chip.locator(".group-content-tag")).toHaveText("+ Group");
+  // The pouch count and contents follow it: Creator cards, that follower's card and the Group's Admin card.
+  await page.locator(".deck-card.is-active").press("Enter"); await page.locator(".focused-card-layer .active-card-identity").click();
+  await expect(page.getByRole("button", { name: "Open information cards (4 attached)", exact: true })).toBeVisible();
+  const snapshot = page.waitForResponse(response => new URL(response.url()).pathname === `/api/card-templates/${f.cardId}/info-cards`);
+  await page.getByRole("button", { name: /^Open information cards/ }).click();
+  expect(new URL((await snapshot).url()).searchParams.get("includeGroupContent")).toBe("1");
+  await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
+  await showCard(page, admin);
+  await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
+  // The viewer's own Admin card names its origin and is not hidden from here; Delete stays in the Group perspective.
+  expect(await menu(page)).toEqual([]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Group"]);
+  await page.keyboard.press("Escape");
+  await showCard(page, theirs);
+  expect(await menu(page)).toEqual(["Hide from Group"]);
+  // Reloading resets it: the inspection shows that follower's contributions only.
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  await chip.click(); await expect(toggle(page)).toHaveAttribute("aria-checked", "false");
+  await expect(chip.locator(".group-content-tag")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  expect(await openPouch(page, f)).toEqual([...CREATOR_CARDS, theirs].toSorted());
+});
+
+test("a follower who may inspect gets the same toggle; one who may not never sees it", async ({ page }) => {
+  const f = await fixture();
+  await login(page, "other"); await select(page, f, { perspective: "follower", subjectUserId: f.owner });
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  await page.locator(".group-picker-current").click();
+  await expect(toggle(page)).toBeEnabled();
+  await f.groups.experiences().updateOne({ experienceId: f.experienceId }, { $set: { allowFollowerInspection: false } });
+  await select(page, f, { perspective: "self" });
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  await page.locator(".group-picker-current").click();
+  await expect(page.locator(".group-perspective-list")).toBeVisible(); await expect(toggle(page)).toHaveCount(0);
+});
+
+test("with many followers only the names and tiles scroll; the toggle row stays fixed in the list and at the grid's bottom right", async ({ page }) => {
+  const f = await fixture();
+  const users = Array.from({ length: 30 }, (_, i) => ({ _id: new ObjectId(), username: `Squad player ${String(i).padStart(2, "0")}`, cardsData: [], decksData: [] }));
+  await f.main.users().insertMany(users);
+  const large = await f.groups.create(f.owner, { operationId: randomUUID(), name: "Large squad", adminIds: [], followerIds: [f.owner, f.other, ...users.map(user => user._id.toHexString())],
+    manifest: { deckTemplateId: f.deckId, deckVersion: 1, cards: [{ cardTemplateId: f.cardId, version: 1 }] } });
+  await f.groups.saveSettings(f.owner, large.experienceId, { operationId: randomUUID(), expectedStructureRevision: 0, allowFollowerInspection: true });
+  await login(page);
+  const state = await (await page.request.get(`/api/group-experiences/${large.experienceId}`)).json();
+  expect((await page.request.patch(`/api/group-experiences/${large.experienceId}/navigation`, { data: { accessEpoch: state.accessEpoch,
+    expectedStructureRevision: state.structureRevision, activeCardId: f.cardId, selection: { perspective: "follower", subjectUserId: f.other } } })).ok()).toBeTruthy();
+  await page.goto(`/decks?openExperience=${large.experienceId}`);
+  // Deck view: the list scrolls its names while the toggle row keeps its place.
+  await page.locator(".group-picker-current").click();
+  await page.getByRole("button", { name: "All followers", exact: true }).click();
+  await expect(page.locator(".group-perspective-scroll [data-perspective-key]")).toHaveCount(33);
+  const rowBefore = (await toggle(page).boundingBox())!;
+  await page.locator(".group-perspective-scroll").evaluate(element => { element.scrollTop = 400; });
+  expect(await page.locator(".group-perspective-scroll").evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  expect(await page.locator(".group-perspective-list").evaluate(element => element.scrollTop)).toBe(0);
+  expect(Math.abs((await toggle(page).boundingBox())!.y - rowBefore.y)).toBeLessThan(1);
+  await page.keyboard.press("Escape");
+  // Focused Card view: the grid scrolls its tiles while the thin row stays at the bottom right.
+  await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-layer")).toBeVisible();
+  await page.locator(".group-picker-current").click();
+  await page.getByRole("button", { name: "All followers", exact: true }).click();
+  const panel = page.getByRole("region", { name: "Follower comparison" });
+  await expect(panel.locator(".group-identity-card")).toHaveCount(33);
+  // The panel animates in from 8px below over 0.18s; measure once it has settled, relative to the panel.
+  await page.waitForTimeout(400);
+  const offset = async () => { const [row, box] = [(await panel.getByRole("switch").boundingBox())!, (await panel.boundingBox())!]; return row.y - box.y; };
+  const switchBox = (await panel.getByRole("switch").boundingBox())!, panelBox = (await panel.boundingBox())!, before = await offset();
+  expect(panelBox.x + panelBox.width - (switchBox.x + switchBox.width)).toBeLessThan(24);
+  expect(switchBox.height).toBeGreaterThanOrEqual(44);
+  await panel.locator(".group-comparison-scroll").evaluate(element => { element.scrollTop = 300; });
+  expect(await panel.locator(".group-comparison-scroll").evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  expect(Math.abs(await offset() - before)).toBeLessThan(1);
+  await panel.getByRole("switch").click();
+  await expect(panel.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+  await expect(panel.locator("header .group-content-tag")).toHaveText("+ Group");
+});
