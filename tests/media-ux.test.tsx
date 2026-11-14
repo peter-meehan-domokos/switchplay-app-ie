@@ -114,3 +114,13 @@ test("image and video Media Centre rows reserve an indicator for each visibility
   assert.equal((html.match(/By: Aoife Kelly/g) ?? []).length, 4); assert.ok(!html.includes("Uploaded by"));
   assert.ok(html.includes("user-card-media-rail--videos"));
 });
+
+test("Media Centre labels exactly two actions: Delete and Hide from Group", async () => {
+  const { default: Panel } = await import("../src/components/media/UserCardMediaUploadPanel");
+  const { initialUserCardMediaUploadState } = await import("../src/components/media/useKeyedUserCardMediaUploadController");
+  const images = [{ id: "own", mediaType: "image" as const, src: "a.png", description: "Own" }, { id: "other", mediaType: "image" as const, src: "b.png", description: "Other" }];
+  const html = renderToStaticMarkup(<Panel images={images} videos={[]} target={{ scope: "user-card", userId: "bob", cardId: "card", deckTemplateId: "deck" }} uploadState={initialUserCardMediaUploadState} removalStatesById={{}} onAddImage={() => {}} onAddVideo={() => {}} onRemoveMedia={() => {}} getRemoveAction={item => item.id === "other" ? "hide" : "delete"} />);
+  assert.ok(html.includes('aria-label="Delete image Own (own)"') && html.includes(">Delete</button>"));
+  assert.ok(html.includes('aria-label="Hide image Other (other) from Group"') && html.includes(">Hide from Group</button>"));
+  assert.ok(!html.includes("Remove"));
+});

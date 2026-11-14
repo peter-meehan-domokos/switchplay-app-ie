@@ -88,8 +88,8 @@ test("the Media Centre tile shows Created in above the origin in place of Delete
   const tiles = html.split('data-media-item-id="').slice(1);
   const outside = tiles.find(tile => tile.startsWith("outside"))!, inside = tiles.find(tile => tile.startsWith("inside"))!;
   assert.match(outside, /<span class="user-card-media-tile-created-in-label">Created in:<\/span><span>Group A · Me<\/span>/);
-  assert.doesNotMatch(outside, /Remove/); assert.doesNotMatch(outside, /disabled/);
-  assert.match(inside, />Remove</); assert.doesNotMatch(inside, /Created in/);
+  assert.doesNotMatch(outside, /Delete|Hide from Group/); assert.doesNotMatch(outside, /disabled/);
+  assert.match(inside, />Delete</); assert.doesNotMatch(inside, /Created in/);
 });
 
 test("the Group feed transport keeps creationContext, so an own Admin upload offers Delete rather than Hide", async t => {
@@ -105,7 +105,7 @@ test("the Group feed transport keeps creationContext, so an own Admin upload off
   assert.equal(mediaRemoveOperation("ann", byId.get("follower")!, caps(true), "A", "group"), "hide");
 });
 
-test("the Info Card menu keeps + New everywhere and shows Edit and Remove only in the creation context", () => {
+test("the Info Card menu keeps + New everywhere and shows Edit and Delete only in the creation context", () => {
   const card = (changes: object) => ({ id: "n", title: "Note", body: "Body", seriesTitle: "S", creatorUsername: "ann", seriesCreatorUsername: "ann", personal: true, ...changes });
   assert.deepEqual(buildInfoCardMenuLayout(card({ personalSource: { cardTemplateId: "card", personalInfoRevision: 0 } })), { create: true, manage: true, hide: false, origin: null });
   assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true }, origin: "Group A · Me" })), { create: true, manage: true, hide: false, origin: null });
@@ -121,7 +121,7 @@ test("the Info Card menu keeps + New everywhere and shows Edit and Remove only i
   assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false, canHide: true }, origin: "Group A · Me" })), { create: true, manage: false, hide: true, origin: "Group A · Me" },
     "a dual-role admin hides their own Follower note in the Group perspective, with its origin");
   assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true, canHide: true } })), { create: true, manage: true, hide: false, origin: null },
-    "in its creation context the author gets Edit and Remove, never Hide");
+    "in its creation context the author gets Edit and Delete, never Hide");
 });
 
 const note = (id: string, experienceId: string): PublishedInfo => ({ infoCardId: id, version: 1, visibility: "private", ownerUserId: "ann", creatorUsername: "ann", kind: "group",

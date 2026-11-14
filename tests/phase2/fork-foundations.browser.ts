@@ -158,7 +158,7 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} fork disp
   await expect(page.locator(".focused-card-surface--back").getByText("Retained original observation", { exact: true })).toBeVisible();
   await expect(page.locator(".focused-card-surface--back").getByAltText("Retained source evidence")).toBeVisible();
   await page.getByRole("button", { name: "Add media", exact: true }).click();
-  const remove = page.getByRole("dialog", { name: "Card media", exact: true }).getByRole("button", { name: /Remove image Retained source evidence/ });
+  const remove = page.getByRole("dialog", { name: "Card media", exact: true }).getByRole("button", { name: /Delete image Retained source evidence/ });
   await expect(remove).toBeVisible();
   // Another actor cannot delete this user's source-stored item, including when
   // that actor owns the canonical source Card.

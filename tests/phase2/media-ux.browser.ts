@@ -29,7 +29,7 @@ async function openBack(page: Page, group = false, focus = true) {
 
 }
 function centre(page: Page) { return page.getByRole("dialog", { name: "Card media", exact: true }); }
-test("Personal icon/count, exact Gallery selection, separate Centre, upload and immediate creator Remove", async ({ page }) => {
+test("Personal icon/count, exact Gallery selection, separate Centre, upload and immediate creator Delete", async ({ page }) => {
   await login(page); await openBack(page);
   const control = page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true });
   await expect(control).toHaveText("8"); await expect(control.locator(".media-centre-icon")).toHaveCount(1);
@@ -45,7 +45,7 @@ test("Personal icon/count, exact Gallery selection, separate Centre, upload and 
   await expect(centre(page).locator(".user-card-media-tile-origin").filter({ hasText: "In: Personal" })).toHaveCount(2);
   // Checkpoint 4.2b (C1): only the standalone media is deleted here; each Group contribution shows where it was
   // created in place of Remove, with no disabled control.
-  await expect(centre(page).getByRole("button", { name: /Remove image/ })).toHaveCount(2);
+  await expect(centre(page).getByRole("button", { name: /(Delete|Hide) image/ })).toHaveCount(2);
   const createdIn = centre(page).locator(".user-card-media-tile-created-in");
   await expect(createdIn).toHaveCount(6);
   for (const text of await createdIn.allTextContents()) expect(text).toMatch(/^Created in:.+ · Me$/);
@@ -55,7 +55,7 @@ test("Personal icon/count, exact Gallery selection, separate Centre, upload and 
   const added = centre(page).locator(".user-card-media-tile").filter({ hasText: "added-training.png" });
   await expect(added.locator(".user-card-media-tile-name")).toHaveText("added-training.png");
   await expect(added.locator(".user-card-media-tile-origin")).toHaveText("In: Personal");
-  await added.getByRole("button", { name: /Remove image/ }).click(); await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
+  await added.getByRole("button", { name: /Delete image/ }).click(); await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
   await centre(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(control).toHaveText("8");
 });
 test("own Group history contains shared and Private media, Group upload and creator deletion", async ({ page }) => {
@@ -75,10 +75,10 @@ test("own Group history contains shared and Private media, Group upload and crea
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8); await expect(centre(page).getByRole("img", { name: "Private in this Group", exact: true })).toHaveCount(5);
   await expect(centre(page).locator(".user-card-media-tile-name")).toHaveText(["basketball-hoop.png", "training-cones.png", "balance-board.png", "footwork-ladder.png", "passing-practice.png", "rebound-practice.png", "defensive-positioning.png", "dribbling-practice.png"]);
   await expect(centre(page).locator(".user-card-media-tile-origin")).toHaveText(Array(8).fill("By: Aoife Kelly"));
-  await expect(centre(page).getByRole("button", { name: /Remove image/ })).toHaveCount(4);
+  await expect(centre(page).getByRole("button", { name: /(Delete|Hide) image/ })).toHaveCount(4);
   const hiddenSeed = centre(page).locator(".user-card-media-tile").filter({ hasText: "balance-board.png" });
   await expect(hiddenSeed.getByRole("img", { name: "Private in this Group", exact: true })).toBeVisible();
-  await expect(hiddenSeed.getByRole("button", { name: /Remove image/ })).toBeVisible();
+  await expect(hiddenSeed.getByRole("button", { name: /(Delete|Hide) image/ })).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(centre(page)).toBeVisible(); await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
   const allocated = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname.endsWith(`/cards/${fixture.cardId}/media`));
@@ -94,7 +94,7 @@ test("own Group history contains shared and Private media, Group upload and crea
   await thumbs.filter({ has: page.locator(`img[src*="${contributionId}"]`) }).click();
   await expect(gallery.locator(`img[src*="${contributionId}"]`)).toBeVisible();
   await gallery.getByRole("button", { name: "Close media viewer" }).click(); await expect(gallery).toHaveCount(0); await control.click();
-  await centre(page).locator(".user-card-media-tile").filter({ hasText: "group-training.png" }).getByRole("button", { name: /Remove image/ }).click();
+  await centre(page).locator(".user-card-media-tile").filter({ hasText: "group-training.png" }).getByRole("button", { name: /Delete image/ }).click();
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
   await centre(page).getByRole("button", { name: "Close", exact: true }).click();
   await expect(thumbs.filter({ has: page.locator(`img[src*="${contributionId}"]`) })).toHaveCount(0);
@@ -115,11 +115,11 @@ test("Group Card upload refreshes newest thumbnails and exact Gallery item witho
   await expect(gallery.locator(`img[src*="${id}"]`)).toBeVisible();
   await gallery.getByRole("button", { name: "Close media viewer" }).click(); await expect(gallery).toHaveCount(0);
   await control.click();
-  await centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" }).getByRole("button", { name: /Remove image/ }).click();
+  await centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" }).getByRole("button", { name: /Delete image/ }).click();
   await expect(centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" })).toHaveCount(0);
   await centre(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(thumb).toHaveCount(0);
 });
-test("Admin inspection Centre is remove-only; removal hides the Group contribution and retains creator history", async ({ page }) => {
+test("Admin inspection Centre offers Hide from Group only; hiding hides the Group contribution and retains creator history", async ({ page }) => {
   await login(page);
   const current = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
   const people = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}/perspectives`)).json();
@@ -142,8 +142,8 @@ test("Admin inspection Centre is remove-only; removal hides the Group contributi
   const tile = centre(page).locator(`[data-media-item-id*="${allocation.contributionId}"]`); await expect(tile).toBeVisible();
   await expect(tile.locator(".user-card-media-tile-name")).toHaveText("team-passing.png");
   await expect(tile.locator(".user-card-media-tile-origin")).toHaveText("By: Aoife Kelly");
-  await tile.getByRole("button", { name: /Remove image/ }).click();
-  await expect(centre(page).getByRole("status")).toHaveText("Removed from this Group. The creator still has their copy.");
+  await tile.getByRole("button", { name: /Hide image/ }).click();
+  await expect(centre(page).getByRole("status")).toHaveText("Hidden from this Group. The creator still has their copy.");
   const after = await (await playerPage.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}&experienceId=${fixture.experienceId}`)).json();
   expect(after.total).toBe(before.total + 1); expect(after.items.find((i: { source: { contributionId?: string } }) => i.source.contributionId === allocation.contributionId).private).toBe(true);
   const hidden = after.items.find((i: { source: { contributionId?: string } }) => i.source.contributionId === allocation.contributionId);
@@ -187,8 +187,8 @@ test("Group-wide Admin upload remains author-owned and exposes no Private media"
   // Checkpoint 4.0: an Admin upload belongs to this Group only, so the standalone history total is unchanged.
   const before = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}`)).json(); expect(before.total).toBe(8);
   expect(before.items.some((item: { originalFilename?: string }) => item.originalFilename === "coach-practice.png")).toBe(false);
-  await centre(page).locator(".user-card-media-tile").last().getByRole("button", { name: /Remove image/ }).click();
-  await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8); await expect(centre(page).getByText("Removed from this Group. The creator still has their copy.")).toHaveCount(0);
+  await centre(page).locator(".user-card-media-tile").last().getByRole("button", { name: /Delete image/ }).click();
+  await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8); await expect(centre(page).getByText("Hidden from this Group. The creator still has their copy.")).toHaveCount(0);
 });
 
 test("peer inspection is Gallery-only and revocation closes/purges the foreign Gallery", async ({ page }) => {

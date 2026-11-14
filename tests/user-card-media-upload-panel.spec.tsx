@@ -132,11 +132,11 @@ test("each Add control remains visible and only its own busy type is disabled", 
   expect(videoBusyHtml).toContain("Uploading video…");
 });
 
-test("removing a middle item leaves the other tiles and disables only the selected Remove control", () => {
+test("removing a middle item leaves the other tiles and disables only the selected Delete control", () => {
   const removingHtml = renderPanel({ removingId: images[1].id });
 
-  expect(removingHtml).toMatch(/aria-label="Remove image Photo 2 \(image-2\)"[^>]*disabled=""/);
-  expect(removingHtml).not.toMatch(/aria-label="Remove image Photo 1 \(image-1\)"[^>]*disabled=""/);
+  expect(removingHtml).toMatch(/aria-label="Delete image Photo 2 \(image-2\)"[^>]*disabled=""/);
+  expect(removingHtml).not.toMatch(/aria-label="Delete image Photo 1 \(image-1\)"[^>]*disabled=""/);
   const afterRemovalHtml = renderPanel({ images: [images[0], images[2]], videos });
   expect(afterRemovalHtml).not.toContain(`data-media-item-id="${images[1].id}"`);
   expect(afterRemovalHtml).toContain(`data-media-item-id="${images[2].id}"`);

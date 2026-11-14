@@ -147,12 +147,12 @@ test("a follower creates, edits and removes a Group note from Me without touchin
   await expect(current(page).getByRole("img", { name: "Visible to this Group", exact: true })).toHaveCount(1);
   expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
   // Its author edits it here, in its creation context, and Remove deletes it.
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); expect(await menuOrigin(page)).toBeNull();
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]); expect(await menuOrigin(page)).toBeNull();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
   await write(page, "Squad note, edited");
   await expect(current(page)).toHaveAttribute("data-info-card-id", id);
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("Squad note, edited");
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); await page.getByRole("menuitem", { name: "Remove", exact: true }).click();
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]); await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(page.locator(`[data-info-card-id="${id}"]`)).toHaveCount(0);
   expect((await f.info.roots().findOne({ infoCardId: id }))?.deletedAt).toBeInstanceOf(Date);
   expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
@@ -283,11 +283,11 @@ test("an admin creates, edits and removes a Group Admin Info Card in the Group p
   await expect(current(page).locator("[data-info-card-type-label]")).toHaveText("Group");
   expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
   // In its creation context the author edits and removes it; Remove is permanent.
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); expect(await menuOrigin(page)).toBeNull();
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]); expect(await menuOrigin(page)).toBeNull();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
   await write(page, "Squad plan, edited");
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("Squad plan, edited");
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]); await page.getByRole("menuitem", { name: "Remove", exact: true }).click();
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]); await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(page.locator(`[data-info-card-id="${id}"]`)).toHaveCount(0);
   expect((await f.info.roots().findOne({ infoCardId: id }))?.deletedAt).toBeInstanceOf(Date);
 });
@@ -319,12 +319,12 @@ test("an admin hides a follower contribution, and their own Follower one with it
   await login(page); await select(page, f, { perspective: "group" });
   await openPouch(page, f);
   await showCard(page, mine);
-  expect(await menu(page)).toEqual(["+ New", "Hide"]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Me"]);
-  await page.getByRole("menuitem", { name: "Hide", exact: true }).click();
+  expect(await menu(page)).toEqual(["+ New", "Hide from Group"]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Me"]);
+  await page.getByRole("menuitem", { name: "Hide from Group", exact: true }).click();
   await expect(page.locator(`[data-info-card-id="${mine}"]`)).toHaveCount(0);
   await showCard(page, theirs);
-  expect(await menu(page)).toEqual(["+ New", "Hide"]); expect(await menuOrigin(page)).toBeNull();
-  await page.getByRole("menuitem", { name: "Hide", exact: true }).click();
+  expect(await menu(page)).toEqual(["+ New", "Hide from Group"]); expect(await menuOrigin(page)).toBeNull();
+  await page.getByRole("menuitem", { name: "Hide from Group", exact: true }).click();
   await expect(page.locator(`[data-info-card-id="${theirs}"]`)).toHaveCount(0);
   for (const [owner, id] of [[f.owner, mine], [f.other, theirs]] as const) {
     const root = await f.info.owner(owner, id);
@@ -344,7 +344,7 @@ test("a dual-role admin keeps two identities apart: Admin cards only in the Grou
   const me = await openPouch(page, f);
   expect(me).toContain(follower); expect(me).not.toContain(admin);
   await showCard(page, follower);
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Remove"]);
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]);
   // The standalone Card and the other Group never show the Admin card.
   expect(await openPouch(page, f, `/decks?openDeck=${f.deckId}`)).not.toContain(admin);
   const current2 = await (await page.request.get(`/api/group-experiences/${f.secondId}`)).json();
@@ -360,7 +360,7 @@ test("Other followers shows only the inspected follower's shared contributions; 
   const ids = await openPouch(page, f);
   expect(ids).toEqual([...CREATOR_CARDS, theirs].toSorted()); expect(ids).not.toContain(admin);
   await showCard(page, theirs);
-  expect(await menu(page)).toEqual(["Hide"]);
+  expect(await menu(page)).toEqual(["Hide from Group"]);
 });
 
 test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and saving returns to My Drafts", async ({ page }) => {

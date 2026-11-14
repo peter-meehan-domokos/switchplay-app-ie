@@ -26,7 +26,7 @@ export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, origin, 
     return () => { document.removeEventListener("pointerdown", outside, true); document.removeEventListener("click", click, true); };
   }, []);
   const items = [...(onNew ? [{ label: "+ New", action: onNew }] : []), ...(onEdit ? [{ label: "Edit", action: onEdit }] : []),
-    ...(onRemove ? [{ label: "Remove", action: onRemove }] : []), ...(onHide ? [{ label: "Hide", action: onHide }] : [])];
+    ...(onRemove ? [{ label: "Delete", action: onRemove }] : []), ...(onHide ? [{ label: "Hide from Group", action: onHide }] : [])];
   return <div ref={region} className={styles.menu} data-info-card-menu="" onPointerDown={event => event.stopPropagation()}
     onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();

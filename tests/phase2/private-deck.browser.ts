@@ -165,7 +165,7 @@ test("private Creator → adopted work → media/state → recoverable publicati
   await page.locator(".reflection-editor-modal textarea").fill("A useful private reflection"); await page.locator(".reflection-editor-modal").getByRole("button", { name: "Save", exact: true }).click();
   await page.getByRole("button", { name: "Add media", exact: true }).click();
   await page.getByLabel("Choose image", { exact: true }).setInputFiles({ name: "proof.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64") });
-  await expect(page.getByRole("button", { name: /Remove image proof/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Delete image proof/ })).toBeVisible();
   await page.getByRole("dialog", { name: "Card media", exact: true }).getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Close focused card", exact: true }).press("Enter");
   await page.getByRole("button", { name: "Back", exact: true }).click(); await expect(page.getByRole("heading", { name: "My Decks", exact: true })).toBeVisible();

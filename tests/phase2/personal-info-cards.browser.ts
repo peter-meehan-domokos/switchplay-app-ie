@@ -36,7 +36,7 @@ async function open(page: Page, empty = false) {
   if (empty) await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeVisible();
   else await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
 }
-async function action(page: Page, name: "+ New" | "Edit" | "Remove") {
+async function action(page: Page, name: "+ New" | "Edit" | "Delete") {
   await current(page).getByRole("button", { name: "Info Card actions", exact: true }).click();
   await page.getByRole("menuitem", { name, exact: true }).click();
 }
@@ -98,8 +98,8 @@ test("shared menu offers only New; new Save, Edit, Cancel and Remove preserve st
   await editor(page).getByRole("button", { name: "Cancel", exact: true }).click(); await expect(editor(page)).toHaveCount(0);
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("Edited personal");
   await expect(current(page).getByRole("button", { name: "Info Card actions", exact: true })).toBeFocused();
-  await action(page, "Remove"); await expect(current(page)).toHaveAttribute("data-info-card-id", first!);
-  await action(page, "Remove"); await expect(current(page)).toHaveAttribute("data-info-card-id", "demo-owner-public");
+  await action(page, "Delete"); await expect(current(page)).toHaveAttribute("data-info-card-id", first!);
+  await action(page, "Delete"); await expect(current(page)).toHaveAttribute("data-info-card-id", "demo-owner-public");
   await expect(consult(page)).toBeVisible();
   expect((await f.main.getPersonalUser(f.owner))!.cardsData.find(data => data.cardTemplateId === f.cardId)!.personalInfoCardIds).toEqual([]);
   expect((await f.info.drafts(f.owner)).items.some(root => root.infoCardId === second)).toBe(false);
@@ -108,7 +108,7 @@ test("shared menu offers only New; new Save, Edit, Cancel and Remove preserve st
 test("last Remove shows the compact empty panel, remains open, and the pouch can close and reopen", async ({ page }) => {
   const f = await fixture(); await enter(page, f.deckId); await open(page, true);
   await consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true }).click(); await fill(page, "Only note"); await save(page);
-  await action(page, "Remove"); await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeVisible();
+  await action(page, "Delete"); await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeVisible();
   await expect(page.locator("[data-info-card-stack]")).toHaveCount(0);
   await expect(consult(page).locator("[data-info-card-pouch-count]")).toHaveText("0");
   // Taps are ignored while the Remove is still settling, so wait until the panel is usable.
@@ -243,7 +243,7 @@ test("inherited notes Edit and Remove their real source without copied associati
   await enter(page, d.deckTemplateId); await open(page); await expect(current(page)).toHaveAttribute("data-info-card-id", id);
   await action(page, "Edit"); await editor(page).getByRole("textbox", { name: "Title", exact: true }).fill("Updated inherited"); await save(page);
   expect((await f.info.owner(f.owner, id)).originCardTemplateId).toBe(f.cardId);
-  await action(page, "Remove"); await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeEnabled();
+  await action(page, "Delete"); await expect(consult(page).getByRole("button", { name: "Add Personal Info Card", exact: true })).toBeEnabled();
   const user = (await f.main.getPersonalUser(f.owner))!;
   expect(user.cardsData.find(data => data.cardTemplateId === f.cardId)!.personalInfoCardIds).toEqual([]);
   expect(user.cardsData.find(data => data.cardTemplateId === target)!.personalInfoCardIds).toBeUndefined();
@@ -296,7 +296,7 @@ test("Remove selects the next surviving prior-order neighbour when another note 
     if (!removed) { removed = true; await f.info.removePersonal(f.owner, f.cardId, ids[1], 4); }
     await route.continue();
   });
-  await action(page, "Remove"); await expect(current(page)).toHaveAttribute("data-info-card-id", ids[0]);
+  await action(page, "Delete"); await expect(current(page)).toHaveAttribute("data-info-card-id", ids[0]);
   await expect(consult(page).getByRole("button", { name: "Close information cards (2 attached)", exact: true })).toBeVisible();
 });
 

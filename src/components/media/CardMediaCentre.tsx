@@ -18,7 +18,7 @@ import { isImageMediaItem, isVideoMediaItem, type MediaItem } from "@/lib/media"
 import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { personalWork } from "@/lib/cards/personalWork";
-const hideNotice = "Removed from this Group. The creator still has their copy.";
+const hideNotice = "Hidden from this Group. The creator still has their copy.";
 
 // The existing Media Centre shell and rails, fed by the shared source-aware
 // collection. It is deliberately separate from the thumbnail-opened Gallery.
@@ -77,7 +77,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
       else await personalWork.run({ userId: context.viewerUserId, cardIds: [context.cardTemplateId], ...(value.source.kind === "group" ? { context: { kind: "experience-contribution" as const, experienceId: value.source.experienceId } } : {}) }, `remove:${collectionKey(value)}`, () => mutateCollectionItem({ ...context, ...(collection.page?.accessEpoch !== undefined ? { accessEpoch: collection.page.accessEpoch } : {}) }, value, action));
       if (action === "delete" && value.source.kind === "personal") workingCardStore.removeMedia(context.viewerUserId, value.source.cardTemplateId, value.source.mediaItemId);
       if (mounted.current) { if (action === "hide") setToast(hideNotice); await collection.controller?.refresh(); }
-    } catch (error) { if (mounted.current) setRemoving(s => ({ ...s, [key]: { isRemoving: false, error: error instanceof Error ? error.message : "Unable to remove media." } })); }
+    } catch (error) { if (mounted.current) setRemoving(s => ({ ...s, [key]: { isRemoving: false, error: error instanceof Error ? error.message : (action === "hide" ? "Unable to hide media from the Group." : "Unable to delete media.") } })); }
     finally { removalInFlight.current.delete(key); if (mounted.current) setRemoving(s => s[key]?.error ? s : { ...s, [key]: { isRemoving: false, error: null } }); }
   };
   const upload = async (kind: "image" | "video", file: File) => {
@@ -109,7 +109,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
       {collection.error && !legacyItems.length ? <p role="alert" className="creator-modal-error">{collection.error}</p> : null}
       <UserCardMediaUploadPanel images={items.filter(isImageMediaItem)} videos={items.filter(isVideoMediaItem)} target={target}
         uploadState={personalTarget ? personal.getState(personalTarget) : groupState} removalStatesById={removing} canUpload={canUpload} mutationDisabled={readOnly}
-        getMetadata={item => mediaCentreMetadata(item, Boolean(context.experienceId))} canRemoveMedia={item => Boolean(operation(item).action)} getCreatedIn={item => operation(item).createdIn} showPrivate={privateLabels}
+        getMetadata={item => mediaCentreMetadata(item, Boolean(context.experienceId))} canRemoveMedia={item => Boolean(operation(item).action)} getRemoveAction={item => operation(item).action === "hide" ? "hide" : "delete"} getCreatedIn={item => operation(item).createdIn} showPrivate={privateLabels}
         getMediaKey={item => personalMediaKey(item as PersonalMediaDisplayItem)}
         getReadinessTarget={item => (item as PersonalMediaDisplayItem).collection ? collectionTarget(item as PersonalMediaDisplayItem, { viewerUserId: context.viewerUserId, cardTemplateId: context.cardTemplateId, sourceCardTemplateId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? context.cardTemplateId, mediaItemId: item.id }, context) : undefined}
         onAddImage={file => void upload("image", file)} onAddVideo={file => void upload("video", file)} onRemoveMedia={item => void remove(item)} />
