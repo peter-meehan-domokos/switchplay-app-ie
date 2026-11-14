@@ -12,7 +12,8 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
   const query = new URLSearchParams({ mode: context.mode, version: String(context.version),
     ...(context.mode === "working" ? { deckTemplateId: context.deckTemplateId! } : {}),
     ...(context.mode === "experience" || context.mode === "group" ? { experienceId: context.experienceId! } : {}),
-    ...(context.mode === "group" && context.subjectUserId ? { subjectUserId: context.subjectUserId } : {}) });
+    ...(context.mode === "group" && context.subjectUserId ? { subjectUserId: context.subjectUserId } : {}),
+    ...(context.mode === "group" && context.subjectUserId && context.includeGroupContent ? { includeGroupContent: "1" } : {}) });
   const response = await fetch(`/api/card-templates/${encodeURIComponent(context.mainCardId)}/info-cards?${query}`, {
     signal, cache: "no-store", headers: { "X-Personal-Viewer": context.actor },
   });
@@ -44,11 +45,15 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
       if (!ownNotes || !source || info.kind !== "personal" || info.ownerUserId !== context.actor
         || info.visibility !== "private" || info.originCardTemplateId !== source.cardTemplateId) throw new Error("Invalid personal entry");
     } else if (entry.source === "group") {
-      // In the viewer own contexts, their own Follower contributions (checkpoint 4.2). In the Group perspective,
-      // any contribution of this Group; in follower inspection, only that follower's Follower contributions (4.4).
+      // In the viewer own contexts, their own Follower contributions (checkpoint 4.2), and in Me also this Group's
+      // Admin contributions (V1, checkpoint 4.5). In the Group perspective, any contribution of this Group; in
+      // follower inspection, only that follower's Follower contributions (4.4), plus this Group's Admin
+      // contributions when Include Group content is on (4.5).
+      const groupAdmin = info.creationContext === "group" && info.experienceId === context.experienceId;
       if (info.kind !== "group" || info.visibility !== "private" || info.originCardTemplateId !== context.mainCardId || typeof info.experienceId !== "string"
-        || (ownNotes ? info.creationContext !== "self" || info.ownerUserId !== context.actor
-          : !groupMode || info.experienceId !== context.experienceId || !!context.subjectUserId && (info.creationContext !== "self" || info.ownerUserId !== context.subjectUserId))) throw new Error("Invalid Group note entry");
+        || (ownNotes ? !(info.creationContext === "self" && info.ownerUserId === context.actor || context.mode === "experience" && groupAdmin)
+          : !groupMode || info.experienceId !== context.experienceId || !!context.subjectUserId
+            && !(info.creationContext === "self" && info.ownerUserId === context.subjectUserId || !!context.includeGroupContent && groupAdmin))) throw new Error("Invalid Group note entry");
     } else if (info.kind === "personal" || info.kind === "group" || (modern ? !context.attachmentIds.includes(info.infoCardId) : info.infoCardId !== context.attachmentIds[index])) throw new Error("Invalid shared entry");
     if (entry.private !== undefined && (context.mode !== "experience" || entry.source === "shared" || typeof entry.private !== "boolean")) throw new Error("Invalid visibility");
     if (entry.originName !== undefined && (entry.source !== "group" || entry.originName !== null && typeof entry.originName !== "string")) throw new Error("Invalid origin");
@@ -68,8 +73,10 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
       ...(source && context.mode === "working" ? { personalSource: source } : {}), ...(groupNote ? { groupNote } : {}), ...(origin ? { origin } : {}),
       ...(entry.private !== undefined ? { groupVisibility: entry.private ? "private" as const : "visible" as const } : {}),
       seriesCreatorUsername: info.series.creatorUsername, ...(info.content.mediaItem ? { media: info.content.mediaItem } : {}),
-      // A Group contribution read in the Group is delivered to its members through that Group.
-      publication: { infoCardId: info.infoCardId, kind: "publication", version: info.version, ...(groupMode && entry.source === "group" ? { experienceId: context.experienceId! } : {}) } };
+      // A Group contribution read in the Group is delivered to its members through that Group, as is an Admin
+      // contribution shown in a follower's Me (V1); the viewer's own Follower contributions in Me are their own.
+      publication: { infoCardId: info.infoCardId, kind: "publication", version: info.version,
+        ...(entry.source === "group" && (groupMode || context.mode === "experience" && info.creationContext === "group") ? { experienceId: context.experienceId! } : {}) } };
   });
   if (cards.length < context.attachmentIds.length) throw new Error("Missing shared positions");
   onSnapshot?.(snapshot);

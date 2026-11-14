@@ -1,6 +1,6 @@
 import type { CloudflareR2ImageMediaItem, CloudflareStreamVideoMediaItem } from "../media";
 import type { Visibility } from "../cards/model";
-import { isCreationContext, type CreationContext } from "../groupExperiences/media/contributionIdentity";
+import { isCreationContext, type ContributionAudience, type CreationContext } from "../groupExperiences/media/contributionIdentity";
 
 export type InfoMedia = CloudflareR2ImageMediaItem | CloudflareStreamVideoMediaItem;
 export type InfoDraft = { title: string; body: string; seriesId: string | null; mediaItem: InfoMedia | null; bodyFormat?: "latex-v1" };
@@ -11,6 +11,8 @@ export type InfoRoot = {
   // Group contributions only (kind "group", checkpoint 4.2), mirroring groupMediaContributions: the originating
   // Group, the immutable creation identity (contributionIdentity.ts) and Group visibility, which admins may hide.
   experienceId?: string; creationContext?: CreationContext; groupVisible?: boolean;
+  // Admin contributions only, for the later Group-perspective-only option (V6). Never written yet.
+  audience?: ContributionAudience;
   infoCardId: string; ownerUserId: string; visibility: Visibility; draftVisibility: Visibility;
   draft: InfoDraft | null; latestVersion: number; revision: number; referenceRevision: number;
   createdAt: Date; updatedAt: Date;
@@ -64,8 +66,9 @@ export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: nu
   canHide?: boolean };
 // "experience" is the follower own Me perspective of one Group: the Card at the Group selected version.
 // "group" is the Group perspective of one Group, or, with `subjectUserId`, the inspection of one of its followers
-// (checkpoint 4.3), at the Group selected version.
-export type MainInfoContext = { mode: "working" | "canonical" | "experience" | "group"; version: number; deckTemplateId?: string; experienceId?: string; subjectUserId?: string };
+// (checkpoint 4.3), at the Group selected version. `includeGroupContent` adds the Group's Admin contributions to a
+// follower inspection (the Include Group content toggle, checkpoint 4.5).
+export type MainInfoContext = { mode: "working" | "canonical" | "experience" | "group"; version: number; deckTemplateId?: string; experienceId?: string; subjectUserId?: string; includeGroupContent?: boolean };
 export type PersonalInfoContext = { deckTemplateId: string; version: number; personalInfoRevision: number };
 export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
   return (root.kind === undefined || root.kind === "creator") && root.originCardTemplateId === undefined;

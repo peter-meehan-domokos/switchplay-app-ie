@@ -10,8 +10,9 @@ import { authorizeInfoMedia, signInfoUpload, type InfoMediaReadiness } from "../
 import type { InfoConsultationSnapshot, InfoDraft, InfoMedia, InfoPublication } from "../src/lib/infoCards/model";
 
 // Checkpoint 4.3: Group Info Cards in the Group perspective. An Admin contribution (creationContext "group") is
-// created by a current admin in the Group perspective and belongs only to that Group perspective; the Group
+// created by a current admin in the Group perspective and belongs to its originating Group; the Group
 // perspective also shows the Follower contributions shared with the Group, exactly as the Group media feed does.
+// Checkpoint 4.5 (V1): Admin contributions also appear in the Me of every active follower of that Group.
 let mongo: MongoMemoryReplSet, client: MongoClient;
 before(async () => { process.env.SESSION_SECRET = "group-admin-info-cards-disposable-test-only"; mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } }); client = await new MongoClient(mongo.getUri()).connect(); });
 after(async () => { await client?.close(); await mongo?.stop(); });
@@ -45,8 +46,8 @@ async function fixture() {
   await info.save("bob", "bob-standalone", 0, draft("Standalone note", "notes-bob"), "private");
   await info.savePersonal("bob", "bob-standalone", 1, standaloneContext);
   await f.cards.ensureDeckData("alice", f.deckId, 1);
-  const group = (actor: string, experienceId = f.experienceId, subjectUserId?: string) =>
-    mainInfoConsultation(info, actor, f.ids[0], { mode: "group", version: 1, experienceId, ...(subjectUserId ? { subjectUserId } : {}) });
+  const group = (actor: string, experienceId = f.experienceId, subjectUserId?: string, includeGroupContent = false) =>
+    mainInfoConsultation(info, actor, f.ids[0], { mode: "group", version: 1, experienceId, ...(subjectUserId ? { subjectUserId } : {}), ...(includeGroupContent ? { includeGroupContent } : {}) });
   const me = (actor: string, experienceId = f.experienceId) => mainInfoConsultation(info, actor, f.ids[0], { mode: "experience", version: 1, experienceId });
   const standalone = (actor: string) => mainInfoConsultation(info, actor, f.ids[0], { mode: "working", version: 1, deckTemplateId: f.deckId });
   const shownIds = (snapshot: InfoConsultationSnapshot) => snapshot.entries.flatMap(entry => entry.status === "available" ? [entry.info.infoCardId] : []).toSorted();
@@ -79,14 +80,15 @@ test("a current admin creates, autosaves and saves an Admin Info Card in the Gro
   await assert.rejects(f.info.createGroup("alice", retry, f.experienceId, f.ids[0], { accessEpoch: await f.epoch("alice"), version: 1, creationContext: "self" }), { code: "INFO_CREATE_RECOVERY_CONFLICT" });
 });
 
-test("an Admin contribution appears only in the Group perspective of its originating Group", async () => {
+test("an Admin contribution appears in the Group perspective and followers' Me of its originating Group only", async () => {
   const f = await fixture();
   const admin = await f.saved("alice", "group", "Admin note"), aliceFollower = await f.saved("alice", "self", "Alice as follower");
   // Every member sees it in the Group perspective, alongside the Follower contributions shared with the Group.
   for (const viewer of ["alice", "bob", "carol"]) assert.deepEqual(f.shownIds(await f.group(viewer)), [admin, aliceFollower].toSorted(), viewer);
-  // Never on the standalone Card, in Me, in another Group, or when inspecting the admin as a follower.
+  // In the Me of every follower of this Group (V1), the dual-role author included. Never on the standalone Card, in
+  // another Group, or when inspecting the admin as a follower without Include Group content.
+  for (const viewer of ["alice", "bob", "carol"]) assert.ok(f.shownIds(await f.me(viewer)).includes(admin), viewer);
   assert.ok(!f.shownIds(await f.standalone("alice")).includes(admin));
-  assert.ok(!f.shownIds(await f.me("alice")).includes(admin));
   assert.ok(!f.shownIds(await f.group("alice", f.groupB)).includes(admin));
   assert.ok(!f.shownIds(await f.me("alice", f.groupB)).includes(admin));
   assert.deepEqual(f.shownIds(await f.group("bob", f.experienceId, "alice")), [aliceFollower], "inspection lists Follower contributions only");
@@ -96,6 +98,44 @@ test("an Admin contribution appears only in the Group perspective of its origina
   assert.ok(entry?.status === "available" && entry.source === "group" && entry.info.creationContext === "group" && entry.private === undefined);
   assert.equal(entry?.status === "available" ? entry.originName : undefined, (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!.name);
   assert.equal((await f.group("alice")).canHide, true); assert.equal((await f.group("bob")).canHide, false);
+});
+
+test("followers see the Group's Admin contributions in Me, sorted like every other card and never private", async () => {
+  const f = await fixture();
+  const at = (minutes: number) => new Date(Date.UTC(2026, 10, 1, 12, minutes));
+  const first = await f.saved("alice", "group", "First admin note"), own = await f.saved("bob", "self", "Bob in A");
+  const second = await f.saved("carol", "self", "Carol in A");
+  await f.change("carol", { kind: "set-admin", isAdmin: true });
+  const other = await f.saved("carol", "group", "Carol admin note"), elsewhere = await f.saved("alice", "group", "Group B admin note", f.groupB);
+  for (const [id, minutes] of [[first, 1], [own, 2], [other, 3]] as const) await f.info.roots().updateOne({ infoCardId: id }, { $set: { createdAt: at(minutes) } });
+  const snapshot = await f.me("bob");
+  const shown = snapshot.entries.flatMap(entry => entry.status === "available" ? [entry] : []);
+  // Every admin's contributions, by date with the viewer's own, newest first; nobody else's Follower contributions.
+  assert.deepEqual(shown.map(entry => entry.info.infoCardId).filter(id => ([first, own, other] as string[]).includes(id)), [other, own, first]);
+  assert.ok(!shown.some(entry => entry.info.infoCardId === second || entry.info.infoCardId === elsewhere));
+  // No visibility marker on Admin contributions: the private icon is only about the viewer's own content.
+  for (const entry of shown.filter(item => item.info.creationContext === "group")) assert.equal(entry.private, undefined);
+  assert.equal(shown.find(entry => entry.info.infoCardId === own)?.private, false);
+  // Hidden, deleted and Group-perspective-only Admin contributions stay out of Me (V6 needs no migration).
+  await f.info.hideGroup("carol", f.experienceId, first, await f.epoch("carol"));
+  await f.info.roots().updateOne({ infoCardId: other }, { $set: { audience: "group-perspective-only" } });
+  assert.ok(!f.shownIds(await f.me("bob")).some(id => id === first || id === other));
+  assert.ok(f.shownIds(await f.group("bob")).includes(other), "a Group-perspective-only contribution stays in the Group perspective");
+  // A former follower no longer has a Me in the Group.
+  await f.change("bob", { kind: "remove-follower" });
+  await assert.rejects(f.me("bob"), { code: "GROUP_FORBIDDEN" });
+});
+
+test("inspecting a follower adds the Group's Admin contributions only with Include Group content", async () => {
+  const f = await fixture();
+  const admin = await f.saved("alice", "group", "Admin note"), bob = await f.saved("bob", "self", "Bob in A"), carol = await f.saved("carol", "self", "Carol in A");
+  assert.deepEqual(f.shownIds(await f.group("carol", f.experienceId, "bob")), [bob], "off by default: that follower's contributions only");
+  assert.deepEqual(f.shownIds(await f.group("carol", f.experienceId, "bob", true)), [admin, bob].toSorted(), "never another follower's");
+  assert.deepEqual(f.shownIds(await f.group("alice", f.experienceId, "carol", true)), [admin, carol].toSorted());
+  // Inspection permissions are unchanged by the toggle.
+  await assert.rejects(f.group("carol", f.groupB, "bob", true), { code: "GROUP_FORBIDDEN" });
+  await f.info.hideGroup("alice", f.experienceId, admin, await f.epoch("alice"));
+  assert.deepEqual(f.shownIds(await f.group("carol", f.experienceId, "bob", true)), [bob], "a hidden Admin contribution is not included");
 });
 
 test("Follower contributions appear in their originating Group perspective under the Group sharing and hiding rules", async () => {
@@ -169,7 +209,9 @@ test("losing the admin role ends management of Admin contributions until it is r
   await assert.rejects(f.info.delete("alice", admin, 2), { code: "GROUP_FORBIDDEN" });
   await assert.rejects(f.info.savePersonal("alice", unsaved, 1), { code: "GROUP_FORBIDDEN" });
   assert.ok(f.shownIds(await f.group("carol")).includes(admin), "still shown in its Group perspective");
-  assert.ok(!f.shownIds(await f.me("alice")).includes(admin), "demotion never reclassifies it into Me");
+  // Since V1 it appears in Me as Group content, still an Admin contribution: demotion never reclassifies it.
+  const inMe = (await f.me("alice")).entries.find(entry => entry.status === "available" && entry.info.infoCardId === admin);
+  assert.ok(inMe?.status === "available" && inMe.info.creationContext === "group" && inMe.private === undefined, "demotion never reclassifies it");
   // Promoted again, alice manages it again.
   const e = (await f.repo.experiences().findOne({ experienceId: f.experienceId }))!;
   await f.repo.changeMember("bob", f.experienceId, { operationId: randomUUID(), expectedStructureRevision: e.structureRevision, targetUserId: "alice", kind: "set-admin", isAdmin: true });

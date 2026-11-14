@@ -166,14 +166,18 @@ test("My Drafts entries name the originating context of unsaved Group drafts", a
 // Checkpoint 4.4: the Group perspective pouch. Any contribution of this Group may appear; only the viewer's own in
 // its creation context is editable; a current admin hides the others; Admin contributions read as Group Admin cards.
 const contribution = (id: string, ownerUserId: string, creationContext: "self" | "group", experienceId = "A"): PublishedInfo => ({ ...note(id, experienceId), ownerUserId, creationContext, creatorUsername: ownerUserId } as PublishedInfo);
-async function groupConsultation(t: { mock: { method: (...args: never[]) => unknown } }, viewer: string, canHide: boolean, entries: PublishedInfo[], subjectUserId?: string) {
+async function groupConsultation(t: { mock: { method: (...args: never[]) => unknown } }, viewer: string, canHide: boolean | undefined, entries: PublishedInfo[], subjectUserId?: string,
+  mode: "group" | "experience" = "group", includeGroupContent = false) {
   const calls: string[] = [];
-  const snapshot: InfoConsultationSnapshot = { mainCardId: "main", mainCardVersion: 3, canHide, entries: entries.map(info => ({ status: "available", key: info.infoCardId, source: "group", info, originName: "Group A" })) };
+  const snapshot: InfoConsultationSnapshot = { mainCardId: "main", mainCardVersion: 3, ...(canHide !== undefined ? { canHide } : {}),
+    entries: entries.map(info => ({ status: "available", key: info.infoCardId, source: "group", info, originName: "Group A",
+      ...(mode === "experience" && info.creationContext === "self" ? { private: false } : {}) })) };
   (t.mock.method as (object: object, name: string, fn: (url: string) => Promise<Response>) => unknown)(globalThis, "fetch", async (url: string) => {
     calls.push(url);
     return url === "/api/auth/me" ? Response.json({ user: { id: viewer } }) : Response.json(snapshot, { headers: { "X-Personal-Viewer": viewer } });
   });
-  const cards = await loadInfoConsultation({ actor: viewer, mainCardId: "main", version: 3, mode: "group", experienceId: "A", ...(subjectUserId ? { subjectUserId } : {}), attachmentIds: [] }, new AbortController().signal);
+  const cards = await loadInfoConsultation({ actor: viewer, mainCardId: "main", version: 3, mode, experienceId: "A", ...(subjectUserId ? { subjectUserId } : {}),
+    ...(includeGroupContent ? { includeGroupContent } : {}), attachmentIds: [] }, new AbortController().signal);
   return { calls, cards: new Map(cards.flatMap(card => card.unavailable ? [] : [[card.id, card] as const])) };
 }
 
@@ -200,4 +204,29 @@ test("follower inspection accepts only the inspected follower's Follower contrib
   assert.deepEqual(buildInfoCardMenuLayout(cards.get("beaNote"), false), { create: false, manage: false, removeLabel: null, hide: true, origin: null });
   await assert.rejects(groupConsultation(t, "ann", true, [contribution("annAdmin", "ann", "group")], "bea"), /Invalid Group note entry/);
   await assert.rejects(groupConsultation(t, "ann", true, [contribution("elsewhere", "bea", "self", "B")]), /Invalid Group note entry/, "another Group's contribution");
+});
+
+// Checkpoint 4.5 (V1): a follower's Me also shows the Group's Admin contributions, as Group content.
+test("in Me a follower sees the Group's Admin cards with + New only, read through the Group, and an admin sees the origin on their own", async t => {
+  const { calls, cards } = await groupConsultation(t, "bea", undefined, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")], undefined, "experience");
+  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=experience&version=3&experienceId=A");
+  const admin = cards.get("annAdmin")!, own = cards.get("beaNote")!;
+  assert.equal(admin.infoType, "groupAdmin"); assert.equal(admin.groupVisibility, undefined, "no private icon on Group content");
+  assert.deepEqual(buildInfoCardMenuLayout(admin), { create: true, manage: false, removeLabel: null, hide: false, origin: null });
+  assert.deepEqual(admin.publication, { infoCardId: "annAdmin", kind: "publication", version: 1, experienceId: "A" }, "media is read through the Group");
+  assert.deepEqual(own.publication, { infoCardId: "beaNote", kind: "publication", version: 1 }, "the viewer's own as before");
+  assert.deepEqual(buildInfoCardMenuLayout(own), { create: true, manage: true, removeLabel: "Delete", hide: false, origin: null });
+  // A dual-role admin sees their own Admin card in Me with its origin, never Edit or Delete (C1).
+  const { cards: dual } = await groupConsultation(t, "ann", undefined, [contribution("annAdmin", "ann", "group")], undefined, "experience");
+  assert.deepEqual(buildInfoCardMenuLayout(dual.get("annAdmin")), { create: true, manage: false, removeLabel: null, hide: false, origin: "Group A · Group" });
+  // Another follower's Follower contribution, or another Group's Admin card, is never accepted in Me.
+  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("ceeNote", "cee", "self")], undefined, "experience"), /Invalid Group note entry/);
+  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("bAdmin", "ann", "group", "B")], undefined, "experience"), /Invalid Group note entry/);
+});
+
+test("follower inspection accepts the Group's Admin cards only with Include Group content, and asks for them", async t => {
+  const { calls, cards } = await groupConsultation(t, "ann", true, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")], "bea", "group", true);
+  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=group&version=3&experienceId=A&subjectUserId=bea&includeGroupContent=1");
+  assert.equal(cards.get("annAdmin")?.infoType, "groupAdmin");
+  await assert.rejects(groupConsultation(t, "ann", true, [contribution("ceeNote", "cee", "self")], "bea", "group", true), /Invalid Group note entry/, "never another follower's");
 });

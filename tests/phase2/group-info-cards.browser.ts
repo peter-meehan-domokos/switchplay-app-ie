@@ -16,6 +16,7 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../../src/li
 // + New. An unsaved Group draft reopens from My Drafts directly in the shared editor.
 // Checkpoint 4.4: the Group perspective shows every contribution shared with the Group; admins create Group Admin
 // Info Cards there, Edit and Remove their own, and Hide the others without deleting them.
+// Checkpoint 4.5a (V1): Admin contributions also appear in every follower's Me of their Group, as Group content.
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
 test.afterAll(async () => { await client?.close(); });
@@ -337,21 +338,50 @@ test("an admin hides a follower contribution, and their own Follower one with it
   expect(entries.find(entry => entry.info?.infoCardId === mine)).toMatchObject({ source: "group", private: true });
 });
 
-test("a dual-role admin keeps two identities apart: Admin cards only in the Group perspective, Follower cards edited in Me", async ({ page }) => {
+test("a dual-role admin keeps two identities apart: Admin cards managed only in the Group perspective, Follower cards edited in Me", async ({ page }) => {
   const f = await fixture();
   const admin = await contribution(f, f.owner, "group", "Admin note"), follower = await contribution(f, f.owner, "self", "Follower note");
   await login(page);
   await select(page, f, { perspective: "self" });
   const me = await openPouch(page, f);
-  expect(me).toContain(follower); expect(me).not.toContain(admin);
+  expect(me).toContain(follower);
   await showCard(page, follower);
   expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]);
+  await page.keyboard.press("Escape");
+  // Since V1 the Admin card also appears in Me as Group content: its origin and + New, never Edit or Delete (C1).
+  expect(me).toContain(admin);
+  await showCard(page, admin);
+  await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
+  expect(await menu(page)).toEqual(["+ New"]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Group"]);
   // The standalone Card and the other Group never show the Admin card.
   expect(await openPouch(page, f, `/decks?openDeck=${f.deckId}`)).not.toContain(admin);
   const current2 = await (await page.request.get(`/api/group-experiences/${f.secondId}`)).json();
   expect((await page.request.patch(`/api/group-experiences/${f.secondId}/navigation`, { data: { accessEpoch: current2.accessEpoch,
     expectedStructureRevision: current2.structureRevision, activeCardId: f.cardId, selection: { perspective: "group" } } })).ok()).toBeTruthy();
   expect(await openPouch(page, f, `/decks?openExperience=${f.secondId}`)).not.toContain(admin);
+});
+
+test("a follower's Me shows the Group's Admin cards in teal, counted in the pouch, with + New only and no visibility indicator", async ({ page }) => {
+  const f = await fixture();
+  const admin = await contribution(f, f.owner, "group", "Admin note"), hidden = await contribution(f, f.owner, "group", "Hidden admin note");
+  const elsewhere = await contribution(f, f.owner, "group", "Admin note elsewhere", f.secondId);
+  const epoch = (await f.groups.members().findOne({ experienceId: f.experienceId, userId: f.owner }))!.accessEpoch;
+  await f.info.hideGroup(f.owner, f.experienceId, hidden, epoch);
+  await login(page, "other"); await select(page, f, { perspective: "self" });
+  // The closed pouch counts the Admin card with the Creator Info Cards.
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  await page.locator(".deck-card.is-active").press("Enter"); await page.locator(".focused-card-layer .active-card-identity").click();
+  await expect(page.getByRole("button", { name: "Open information cards (3 attached)", exact: true })).toBeVisible();
+  const entries = await openPouchEntries(page, f);
+  const ids = entries.map(entry => entry.info?.infoCardId).toSorted();
+  expect(ids).toEqual([...CREATOR_CARDS, admin].toSorted());
+  expect(ids).not.toContain(hidden); expect(ids).not.toContain(elsewhere);
+  expect(entries.find(entry => entry.info?.infoCardId === admin)).toMatchObject({ source: "group" });
+  expect(entries.find(entry => entry.info?.infoCardId === admin)?.private).toBeUndefined();
+  await showCard(page, admin);
+  await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
+  await expect(current(page).locator("[data-info-card-visibility]")).toHaveCount(0);
+  expect(await menu(page)).toEqual(["+ New"]); expect(await menuOrigin(page)).toBeNull();
 });
 
 test("Other followers shows only the inspected follower's shared contributions; an admin may hide them", async ({ page }) => {

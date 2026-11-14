@@ -42,6 +42,13 @@ export function creationContextOf(row: { creationContext?: CreationContext | nul
 // Mongo condition selecting Follower contributions only, a missing value counting as "self". Used for owner
 // history, owner previews and follower inspection.
 export const FOLLOWER_CONTRIBUTIONS = { creationContext: { $ne: "group" as const } };
+// Admin contributions also reach the Me perspective of every active follower of their Group (V1, checkpoint 4.5).
+// A later per-contribution option (V6) may keep one in the Group perspective only, stored as `audience`. Nothing
+// writes it yet; a missing value means the contribution is shown in followers' Me, so the option needs no migration.
+export type ContributionAudience = "group-perspective-only";
+export const GROUP_PERSPECTIVE_ONLY: ContributionAudience = "group-perspective-only";
+// Mongo condition selecting the Admin contributions that followers see in Me (with experienceId and the Card added).
+export const ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS = { creationContext: "group" as const, audience: { $ne: GROUP_PERSPECTIVE_ONLY } };
 // Mongo condition selecting the contributions of one identity of one author.
 export function identityFilter(authorUserId: string, identity: CreationContext) {
   return identity === "group" ? { authorUserId, creationContext: "group" as const } : { authorUserId, ...FOLLOWER_CONTRIBUTIONS };

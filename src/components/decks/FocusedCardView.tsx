@@ -429,9 +429,10 @@ export default function FocusedCardView({
     ...(groupShared && isExperienceCard(card) && card.perspective === "follower" ? { subjectUserId: card.subjectUserId } : {}),
     attachmentIds: [...(card.infoCardIds ?? [])] } : undefined;
   // The Group's contributions are not part of the Card, so the closed pouch counts them from one consultation
-  // snapshot, read again whenever the pouch closes (its contents may have changed).
+  // snapshot, read again whenever the pouch closes (its contents may have changed). Me counts this way too since
+  // checkpoint 4.5, because it now also shows the Group's Admin contributions (V1).
   const [sharedCount, setSharedCount] = useState<{ key: string; count: number } | null>(null);
-  const sharedKey = groupShared ? JSON.stringify([consultationIdentity, infoRequest() ?? null]) : null;
+  const sharedKey = groupShared || groupMe ? JSON.stringify([consultationIdentity, infoRequest() ?? null]) : null;
   const personalCount = hasPersonalCard(card) ? (card.personalInfoCardIds?.length ?? 0)
     + (card.personalHistory ?? []).filter(source => source.cardTemplateId !== card.id).reduce((sum, source) => sum + (source.personalInfoCardIds?.length ?? 0), 0) : 0;
   const attachmentCount = infoCards !== undefined ? infoCards.length : sharedKey && sharedCount?.key === sharedKey ? sharedCount.count

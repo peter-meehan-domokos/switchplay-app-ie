@@ -121,7 +121,7 @@ test("the standalone Card shows standalone notes plus all Follower contributions
   assert.deepEqual(snapshot.personalSources, [{ cardTemplateId: f.ids[0], personalInfoRevision: 1 }], "the standalone list is unchanged by Group notes");
 });
 
-test("a dual-role user never sees Admin contributions in Me or on the standalone Card", async () => {
+test("a dual-role user sees Admin contributions in Me only as Group content, never on the standalone Card", async () => {
   const f = await fixture();
   const follower = await f.note("alice", "Alice as follower");
   // An Admin contribution root (created in the Group perspective, checkpoint 4.3), stored as the mapping defines.
@@ -131,14 +131,19 @@ test("a dual-role user never sees Admin contributions in Me or on the standalone
   const followerVersion = (await f.info.versions().findOne({ infoCardId: follower }))!;
   await f.info.versions().insertOne({ ...followerVersion, _id: undefined, infoCardId: "alice-admin" } as InfoPublication);
   await f.cards.ensureDeckData("alice", f.deckId, 1);
-  assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id), [follower]);
+  // Since V1 (checkpoint 4.5) Me also shows the Group's Admin contributions, as Group content with no visibility
+  // marker; it is never mixed into the author's Follower identity, and never reaches the standalone Card.
+  assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id).toSorted(), [follower, "alice-admin"].toSorted());
+  const adminInMe = (await f.me("alice")).entries.find(entry => entry.status === "available" && entry.info.infoCardId === "alice-admin");
+  assert.ok(adminInMe?.status === "available" && adminInMe.info.creationContext === "group" && adminInMe.private === undefined);
   assert.deepEqual(f.shown(await f.standalone("alice")).map(([id]) => id), [follower]);
   // Checkpoint 4.3: its author reads it, and writes it only while a current admin of its Group (manageable, C1).
   assert.equal((await f.info.owner("alice", "alice-admin")).creationContext, "group");
   await f.setAdmin("bob", true); await f.setAdmin("alice", false);
   await assert.rejects(f.info.save("alice", "alice-admin", 2, draft("Edited"), "private"), { code: "GROUP_FORBIDDEN" });
   await assert.rejects(f.info.delete("alice", "alice-admin", 2), { code: "GROUP_FORBIDDEN" });
-  assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id), [follower], "demotion never reclassifies");
+  const afterDemotion = (await f.me("alice")).entries.find(entry => entry.status === "available" && entry.info.infoCardId === "alice-admin");
+  assert.ok(afterDemotion?.status === "available" && afterDemotion.info.creationContext === "group" && afterDemotion.private === undefined, "demotion never reclassifies");
 });
 
 test("only the author edits and deletes; admins hide without deleting", async () => {
