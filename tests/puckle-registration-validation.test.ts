@@ -47,10 +47,10 @@ test("interest email/mobile/both stay contact-only with explicit email permissio
   const base = { name: "Pat", reason: "Interested", mobile: "+353871234567" };
   const result = validateInterestContact(base, new Date("2026-11-14"));
   assert.equal(result.communication.emailUpdates, false); assert.equal(result.email, null);
-  assert.throws(() => validateInterestContact({ ...base, emailUpdates: true }));
+  assert.throws(() => validateInterestContact({ ...base, emailUpdates: true }), /UNEXPECTED_FIELD/);
   assert.throws(() => validateInterestContact({ ...base, mobile: undefined }));
   assert.throws(() => validateInterestContact({ ...base, password: "secret" }));
-  assert.throws(() => validateInterestContact({ ...base, emailUpdates: "true" }));
-  assert.equal(validateInterestContact({ ...base, email: "PAT@example.com", emailUpdates: true }).communication.emailUpdates, true);
+  assert.equal(validateInterestContact({ ...base, email: "PAT@example.com" }).communication.emailUpdates, true);
+  assert.equal(validateInterestContact({ name: "Pat", mobile: "+353871234567" }).reason, "", "reason is optional");
   assert.equal(validateInterestContact({ ...base, mobile: undefined, email: "pat@example.com" }).mobile, null);
 });

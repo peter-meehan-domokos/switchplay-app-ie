@@ -4,6 +4,7 @@ import HeaderMenu from "./HeaderMenu";
 import buttonStyles from "./PublicButton.module.css";
 import { getCurrentUser } from "@/lib/auth";
 import styles from "./PublicHeader.module.css";
+import { isJoinOpen } from "../lib/joinAvailability";
 
 // Temporarily hidden from the menu. The /step-visuals page itself is unchanged and still reachable by URL.
 const SHOW_STEP_VISUALS_LINK = false;
@@ -27,7 +28,7 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
       <BrandLink />
       <div className={styles.actions}>
         {showJoinLink && !user ? (
-          <Link className={`${buttonStyles.button} ${buttonStyles.primary} ${styles.joinButton}`} href="/#early-access">
+          <Link className={`${buttonStyles.button} ${buttonStyles.primary} ${styles.joinButton}`} href={isJoinOpen() ? "/join" : "/#early-access"}>
             Join
           </Link>
         ) : null}

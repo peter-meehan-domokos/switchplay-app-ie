@@ -63,3 +63,12 @@ export async function consumeEmailProof(db: Db, session: ClientSession, input: C
   if (!row?.verifiedAt) throw new Error("INVALID_EMAIL_PROOF");
   return row.verifiedAt;
 }
+/** Read-only pre-check so an invalid proof cannot cause password hashing work. Consumption stays transactional. */
+export async function hasVerifiedEmailProof(db: Db, input: ChallengeBinding & { email: unknown; proof: unknown }, now = new Date()) {
+  try {
+    requireEmailToken(input.proof); requireEmailToken(input.challengeId); requireEmailToken(input.flowToken);
+    return !!await collection(db).findOne({ challengeId: input.challengeId, flowBindingDigest: tokenDigest(input.flowToken),
+      email: normaliseAccountEmail(input.email), proofDigest: tokenDigest(input.proof as string), verifiedAt: { $exists: true },
+      usedAt: { $exists: false }, expiresAt: { $gt: now } }, { projection: { _id: 1 } });
+  } catch { return false; }
+}

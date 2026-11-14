@@ -20,7 +20,7 @@ export type NoEmailJoinContact = {
 };
 export type InterestContact = {
   name: string; email: string | null; mobile: string | null; reason: string; message: string;
-  communication: { emailUpdates: boolean; wordingVersion: string; recordedAt: Date };
+  communication: { emailUpdates: boolean; source: string; wordingVersion: string; recordedAt: Date };
   createdAt: Date; founderNotification: FounderNotification;
 };
 /** Transient contracts only; no verification/token workflow in Phase 1. */

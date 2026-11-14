@@ -11,6 +11,10 @@ const appDir = join(root, "src", "app");
 // Infrastructure the independent websites may share; everything else must be the site's own code.
 const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "@/lib/age"];
 
+// Puckle-only shared modules: the profile contract, new-credential rules (browser-safe validation) and the server
+// orchestration its public Join routes call. Other websites gain no access to them.
+const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration"];
+
 const siteDirs = (site: SiteId) => [
   join(appDir, "sites", site),
   join(appDir, "api", "public", site),
@@ -59,7 +63,7 @@ test("websites import only their own code and the approved shared infrastructure
           } else if (specifier.startsWith("@/")) {
             const target = join(root, "src", specifier.slice(2));
             allowed = isWithin(target, own) || SHARED_ALIASES.includes(specifier)
-              || site === "puckle" && specifier === "@/lib/puckleMemberships";
+              || site === "puckle" && PUCKLE_JOIN_ALIASES.includes(specifier);
           } else {
             allowed = true;
           }

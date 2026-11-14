@@ -1,4 +1,4 @@
-// New credentials only. Existing login deliberately does not use these rules.
+// New credentials only. Browser-safe (no Node Buffer) so Join can validate before submitting. Existing login deliberately does not use these rules.
 export function normaliseAccountEmail(value: unknown): string {
   if (typeof value !== "string") throw new Error("INVALID_EMAIL");
   const email = value.trim().toLowerCase();
@@ -6,7 +6,7 @@ export function normaliseAccountEmail(value: unknown): string {
   return email;
 }
 export function validateNewPassword(value: unknown): string {
-  if (typeof value !== "string" || [...value].length < 12 || Buffer.byteLength(value, "utf8") > 72) throw new Error("INVALID_NEW_PASSWORD");
+  if (typeof value !== "string" || [...value].length < 12 || new TextEncoder().encode(value).length > 72) throw new Error("INVALID_NEW_PASSWORD");
   return value;
 }
 export function validateCoreCredentials(input: { username: unknown; email: unknown; password: unknown }) {

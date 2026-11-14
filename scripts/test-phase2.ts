@@ -19,7 +19,9 @@ const media = createServer((request, response) => {
   if (request.url === "/emails" && request.method === "GET") { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(capturedEmails)); return; }
   if (request.url === "/email" && request.method === "POST") {
     let body = ""; request.on("data", chunk => { body += chunk; });
-    request.on("end", () => { capturedEmails.push(JSON.parse(body)); response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify({ id: "fixture-accepted" })); }); return;
+    request.on("end", () => { const message = JSON.parse(body); capturedEmails.push(message);
+      // Manual review only: the code is otherwise invisible to a phone. Local fixture mail, never sent anywhere.
+      if (interactive) console.log(`[captured email] to ${String(message.to)} | ${message.subject}\n${message.text}\n`); response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify({ id: "fixture-accepted" })); }); return;
   }
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
@@ -80,7 +82,7 @@ try {
   const baseURL = `http://127.0.0.1:${appPort}`;
   const lanIPs = Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => row.address);
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
-    SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","),
+    SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", "localhost", "*.localhost", ...(lan ? lanIPs : [])].join(","),
     PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
@@ -88,6 +90,8 @@ try {
     CLOUDFLARE_STREAM_API_TOKEN: "local-fixture",
     ACCOUNT_EMAIL_SECRET: "local-only-email-secret-at-least-32-bytes", ACCOUNT_EMAIL_TEST_ENDPOINT: `${mediaOrigin}/email`,
     ACCOUNT_EMAIL_PUCKLE_ORIGIN: baseURL, ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle fixture <security@example.invalid>",
+    PUCKLE_FOUNDER_EMAIL: "founder@example.invalid", ACCOUNT_TRUST_PROXY_IP: "1", // tests/reviewers present distinct forwarded addresses; unset means one shared bucket
+    ...(lan ? { ACCOUNT_EMAIL_LAN_REVIEW: "1", ACCOUNT_EMAIL_PUCKLE_ALLOWED_ORIGINS: lanIPs.filter(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)).map(ip => `http://${ip}:${appPort}`).join(",") } : {}),
     ACCOUNT_EMAIL_SWITCHPLAY_ORIGIN: baseURL, ACCOUNT_EMAIL_SWITCHPLAY_FROM: "Switchplay fixture <security@example.invalid>",
     ACCOUNT_EMAIL_STRAT17_ORIGIN: baseURL, ACCOUNT_EMAIL_STRAT17_FROM: "Strat17 fixture <security@example.invalid>",
   };
@@ -99,7 +103,10 @@ try {
   await mkdir("phase2-test-results", { recursive: true });
   await writeFile(`phase2-test-results/tsconfig-${mode}.json`, JSON.stringify({ extends: "../tsconfig.json",
     include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", `../${env.PHASE2_INTERACTIVE === "1" ? ".next-phase2" : ".next-phase2-test"}/dev/types/**/*.ts`] }, null, 2));
-  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", lan ? "0.0.0.0" : "127.0.0.1", "--port", String(appPort)], { env, stdio: ["ignore", "pipe", "pipe"] });
+  // Next rewrites the public-site routes through a request URL it normalises to "localhost". Binding by that
+  // name (resolved to IPv4, so still loopback-only) keeps those rewrites internal; "127.0.0.1" makes them loop.
+  const appEnv = { ...env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --dns-result-order=ipv4first`.trim() };
+  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", lan ? "0.0.0.0" : "localhost", "--port", String(appPort)], { env: appEnv, stdio: ["ignore", "pipe", "pipe"] });
   app.stdout!.on("data", (value) => { output.push(String(value)); if (interactive) process.stdout.write(value); });
   app.stderr!.on("data", (value) => { output.push(String(value)); if (interactive) process.stderr.write(value); });
   const deadline = Date.now() + 90_000;

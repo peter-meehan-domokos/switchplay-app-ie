@@ -3,6 +3,11 @@ import { assertDisposableDatabase } from "./cards/localDatabase";
 export type EmailMessage = { to: string; subject: string; text: string };
 export type Delivery = { status: "sent" | "failed" | "unknown"; attemptedAt: Date; reference: string };
 export type EmailSender = (message: EmailMessage) => Promise<Delivery>;
+/** Manual phone review on a private network only. Requires the runner's disposable-database guard; never set in deployment. */
+function reviewLanOrigin(url: URL) {
+  if (process.env.ACCOUNT_EMAIL_LAN_REVIEW !== "1" || !/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(url.hostname)) return false;
+  try { assertDisposableDatabase(process.env.MONGODB_URI, process.env.MONGODB_DB); return true; } catch { return false; }
+}
 export function siteEmailConfig(site: SiteId) {
   const prefix = `ACCOUNT_EMAIL_${site.toUpperCase()}`;
   const origin = process.env[`${prefix}_ORIGIN`], from = process.env[`${prefix}_FROM`];
@@ -10,7 +15,7 @@ export function siteEmailConfig(site: SiteId) {
   const allowedOrigins = [origin, ...(process.env[`${prefix}_ALLOWED_ORIGINS`]?.split(",").map(value => value.trim()).filter(Boolean) ?? [])];
   for (const candidate of allowedOrigins) {
   const url = new URL(candidate);
-  const local = ["localhost", "127.0.0.1"].includes(url.hostname) || url.hostname.endsWith(".localhost");
+  const local = ["localhost", "127.0.0.1"].includes(url.hostname) || url.hostname.endsWith(".localhost") || reviewLanOrigin(url);
   if ((url.protocol !== "https:" && !(local && url.protocol === "http:")) || url.username || url.password || url.origin !== candidate) throw new Error("EMAIL_CONFIGURATION_INVALID");
   }
   return { origin, allowedOrigins, from, name: { puckle: "Puckle", switchplay: "Switchplay", strat17: "Strat17" }[site] };

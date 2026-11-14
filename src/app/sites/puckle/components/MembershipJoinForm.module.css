@@ -1,0 +1,264 @@
+.page {
+  display: grid;
+  gap: clamp(18px, 5vw, 28px);
+  max-width: 34rem;
+  padding-bottom: clamp(42px, 10vw, 84px);
+}
+
+.page h1 {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(2rem, 9vw, 3rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.form {
+  display: grid;
+  gap: 22px;
+}
+
+.intro,
+.hint,
+.crossLinks {
+  color: var(--sp-site-text-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.hint {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.crossLinks a,
+.codePanel a {
+  color: var(--sp-site-text);
+  text-decoration-color: rgba(168, 214, 228, 0.64);
+  text-underline-offset: 3px;
+}
+
+.fields {
+  display: grid;
+  gap: 18px;
+}
+
+.choices {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.choice {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.04);
+  color: var(--sp-site-text);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0 14px;
+}
+
+.choice input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin: 0;
+  accent-color: #a8d6e4;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--sp-site-accent-blue);
+  background: rgba(168, 214, 228, 0.1);
+}
+
+.choice:has(input:focus-visible) {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 2px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dob {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.dob legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--sp-site-text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.dobRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.6fr;
+  gap: 10px;
+}
+
+.dobRow label {
+  font-weight: 700;
+}
+
+.optIn {
+  display: grid;
+  gap: 8px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--sp-site-text);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.checkbox input {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin: 0;
+  accent-color: #a8d6e4;
+}
+
+.checkbox input:disabled + span {
+  opacity: 0.55;
+}
+
+.mobile {
+  display: grid;
+  gap: 8px;
+}
+
+.toggleRow {
+  display: grid;
+  gap: 6px;
+}
+
+.linkButton {
+  min-height: 44px;
+  justify-self: start;
+  border: 0;
+  background: none;
+  color: var(--sp-site-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 214, 228, 0.64);
+  text-underline-offset: 4px;
+}
+
+.linkButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.linkButton:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 3px;
+}
+
+.notice {
+  border-left: 3px solid rgba(168, 214, 228, 0.48);
+  border-radius: 0 12px 12px 0;
+  background: rgba(255, 250, 240, 0.045);
+  color: var(--sp-site-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 12px 14px;
+}
+
+.codePanel {
+  display: grid;
+  gap: 16px;
+  color: var(--sp-site-text-muted);
+  line-height: 1.5;
+}
+
+.codePanel strong {
+  color: var(--sp-site-text);
+  overflow-wrap: anywhere;
+}
+
+.codePanel input {
+  letter-spacing: 0.3em;
+}
+
+.codeActions {
+  display: grid;
+  gap: 4px;
+}
+
+.submitRow {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.submitRow button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.success {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: 16px;
+  background: rgba(168, 214, 228, 0.06);
+  padding: 20px;
+}
+
+.success:focus {
+  outline: none;
+}
+
+.success:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 4px;
+}
+
+.success h2 {
+  color: var(--sp-site-text);
+  font-size: 1.375rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.success p {
+  color: var(--sp-site-text);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+.success a {
+  justify-self: start;
+}

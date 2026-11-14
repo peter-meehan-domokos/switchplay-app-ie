@@ -1,11 +1,11 @@
 import { getCurrentSite } from "./sites/getCurrentSite";
 import { siteEmailConfig, siteEmailSender } from "./siteEmail";
 export const SECURITY_HEADERS = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff" };
-export async function securityRequest(request: Request) {
+export async function securityRequest(request: Request, maxBytes = 8192) {
   const site = await getCurrentSite(), config = siteEmailConfig(site);
   if (!config.allowedOrigins.includes(request.headers.get("origin") ?? "") || request.headers.get("content-type")?.split(";")[0] !== "application/json") throw new Error("INVALID_SECURITY_REQUEST");
   const text = await request.text();
-  if (Buffer.byteLength(text) > 8192) throw new Error("INVALID_SECURITY_REQUEST");
+  if (Buffer.byteLength(text) > maxBytes) throw new Error("INVALID_SECURITY_REQUEST");
   const body = JSON.parse(text);
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("INVALID_SECURITY_REQUEST");
   // Enable only behind a proxy that overwrites this header; otherwise share a conservative bucket.

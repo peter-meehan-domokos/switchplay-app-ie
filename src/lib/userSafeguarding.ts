@@ -64,3 +64,7 @@ export async function correctDateOfBirth(db: Db, userId: ObjectId, correction: {
     $push: { "safeguarding.dateOfBirthHistory": event } });
   if (result.matchedCount !== 1) throw new Error("DOB_CORRECTION_CONFLICT");
 }
+/** Initial safeguarding facts for a new self-registered student. Self-declared is a source, never verification. */
+export function newSelfDeclaredSafeguarding(dateOfBirth: string, at: Date): UserSafeguarding {
+  return { dateOfBirth: parseDateOfBirth(dateOfBirth), dobSource: "self-declared", dobRecordedAt: at, ageAssurance: { verification: "none" } };
+}

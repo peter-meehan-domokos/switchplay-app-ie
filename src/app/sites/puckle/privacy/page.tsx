@@ -39,6 +39,25 @@ export default function PrivacyPage() {
         </section>
 
         <section className={styles.section}>
+          <h2>Joining {SITE_NAME}</h2>
+          <p>
+            If you join as a student or teacher, we collect your name, a username, your email address and a password
+            (stored only as a one-way hash). We email you a code to confirm the address before your account is created.
+            Students also give their date of birth, which we use to confirm the minimum age of 13, and their maths course
+            and level. A mobile number is optional and is not used to sign in. Teachers may add a short introduction.
+          </p>
+          <p>
+            If you tell us you do not have an email address, we save a contact request with your name, mobile number and
+            the details you entered, and contact you personally. No account is created from that request. If you ask to
+            be kept updated, we save your name, email and/or mobile number and anything you tell us about your interest,
+            separately from accounts, together with the date and the wording you agreed to. By submitting that form you
+            ask us to email you occasional updates; you can stop them at any time by emailing {SUPPORT_EMAIL}. A mobile
+            number given without an email is used only to follow up on your request. We do not send promotional text
+            messages.
+          </p>
+        </section>
+
+        <section className={styles.section}>
           <h2>Why we collect it</h2>
           <p>
             We use submitted information to respond to your message, manage support or issue reports, review creator

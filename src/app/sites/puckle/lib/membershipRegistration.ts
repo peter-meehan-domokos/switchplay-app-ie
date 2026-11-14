@@ -8,7 +8,8 @@ export const COURSE_LEVELS: Record<MathsCourse, readonly MathsLevel[]> = {
   gcse: ["higher-tier", "foundation-tier", "other", "dont-know"],
   "a-level": [], other: ["other", "dont-know"], "dont-know": ["other", "dont-know"],
 };
-export const INTEREST_WORDING_VERSION = "puckle-email-updates-v1";
+export const INTEREST_WORDING_VERSION = "puckle-updates-signup-v1";
+export const INTEREST_SOURCE = "join-interest-form";
 export type RegistrationDetails = {
   registrationCategory: MembershipCategory; name: string; email: string | null; mobile: string | null;
   dateOfBirth?: string; education?: Education; teacherIntroduction?: string;
@@ -49,12 +50,18 @@ export function educationAfterCourseChange(course: MathsCourse): Education {
   if (!Object.hasOwn(COURSE_LEVELS, course)) throw new Error("INVALID_COURSE");
   return { course, courseOther: null, level: null, levelOther: null };
 }
+/** Shared by the server validators and the Join form. Returns E.164, "" when blank, or throws INVALID_MOBILE. */
+export function normaliseMobile(value: string, countryCode: string): string {
+  const mobileInput = value.trim();
+  const mobile = mobileInput ? formatPhoneAsE164(mobileInput, countryCode) : "";
+  if (mobileInput && (!/^\+?[0-9\s()-]+$/.test(mobileInput) || !/^\+[1-9]\d{6,14}$/.test(mobile))) throw new Error("INVALID_MOBILE");
+  return mobile;
+}
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function contacts(input: Input, mode: "email" | "no-email" | "interest") {
   const email = text(input.email, 254).toLowerCase();
-  const mobileInput = text(input.mobile, 30);
-  const mobile = mobileInput ? formatPhoneAsE164(mobileInput, text(input.phoneCountryCode, 5)) : "";
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("INVALID_EMAIL");
-  if (mobileInput && (!/^\+?[0-9\s()-]+$/.test(mobileInput) || !/^\+[1-9]\d{6,14}$/.test(mobile))) throw new Error("INVALID_MOBILE");
+  const mobile = normaliseMobile(text(input.mobile, 30), text(input.phoneCountryCode, 5));
+  if (email && !EMAIL_PATTERN.test(email)) throw new Error("INVALID_EMAIL");
   if (mode === "email" && !email) throw new Error("EMAIL_REQUIRED");
   if (mode === "no-email" && (email || !mobile)) throw new Error("NO_EMAIL_REQUIRES_MOBILE");
   if (mode === "interest" && !email && !mobile) throw new Error("CONTACT_REQUIRED");
@@ -86,10 +93,9 @@ export function validateNoEmailContact(value: unknown, today = dublinToday()) {
 }
 export function validateInterestContact(value: unknown, now = new Date()) {
   const input = object(value);
-  allowed(input, ["name", "email", "mobile", "phoneCountryCode", "reason", "message", "emailUpdates"]);
+  allowed(input, ["name", "email", "mobile", "phoneCountryCode", "reason", "message"]);
   const contact = contacts(input, "interest");
-  if (input.emailUpdates !== undefined && typeof input.emailUpdates !== "boolean") throw new Error("INVALID_COMMUNICATION_CHOICE");
-  if (input.emailUpdates === true && !contact.email) throw new Error("EMAIL_UPDATES_REQUIRE_EMAIL");
-  return { name: text(input.name, 100, true), ...contact, reason: text(input.reason, 500, true), message: text(input.message, 2000),
-    communication: { emailUpdates: input.emailUpdates === true, wordingVersion: INTEREST_WORDING_VERSION, recordedAt: now } };
+  return { name: text(input.name, 100, true), ...contact, reason: text(input.reason, 500), message: text(input.message, 2000),
+    // Submitting the form is the affirmative request for occasional email updates. A mobile-only contact is follow-up only: no SMS marketing.
+    communication: { emailUpdates: !!contact.email, source: INTEREST_SOURCE, wordingVersion: INTEREST_WORDING_VERSION, recordedAt: now } };
 }

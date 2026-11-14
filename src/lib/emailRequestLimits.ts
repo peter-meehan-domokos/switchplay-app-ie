@@ -20,3 +20,7 @@ export async function limitEmailRequest(db: Db, email: string, requester: string
   try { await db.collection<EmailRequestLimit>("emailRequestLimits").insertOne({ _id, count: 1, expiresAt: new Date(now.getTime() + 60_000) }); }
   catch (error) { if ((error as { code?: number }).code === 11000) throw new Error("EMAIL_RATE_LIMITED"); throw error; }
 }
+/** Small requester-only window for contact forms that notify the founder; not an email-recipient budget. */
+export async function limitRequesterAction(db: Db, scope: string, requester: string, maximum: number, seconds: number, now: Date) {
+  await take(db, `${scope}:${requester}`, maximum, seconds, now);
+}
