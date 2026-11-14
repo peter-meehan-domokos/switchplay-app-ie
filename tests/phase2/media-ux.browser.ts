@@ -19,7 +19,12 @@ test.beforeEach(async ({ page }) => {
 async function openBack(page: Page, group = false, focus = true) {
   await page.goto(`/decks?${group ? "openExperience=" + fixture.experienceId : "openDeck=" + fixture.personalDeckId}`);
   await expect(page.locator(".deck-card.is-active")).toBeVisible();
-  if (focus) { await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-layer")).toBeVisible(); }
+  if (focus) {
+    await page.locator(".deck-card.is-active").press("Enter"); await expect(page.locator(".focused-card-layer")).toBeVisible();
+    // Honour the established focus gesture lock before flipping (as loading-retention.browser.ts does): a drag
+    // that starts while the focus transition still holds the lock is ignored, which made this step flaky.
+    await page.waitForTimeout(700);
+  }
   const front = page.locator(focus ? ".focused-card-surface--front .card-title-anchor" : ".deck-card.is-active .deck-card-surface--front .card-title-anchor");
   const box = (await front.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
