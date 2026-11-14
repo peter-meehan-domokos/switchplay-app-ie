@@ -46,9 +46,10 @@ async function fixture() {
   await info.save("bob", "bob-standalone", 0, draft("Standalone note", "notes-bob"), "private");
   await info.savePersonal("bob", "bob-standalone", 1, standaloneContext);
   await f.cards.ensureDeckData("alice", f.deckId, 1);
-  const group = (actor: string, experienceId = f.experienceId, subjectUserId?: string, includeGroupContent = false) =>
-    mainInfoConsultation(info, actor, f.ids[0], { mode: "group", version: 1, experienceId, ...(subjectUserId ? { subjectUserId } : {}), ...(includeGroupContent ? { includeGroupContent } : {}) });
-  const me = (actor: string, experienceId = f.experienceId) => mainInfoConsultation(info, actor, f.ids[0], { mode: "experience", version: 1, experienceId });
+  const group = (actor: string, experienceId = f.experienceId, subjectUserId?: string, includeAdminContent = false) =>
+    mainInfoConsultation(info, actor, f.ids[0], { mode: "group", version: 1, experienceId, ...(subjectUserId ? { subjectUserId } : {}), ...(includeAdminContent ? { includeAdminContent } : {}) });
+  // Me with the Include admin content toggle on unless stated: the Admin contributions of the Group are shown then.
+  const me = (actor: string, experienceId = f.experienceId, includeAdminContent = true) => mainInfoConsultation(info, actor, f.ids[0], { mode: "experience", version: 1, experienceId, ...(includeAdminContent ? { includeAdminContent } : {}) });
   const standalone = (actor: string) => mainInfoConsultation(info, actor, f.ids[0], { mode: "working", version: 1, deckTemplateId: f.deckId });
   const shownIds = (snapshot: InfoConsultationSnapshot) => snapshot.entries.flatMap(entry => entry.status === "available" ? [entry.info.infoCardId] : []).toSorted();
   const change = async (target: string, command: { kind: "set-admin"; isAdmin: boolean } | { kind: "add-follower" | "remove-follower" }) => {
@@ -86,8 +87,11 @@ test("an Admin contribution appears in the Group perspective and followers' Me o
   // Every member sees it in the Group perspective, alongside the Follower contributions shared with the Group.
   for (const viewer of ["alice", "bob", "carol"]) assert.deepEqual(f.shownIds(await f.group(viewer)), [admin, aliceFollower].toSorted(), viewer);
   // In the Me of every follower of this Group (V1), the dual-role author included. Never on the standalone Card, in
-  // another Group, or when inspecting the admin as a follower without Include Group content.
+  // another Group, or when inspecting the admin as a follower without Include admin content.
   for (const viewer of ["alice", "bob", "carol"]) assert.ok(f.shownIds(await f.me(viewer)).includes(admin), viewer);
+  // With Include admin content off, Me shows the viewer's own contributions only, the dual-role author included.
+  for (const viewer of ["alice", "bob", "carol"]) assert.ok(!f.shownIds(await f.me(viewer, f.experienceId, false)).includes(admin), `${viewer} with it off`);
+  assert.ok(f.shownIds(await f.me("alice", f.experienceId, false)).includes(aliceFollower), "own Follower contribution with it off");
   assert.ok(!f.shownIds(await f.standalone("alice")).includes(admin));
   assert.ok(!f.shownIds(await f.group("alice", f.groupB)).includes(admin));
   assert.ok(!f.shownIds(await f.me("alice", f.groupB)).includes(admin));
@@ -126,7 +130,7 @@ test("followers see the Group's Admin contributions in Me, sorted like every oth
   await assert.rejects(f.me("bob"), { code: "GROUP_FORBIDDEN" });
 });
 
-test("inspecting a follower adds the Group's Admin contributions only with Include Group content", async () => {
+test("inspecting a follower adds the Group's Admin contributions only with Include admin content", async () => {
   const f = await fixture();
   const admin = await f.saved("alice", "group", "Admin note"), bob = await f.saved("bob", "self", "Bob in A"), carol = await f.saved("carol", "self", "Carol in A");
   assert.deepEqual(f.shownIds(await f.group("carol", f.experienceId, "bob")), [bob], "off by default: that follower's contributions only");

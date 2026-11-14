@@ -66,9 +66,9 @@ export type InfoConsultationSnapshot = { mainCardId: string; mainCardVersion: nu
   canHide?: boolean };
 // "experience" is the follower own Me perspective of one Group: the Card at the Group selected version.
 // "group" is the Group perspective of one Group, or, with `subjectUserId`, the inspection of one of its followers
-// (checkpoint 4.3), at the Group selected version. `includeGroupContent` adds the Group's Admin contributions to a
-// follower inspection (the Include Group content toggle, checkpoint 4.5).
-export type MainInfoContext = { mode: "working" | "canonical" | "experience" | "group"; version: number; deckTemplateId?: string; experienceId?: string; subjectUserId?: string; includeGroupContent?: boolean };
+// (checkpoint 4.3), at the Group selected version. `includeAdminContent` adds the Group's Admin contributions to own Me
+// or a follower inspection (the Include admin content toggle).
+export type MainInfoContext = { mode: "working" | "canonical" | "experience" | "group"; version: number; deckTemplateId?: string; experienceId?: string; subjectUserId?: string; includeAdminContent?: boolean };
 export type PersonalInfoContext = { deckTemplateId: string; version: number; personalInfoRevision: number };
 export function isCreatorInfo(root: { kind?: unknown; originCardTemplateId?: unknown }) {
   return (root.kind === undefined || root.kind === "creator") && root.originCardTemplateId === undefined;

@@ -4,10 +4,11 @@ import { useEffect, useId, useRef, useState } from "react";
 import styles from "./InfoCardFace.module.css";
 
 // `origin` names where the displayed note was created, shown read-only outside that context (C1). `onNew` is
-// absent where the viewer cannot create; `onHide` is the Group admin Hide, which never deletes (C2).
-export type InfoCardActions = { onNew?: () => void; onEdit?: () => void; onRemove?: () => void; onHide?: () => void; removeLabel?: "Remove" | "Delete"; origin?: string; disabled?: boolean };
+// absent where the viewer cannot create; `onHide` is the Group admin Hide, which never deletes (C2). `extendDown`
+// (from buildInfoCardMenuLayout) when Hide sits beneath Delete: the menu hangs one row lower so nothing else moves.
+export type InfoCardActions = { onNew?: () => void; onEdit?: () => void; onRemove?: () => void; onHide?: () => void; removeLabel?: "Remove" | "Delete"; origin?: string; disabled?: boolean; extendDown?: boolean };
 
-export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, removeLabel, origin, disabled }: InfoCardActions) {
+export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, removeLabel, origin, disabled, extendDown }: InfoCardActions) {
   const [open, setOpen] = useState(false), id = useId();
   const region = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const isOpen = useRef(false), swallowClick = useRef(false);
@@ -44,8 +45,11 @@ export default function InfoCardMenu({ onNew, onEdit, onRemove, onHide, removeLa
       onClick={() => {
         if (open) close(); else { isOpen.current = true; setOpen(true); requestAnimationFrame(() => (region.current?.querySelector<HTMLElement>('[role="menuitem"]') ?? region.current?.querySelector<HTMLElement>('[role="menu"]'))?.focus()); }
       }}>⋯</button>
-    {open && !disabled && <div className={styles.menuItems} id={id} role="menu" aria-label="Info Card actions" tabIndex={-1}>
+    {open && !disabled && <div className={extendDown ? `${styles.menuItems} ${styles.menuItemsExtended}` : styles.menuItems} id={id} role="menu" aria-label="Info Card actions" tabIndex={-1}>
       {origin && <p className={styles.menuOrigin} role="none" data-info-card-origin=""><span>Created in:</span><span>{origin}</span></p>}
+      {/* Every menu with Delete (or Remove) is as wide as one with Hide from Group beneath it, so the right-anchored
+          menus share one width and Delete stays aligned across them, horizontally as well as vertically. */}
+      {onRemove ? <span className={styles.menuSizer} aria-hidden="true">Hide from Group</span> : null}
       {items.map(item => <button key={item.label} type="button" role="menuitem" tabIndex={-1} onClick={() => { close(false); item.action(); }}>{item.label}</button>)}
     </div>}
   </div>;

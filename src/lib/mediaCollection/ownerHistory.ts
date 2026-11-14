@@ -49,11 +49,16 @@ function cursor(input: string | undefined, context: string): Cursor | undefined 
     && value.order.slice(4).every((v: unknown) => Number.isSafeInteger(v) && Number(v) >= 0), "INVALID_MEDIA_CURSOR");
   return value;
 }
+// Cursors of owner history are bound to their exact view: the Card, the Group of Me, and Include admin content.
+export function ownerCursorContext(actor: string, cardTemplateId: string, experienceId?: string, includeAdminContent?: boolean) {
+  return hash({ actor, cardTemplateId, experienceId: experienceId ?? null, ...(experienceId && includeAdminContent ? { includeAdminContent: true } : {}) });
+}
 export async function readOwnerMediaPage(cards: CardRepository, actor: string, cardTemplateId: string,
-  options: { limit?: number; cursor?: string; experienceId?: string } = {}): Promise<MediaCollectionPage> {
+  options: { limit?: number; cursor?: string; experienceId?: string; includeAdminContent?: boolean } = {}): Promise<MediaCollectionPage> {
   id(actor); id(cardTemplateId); if (options.experienceId !== undefined) id(options.experienceId);
+  requireCondition(!options.includeAdminContent || options.experienceId !== undefined, "INVALID_MEDIA_PAGE");
   const limit = options.limit ?? 30; requireCondition(Number.isSafeInteger(limit) && limit > 0 && limit <= 30, "INVALID_MEDIA_PAGE");
-  const context = hash({ actor, cardTemplateId, experienceId: options.experienceId ?? null }), after = cursor(options.cursor, context);
+  const context = ownerCursorContext(actor, cardTemplateId, options.experienceId, options.includeAdminContent), after = cursor(options.cursor, context);
   const hasGroups = await groupMediaAvailable(cards);
   return cards.transaction(async session => {
     let authority = {};
@@ -81,10 +86,11 @@ export async function readOwnerMediaPage(cards: CardRepository, actor: string, c
     }
     const pipeline = personalPipeline(actor, sources), groups = cards.db.collection<GroupMediaRecord>(GROUP_MEDIA_COLLECTION);
     // The viewer's own Follower contributions; the viewer's Admin contributions never join owner history. See
-    // contributionIdentity.ts. In Me of a Group, also that Group's Admin contributions shared with its followers
-    // (V1, checkpoint 4.5b), of any admin; the two sets never overlap. Totals, cursors and start all use baseGroup.
+    // contributionIdentity.ts. In Me of a Group with Include admin content on, also that Group's Admin contributions
+    // shared with its followers (V1), of any admin; the two sets never overlap. Totals, cursors and start all use
+    // baseGroup, and cursors are bound to the toggle state.
     const ownGroup = { authorUserId: actor, cardTemplateId, state: "attached" as const, ...FOLLOWER_CONTRIBUTIONS };
-    const baseGroup: Document = options.experienceId ? { $or: [ownGroup, { experienceId: options.experienceId, cardTemplateId, state: "attached" as const,
+    const baseGroup: Document = options.experienceId && options.includeAdminContent ? { $or: [ownGroup, { experienceId: options.experienceId, cardTemplateId, state: "attached" as const,
       groupVisible: true, ...ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS }] } : ownGroup;
     const get = async (direction: "older" | "newer", boundary: Order | undefined, count: number, inclusive = false): Promise<Row[]> => {
       const sign = direction === "older" ? -1 : 1;

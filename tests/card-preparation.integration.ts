@@ -1,3 +1,4 @@
+import { defaultIncludeAdminContent } from "../src/lib/groupExperiences/media/contributionIdentity";
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { MongoClient } from "mongodb";
@@ -27,7 +28,10 @@ test("batched owner windows exactly match existing history pages for every Card 
  const f = await fixture();
  for (const inGroup of [false, true]) {
   const pages = await f.repo.transaction(async session => ownerPreviewPages(f.cards, "bob", f.ids, session, true, inGroup ? await f.repo.access("bob", f.experienceId, "member", session) : undefined));
-  for (const card of f.ids) assert.deepEqual(pages[card], await readOwnerMediaPage(f.cards, "bob", card, { limit: 5, ...(inGroup ? { experienceId: f.experienceId } : {}) }));
+  // Me is prepared in the role-default state of Include admin content, so it matches the history page in that state.
+  const member = inGroup ? await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }) : null;
+  const includeAdminContent = !!member && defaultIncludeAdminContent(member);
+  for (const card of f.ids) assert.deepEqual(pages[card], await readOwnerMediaPage(f.cards, "bob", card, { limit: 5, ...(inGroup ? { experienceId: f.experienceId, includeAdminContent } : {}) }));
  }
 });
 test("batched foreign media windows match authorised shared ordering, counts, cursors and capabilities", async () => {

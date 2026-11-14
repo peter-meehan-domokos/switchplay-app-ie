@@ -9,7 +9,7 @@ import { createGroupMediaIndexes } from "../src/lib/groupExperiences/media/index
 import type { GroupMediaProvider } from "../src/lib/groupExperiences/media/model";
 import { readOwnerMediaPage } from "../src/lib/mediaCollection/ownerHistory";
 import { ownerPreviewPages, sharedPreviewPages, subjectPreviewPages } from "../src/lib/mediaCollection/preparation";
-import { mediaRemoveOperation, memberMediaCapabilities } from "../src/lib/mediaCollection/permissions";
+import { mediaRemoveOperations, memberMediaCapabilities } from "../src/lib/mediaCollection/permissions";
 import { viewerIdentity } from "../src/lib/groupExperiences/media/contributionIdentity";
 import type { MediaCollectionItem } from "../src/lib/mediaCollection/contracts";
 
@@ -42,8 +42,10 @@ async function fixture() {
   const authority = (actor: string, experienceId: string, session: ClientSession) => f.repo.access(actor, experienceId, "member", session);
   const keys = (items: { contributionId?: string; source?: { kind: string; contributionId?: string } }[]) =>
     items.map(item => item.contributionId ?? item.source?.contributionId).toSorted();
-  // Owner history: the standalone Card (no Group) or Me in a Group.
-  const history = async (actor: string, experienceId?: string) => readOwnerMediaPage(f.cards, actor, f.ids[0], experienceId ? { experienceId } : {});
+  // Owner history: the standalone Card (no Group) or Me in a Group, there with Include admin content on unless stated.
+  const history = async (actor: string, experienceId?: string, includeAdminContent = true) =>
+    readOwnerMediaPage(f.cards, actor, f.ids[0], experienceId ? { experienceId, ...(includeAdminContent ? { includeAdminContent } : {}) } : {});
+  // Owner previews as prepared: in Me, Include admin content in its role default (on for follower-only, off for admins).
   const previews = (actor: string, experienceId?: string) => f.repo.transaction(async session => experienceId
     ? (await ownerPreviewPages(f.cards, actor, [f.ids[0]], session, true, await authority(actor, experienceId, session)))[f.ids[0]]
     : (await ownerPreviewPages(f.cards, actor, [f.ids[0]], session, true))[f.ids[0]]);
@@ -76,10 +78,12 @@ test("coach scenario: an Admin contribution appears only in its originating Grou
   const standalone = await f.history("alice"); assert.deepEqual(standalone.items, []); assert.equal(standalone.total, 0);
   assert.equal((await f.previews("alice")).total, 0);
   assert.deepEqual((await f.media.ownerFeed("alice", f.ids[0])).items, []);
-  // In Me of Group A, for every follower (the dual-role author included), as Group content (V1).
+  // In Me of Group A with Include admin content on, for every follower (the dual-role author included), as Group
+  // content (V1). Prepared previews follow the role default: the dual-role admin alice's leave it out.
   for (const viewer of ["alice", "bob", "carol"]) {
     const page = await f.history(viewer, f.experienceId), preview = await f.previews(viewer, f.experienceId);
-    assert.deepEqual(f.keys(page.items), [admin.contributionId], viewer); assert.equal(page.total, 1); assert.equal(preview.total, 1);
+    assert.deepEqual(f.keys(page.items), [admin.contributionId], viewer); assert.equal(page.total, 1); assert.equal(preview.total, viewer === "alice" ? 0 : 1, viewer);
+    assert.deepEqual((await f.history(viewer, f.experienceId, false)).items, [], `${viewer} with it off`);
     assert.deepEqual([page.items[0].authorUserId, page.items[0].creationContext, page.items[0].private], ["alice", "group", false]);
     assert.equal(page.capabilities?.canHideOthers, false, "Hide from Group is never offered in Me");
   }
@@ -106,8 +110,8 @@ test("followers' Me lists every admin's Admin media with their own, by date, wit
   assert.equal((await f.media.authorized("bob", c1.contributionId, { kind: "group", experienceId: f.experienceId })).row.authorUserId, "carol");
   await assert.rejects(f.media.authorized("bob", c1.contributionId, { kind: "owner" }), { code: "GROUP_MEDIA_FORBIDDEN" });
   // Paging two at a time walks the same five items, with consistent start positions and no duplicates.
-  const pages = [await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 2 })];
-  while (pages.at(-1)!.older) pages.push(await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 2, cursor: pages.at(-1)!.older! }));
+  const pages = [await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, includeAdminContent: true, limit: 2 })];
+  while (pages.at(-1)!.older) pages.push(await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, includeAdminContent: true, limit: 2, cursor: pages.at(-1)!.older! }));
   assert.deepEqual(pages.flatMap(page => page.items).map(item => item.source.kind === "group" ? item.source.contributionId : "").toSorted(), order.toSorted());
   assert.deepEqual(pages.map(page => [page.start, page.total]), [[3, 5], [1, 5], [0, 5]]);
   // Previews show the newest five with the same total.
@@ -124,14 +128,40 @@ test("followers' Me lists every admin's Admin media with their own, by date, wit
   assert.deepEqual(f.keys((await f.history("bob")).items), [own1, own2].map(item => item.contributionId).toSorted());
 });
 
-test("inspection adds the Group's Admin media only with Include Group content, with its own paging and delivery", async () => {
+test("Me shows the Group's Admin media only with Include admin content, with cursors bound to each state, and previews follow the role default", async () => {
+  const f = await fixture();
+  const admin = await f.attach("alice", "group"), own1 = await f.attach("bob", "self"), own2 = await f.attach("bob", "self");
+  // Off: the follower's own contributions only, with totals, cursors and starts counting those alone.
+  const off = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 1 });
+  assert.equal(off.total, 2); assert.deepEqual(f.keys(off.items), [own2.contributionId]);
+  const offOlder = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 1, cursor: off.older! });
+  assert.deepEqual(f.keys(offOlder.items), [own1.contributionId]); assert.equal(offOlder.older, null);
+  // On: the Admin item joins, by date.
+  const on = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, includeAdminContent: true, limit: 1 });
+  assert.equal(on.total, 3); assert.equal(on.start, 2);
+  // A cursor from one state is refused in the other, so paging never mixes the two views.
+  await assert.rejects(readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, limit: 1, cursor: on.older! }), { code: "INVALID_MEDIA_CURSOR" });
+  await assert.rejects(readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, includeAdminContent: true, limit: 1, cursor: off.older! }), { code: "INVALID_MEDIA_CURSOR" });
+  // Never on the standalone Card.
+  await assert.rejects(readOwnerMediaPage(f.cards, "bob", f.ids[0], { includeAdminContent: true }), { code: "INVALID_MEDIA_PAGE" });
+  // Prepared previews: follower-only bob on by default, so his preview cursor walks the on view; admin alice off.
+  const bobPreview = await f.previews("bob", f.experienceId);
+  assert.equal(bobPreview.total, 3); assert.ok(f.keys(bobPreview.items).includes(admin.contributionId));
+  await f.attach("alice", "self");
+  const alicePreview = await f.previews("alice", f.experienceId);
+  assert.equal(alicePreview.total, 1, "a dual-role admin's own Follower contribution only"); assert.ok(!f.keys(alicePreview.items).includes(admin.contributionId));
+  const bobLimited = await readOwnerMediaPage(f.cards, "bob", f.ids[0], { experienceId: f.experienceId, includeAdminContent: true, limit: 1, cursor: bobPreview.refresh! });
+  assert.equal(bobLimited.total, 3, "a prepared cursor is valid in the state it was prepared for");
+});
+
+test("inspection adds the Group's Admin media only with Include admin content, with its own paging and delivery", async () => {
   const f = await fixture();
   await f.repo.experiences().updateOne({ experienceId: f.experienceId }, { $set: { allowFollowerInspection: true } });
   const admin = await f.attach("alice", "group"), bob = await f.attach("bob", "self"), carol = await f.attach("carol", "self");
   const elsewhere = await f.attach("alice", "group", f.groupB);
   const off = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob" });
   assert.deepEqual(f.keys(off.items), [bob.contributionId], "off: that follower's contributions only");
-  const on = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true });
+  const on = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeAdminContent: true });
   assert.deepEqual(f.keys(on.items), [admin.contributionId, bob.contributionId].toSorted(), "never another follower's or another Group's");
   assert.equal(on.total, 2); assert.ok(!f.keys(on.items).includes(carol.contributionId) && !f.keys(on.items).includes(elsewhere.contributionId));
   // The Admin item is delivered as Group content (no subject); the subject's own keeps the inspection authority.
@@ -139,15 +169,15 @@ test("inspection adds the Group's Admin media only with Include Group content, w
   assert.equal(delivered.get(admin.contributionId), `/api/group-media/${admin.contributionId}?action=playback&experienceId=${f.experienceId}`);
   assert.equal(delivered.get(bob.contributionId), `/api/group-media/${bob.contributionId}?action=playback&experienceId=${f.experienceId}&subjectUserId=bob`);
   // Paging one at a time walks both items with cursors bound to this view.
-  const first = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true, limit: 1 });
-  const second = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true, limit: 1, after: first.next! });
+  const first = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeAdminContent: true, limit: 1 });
+  const second = await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeAdminContent: true, limit: 1, after: first.next! });
   assert.deepEqual([...f.keys(first.items), ...f.keys(second.items)].toSorted(), [admin.contributionId, bob.contributionId].toSorted());
   await assert.rejects(f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", limit: 1, after: first.next! }), { code: "INVALID_GROUP_MEDIA_PAGE" }, "a cursor never crosses views");
   // Only for inspection, and under the existing inspection checks; hidden Admin media stays out.
-  await assert.rejects(f.media.groupFeed("carol", f.experienceId, f.ids[0], { includeGroupContent: true }), { code: "INVALID_GROUP_MEDIA_PAGE" });
-  await assert.rejects(f.media.groupFeed("carol", f.groupB, f.ids[0], { subjectUserId: "bob", includeGroupContent: true }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  await assert.rejects(f.media.groupFeed("carol", f.experienceId, f.ids[0], { includeAdminContent: true }), { code: "INVALID_GROUP_MEDIA_PAGE" });
+  await assert.rejects(f.media.groupFeed("carol", f.groupB, f.ids[0], { subjectUserId: "bob", includeAdminContent: true }), { code: "GROUP_MEDIA_FORBIDDEN" });
   await f.media.hide("alice", f.experienceId, admin.contributionId, { expectedRevision: admin.revision, accessEpoch: await f.epoch("alice", f.experienceId) });
-  assert.deepEqual(f.keys((await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeGroupContent: true })).items), [bob.contributionId]);
+  assert.deepEqual(f.keys((await f.media.groupFeed("carol", f.experienceId, f.ids[0], { subjectUserId: "bob", includeAdminContent: true })).items), [bob.contributionId]);
 });
 
 test("follower scenario: a Follower contribution keeps its cross-context history, private outside its Group", async () => {
@@ -189,12 +219,12 @@ test("a dual-role user has separate Admin and Follower histories, views and dele
   const item = (id: string, creationContext: "self" | "group"): MediaCollectionItem => ({ source: { kind: "group", experienceId: f.experienceId, contributionId: id }, authorUserId: "alice",
     mediaType: "image", description: "Group image", uploadedAt: null, originName: null, private: false, creationContext });
   const groupCaps = memberMediaCapabilities(member), meCaps = memberMediaCapabilities(member, "alice");
-  assert.equal(mediaRemoveOperation("alice", item(admin.contributionId, "group"), groupCaps, f.experienceId, viewerIdentity(groupContext)), "delete");
-  assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), groupCaps, f.experienceId, viewerIdentity(groupContext)), "hide");
-  assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), meCaps, f.experienceId, viewerIdentity(meContext)), "delete");
-  assert.equal(mediaRemoveOperation("alice", item(admin.contributionId, "group"), meCaps, f.experienceId, viewerIdentity(meContext)), null);
+  assert.deepEqual(mediaRemoveOperations("alice", item(admin.contributionId, "group"), groupCaps, f.experienceId, viewerIdentity(groupContext)), ["delete", "hide"], "own Admin item in the Group perspective: both");
+  assert.deepEqual(mediaRemoveOperations("alice", item(follower.contributionId, "self"), groupCaps, f.experienceId, viewerIdentity(groupContext)), ["hide"]);
+  assert.deepEqual(mediaRemoveOperations("alice", item(follower.contributionId, "self"), meCaps, f.experienceId, viewerIdentity(meContext)), ["delete"]);
+  assert.deepEqual(mediaRemoveOperations("alice", item(admin.contributionId, "group"), meCaps, f.experienceId, viewerIdentity(meContext)), []);
   // C1 (checkpoint 4.2b): the standalone Card is not the creation context of a Follower contribution.
-  assert.equal(mediaRemoveOperation("alice", item(follower.contributionId, "self"), { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false }, undefined, "self"), null);
+  assert.deepEqual(mediaRemoveOperations("alice", item(follower.contributionId, "self"), { canUpload: false, canManage: true, canRemoveOwn: true, canHideOthers: false }, undefined, "self"), []);
 
   // The server rejects cross-identity deletes through the Group-context route and the owner route.
   const epoch = member.accessEpoch;
@@ -215,13 +245,13 @@ test("a follower-only user has no Admin identity: no Group-perspective delete, d
   const member = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!;
   const item: MediaCollectionItem = { source: { kind: "group", experienceId: f.experienceId, contributionId: first.contributionId }, authorUserId: "bob", mediaType: "image",
     description: "Group image", uploadedAt: null, originName: null, private: false, creationContext: "self" };
-  assert.equal(mediaRemoveOperation("bob", item, memberMediaCapabilities(member), f.experienceId, "group"), null, "no Delete in the Group perspective");
-  assert.equal(mediaRemoveOperation("bob", item, memberMediaCapabilities(member, "bob"), f.experienceId, "self"), "delete");
+  assert.deepEqual(mediaRemoveOperations("bob", item, memberMediaCapabilities(member), f.experienceId, "group"), [], "no Delete in the Group perspective");
+  assert.deepEqual(mediaRemoveOperations("bob", item, memberMediaCapabilities(member, "bob"), f.experienceId, "self"), ["delete"]);
   await assert.rejects(f.media.delete("bob", first.contributionId, { expectedRevision: first.revision }, { experienceId: f.experienceId, accessEpoch: member.accessEpoch, perspective: "group" }), { code: "GROUP_FORBIDDEN" });
   assert.equal((await f.media.delete("bob", first.contributionId, { expectedRevision: first.revision }, { experienceId: f.experienceId, accessEpoch: member.accessEpoch, perspective: "self" })).state, "deleted");
   // C1: the standalone Card (owner route) cannot delete an attached Follower contribution.
   await assert.rejects(f.media.delete("bob", second.contributionId, { expectedRevision: second.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
-  assert.equal(mediaRemoveOperation("bob", { ...item, source: { kind: "group", experienceId: f.experienceId, contributionId: second.contributionId } }, memberMediaCapabilities(member, "bob"), undefined, "self"), null);
+  assert.deepEqual(mediaRemoveOperations("bob", { ...item, source: { kind: "group", experienceId: f.experienceId, contributionId: second.contributionId } }, memberMediaCapabilities(member, "bob"), undefined, "self"), []);
   // Nobody deletes another author's contribution, whatever identity they claim.
   const carol = await f.attach("carol", "self");
   const alice = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }))!;
@@ -347,11 +377,11 @@ test("Delete genuinely deletes in the creation context and Hide never deletes, f
   const alice = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "alice" }))!, bob = (await f.repo.members().findOne({ experienceId: f.experienceId, userId: "bob" }))!;
   const groupCaps = memberMediaCapabilities(alice), aliceMe = memberMediaCapabilities(alice, "alice"), bobMe = memberMediaCapabilities(bob, "bob");
   // The operations the client offers.
-  assert.equal(mediaRemoveOperation("alice", groupItem(f, adminUpload.contributionId, "alice", "group"), groupCaps, f.experienceId, "group"), "delete", "own Admin upload in the Group perspective");
-  assert.equal(mediaRemoveOperation("alice", groupItem(f, ownFollower.contributionId, "alice", "self"), groupCaps, f.experienceId, "group"), "hide", "own Follower upload seen in the Group perspective");
-  assert.equal(mediaRemoveOperation("alice", groupItem(f, ownFollower.contributionId, "alice", "self"), aliceMe, f.experienceId, "self"), "delete", "own Follower upload in Me");
-  assert.equal(mediaRemoveOperation("alice", groupItem(f, bobUpload.contributionId, "bob", "self"), groupCaps, f.experienceId, "group"), "hide", "another author's upload");
-  assert.equal(mediaRemoveOperation("bob", groupItem(f, bobUpload.contributionId, "bob", "self"), bobMe, f.experienceId, "self"), "delete", "follower in Me of the originating Group");
+  assert.deepEqual(mediaRemoveOperations("alice", groupItem(f, adminUpload.contributionId, "alice", "group"), groupCaps, f.experienceId, "group"), ["delete", "hide"], "own Admin upload in the Group perspective: Delete, with Hide from Group beneath");
+  assert.deepEqual(mediaRemoveOperations("alice", groupItem(f, ownFollower.contributionId, "alice", "self"), groupCaps, f.experienceId, "group"), ["hide"], "own Follower upload seen in the Group perspective");
+  assert.deepEqual(mediaRemoveOperations("alice", groupItem(f, ownFollower.contributionId, "alice", "self"), aliceMe, f.experienceId, "self"), ["delete"], "own Follower upload in Me");
+  assert.deepEqual(mediaRemoveOperations("alice", groupItem(f, bobUpload.contributionId, "bob", "self"), groupCaps, f.experienceId, "group"), ["hide"], "another author's upload");
+  assert.deepEqual(mediaRemoveOperations("bob", groupItem(f, bobUpload.contributionId, "bob", "self"), bobMe, f.experienceId, "self"), ["delete"], "follower in Me of the originating Group");
 
   // Hide keeps the record attached; only its Group visibility changes.
   await f.media.hide("alice", f.experienceId, ownFollower.contributionId, { expectedRevision: ownFollower.revision, accessEpoch: alice.accessEpoch });
@@ -375,7 +405,7 @@ test("deletion outside the creation context is refused by the server, including 
   const upload = await f.attach("alice", "self");
   // Me of Group B is a different context, even for the same Card template.
   await assert.rejects(f.media.delete("alice", upload.contributionId, { expectedRevision: upload.revision }, { experienceId: f.groupB, accessEpoch: await f.epoch("alice", f.groupB), perspective: "self" }), { code: "GROUP_MEDIA_FORBIDDEN" });
-  assert.equal(mediaRemoveOperation("alice", groupItem(f, upload.contributionId, "alice", "self"), memberMediaCapabilities({ userId: "alice", isAdmin: true, followerStatus: "active" }, "alice"), f.groupB, "self"), null);
+  assert.deepEqual(mediaRemoveOperations("alice", groupItem(f, upload.contributionId, "alice", "self"), memberMediaCapabilities({ userId: "alice", isAdmin: true, followerStatus: "active" }, "alice"), f.groupB, "self"), []);
   // The standalone Card has no route that deletes an attached Group contribution.
   await assert.rejects(f.media.delete("alice", upload.contributionId, { expectedRevision: upload.revision }), { code: "GROUP_MEDIA_FORBIDDEN" });
   assert.equal((await f.media.records().findOne({ contributionId: upload.contributionId }))!.state, "attached");
@@ -402,4 +432,23 @@ test("an admin who is no longer an active follower cannot delete their Follower 
   // Still an admin: they may hide it, which never deletes.
   await f.media.hide("alice", f.experienceId, upload.contributionId, { expectedRevision: upload.revision, accessEpoch: alice.accessEpoch });
   assert.equal((await f.media.records().findOne({ contributionId: upload.contributionId }))!.state, "attached");
+});
+
+// Refinement after 4.5c: an admin may hide their own Admin contribution; it is hidden, never deleted, and then out of
+// reach of the existing interface (accepted limitation). Another admin may hide it but never delete it.
+test("an admin hides their own Admin upload: hidden everywhere, never deleted; another admin hides but cannot delete", async () => {
+  const f = await fixture();
+  await f.setAdmin("carol", true);
+  const own = await f.attach("alice", "group"), other = await f.attach("alice", "group");
+  await f.media.hide("alice", f.experienceId, own.contributionId, { expectedRevision: own.revision, accessEpoch: await f.epoch("alice", f.experienceId) });
+  const row = await f.media.records().findOne({ contributionId: own.contributionId });
+  assert.equal(row?.groupVisible, false); assert.equal(row?.state, "attached", "hidden, not deleted");
+  assert.ok(!f.keys((await f.media.groupFeed("alice", f.experienceId, f.ids[0])).items).includes(own.contributionId), "out of the Group perspective");
+  for (const viewer of ["alice", "bob"]) assert.ok(!f.keys((await f.history(viewer, f.experienceId)).items).includes(own.contributionId), `out of ${viewer}'s Me`);
+  // Another admin: Hide, never Delete.
+  await assert.rejects(f.media.delete("carol", other.contributionId, { expectedRevision: other.revision }, { experienceId: f.experienceId, accessEpoch: await f.epoch("carol", f.experienceId), perspective: "group" }), { code: "GROUP_MEDIA_FORBIDDEN" });
+  await f.media.hide("carol", f.experienceId, other.contributionId, { expectedRevision: other.revision, accessEpoch: await f.epoch("carol", f.experienceId) });
+  assert.equal((await f.media.records().findOne({ contributionId: other.contributionId }))?.state, "attached");
+  // A follower can do neither.
+  await assert.rejects(f.media.hide("bob", f.experienceId, own.contributionId, { expectedRevision: own.revision + 1, accessEpoch: await f.epoch("bob", f.experienceId) }));
 });

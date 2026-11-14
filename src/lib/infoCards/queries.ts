@@ -156,11 +156,11 @@ export async function publicationSnapshotEntries(repo: InfoCardRepository, actor
 // the viewer own private notes follow the Group media rules exactly (contributionIdentity.ts, readMediaPage):
 //   working (standalone Card): their standalone Personal Info Cards and all their Follower contributions;
 //   experience (their Me in a Group): the same, with `private` set on those not shared with this Group;
-//     Since checkpoint 4.5 (V1) also the Admin contributions of this Group, which every active follower sees;
+//     with `includeAdminContent` (the Include admin content toggle) also the Admin contributions of this Group (V1);
 //   group (the Group perspective): every contribution originating in this Group and shared with it, Admin and
 //     Follower alike and including former members; with `subjectUserId` (follower inspection), only that
 //     follower's Follower contributions shared with this Group, where the Group allows inspection, plus the
-//     Group's Admin contributions when `includeGroupContent` is set (the Include Group content toggle);
+//     Group's Admin contributions when `includeAdminContent` is set (the Include admin content toggle);
 //   canonical (Library and other read-only contexts): Creator Info Cards only.
 // Admin contributions appear only in their originating Group (its Group perspective and its followers' Me);
 // standalone Personal Info Cards never appear in a Group.
@@ -201,15 +201,15 @@ export async function mainInfoConsultation(repo: InfoCardRepository, actor: stri
     if (context.mode === "group") {
       const subject = context.subjectUserId;
       const shared = await repo.roots().find({ ...sharedInGroup(context.experienceId!, mainCardId),
-        ...(subject ? context.includeGroupContent ? { $or: [{ ownerUserId: subject, ...FOLLOWER_CONTRIBUTIONS }, ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS] } : { ownerUserId: subject, ...FOLLOWER_CONTRIBUTIONS } : {}) },
+        ...(subject ? context.includeAdminContent ? { $or: [{ ownerUserId: subject, ...FOLLOWER_CONTRIBUTIONS }, ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS] } : { ownerUserId: subject, ...FOLLOWER_CONTRIBUTIONS } : {}) },
         { session, projection: { _id: 0, infoCardId: 1, experienceId: 1, createdAt: 1 } }).toArray();
       for (const row of shared) {
         sharedGroupIds.add(row.infoCardId);
         refs.push({ id: row.infoCardId, source: "group", experienceId: row.experienceId, date: row.createdAt instanceof Date ? row.createdAt.toISOString() : undefined });
       }
     }
-    if (context.mode === "experience") {
-      // V1: the Group's Admin contributions, shared with every active follower. Sorted by date like everything else,
+    if (context.mode === "experience" && context.includeAdminContent) {
+      // V1: the Group's Admin contributions, shared with every active follower, shown when Include admin content is on. Sorted by date like everything else,
       // never the viewer's to manage here (C1), and with no visibility marker: the private icon stays about the
       // viewer's own content only.
       const admin = await repo.roots().find({ ...sharedInGroup(context.experienceId!, mainCardId), ...ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS },

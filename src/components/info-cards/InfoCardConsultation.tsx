@@ -235,7 +235,7 @@ export default function InfoCardConsultation({ id, cards, anchor, source, onClos
           actions={card => { const menu = buildInfoCardMenuLayout(card, !!personalContext);
             if (!menu) return undefined;
             return { ...(menu.create ? { onNew: () => void edit() } : {}), ...(menu.manage && !card.unavailable ? { onEdit: () => void edit(card), onRemove: () => void remove(card), ...(menu.removeLabel ? { removeLabel: menu.removeLabel } : {}) } : {}),
-              ...(menu.hide && !card.unavailable ? { onHide: () => void hide(card) } : {}), ...(menu.origin ? { origin: menu.origin } : {}) }; }}
+              ...(menu.hide && !card.unavailable ? { onHide: () => void hide(card), ...(menu.extendDown ? { extendDown: true } : {}) } : {}), ...(menu.origin ? { origin: menu.origin } : {}) }; }}
           onRequestClose={requestClose} onExited={onClose} onBusyChange={onBusyChange} onOpenMedia={openMedia} onPositionChange={setPosition} />
           : personalContext && <InfoCardEmptyPanel id={id} pouch={source} closing={closing} settled={hadCards} disabled={mutation || !!authoring}
             addRef={closeButton} onAdd={() => void edit()} onExited={onClose}

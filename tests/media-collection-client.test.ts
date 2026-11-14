@@ -133,8 +133,8 @@ test("composed media preparation cannot resurrect a removed item or replace a ne
  c.dispose(); assert.equal(c.acceptPrepared(page([])), false);
 });
 // Checkpoint 4.5b (V1): Me of a Group also holds that Group's Admin contributions; nothing else of another author.
-test("a follower's Me page accepts this Group's Admin items only, never another follower's or another Group's", async () => {
-  const me: MediaCollectionContext = { viewerUserId: "bob", cardTemplateId: "card", kind: "owner", experienceId: "galway" };
+test("a follower's Me page with Include admin content accepts this Group's Admin items only, never another follower's or another Group's", async () => {
+  const me: MediaCollectionContext = { viewerUserId: "bob", cardTemplateId: "card", kind: "owner", experienceId: "galway", includeAdminContent: true };
   const item = (contributionId: string, authorUserId: string, creationContext: "self" | "group", experienceId = "galway", isPrivate = false) => ({
     source: { kind: "group" as const, experienceId, contributionId }, authorUserId, mediaType: "image" as const, description: "Group image", uploadedAt: null, originName: "Galway", private: isPrivate, creationContext });
   const load = async (items: MediaCollectionPage["items"], ctx = me) => {
@@ -146,9 +146,11 @@ test("a follower's Me page accepts this Group's Admin items only, never another 
   assert.equal(await load([item("elsewhere", "alice", "group", "other")]), null, "another Group's Admin item");
   assert.equal(await load([item("hidden", "alice", "group", "galway", true)]), null, "never a private Admin item");
   assert.equal(await load([item("coach", "alice", "group")], { viewerUserId: "bob", cardTemplateId: "card", kind: "owner" }), null, "never on the standalone Card");
+  assert.equal(await load([item("coach", "alice", "group")], { viewerUserId: "bob", cardTemplateId: "card", kind: "owner", experienceId: "galway" }), null, "never in Me with Include admin content off");
+  assert.ok(await load([item("own", "bob", "self")], { viewerUserId: "bob", cardTemplateId: "card", kind: "owner", experienceId: "galway" }), "own items with it off");
 });
-// Checkpoint 4.5c: Include Group content adds this Group's Admin items to a follower inspection, and only then.
-test("an inspection page accepts this Group's Admin items only with Include Group content", async () => {
+// Checkpoint 4.5c: Include admin content adds this Group's Admin items to a follower inspection, and only then.
+test("an inspection page accepts this Group's Admin items only with Include admin content", async () => {
   const base = { kind: "group" as const, viewerUserId: "coach", cardTemplateId: "card", experienceId: "galway", subjectUserId: "bob", accessEpoch: 2, adoptionRevision: 3 };
   const item = (contributionId: string, authorUserId: string, creationContext: "self" | "group", experienceId = "galway") => ({
     source: { kind: "group" as const, experienceId, contributionId }, authorUserId, mediaType: "image" as const, description: "Group image", uploadedAt: null, originName: "Galway", private: false, creationContext });
@@ -159,7 +161,7 @@ test("an inspection page accepts this Group's Admin items only with Include Grou
   };
   const both = [item("own", "bob", "self"), item("coach", "alice", "group")];
   assert.equal(await load(both, base), null, "off: only the inspected follower's items");
-  assert.ok(await load(both, { ...base, includeGroupContent: true }));
-  assert.equal(await load([item("peer", "carol", "self")], { ...base, includeGroupContent: true }), null, "never another follower's");
-  assert.equal(await load([item("elsewhere", "alice", "group", "other")], { ...base, includeGroupContent: true }), null, "never another Group's");
+  assert.ok(await load(both, { ...base, includeAdminContent: true }));
+  assert.equal(await load([item("peer", "carol", "self")], { ...base, includeAdminContent: true }), null, "never another follower's");
+  assert.equal(await load([item("elsewhere", "alice", "group", "other")], { ...base, includeAdminContent: true }), null, "never another Group's");
 });

@@ -3,6 +3,7 @@ import { captureReflectionPreparation, acceptReflectionPreparation, hasPreparedR
 import { workingCardStore } from "./workingCardStore";
 import type { PreparedContributions } from "./preparation";
 import type { MediaCollectionContext } from "../mediaCollection/contracts";
+import { defaultIncludeAdminContent } from "../groupExperiences/media/contributionIdentity";
 
 export function captureCardPreparation(actor: string) {
   workingCardStore.trackUser(actor);
@@ -31,11 +32,16 @@ export function acceptPersonalPreparation(capture: ReturnType<typeof captureCard
   return deck;
 }
 
+// The media context of own Me as prepared: Include admin content in its role default (defaultIncludeAdminContent),
+// matching the server preparation, so the prepared previews are those of the default view.
+export function ownMeMediaContext(actor: string, cardTemplateId: string, experienceId: string, viewer: { isAdmin: boolean }): MediaCollectionContext {
+  return { kind: "owner", viewerUserId: actor, cardTemplateId, experienceId, ...(defaultIncludeAdminContent(viewer) ? { includeAdminContent: true as const } : {}) };
+}
 // Read-only readiness lookup; it neither creates a controller nor grants access.
 export function hasInitialGroupPreparation(actor: string, bootstrap: import("../groupExperiences/presentationReads").GroupBootstrap, selection: import("../groupExperiences/model").PerspectiveSelection) {
   const experienceId = bootstrap.experienceId;
   return bootstrap.deck.cards.every(card => {
-    const media: MediaCollectionContext = selection.perspective === "self" ? { kind: "owner", viewerUserId: actor, cardTemplateId: card.id, experienceId }
+    const media: MediaCollectionContext = selection.perspective === "self" ? ownMeMediaContext(actor, card.id, experienceId, bootstrap)
       : { kind: "group", viewerUserId: actor, cardTemplateId: card.id, experienceId, accessEpoch: bootstrap.accessEpoch, adoptionRevision: bootstrap.adoptionRevision, structureRevision: bootstrap.structureRevision, ...(selection.perspective === "follower" ? { subjectUserId: selection.subjectUserId } : {}) };
     const reflection: ReflectionAreaContext = { viewerUserId: actor, cardTemplateId: card.id, adoptionRevision: bootstrap.adoptionRevision, structureRevision: bootstrap.structureRevision,
       view: { kind: "group", experienceId, mode: selection.perspective === "self" ? "own" : selection.perspective === "group" ? "group" : "inspection", accessEpoch: bootstrap.accessEpoch, ...(selection.perspective === "follower" ? { subjectUserId: selection.subjectUserId } : {}) } };

@@ -13,7 +13,7 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
     ...(context.mode === "working" ? { deckTemplateId: context.deckTemplateId! } : {}),
     ...(context.mode === "experience" || context.mode === "group" ? { experienceId: context.experienceId! } : {}),
     ...(context.mode === "group" && context.subjectUserId ? { subjectUserId: context.subjectUserId } : {}),
-    ...(context.mode === "group" && context.subjectUserId && context.includeGroupContent ? { includeGroupContent: "1" } : {}) });
+    ...((context.mode === "experience" || context.mode === "group" && context.subjectUserId) && context.includeAdminContent ? { includeAdminContent: "1" } : {}) });
   const response = await fetch(`/api/card-templates/${encodeURIComponent(context.mainCardId)}/info-cards?${query}`, {
     signal, cache: "no-store", headers: { "X-Personal-Viewer": context.actor },
   });
@@ -45,28 +45,28 @@ export async function loadInfoConsultation(context: ConsultationRequest, signal:
       if (!ownNotes || !source || info.kind !== "personal" || info.ownerUserId !== context.actor
         || info.visibility !== "private" || info.originCardTemplateId !== source.cardTemplateId) throw new Error("Invalid personal entry");
     } else if (entry.source === "group") {
-      // In the viewer own contexts, their own Follower contributions (checkpoint 4.2), and in Me also this Group's
-      // Admin contributions (V1, checkpoint 4.5). In the Group perspective, any contribution of this Group; in
-      // follower inspection, only that follower's Follower contributions (4.4), plus this Group's Admin
-      // contributions when Include Group content is on (4.5).
+      // In the viewer own contexts, their own Follower contributions (checkpoint 4.2). In the Group perspective, any
+      // contribution of this Group; in follower inspection, only that follower's Follower contributions (4.4). In Me
+      // and in inspection, also this Group's Admin contributions when Include admin content is on (V1).
       const groupAdmin = info.creationContext === "group" && info.experienceId === context.experienceId;
       if (info.kind !== "group" || info.visibility !== "private" || info.originCardTemplateId !== context.mainCardId || typeof info.experienceId !== "string"
-        || (ownNotes ? !(info.creationContext === "self" && info.ownerUserId === context.actor || context.mode === "experience" && groupAdmin)
+        || (ownNotes ? !(info.creationContext === "self" && info.ownerUserId === context.actor || context.mode === "experience" && !!context.includeAdminContent && groupAdmin)
           : !groupMode || info.experienceId !== context.experienceId || !!context.subjectUserId
-            && !(info.creationContext === "self" && info.ownerUserId === context.subjectUserId || !!context.includeGroupContent && groupAdmin))) throw new Error("Invalid Group note entry");
+            && !(info.creationContext === "self" && info.ownerUserId === context.subjectUserId || !!context.includeAdminContent && groupAdmin))) throw new Error("Invalid Group note entry");
     } else if (info.kind === "personal" || info.kind === "group" || (modern ? !context.attachmentIds.includes(info.infoCardId) : info.infoCardId !== context.attachmentIds[index])) throw new Error("Invalid shared entry");
     if (entry.private !== undefined && (context.mode !== "experience" || entry.source === "shared" || typeof entry.private !== "boolean")) throw new Error("Invalid visibility");
     if (entry.originName !== undefined && (entry.source !== "group" || entry.originName !== null && typeof entry.originName !== "string")) throw new Error("Invalid origin");
     // Edit and Remove only on the viewer own note in its exact creation context (C1): standalone notes on the
     // standalone Card, Follower contributions in Me of their Group, Admin contributions in the Group perspective of
-    // their Group. Elsewhere the viewer own note names where it was created. A Group admin may hide any other
-    // contribution shown in the Group perspective or follower inspection (C2).
+    // their Group. Elsewhere the viewer own note names where it was created. A Group admin may hide any contribution
+    // shown in the Group perspective or follower inspection (C2), and their own Admin contribution in the Group
+    // perspective has both Delete and Hide from Group.
     const own = info.ownerUserId === context.actor;
     const acting = actingOrigin(context.mode === "experience" || groupMode ? context.experienceId : undefined, groupMode && !context.subjectUserId ? "group" : "self");
     const editable = own && sameOrigin(infoCardOrigin(info), acting);
-    // The viewer's own Admin contribution outside the Group perspective (an inspection with Include Group content,
-    // 4.5c) is managed only where it was created, as for media: its origin, never Hide.
-    const hideable = groupMode && snapshot.canHide && !editable && !(own && info.creationContext === "group");
+    // The viewer's own Admin contribution outside the Group perspective (an inspection with Include admin content)
+    // is managed only where it was created, as for media: its origin, never Hide.
+    const hideable = groupMode && snapshot.canHide && !(own && info.creationContext === "group" && !editable);
     const groupNote = entry.source === "group" ? { experienceId: info.experienceId!, editable, ...(hideable ? { canHide: true } : {}) } : undefined;
     const origin = !own ? undefined : entry.source === "group" ? originLabel(infoCardOrigin(info), entry.originName) : entry.source === "personal" ? originLabel(STANDALONE_ORIGIN) : undefined;
     return { id: info.infoCardId, title: info.content.title, body: info.content.body, bodyFormat: info.content.bodyFormat, seriesTitle: info.series.title,

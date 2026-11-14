@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import CardMediaCentre from "@/components/media/CardMediaCentre";
 import CollectionGallery from "@/components/media/CollectionGallery";
 import type { MediaCollectionContext, MediaCollectionPage } from "@/lib/mediaCollection/contracts";
-import { viewerIdentity } from "@/lib/groupExperiences/media/contributionIdentity";
+import { defaultIncludeAdminContent, viewerIdentity } from "@/lib/groupExperiences/media/contributionIdentity";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
 import DeckScene from "@/components/decks/DeckScene";
 import FocusedCardView from "@/components/decks/FocusedCardView";
@@ -21,7 +21,7 @@ import type { PersonalLearningChange } from "@/lib/cards/learning";
 import "./group-experience.css";
 import PerspectivePicker, { type PerspectiveChoice } from "./PerspectivePicker";
 import PerspectiveGrid from "./PerspectiveGrid";
-import { buildGroupContentToggleLayout } from "./groupContentToggleLayout";
+import { buildAdminContentToggleLayout } from "./adminContentToggleLayout";
 import DeckMenu from "@/components/decks/DeckMenu";
 import GroupManagementForm from "./GroupManagementForm";
 import GroupUpdateControls from "./GroupUpdateControls";
@@ -46,10 +46,10 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const [activeCardId, setActiveCardId] = useState<string | undefined>(restored?.cardId);
   const [focused, setFocused] = useState(restored?.focused ?? false);
   const [expanded, setExpanded] = useState(false);
-  // The Include Group content toggle (checkpoint 4.5c): one setting for this Group deck, off by default. It lives
-  // with the deck, so it resets when the deck is left or the page reloads, and persists across followers and
-  // between the deck and Focused Card views.
-  const [includeGroupContent, setIncludeGroupContent] = useState(false);
+  // The Include admin content toggle: one setting for this Group deck. Null until the viewer changes it, so it shows
+  // the role default (defaultIncludeAdminContent). It lives with the deck, so it resets to that default when the deck
+  // is left or the page reloads, and persists across perspectives, followers and the deck and Focused Card views.
+  const [adminContentChoice, setAdminContentChoice] = useState<boolean | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const root = useRef<HTMLElement | null>(null);
   const [sceneBusy, setSceneBusy] = useState(false), [focusBusy, setFocusBusy] = useState(false);
@@ -110,9 +110,10 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   // A stale lease disables writes. Confirmed denial/composition changes purge
   // affected resources; routine verification must not reconstruct the Card.
   const shown = effective;
-  const groupContentLayout = buildGroupContentToggleLayout({ canInspectFollowers: boot.canInspectFollowers, selection: shown, includeGroupContent });
-  const groupContent = { layout: groupContentLayout, onChange: setIncludeGroupContent };
-  const deck = presentGroup(data, shown, state.verified, groupContentLayout.applies);
+  const adminContentLayout = buildAdminContentToggleLayout({ hasFollowerPerspectives: boot.isFollower || boot.canInspectFollowers, selection: shown,
+    includeAdminContent: adminContentChoice ?? defaultIncludeAdminContent(boot) });
+  const adminContent = { layout: adminContentLayout, onChange: setAdminContentChoice };
+  const deck = presentGroup(data, shown, state.verified, adminContentLayout.applies);
   // Adoption can remove a Card while this physical scene remains mounted.
   // Retained learning is not a historical navigation grant: use only a current
   // Card for both scene selection and subsequent preference writes.
@@ -121,13 +122,13 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
   const choices: PerspectiveChoice[] = [{ key: "group", name: boot.name, group: true, selection: { perspective: "group" } },
     ...data.followers.map(row => ({ key: row.userId, name: row.username, selection: row.userId === actor ? { perspective: "self" as const } : { perspective: "follower" as const, subjectUserId: row.userId } }))];
   const selectedKey = shown.perspective === "group" ? "group" : shown.perspective === "self" ? actor : shown.subjectUserId;
-  const mediaAuthority = JSON.stringify([actor, experienceId, effective, boot.accessEpoch, boot.adoptionRevision, boot.structureRevision, boot.isAdmin, boot.isFollower, groupContentLayout.applies]);
+  const mediaAuthority = JSON.stringify([actor, experienceId, effective, boot.accessEpoch, boot.adoptionRevision, boot.structureRevision, boot.isAdmin, boot.isFollower, adminContentLayout.applies]);
   // Own history remains authorised by its creator identity while Group writes
   // revalidate. Never retain or substitute a foreign perspective's media.
   const mediaContext = (cardId: string): MediaCollectionContext | null => shown.perspective === "self" && effective.perspective === "self"
-    ? { kind: "owner", viewerUserId: actor, cardTemplateId: cardId, experienceId }
+    ? { kind: "owner", viewerUserId: actor, cardTemplateId: cardId, experienceId, ...(adminContentLayout.applies ? { includeAdminContent: true as const } : {}) }
     : { kind: "group", viewerUserId: actor, cardTemplateId: cardId, experienceId, accessEpoch: boot.accessEpoch, adoptionRevision: boot.adoptionRevision, structureRevision: boot.structureRevision,
-      ...(shown.perspective === "follower" ? { subjectUserId: shown.subjectUserId, ...(groupContentLayout.applies ? { includeGroupContent: true as const } : {}) } : {}) };
+      ...(shown.perspective === "follower" ? { subjectUserId: shown.subjectUserId, ...(adminContentLayout.applies ? { includeAdminContent: true as const } : {}) } : {}) };
   const reflectionContext = (cardId: string): ReflectionAreaContext => ({
     viewerUserId: actor, cardTemplateId: cardId, adoptionRevision: boot.adoptionRevision, structureRevision: boot.structureRevision,
     view: { kind: "group", experienceId, mode: shown.perspective === "self" ? "own" : shown.perspective === "group" ? "group" : "inspection",
@@ -210,12 +211,12 @@ export default function GroupExperienceDeck({ actor, experienceId, onBack, onAcc
         onFaceChange={setRotation}
         onCycleStepStatus={props.card.canWriteLearning ? stepId => cycle(props.card.id, stepId) : undefined}
         backFace={<GroupCardBack refreshOwner={resource} reflectionInteractive={state.verified} reflectionContext={reflectionContext(props.card.id)} onReflectionModalChange={setReflectionOpen} readOnlyReason={signalReadOnlyReason} card={props.card} focused mediaContext={mediaContext(props.card.id)} onEditMedia={openCentre} onChange={change => save(props.card.id, change)} />} /> : null} />}</GroupUpdateControls>
-    {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} followers={followers} groupContent={groupContent} onCollapse={() => {
+    {comparisonOpen ? <PerspectiveGrid choices={choices} selected={selectedKey} groupName={boot.name} onSelect={select} followers={followers} adminContent={adminContent} onCollapse={() => {
       compare(false); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".group-picker-current")?.focus());
     }} />
       : <PerspectivePicker choices={choices} selected={selectedKey} ownKey={boot.isFollower ? actor : undefined} canCompare={boot.canInspectFollowers}
         focused={focused} disabled={false} onSelect={select} onCompare={compare} followers={followers} pendingKey={pendingChoice?.key}
-        preparationError={preparationError} onRetry={() => { if (retryChoice.current) select(retryChoice.current); }} groupContent={groupContent} />}
+        preparationError={preparationError} onRetry={() => { if (retryChoice.current) select(retryChoice.current); }} adminContent={adminContent} />}
     {settings}
   </main>;
 }

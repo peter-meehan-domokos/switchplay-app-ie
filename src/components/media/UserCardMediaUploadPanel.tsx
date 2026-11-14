@@ -16,15 +16,17 @@ import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
 export type UserCardMediaRemovalState = {
   error: string | null;
   isRemoving: boolean;
+  // The action in progress, so only its button shows Deleting… or Hiding…; both stay disabled meanwhile.
+  action?: "delete" | "hide";
 };
 
 type UserCardMediaUploadPanelProps = {
   getMetadata?: (item: MediaItem) => { filename: string; origin: string; uploader?: string };
   canUpload?: boolean;
   mutationDisabled?: boolean;
-  canRemoveMedia?: (item: MediaItem) => boolean;
-  // The two management actions: Delete (own, in its creation context) or Hide from Group (admin, others).
-  getRemoveAction?: (item: MediaItem) => "delete" | "hide";
+  // The management actions of an item, in display order: Delete (own, in its creation context), Hide from Group
+  // (admin), or both for an admin's own Admin item in the Group perspective, Hide beneath Delete.
+  getRemoveActions?: (item: MediaItem) => readonly ("delete" | "hide")[];
   // The viewer's own item outside its creation context: where it was created, shown in place of Delete (C1).
   getCreatedIn?: (item: MediaItem) => string | null;
   showPrivate?: boolean;
@@ -36,7 +38,7 @@ type UserCardMediaUploadPanelProps = {
   removalStatesById: Record<string, UserCardMediaRemovalState | undefined>;
   onAddImage: (file: File) => void;
   onAddVideo: (file: File) => void;
-  onRemoveMedia: (item: MediaItem) => void;
+  onRemoveMedia: (item: MediaItem, action: "delete" | "hide") => void;
   getMediaKey?: (item: MediaItem) => string;
   getVideoTarget?: (item: VideoMediaItem) => UserCardMediaUploadTarget;
 };
@@ -45,17 +47,33 @@ type UserCardMediaUploadPanelProps = {
 // geometry, but it carries no visibility indicator, which is only about the viewer's own items.
 const groupContent = (item: MediaItem) => (item as PersonalMediaDisplayItem).collection?.creationContext === "group";
 
+// One button per action. A single action keeps the established single button; two stack in one cell, Hide from
+// Group beneath Delete, so Delete keeps its place and the tile only grows downwards.
+function RemoveButtons({ actions, kind, item, removalState, mutationDisabled, onRemove }: { actions: readonly ("delete" | "hide")[]; kind: "image" | "video"; item: MediaItem;
+  removalState?: UserCardMediaRemovalState; mutationDisabled: boolean; onRemove: (action: "delete" | "hide") => void }) {
+  const buttons = actions.map(action => <button key={action}
+    aria-label={action === "hide" ? `Hide ${kind} ${item.description} (${item.id}) from Group` : `Delete ${kind} ${item.description} (${item.id})`}
+    className="creator-modal-secondary user-card-media-tile-remove"
+    disabled={mutationDisabled || removalState?.isRemoving}
+    onClick={() => onRemove(action)}
+    type="button"
+  >
+    {action === "hide" ? (removalState?.isRemoving && (removalState.action ?? action) === action ? "Hiding…" : "Hide from Group") : (removalState?.isRemoving && (removalState.action ?? action) === action ? "Deleting…" : "Delete")}
+  </button>);
+  return actions.length > 1 ? <div className="user-card-media-tile-actions">{buttons}</div> : <>{buttons}</>;
+}
+
 // Non-interactive: a small "Created in:" above the originating context name.
 function CreatedIn({ label }: { label: string | null | undefined }) {
   return label ? <p className="user-card-media-tile-created-in"><span className="user-card-media-tile-created-in-label">Created in:</span><span>{label}</span></p> : null;
 }
 
-function VideoTile({ item, target, removalState, onRemove, canRemove = true, mutationDisabled = false, showPrivate = false, readinessTarget, getMetadata, createdIn, action = "delete" }: {
-  getMetadata?: UserCardMediaUploadPanelProps["getMetadata"]; createdIn?: string | null; action?: "delete" | "hide";
-  item: VideoMediaItem; canRemove?: boolean; mutationDisabled?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
+function VideoTile({ item, target, removalState, onRemove, actions = ["delete"], mutationDisabled = false, showPrivate = false, readinessTarget, getMetadata, createdIn }: {
+  getMetadata?: UserCardMediaUploadPanelProps["getMetadata"]; createdIn?: string | null; actions?: readonly ("delete" | "hide")[];
+  item: VideoMediaItem; mutationDisabled?: boolean; showPrivate?: boolean; readinessTarget?: GalleryMediaRequest;
   target: UserCardMediaUploadTarget;
   removalState?: UserCardMediaRemovalState;
-  onRemove: () => void;
+  onRemove: (action: "delete" | "hide") => void;
 }) {
   const { retry, state: streamState } = useStreamVideoReadiness(target, item.assetId, isCloudflareStreamVideoMediaItem(item) && !readinessTarget);
   const [collectionState, setCollectionState] = useState<StreamVideoReadinessState>({ status: "checking" });
@@ -101,15 +119,7 @@ function VideoTile({ item, target, removalState, onRemove, canRemove = true, mut
         </button>
       ) : null}
       <CreatedIn label={createdIn} />
-      {canRemove ? <button
-        aria-label={action === "hide" ? `Hide video ${item.description} (${item.id}) from Group` : `Delete video ${item.description} (${item.id})`}
-        className="creator-modal-secondary user-card-media-tile-remove"
-        disabled={mutationDisabled || removalState?.isRemoving}
-        onClick={onRemove}
-        type="button"
-      >
-        {action === "hide" ? (removalState?.isRemoving ? "Hiding…" : "Hide from Group") : (removalState?.isRemoving ? "Deleting…" : "Delete")}
-      </button> : null}
+      <RemoveButtons actions={actions} kind="video" item={item} removalState={removalState} mutationDisabled={mutationDisabled} onRemove={onRemove} />
       {removalState?.error ? <p className="creator-modal-error" role="alert">{removalState.error}</p> : null}
     </li>
   );
@@ -124,7 +134,7 @@ export default function UserCardMediaUploadPanel({
   onAddImage,
   onAddVideo,
   onRemoveMedia,
-  getMetadata, canUpload = true, mutationDisabled = false, canRemoveMedia = () => true, getRemoveAction = () => "delete" as const, getCreatedIn = () => null, showPrivate = false, getReadinessTarget,
+  getMetadata, canUpload = true, mutationDisabled = false, getRemoveActions = () => ["delete"] as const, getCreatedIn = () => null, showPrivate = false, getReadinessTarget,
   getMediaKey = (item) => item.id,
   getVideoTarget = () => target,
 }: UserCardMediaUploadPanelProps) {
@@ -187,15 +197,7 @@ export default function UserCardMediaUploadPanel({
                 <p className="user-card-media-tile-name" title={getMetadata?.(item).filename ?? item.description}>{getMetadata?.(item).filename ?? item.description}</p>
                 {getMetadata ? <p className="user-card-media-tile-origin">{getMetadata(item).uploader !== undefined ? `By: ${getMetadata(item).uploader}` : `In: ${getMetadata(item).origin}`}</p> : null}
                 <CreatedIn label={getCreatedIn(item)} />
-                {canRemoveMedia(item) ? <button
-                  aria-label={getRemoveAction(item) === "hide" ? `Hide image ${item.description} (${item.id}) from Group` : `Delete image ${item.description} (${item.id})`}
-                  className="creator-modal-secondary user-card-media-tile-remove"
-                  disabled={mutationDisabled || removalState?.isRemoving}
-                  onClick={() => onRemoveMedia(item)}
-                  type="button"
-                >
-                  {getRemoveAction(item) === "hide" ? (removalState?.isRemoving ? "Hiding…" : "Hide from Group") : (removalState?.isRemoving ? "Deleting…" : "Delete")}
-                </button> : null}
+                <RemoveButtons actions={getRemoveActions(item)} kind="image" item={item} removalState={removalState} mutationDisabled={mutationDisabled} onRemove={action => onRemoveMedia(item, action)} />
                 {removalState?.error ? <p className="creator-modal-error" role="alert">{removalState.error}</p> : null}
               </li>
             );
@@ -233,9 +235,9 @@ export default function UserCardMediaUploadPanel({
           {videos.map((item) => (
             <VideoTile
               item={item}
-              getMetadata={getMetadata} showPrivate={showPrivate} canRemove={canRemoveMedia(item)} action={getRemoveAction(item)} createdIn={getCreatedIn(item)} mutationDisabled={mutationDisabled} readinessTarget={getReadinessTarget?.(item)}
+              getMetadata={getMetadata} showPrivate={showPrivate} actions={getRemoveActions(item)} createdIn={getCreatedIn(item)} mutationDisabled={mutationDisabled} readinessTarget={getReadinessTarget?.(item)}
               key={getMediaKey(item)}
-              onRemove={() => onRemoveMedia(item)}
+              onRemove={action => onRemoveMedia(item, action)}
               removalState={removalStatesById[getMediaKey(item)]}
               target={getVideoTarget(item)}
             />

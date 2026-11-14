@@ -40,6 +40,10 @@
 .menuTrigger { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #b2bdcc; font-size: 20px; line-height: 1; cursor: pointer; touch-action: manipulation; }
 /* Wide enough for a Group name in "Created in", never wider than the card less its inset: long names wrap. */
 .menuItems { position: absolute; right: 0; bottom: 100%; min-width: 100px; width: max-content; max-width: 214px; padding: 4px; border: 1px solid #536174; border-radius: 7px; background: #282e38; box-shadow: 0 3px 8px #0003; }
+/* Hide from Group beneath Delete adds one 28px row below; anchoring that much lower keeps every other item in place. */
+.menuItemsExtended { bottom: calc(100% - 28px); }
+/* Reserves the width of "Hide from Group" in the button metrics, with no height and nothing visible. */
+.menuSizer { display: block; height: 0; overflow: hidden; visibility: hidden; padding: 0 8px; font: 11px/1.4 Arial, Helvetica, sans-serif; white-space: nowrap; }
 .menuItems button { display: block; width: 100%; min-height: 28px; padding: 5px 8px; border: 0; background: transparent; color: #edf1f5; font: 11px/1.4 Arial, Helvetica, sans-serif; text-align: left; cursor: pointer; touch-action: manipulation; }
 .menuItems button:hover { background: #354150; }
 .menuOrigin { margin: 0 0 2px; padding: 5px 8px 6px; border-bottom: 1px solid #3a4553; color: #edf1f5; font: 11px/1.35 Arial, Helvetica, sans-serif; overflow-wrap: anywhere; }

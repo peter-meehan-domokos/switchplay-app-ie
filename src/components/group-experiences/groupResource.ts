@@ -1,7 +1,7 @@
 import type { PreparedGroup } from "@/lib/groupExperiences/preparation";
 import type { GroupRefresh } from "@/lib/groupExperiences/refresh";
 import { assembledRefresh } from "@/lib/groupExperiences/refreshAssembly";
-import { captureCardPreparation, acceptCardPreparation, hasInitialGroupPreparation } from "@/lib/cards/preparationClient";
+import { captureCardPreparation, acceptCardPreparation, hasInitialGroupPreparation, ownMeMediaContext } from "@/lib/cards/preparationClient";
 import { PreparationAssembly, type PreparationPage } from "@/lib/groupExperiences/preparationPages";
 import { assembledGroup } from "@/lib/groupExperiences/primaryPreparationAssembly";
 import type { FollowerPreparationCard, FollowerPreparationHeader } from "@/lib/groupExperiences/followerPreparation";
@@ -247,7 +247,7 @@ export function createGroupResource(actor: string, experienceId: string, options
   function hydrate(prepared: { bootstrap: GroupBootstrap; contributions: PreparedGroup["contributions"] }, capture: ReturnType<typeof captureCardPreparation>) {
     const b = prepared.bootstrap, selected = b.selection, own = selected.perspective === "self";
     acceptCardPreparation(capture, prepared.contributions, b.deck.cards.map(card => card.id),
-      cardTemplateId => own ? { kind: "owner", viewerUserId: actor, cardTemplateId, experienceId }
+      cardTemplateId => own ? ownMeMediaContext(actor, cardTemplateId, experienceId, b)
         : { kind: "group", viewerUserId: actor, cardTemplateId, experienceId, accessEpoch: b.accessEpoch, adoptionRevision: b.adoptionRevision, structureRevision: b.structureRevision,
           ...(selected.perspective === "follower" ? { subjectUserId: selected.subjectUserId } : {}) },
       cardTemplateId => ({ viewerUserId: actor, cardTemplateId, adoptionRevision: b.adoptionRevision, structureRevision: b.structureRevision,
@@ -658,7 +658,7 @@ export function createGroupResource(actor: string, experienceId: string, options
           const b = incoming.bootstrap, selected = prepared.bootstrap.selection, own = selected.perspective === "self";
           if (selected.perspective === "group" && b.deck.cards.some(card => !incoming.aggregates.some(row => row.cardTemplateId === card.id))) throw Error("Group aggregate preparation is incomplete. Retry opening the Deck.");
           acceptCardPreparation(capture, prepared.contributions, b.deck.cards.map(card => card.id),
-            cardTemplateId => own ? { kind: "owner", viewerUserId: actor, cardTemplateId, experienceId }
+            cardTemplateId => own ? ownMeMediaContext(actor, cardTemplateId, experienceId, b)
               : { kind: "group", viewerUserId: actor, cardTemplateId, experienceId, accessEpoch: b.accessEpoch, adoptionRevision: b.adoptionRevision, structureRevision: b.structureRevision, ...(selected.perspective === "follower" ? { subjectUserId: selected.subjectUserId } : {}) },
             cardTemplateId => ({ viewerUserId: actor, cardTemplateId, adoptionRevision: b.adoptionRevision, structureRevision: b.structureRevision,
               view: { kind: "group", experienceId, mode: own ? "own" : selected.perspective === "group" ? "group" : "inspection", subjectUserId: selected.perspective === "follower" ? selected.subjectUserId : undefined, accessEpoch: b.accessEpoch } }));

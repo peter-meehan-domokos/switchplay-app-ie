@@ -79,7 +79,9 @@ test("peer-hidden follower receives Group/self choices; empty group keeps a name
   await page.goto(`/decks?openExperience=${fixture!.secondId}`);
   await expect(page.locator(".group-picker-current")).toHaveText(/other/);
   await page.locator(".group-picker-current").click();
-  await expect(page.locator(".group-perspective-list button")).toHaveCount(2);
+  await expect(page.locator(".group-perspective-list button[data-perspective-key]")).toHaveCount(2);
+  // A follower also has Include admin content, for their own Me, on by default for a follower-only viewer (V8).
+  await expect(page.getByRole("switch", { name: "Include admin content", exact: true })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("button", { name: "All followers", exact: true })).toHaveCount(0);
   await expect(page.locator(".date-visibility-indicator svg").first()).toHaveAttribute("aria-label", "Private in this Group");
   await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } });

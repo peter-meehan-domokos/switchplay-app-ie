@@ -5,9 +5,9 @@ import { isMediaItem, type MediaItem } from "../media";
 import { hash } from "../groupExperiences/contracts";
 import { userKey } from "../groupExperiences/learningReads";
 import { GROUP_MEDIA_COLLECTION } from "../groupExperiences/media/indexes";
-import { compare, personalPipeline, type Order } from "./ownerHistory";
+import { compare, ownerCursorContext, personalPipeline, type Order } from "./ownerHistory";
 import { memberMediaCapabilities } from "./permissions";
-import { ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS, FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
+import { ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS, defaultIncludeAdminContent, FOLLOWER_CONTRIBUTIONS } from "../groupExperiences/media/contributionIdentity";
 import { creatorUsernames } from "../cards/creatorAttribution";
 import type { MediaCollectionItem, MediaCollectionPage } from "./contracts";
 import type { GroupExperience, GroupMember } from "../groupExperiences/model";
@@ -17,6 +17,8 @@ type Window = { _id: string; total: number; own?: number; items: Record<string, 
 const orderFields = ["at", "kind", "source", "id", "rank", "index"];
 export async function ownerPreviewPages(repo: CardRepository, actor: string, ids: string[], session: ClientSession, hasGroups: boolean, authority?: Authority) {
   if (authority) requireCondition(authority.member.userId === actor && authority.member.experienceId === authority.experience.experienceId, "GROUP_PERSPECTIVE_FORBIDDEN");
+  // Me is prepared in the role-default state of Include admin content; the client keys it the same way.
+  const includeAdmin = !!authority && defaultIncludeAdminContent(authority.member);
   const user = await repo.users().aggregate<{ username?: string; refs: { id: string; next?: string }[] }>([
     { $match: { _id: userKey(actor) } }, { $project: { _id: 0, username: 1, refs: { $map: { input: { $ifNull: ["$cardsData", []] }, as: "c", in: { id: "$$c.cardTemplateId", next: "$$c.historySourceCardTemplateId" } } } } },
   ], { session }).next();
@@ -40,8 +42,8 @@ export async function ownerPreviewPages(repo: CardRepository, actor: string, ids
   ]), { session }).toArray();
   const group = hasGroups && ids.length ? await repo.db.collection(GROUP_MEDIA_COLLECTION).aggregate<Window>([
     // Owner previews and counts show the viewer's Follower contributions only (contributionIdentity.ts), and in Me
-    // of a Group also that Group's Admin contributions shared with its followers (V1, checkpoint 4.5b).
-    { $match: { cardTemplateId: { $in: ids }, state: "attached", ...(authority ? { $or: [{ authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS },
+    // of a Group with Include admin content on also that Group's Admin contributions shared with its followers (V1).
+    { $match: { cardTemplateId: { $in: ids }, state: "attached", ...(authority && includeAdmin ? { $or: [{ authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS },
       { experienceId: authority.experience.experienceId, groupVisible: true, ...ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS }] } : { authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS }) } },
     { $sort: { uploadedAt: -1, contributionId: -1 } },
     { $group: { _id: "$cardTemplateId", total: { $sum: 1 }, items: { $firstN: { n: 5, input: { contributionId: "$contributionId", authorUserId: "$authorUserId", creationContext: "$creationContext", experienceId: "$experienceId", kind: "$kind", uploadedAt: "$uploadedAt", groupVisible: "$groupVisible", revision: "$revision", originalFilename: "$originalFilename" } } } } },
@@ -67,7 +69,7 @@ export async function ownerPreviewPages(repo: CardRepository, actor: string, ids
       } });
     }
     const selected = rows.sort((a, b) => compare(b.order, a.order)).slice(0, 5).reverse(), total = (own?.total ?? 0) + (shared?.total ?? 0);
-    const context = hash({ actor, cardTemplateId: card, experienceId: authority?.experience.experienceId ?? null });
+    const context = ownerCursorContext(actor, card, authority?.experience.experienceId, includeAdmin);
     const encode = (order: Order, inclusive = false) => Buffer.from(JSON.stringify({ context, direction: "older", order, inclusive })).toString("base64url");
     const page: MediaCollectionPage = { viewerUserId: actor, cardTemplateId: card, items: selected.map(row => row.item), total, start: Math.max(0, total - selected.length), olderCount: Math.max(0, total - selected.length),
       older: total > selected.length && selected[0] ? encode(selected[0].order) : null, newer: null, refresh: selected.at(-1) ? encode(selected.at(-1)!.order, true) : null,

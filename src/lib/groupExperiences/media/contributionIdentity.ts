@@ -49,6 +49,12 @@ export type ContributionAudience = "group-perspective-only";
 export const GROUP_PERSPECTIVE_ONLY: ContributionAudience = "group-perspective-only";
 // Mongo condition selecting the Admin contributions that followers see in Me (with experienceId and the Card added).
 export const ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS = { creationContext: "group" as const, audience: { $ne: GROUP_PERSPECTIVE_ONLY } };
+// The Include admin content toggle decides whether they are shown in a follower perspective (own Me or an
+// inspected follower). Its default follows the viewer's role, never the selected follower: on for a follower-only
+// viewer, who should see their admins' content at once, off for an admin or a dual-role admin, who mostly inspects
+// followers' own contributions. Server preparation of own Me previews uses the same default, so the prepared
+// thumbnails are those of the default view.
+export function defaultIncludeAdminContent(viewer: { isAdmin: boolean }) { return !viewer.isAdmin; }
 // Mongo condition selecting the contributions of one identity of one author.
 export function identityFilter(authorUserId: string, identity: CreationContext) {
   return identity === "group" ? { authorUserId, creationContext: "group" as const } : { authorUserId, ...FOLLOWER_CONTRIBUTIONS };

@@ -11,10 +11,10 @@ export async function POST(request: Request, context: Context) {
 }
 export async function GET(request: Request, context: Context) {
   return mediaRequest(request, true, async (repo, actor) => {
-    const { experienceId, cardTemplateId } = await context.params, p = query(request, ["after", "before", "limit", "subjectUserId", "includeGroupContent"]);
-    // Include Group content (checkpoint 4.5c): only with a follower inspection, and only as "1".
-    requireCondition(!p.has("includeGroupContent") || p.get("includeGroupContent") === "1", "INVALID_GROUP_MEDIA_PAGE");
+    const { experienceId, cardTemplateId } = await context.params, p = query(request, ["after", "before", "limit", "subjectUserId", "includeAdminContent"]);
+    // Include admin content (checkpoint 4.5c): only with a follower inspection, and only as "1".
+    requireCondition(!p.has("includeAdminContent") || p.get("includeAdminContent") === "1", "INVALID_GROUP_MEDIA_PAGE");
     return repo.groupFeed(actor, experienceId, cardTemplateId, { ...pagination(p), before: p.get("before") ?? undefined, subjectUserId: p.get("subjectUserId") ?? undefined,
-      ...(p.has("includeGroupContent") ? { includeGroupContent: true } : {}) });
+      ...(p.has("includeAdminContent") ? { includeAdminContent: true } : {}) });
   });
 }

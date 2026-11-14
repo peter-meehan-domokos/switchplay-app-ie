@@ -43,7 +43,7 @@ async function fixture() {
   await info.createPersonal("bob", "bob-standalone", f.ids[0], standaloneContext);
   await info.save("bob", "bob-standalone", 0, draft("Standalone note"), "private");
   await info.savePersonal("bob", "bob-standalone", 1, standaloneContext);
-  const me = (actor: string, experienceId = f.experienceId) => mainInfoConsultation(info, actor, f.ids[0], { mode: "experience", version: 1, experienceId });
+  const me = (actor: string, experienceId = f.experienceId, includeAdminContent = false) => mainInfoConsultation(info, actor, f.ids[0], { mode: "experience", version: 1, experienceId, ...(includeAdminContent ? { includeAdminContent } : {}) });
   const standalone = (actor: string) => mainInfoConsultation(info, actor, f.ids[0], { mode: "working", version: 1, deckTemplateId: f.deckId });
   const canonical = (actor: string) => mainInfoConsultation(info, actor, f.ids[0], { mode: "canonical", version: 1 });
   const shown = (snapshot: InfoConsultationSnapshot) => snapshot.entries.flatMap(entry => entry.status === "available" ? [[entry.info.infoCardId, entry.source, entry.private ?? null] as const] : [])
@@ -131,10 +131,12 @@ test("a dual-role user sees Admin contributions in Me only as Group content, nev
   const followerVersion = (await f.info.versions().findOne({ infoCardId: follower }))!;
   await f.info.versions().insertOne({ ...followerVersion, _id: undefined, infoCardId: "alice-admin" } as InfoPublication);
   await f.cards.ensureDeckData("alice", f.deckId, 1);
-  // Since V1 (checkpoint 4.5) Me also shows the Group's Admin contributions, as Group content with no visibility
-  // marker; it is never mixed into the author's Follower identity, and never reaches the standalone Card.
-  assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id).toSorted(), [follower, "alice-admin"].toSorted());
-  const adminInMe = (await f.me("alice")).entries.find(entry => entry.status === "available" && entry.info.infoCardId === "alice-admin");
+  // With Include admin content on (V1, V8) Me also shows the Group's Admin contributions, as Group content with no
+  // visibility marker; it is never mixed into the author's Follower identity, and never reaches the standalone Card.
+  // With it off (the default for a dual-role admin), Me shows the Follower identity only.
+  assert.deepEqual(f.shown(await f.me("alice")).map(([id]) => id), [follower]);
+  assert.deepEqual(f.shown(await f.me("alice", f.experienceId, true)).map(([id]) => id).toSorted(), [follower, "alice-admin"].toSorted());
+  const adminInMe = (await f.me("alice", f.experienceId, true)).entries.find(entry => entry.status === "available" && entry.info.infoCardId === "alice-admin");
   assert.ok(adminInMe?.status === "available" && adminInMe.info.creationContext === "group" && adminInMe.private === undefined);
   assert.deepEqual(f.shown(await f.standalone("alice")).map(([id]) => id), [follower]);
   // Checkpoint 4.3: its author reads it, and writes it only while a current admin of its Group (manageable, C1).
@@ -142,7 +144,7 @@ test("a dual-role user sees Admin contributions in Me only as Group content, nev
   await f.setAdmin("bob", true); await f.setAdmin("alice", false);
   await assert.rejects(f.info.save("alice", "alice-admin", 2, draft("Edited"), "private"), { code: "GROUP_FORBIDDEN" });
   await assert.rejects(f.info.delete("alice", "alice-admin", 2), { code: "GROUP_FORBIDDEN" });
-  const afterDemotion = (await f.me("alice")).entries.find(entry => entry.status === "available" && entry.info.infoCardId === "alice-admin");
+  const afterDemotion = (await f.me("alice", f.experienceId, true)).entries.find(entry => entry.status === "available" && entry.info.infoCardId === "alice-admin");
   assert.ok(afterDemotion?.status === "available" && afterDemotion.info.creationContext === "group" && afterDemotion.private === undefined, "demotion never reclassifies");
 });
 

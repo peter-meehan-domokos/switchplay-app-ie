@@ -192,8 +192,44 @@ test("Group-wide Admin upload remains author-owned and exposes no Private media"
   // Checkpoint 4.0: an Admin upload belongs to this Group only, so the standalone history total is unchanged.
   const before = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}`)).json(); expect(before.total).toBe(8);
   expect(before.items.some((item: { originalFilename?: string }) => item.originalFilename === "coach-practice.png")).toBe(false);
-  await centre(page).locator(".user-card-media-tile").last().getByRole("button", { name: /Delete image/ }).click();
+  // The author's own Admin upload in its creation context: Delete, with Hide from Group stacked beneath it.
+  const own = centre(page).locator(".user-card-media-tile").last();
+  const del = own.getByRole("button", { name: /^Delete image/ }), hide = own.getByRole("button", { name: /^Hide image .* from Group$/ });
+  await expect(del).toBeVisible(); await expect(hide).toBeVisible();
+  await expect(own.locator(".user-card-media-tile-actions > button")).toHaveText(["Delete", "Hide from Group"]);
+  const [d, h] = [(await del.boundingBox())!, (await hide.boundingBox())!];
+  expect(h.y).toBeGreaterThan(d.y + d.height - 1); expect(Math.abs(h.x - d.x)).toBeLessThan(1);
+  await del.click();
   await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8); await expect(centre(page).getByText("Hidden from this Group. The creator still has their copy.")).toHaveCount(0);
+});
+
+test("an admin hides their own Admin upload from the Group without deleting it", async ({ page }) => {
+  await login(page);
+  const current = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
+  expect((await page.request.patch(`/api/group-experiences/${fixture.experienceId}/navigation`, { data: { accessEpoch: current.accessEpoch, expectedStructureRevision: current.structureRevision, activeCardId: fixture.cardId, selection: { perspective: "group" } } })).ok()).toBeTruthy();
+  await openBack(page, true);
+  await page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true }).click();
+  await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
+  const allocated = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname.endsWith(`/cards/${fixture.cardId}/media`));
+  await centre(page).getByLabel("Choose image").setInputFiles({ name: "coach-hidden.png", mimeType: "image/png", buffer: png });
+  const allocation = await (await allocated).json(), id = allocation.contributionId as string;
+  try {
+    const tile = centre(page).locator(`[data-media-item-id*="${id}"]`); await expect(tile).toBeVisible();
+    await tile.getByRole("button", { name: /^Hide image .* from Group$/ }).click();
+    await expect(centre(page).getByRole("status")).toHaveText("Hidden from this Group. The creator still has their copy.");
+    await expect(centre(page).locator(`[data-media-item-id*="${id}"]`)).toHaveCount(0);
+    await expect(centre(page).locator(".user-card-media-tile")).toHaveCount(8);
+    // Hidden, not deleted: out of the Group feed, and the record still accepts the author's Delete (below) at the
+    // revision after commit and hide.
+    const feed = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media`)).json();
+    expect(feed.items.some((i: { contributionId: string }) => i.contributionId === id)).toBe(false);
+  } finally {
+    // Delete it through the server in its creation context, so the shared fixture is unchanged; this also proves the
+    // hidden record was kept.
+    const latest = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
+    const removed = await page.request.delete(`/api/group-experiences/${fixture.experienceId}/media/${id}`, { data: { expectedRevision: allocation.revision + 2, accessEpoch: latest.accessEpoch, perspective: "group" } });
+    expect((await removed.json()).state).toBe("deleted");
+  }
 });
 
 // Checkpoint 4.5b (V1): an admin's Admin upload also appears in every follower's Me, as Group content.
@@ -209,8 +245,11 @@ test("a follower's Me shows Admin media with its author, read-only, delivered th
   await adminPage.request.put(allocation.uploadURL, { data: png, headers: allocation.headers });
   expect((await adminPage.request.post(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media/${allocation.contributionId}/commit`, { data: { expectedRevision: allocation.revision, proof: allocation.proof } })).ok()).toBeTruthy();
   try {
-    // The follower's Me history lists it with its author, never private; the standalone Card never does.
-    const me = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}&experienceId=${fixture.experienceId}`)).json();
+    // The follower's Me history with Include admin content lists it with its author, never private; without it, or
+    // on the standalone Card, it never does.
+    const me = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}&experienceId=${fixture.experienceId}&includeAdminContent=1`)).json();
+    const without = await (await page.request.get(`/api/media/history?cardTemplateId=${fixture.cardId}&experienceId=${fixture.experienceId}`)).json();
+    expect(without.items.some((i: { source: { contributionId?: string } }) => i.source.contributionId === allocation.contributionId)).toBe(false);
     const listed = me.items.find((i: { source: { contributionId?: string } }) => i.source.contributionId === allocation.contributionId);
     expect(listed).toMatchObject({ creationContext: "group", private: false, originalFilename: "coach-briefing.png" });
     expect(listed.authorName).not.toBe("Aoife Kelly");
@@ -219,7 +258,8 @@ test("a follower's Me shows Admin media with its author, read-only, delivered th
     // Delivered to the follower through the Group, never through the owner route.
     expect(await (await page.request.get(`/api/group-media/${allocation.contributionId}?action=playback&experienceId=${fixture.experienceId}`)).body()).toEqual(png);
     expect((await page.request.get(`/api/group-media/${allocation.contributionId}?action=playback`)).status()).toBe(403);
-    // In the Me Media Centre: the tile names its author, offers neither Delete nor Hide from Group, and has no icon.
+    // In the Me Media Centre (Include admin content is on by default for a follower-only viewer): the tile names its
+    // author, offers neither Delete nor Hide from Group, and has no icon.
     const current = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
     expect((await page.request.patch(`/api/group-experiences/${fixture.experienceId}/navigation`, { data: { accessEpoch: current.accessEpoch, expectedStructureRevision: current.structureRevision, activeCardId: fixture.cardId, selection: { perspective: "self" } } })).ok()).toBeTruthy();
     await page.goto(`/decks?openExperience=${fixture.experienceId}`);

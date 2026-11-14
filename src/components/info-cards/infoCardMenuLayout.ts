@@ -6,17 +6,20 @@ import type { InfoCardConsultationCard } from "./InfoCardConsultation";
 //     Delete permanently deletes a Group note. Remove, on a standalone Personal Info Card, only detaches it from the
 //     Card: the record stays in the database, unreachable, because a Personal Info Card may later be converted into a
 //     Creator Info Card. That is why the two labels differ.
-//   Hide: a current admin, for any other contribution shared with their Group, their own Follower one included.
-//     It only removes the contribution from the Group and never deletes.
+//   Hide: a current admin, for any contribution shared with their Group: others', their own Follower one, and their
+//     own Admin one in the Group perspective, where it sits beneath Delete (both actions). It only removes the
+//     contribution from the Group and never deletes. A self-hidden Admin contribution is then out of reach (accepted).
+//   extendDown: with Hide beneath Delete the menu grows downwards by that row, so the other items, Delete included,
+//     stay exactly where they are in every other menu.
 //   Origin: the viewer's own note outside its creation context names where it was created; never a disabled
 //     Edit or Remove. Creator Info Cards carry no origin.
 // Null when the card has no menu at all in this context.
-export type InfoCardMenuLayout = { create: boolean; manage: boolean; removeLabel: "Remove" | "Delete" | null; hide: boolean; origin: string | null };
+export type InfoCardMenuLayout = { create: boolean; manage: boolean; removeLabel: "Remove" | "Delete" | null; hide: boolean; extendDown: boolean; origin: string | null };
 export function buildInfoCardMenuLayout(card: InfoCardConsultationCard | undefined, canCreate = true): InfoCardMenuLayout | null {
   const available = card && !card.unavailable ? card : undefined;
   const manage = Boolean(available?.personal && (available.personalSource || available.groupNote?.editable));
-  const hide = !manage && available?.groupNote?.canHide === true;
+  const hide = available?.groupNote?.canHide === true;
   const origin = available?.personal && !manage ? available.origin ?? null : null;
   if (!canCreate && !manage && !hide && !origin) return null;
-  return { create: canCreate, manage, removeLabel: manage ? (available?.personalSource ? "Remove" : "Delete") : null, hide, origin };
+  return { create: canCreate, manage, removeLabel: manage ? (available?.personalSource ? "Remove" : "Delete") : null, hide, extendDown: manage && hide, origin };
 }

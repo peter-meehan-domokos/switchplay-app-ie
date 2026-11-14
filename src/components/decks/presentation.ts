@@ -12,8 +12,8 @@ export type ExperienceCardPresentation = Omit<CanonicalCardPresentation, "surfac
   // matching context (Me shows and creates the viewer own Follower contributions). Absent on Group tiles.
   perspective?: "group" | "self" | "follower"; accessEpoch?: number;
   // The follower inspected in the Other followers perspective, whose shared contributions the pouch reads, and
-  // whether the Include Group content toggle adds the Group's Admin contributions (checkpoint 4.5c).
-  subjectUserId?: string; includeGroupContent?: true;
+  // whether the Include admin content toggle adds the Group's Admin contributions (checkpoint 4.5c).
+  subjectUserId?: string; includeAdminContent?: true;
   steps: (CardTemplateStep & { completionStatus: CompletionStatus })[];
   learning: LearningFields; canWriteLearning: boolean; ownerDate?: string | null;
   completion: number | null; confidence: number | null;

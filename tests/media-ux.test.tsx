@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import MediaCentreControl from "../src/components/media/MediaCentreControl";
 import BackCardMediaCarousel from "../src/components/decks/BackCardMediaCarousel";
 import { collectionDisplayItem } from "../src/lib/mediaCollection/presentation";
-import { mediaRemoveOperation } from "../src/lib/mediaCollection/permissions";
+import { mediaRemoveOperations } from "../src/lib/mediaCollection/permissions";
 import type { MediaCollectionItem } from "../src/lib/mediaCollection/contracts";
 for (const count of [0, 1, 5, 6, 8]) test(`Media Centre has one icon control and correct count at ${count}`, () => {
   const html = renderToStaticMarkup(<MediaCentreControl total={count} onOpen={() => {}} />);
@@ -28,17 +28,17 @@ test("own Group thumbnails each have one correctly chosen visibility icon, absen
 test("Remove operation is source/creator based and requires server capabilities", () => {
   const item: MediaCollectionItem = { source: { kind: "group", experienceId: "galway", contributionId: "id" }, authorUserId: "bob", mediaType: "image", description: "Practice", uploadedAt: null, private: false, originName: null };
   const caps = { canUpload: false, canRemoveOwn: true, canHideOthers: true, canManage: true };
-  assert.equal(mediaRemoveOperation("bob", item, caps, "galway"), "delete");
+  assert.deepEqual(mediaRemoveOperations("bob", item, caps, "galway"), ["delete"]);
   // C1 (checkpoint 4.2b): a Follower contribution is no longer deleted from the standalone Card.
-  assert.equal(mediaRemoveOperation("bob", item, caps), null);
-  assert.equal(mediaRemoveOperation("bob", item, caps, "another"), null);
-  assert.equal(mediaRemoveOperation("bob", { ...item, private: true }, caps, "galway"), "delete");
+  assert.deepEqual(mediaRemoveOperations("bob", item, caps), []);
+  assert.deepEqual(mediaRemoveOperations("bob", item, caps, "another"), []);
+  assert.deepEqual(mediaRemoveOperations("bob", { ...item, private: true }, caps, "galway"), ["delete"]);
   const personal = { ...item, source: { kind: "personal" as const, cardTemplateId: "card", mediaItemId: "personal" } };
-  assert.equal(mediaRemoveOperation("bob", personal, caps), "delete");
-  assert.equal(mediaRemoveOperation("bob", personal, caps, "galway"), null);
-  assert.equal(mediaRemoveOperation("coach", item, caps, "galway"), "hide");
-  assert.equal(mediaRemoveOperation("coach", item, caps, "another"), null);
-  assert.equal(mediaRemoveOperation("peer", item, { ...caps, canHideOthers: false }, "galway"), null);
+  assert.deepEqual(mediaRemoveOperations("bob", personal, caps), ["delete"]);
+  assert.deepEqual(mediaRemoveOperations("bob", personal, caps, "galway"), []);
+  assert.deepEqual(mediaRemoveOperations("coach", item, caps, "galway"), ["hide"]);
+  assert.deepEqual(mediaRemoveOperations("coach", item, caps, "another"), []);
+  assert.deepEqual(mediaRemoveOperations("peer", item, { ...caps, canHideOthers: false }, "galway"), []);
 });
 
 test("Media Centre metadata uses original filenames and real origin, with honest legacy fallback", async () => {
@@ -119,7 +119,7 @@ test("Media Centre labels exactly two actions: Delete and Hide from Group", asyn
   const { default: Panel } = await import("../src/components/media/UserCardMediaUploadPanel");
   const { initialUserCardMediaUploadState } = await import("../src/components/media/useKeyedUserCardMediaUploadController");
   const images = [{ id: "own", mediaType: "image" as const, src: "a.png", description: "Own" }, { id: "other", mediaType: "image" as const, src: "b.png", description: "Other" }];
-  const html = renderToStaticMarkup(<Panel images={images} videos={[]} target={{ scope: "user-card", userId: "bob", cardId: "card", deckTemplateId: "deck" }} uploadState={initialUserCardMediaUploadState} removalStatesById={{}} onAddImage={() => {}} onAddVideo={() => {}} onRemoveMedia={() => {}} getRemoveAction={item => item.id === "other" ? "hide" : "delete"} />);
+  const html = renderToStaticMarkup(<Panel images={images} videos={[]} target={{ scope: "user-card", userId: "bob", cardId: "card", deckTemplateId: "deck" }} uploadState={initialUserCardMediaUploadState} removalStatesById={{}} onAddImage={() => {}} onAddVideo={() => {}} onRemoveMedia={() => {}} getRemoveActions={item => item.id === "other" ? ["hide"] : ["delete"]} />);
   assert.ok(html.includes('aria-label="Delete image Own (own)"') && html.includes(">Delete</button>"));
   assert.ok(html.includes('aria-label="Hide image Other (other) from Group"') && html.includes(">Hide from Group</button>"));
   assert.ok(!html.includes("Remove"));
@@ -137,12 +137,64 @@ test("Admin media in Me is delivered through the Group and keeps its slot withou
   assert.equal((html.match(/group-visibility-icon|lucide-eye/g) ?? []).length > 0, true);
   assert.equal((html.match(/aria-label="Visible to this Group"/g) ?? []).length, 1, "only the viewer's own item has the indicator");
   // Never Delete or Hide in Me on another author's Admin item, even for an admin (canHideOthers is off in Me).
-  assert.equal(mediaRemoveOperation("bob", admin, { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true }, "galway", "self"), null);
+  assert.deepEqual(mediaRemoveOperations("bob", admin, { canUpload: false, canRemoveOwn: true, canHideOthers: false, canManage: true }, "galway", "self"), []);
 });
 test("an Admin item included in an inspection is delivered as Group content, without the subject", () => {
-  const context = { kind: "group" as const, viewerUserId: "coach", cardTemplateId: "card", experienceId: "galway", subjectUserId: "bob", accessEpoch: 1, adoptionRevision: 1, includeGroupContent: true as const };
+  const context = { kind: "group" as const, viewerUserId: "coach", cardTemplateId: "card", experienceId: "galway", subjectUserId: "bob", accessEpoch: 1, adoptionRevision: 1, includeAdminContent: true as const };
   const own: MediaCollectionItem = { source: { kind: "group", experienceId: "galway", contributionId: "own" }, authorUserId: "bob", mediaType: "image", description: "Practice", uploadedAt: null, private: false, originName: "Galway", creationContext: "self" };
   const admin: MediaCollectionItem = { ...own, source: { kind: "group", experienceId: "galway", contributionId: "coach" }, authorUserId: "alice", creationContext: "group" };
   assert.equal(collectionDisplayItem(own, context).src, "/api/group-media/own?action=playback&experienceId=galway&subjectUserId=bob");
   assert.equal(collectionDisplayItem(admin, context).src, "/api/group-media/coach?action=playback&experienceId=galway");
+});
+
+// Refinement after 4.5c: an admin's own Admin item in the Group perspective offers Delete with Hide from Group
+// beneath it; every other rule is unchanged.
+test("an own Admin item in the Group perspective has Delete then Hide from Group; other admins' items Hide only; followers neither", () => {
+  const groupCaps = { canUpload: true, canRemoveOwn: true, canHideOthers: true, canManage: true }, followerCaps = { ...groupCaps, canUpload: false, canHideOthers: false };
+  const admin: MediaCollectionItem = { source: { kind: "group", experienceId: "galway", contributionId: "coach" }, authorUserId: "alice", mediaType: "image", description: "Drill", uploadedAt: null, private: false, originName: "Galway", creationContext: "group" };
+  assert.deepEqual(mediaRemoveOperations("alice", admin, groupCaps, "galway", "group"), ["delete", "hide"], "the author, in the creation context");
+  assert.deepEqual(mediaRemoveOperations("dee", admin, groupCaps, "galway", "group"), ["hide"], "another admin: Hide, never Delete");
+  assert.deepEqual(mediaRemoveOperations("bob", admin, followerCaps, "galway", "group"), [], "a follower in the Group perspective");
+  assert.deepEqual(mediaRemoveOperations("bob", admin, followerCaps, "galway", "self"), [], "a follower in Me");
+  assert.deepEqual(mediaRemoveOperations("alice", admin, { ...groupCaps, canHideOthers: false }, "galway", "group"), ["delete"], "the author without hide rights");
+  assert.deepEqual(mediaRemoveOperations("alice", admin, groupCaps, "galway", "self"), [], "the dual-role author in Me or an inspection: neither");
+  assert.deepEqual(mediaRemoveOperations("alice", admin, groupCaps, "other", "group"), [], "never from another Group");
+  const follower: MediaCollectionItem = { ...admin, source: { kind: "group", experienceId: "galway", contributionId: "own" }, creationContext: "self" };
+  assert.deepEqual(mediaRemoveOperations("alice", follower, groupCaps, "galway", "group"), ["hide"], "own Follower item in the Group perspective: Hide only, as before");
+});
+test("the Media Centre stacks Hide from Group beneath Delete in one cell, and only the acting button shows progress", async () => {
+  const { default: Panel } = await import("../src/components/media/UserCardMediaUploadPanel");
+  const { initialUserCardMediaUploadState } = await import("../src/components/media/useKeyedUserCardMediaUploadController");
+  const images = [{ id: "both", mediaType: "image" as const, src: "a.png", description: "Both" }, { id: "single", mediaType: "image" as const, src: "b.png", description: "Single" }];
+  const render = (removalStatesById = {}) => renderToStaticMarkup(<Panel images={images} videos={[]} target={{ scope: "user-card", userId: "alice", cardId: "card", deckTemplateId: "deck" }}
+    uploadState={initialUserCardMediaUploadState} removalStatesById={removalStatesById} onAddImage={() => {}} onAddVideo={() => {}} onRemoveMedia={() => {}}
+    getRemoveActions={item => item.id === "both" ? ["delete", "hide"] : ["delete"]} />);
+  const html = render(), tiles = html.split('data-media-item-id="').slice(1);
+  const both = tiles.find(tile => tile.startsWith("both"))!, single = tiles.find(tile => tile.startsWith("single"))!;
+  assert.match(both, /<div class="user-card-media-tile-actions"><button aria-label="Delete image Both \(both\)"[^>]*>Delete<\/button><button aria-label="Hide image Both \(both\) from Group"[^>]*>Hide from Group<\/button><\/div>/);
+  assert.ok(!single.includes("user-card-media-tile-actions"), "a single action keeps the established single button");
+  assert.match(single, />Delete<\/button>/);
+  const hiding = render({ both: { isRemoving: true, action: "hide", error: null } }).split('data-media-item-id="').find(tile => tile.startsWith("both"))!;
+  assert.match(hiding, />Delete<\/button>/); assert.match(hiding, />Hiding…<\/button>/);
+  assert.equal((hiding.match(/disabled=""/g) ?? []).length, 2, "both stay disabled while one runs");
+});
+test("own Me with Include admin content asks owner history for it, and keeps a separate preview cache key", async t => {
+  const { fetchMediaCollection } = await import("../src/lib/mediaCollection/transport");
+  const urls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => { urls.push(url); return Response.json({ viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway", total: 0, olderCount: 0, items: [], older: null, newer: null }); });
+  await fetchMediaCollection({ kind: "owner", viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway", includeAdminContent: true });
+  await fetchMediaCollection({ kind: "owner", viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway" });
+  await fetchMediaCollection({ kind: "owner", viewerUserId: "bob", cardTemplateId: "card", includeAdminContent: true });
+  assert.equal(urls[0], "/api/media/history?cardTemplateId=card&experienceId=galway&includeAdminContent=1&limit=30");
+  assert.equal(urls[1], "/api/media/history?cardTemplateId=card&experienceId=galway&limit=30");
+  assert.equal(urls[2], "/api/media/history?cardTemplateId=card&limit=30", "never on the standalone Card");
+  const { retainedMediaPreview } = await import("../src/lib/mediaCollection/controller");
+  const on = retainedMediaPreview({ kind: "owner", viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway", includeAdminContent: true });
+  const off = retainedMediaPreview({ kind: "owner", viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway" });
+  assert.notEqual(on, off); on.dispose(); off.dispose();
+});
+test("own Me is prepared in the role-default state of Include admin content", async () => {
+  const { ownMeMediaContext } = await import("../src/lib/cards/preparationClient");
+  assert.deepEqual(ownMeMediaContext("bob", "card", "galway", { isAdmin: false }), { kind: "owner", viewerUserId: "bob", cardTemplateId: "card", experienceId: "galway", includeAdminContent: true });
+  assert.deepEqual(ownMeMediaContext("alice", "card", "galway", { isAdmin: true }), { kind: "owner", viewerUserId: "alice", cardTemplateId: "card", experienceId: "galway" });
 });

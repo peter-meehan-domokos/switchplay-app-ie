@@ -10,12 +10,13 @@ export async function mediaJson<T>(context: Pick<MediaCollectionContext, "viewer
 }
 export async function fetchMediaCollection(context: MediaCollectionContext, cursor?: string, signal?: AbortSignal, limit = 30): Promise<MediaCollectionPage> {
   if (context.kind === "owner") return mediaJson(context, `/api/media/history?${new URLSearchParams({ cardTemplateId: context.cardTemplateId,
-    ...(context.experienceId ? { experienceId: context.experienceId } : {}), ...(cursor ? { cursor } : {}), limit: String(limit) })}`, "GET", undefined, signal);
+    ...(context.experienceId ? { experienceId: context.experienceId } : {}), ...(context.experienceId && context.includeAdminContent ? { includeAdminContent: "1" } : {}),
+    ...(cursor ? { cursor } : {}), limit: String(limit) })}`, "GET", undefined, signal);
   // Reuse the Phase 6 foreign feed. Its next cursor is an opaque exact-context
   // cursor; newer-page navigation retains cursor identities, never old payloads.
   const parsed: { after?: string; before?: string } = cursor ? JSON.parse(cursor) : {};
   const url = `/api/group-experiences/${encodeURIComponent(context.experienceId)}/cards/${encodeURIComponent(context.cardTemplateId)}/media?${new URLSearchParams({ limit: String(limit), ...(parsed.after ? { after: parsed.after } : {}), ...(parsed.before ? { before: parsed.before } : {}), ...(context.subjectUserId ? { subjectUserId: context.subjectUserId } : {}),
-    ...(context.subjectUserId && context.includeGroupContent ? { includeGroupContent: "1" } : {}) })}`;
+    ...(context.subjectUserId && context.includeAdminContent ? { includeAdminContent: "1" } : {}) })}`;
   const page = await mediaJson<{ capabilities: import("./permissions").MediaCapabilities; viewerUserId: string; cardTemplateId: string; experienceId: string; subjectUserId: string | null; accessEpoch: number; adoptionRevision: number; structureRevision: number; total: number; start: number; next: string | null; previous: string | null; refresh: string | null;
     items: { contributionId: string; experienceId: string; authorUserId: string; authorName?: string; kind: "image" | "video"; revision: number; originalFilename?: string; uploadedAt: string; originName: string | null; creationContext?: import("../groupExperiences/media/contributionIdentity").CreationContext }[] }>(context, url, "GET", undefined, signal);
   const items: MediaCollectionItem[] = page.items.map(i => ({ source: { kind: "group" as const, contributionId: i.contributionId, experienceId: i.experienceId },

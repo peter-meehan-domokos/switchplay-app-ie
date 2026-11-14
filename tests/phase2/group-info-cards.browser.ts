@@ -16,7 +16,9 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../../src/li
 // + New. An unsaved Group draft reopens from My Drafts directly in the shared editor.
 // Checkpoint 4.4: the Group perspective shows every contribution shared with the Group; admins create Group Admin
 // Info Cards there, Edit and Remove their own, and Hide the others without deleting them.
-// Checkpoint 4.5a (V1): Admin contributions also appear in every follower's Me of their Group, as Group content.
+// Checkpoint 4.5a (V1): Admin contributions also appear in every follower's Me of their Group, as Group content,
+// since the refinement after 4.5c while Include admin content is on: by default for a follower-only viewer ("other"),
+// not for an admin or dual-role admin ("phase2"). An admin's own Admin card has both Delete and Hide from Group.
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
 test.afterAll(async () => { await client?.close(); });
@@ -61,15 +63,18 @@ async function select(page: Page, f: Fixture, selection: { perspective: "group" 
 }
 // Opens the pouch and returns the ids of the Info Cards in the consultation snapshot the page received; only the
 // current card is in the DOM, so the snapshot is what the stack holds.
-async function openPouch(page: Page, f: Fixture, path = `/decks?openExperience=${f.experienceId}`) {
+async function openPouch(page: Page, f: Fixture, path: string | null = `/decks?openExperience=${f.experienceId}`) {
   const entries = await openPouchEntries(page, f, path);
   return entries.map(entry => entry.info?.infoCardId ?? entry.status).toSorted();
 }
 type Entry = { status: string; source?: string; private?: boolean; info?: { infoCardId: string } };
-async function openPouchEntries(page: Page, f: Fixture, path = `/decks?openExperience=${f.experienceId}`) {
-  await page.goto(path);
-  await page.locator(".deck-card.is-active").press("Enter");
-  await page.locator(".focused-card-layer .active-card-identity").click();
+// `path` null opens the pouch of the deck already shown, keeping its Include admin content setting.
+async function openPouchEntries(page: Page, f: Fixture, path: string | null = `/decks?openExperience=${f.experienceId}`) {
+  if (path) await page.goto(path);
+  if (path || !await page.locator(".step-view-layer").count()) {
+    await page.locator(".deck-card.is-active").press("Enter");
+    await page.locator(".focused-card-layer .active-card-identity").click();
+  }
   await expect(page.locator(".step-view-layer")).toHaveCount(1);
   const snapshot = page.waitForResponse(response => new URL(response.url()).pathname === `/api/card-templates/${f.cardId}/info-cards`);
   await page.getByRole("button", { name: /^Open information cards/ }).click();
@@ -284,12 +289,12 @@ test("an admin creates, edits and removes a Group Admin Info Card in the Group p
   await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
   await expect(current(page).locator("[data-info-card-type-label]")).toHaveText("Group");
   expect(JSON.stringify((await f.main.users().findOne({ _id: new ObjectId(f.owner) }))!.cardsData)).toBe(before);
-  // In its creation context the author edits and removes it; Remove is permanent.
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]); expect(await menuOrigin(page)).toBeNull();
+  // In its creation context the author edits and deletes it, and may also hide it from the Group; Delete is permanent.
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete", "Hide from Group"]); expect(await menuOrigin(page)).toBeNull();
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
   await write(page, "Squad plan, edited");
   await expect(current(page).locator("[data-info-card-title]")).toHaveText("Squad plan, edited");
-  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]); await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete", "Hide from Group"]); await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(page.locator(`[data-info-card-id="${id}"]`)).toHaveCount(0);
   expect((await f.info.roots().findOne({ infoCardId: id }))?.deletedAt).toBeInstanceOf(Date);
 });
@@ -348,8 +353,14 @@ test("a dual-role admin keeps two identities apart: Admin cards managed only in 
   await showCard(page, follower);
   expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]);
   await page.keyboard.press("Escape");
-  // Since V1 the Admin card also appears in Me as Group content: its origin and + New, never Edit or Delete (C1).
-  expect(me).toContain(admin);
+  // Include admin content is off by default for a dual-role admin, so Me shows their Follower identity only.
+  expect(me).not.toContain(admin);
+  // Turned on, the Admin card appears in Me as Group content: its origin and + New, never Edit or Delete (C1).
+  await page.goto(`/decks?openExperience=${f.experienceId}`);
+  await page.locator(".group-picker-current").click(); await toggle(page).click(); await page.keyboard.press("Escape");
+  await expect(page.locator(".group-picker-current .admin-content-tag")).toHaveText("+ Admin");
+  const on = await openPouch(page, f, null);
+  expect(on).toContain(admin); expect(on).toContain(follower);
   await showCard(page, admin);
   await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
   expect(await menu(page)).toEqual(["+ New"]); expect(await menuOrigin(page)).toEqual(["Created in:", "Info squad · Group"]);
@@ -415,9 +426,39 @@ test("an unsaved Group Admin draft reopens from My Drafts as a Group draft, and 
   await expect(page.locator("[data-info-draft-origin]")).toHaveText("Created in: Info squad · Group");
 });
 
-// Checkpoint 4.5c: the Include Group content toggle, one setting for the Group deck, off by default.
-const toggle = (page: Page) => page.getByRole("switch", { name: "Include Group content", exact: true });
-test("Include Group content adds the Group's Admin cards to an inspection, keeps its setting across followers and resets on reload", async ({ page }) => {
+test("an admin's own Admin card menu stacks Hide from Group beneath Delete, leaving every other item in place, and hiding never deletes", async ({ page }) => {
+  const f = await fixture();
+  const admin = await contribution(f, f.owner, "group", "Admin note"), follower = await contribution(f, f.owner, "self", "Follower note");
+  await login(page);
+  const positions = async () => Object.fromEntries(await Promise.all((await page.getByRole("menuitem").all()).map(async item => [await item.textContent(), (await item.boundingBox())!] as const)));
+  // Reference: the dual-role author's Follower card in Me has + New, Edit and Delete only.
+  await select(page, f, { perspective: "self" });
+  await openPouch(page, f); await showCard(page, follower);
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete"]);
+  const reference = await positions(); await page.keyboard.press("Escape");
+  // The Admin card in the Group perspective: the same three in the same places, Hide from Group one row below Delete.
+  await select(page, f, { perspective: "group" });
+  await openPouch(page, f); await showCard(page, admin);
+  expect(await menu(page)).toEqual(["+ New", "Edit", "Delete", "Hide from Group"]);
+  const extended = await positions();
+  for (const label of ["+ New", "Edit", "Delete"]) {
+    expect(Math.abs(extended[label].y - reference[label].y), label).toBeLessThan(1);
+    expect(Math.abs(extended[label].x - reference[label].x), label).toBeLessThan(1);
+  }
+  expect(Math.abs(extended["Hide from Group"].y - (extended.Delete.y + extended.Delete.height))).toBeLessThan(1);
+  expect(Math.abs(extended["Hide from Group"].x - extended.Delete.x)).toBeLessThan(1);
+  // Hide from Group removes it from the Group without deleting it; nothing is asked first.
+  await page.getByRole("menuitem", { name: "Hide from Group", exact: true }).click();
+  await expect(page.locator(`[data-info-card-id="${admin}"]`)).toHaveCount(0);
+  const root = await f.info.owner(f.owner, admin);
+  expect(root.groupVisible).toBe(false); expect(root.deletedAt).toBeUndefined(); expect(root.latestVersion).toBe(1);
+  // Accepted limitation: a self-hidden Admin card is then out of reach in the Group perspective.
+  expect(await openPouch(page, f)).not.toContain(admin);
+});
+
+// The Include admin content toggle: one setting for the Group deck, its default following the viewer's role.
+const toggle = (page: Page) => page.getByRole("switch", { name: "Include admin content", exact: true });
+test("Include admin content adds the Group's Admin cards to an inspection, keeps its setting across followers and resets on reload", async ({ page }) => {
   const f = await fixture();
   const theirs = await contribution(f, f.other, "self", "Other note"), admin = await contribution(f, f.owner, "group", "Admin note");
   await login(page); await select(page, f, { perspective: "follower", subjectUserId: f.other });
@@ -427,27 +468,27 @@ test("Include Group content adds the Group's Admin cards to an inspection, keeps
   await chip.click();
   await expect(toggle(page)).toHaveAttribute("aria-checked", "false"); await expect(toggle(page)).toBeEnabled();
   // A fixed row below the names, outside their scrolling area.
-  await expect(page.locator(".group-perspective-list > .group-content-row").getByRole("switch")).toHaveCount(1);
+  await expect(page.locator(".group-perspective-list > .admin-content-row").getByRole("switch")).toHaveCount(1);
   await expect(page.locator(".group-perspective-scroll").getByRole("switch")).toHaveCount(0);
   await toggle(page).click();
   await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
   await expect(page.locator(".group-perspective-list")).toBeVisible();
-  await expect(chip.locator(".group-content-tag")).toHaveText("+ Group");
+  await expect(chip.locator(".admin-content-tag")).toHaveText("+ Admin");
   expect((await chip.boundingBox())!.height, "the tag adds no height").toBe(height);
-  // On the Group perspective it is shown but disabled, and keeps its setting for the next follower.
+  // On the Group perspective it stays enabled with no effect, and keeps its setting for the next follower.
   await page.locator('.group-perspective-list [data-perspective-key="group"]').click();
   await expect(chip).toHaveText(/Info squad/); await chip.click();
-  await expect(toggle(page)).toBeDisabled(); await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
-  await expect(chip.locator(".group-content-tag")).toHaveCount(0);
+  await expect(toggle(page)).toBeEnabled(); await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
+  await expect(chip.locator(".admin-content-tag")).toHaveCount(0);
   await page.getByRole("button", { name: "All followers", exact: true }).click();
   await page.locator(`.group-perspective-list [data-perspective-key="${f.other}"]`).click();
-  await expect(chip.locator(".group-content-tag")).toHaveText("+ Group");
+  await expect(chip.locator(".admin-content-tag")).toHaveText("+ Admin");
   // The pouch count and contents follow it: Creator cards, that follower's card and the Group's Admin card.
   await page.locator(".deck-card.is-active").press("Enter"); await page.locator(".focused-card-layer .active-card-identity").click();
   await expect(page.getByRole("button", { name: "Open information cards (4 attached)", exact: true })).toBeVisible();
   const snapshot = page.waitForResponse(response => new URL(response.url()).pathname === `/api/card-templates/${f.cardId}/info-cards`);
   await page.getByRole("button", { name: /^Open information cards/ }).click();
-  expect(new URL((await snapshot).url()).searchParams.get("includeGroupContent")).toBe("1");
+  expect(new URL((await snapshot).url()).searchParams.get("includeAdminContent")).toBe("1");
   await expect(page.locator("[data-info-card-stack]")).toHaveAttribute("data-info-stack-phase", "open");
   await showCard(page, admin);
   await expect(current(page).locator("[data-info-card-face]")).toHaveAttribute("data-info-card-type", "groupAdmin");
@@ -459,22 +500,36 @@ test("Include Group content adds the Group's Admin cards to an inspection, keeps
   // Reloading resets it: the inspection shows that follower's contributions only.
   await page.goto(`/decks?openExperience=${f.experienceId}`);
   await chip.click(); await expect(toggle(page)).toHaveAttribute("aria-checked", "false");
-  await expect(chip.locator(".group-content-tag")).toHaveCount(0);
+  await expect(chip.locator(".admin-content-tag")).toHaveCount(0);
   await page.keyboard.press("Escape");
   expect(await openPouch(page, f)).toEqual([...CREATOR_CARDS, theirs].toSorted());
 });
 
-test("a follower who may inspect gets the same toggle; one who may not never sees it", async ({ page }) => {
+test("a follower-only viewer has the toggle on by default, in own Me and in inspection alike, and turning it off removes the Admin cards", async ({ page }) => {
   const f = await fixture();
+  const admin = await contribution(f, f.owner, "group", "Admin note"), mine = await contribution(f, f.other, "self", "My note");
   await login(page, "other"); await select(page, f, { perspective: "follower", subjectUserId: f.owner });
   await page.goto(`/decks?openExperience=${f.experienceId}`);
-  await page.locator(".group-picker-current").click();
-  await expect(toggle(page)).toBeEnabled();
+  const chip = page.locator(".group-picker-current");
+  await expect(chip.locator(".admin-content-tag")).toHaveText("+ Admin");
+  await chip.click();
+  await expect(toggle(page)).toBeEnabled(); await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+  // Without inspection the follower still has it, for their own Me, where it applies identically.
   await f.groups.experiences().updateOne({ experienceId: f.experienceId }, { $set: { allowFollowerInspection: false } });
   await select(page, f, { perspective: "self" });
+  expect(await openPouch(page, f)).toEqual([...CREATOR_CARDS, admin, mine].toSorted());
   await page.goto(`/decks?openExperience=${f.experienceId}`);
-  await page.locator(".group-picker-current").click();
-  await expect(page.locator(".group-perspective-list")).toBeVisible(); await expect(toggle(page)).toHaveCount(0);
+  await expect(chip.locator(".admin-content-tag")).toHaveText("+ Admin");
+  await chip.click();
+  await expect(page.locator(".group-perspective-list")).toBeVisible(); await expect(toggle(page)).toHaveAttribute("aria-checked", "true");
+  await toggle(page).click(); await expect(toggle(page)).toHaveAttribute("aria-checked", "false");
+  await expect(chip.locator(".admin-content-tag")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  // The closed pouch count and its contents follow it.
+  await page.locator(".deck-card.is-active").press("Enter"); await page.locator(".focused-card-layer .active-card-identity").click();
+  await expect(page.getByRole("button", { name: "Open information cards (3 attached)", exact: true })).toBeVisible();
+  expect(await openPouch(page, f, null)).toEqual([...CREATOR_CARDS, mine].toSorted());
 });
 
 test("with many followers only the names and tiles scroll; the toggle row stays fixed in the list and at the grid's bottom right", async ({ page }) => {
@@ -516,5 +571,5 @@ test("with many followers only the names and tiles scroll; the toggle row stays 
   expect(Math.abs(await offset() - before)).toBeLessThan(1);
   await panel.getByRole("switch").click();
   await expect(panel.getByRole("switch")).toHaveAttribute("aria-checked", "true");
-  await expect(panel.locator("header .group-content-tag")).toHaveText("+ Group");
+  await expect(panel.locator("header .admin-content-tag")).toHaveText("+ Admin");
 });

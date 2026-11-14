@@ -1,11 +1,13 @@
 import type { MediaItem } from "../media";
 export type MediaSource = { kind: "personal"; cardTemplateId: string; mediaItemId: string }
   | { kind: "group"; experienceId: string; contributionId: string };
-export type MediaCollectionContext = { viewerUserId: string; cardTemplateId: string; kind: "owner"; experienceId?: string; accessEpoch?: number }
+// `includeAdminContent` is the Include admin content toggle as it applies: in own Me of a Group (owner with
+// experienceId) and in a follower inspection, the Group's Admin contributions join the follower's own. Own Me is
+// prepared in advance in its role-default state only (defaultIncludeAdminContent); the other state, and every
+// inspection with it, is read when first shown.
+export type MediaCollectionContext = { viewerUserId: string; cardTemplateId: string; kind: "owner"; experienceId?: string; accessEpoch?: number; includeAdminContent?: true }
   | { viewerUserId: string; cardTemplateId: string; kind: "group"; experienceId: string; subjectUserId?: string; accessEpoch: number; adoptionRevision: number; structureRevision?: number;
-    // Follower inspection with the Include Group content toggle on (checkpoint 4.5c): the Group's Admin contributions
-    // join the inspected follower's own. Never prepared in advance; read from the Group feed when first shown.
-    includeGroupContent?: true };
+    includeAdminContent?: true };
 export type MediaCollectionItem = {
   source: MediaSource; authorUserId: string; mediaType: "image" | "video"; description: string;
   originalFilename?: string; authorName?: string;
@@ -17,14 +19,15 @@ export type MediaCollectionItem = {
 export type MediaCollectionPage = { capabilities?: import("./permissions").MediaCapabilities; viewerUserId: string; cardTemplateId: string; total: number; olderCount: number;
   items: MediaCollectionItem[]; start?: number; refresh?: string | null; older: string | null; newer: string | null;
   experienceId?: string; subjectUserId?: string | null; accessEpoch?: number; adoptionRevision?: number; structureRevision?: number };
-// An Admin contribution of the current Group shown in a follower's Me (V1, checkpoint 4.5b). It is Group content:
-// another identity's item, read and delivered through the Group, never private and never managed from Me.
+// An Admin contribution of the current Group shown in a follower's Me (V1, checkpoint 4.5b) while Include admin
+// content is on. It is Group content: another identity's item, read and delivered through the Group, never private
+// and never managed from Me.
 export function isFollowerSharedAdminItem(item: Pick<MediaCollectionItem, "source" | "creationContext" | "private">, experienceId?: string) {
   return !!experienceId && item.source.kind === "group" && item.source.experienceId === experienceId && item.creationContext === "group" && !item.private;
 }
-// An Admin contribution of the current Group added to a follower inspection by Include Group content (4.5c).
-export function isIncludedGroupAdminItem(item: Pick<MediaCollectionItem, "source" | "creationContext" | "private">, context: MediaCollectionContext) {
-  return context.kind === "group" && !!context.subjectUserId && !!context.includeGroupContent && item.creationContext === "group"
+// An Admin contribution of the current Group added to a follower inspection by Include admin content (4.5c).
+export function isIncludedAdminItem(item: Pick<MediaCollectionItem, "source" | "creationContext" | "private">, context: MediaCollectionContext) {
+  return context.kind === "group" && !!context.subjectUserId && !!context.includeAdminContent && item.creationContext === "group"
     && item.source.kind === "group" && item.source.experienceId === context.experienceId && !item.private;
 }
 export function collectionKey(item: Pick<MediaCollectionItem, "source">) {

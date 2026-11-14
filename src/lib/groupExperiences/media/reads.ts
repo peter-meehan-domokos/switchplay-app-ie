@@ -27,10 +27,10 @@ export async function readMediaPage(repo: GroupMediaRepository, actor: string, c
       : { ...await repo.groupAuthority(actor, authority.experienceId, cardTemplateId, session, authority.subjectUserId),
         kind: "group" as const, subjectUserId: authority.subjectUserId ?? null };
     // Owner history and follower inspection list Follower contributions only; the Group feed lists both. With
-    // Include Group content, inspection adds the Group's Admin contributions shared with followers (4.5c).
+    // Include admin content, inspection adds the Group's Admin contributions shared with followers (4.5c).
     const subject = authority.kind === "group" && authority.subjectUserId ? { authorUserId: authority.subjectUserId, ...FOLLOWER_CONTRIBUTIONS } : undefined;
     const filter: Filter<GroupMediaRecord> = { cardTemplateId, state: "attached", ...(authority.kind === "owner" ? { authorUserId: actor, ...FOLLOWER_CONTRIBUTIONS }
-      : { experienceId: authority.experienceId, groupVisible: true, ...(subject ? authority.includeGroupContent ? { $or: [subject, ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS] } : subject : {}) }) } as Filter<GroupMediaRecord>;
+      : { experienceId: authority.experienceId, groupVisible: true, ...(subject ? authority.includeAdminContent ? { $or: [subject, ADMIN_CONTRIBUTIONS_FOR_FOLLOWERS] } : subject : {}) }) } as Filter<GroupMediaRecord>;
     const rows = await repo.records().find({ ...filter, ...older }, { session, projection: { _id: 0, contributionId: 1, authorUserId: 1,
       experienceId: 1, cardTemplateId: 1, kind: 1, originalFilename: 1, uploadedAt: 1, revision: 1, groupVisible: 1, creationContext: 1 } })
       .sort({ uploadedAt: sign, contributionId: sign }).limit(limit + 1).toArray();

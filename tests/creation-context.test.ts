@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { actingOrigin, identityRole, infoCardOrigin, mediaOrigin, originLabel, sameOrigin, STANDALONE_ORIGIN } from "../src/lib/groupExperiences/media/contributionIdentity";
-import { mediaRemoveOperation, outsideCreationContext, type MediaCapabilities } from "../src/lib/mediaCollection/permissions";
+import { mediaRemoveOperations, outsideCreationContext, type MediaCapabilities } from "../src/lib/mediaCollection/permissions";
 import { mediaCentreCreatedIn } from "../src/lib/mediaCollection/centreMetadata";
 import { fetchMediaCollection } from "../src/lib/mediaCollection/transport";
 import type { MediaCollectionItem } from "../src/lib/mediaCollection/contracts";
@@ -48,25 +49,25 @@ const personalItem: MediaCollectionItem = { source: { kind: "personal", cardTemp
 
 test("Delete and Hide follow the creation context: every row of the table, including dual-role users", () => {
   // Author in the creation context: Delete.
-  assert.equal(mediaRemoveOperation("ann", personalItem, caps(false)), "delete", "standalone media on the standalone Card");
-  assert.equal(mediaRemoveOperation("ann", item("ann", "self"), caps(false), "A", "self"), "delete", "Follower contribution in Me of A");
-  assert.equal(mediaRemoveOperation("ann", item("ann", "group"), caps(true), "A", "group"), "delete", "Admin contribution in the Group perspective of A");
+  assert.deepEqual(mediaRemoveOperations("ann", personalItem, caps(false)), ["delete"], "standalone media on the standalone Card");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "self"), caps(false), "A", "self"), ["delete"], "Follower contribution in Me of A");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "group"), caps(true), "A", "group"), ["delete", "hide"], "Admin contribution in the Group perspective of A: Delete, then Hide from Group beneath it");
   // Author outside it, unable to hide there: nothing, and the origin is shown.
-  assert.equal(mediaRemoveOperation("ann", item("ann", "self"), caps(false)), null, "Follower contribution on the standalone Card");
-  assert.equal(mediaRemoveOperation("ann", item("ann", "self", "B"), caps(false), "A", "self"), null, "another Group's contribution in Me of A");
-  assert.equal(mediaRemoveOperation("ann", personalItem, caps(false), "A", "self"), null, "standalone media in Me");
-  assert.equal(mediaRemoveOperation("ann", item("ann", "self"), caps(false), "A", "group"), null, "own Follower item in the Group perspective without admin rights");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "self"), caps(false)), [], "Follower contribution on the standalone Card");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "self", "B"), caps(false), "A", "self"), [], "another Group's contribution in Me of A");
+  assert.deepEqual(mediaRemoveOperations("ann", personalItem, caps(false), "A", "self"), [], "standalone media in Me");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "self"), caps(false), "A", "group"), [], "own Follower item in the Group perspective without admin rights");
   // A current admin in the Group perspective: Hide for anything else from this Group, including their own Follower item.
-  assert.equal(mediaRemoveOperation("ann", item("ann", "self"), caps(true), "A", "group"), "hide", "dual-role admin, own Follower item");
-  assert.equal(mediaRemoveOperation("ann", item("bea", "self"), caps(true), "A", "group"), "hide", "another follower's item");
-  assert.equal(mediaRemoveOperation("ann", item("bea", "group"), caps(true), "A", "group"), "hide", "another admin's item");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "self"), caps(true), "A", "group"), ["hide"], "dual-role admin, own Follower item");
+  assert.deepEqual(mediaRemoveOperations("ann", item("bea", "self"), caps(true), "A", "group"), ["hide"], "another follower's item");
+  assert.deepEqual(mediaRemoveOperations("ann", item("bea", "group"), caps(true), "A", "group"), ["hide"], "another admin's item");
   // Anyone else: nothing.
-  assert.equal(mediaRemoveOperation("ann", item("bea", "self"), caps(true), "B", "group"), null, "an item from another Group");
-  assert.equal(mediaRemoveOperation("ann", item("bea", "self"), caps(false), "A", "group"), null, "a follower viewing another author's item");
-  assert.equal(mediaRemoveOperation("ann", item("ann", "group"), caps(true), "A", "self"), null, "own Admin item never in Me");
+  assert.deepEqual(mediaRemoveOperations("ann", item("bea", "self"), caps(true), "B", "group"), [], "an item from another Group");
+  assert.deepEqual(mediaRemoveOperations("ann", item("bea", "self"), caps(false), "A", "group"), [], "a follower viewing another author's item");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann", "group"), caps(true), "A", "self"), [], "own Admin item never in Me");
   // A legacy record without creationContext is a Follower contribution: deleted from Me, hidden from the Group perspective.
-  assert.equal(mediaRemoveOperation("ann", item("ann"), caps(true), "A", "self"), "delete");
-  assert.equal(mediaRemoveOperation("ann", item("ann"), caps(true), "A", "group"), "hide");
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann"), caps(true), "A", "self"), ["delete"]);
+  assert.deepEqual(mediaRemoveOperations("ann", item("ann"), caps(true), "A", "group"), ["hide"]);
 });
 
 test("Media Centre names the origin of the viewer's own items outside their creation context, even where Hide applies", () => {
@@ -84,7 +85,7 @@ test("the Media Centre tile shows Created in above the origin in place of Delete
   const html = renderToStaticMarkup(createElement(UserCardMediaUploadPanel, { images: [image("outside"), image("inside")], videos: [],
     target: { scope: "user-card", userId: "ann", cardId: "card", deckTemplateId: "deck" }, uploadState: initialUserCardMediaUploadState, removalStatesById: {},
     onAddImage() {}, onAddVideo() {}, onRemoveMedia() {}, canUpload: false,
-    canRemoveMedia: media => media.id === "inside", getCreatedIn: media => media.id === "outside" ? "Group A · Me" : null }));
+    getRemoveActions: (media: { id: string }) => media.id === "inside" ? ["delete" as const] : [], getCreatedIn: media => media.id === "outside" ? "Group A · Me" : null }));
   const tiles = html.split('data-media-item-id="').slice(1);
   const outside = tiles.find(tile => tile.startsWith("outside"))!, inside = tiles.find(tile => tile.startsWith("inside"))!;
   assert.match(outside, /<span class="user-card-media-tile-created-in-label">Created in:<\/span><span>Group A · Me<\/span>/);
@@ -92,7 +93,7 @@ test("the Media Centre tile shows Created in above the origin in place of Delete
   assert.match(inside, />Delete</); assert.doesNotMatch(inside, /Created in/);
 });
 
-test("the Group feed transport keeps creationContext, so an own Admin upload offers Delete rather than Hide", async t => {
+test("the Group feed transport keeps creationContext, so an own Admin upload offers Delete as well as Hide", async t => {
   const page = { capabilities: caps(true), viewerUserId: "ann", cardTemplateId: "card", experienceId: "A", subjectUserId: null, accessEpoch: 1, adoptionRevision: 0, structureRevision: 0,
     total: 2, start: 0, next: null, previous: null, refresh: null, items: [
       { contributionId: "admin", experienceId: "A", authorUserId: "ann", kind: "image", revision: 1, uploadedAt: "2026-11-13T00:00:00.000Z", originName: "Group A", creationContext: "group" },
@@ -101,27 +102,29 @@ test("the Group feed transport keeps creationContext, so an own Admin upload off
   const result = await fetchMediaCollection({ kind: "group", viewerUserId: "ann", cardTemplateId: "card", experienceId: "A", accessEpoch: 1, adoptionRevision: 0 });
   const byId = new Map(result.items.map(value => [value.source.kind === "group" ? value.source.contributionId : "", value]));
   assert.equal(byId.get("admin")?.creationContext, "group"); assert.equal(byId.get("follower")?.creationContext, "self");
-  assert.equal(mediaRemoveOperation("ann", byId.get("admin")!, caps(true), "A", "group"), "delete");
-  assert.equal(mediaRemoveOperation("ann", byId.get("follower")!, caps(true), "A", "group"), "hide");
+  assert.deepEqual(mediaRemoveOperations("ann", byId.get("admin")!, caps(true), "A", "group"), ["delete", "hide"]);
+  assert.deepEqual(mediaRemoveOperations("ann", byId.get("follower")!, caps(true), "A", "group"), ["hide"]);
 });
 
 test("the Info Card menu keeps + New everywhere and shows Edit and Remove or Delete only in the creation context", () => {
   const card = (changes: object) => ({ id: "n", title: "Note", body: "Body", seriesTitle: "S", creatorUsername: "ann", seriesCreatorUsername: "ann", personal: true, ...changes });
-  assert.deepEqual(buildInfoCardMenuLayout(card({ personalSource: { cardTemplateId: "card", personalInfoRevision: 0 } })), { create: true, manage: true, removeLabel: "Remove", hide: false, origin: null });
-  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true }, origin: "Group A · Me" })), { create: true, manage: true, removeLabel: "Delete", hide: false, origin: null });
-  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false }, origin: "Group A · Me" })), { create: true, manage: false, removeLabel: null, hide: false, origin: "Group A · Me" });
-  assert.deepEqual(buildInfoCardMenuLayout(card({ origin: "Personal Card" })), { create: true, manage: false, removeLabel: null, hide: false, origin: "Personal Card" });
-  assert.deepEqual(buildInfoCardMenuLayout(card({ personal: false })), { create: true, manage: false, removeLabel: null, hide: false, origin: null }, "Creator Info Cards are unchanged");
-  assert.deepEqual(buildInfoCardMenuLayout({ id: "gone", unavailable: true }), { create: true, manage: false, removeLabel: null, hide: false, origin: null });
-  assert.deepEqual(buildInfoCardMenuLayout(undefined), { create: true, manage: false, removeLabel: null, hide: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(card({ personalSource: { cardTemplateId: "card", personalInfoRevision: 0 } })), { create: true, manage: true, removeLabel: "Remove", hide: false, extendDown: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true }, origin: "Group A · Me" })), { create: true, manage: true, removeLabel: "Delete", hide: false, extendDown: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false }, origin: "Group A · Me" })), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Group A · Me" });
+  assert.deepEqual(buildInfoCardMenuLayout(card({ origin: "Personal Card" })), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Personal Card" });
+  assert.deepEqual(buildInfoCardMenuLayout(card({ personal: false })), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: null }, "Creator Info Cards are unchanged");
+  assert.deepEqual(buildInfoCardMenuLayout({ id: "gone", unavailable: true }), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(undefined), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: null });
   // Checkpoint 4.4: where the viewer cannot create, + New is absent and a card with nothing to offer has no menu.
   assert.equal(buildInfoCardMenuLayout(card({ personal: false }), false), null);
   assert.equal(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false } }), false), null, "another author's note, no Hide");
-  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false, canHide: true } }), false), { create: false, manage: false, removeLabel: null, hide: true, origin: null });
-  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false, canHide: true }, origin: "Group A · Me" })), { create: true, manage: false, removeLabel: null, hide: true, origin: "Group A · Me" },
+  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false, canHide: true } }), false), { create: false, manage: false, removeLabel: null, hide: true, extendDown: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: false, canHide: true }, origin: "Group A · Me" })), { create: true, manage: false, removeLabel: null, hide: true, extendDown: false, origin: "Group A · Me" },
     "a dual-role admin hides their own Follower note in the Group perspective, with its origin");
-  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true, canHide: true } })), { create: true, manage: true, removeLabel: "Delete", hide: false, origin: null },
-    "in its creation context the author gets Edit and Delete, never Hide; a standalone Personal card says Remove (it only detaches)");
+  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true, canHide: true } })), { create: true, manage: true, removeLabel: "Delete", hide: true, extendDown: true, origin: null },
+    "an admin's own Admin card in the Group perspective: Edit, Delete and Hide from Group beneath it, the menu extending downwards");
+  assert.deepEqual(buildInfoCardMenuLayout(card({ groupNote: { experienceId: "A", editable: true } })), { create: true, manage: true, removeLabel: "Delete", hide: false, extendDown: false, origin: null },
+    "the author's own note without admin rights (Me): Edit and Delete only");
 });
 
 const note = (id: string, experienceId: string): PublishedInfo => ({ infoCardId: id, version: 1, visibility: "private", ownerUserId: "ann", creatorUsername: "ann", kind: "group",
@@ -144,13 +147,13 @@ test("a Group note is editable only in Me of its own Group; elsewhere it carries
   assert.equal(working.get("inA")?.groupNote?.editable, false, "not on the standalone Card");
   assert.equal(working.get("inA")?.origin, "Group A · Me");
   assert.ok(working.get("standalone")?.personalSource, "a standalone note stays editable on the standalone Card");
-  assert.deepEqual(buildInfoCardMenuLayout(working.get("standalone")), { create: true, manage: true, removeLabel: "Remove", hide: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(working.get("standalone")), { create: true, manage: true, removeLabel: "Remove", hide: false, extendDown: false, origin: null });
   const meA = await consultation(t, { actor: "ann", mainCardId: "main", version: 3, mode: "experience", experienceId: "A", attachmentIds: [] });
   assert.equal(meA.get("inA")?.groupNote?.editable, true);
-  assert.deepEqual(buildInfoCardMenuLayout(meA.get("inA")), { create: true, manage: true, removeLabel: "Delete", hide: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(meA.get("inA")), { create: true, manage: true, removeLabel: "Delete", hide: false, extendDown: false, origin: null });
   assert.equal(meA.get("inB")?.groupNote?.editable, false);
-  assert.deepEqual(buildInfoCardMenuLayout(meA.get("inB")), { create: true, manage: false, removeLabel: null, hide: false, origin: "Group B · Me" });
-  assert.deepEqual(buildInfoCardMenuLayout(meA.get("standalone")), { create: true, manage: false, removeLabel: null, hide: false, origin: "Personal Card" });
+  assert.deepEqual(buildInfoCardMenuLayout(meA.get("inB")), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Group B · Me" });
+  assert.deepEqual(buildInfoCardMenuLayout(meA.get("standalone")), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Personal Card" });
 });
 
 test("My Drafts entries name the originating context of unsaved Group drafts", async () => {
@@ -167,7 +170,7 @@ test("My Drafts entries name the originating context of unsaved Group drafts", a
 // its creation context is editable; a current admin hides the others; Admin contributions read as Group Admin cards.
 const contribution = (id: string, ownerUserId: string, creationContext: "self" | "group", experienceId = "A"): PublishedInfo => ({ ...note(id, experienceId), ownerUserId, creationContext, creatorUsername: ownerUserId } as PublishedInfo);
 async function groupConsultation(t: { mock: { method: (...args: never[]) => unknown } }, viewer: string, canHide: boolean | undefined, entries: PublishedInfo[], subjectUserId?: string,
-  mode: "group" | "experience" = "group", includeGroupContent = false) {
+  mode: "group" | "experience" = "group", includeAdminContent = false) {
   const calls: string[] = [];
   const snapshot: InfoConsultationSnapshot = { mainCardId: "main", mainCardVersion: 3, ...(canHide !== undefined ? { canHide } : {}),
     entries: entries.map(info => ({ status: "available", key: info.infoCardId, source: "group", info, originName: "Group A",
@@ -177,60 +180,74 @@ async function groupConsultation(t: { mock: { method: (...args: never[]) => unkn
     return url === "/api/auth/me" ? Response.json({ user: { id: viewer } }) : Response.json(snapshot, { headers: { "X-Personal-Viewer": viewer } });
   });
   const cards = await loadInfoConsultation({ actor: viewer, mainCardId: "main", version: 3, mode, experienceId: "A", ...(subjectUserId ? { subjectUserId } : {}),
-    ...(includeGroupContent ? { includeGroupContent } : {}), attachmentIds: [] }, new AbortController().signal);
+    ...(includeAdminContent ? { includeAdminContent } : {}), attachmentIds: [] }, new AbortController().signal);
   return { calls, cards: new Map(cards.flatMap(card => card.unavailable ? [] : [[card.id, card] as const])) };
 }
 
-test("in the Group perspective an admin edits their own Admin card, and hides the rest with the origin on their own Follower card", async t => {
+test("in the Group perspective an admin edits, deletes and hides their own Admin card, and hides the rest with the origin on their own Follower card", async t => {
   const { calls, cards } = await groupConsultation(t, "ann", true, [contribution("annAdmin", "ann", "group"), contribution("annFollower", "ann", "self"), contribution("beaNote", "bea", "self")]);
   assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=group&version=3&experienceId=A");
   const admin = cards.get("annAdmin")!, follower = cards.get("annFollower")!, other = cards.get("beaNote")!;
   assert.equal(admin.infoType, "groupAdmin"); assert.equal(follower.infoType, undefined); assert.equal(other.personal, true);
-  assert.deepEqual(buildInfoCardMenuLayout(admin), { create: true, manage: true, removeLabel: "Delete", hide: false, origin: null });
-  assert.deepEqual(buildInfoCardMenuLayout(follower), { create: true, manage: false, removeLabel: null, hide: true, origin: "Group A · Me" });
-  assert.deepEqual(buildInfoCardMenuLayout(other), { create: true, manage: false, removeLabel: null, hide: true, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(admin), { create: true, manage: true, removeLabel: "Delete", hide: true, extendDown: true, origin: null });
+  assert.equal(admin.groupNote?.canHide, true);
+  assert.deepEqual(buildInfoCardMenuLayout(follower), { create: true, manage: false, removeLabel: null, hide: true, extendDown: false, origin: "Group A · Me" });
+  assert.deepEqual(buildInfoCardMenuLayout(other), { create: true, manage: false, removeLabel: null, hide: true, extendDown: false, origin: null });
   assert.deepEqual(admin.publication, { infoCardId: "annAdmin", kind: "publication", version: 1, experienceId: "A" }, "media is read through the Group");
 });
 
 test("a follower in the Group perspective sees the origin on their own card and no menu on anyone else's", async t => {
   const { cards } = await groupConsultation(t, "bea", false, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")]);
   assert.equal(buildInfoCardMenuLayout(cards.get("annAdmin"), false), null);
-  assert.deepEqual(buildInfoCardMenuLayout(cards.get("beaNote"), false), { create: false, manage: false, removeLabel: null, hide: false, origin: "Group A · Me" });
+  assert.deepEqual(buildInfoCardMenuLayout(cards.get("beaNote"), false), { create: false, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Group A · Me" });
 });
 
 test("follower inspection accepts only the inspected follower's Follower contributions", async t => {
   const { calls, cards } = await groupConsultation(t, "ann", true, [contribution("beaNote", "bea", "self")], "bea");
   assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=group&version=3&experienceId=A&subjectUserId=bea");
-  assert.deepEqual(buildInfoCardMenuLayout(cards.get("beaNote"), false), { create: false, manage: false, removeLabel: null, hide: true, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(cards.get("beaNote"), false), { create: false, manage: false, removeLabel: null, hide: true, extendDown: false, origin: null });
   await assert.rejects(groupConsultation(t, "ann", true, [contribution("annAdmin", "ann", "group")], "bea"), /Invalid Group note entry/);
   await assert.rejects(groupConsultation(t, "ann", true, [contribution("elsewhere", "bea", "self", "B")]), /Invalid Group note entry/, "another Group's contribution");
 });
 
-// Checkpoint 4.5 (V1): a follower's Me also shows the Group's Admin contributions, as Group content.
-test("in Me a follower sees the Group's Admin cards with + New only, read through the Group, and an admin sees the origin on their own", async t => {
-  const { calls, cards } = await groupConsultation(t, "bea", undefined, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")], undefined, "experience");
-  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=experience&version=3&experienceId=A");
+// V1 with Include admin content on: a follower's Me also shows the Group's Admin contributions, as Group content.
+test("in Me with Include admin content a follower sees the Group's Admin cards with + New only, read through the Group, and an admin sees the origin on their own", async t => {
+  const { calls, cards } = await groupConsultation(t, "bea", undefined, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")], undefined, "experience", true);
+  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=experience&version=3&experienceId=A&includeAdminContent=1");
   const admin = cards.get("annAdmin")!, own = cards.get("beaNote")!;
   assert.equal(admin.infoType, "groupAdmin"); assert.equal(admin.groupVisibility, undefined, "no private icon on Group content");
-  assert.deepEqual(buildInfoCardMenuLayout(admin), { create: true, manage: false, removeLabel: null, hide: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(admin), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: null });
   assert.deepEqual(admin.publication, { infoCardId: "annAdmin", kind: "publication", version: 1, experienceId: "A" }, "media is read through the Group");
   assert.deepEqual(own.publication, { infoCardId: "beaNote", kind: "publication", version: 1 }, "the viewer's own as before");
-  assert.deepEqual(buildInfoCardMenuLayout(own), { create: true, manage: true, removeLabel: "Delete", hide: false, origin: null });
+  assert.deepEqual(buildInfoCardMenuLayout(own), { create: true, manage: true, removeLabel: "Delete", hide: false, extendDown: false, origin: null });
   // A dual-role admin sees their own Admin card in Me with its origin, never Edit or Delete (C1).
-  const { cards: dual } = await groupConsultation(t, "ann", undefined, [contribution("annAdmin", "ann", "group")], undefined, "experience");
-  assert.deepEqual(buildInfoCardMenuLayout(dual.get("annAdmin")), { create: true, manage: false, removeLabel: null, hide: false, origin: "Group A · Group" });
+  const { cards: dual } = await groupConsultation(t, "ann", undefined, [contribution("annAdmin", "ann", "group")], undefined, "experience", true);
+  assert.deepEqual(buildInfoCardMenuLayout(dual.get("annAdmin")), { create: true, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Group A · Group" });
   // Another follower's Follower contribution, or another Group's Admin card, is never accepted in Me.
-  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("ceeNote", "cee", "self")], undefined, "experience"), /Invalid Group note entry/);
-  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("bAdmin", "ann", "group", "B")], undefined, "experience"), /Invalid Group note entry/);
+  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("ceeNote", "cee", "self")], undefined, "experience", true), /Invalid Group note entry/);
+  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("bAdmin", "ann", "group", "B")], undefined, "experience", true), /Invalid Group note entry/);
 });
 
-test("follower inspection accepts the Group's Admin cards only with Include Group content, and asks for them", async t => {
+test("in Me with Include admin content off, the request omits it and an Admin card is refused", async t => {
+  const { calls, cards } = await groupConsultation(t, "bea", undefined, [contribution("beaNote", "bea", "self")], undefined, "experience");
+  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=experience&version=3&experienceId=A");
+  assert.ok(cards.has("beaNote"));
+  await assert.rejects(groupConsultation(t, "bea", undefined, [contribution("annAdmin", "ann", "group")], undefined, "experience"), /Invalid Group note entry/);
+});
+
+test("follower inspection accepts the Group's Admin cards only with Include admin content, and asks for them", async t => {
   const { calls, cards } = await groupConsultation(t, "ann", true, [contribution("annAdmin", "ann", "group"), contribution("beaNote", "bea", "self")], "bea", "group", true);
-  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=group&version=3&experienceId=A&subjectUserId=bea&includeGroupContent=1");
+  assert.equal(calls[0], "/api/card-templates/main/info-cards?mode=group&version=3&experienceId=A&subjectUserId=bea&includeAdminContent=1");
   assert.equal(cards.get("annAdmin")?.infoType, "groupAdmin");
   // Checkpoint 4.5c: the viewer's own Admin card there names its origin and is never hidden from here (as media).
-  assert.deepEqual(buildInfoCardMenuLayout(cards.get("annAdmin"), false), { create: false, manage: false, removeLabel: null, hide: false, origin: "Group A · Group" });
+  assert.deepEqual(buildInfoCardMenuLayout(cards.get("annAdmin"), false), { create: false, manage: false, removeLabel: null, hide: false, extendDown: false, origin: "Group A · Group" });
   const { cards: other } = await groupConsultation(t, "ann", true, [contribution("deeAdmin", "dee", "group")], "bea", "group", true);
-  assert.deepEqual(buildInfoCardMenuLayout(other.get("deeAdmin"), false), { create: false, manage: false, removeLabel: null, hide: true, origin: null }, "another admin's: Hide, as in the Group perspective");
+  assert.deepEqual(buildInfoCardMenuLayout(other.get("deeAdmin"), false), { create: false, manage: false, removeLabel: null, hide: true, extendDown: false, origin: null }, "another admin's: Hide, as in the Group perspective");
   await assert.rejects(groupConsultation(t, "ann", true, [contribution("ceeNote", "cee", "self")], "bea", "group", true), /Invalid Group note entry/, "never another follower's");
+});
+
+test("the Info Card menu extends downwards by exactly one row when Hide from Group sits beneath Delete", () => {
+  const styles = readFileSync(new URL("../src/components/info-cards/InfoCardFace.module.css", import.meta.url), "utf8");
+  assert.match(styles, /\.menuItemsExtended \{ bottom: calc\(100% - 28px\); \}/, "anchored one 28px row lower, so the items above keep their place");
+  assert.match(styles, /\.menuItems button \{[^}]*min-height: 28px;/, "the row it hangs by is the menu row height");
 });
