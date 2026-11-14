@@ -1,6 +1,6 @@
 # Info Card Improvements — Product Specification and Engineering Planning Brief
 
-**Status:** Product decisions incorporated below: D0–D10, Q1–Q7, P1–P3 (12 November 2026), R1 and C1–C4 (13 November 2026). C1 refines P2 and R1. No open product points remain for checkpoint 4.2b.
+**Status:** Product decisions incorporated below: D0–D10, Q1–Q7, P1–P3 (12 November 2026), R1 and C1–C4 (13 November 2026). C1 refines P2 and R1. No open product points remain for checkpoint 4.2b. Decisions V1–V7 (14 November 2026) put Admin contributions into followers' Me perspectives and add the inspection toggle; see [Admin contributions in followers' Me](#admin-contributions-in-followers-me-and-the-inspection-toggle-v1v7).
 **Engineering plan:** [info-cards-integration-engineering-plan.md](../../../engineering/features/group-experience/info-cards-integration-engineering-plan.md)
 
 ## Purpose
@@ -57,7 +57,7 @@ Content a user creates inside a Group Experience is either an **Admin contributi
 - A user who is both admin and follower in the same Group Experience has **two separate contribution identities**, treated as though they were two different users. Their Admin and Follower contributions never mix in storage, history, visibility, editing, deletion or presentation, even though both carry the same account.
 - Later role changes never reclassify an existing contribution.
 - **Follower contributions** keep the existing media-item owner history: the author sees them on their standalone Card and in their Me perspective in every Group Experience using that Card template, marked private where they did not originate in the current Group. They appear in their originating Group perspective under the existing sharing and hiding rules. Other users never gain access to the author's private cross-context content.
-- **Admin contributions** belong exclusively to their originating Group Experience. They appear in that Group's Group perspective under the existing visibility rules. They never appear on a standalone Card, in another Group Experience (even one the same admin manages) or in the same user's Me perspective, and never become Follower contributions.
+- **Admin contributions** belong exclusively to their originating Group Experience. They appear in that Group's Group perspective under the existing visibility rules. They also appear in the Me perspective of every active follower of that Group (V1). They never appear on a standalone Card or in another Group Experience (even one the same admin manages), and never become Follower contributions.
 - These rules apply identically to **media items and Info Cards**.
 
 ### Canonical reference for Info Card behaviour (Q1)
@@ -362,12 +362,57 @@ Visibility mirrors the corrected media-item rules exactly.
 | Perspective | Info Cards shown, besides Creator Info Cards |
 | --- | --- |
 | **Standalone context** | The user's standalone Personal Info Cards and all their Follower contributions for the same Card template. Never their Admin contributions. |
-| **Me** (follower) | Their Follower contributions for the same Card template, and their standalone Personal Info Cards. Those not originating in the current Group (standalone ones, those from other Group Experiences, and those hidden here) carry the existing **private icon**. Never their own Admin contributions. |
+| **Me** (follower) | Their Follower contributions for the same Card template, and their standalone Personal Info Cards. Those not originating in the current Group (standalone ones, those from other Group Experiences, and those hidden here) carry the existing **private icon**. Plus, as shared Group content, the Admin contributions of this Group that are not hidden (V1), with no private icon. |
 | **Group** | Admin contributions and Follower contributions originating in this Group Experience, under the established visibility and hiding rules. Never anyone's standalone Personal Info Cards. |
-| **Other followers** | That follower's Follower contributions originating in this Group, under the Group's sharing settings. Never their standalone Personal Info Cards, and never Admin contributions by the same person. |
+| **Other followers** | That follower's Follower contributions originating in this Group, under the Group's sharing settings. Never their standalone Personal Info Cards, and never Admin contributions by the same person. Admin contributions of the Group are added only while the viewer switches on **Include Group content** (V3). |
 
-- Group Admin Info Cards appear only in the Group perspective of their originating Group Experience. Followers visit the Group perspective to see them.
+- Group Admin Info Cards appear in the Group perspective of their originating Group Experience and in the Me perspective of its active followers (V1). They never appear in another Group Experience or on a standalone Card.
 - Standalone Personal Info Cards are never exposed to admins or other followers, whether through the Group perspective or follower comparison.
+
+### Admin contributions in followers' Me, and the inspection toggle (V1–V7)
+
+**Purpose.** An admin's Info Cards and media are a way to pass important information to every member. Hidden in the Group perspective, some followers would never see them. Follower contributions keep their existing visibility, so no extra noise is added.
+
+**V1: Admin contributions in every follower's Me.**
+- The Admin contributions (Group Admin Info Cards and Admin media items) of a Group that are not hidden appear in the Me perspective of every active follower of that Group, for the same Card.
+- They also appear in the Group perspective, as before.
+- They never appear on a standalone Card, in another Group's perspectives, or to former followers.
+- Followers' contributions are unchanged: they remain visible in the Group perspective and in the author's Me.
+- Applies identically to Info Cards and media items.
+
+**V2: Presentation and rules in Me.**
+- They sort exactly like every other card or item, by their saved date. Who created them, or as which type, does not change the order.
+- Group Admin Info Cards keep the teal colour and the type label. Media shows the usual author attribution.
+- They are shared with the Group, so they carry **no private icon**. The private icon continues to mean that only the viewer can see an item.
+- A follower sees no Edit, Delete or Hide on them, only the usual + New. There is no way for a follower to mute them.
+- A user who is both admin and follower sees their own Admin contributions in Me with "Created in: [Group] · Group", without Edit or Delete. C1 is unchanged: management only in the Group perspective.
+- Hide from Group removes an Admin contribution from followers' Me as well as from the Group perspective. Delete removes it everywhere.
+- Nothing notifies followers; they see the items when they open the Card.
+- Existing Admin contributions become visible in followers' Me as soon as this is deployed.
+
+**V3: Inspecting a follower (Other followers).**
+- By default, inspection shows only that follower's own shared contributions. Admin contributions are not included. This is what lets an admin scan quickly who has contributed what.
+- One central toggle, **Include Group content**, adds the Group's Admin contributions to the inspection view. Creator Info Cards are always shown there, with or without the toggle. It is off by default.
+- It is available to anyone who can inspect followers; admins and followers get the same toggle.
+- It applies to every follower and to media items, Info Cards, thumbnails and pouch counts together. It is never set per follower.
+- The toggle does not reveal anything the viewer cannot already see in the Group perspective. It never exposes a follower's private or standalone cards.
+
+**V4: Toggle behaviour.**
+- It stays off until switched on, and resets to off whenever the Group deck is left or the page reloads. While the viewer stays in the Group deck it persists across followers and between the deck view and the Focused Card view.
+- It is shown but dimmed when the Group perspective itself is selected, where it has no effect.
+- Switching it refreshes the current content, including the pouch count, without closing the chooser or losing the viewer's place in the stack.
+- When it is on, a small **+ Group** tag follows the follower's name in the status chip and in the Focused Card header (for example "Eamonn + Group"). The tag sits on the same line as the name and adds no vertical height.
+
+**V5: Placement.**
+- **Deck view:** at the bottom of the follower list, below a divider line. The row is fixed; only the follower names scroll.
+- **Focused Card view:** a thin fixed row along the bottom of the follower grid, with the toggle in the bottom-right corner, so it sits where it does in the list. Only the tiles scroll.
+- The toggle is a single switch with the label "Include Group content", with a touch target of at least 44px, readable by screen readers and clear of the home indicator.
+
+**V6: Later option, not built now (Option B).**
+- An admin may later choose, per contribution, that it appears only in the Group perspective. The stored value is `audience: "group-perspective-only"`.
+- The read rule is that a contribution is shown in followers' Me unless it carries that value, so adding the option later needs no migration. No interface or write for it exists now.
+
+**V7: Consequence for earlier rules.** The statements "Admin contributions never appear in Me" (P1, Q3, D9 in the earlier text) are superseded by V1 for the Me perspective of followers of the originating Group. Isolation from standalone Cards, other Groups and the author's Follower identity is unchanged.
 
 ### Permissions (Q4, P2, C1, C2)
 
@@ -494,7 +539,7 @@ Attribution matches Group media attribution exactly, for both Group Admin Info C
 | --- | --- |
 | Q1 | Media items are the sole canonical reference. Standalone Personal Info Cards stay on CardData. Group-created and Group Admin Info Cards belong to the Group Experience context, following Group media items. Reflections are not a reference. |
 | Q2 | Visibility mirrors media items exactly: own Group-created and standalone Info Cards in Me (standalone ones with the private icon); standalone ones never exposed to others. |
-| Q3 | Group Admin Info Cards appear only in the Group perspective. Follower-created Group Info Cards also appear there. |
+| Q3 | Group Admin Info Cards appear in the Group perspective, where follower-created Group Info Cards also appear. **Extended by V1:** they also appear in followers' Me of the originating Group. |
 | Q4 | Editing, hiding and deleting follow existing Group media permissions. **Refined by C1 and C2.** |
 | Q5 | Attribution matches Group media attribution. |
 | Q6 | No audience-selection system. The earlier audience-based Group Info Card proposal is withdrawn. |
@@ -506,6 +551,7 @@ Attribution matches Group media attribution exactly, for both Group Admin Info C
 | C1 | An item may only be edited or permanently deleted from the exact context in which it was created: the standalone Card, Group A · Me or Group A · Group. Different Groups are different contexts. The context comes from the creation context stored on the item, never from the current role or viewing perspective. Outside that context, Media Centre shows "Created in: [context]" in place of Delete, and the Info Card menu shows that origin and + New only. Visibility and hiding are unchanged. The interface decides where controls appear; the server enforces ownership and current Group permissions against the stored context. Applies to media items and Info Cards. Refines P2 and R1. |
 | C2 | Delete and Hide are separate. Delete permanently removes a contribution, only by its author, only from its creation context, and never silently hides. Hide is for current admins, on any contribution originating in their Group, including their own Follower contributions seen in the Group perspective; it never deletes. |
 | C3 | All four Info Card workflows keep unfinished drafts in the existing My Drafts list: Creator, standalone Personal, follower Group (Me) and admin Group (Group perspective). An unfinished Group draft reopens directly in the existing editor, with no Group navigation, and stays identified with its originating context. The server checks current permissions against the stored context on every write. Saved Info Cards are never edited through My Drafts; that remains only in the creation context. An exception to the navigation aspect of C1 only. |
+| V1–V7 | Admin contributions also appear in the Me of every active follower of their Group; they sort like all others, carry no private icon and cannot be muted. Inspecting a follower shows only their contributions unless the central **Include Group content** toggle is on; it is off by default, resets on leaving the deck, and shows a **+ Group** tag. A later per-contribution option (`group-perspective-only`) is planned with no migration. See the section above. |
 | C4 | Leaving a Group: a former follower cannot edit or delete Group A · Me contributions; a former admin cannot edit or delete Group A · Group contributions. Rejoining with the role restores this. Visibility and hiding are unchanged. A general Media Centre for past Groups is backlog only. |
 
 ---

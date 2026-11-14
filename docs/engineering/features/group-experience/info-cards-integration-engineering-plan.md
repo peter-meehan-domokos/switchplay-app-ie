@@ -1,6 +1,6 @@
 # Info Card Improvements — Engineering Plan
 
-**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026), and R1 and C1–C4 (13 November 2026). Checkpoints 5–10 and 4.0–4.2 are implemented. Checkpoint 4.2b (C1–C4) is planned and awaits review; it has no open points.
+**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026), and R1 and C1–C4 (13 November 2026). Checkpoints 5–10 and 4.0–4.2 are implemented. Checkpoints 4.2b–4.4 and the Delete and Hide from Group terminology refinement are implemented. Checkpoints 4.5a–4.5c and the Atlas index installation (decisions V1–V7, 14 November 2026) are planned and await approval to start.
 **Specification:** [Info Card Improvements — Product Specification and Engineering Planning Brief](../../../design/features/group-experience/info-cards-integration-spec.md)
 **Branch:** `feat/group-experience`
 
@@ -819,6 +819,56 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 - **Indexes (approved):** `group_info_owner_history` (`ownerUserId`, `originCardTemplateId`, `createdAt`) and `group_info_shared_history` (`experienceId`, `originCardTemplateId`, `groupVisible`, `createdAt`) are now created by `createInfoCardIndexes`. Performance only; no readiness check depends on them. They still need installing in Atlas, which has not been done.
 - **Not decided:** whether Admin Info Cards (and Admin media) should appear in followers' Me perspectives. Nothing has changed.
 
+#### Checkpoints 4.5a–4.5c — Admin contributions in followers' Me, and the inspection toggle
+
+**Purpose.** Apply decisions V1–V7 of the specification: Admin contributions (Info Cards and media) also appear in every active follower's Me of the originating Group; inspecting a follower shows only their contributions unless the central **Include Group content** toggle is on. Nothing is implemented yet. **Model and effort:** Opus, High.
+
+**Step 0 — Atlas index installation (approved; completed 14 November 2026, run by the owner and verified from the index listing: `group_info_owner_history` and `group_info_shared_history` exist on `infoCards` in the `switchplay` database, and the readiness check reported "Info Cards indexes ready.").** The steps were:
+1. Read-only: list the indexes on `infoCards` in Atlas, confirm the database and that `group_info_owner_history` and `group_info_shared_history` do not exist.
+2. Run `npx tsx scripts/setup-info-cards.ts`. It calls `createInfoCardIndexes` (the two new indexes; the existing ones are identical, so re-creation is a no-op) and the read-only readiness check. It rewrites no data.
+3. Read-only: list the indexes again and report them.
+4. Rollback: drop the two indexes by name; nothing depends on them.
+- `.env.local` points at production Atlas, so this is a deliberate production index write. State before and after running it. Do not run anything else against Atlas.
+
+**Shared rules (all three checkpoints).**
+- **B-readiness:** an optional `audience?: "group-perspective-only"` on Info Card roots and Group media records. Missing means shown in followers' Me. Read filter `audience: { $ne: "group-perspective-only" }`. Nothing writes it now. No migration, no index change.
+- **Query parameter:** `includeGroupContent=1` (internal name `includeGroupContent`) on the consultation and media reads for follower inspection. The server authorises it with the existing member and `canInspectPeers` checks, so there is no new permission surface.
+- **Sorting:** unchanged. Admin items use their saved date like every other item.
+- **No private icon** on Admin items in Me; `private` stays computed as now for the viewer's own Follower contributions.
+- **Identity:** any new query compares through `identityFilter` and `creationContext`, never `authorUserId` alone (identity drift, section 7).
+- **Existing content:** Admin contributions already stored become visible in followers' Me on deploy. Confirmed acceptable.
+
+**4.5a — Info Cards in followers' Me (continues automatically if within scope).**
+- **Backend:** in `mainInfoConsultation`'s experience mode ([queries.ts](../../../../src/lib/infoCards/queries.ts)), add this Group's roots for the Card with `kind: "group"`, `creationContext: "group"`, `groupVisible ≠ false`, `latestVersion > 0`, not deleted and without the audience opt-out. Pass their IDs into `publicationSnapshotEntries` as `sharedGroupIds`. In group mode with a subject, add them only when `includeGroupContent` is set.
+- **Media delivery:** `authorizeInfoMedia` already serves Group members; confirm with a follower viewer in Me.
+- **Client:** `editable` stays false in Me for Admin cards; a plain follower sees only + New, and a dual-role admin sees the origin "Group A · Group". The pouch count includes them.
+- **Tests:** integration (a follower sees them; absent for other Groups, hidden, former followers and standalone Cards; subject inspection excludes them by default and includes them with the parameter; order unchanged), unit (menu layout), browser (Me and mixed stack colours).
+
+**4.5b — Media items in followers' Me (approval gate: permission-sensitive media change, as 4.0).**
+- **Backend:** the Me page ([ownerHistory.ts](../../../../src/lib/mediaCollection/ownerHistory.ts), `readOwnerMediaPage`) reads only the viewer's own items. Add a third source, this Group's Admin records (`creationContext: "group"`, `groupVisible: true`, same Card, not opted out), merged with the same sort tuple. Extend cursors, `total`, `start`, `olderCount` and the neighbour lookups so counts and paging do not drift. Author name per row instead of the viewer's. Extend `ownerPreviewPages` ([preparation.ts](../../../../src/lib/mediaCollection/preparation.ts)) and the Group refresh path ([refresh.ts](../../../../src/lib/groupExperiences/refresh.ts)) for thumbnails and the exact Gallery item.
+- **Delivery:** items the viewer did not author use the Group route with `experienceId`, as the shared feed does; capabilities give a plain follower no controls.
+- **Client:** Media Centre in Me shows "By: [admin]"; a dual-role admin sees "Created in: Group A · Group" in place of Delete.
+- **Tests:** integration (paging, totals and cursors with all three sources; hidden, other-Group, former-follower exclusions; delivery to followers), browser (Me thumbnails, Gallery, Media Centre).
+
+**4.5c — Inspection toggle (approval gate).**
+- **State:** one client setting in the Group deck, off by default, reset when the deck is left or the page reloads, kept across followers and across the deck and Focused Card views. It feeds `includeGroupContent` into the Info Card and media reads and the pouch count prefetch.
+- **Deck view (list):** the row sits at the bottom of the popover below a divider; add a wrapper so only the follower names scroll and the row is fixed.
+- **Focused Card view (grid):** a thin fixed row along the bottom of the panel with the toggle in the bottom-right corner; add a wrapper so only the tiles scroll.
+- **Toggle:** label "Include Group content", a proper switch role, at least 44px high, clear of the safe area; dimmed (not hidden) while the Group perspective is selected.
+- **Marker:** a "+ Group" tag after the follower's name in the status chip and the Focused Card header, on the same line, adding no vertical height.
+- **Refresh:** switching refreshes the content and the pouch count without closing the chooser or losing the stack position.
+- **Tests:** unit for the layout of the two choosers and the toggle state; browser for both choosers with many followers (about 30) to prove the footer stays fixed while names scroll, keyboard operation, narrow iPhone widths down to the smallest, landscape, the marker adding no height, and reset on leaving the deck.
+- **Regression risk:** the list and grid DOM change, so test follower selection, dismissal, focus order and scrolling in both views.
+
+**iPhone checks (4.5a–4.5c):**
+- A follower's Me shows Admin cards and media from all admins, sorted with everything else, with no private icon and no Edit, Delete or Hide.
+- The same items appear in the Group perspective; they never appear on a standalone Card or in another Group.
+- Hide from Group on an Admin item removes it from followers' Me.
+- A dual-role admin sees their own Admin items in Me with "Created in: [Group] · Group".
+- Inspecting a follower shows only that follower's contributions by default; with Include Group content on, the Group's items join, and the "+ Group" tag shows.
+- The toggle stays fixed at the bottom of both choosers while names scroll, and the tag does not enlarge the chip.
+- It resets after leaving the Group deck.
+
 **iPhone checks (4.2–4.4):**
 - Follower Me: their Follower contributions plus standalone cards with the private icon.
 - Group perspective: Group Admin cards in teal and follower cards in green.
@@ -894,6 +944,7 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 | C1 | Editing and permanent deletion only in the exact creation context: the standalone Card, Group A · Me or Group A · Group. Outside it, Media Centre shows "Created in" instead of Delete, and the Info Card menu shows the origin and + New only. Visibility and hiding are unchanged. The interface places the controls; the server enforces ownership and current Group permissions from the stored context (checkpoint 4.2b). | Follower contributions being editable and deletable on the standalone Card (P2, R1) |
 | C2 | Delete and Hide are separate: Delete is permanent, author-only and only in the creation context, and never silently hides; Hide is for current admins on any contribution originating in their Group, including their own Follower contributions seen in the Group perspective. | The earlier open point on dual-role Hide (O2) |
 | C3 | All four Info Card workflows (Creator, standalone Personal, follower Group, admin Group) keep unfinished drafts in the existing My Drafts. Unsaved Group drafts reopen directly in the shared editor, identified by origin and authorised from the stored context. Saved cards are never edited through My Drafts. An exception to C1's navigation only. | Redirecting Group drafts through Group and Card navigation (O3); a client-supplied `groupContext` |
+| V1–V7 | Admin contributions (Info Cards and media) also appear in the Me of every active follower of their Group, sorted like all items, with no private icon and no mute. Inspecting a follower shows only their contributions unless the central **Include Group content** toggle is on (off by default, reset on leaving the deck, a "+ Group" tag, no extra height). A later per-contribution option, `audience: "group-perspective-only"`, needs no migration. Supersedes "Admin contributions never appear in Me" for followers of the originating Group (specification, V1–V7). | Admin content reaching only followers who open the Group perspective |
 | C4 | A former follower or admin cannot edit or delete contributions created in that Group context; rejoining with the role restores it. Visibility and hiding unchanged. Managing past Groups' items is backlog (section 9). | The earlier open point O1 |
 
 ---
@@ -911,6 +962,8 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 - **Owner-history paging (4.0).** The owner page merges two sources with separate counts. The filter must be on the shared `baseGroup`, not only on the page query, or totals and cursors drift.
 - **Upload retries across a deploy (4.0).** An upload retried by a client from before the change, without `creationContext`, is rejected by the stricter command. Client and server ship together, so this affects only an upload in flight during deployment.
 - **Known limitations (accepted).** Hidden Admin contributions are unreachable even by their author; departed or demoted admins without Group perspective access cannot reach or delete their Admin contributions (section 2.6, section 9).
+- **Admin content in Me (4.5).** The Me media page assumes every row is the viewer's own (totals, cursors, author name, delivery). A third source must keep totals, cursors and `start` in step, or paging drifts. Existing Admin content becomes visible in followers' Me on deploy, and followers cannot mute it, so a heavy posting admin can crowd a stack; the per-contribution option (V6) is the planned relief.
+- **Inspection toggle (4.5c).** Changing the follower list and grid DOM can disturb scrolling, focus and selection. The state must reset on leaving the deck, or an admin may mistake Group content for a follower's own work; the "+ Group" tag guards against this.
 - **Creation-context drift (4.2b onwards).** Any new write path for a Group item that skips the shared guard would reopen cross-context management. Media deletes go through `contributionIdentity.ts`, and every Info Card write goes through `manageable`, which reads the context from the stored record.
 - **Departed members (4.2b, C4, accepted).** A former follower or admin cannot manage their contributions from that Group until they rejoin with the role. No workaround in this work.
 
@@ -942,6 +995,9 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 | Phase 4.2b — Creation-context editing and deletion | Opus | High | Yes, before 4.3 |
 | Phase 4.3 — Group Info Card backend | Opus | High | No, if within approved scope |
 | Phase 4.4 — Group Info Card client | Opus | High | Yes |
+| Phase 4.5a — Info Cards in followers' Me (after the Atlas step) | Opus | High | No, if within approved scope |
+| Phase 4.5b — Media in followers' Me | Opus | High | Yes |
+| Phase 4.5c — Inspection toggle | Opus | High | Yes |
 
 - **Approval checkpoints:** test, commit, report the changes with a concise manual testing checklist, then **stop and wait** for approval.
 - **Other checkpoints:** test, commit, record the report and **continue automatically**.
@@ -981,10 +1037,20 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 10. **Phase 4.2b:** creation-context editing and deletion for media and Info Cards. **Approval gate before 4.3.**
 11. **Phase 4.3:** Group Info Card backend. Continues automatically if within scope.
 12. **Phase 4.4:** Group Info Card client. **Approval gate.**
+13. **Atlas index installation (Step 0 of 4.5):** approved; run before 4.5a, reporting before and after.
+14. **Phase 4.5a:** Info Cards in followers' Me. Continues automatically if within scope.
+15. **Phase 4.5b:** media in followers' Me. **Approval gate.**
+16. **Phase 4.5c:** the Include Group content toggle. **Approval gate.**
 
 ---
 
 ## 9. Future work
+
+### Distinguishing Admin media in the Media Centre (backlog only; not in scope)
+
+- Followers should be able to see quickly which media in the Media Centre came from admins. Info Cards already distinguish Admin content by their teal colour and "Group" type label; media has no equivalent beyond the "By:" attribution.
+- Backlog only: find a subtle, low-height distinction for Admin media. It is not part of checkpoints 4.5a–4.5c.
+- Considered and **abandoned** for now: extending the "Include Group content" toggle to the Group perspective (a narrow Admin-only default there). The toggle stays an inspection control only. Reasons: it would change the Group perspective's default and complicate admin moderation, and Admin content already reaches followers through Me (V1).
 
 ### Central media management (investigation only; not in scope)
 
