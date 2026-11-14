@@ -420,6 +420,15 @@ Visibility mirrors the corrected media-item rules exactly.
 - Creator Info Cards are unchanged.
 - These rules apply to Group Admin Info Cards as soon as they exist (checkpoints 4.3–4.4).
 
+### Terminology: Delete and Hide from Group (refinement after checkpoint 4.4)
+
+The interface uses exactly two management actions for media items and Info Cards:
+
+- **Delete** permanently deletes an item. Only its author can do it, from the context where it was created (C1).
+- **Hide from Group** removes an item from Group visibility without deleting it. It is available to current Group admins under the permissions above (C2).
+
+"Remove" and a bare "Hide" are no longer used for these two actions, in the Media Centre, the Info Card three-dot menu, notices or error messages. This is wording only: who may act, creation contexts, Group visibility, storage and routes are unchanged, as are **Created in:** and **+ New**. Unrelated uses of Remove stay, such as removing a follower, an attachment from a draft, or media from a draft Card. Earlier text in this document that says Remove or Hide for these two actions refers to Delete and Hide from Group.
+
 ### Drafts and My Drafts (C3)
 
 Creator Info Cards and Personal Info Cards use the same Info Card editor, shown in Creator mode or as the modal over a Card. All four creation workflows keep unfinished drafts in the **existing My Drafts list**:

@@ -806,6 +806,16 @@ Visibility, hiding, uploading, playback, automatic publication, owner-history or
 - The established visual design and interactions are preserved.
 - Browser tests per perspective, for the colours of mixed stacks, and for an Admin draft reopened from My Drafts.
 
+#### Terminology refinement after 4.4 — Delete and Hide from Group
+
+Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
+
+- **Delete** replaces Remove for permanent deletion, and **Hide from Group** replaces Hide for the admin visibility action. They apply to the Info Card three-dot menu and the Media Centre button, busy text ("Deleting…", "Hiding…"), accessible names, hide notice ("Hidden from this Group. The creator still has their copy.") and failure messages.
+- The Media Centre label follows the operation from `mediaRemoveOperation` (`"delete"` or `"hide"`) through a `getRemoveAction` prop on the upload panel. Internal names (`onRemove`, `mediaRemoveOperation`, the `"hide"` action) are unchanged.
+- Unrelated Remove actions are unchanged: Remove attachment, Remove media in the Info Card editor, the Creator media modal, followers and Reflections.
+- Text above that says Remove or Hide for these actions means Delete and Hide from Group.
+- **Open point:** the Personal Info Card menu item on the standalone Card now reads Delete but still detaches the card, as before. Review whether it needs a distinct label or a behaviour change.
+
 **iPhone checks (4.2–4.4):**
 - Follower Me: their Follower contributions plus standalone cards with the private icon.
 - Group perspective: Group Admin cards in teal and follower cards in green.
