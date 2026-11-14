@@ -1,6 +1,6 @@
 # Info Card Improvements — Engineering Plan
 
-**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026) and R1 (13 November 2026). All product decisions are resolved. Awaiting review before implementation. Nothing in Phases 2–4 has been implemented.
+**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026), and R1 and C1–C4 (13 November 2026). Checkpoints 5–10 and 4.0–4.2 are implemented. Checkpoint 4.2b (C1–C4) is planned and awaits review; it has no open points.
 **Specification:** [Info Card Improvements — Product Specification and Engineering Planning Brief](../../../design/features/group-experience/info-cards-integration-spec.md)
 **Branch:** `feat/group-experience`
 
@@ -18,7 +18,8 @@ This plan turns the specification into checkpoints. It keeps the specification's
 | *Group Admin Info Card* | An Info Card created by an admin in the Group perspective |
 | *Admin contribution* / *Follower contribution* | Content created in the Group perspective / in Me. Separate identities, even for one dual-role user (P1, P3) |
 | *Acting identity* | The identity a user acts as, set by the perspective they are in: Group perspective is the Admin identity; Me and the standalone Card are the Follower identity. Ownership is the author; permission to delete needs both author and matching acting identity (R1) |
-| `creationContext` | The proposed immutable field recording `"group"` (Admin contribution) or `"self"` (Follower contribution) |
+| *Creation context* | Where an item was created: the standalone Card, Group A · Me or Group A · Group. Editing and permanent deletion happen only in that exact context (C1). For Group items it is the pair (`experienceId`, `creationContext`) stored on the record, which is the only authority |
+| `creationContext` | The immutable field recording `"group"` (Admin contribution) or `"self"` (Follower contribution) |
 
 **Decisions:**
 - Approved decisions are in [section 6.1](#61-approved-decisions).
@@ -133,7 +134,7 @@ There is **no Group-owned media item**. Media added by an admin from the Group p
 | Group | Every contribution originating in this Group with `groupVisible: true`, from any author, including former members |
 | Other followers | Only that follower's contributions originating in this Group with `groupVisible: true`. Allowed when the viewer is an admin or the Group has `allowFollowerInspection` (`canInspectPeers` in [policy.ts](../../../../src/lib/groupExperiences/policy.ts)) |
 
-**Permissions today (`mediaRemoveOperation`, `hide` and `delete`; deletion is changed by checkpoint 4.0 under R1):**
+**Permissions before checkpoint 4.0 (`mediaRemoveOperation`, `hide` and `delete`; deletion is changed by checkpoint 4.0 under R1 and by checkpoint 4.2b under C1):**
 
 | Operation | Who | Notes |
 | --- | --- | --- |
@@ -468,7 +469,7 @@ Phase 4 first corrects Group media to the contribution-identity rules (checkpoin
 - Group-created Personal Info Cards are Follower contributions; Group Admin Info Cards are Admin contributions. Neither is stored in CardData (Q1, P3).
 - A dual-role user's Admin and Follower contributions are separate identities in storage, history, visibility, editing, deletion and presentation (P1).
 - Follower contributions keep cross-context owner history. Admin contributions appear only in their originating Group perspective (P1, Q3).
-- Only the original author edits or deletes, as the identity that created the content. Admins hide (P2).
+- Only the original author edits or deletes, and only in the exact context where the item was created: the standalone Card, Group A · Me or Group A · Group (P2, R1, refined by C1 in checkpoint 4.2b). Admins hide.
 - Colours are the same in every context and perspective (D10).
 
 #### Checkpoint 4.0 — Group media contribution identity correction
@@ -506,6 +507,7 @@ A small, independent correction of existing Group media, with its own tests and 
    - **Group perspective is the Admin identity only for admins.** A follower-only user viewing the Group perspective has no Admin identity, so the server rejects a `"group"` delete from them. Their Follower contributions are deleted from Me.
    - The owner route (`/api/group-media/:id` DELETE) accepts attached Follower contributions only. It also accepts **pending** contributions of either identity, so upload cancel (`GroupMediaUpload` in `operations.ts`) keeps working; nothing pending is listed anywhere.
    - Role changes never reclassify: the check compares the stored `creationContext`, never the current role.
+   - **Refined by checkpoint 4.2b (C1):** Follower contributions are no longer deleted from the standalone Card; the owner route then accepts pending contributions only.
 6. **"Own" counts use the identity:** `canManage` in `readMediaPage` and the `own` sum in `sharedPreviewPages`.
 7. **Unchanged:**
    - the Group feed without a subject;
@@ -578,7 +580,7 @@ A small, independent correction of existing Group media, with its own tests and 
 
 - **Server:**
   - Create and save a `kind: "group"`, `creationContext: "self"` Info Card from Me, authorised like media upload from Me: an active follower, the current access epoch, and the Card in the Group manifest at that version.
-  - Edit and delete only by the author acting as the Follower identity, from Me or the standalone Card (P2, R1). Hide by current admins.
+  - Edit and delete only by the author acting as the Follower identity, from Me or the standalone Card (P2, R1). Hide by current admins. **Refined by checkpoint 4.2b (C1):** from Me of the originating Group only.
 - **Reads:**
   - **Me:** the author's Follower contributions for this Card from every Group, and their standalone Personal Info Cards. Those not originating in this Group, or hidden here, carry the existing private glyph. Their Admin contributions are never shown.
   - **Standalone context:** their standalone Personal Info Cards plus all their Follower contributions. Their Admin contributions are never shown.
@@ -591,18 +593,202 @@ A small, independent correction of existing Group media, with its own tests and 
   - Edit, delete and hide follow the identity rules.
   - No other user sees a standalone Personal Info Card.
 
+#### Checkpoint 4.2b — Creation-context editing and deletion
+
+**Purpose.** Apply C1–C4 to media items and Info Cards: an item is edited or permanently deleted only in the exact context where it was created (C1), Delete and Hide stay separate (C2), unfinished drafts are recovered through the existing My Drafts (C3), and leaving a Group ends management of its contributions (C4). This extends checkpoint 4.0 (`b416db7`):
+- **4.0** records *which identity* created a Group contribution (`creationContext`) and limits deletion to that identity.
+- **4.2b** adds *which context*: the standalone Card, or a specific Group together with that identity.
+
+Visibility, hiding, uploading, playback, automatic publication, owner-history ordering and paging, Admin/Follower isolation, the private glyph and Creator Info Cards are unchanged. There is **no new field, collection, index, migration or backfill**, and no new request field.
+
+**Creation contexts from existing records:**
+
+| Creation context | Media item | Info Card |
+| --- | --- | --- |
+| Standalone Card | Entry in the user's CardData `mediaItems` (collection source `personal`) | `kind: "personal"` root, attached through CardData `personalInfoCardIds` |
+| Group A · Me | `groupMediaContributions` record: `experienceId: A`, `creationContext: "self"` or missing | `kind: "group"` root: `experienceId: A`, `creationContext: "self"` |
+| Group A · Group | The same record with `creationContext: "group"` | `kind: "group"`, `creationContext: "group"` (created from 4.3) |
+
+- `"self"` alone does not identify the context.
+  - **Group items:** the pair (`experienceId`, `creationContextOf(record)`) does.
+  - **Standalone items:** the storage location (CardData) does.
+- A Group item shown on a standalone Card is read from its Group record (`readOwnerMediaPage`, `mainInfoConsultation`). It is never copied into CardData.
+- **The stored record is the only authority for an item's creation context.** The server never accepts a client-declared identity in its place.
+
+**Findings after 4.0–4.2:**
+
+| Item | Already correct | To change |
+| --- | --- | --- |
+| Media, standalone | Delete only on the standalone Card. In Group contexts `mediaRemoveOperation` returns nothing for personal items, and `/api/cards-data/:card/media/:id` is a standalone route | Origin indication in Me |
+| Media, Group A · Me | Delete in Me of A is a genuine Delete: `mutateCollectionItem` sends it to the Group route with perspective `"self"`, which sets `state: "deleted"`. Read-only in Me of B | **The standalone Card offers Delete** (`permissions.ts` `!experienceId` branch), and the owner route accepts attached Follower contributions (`repository.ts` `delete`). The Group route accepts `"self"` from any member (`"member"` role), not only an active follower |
+| Media, Group A · Group | Server: Group route, admin and identity checked; owner route refuses attached Admin contributions | **Client defect from 4.0:** the Group feed transport drops `creationContext` (`fetchMediaCollection`, `transport.ts`), so the item reads as `"self"`. The Group Media Centre therefore offers an admin **Hide instead of Delete** on their own Admin upload, and a hidden Admin upload is unreachable (P1 limitation). Verified by evaluating `mediaRemoveOperation` on a transport-shaped item; the covering browser test fails earlier, in its drag-to-flip helper, so it never reached this assertion |
+| Info Card, standalone | Edit and Remove on the standalone Card only; read-only in Me | Origin indication in Me |
+| Info Card, Group A · Me | Edit and Remove in Me of A; read-only in Me of B; creation authorised as for media | **The standalone Card offers Edit and Remove** (`groupNote.editable` in working mode). **The server checks no Group permission after the first Save** (`owner()` only): draft PATCH, `save`, `upload`, DELETE and pending completion all succeed after the author leaves. **My Drafts lists saved Group notes with unsaved edits** and opens any Group note in the Creator editor, so it is an editing route for saved cards |
+| Info Card, Group A · Group | Not implemented (4.3) | 4.3 and 4.4 apply C1–C4 |
+| Origin indication | — | Missing for both |
+
+**Reused from checkpoint 4.0, unchanged:**
+- `contributionIdentity.ts`: `CreationContext`, `isCreationContext`, `creationContextOf` (missing reads as `"self"`), `viewerIdentity`, `sameIdentity`, `FOLLOWER_CONTRIBUTIONS`.
+- The Group-context media delete command (`groupDeleteCommand`), with `groups.access` at the client's access epoch, `fence`, and the stored-identity and `experienceId` checks in `GroupMediaRepository.delete`.
+- The role-per-identity predicate in `creationAuthority`: `"group"` needs a current admin, `"self"` an active follower.
+- `groups.access` and `groups.fence` for Group authorisation and write fencing.
+- The owner route's pending exception for upload cancellation.
+- All reads, counts, hiding (`GroupMediaRepository.hide`, `InfoCardRepository.hideGroup`) and the private glyph.
+
+**Added to `contributionIdentity.ts`** (pure, shared by server and client, with the top comment extended to C1–C4):
+- `CreationOrigin`: `{ kind: "standalone" }` or `{ kind: "group"; experienceId; identity: CreationContext }`.
+- `mediaOrigin(item)` and `infoCardOrigin(root)`.
+  - A personal source or `kind: "personal"` gives standalone.
+  - A Group record gives `experienceId` with `creationContextOf`.
+- `actingOrigin(experienceId?, identity)`: no Group is standalone, Me in A is (A, `"self"`), the Group perspective of A is (A, `"group"`). Callers pass `viewerIdentity(context)`.
+- `sameOrigin(a, b)`.
+- `identityRole(identity)`: `"group"` gives `"admin"`, `"self"` gives `"follower"`. It is extracted from `creationAuthority`, which then uses it, and every Group-context write uses it.
+- `originLabel(origin, groupName)`: "Personal Card", "{Group} · Me" or "{Group} · Group". A missing name uses the existing "Group unavailable".
+
+**Delete and Hide (C2).** Delete permanently removes; Hide sets `groupVisible: false` and never deletes. Their routes, commands and server authorisation stay separate and unchanged except as listed below. The client decides between them with one pure function, so an author in their creation context always gets Delete and never Hide:
+
+| Viewer and item | Operation |
+| --- | --- |
+| Author, in the item's creation context | **Delete** |
+| Author, outside it, and not allowed to Hide it there (standalone Card, Me, or the Group perspective without admin rights) | none; origin shown |
+| Current admin in the Group perspective, item originating in this Group, not in its creation context (another author's item, or the admin's own Follower item) | **Hide**; for their own item the origin is shown as well |
+| Anyone else | none |
+
+**Media changes:**
+1. **`mediaRemoveOperation`** follows the table: Delete only when the viewer is the author, `canRemoveOwn`, and `sameOrigin(mediaOrigin(item), actingOrigin(experienceId, identity))`. This replaces the `!experienceId` branch. The Hide branch is unchanged.
+2. **`mutateCollectionItem`:** the same `sameOrigin` check before any delete request. The routes it chooses are unchanged.
+3. **`fetchMediaCollection`:** the Group branch keeps `creationContext` from the server DTO. **This fixes the 4.0 defect** and supplies the origin labels.
+4. **Owner route** (`/api/group-media/:id` DELETE): refuse every attached contribution, of either identity. Pending contributions are still accepted, so upload cancellation keeps working.
+5. **Group route:** a `"self"` delete requires `identityRole("self")`, an active follower, instead of `"member"`. `"group"` already requires an admin. The access epoch, fence, experience and stored-identity checks are unchanged.
+6. **The standalone personal-media route is unchanged.** It is the standalone context.
+
+**Info Card server changes:**
+1. **One guard, `InfoCardRepository.manageable(actor, id, session)`**, built on `owner()`, run inside the write's transaction:
+   - **Creator and standalone Personal roots:** `owner()` only, as today.
+   - **Group roots:** `groups.access(actor, root.experienceId, identityRole(creationContextOf(root)), session)` then `groups.fence([member], session)`. Everything comes from the stored root: no client-supplied Group, identity or perspective.
+   - **Fencing:** creation keeps its existing client access epoch (`createGroup`). Later writes fence the current membership record in the same transaction, so a concurrent removal, demotion or rejoin conflicts instead of interleaving. No client epoch is needed, because no client view of the Group is being trusted.
+2. **Every write path uses it:** draft PATCH (autosave), `savePersonal` (Save), `createInfoUpload` and its retries, DELETE (Remove), and `completePendingPublication`. The first Save keeps its existing check that the Card is still selected in the Group; its role check becomes the guard's.
+3. **Pending completion** re-runs the guard, as a media commit re-runs `creationAuthority`. A refusal clears the request and records the existing `lastPublicationFailure` with the guard's error code, so the editor, the stack and My Drafts show it as a failure, not as pending forever.
+4. **Unchanged:** creation (`createGroup`), hiding (`hideGroup`), and reads (editor GET, media delivery, publication snapshots, `check-rendering`, which writes nothing).
+5. **No `groupContext` field and no new pending-publication shape.** The earlier proposal is withdrawn. Investigation found no technical need: for an existing root, the editor needs only its id, and the root holds the context.
+
+**My Drafts (C3):**
+1. **Listing** (`InfoCardRepository.drafts`):
+   - Group roots are listed only while **unsaved** (`latestVersion: 0`), for both identities, and only where the guard would pass: `experienceId` among the user's Groups as an active follower (`creationContext` `"self"` or missing) or as an admin (`"group"`). The membership lookup runs before pagination.
+   - **Saved Group roots are no longer listed**, even with unsaved changes. Those changes are continued from Edit in the creation context, which already opens `root.draft`.
+   - Creator and standalone Personal predicates are unchanged.
+   - Records are never deleted or changed by this filtering.
+2. **Entries** (`loadCreatorDraftEntries`, `CreatorDraftsModal`): a Group draft carries its origin label, for example "Group A · Me", built with `originLabel` from the Group name, beneath the title in the existing entry style.
+3. **Opening** (`/creator/info-cards/[infoCardId]`):
+   - **Unsaved Group draft:** the page runs `manageable` before rendering, then opens the existing `InfoCardEditor` directly, in its note mode (Save and Cancel), as today. No navigation through the Group, Card or perspective.
+   - The editor shows a small read-only **Created in: Group A · Me** in its header, through the editor's layout, not on the face.
+   - **Saved Group root, or the guard refuses:** the existing "Info Card unavailable" view, naming its origin. No editor.
+   - **Standalone Personal and Creator Info Cards:** unchanged, including the existing return of standalone Personal drafts to their Card.
+4. **After Save from My Drafts:** once a Save is confirmed, either immediately or when a pending Save completes while the editor is open, the Creator-hosted Group note editor closes and returns to My Drafts with the confirmation. It never continues editing a saved card.
+
+**Info Card client changes:**
+- `groupNote.editable` (`infoCardConsultationClient.ts`) becomes `sameOrigin(infoCardOrigin(root), actingOrigin(...))`, so working mode no longer makes Group notes editable.
+- The Me editor and Remove keep their existing requests. They gain no new fields.
+- Standalone notes keep their CardData path.
+
+**Client presentation:**
+- **Media Centre** (`UserCardMediaUploadPanel`, fed by `CardMediaCentre`, with the decision computed in the existing Media Centre metadata pipeline, `centreMetadata.ts`):
+  - For the viewer's own items outside their creation context, the Delete slot holds a non-interactive block: a small **Created in:** above the context name.
+  - Where the viewer may also Hide the item, Hide stays as its own action beside the origin.
+  - No disabled button is shown.
+  - Card faces, the Gallery and back-of-Card previews are unchanged.
+- **Info Card menu:**
+  - New `infoCardMenuLayout.ts` with `buildInfoCardMenuLayout(card, context)`. It returns the actions (+ New, and Edit and Remove in the creation context) and, outside it, the origin, following the layout-pipeline convention.
+  - **+ New is kept in every menu where it appears today**, because it creates a new Info Card in the current context.
+  - `InfoCardMenu` renders the origin as text, not a menu item: a small "Created in:" above the name.
+  - The menu's minimum width is unchanged. Its maximum width is the card width less its inset, and text wraps (`overflow-wrap: anywhere`). The menu opens upwards within the card, so the consultation's `overflow: hidden` cannot clip it.
+  - The face, its dimensions and Creator Info Cards are unchanged.
+- **Origin data:**
+  - Media pages already carry `originName`, and `creationContext` after media change 3.
+  - Consultation entries and My Drafts entries for Group notes gain `originName`, looked up as `readOwnerMediaPage` does, which needs no membership for the author's own items.
+
+**Existing records.** Group Experience has not launched. Missing `creationContext` keeps reading as `"self"` (4.0). No production audit, migration or backfill, and no production access. Info Card Group roots all carry both fields.
+
+**Leaving a Group or losing a role (C4):**
+- Management needs the creation context to be reachable: an active follower of A for Group A · Me, a current admin of A for Group A · Group.
+- A former follower or former admin cannot edit, Save, upload to, Remove or continue drafts of those items, and their pending Saves fail when completed.
+- Visibility and hiding are unchanged. Rejoining with the role restores management.
+- Accepted limitation without workarounds. Managing past Groups' contributions belongs to the future general Media Centre (section 9), backlog only.
+
+**Tests**, extending the 4.0 identity suite and the 4.2 suites:
+- **Unit:**
+  - origin helpers and labels: the three contexts, a missing `creationContext`, a missing Group name;
+  - `mediaRemoveOperation` for every row of the Delete and Hide table, including dual-role users in both perspectives;
+  - `buildInfoCardMenuLayout`: in and out of context, + New kept.
+- **Media integration, Delete versus Hide:**
+  - an admin deleting their own Admin upload from the Group perspective: record `state: "deleted"`, not merely `groupVisible: false`;
+  - a follower deleting their own upload from Me of A: genuinely deleted;
+  - a dual-role user: their own Follower item deleted from Me; the same item hidden, not deleted, from the Group perspective; their own Admin item deleted from the Group perspective;
+  - admin Hide of another author's item, unchanged.
+- **Media integration, context:**
+  - the owner route refuses attached Follower and Admin contributions and still cancels pending uploads of both identities;
+  - a Group-route `"self"` delete from an admin who is not an active follower is refused;
+  - Me of B cannot delete an A item; cross-identity deletes stay refused;
+  - after leaving, deletion is refused; after rejoining, it is allowed.
+- **Transport:** Group feed items keep `creationContext`.
+- **Info Card integration**, for every write path (autosave, Save, upload, Remove, pending completion):
+  - a Group note is accepted for its author while an active follower of its Group;
+  - refused after leaving, accepted again after rejoining;
+  - refused for another user;
+  - a concurrent membership change conflicts through the fence;
+  - a standalone Personal note and a Creator Info Card behave exactly as before.
+- **Regression of the guarded paths** (these must be shown to work, not assumed because the editor is shared):
+  - initial creation and first Save from Me;
+  - autosave of an unfinished draft;
+  - a media upload, its retry and its cancellation;
+  - a Save with a video still processing while the editor stays open, completing to one version;
+  - leaving and returning: completion from My Drafts and from the stack;
+  - processing failure and Cancel behaviour unchanged;
+  - pending completion after leaving: recorded as a failure, no version created.
+- **My Drafts:**
+  - lists an unsaved Group draft with its origin label; omits a saved Group note with unsaved edits; omits drafts from a Group the user has left;
+  - opens an unsaved Group draft directly in the editor, with no navigation, autosaves, Saves, and returns to My Drafts;
+  - refuses a saved Group note on the Creator page;
+  - Creator and standalone Personal draft entries and opening unchanged.
+- **Browser** (opening the Card back without the flaky drag-to-flip helper, so the assertions run):
+  - the standalone Media Centre shows "Created in: Group A · Me" and no Delete;
+  - Me of B shows the origin for A items and the standalone items;
+  - an admin's own Admin upload in the Group Media Centre is deleted, with no hide notice;
+  - a dual-role admin sees Hide and the origin on their own Follower item in the Group perspective;
+  - an out-of-context Info Card menu shows the origin and + New only, and a long Group name wraps unclipped at phone width;
+  - in-context Edit and Remove are unchanged;
+  - an unsaved Group draft reopens from My Drafts directly in the editor.
+- **Regression gate:** `group-media-identity`, `group-media`, `media-ux`, the Info Card suites, the My Drafts suites and `group-info-cards`. Update only the expectations that encoded standalone management of Group items or My Drafts editing of saved Group notes.
+
+**Regression risks:**
+- **Upload cancellation:** keep the owner route's pending exception, and test it for both identities.
+- **Guarded writes:** a write path that skips `manageable` reopens cross-context management; one that applies it wrongly breaks autosave, upload or completion. Each path has an integration test.
+- **My Drafts filtering:** must not hide Creator or standalone Personal drafts. The membership lookup runs before pagination.
+- **Menu width:** at the narrowest phone width.
+- **Masked browser coverage:** the existing `media-ux` failures in the drag-to-flip helper hide Media Centre assertions. The new checks avoid that helper.
+
+**Model and effort:** Opus, High. **Commit:** separate, after the regression gate. **Approval gate:** stop for human review after 4.2b, before checkpoint 4.3.
+
+**Open points:** none. O1–O5 from the earlier draft are resolved by C2 (Hide with the origin), C3 (My Drafts without navigation), C4 (leaving), + New kept, and no legacy audit.
+
 #### Checkpoint 4.3 — Group Info Card backend
 
 - **Group perspective reads:** all `kind: "group"` Info Cards originating in this Group with `groupVisible: true`, Admin and Follower contributions alike, including former members, ordered as the media feed is.
 - **Other followers reads:** that follower's Follower contributions for this Group, allowed by `canInspectPeers`.
-- **Create:** a Group Admin Info Card (`creationContext: "group"`) from the Group perspective, admin-only as for media.
-- **Edit and delete:** only by the author acting as the Admin identity, from the Group perspective of the originating Group (P2, R1). Hide as for media.
+- **Create:** a Group Admin Info Card (`creationContext: "group"`) from the Group perspective, admin-only as for media: `createGroup` accepts `"group"` and authorises it with `creationAuthority(..., "group")`. Same `infoCards` root and identity model as 4.2; no new field, collection or draft store.
+- **Drafts (C3):** unfinished Admin Info Cards use the existing root `draft`, autosave and revision checks. They are listed in the existing My Drafts while unsaved, through the 4.2b `drafts()` filter, which already covers `creationContext: "group"` for Groups where the user is a current admin.
+- **Permissions:** every write (autosave, Save, upload and retries, Remove, pending completion) goes through the 4.2b `manageable` guard, which requires a current admin of the originating Group for `"group"` roots. The first Save's role check uses `identityRole(creationContextOf(root))`, not the Follower role.
+- **Save and automatic publication:** the existing `savePersonal` and `pendingPublication` mechanisms, unchanged. The Group perspective consultation resumes the admin's own pending Admin Info Cards for that Card, as `resumingInfoConsultation` does in Me.
+- **Edit and delete after Save:** only by the author acting as the Admin identity, from the Group perspective of the originating Group (P2, R1, C1), through the 4.2b guard. Delete is genuine deletion. Hide as for media (C2), never in place of Delete.
+- **Leaving (C4):** a former admin's writes are refused, and their unsaved drafts leave My Drafts.
 - **Integration tests:**
   - admin-only creation in the Group perspective;
+  - autosave, first Save, Save with a processing video, completion after leaving and returning, and completion refused after demotion;
+  - My Drafts lists an unsaved Admin draft and omits it after demotion or once saved;
   - the coach and dual-role scenarios from 4.0 applied to Info Cards;
   - member reads;
   - inspection permission and `allowFollowerInspection`;
-  - hide and delete semantics;
+  - Delete and Hide semantics, separately;
   - former members;
   - foreign-Group denial;
   - no CardData written.
@@ -611,15 +797,20 @@ A small, independent correction of existing Group media, with its own tests and 
 
 - The Group perspective pouch and consultation show Group Admin Info Cards in teal and Follower contributions in green, with type labels.
 - Attribution as media: the author username, plus the Group origin where media shows it.
-- **Admins** get New and Hide in the Group perspective, with Edit and Delete only on their own Admin contributions.
+- **Admins** get + New and Hide in the Group perspective, with Edit and Remove only on their own Admin contributions.
+- **Creation and editing** use the existing editor modal (`PersonalInfoEditorDialog`, `InfoCardEditor`) with the Group transport. The editor's Group creation context carries the creation perspective (`"group"`) instead of the fixed `"self"`. No new editor.
+- **My Drafts:** an unsaved Admin draft shows its origin ("Group A · Group") and reopens directly in the shared editor, through the 4.2b flow. No Group navigation and no separate interface.
 - **Followers** have no admin actions there.
+- Menus follow C1 (4.2b): outside an item's creation context, the author's menu shows "Created in" and + New, without Edit or Remove. Dual-role admins see Hide and the origin on their own Follower contributions (C2).
 - Group Admin Info Cards never appear in Me, on a standalone Card or in another Group.
-- Browser tests per perspective and for the colours of mixed stacks.
+- The established visual design and interactions are preserved.
+- Browser tests per perspective, for the colours of mixed stacks, and for an Admin draft reopened from My Drafts.
 
 **iPhone checks (4.2–4.4):**
 - Follower Me: their Follower contributions plus standalone cards with the private icon.
 - Group perspective: Group Admin cards in teal and follower cards in green.
-- Admin creates, hides and deletes their own.
+- Admin creates and deletes their own Admin cards, and hides contributions; Delete never hides.
+- An unsaved Group draft (Me or Group) reopens from My Drafts directly in the editor, with its origin shown.
 - A dual-role user sees their two identities kept apart.
 - Inspecting another follower shows only their shared Follower contributions.
 - No standalone card leaks.
@@ -650,7 +841,7 @@ A small, independent correction of existing Group media, with its own tests and 
 5. **8 is independent.** It is small and can run in any slot.
 6. **10 before Phase 4.** Group Info Cards use the same Save and pending mechanism.
 7. **4.0 before all Phase 4 Info Card work.** It corrects the media rules that 4.1–4.4 reproduce. It depends on nothing in Phases 2–3, so it could be done earlier, but placing it directly before 4.1 keeps the Info Card phases together and lets 4.1 verify the corrected code.
-8. **Phase 4 in order.** 4.0, then 4.1, 4.2, 4.3 and 4.4.
+8. **Phase 4 in order.** 4.0, then 4.1, 4.2, 4.2b, 4.3 and 4.4. 4.2b comes before 4.3 so Group Info Cards are built on the C1 guard.
 
 ---
 
@@ -684,9 +875,13 @@ A small, independent correction of existing Group media, with its own tests and 
 | Q6 | No audience-selection system; the audience-based design is withdrawn. | The earlier simpler-audience recommendation |
 | Q7 | One persisted pending mechanism, resumed on return; no background infrastructure. | The optional Vercel Cron |
 | P1 | Follower contributions keep cross-context owner history; Admin contributions belong only to their originating Group; a dual-role user's two identities stay separate. Media is corrected first (4.0). Hidden and departed Admin contributions are an accepted limitation with no workaround. | The earlier choice between mirroring media exactly or making an Info Card exception |
-| P2 | Only the original author edits an Info Card; admins hide; only the original author deletes; admin status grants neither. | The earlier editing options |
+| P2 | Only the original author edits an Info Card; admins hide; only the original author deletes; admin status grants neither. **Refined by C1.** | The earlier editing options |
 | P3 | Immutable `creationContext` set by the creation perspective: Group perspective gives Admin contribution, Me gives Follower contribution; role changes never reclassify. Shared by media and Info Cards. | The earlier Info Card-only `createdAs` proposal |
-| R1 | Deletion needs author **and** matching acting identity: Admin contributions only from the Group perspective of their originating Group; Follower contributions only from Me or the standalone Card; never another author's. Server-enforced; media and Info Cards alike. | Current media behaviour, which lets an author delete from the Group perspective whatever the identity |
+| R1 | Deletion needs author **and** matching acting identity: Admin contributions only from the Group perspective of their originating Group; Follower contributions only from Me or the standalone Card; never another author's. Server-enforced; media and Info Cards alike. **Refined by C1.** | Current media behaviour, which lets an author delete from the Group perspective whatever the identity |
+| C1 | Editing and permanent deletion only in the exact creation context: the standalone Card, Group A · Me or Group A · Group. Outside it, Media Centre shows "Created in" instead of Delete, and the Info Card menu shows the origin and + New only. Visibility and hiding are unchanged. The interface places the controls; the server enforces ownership and current Group permissions from the stored context (checkpoint 4.2b). | Follower contributions being editable and deletable on the standalone Card (P2, R1) |
+| C2 | Delete and Hide are separate: Delete is permanent, author-only and only in the creation context, and never silently hides; Hide is for current admins on any contribution originating in their Group, including their own Follower contributions seen in the Group perspective. | The earlier open point on dual-role Hide (O2) |
+| C3 | All four Info Card workflows (Creator, standalone Personal, follower Group, admin Group) keep unfinished drafts in the existing My Drafts. Unsaved Group drafts reopen directly in the shared editor, identified by origin and authorised from the stored context. Saved cards are never edited through My Drafts. An exception to C1's navigation only. | Redirecting Group drafts through Group and Card navigation (O3); a client-supplied `groupContext` |
+| C4 | A former follower or admin cannot edit or delete contributions created in that Group context; rejoining with the role restores it. Visibility and hiding unchanged. Managing past Groups' items is backlog (section 9). | The earlier open point O1 |
 
 ---
 
@@ -703,6 +898,8 @@ A small, independent correction of existing Group media, with its own tests and 
 - **Owner-history paging (4.0).** The owner page merges two sources with separate counts. The filter must be on the shared `baseGroup`, not only on the page query, or totals and cursors drift.
 - **Upload retries across a deploy (4.0).** An upload retried by a client from before the change, without `creationContext`, is rejected by the stricter command. Client and server ship together, so this affects only an upload in flight during deployment.
 - **Known limitations (accepted).** Hidden Admin contributions are unreachable even by their author; departed or demoted admins without Group perspective access cannot reach or delete their Admin contributions (section 2.6, section 9).
+- **Creation-context drift (4.2b onwards).** Any new write path for a Group item that skips the shared guard would reopen cross-context management. Media deletes go through `contributionIdentity.ts`, and every Info Card write goes through `manageable`, which reads the context from the stored record.
+- **Departed members (4.2b, C4, accepted).** A former follower or admin cannot manage their contributions from that Group until they rejoin with the role. No workaround in this work.
 
 ---
 
@@ -729,6 +926,7 @@ A small, independent correction of existing Group media, with its own tests and 
 | Phase 4.0 — Group media contribution identity correction | Opus | High | Yes |
 | Phase 4.1 — Verify media patterns | Opus | High | No, unless discrepancies found |
 | Phase 4.2 — Personal Info Cards in Groups | Opus | High | Yes |
+| Phase 4.2b — Creation-context editing and deletion | Opus | High | Yes, before 4.3 |
 | Phase 4.3 — Group Info Card backend | Opus | High | No, if within approved scope |
 | Phase 4.4 — Group Info Card client | Opus | High | Yes |
 
@@ -767,8 +965,9 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 7. **Phase 4.0:** correct Group media contribution identities. **Approval gate.**
 8. **Phase 4.1:** verify media patterns. Continues automatically unless discrepancies are found.
 9. **Phase 4.2:** Personal Info Cards in Groups. **Approval gate.** Index installation needs its own approval.
-10. **Phase 4.3:** Group Info Card backend. Continues automatically if within scope.
-11. **Phase 4.4:** Group Info Card client. **Approval gate.**
+10. **Phase 4.2b:** creation-context editing and deletion for media and Info Cards. **Approval gate before 4.3.**
+11. **Phase 4.3:** Group Info Card backend. Continues automatically if within scope.
+12. **Phase 4.4:** Group Info Card client. **Approval gate.**
 
 ---
 
@@ -785,5 +984,6 @@ Do not stop for routine implementation decisions, minor technical trade-offs or 
 **Status:**
 - To investigate in future.
 - Do not build a Media Centre, management UI or additional access routes as part of this work.
+- It would also be the place for users to manage contributions from Groups they have left (C4). Backlog only.
 - The Group Experience engineering plan has no existing backlog entry for this; its closest notes are the deferred moderation and history interfaces in §11.2.
 
