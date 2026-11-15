@@ -1,5 +1,6 @@
 "use client";
 
+import { announceAuthChange } from "@/lib/authSessionEvents";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -24,6 +25,7 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
     }
 
     workingCardStore.clearUser(userId);
+    announceAuthChange();
     startTransition(() => {
       router.refresh();
     });

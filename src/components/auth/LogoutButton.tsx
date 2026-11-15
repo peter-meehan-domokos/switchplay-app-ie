@@ -1,5 +1,6 @@
 "use client";
 
+import { announceAuthChange } from "@/lib/authSessionEvents";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -25,6 +26,7 @@ export default function LogoutButton({ username }: LogoutButtonProps) {
       return;
     }
 
+    announceAuthChange();
     startTransition(() => {
       router.refresh();
     });

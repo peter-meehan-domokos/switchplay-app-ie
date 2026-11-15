@@ -44,7 +44,7 @@ export default function PrivacyPage() {
             If you join as a student or teacher, we collect your name, a username, your email address and a password
             (stored only as a one-way hash). We email you a code to confirm the address before your account is created.
             Students also give their date of birth, which we use to confirm the minimum age of 13, and their maths course
-            and level. A mobile number is optional and is not used to sign in. Teachers may add a short introduction.
+            and level. Your account is one shared account, usable on Puckle, Switchplay and Strat17, and we hold one date of birth and one approval record for it. A mobile number is optional and is not used to sign in. Teachers may add a short introduction.
           </p>
           <p>
             If you tell us you do not have an email address, we save a contact request with your name, mobile number and
@@ -64,8 +64,7 @@ export default function PrivacyPage() {
             student gives us a parent or guardian&apos;s email address, we email that person a link to read what is
             involved and approve or decline. We record their email address, their decision, the statement they confirmed,
             the version of the explanation they read and when. This is not a check of anyone&apos;s identity or age. One
-            approval covers equivalent Group Experiences on {SITE_NAME} and on the other learning websites that share its account
-            system; the approval page names them.
+            approval covers equivalent Group Experiences on Puckle, Switchplay and Strat17, which share one account system.
             It is not permission for live tuition. The parent or guardian can withdraw it at any time; withdrawing does not
             delete the student&apos;s learning.
           </p>

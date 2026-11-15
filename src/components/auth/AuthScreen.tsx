@@ -1,5 +1,6 @@
 "use client";
 
+import { announceAuthChange } from "@/lib/authSessionEvents";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState, useTransition } from "react";
 import SupportErrorMessage from "@/components/support/SupportErrorMessage";
@@ -36,6 +37,7 @@ export default function AuthScreen({ redirectTo, site = "switchplay" }: AuthScre
       return;
     }
 
+    announceAuthChange();
     startTransition(() => {
       if (redirectTo) {
         router.replace(redirectTo);

@@ -75,6 +75,10 @@ test("websites import only their own code and the approved shared infrastructure
   assert.deepEqual(violations, []);
 });
 
+// The only approved exception: Puckle's privacy page must name all three websites that share one account system
+// and one parental approval. No other file, and no other site, may name another website.
+const NAMING_EXCEPTIONS = new Set([join("src", "app", "sites", "puckle", "privacy", "page.tsx")]);
+
 test("websites contain no other website's name or domain", () => {
   const violations: string[] = [];
   for (const site of SITE_IDS) {
@@ -82,6 +86,7 @@ test("websites contain no other website's name or domain", () => {
     const dirs = [...siteDirs(site), join(root, "public", "images", "sites", site)];
     for (const file of dirs.flatMap(listFiles).filter((path) => /\.(ts|tsx|css)$/.test(path))) {
       const source = readFileSync(file, "utf8").toLowerCase();
+      if (NAMING_EXCEPTIONS.has(relative(root, file))) continue;
       for (const other of others) {
         if (source.includes(other)) violations.push(`${relative(root, file)} mentions ${other}`);
       }
