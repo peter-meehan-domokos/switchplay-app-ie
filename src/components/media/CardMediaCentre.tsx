@@ -1,6 +1,6 @@
 "use client";
 import { mediaCentreCreatedIn, mediaCentreMetadata } from "@/lib/mediaCollection/centreMetadata";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 import { fetchMediaCentreMetadata } from "@/lib/mediaCollection/transport";
@@ -11,22 +11,22 @@ import { collectionKey, type MediaCollectionContext, type MediaCollectionItem } 
 import { mediaRemoveOperations, type MediaCapabilities, type MediaRemoveAction } from "@/lib/mediaCollection/permissions";
 import { viewerIdentity } from "@/lib/groupExperiences/media/contributionIdentity";
 import { GroupMediaUpload, mutateCollectionItem, type GroupUploadContext } from "@/lib/mediaCollection/operations";
-import { useKeyedUserCardMediaUploadController, initialUserCardMediaUploadState, type CompletedUserCardMediaUpload, type UserCardMediaUploadTarget } from "./useKeyedUserCardMediaUploadController";
+import { initialUserCardMediaUploadState, type KeyedUserCardMediaUploadController, type UserCardMediaUploadTarget } from "./useKeyedUserCardMediaUploadController";
 import UserCardMediaUploadPanel, { type UserCardMediaRemovalState } from "./UserCardMediaUploadPanel";
 import { personalMediaKey, type PersonalMediaDisplayItem } from "@/lib/cards/personalHistoryProjection";
 import { isImageMediaItem, isVideoMediaItem, type MediaItem } from "@/lib/media";
-import type { ModernUserCardMediaItem } from "@/lib/userCardMedia";
 import { workingCardStore } from "@/lib/cards/workingCardStore";
 import { personalWork } from "@/lib/cards/personalWork";
 const hideNotice = "Hidden from this Group. The creator still has their copy.";
 
 // The existing Media Centre shell and rails, fed by the shared source-aware
 // collection. It is deliberately separate from the thumbnail-opened Gallery.
-export default function CardMediaCentre({ context, personalTarget, groupUpload, legacyItems = [], onPersonalUpload, onPersonalRemove, onClose, backgroundRef, sourceRef, suspended = false, readOnly = false, refreshOwner }: {
+export default function CardMediaCentre({ context, personalTarget, groupUpload, legacyItems = [], personalUploads, onPersonalRemove, onClose, backgroundRef, sourceRef, suspended = false, readOnly = false, refreshOwner }: {
   refreshOwner?: GroupRefreshOwner;
   readOnly?: boolean; suspended?: boolean; context: MediaCollectionContext; personalTarget?: UserCardMediaUploadTarget; groupUpload?: GroupUploadContext;
   legacyItems?: PersonalMediaDisplayItem[];
-  onPersonalUpload?: (target: UserCardMediaUploadTarget, item: ModernUserCardMediaItem) => Promise<void>;
+  // Owned by the working Deck so closing this dialog never aborts an upload (as on main).
+  personalUploads?: KeyedUserCardMediaUploadController;
   onPersonalRemove?: (target: UserCardMediaUploadTarget, id: string) => Promise<void>;
   onClose(): void; backgroundRef?: RefObject<HTMLElement | null>; sourceRef?: RefObject<HTMLButtonElement | null>;
 }) {
@@ -44,20 +44,15 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
   }, [backgroundRef, sourceRef]);
   useEffect(() => { mounted.current = true; const uploads = pending.current; return () => { mounted.current = false; uploads.forEach(v => v.abort.abort()); }; }, [scopeKey]);
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(null), 5000); return () => clearTimeout(timer); }, [toast]);
-  const uploadFinishes = useRef(new Map<string, ReturnType<typeof personalWork.begin>>());
   const removalInFlight = useRef(new Set<string>());
-  const completed = useCallback(async ({ target, mediaItem }: CompletedUserCardMediaUpload) => {
-    if (!onPersonalUpload) throw Error("Personal upload unavailable."); await onPersonalUpload(target, mediaItem);
-    if (mounted.current) await collection.controller?.load();
-  }, [onPersonalUpload, collection.controller]);
-  const personal = useKeyedUserCardMediaUploadController({ onUploadCompleted: completed,
-    onUploadStarted: (target, kind) => {
-      if (target.userId) uploadFinishes.current.set(`${target.cardId}:${kind}`, personalWork.begin({ userId: target.userId, cardIds: [target.cardId] }, `upload:${target.cardId}:${kind}`));
-    },
-    onUploadSettled: (target, kind, error, retry) => { const key = `${target.cardId}:${kind}`; uploadFinishes.current.get(key)?.(error, retry); uploadFinishes.current.delete(key); },
-  });
-  const caps: MediaCapabilities = collection.page?.capabilities ?? { canUpload: Boolean(personalTarget && onPersonalUpload), canManage: context.kind === "owner", canRemoveOwn: true, canHideOthers: false };
-  const canUpload = Boolean((personalTarget && onPersonalUpload) || (groupUpload && caps.canUpload));
+  const personalState = personalTarget && personalUploads ? personalUploads.getState(personalTarget) : null;
+  const personalBusy = !!personalState && (personalState.isImageUploading || personalState.isVideoUploading);
+  const wasPersonalBusy = useRef(personalBusy), reload = collection.controller;
+  // An upload can settle after this dialog was closed and reopened, so follow
+  // the shared controller rather than the request that started it.
+  useEffect(() => { if (wasPersonalBusy.current && !personalBusy) void reload?.load(); wasPersonalBusy.current = personalBusy; }, [personalBusy, reload]);
+  const caps: MediaCapabilities = collection.page?.capabilities ?? { canUpload: Boolean(personalTarget && personalUploads), canManage: context.kind === "owner", canRemoveOwn: true, canHideOthers: false };
+  const canUpload = Boolean((personalTarget && personalUploads) || (groupUpload && caps.canUpload));
   const values = collection.page?.items;
   const items = values ? values.map(i => collectionDisplayItem(i, context)) : context.kind === "owner" && !context.experienceId ? legacyItems : [];
   const operation = (item: MediaItem) => {
@@ -82,7 +77,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
   };
   const upload = async (kind: "image" | "video", file: File) => {
     if (readOnly || !canUpload) return;
-    if (personalTarget) { await (kind === "image" ? personal.uploadImage : personal.uploadVideo)(personalTarget, file); return; }
+    if (personalTarget) { if (personalUploads) await (kind === "image" ? personalUploads.uploadImage : personalUploads.uploadVideo)(personalTarget, file); return; }
     if (!groupUpload) return;
     const fileKey = JSON.stringify([file.name, file.type, file.size, file.lastModified]);
     let entry = pending.current.get(kind);
@@ -108,7 +103,7 @@ export default function CardMediaCentre({ context, personalTarget, groupUpload, 
       <header className="creator-modal-header"><p id="media-centre-title">Card media</p><button ref={close} className="creator-modal-close" type="button" onClick={() => setOpen(false)}>Close</button></header>
       {collection.error && !legacyItems.length ? <p role="alert" className="creator-modal-error">{collection.error}</p> : null}
       <UserCardMediaUploadPanel images={items.filter(isImageMediaItem)} videos={items.filter(isVideoMediaItem)} target={target}
-        uploadState={personalTarget ? personal.getState(personalTarget) : groupState} removalStatesById={removing} canUpload={canUpload} mutationDisabled={readOnly}
+        uploadState={personalState ?? groupState} removalStatesById={removing} canUpload={canUpload} mutationDisabled={readOnly}
         getMetadata={item => mediaCentreMetadata(item, Boolean(context.experienceId))} getRemoveActions={item => operation(item).actions} getCreatedIn={item => operation(item).createdIn} showPrivate={privateLabels}
         getMediaKey={item => personalMediaKey(item as PersonalMediaDisplayItem)}
         getReadinessTarget={item => (item as PersonalMediaDisplayItem).collection ? collectionTarget(item as PersonalMediaDisplayItem, { viewerUserId: context.viewerUserId, cardTemplateId: context.cardTemplateId, sourceCardTemplateId: (item as PersonalMediaDisplayItem).sourceCardTemplateId ?? context.cardTemplateId, mediaItemId: item.id }, context) : undefined}

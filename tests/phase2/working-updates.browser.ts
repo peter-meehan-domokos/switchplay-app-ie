@@ -211,6 +211,35 @@ test("Update waits for the entire upload and attachment without remounting the w
   } finally { release(); }
 });
 
+test("closing the Media Centre keeps a Personal upload running; reopening shows it until it attaches", async ({ page }) => {
+  const f = await fixture(); await open(page, f.decks[0]);
+  await page.locator(".deck-card.is-active").press("Enter");
+  const title = (await geometry(page, [".focused-card-surface--front .card-title-anchor"]))[".focused-card-surface--front .card-title-anchor"];
+  await page.mouse.move(title[0] + title[2] / 2, title[1] + title[3] / 2);
+  await page.mouse.down(); await page.mouse.move(title[0] + title[2] / 2 + 220, title[1] + title[3] / 2, { steps: 12 }); await page.mouse.up();
+  const centreButton = page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true });
+  const centre = page.getByRole("dialog", { name: "Card media", exact: true });
+  let release!: () => void; const held = new Promise<void>((resolve) => { release = resolve; }); let started = false, aborted = false;
+  await page.route("**/api/media/images/direct-upload", async (route) => {
+    started = true; await held;
+    try { await route.continue(); } catch { aborted = true; }
+  });
+  page.on("requestfailed", request => { if (request.url().includes("/api/media/images/direct-upload")) aborted = true; });
+  try {
+    await centreButton.click();
+    await centre.getByLabel("Choose image", { exact: true }).setInputFiles({ name: "kept.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64") });
+    await expect.poll(() => started).toBe(true);
+    await centre.getByRole("button", { name: "Close", exact: true }).click(); await expect(centre).toHaveCount(0);
+    await centreButton.click();
+    await expect(centre.getByText("Uploading image…", { exact: true })).toBeVisible();
+    release();
+    await expect(centre.getByRole("button", { name: /Delete image kept\.png/ })).toBeVisible();
+    expect(aborted).toBe(false);
+    const data = (await f.repo.getPersonalUser(f.viewer))!.cardsData.find((card) => card.cardTemplateId === f.ids[0])!;
+    expect(data.mediaItems).toHaveLength(1);
+  } finally { release(); }
+});
+
 test("lost adoption response retries the reviewed target without replaying subsequent personal state", async ({ page }) => {
   const f = await fixture(); await cardPublish(f, "Reviewed publication"); await open(page, f.decks[0]);
   let lose = true; const targets: number[] = [];

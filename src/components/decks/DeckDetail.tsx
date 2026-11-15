@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CardMediaCentre from "@/components/media/CardMediaCentre";
+import { useKeyedUserCardMediaUploadController } from "@/components/media/useKeyedUserCardMediaUploadController";
+import { personalWork } from "@/lib/cards/personalWork";
 import WorkingCardMediaViewer, { type WorkingMediaSelection } from "@/components/media/WorkingCardMediaViewer";
 import { personalMediaKey, visiblePersonalMedia } from "@/lib/cards/personalHistoryProjection";
 import type { OpenCardMedia } from "@/lib/cardMediaViewer";
@@ -24,6 +26,16 @@ export default function DeckDetail({ deck, ready = true, entryRevision, recovery
   const closeViewer = useCallback(() => setViewer(null), []);
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const working = useWorkingDeck(deck, ready);
+  // Personal uploads belong to the working Deck, not the Media Centre dialog:
+  // closing the dialog keeps them running and Update keeps waiting for them.
+  const uploadFinishes = useRef(new Map<string, ReturnType<typeof personalWork.begin>>());
+  const personalUploads = useKeyedUserCardMediaUploadController({
+    onUploadCompleted: ({ target, mediaItem }) => working.commitFocusedCardMedia(target, mediaItem),
+    onUploadStarted: (target, kind) => {
+      if (target.userId) uploadFinishes.current.set(`${target.cardId}:${kind}`, personalWork.begin({ userId: target.userId, cardIds: [target.cardId] }, `upload:${target.cardId}:${kind}`));
+    },
+    onUploadSettled: (target, kind, error, retry) => { const key = `${target.cardId}:${kind}`; uploadFinishes.current.get(key)?.(error, retry); uploadFinishes.current.delete(key); },
+  });
   const [pendingNavigation, setPendingNavigation] = useState<{ cardId: string; rollback: (index: number) => void } | null>(null);
   const submittedNavigation = useRef<typeof pendingNavigation>(null);
   // Navigation is visual immediately. Persist only the latest selected Card
@@ -60,7 +72,7 @@ export default function DeckDetail({ deck, ready = true, entryRevision, recovery
         sourceRef={mediaSourceRef} onSelect={setViewer} onClose={closeViewer} />
         {valid && working.canMutate && deck.hasUserDeckData && deck.dataOwnerUserId ? <CardMediaCentre key={`${deck.dataOwnerUserId}:${card.id}`} context={{ kind: "owner", viewerUserId: deck.dataOwnerUserId, cardTemplateId: card.id }}
           personalTarget={{ scope: "user-card", userId: deck.dataOwnerUserId, cardId: card.id, deckTemplateId: deck.deckTemplateId }}
-          legacyItems={visiblePersonalMedia(card)} onPersonalUpload={working.commitFocusedCardMedia} onPersonalRemove={working.removeFocusedCardMedia}
+          legacyItems={visiblePersonalMedia(card)} personalUploads={personalUploads} onPersonalRemove={working.removeFocusedCardMedia}
           backgroundRef={context.backgroundRef} sourceRef={mediaSourceRef} onClose={() => setCentre(null)} /> : null}</>;
     }} deck={working.deck} updateAction={updates.deckButton} cardFrontAction={(card) => updates.cardButton(card.id)} error={working.mutationError || updates.discoveryError}
     deckActions={canEnterCreator || onArchive ? <DeckMenu deckId={deck.id} deckTemplateId={deck.deckTemplateId} editHref={creatorEditHref}
