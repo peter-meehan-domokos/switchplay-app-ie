@@ -124,6 +124,30 @@ test("Group Card upload refreshes newest thumbnails and exact Gallery item witho
   await expect(centre(page).locator(".user-card-media-tile").filter({ hasText: "group-card-training.png" })).toHaveCount(0);
   await centre(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(thumb).toHaveCount(0);
 });
+test("closing the Group Media Centre keeps an upload running; reopening shows it and the item attaches to its Card", async ({ page }) => {
+  await login(page); await selectPerspective(page, { perspective: "group" }); await openBack(page, true);
+  const back = page.locator(".focused-card-surface--back"), control = back.getByRole("button", { name: "Media Centre", exact: true });
+  let release!: () => void; const held = new Promise<void>((resolve) => { release = resolve; }); let started = false, failed = false;
+  await page.route(`**/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media`, async (route) => {
+    if (route.request().method() !== "POST") { await route.continue(); return; }
+    started = true; await held; try { await route.continue(); } catch { failed = true; }
+  });
+  page.on("requestfailed", request => { if (request.method() === "POST" && request.url().includes(`/cards/${fixture.cardId}/media`)) failed = true; });
+  try {
+    await control.click();
+    await centre(page).getByLabel("Choose image").setInputFiles({ name: "kept-in-group.png", mimeType: "image/png", buffer: png });
+    await expect.poll(() => started).toBe(true);
+    await centre(page).getByRole("button", { name: "Close", exact: true }).click(); await expect(centre(page)).toHaveCount(0);
+    await control.click();
+    await expect(centre(page).getByText("Uploading image…", { exact: true })).toBeVisible();
+    release();
+    const tile = centre(page).locator(".user-card-media-tile").filter({ hasText: "kept-in-group.png" });
+    await expect(tile).toBeVisible(); expect(failed).toBe(false);
+    const feed = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}/cards/${fixture.cardId}/media`)).json();
+    expect(JSON.stringify(feed)).toContain("kept-in-group.png");
+    await tile.getByRole("button", { name: /Delete image/ }).click(); await expect(tile).toHaveCount(0);
+  } finally { release(); }
+});
 test("Admin inspection Centre offers Hide from Group only; hiding hides the Group contribution and retains creator history", async ({ page }) => {
   await login(page);
   const current = await (await page.request.get(`/api/group-experiences/${fixture.experienceId}`)).json();
