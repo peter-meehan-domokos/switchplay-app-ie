@@ -207,3 +207,22 @@ test("command line: assess and dry-run are read-only, apply works on a disposabl
   assert.equal((await run(["--help"])).code, 0); assert.equal((await run([])).code, 1);
   fresh();
 });
+test("isAdmin dispositions: grant, revoke and confirm with exact preconditions; nothing else changes; reruns refuse drift", async () => {
+  await reset();
+  const missing = await legacy("Peter"); await db.collection("users").updateOne({ _id: missing }, { $unset: { isAdmin: "" } }); // a legacy account with no isAdmin field
+  const granted = await legacy("Admin"), revoke = await legacy("Investigator", { isAdmin: true }), keepFalse = await legacy("Simeon", { isAdmin: false });
+  const originals = new Map(await Promise.all([missing, granted, revoke, keepFalse].map(async id => [id.toHexString(), await user(id)] as const)));
+  const entry = (id: ObjectId, isAdmin: boolean, currentIsAdmin: "missing" | boolean): ManifestEntry => ({ userId: id.toHexString(), publicPublishing: true, currentPublicPublishing: "missing", isAdmin, currentIsAdmin });
+  // "Admin" fixture is created with isAdmin true by the helper.
+  const wrong = await planBackfill(db, ok(manifest([entry(missing, true, false), entry(granted, true, true), entry(revoke, false, true), entry(keepFalse, false, false)])), T0);
+  assert.match(wrong.items[0].conflicts.join(), /current isAdmin is missing but the manifest expects false/);
+  const accounts = [entry(missing, true, "missing"), entry(granted, true, true), entry(revoke, false, true), entry(keepFalse, false, false)];
+  const plan = await planBackfill(db, ok(manifest(accounts)), T0);
+  assert.deepEqual(plan.items.map(item => item.actions.find(action => action.startsWith("isAdmin"))), ["isAdmin: missing -> true", "isAdmin already true; unchanged", "isAdmin: true -> false", "isAdmin already false; unchanged"]);
+  await applyBackfill(db, client, ok(manifest(accounts)), T0);
+  assert.deepEqual(await Promise.all([missing, granted, revoke, keepFalse].map(async id => (await user(id)).isAdmin)), [true, true, false, false]);
+  for (const [key, original] of originals) { const { isAdmin: a, ...after } = strip(await user(new ObjectId(key))); const { isAdmin: b, ...before } = strip(original); void a; void b; assert.deepEqual(after, before); }
+  await db.collection("users").updateOne({ _id: revoke }, { $set: { isAdmin: true } }); // a later direct change
+  await assert.rejects(applyBackfill(db, client, ok(manifest(accounts)), LATER), error => /drift/.test((error as { plan: { blockers: string[] } }).plan.blockers.join()));
+  assert.equal((await user(revoke)).isAdmin, true, "never reapplied over a later decision");
+});

@@ -13,7 +13,7 @@ test("a complete minimal manifest is valid; every disposition must be an explici
   assert.match(problems(base({ currentPublicPublishing: undefined })).join(), /currentPublicPublishing/, "the expected current state is mandatory");
 });
 test("unknown fields, duplicates and unidentified accounts are rejected", () => {
-  assert.match(problems(base({ isAdmin: true })).join(), /unexpected field "isAdmin"/);
+  assert.match(problems(base({ isAdmin: true })).join(), /needs currentIsAdmin/, "isAdmin is never accepted without its precondition");
   assert.match(problems(base({ permissions: { publicPublishing: true } })).join(), /unexpected field "permissions"/);
   assert.match(problems({ ...base(), accounts: [...base().accounts, ...base().accounts] }).join(), /duplicate/);
   assert.match(problems(base({ userId: undefined })).join(), /identify the account/);
@@ -55,4 +55,12 @@ test("writes need a disposable database, or production mode plus the exact manif
   assert.equal(ok({ disposable: true }), true); assert.equal(ok({}), false);
   assert.equal(ok({ mode: "production" }), false); assert.equal(ok({ mode: "production", confirmation: "wrong" }), false); assert.equal(ok({ confirmation: "m1" }), false, "not without production mode");
   assert.equal(ok({ mode: "production", confirmation: "m1" }), true); assert.equal(ok({ mode: "production", confirmation: "", manifestId: "" }), false);
+});
+test("isAdmin is optional, must be boolean and always carries its expected current state", () => {
+  assert.deepEqual(problems(base({ isAdmin: true, currentIsAdmin: "missing" })), []);
+  assert.deepEqual(problems(base({ isAdmin: false, currentIsAdmin: true })), []);
+  assert.match(problems(base({ isAdmin: "yes", currentIsAdmin: false })).join(), /isAdmin must be true or false/);
+  assert.match(problems(base({ isAdmin: true })).join(), /needs currentIsAdmin/);
+  assert.match(problems(base({ currentIsAdmin: false })).join(), /without an isAdmin disposition/);
+  assert.match(problems(base({ role: "admin" })).join(), /unexpected field "role"/, "no new role or permission fields");
 });

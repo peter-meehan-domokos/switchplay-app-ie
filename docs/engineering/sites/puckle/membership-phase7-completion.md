@@ -26,3 +26,6 @@
 
 ## What is missing to prepare the real review
 Account-specific evidence needs read access to the live users and publication collections, which this task did not have or use. So there is no list of real accounts, no trusted-account proposals and no accounts needing individual decisions yet. The only inputs required are your read-only access authorisation and your own trust decisions.
+
+## Addendum — isAdmin disposition (separate tooling commit)
+The founder's reviewed decisions include `users.isAdmin` values, which the original manifest rejected as an unknown field. The tool now accepts an optional `isAdmin` with a mandatory `currentIsAdmin` precondition (missing / true / false). It is written by targeted `$set` in the same per-account transaction and receipt, refused on mismatch or a non-boolean value, and reported as drift if changed after apply. Dry-run lines now show exact values (DOB, assurance method and evidence, profile name, course and level). Tested on disposable data only. The account-specific manifest and the production dry-run report stay in the gitignored `migration-audit/puckle-live-assessment/`; nothing was applied.

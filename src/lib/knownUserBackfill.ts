@@ -18,6 +18,8 @@ export type ManifestEntry = {
   userId?: string; email?: string; username?: string;
   publicPublishing: boolean;                       // reviewed disposition (required for EVERY existing account)
   currentPublicPublishing: "missing" | boolean;    // expected current state: a precondition, not a suggestion
+  /** Optional reviewed users.isAdmin disposition (the existing field; no new role fields). Needs its expected current state. */
+  isAdmin?: boolean; currentIsAdmin?: "missing" | boolean;
   safeguarding?: {
     dateOfBirth: string; expectedDateOfBirth?: string | null;
     dobSource?: "operator-entered" | "self-declared"; selfDeclarationProvenance?: string;
@@ -42,7 +44,10 @@ export function parseManifest(raw: unknown): { manifest: Manifest; problems: Pro
   raw.accounts.forEach((entry, index) => {
     const where = `accounts[${index}]`;
     if (!isObject(entry)) return void problems.push(`${where}: object required`);
-    problems.push(...only(entry, ["userId", "email", "username", "publicPublishing", "currentPublicPublishing", "safeguarding", "puckle"], where));
+    problems.push(...only(entry, ["userId", "email", "username", "publicPublishing", "currentPublicPublishing", "isAdmin", "currentIsAdmin", "safeguarding", "puckle"], where));
+    if (entry.isAdmin !== undefined && typeof entry.isAdmin !== "boolean") problems.push(`${where}: isAdmin must be true or false when given`);
+    if (entry.isAdmin !== undefined && entry.currentIsAdmin !== "missing" && typeof entry.currentIsAdmin !== "boolean") problems.push(`${where}: isAdmin needs currentIsAdmin ("missing", true or false) as its precondition`);
+    if (entry.isAdmin === undefined && entry.currentIsAdmin !== undefined) problems.push(`${where}: currentIsAdmin without an isAdmin disposition`);
     if (entry.userId === undefined && entry.email === undefined && entry.username === undefined) problems.push(`${where}: identify the account`);
     if (entry.userId !== undefined && !(typeof entry.userId === "string" && /^[a-f\d]{24}$/i.test(entry.userId))) problems.push(`${where}: userId must be a 24-character id`);
     if (typeof entry.userId === "string") { if (seen.has(entry.userId)) problems.push(`${where}: duplicate userId`); seen.add(entry.userId); }
@@ -88,7 +93,7 @@ const canonical = (value: unknown): string => Array.isArray(value) ? `[${value.m
 export const entryDigest = (entry: ManifestEntry) => createHash("sha256").update(canonical(entry)).digest("hex");
 
 // ---- state inspection and planning -------------------------------------------------------------
-type Account = { _id: ObjectId; username?: string; email?: string; permissions?: unknown; safeguarding?: { dateOfBirth?: string; dobSource?: string; ageAssurance?: AgeAssurance; dateOfBirthHistory?: unknown[] }; membershipBackfill?: { manifestId: string; entryDigest: string; appliedAt: Date } };
+type Account = { _id: ObjectId; username?: string; email?: string; permissions?: unknown; isAdmin?: unknown; safeguarding?: { dateOfBirth?: string; dobSource?: string; ageAssurance?: AgeAssurance; dateOfBirthHistory?: unknown[] }; membershipBackfill?: { manifestId: string; entryDigest: string; appliedAt: Date } };
 type Profile = { _id: ObjectId; name?: string; registrationCategory?: string; mobile?: string | null; education?: Education; teacherIntroduction?: string };
 export function permissionState(permissions: unknown): PermissionState {
   if (permissions === undefined) return "missing";
@@ -112,6 +117,7 @@ function planAccount(entry: ManifestEntry, manifest: Manifest, account: Account,
   const conflicts: string[] = [], actions: string[] = [];
   const receipt = account.membershipBackfill;
   const valuesMatch = () => current === entry.publicPublishing
+    && (entry.isAdmin === undefined || account.isAdmin === entry.isAdmin)
     && (!entry.safeguarding || account.safeguarding?.dateOfBirth === entry.safeguarding.dateOfBirth)
     && (!entry.puckle || (!!profile && profile.name === entry.puckle.name && profile.registrationCategory === entry.puckle.registrationCategory));
   if (receipt) {
@@ -128,6 +134,16 @@ function planAccount(entry: ManifestEntry, manifest: Manifest, account: Account,
   else if (typeof current === "boolean") clauses.push({ permissions: { publicPublishing: current } } as Filter<Account>);
   if (current !== entry.publicPublishing) { set["permissions.publicPublishing"] = entry.publicPublishing; actions.push(`permissions.publicPublishing: ${String(current)} -> ${String(entry.publicPublishing)}`); }
   else actions.push(`permissions.publicPublishing already ${String(current)} (explicit disposition recorded)`);
+  if (entry.isAdmin !== undefined) {
+    const admin = account.isAdmin === undefined ? "missing" : typeof account.isAdmin === "boolean" ? account.isAdmin : "malformed";
+    if (admin === "malformed") conflicts.push("existing isAdmin value is not a boolean; needs an individual decision");
+    else if (admin !== entry.currentIsAdmin) conflicts.push(`current isAdmin is ${String(admin)} but the manifest expects ${String(entry.currentIsAdmin)}`);
+    else {
+      clauses.push((admin === "missing" ? { isAdmin: { $exists: false } } : { isAdmin: admin }) as Filter<Account>);
+      if (admin !== entry.isAdmin) { set.isAdmin = entry.isAdmin; actions.push(`isAdmin: ${String(admin)} -> ${String(entry.isAdmin)}`); }
+      else actions.push(`isAdmin already ${String(admin)}; unchanged`);
+    }
+  }
   let push: Record<string, unknown> | undefined;
   if (entry.safeguarding) {
     const sg = entry.safeguarding, existing = account.safeguarding?.dateOfBirth;
@@ -139,7 +155,7 @@ function planAccount(entry: ManifestEntry, manifest: Manifest, account: Account,
       else if (sg.correction) conflicts.push("a correction was supplied but there is no date of birth to correct");
       else {
         Object.assign(set, { "safeguarding.dateOfBirth": sg.dateOfBirth, "safeguarding.dobSource": source, "safeguarding.dobRecordedAt": now, "safeguarding.ageAssurance": assurance ?? { verification: "none" } });
-        actions.push(`safeguarding: record date of birth (${source}), assurance ${assurance ? "independent (evidence supplied)" : "none"}`);
+        actions.push(`safeguarding: record date of birth ${sg.dateOfBirth} (source ${source}), age assurance ${assurance ? `independent (method "${assurance.verification === "independent" ? assurance.method : ""}", evidence "${assurance.verification === "independent" ? assurance.evidenceReference : ""}")` : "none"}`);
       }
     } else if (existing === sg.dateOfBirth) {
       const existingAssurance = account.safeguarding?.ageAssurance;
@@ -170,7 +186,7 @@ function planAccount(entry: ManifestEntry, manifest: Manifest, account: Account,
         // Provenance stays honest: the original source is unknown, the welcome never fires for a long-standing account.
         initialRegistrationSource: "unknown", provisioning: { method: "known-account-backfill", recordedAt: now, recordedBy: manifest.reviewedBy },
         welcome: { eligible: false }, createdAt: now, updatedAt: now };
-      actions.push(`create Puckle ${p.registrationCategory} profile (provisioned by backfill, welcome ineligible)`);
+      actions.push(`create Puckle ${p.registrationCategory} profile: name "${p.name.trim()}", course ${education ? education.course : "none"}, level ${education ? String(education.level) : "none"}, mobile ${mobile ? "set" : "none"}, introduction ${p.teacherIntroduction?.trim() ? "set" : "none"} (source unknown, provisioned by known-account-backfill, welcome ineligible)`);
     }
   }
   set.membershipBackfill = { manifestId: manifest.manifestId, entryDigest: digest, appliedAt: now };
@@ -180,7 +196,7 @@ function planAccount(entry: ManifestEntry, manifest: Manifest, account: Account,
 
 async function loadAccount(db: Db, id: ObjectId, session?: ClientSession) {
   // Sequential: operations inside one transaction must not run in parallel.
-  const account = await db.collection<Account>("users").findOne({ _id: id }, { session, projection: { username: 1, permissions: 1, safeguarding: 1, membershipBackfill: 1 } });
+  const account = await db.collection<Account>("users").findOne({ _id: id }, { session, projection: { username: 1, permissions: 1, isAdmin: 1, safeguarding: 1, membershipBackfill: 1 } });
   const profile = await db.collection<Profile>("puckleMemberships").findOne({ userId: id } as Filter<Profile>, { session });
   return { account, profile };
 }
