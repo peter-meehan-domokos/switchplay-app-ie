@@ -1,24 +1,24 @@
-import { getCollection } from "@/lib/mongodb";
+import { after } from "next/server";
+import { getDatabase } from "@/lib/mongodb";
+import { saveTuitionEnquiry, userFromRequest } from "@/lib/puckleEnquiries";
 import {
   ENQUIRY_SUCCESS_MESSAGE,
   type EnquiryErrorResponse,
   type EnquiryRequestData,
   type EnquirySuccessResponse,
-  type ValidatedEnquiryData,
-  validateTuitionEnquiry,
 } from "@/app/sites/puckle/lib/publicTuitionEnquiry";
 
-// The URL keeps its original name. Enquiries are stored in their own collection, so historical early-access
-// signups (and the unique email/phone indexes on that collection) are left untouched.
+// The URL keeps its original name. Enquiries are stored in their own collection (puckleTuitionEnquiries),
+// independent of accounts and memberships.
 const TUITION_ENQUIRY_COLLECTION = "puckleTuitionEnquiries";
-
-type TuitionEnquiryDocument = ValidatedEnquiryData & {
-  source: "public-homepage";
-  createdAt: Date;
-};
 
 function jsonResponse<TBody>(body: TBody, status: number) {
   return Response.json(body, { status });
+}
+
+/** Founder alert after the response; outside a request scope (direct handler calls) it simply runs unawaited. */
+function scheduleNotification(notify: () => Promise<void>) {
+  try { after(notify); } catch { void notify(); }
 }
 
 export async function POST(request: Request) {
@@ -45,19 +45,19 @@ export async function POST(request: Request) {
     return jsonResponse<EnquirySuccessResponse>({ ok: true, message: ENQUIRY_SUCCESS_MESSAGE }, 201);
   }
 
-  const validation = validateTuitionEnquiry(body);
-
-  if (!validation.ok) {
-    return jsonResponse<EnquiryErrorResponse>(
-      { ok: false, error: "Please check the highlighted fields.", fieldErrors: validation.fieldErrors },
-      400,
-    );
-  }
-
   try {
-    const collection = await getCollection<TuitionEnquiryDocument>(TUITION_ENQUIRY_COLLECTION);
-    await collection.insertOne({ ...validation.data, source: "public-homepage", createdAt: new Date() });
+    const db = await getDatabase();
+    // A failed account lookup is an error, never a silent fall-back to the adult path.
+    const result = await saveTuitionEnquiry(db, body, await userFromRequest(request), new Date(), TUITION_ENQUIRY_COLLECTION);
 
+    if (!result.ok) {
+      return jsonResponse<EnquiryErrorResponse>(
+        { ok: false, error: "Please check the highlighted fields.", fieldErrors: result.fieldErrors },
+        400,
+      );
+    }
+
+    scheduleNotification(result.notify);
     return jsonResponse<EnquirySuccessResponse>({ ok: true, message: ENQUIRY_SUCCESS_MESSAGE }, 201);
   } catch (error) {
     console.error("Unable to store tuition enquiry", error);

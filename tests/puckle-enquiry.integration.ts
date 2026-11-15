@@ -41,7 +41,7 @@ test("stores each enquirer type with an unambiguous student, contact and preferr
   const stored = await enquiries().find({}).sort({ createdAt: 1 }).toArray();
   assert.equal(stored.length, 3);
   assert.deepEqual(
-    stored.map((doc) => { const { _id: ignoredId, createdAt, ...rest } = doc; void ignoredId; return { ...rest, hasDate: createdAt instanceof Date }; }),
+    stored.map((doc) => { const { _id: ignoredId, createdAt, founderNotification, ...rest } = doc; void ignoredId; assert.ok(["pending", "sent", "failed", "unknown"].includes(founderNotification.status)); return { ...rest, hasDate: createdAt instanceof Date }; }),
     [
       { enquirerType: "student-under-18", studentName: "Aoife", contactName: "Mary Murphy", contactRelationship: "parent-guardian", mathsCourse: "junior-cycle", email: "mary@example.com", phone: null, preferredContactMethod: "email", message: "Junior Cert help", source: "public-homepage", hasDate: true },
       { enquirerType: "student-adult", studentName: "Sam Tester", contactName: "Sam Tester", contactRelationship: "self", mathsCourse: "leaving-cert", email: null, phone: "+353871234567", preferredContactMethod: "text", message: "", source: "public-homepage", hasDate: true },

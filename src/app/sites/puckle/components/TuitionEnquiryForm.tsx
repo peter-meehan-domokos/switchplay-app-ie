@@ -24,6 +24,7 @@ import buttonStyles from "./PublicButton.module.css";
 import formStyles from "./CreatorInterestForm.module.css";
 import styles from "./TuitionEnquiryForm.module.css";
 import PublicPhoneInput from "./PublicPhoneInput";
+import { applyTuitionContext, hidesEnquirerSelector, parseTuitionContext, type TuitionContext } from "../lib/tuitionEnquiryLayout";
 
 const initialValues: EnquiryFormValues = {
   enquirerType: "",
@@ -69,6 +70,22 @@ export default function TuitionEnquiryForm() {
   const isSubmittingRef = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const successRef = useRef<HTMLDivElement | null>(null);
+  const [context, setContext] = useState<TuitionContext>({ mode: "unknown" });
+
+  // A signed-in student with a known date of birth skips the selector. Any failure keeps the original flow.
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/public/puckle/tuition-context", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        const next = parseTuitionContext(body);
+        if (next.mode === "unknown") return;
+        setContext(next);
+        setValues((current) => applyTuitionContext(current, next));
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (status === "success") {
@@ -209,6 +226,7 @@ export default function TuitionEnquiryForm() {
           {formError ? <SupportErrorMessage className={formStyles.formError} /> : null}
 
           <form className={styles.form} noValidate onSubmit={handleSubmit} ref={formRef}>
+            {hidesEnquirerSelector(context) ? null : (
             <RadioGroup
               error={fieldErrors.enquirerType}
               legend="Are you a…"
@@ -217,6 +235,7 @@ export default function TuitionEnquiryForm() {
               options={ENQUIRER_TYPES.map((value) => ({ value, label: ENQUIRER_LABELS[value] }))}
               value={enquirerType}
             />
+            )}
 
             {enquirerType ? (
               <>

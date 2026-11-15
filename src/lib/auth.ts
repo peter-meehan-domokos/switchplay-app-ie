@@ -203,8 +203,15 @@ export async function clearSession() {
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
 	const cookieStore = await cookies();
-	const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+	return getUserForSessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+}
 
+/** Same checks as getCurrentUser for a token read from a Cookie header (no next/headers request scope needed). */
+export function sessionTokenFromCookieHeader(header: string | null): string | undefined {
+	return header?.split(";").map(part => part.trim()).find(part => part.startsWith(`${SESSION_COOKIE_NAME}=`))?.slice(SESSION_COOKIE_NAME.length + 1);
+}
+
+export async function getUserForSessionToken(sessionToken: string | undefined): Promise<AuthUser | null> {
 	if (!sessionToken) {
 		return null;
 	}

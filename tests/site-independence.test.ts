@@ -13,7 +13,7 @@ const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "
 
 // Puckle-only shared modules: the profile contract, new-credential rules (browser-safe validation) and the server
 // orchestration its public Join routes call. Other websites gain no access to them.
-const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration"];
+const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration", "@/lib/puckleEnquiries"];
 
 const siteDirs = (site: SiteId) => [
   join(appDir, "sites", site),
@@ -131,7 +131,9 @@ test("each website's forms post to that website's own endpoints", () => {
   for (const site of SITE_IDS) {
     const components = join(appDir, "sites", site, "components");
     const endpoints = listFiles(components).flatMap((file) => [...readFileSync(file, "utf8").matchAll(/fetch\("(\/api\/[^"]+)"/g)].map((match) => match[1]));
-    assert.deepEqual(endpoints.toSorted(), [`/api/public/${site}/contact`, `/api/public/${site}/creator-interest`, `/api/public/${site}/early-access`]);
+    // Puckle's tuition form also reads its signed-in context from its own public API folder.
+    const extra = site === "puckle" ? [`/api/public/${site}/tuition-context`] : [];
+    assert.deepEqual(endpoints.toSorted(), [`/api/public/${site}/contact`, `/api/public/${site}/creator-interest`, `/api/public/${site}/early-access`, ...extra].toSorted());
   }
 });
 
