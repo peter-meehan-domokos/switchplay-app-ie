@@ -1,6 +1,6 @@
 # Info Card Improvements — Engineering Plan
 
-**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026), and R1 and C1–C4 (13 November 2026). Checkpoints 5–10 and 4.0–4.2 are implemented. Checkpoints 4.2b–4.4 and the Delete and Hide from Group terminology refinement are implemented. Checkpoints 4.5a–4.5c and the Atlas index installation (decisions V1–V7, 14 November 2026) are planned and await approval to start.
+**Status:** Updated with approved decisions D0–D10, resolved questions Q1–Q7 and resolved points P1–P3 (12 November 2026), R1 and C1–C4 (13 November 2026), and V1–V10 (14 November 2026). All checkpoints are implemented and committed: 5–10, 4.0–4.4 with the Delete and Hide from Group terminology refinement, the Atlas index installation (Step 0), 4.5a–4.5c, and the V8–V10 refinement after 4.5c. The branch is under final regression review before merging into `main`.
 **Specification:** [Info Card Improvements — Product Specification and Engineering Planning Brief](../../../design/features/group-experience/info-cards-integration-spec.md)
 **Branch:** `feat/group-experience`
 
@@ -40,9 +40,9 @@ This plan turns the specification into checkpoints. It keeps the specification's
 
 ### 1.2 Git state
 
-- `feat/group-experience`: `13ab03a` is pushed.
-- The first version of the specification and this plan was committed locally as `1424eb4`, not pushed.
-- This revision is not yet committed.
+- `feat/group-experience` is at `8ee44ce` locally and on `origin`, with every checkpoint of this plan committed.
+- `main` has not advanced since the last merge into this branch (merge base `69a4bc6`).
+- The branch also carries the whole Group Experience feature (from `2ff6388`, 29 October 2026), so merging it into `main` releases both.
 
 ### 1.3 Environment facts that affect every checkpoint
 
@@ -871,7 +871,7 @@ Commit `66b4cf1`. Wording only; no server, route, storage or permission change.
 
 #### Refinement after 4.5c — Include admin content and both actions (V8–V10)
 
-**Purpose.** Apply decisions V8–V10 of the specification: one **Include admin content** toggle, with a role-based default, for every follower perspective including own Me; the renamed labels; and both Delete and Hide from Group on an admin's own Admin contribution in its originating Group perspective. **Model and effort:** Opus, High. Implemented on `feat/group-experience`; awaiting approval.
+**Purpose.** Apply decisions V8–V10 of the specification: one **Include admin content** toggle, with a role-based default, for every follower perspective including own Me; the renamed labels; and both Delete and Hide from Group on an admin's own Admin contribution in its originating Group perspective. **Model and effort:** Opus, High. Implemented and committed as `4be2db3` (code) and `8ee44ce` (documentation).
 
 **Pre-implementation check (reported and decided).** Allowing both actions conflicted with no permission rule: the server already let any current admin hide any contribution originating in their Group, their own Admin ones included, and C2 says so. The one consequence was that a self-hidden Admin contribution leaves every view, and Delete is offered only where it no longer appears, so it can no longer be deleted through the interface. Decided: Option A, accepted limitation, no confirmation, undo or workaround.
 
