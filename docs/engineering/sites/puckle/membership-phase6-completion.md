@@ -23,3 +23,8 @@ Session expiry or turning 16 while a tab sits idle is noticed on the next focus/
 
 ## Tests
 See the commit message; results recorded at commit time in `membership-phase6-HANDOFF.md`.
+
+## Addendum — welcome and reminder polish (separate commit)
+- **Registration welcome (Phase 3 screen):** previously shown for as long as `/decks` took to respond (no timer). Now `RegistrationWelcome` covers the page with the site background, fades in (500 ms), holds fully readable for 5000 ms, fades the card out (500 ms) while the cover stays opaque, then opens `/decks` (total 6.0 s; "Open Puckle" skips immediately). Reduced motion: no animation, same 5 s readable time, then opens at 5.0 s. Timeline in `registrationWelcome.ts`. Shown only from the Join success state, never on ordinary sign-ins, and distinct from the Phase 6 onboarding welcome.
+- **Reminder dismissal:** remembered in `sessionStorage` per account (`onboardingSession.ts`), so reload and navigation keep it dismissed; a new browser session shows an outstanding reminder again; another account is unaffected; nothing is stored server-side or permanently.
+- **Explicit sign-in/out** remain new onboarding sessions (an eligible student gets the full welcome, never the small button); covered by tests. No authentication change.

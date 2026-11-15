@@ -262,3 +262,33 @@
 .success a {
   justify-self: start;
 }
+
+/* Registration welcome: covers the page, fades in, holds, fades out, then My Decks opens. */
+.welcomeOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: var(--sp-site-background, #090b10);
+  animation: welcomeIn var(--welcome-enter, 500ms) ease-out both;
+}
+
+.welcomeCard {
+  width: min(100%, 26rem);
+  /* The card fades while the overlay stays opaque, so nothing underneath is ever revealed. */
+  animation: cardIn var(--welcome-enter, 500ms) ease-out both;
+}
+
+.welcomeOverlay[data-phase="exit"] .welcomeCard {
+  animation: cardOut var(--welcome-exit, 500ms) ease-in both;
+}
+
+@keyframes welcomeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes cardOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcomeOverlay, .welcomeCard, .welcomeOverlay[data-phase="exit"] .welcomeCard { animation: none; }
+}

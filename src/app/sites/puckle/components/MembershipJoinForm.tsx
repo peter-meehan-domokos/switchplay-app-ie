@@ -16,6 +16,7 @@ import InterestRegistrationForm from "./InterestRegistrationForm";
 import { JoinTextField, type JoinEditors } from "./JoinFields";
 import styles from "./MembershipJoinForm.module.css";
 import PublicPhoneInput from "./PublicPhoneInput";
+import RegistrationWelcome from "./RegistrationWelcome";
 import StudentRegistrationForm from "./StudentRegistrationForm";
 import TeacherRegistrationForm from "./TeacherRegistrationForm";
 
@@ -101,8 +102,7 @@ export default function MembershipJoinForm() {
       const signedIn = body.signedIn === true;
       setFlow(withOutcome(proofFlow, { kind: "account", category, signedIn }));
       release();
-      // Full-document navigation: the new session starts from a clean application load.
-      if (category === "student" && signedIn) window.location.assign("/decks");
+      // A signed-in student sees the timed welcome, which then opens My Decks (RegistrationWelcome).
       return;
     }
     const code = typeof body?.code === "string" ? body.code : "";
@@ -165,11 +165,12 @@ export default function MembershipJoinForm() {
         <div className={styles.success} ref={doneRef} role="status" tabIndex={-1}>
           {outcome.kind === "account" ? (
             outcome.category === "student" ? (
+              outcome.signedIn ? <RegistrationWelcome /> : (
               <>
                 <h2>Welcome to {SITE_NAME}!</h2>
-                <p>{outcome.signedIn ? "Your account is ready and you're signed in. Taking you to your library…" : "Your account is ready. Please sign in to get started."}</p>
-                {outcome.signedIn ? <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="/decks">Open {SITE_NAME}</a> : <Link className={`${buttonStyles.button} ${buttonStyles.primary}`} href="/login">Sign in</Link>}
-              </>
+                <p>Your account is ready. Please sign in to get started.</p>
+                <Link className={`${buttonStyles.button} ${buttonStyles.primary}`} href="/login">Sign in</Link>
+              </>)
             ) : (
               <>
                 <h2>Thanks, you&apos;re in!</h2>

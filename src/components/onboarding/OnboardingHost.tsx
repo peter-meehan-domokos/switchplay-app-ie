@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { onAuthChange } from "@/lib/authSessionEvents";
 import OnboardingErrorBoundary from "./OnboardingErrorBoundary";
 import { buildOnboardingLayout, initialOnboardingUi, type OnboardingStatus, type OnboardingUi } from "./onboardingLayout";
+import { isReminderDismissed, rememberReminderDismissed } from "./onboardingSession";
 import { isEligibleRoute, isPresentationBlocked, observeIntroHosts } from "./onboardingPresentation";
 import styles from "./Onboarding.module.css";
 
@@ -75,7 +76,8 @@ export default function OnboardingHost() {
       if (mine !== generation.current) return;
       if (statusRef.current && statusRef.current.actorId !== next.actorId) resetIdentity();
       statusRef.current = next; setStatus(next);
-      patch({ confirming: false, unavailable: false });
+      // Dismissal is remembered for this browser session, per account (never for a different actor).
+      patch({ confirming: false, unavailable: false, ...(isReminderDismissed(next.actorId) ? { reminderDismissed: true } : {}) });
       evaluate();
     } catch {
       // Uncertain network: stay hidden. A previous person's data is never shown to an unconfirmed identity.
@@ -144,7 +146,7 @@ export default function OnboardingHost() {
             setDraft: value => patch({ draft: value }), send: () => void send(), openWelcome: () => patch({ openedByRequest: true }),
             explore: () => patch({ welcomeDismissed: true }),
             requestSession: () => { patch({ welcomeDismissed: true }); window.location.assign("/#early-access"); },
-            dismissReminder: () => patch({ reminderDismissed: true }),
+            dismissReminder: () => { patch({ reminderDismissed: true }); if (status) rememberReminderDismissed(status.actorId); },
           }} layout={layout} ui={ui} />
         </Suspense>
       </OnboardingErrorBoundary>
