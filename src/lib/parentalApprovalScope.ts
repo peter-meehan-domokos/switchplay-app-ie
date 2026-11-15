@@ -1,10 +1,25 @@
-/** Activity contract only; final disclosure must be approved before Phase 5 sends requests. */
+/** Activity contract. The explanation below is a DRAFT: its wording must be reviewed and approved before public launch. */
 export const GROUP_EXPERIENCE_SCOPE = {
   scopeId: "shared-group-experiences",
   sites: ["puckle", "switchplay", "strat17"],
   activity: "Equivalent Group Experiences across all three websites",
   includesLiveTuition: false,
 } as const;
+/** One common disclosure for all three websites; the sending site only brands the email. Versioned: a new text needs a new version. */
+export const GROUP_EXPERIENCE_EXPLANATION = {
+  version: "shared-group-experiences-v1-draft",
+  text: [
+    "Puckle, Switchplay and Strat17 are learning websites run by the same team. They share one account system, so your child uses the same account on all three.",
+    "Group Experiences are optional activities on these websites where students learn together in a group, for example joining a private group, taking part in shared activities, and sharing their work, comments or views with the other members of that group. Other members of the group can see what your child chooses to share there. Your child's private learning stays private.",
+    "Students under 16 need a parent or guardian's approval before taking part. This one approval covers equivalent Group Experiences on Puckle, Switchplay and Strat17, so you will not be asked again for each website. It is not permission for live tuition, which is arranged separately with you.",
+    "You can withdraw your approval at any time using the link we email you after you approve, or by contacting us. Withdrawing stops future participation; it does not delete your child's learning.",
+  ].join("\n\n"),
+} as const;
+export const GUARDIAN_DECLARATION = {
+  version: "guardian-declaration-v1",
+  text: "I am this student's parent or legal guardian, and I have read the explanation above.",
+} as const;
+export const SITE_DISPLAY_NAMES = { puckle: "Puckle", switchplay: "Switchplay", strat17: "Strat17" } as const;
 export type ApprovalStatus = "not-requested" | "pending" | "approved" | "declined" | "withdrawn";
 export type ApprovalExplanation = { version: string; text: string };
 export type ApprovalEvent = {
@@ -13,6 +28,9 @@ export type ApprovalEvent = {
   at: Date; reason?: string;
   scopeId: typeof GROUP_EXPERIENCE_SCOPE.scopeId;
   explanation: ApprovalExplanation;
+  /** Evidence kept on the event so a later re-request never erases what was declared. */
+  generation?: number; guardianEmail?: string; declarationVersion?: string;
+  sourceSite?: (typeof GROUP_EXPERIENCE_SCOPE.sites)[number];
 };
 export type GroupExperienceApproval = {
   scopeId: typeof GROUP_EXPERIENCE_SCOPE.scopeId;

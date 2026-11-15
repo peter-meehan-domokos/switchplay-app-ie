@@ -58,6 +58,20 @@ export default function PrivacyPage() {
         </section>
 
         <section className={styles.section}>
+          <h2>Parent or guardian approval</h2>
+          <p>
+            Students under 16 need a parent or guardian&apos;s approval before taking part in Group Experiences. If a
+            student gives us a parent or guardian&apos;s email address, we email that person a link to read what is
+            involved and approve or decline. We record their email address, their decision, the statement they confirmed,
+            the version of the explanation they read and when. This is not a check of anyone&apos;s identity or age. One
+            approval covers equivalent Group Experiences on {SITE_NAME} and on the other learning websites that share its account
+            system; the approval page names them.
+            It is not permission for live tuition. The parent or guardian can withdraw it at any time; withdrawing does not
+            delete the student&apos;s learning.
+          </p>
+        </section>
+
+        <section className={styles.section}>
           <h2>Why we collect it</h2>
           <p>
             We use submitted information to respond to your message, manage support or issue reports, review creator

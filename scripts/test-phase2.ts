@@ -21,7 +21,7 @@ const media = createServer((request, response) => {
     let body = ""; request.on("data", chunk => { body += chunk; });
     request.on("end", () => { const message = JSON.parse(body); capturedEmails.push(message);
       // Manual review only: the code is otherwise invisible to a phone. Local fixture mail, never sent anywhere.
-      if (interactive) console.log(`[captured email] to ${String(message.to)} | ${message.subject}\n${message.text}\n`); response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify({ id: "fixture-accepted" })); }); return;
+      if (interactive) console.log(`[captured email] to ${String(message.to)} | ${message.subject}\n${message.text}\n${phoneLink(message.text)}`); response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify({ id: "fixture-accepted" })); }); return;
   }
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
@@ -33,6 +33,9 @@ const media = createServer((request, response) => {
 let mediaOrigin = "";
 const output: string[] = [];
 const interactive = process.argv.includes("--dev");
+/** Manual phone review: email links use the loopback origin, so also print the same link on the Wi-Fi address. */
+let phoneOrigin = "";
+const phoneLink = (text: string) => { const match = phoneOrigin && text.match(/https?:\/\/[^\s/]+(\/api\/account-actions\/open#[\w-]{43})/); return match ? `Phone link: ${phoneOrigin}${match[1]}\n` : ""; };
 const lan = interactive && process.argv.includes("--lan");
 const infoCards = process.argv.includes("--info-cards");
 // Opt-in provider checks still own a disposable database. Never forward an
@@ -58,6 +61,13 @@ try {
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
     permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
   // Manual review only: an account that starts WITHOUT public-publishing approval, so denial can be tested without editing the database.
+  // Manual review only: two under-16 students for the parent-approval screens (requests are sent once the server is up).
+  if (interactive) for (const [index, username] of ["young", "young2"].entries()) {
+    const _id = new ObjectId();
+    await db.collection("users").insertOne({ _id, email: `${username}@example.invalid`, username, passwordHash: bcrypt.hashSync("local-test-only", 4), permissions: { publicPublishing: false },
+      safeguarding: { dateOfBirth: `${now.getFullYear() - 14}-0${index + 1}-15`, dobSource: "self-declared", dobRecordedAt: now, ageAssurance: { verification: "none" } }, decksData: [], cardsData: [], sharedDeckData: [], createdAt: now, updatedAt: now });
+    await db.collection("puckleMemberships").insertOne({ userId: _id, name: index ? "Oisín" : "Niamh", registrationCategory: "student", mobile: null, initialRegistrationSource: "join", welcome: { eligible: true }, createdAt: now, updatedAt: now });
+  }
   if (interactive) await db.collection("users").insertOne({ _id: new ObjectId(), email: "phase2-unapproved@example.invalid", username: "unapproved", passwordHash: bcrypt.hashSync("local-test-only", 4), permissions: { publicPublishing: false }, decksData: [], cardsData: [], sharedDeckData: [], createdAt: now, updatedAt: now });
   if (infoCards) {
     const repo = new InfoCardRepository(db, client), other = (await db.collection("users").findOne({ username: "other" }))!._id.toString();
@@ -117,6 +127,14 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   if (process.argv.includes("--dev")) {
+    const reviewIP = lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip));
+    if (lan && reviewIP) phoneOrigin = `http://${reviewIP}:${appPort}`;
+    // Send the two parent-approval requests through the real HTTP endpoint so their links appear below.
+    for (const [username, guardian] of [["young", "guardian@example.invalid"], ["young2", "guardian2@example.invalid"]]) {
+      const login = await fetch(`${baseURL}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier: username, password: "local-test-only" }) });
+      const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+      await fetch(`${baseURL}/api/account/parental-approval`, { method: "POST", headers: { "Content-Type": "application/json", Origin: baseURL, Cookie: cookie, "x-forwarded-for": `10.250.0.${username.length}` }, body: JSON.stringify({ action: "request", guardianEmail: guardian }) });
+    }
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/library?tab=info-cards`) : [];
     await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, mongoUri: uri, infoCards }, null, 2));
     console.log(`Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);

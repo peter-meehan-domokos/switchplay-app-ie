@@ -33,6 +33,8 @@ export type AccountEmailAction = {
   purpose: "password-reset" | "parent-request" | "parent-management";
   userId: ObjectId; scopeId?: "shared-group-experiences"; tokenDigest: string;
   generation: number; recipient: string; expiresAt: Date; cleanupAt: Date; usedAt?: Date;
+  /** A newer link of the same purpose superseded this one; it may only renew, never decide. */
+  replacedAt?: Date; sourceSite?: "puckle" | "switchplay" | "strat17";
   delivery: FounderNotification;
 };
 export type EmailRequestLimit = { _id: string; count: number; expiresAt: Date };
