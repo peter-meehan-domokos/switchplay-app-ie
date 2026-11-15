@@ -20,7 +20,8 @@
     "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit",
     "test:phase2": "node --import tsx scripts/test-phase2.ts",
     "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev",
-    "prepare:puckle-membership": "node --import tsx scripts/prepare-puckle-membership.ts"
+    "prepare:puckle-membership": "node --import tsx scripts/prepare-puckle-membership.ts",
+    "backfill:known-puckle-users": "node --import tsx scripts/backfill-known-puckle-users.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",
