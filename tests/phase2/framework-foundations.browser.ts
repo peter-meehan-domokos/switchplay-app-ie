@@ -31,9 +31,13 @@ for (const width of [390, 1440]) test(`completion distinguishes empty, zero and 
     await expect(zeroTile.locator(".deck-tile-meta")).toContainText("0%");
     for (const step of content.steps) await repo.setCompletion(actor, deck.deckTemplateId, card.cardTemplateId, step.stepId, "skipped");
     await page.reload();
-    await expect(zeroTile.locator(".deck-tile-meta")).toContainText("Completed");
+    // All-skipped is an explicit skipped state, not completion (974175f): the tile keeps only a hidden layout slot.
+    await expect(zeroTile.locator(".deck-tile-meta")).not.toContainText("Completed");
+    await expect(zeroTile.locator(".deck-tile-meta .personal-layout-slot")).toHaveCount(1);
+    await expect(zeroTile.locator(".deck-tile-meta .personal-layout-slot")).toBeHidden();
     await zeroTile.getByRole("button", { name: `Open ${skippedTitle}`, exact: true }).last().click();
-    await expect(page.locator(".detail-progress")).toHaveText("Completed");
+    await expect(page.locator(".detail-progress")).toBeHidden();
+    await expect(page.locator(".deck-card.is-active .completion-strip--skipped")).toBeVisible();
     await expect(page.locator(".deck-card.is-active .completion-strip-fill")).toHaveAttribute("style", /width: 100%/);
     await page.locator(".deck-card[role=button]").press("Enter");
     await expect(page.locator(".focused-card-surface--front .completion-strip-fill")).toHaveAttribute("style", /width: 100%/);

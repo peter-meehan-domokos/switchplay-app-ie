@@ -10,6 +10,13 @@ async function create(page: Page, followerIds: string[] = []) {
     adminIds: [], followerIds, manifest: { deckTemplateId: fixture!.deckId, deckVersion: 1, cards: fixture!.cardIds.map(cardTemplateId => ({ cardTemplateId, version: 1 })) } } });
   expect(response.status()).toBe(200); return response.json() as Promise<{ experienceId: string }>;
 }
+// Followers keep the shared Deck menu for Progress (76064aa); only Admins get Group settings.
+async function expectNoGroupManagement(page: Page) {
+  await page.getByRole("button", { name: "Deck menu", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Progress", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Group settings", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+}
 async function settings(page: Page, id: string) {
   await page.goto(`/decks?openExperience=${id}`); await expect(page.locator(".group-picker-current")).toBeVisible();
   await page.getByRole("button", { name: "Deck menu", exact: true }).click();
@@ -307,7 +314,7 @@ test("lost Save response after self-removal retains the exact retry and returns 
 test("followers cannot open Group management", async ({ page }) => {
   await page.request.post("/api/auth/login", { data: { identifier: "other", password: "local-test-only" } });
   await page.goto(`/decks?openExperience=${fixture!.secondId}`); await expect(page.locator(".group-picker-current")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(0);
+  await expectNoGroupManagement(page);
 });
 test("85-percent user list preserves inner scrolling and leaves a native outer-scroll strip", async ({ page, browserName }) => {
   await page.goto(`/library/${fixture!.deckId}`); await page.getByRole("button", { name: "Deck menu", exact: true }).click();
@@ -413,7 +420,7 @@ test("self-demotion retains follower access and a valid Group perspective withou
   await dialog.getByRole("button", { name: "Save", exact: true }).click(); await expect(dialog).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`openExperience=${group.experienceId}`));
   await expect(page.locator(".group-experience")).toHaveAttribute("data-perspective-key", "group");
-  await expect(page.getByRole("button", { name: "Deck menu", exact: true })).toHaveCount(0);
+  await expectNoGroupManagement(page);
   expect(await physical!.evaluate(node => node.isConnected && node === document.querySelector(".deck-detail"))).toBe(true);
   const meta = await (await page.request.get(`/api/group-experiences/${group.experienceId}`)).json();
   expect(meta.isAdmin).toBe(false); expect(meta.isFollower).toBe(true);

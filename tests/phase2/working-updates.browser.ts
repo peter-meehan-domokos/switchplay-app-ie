@@ -192,7 +192,7 @@ test("Update waits for the entire upload and attachment without remounting the w
     await page.mouse.down(); await page.mouse.move(rect[0] + rect[2] / 2 + delta, rect[1] + rect[3] / 2, { steps: 12 }); await page.mouse.up();
   }
   await flip(".focused-card-surface--front .card-title-anchor", 220);
-  await page.getByRole("button", { name: "Add media", exact: true }).click();
+  await page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true }).click();
   let release!: () => void; const held = new Promise<void>((resolve) => { release = resolve; }); let started = false;
   await page.route("**/api/media/images/direct-upload", async (route) => { started = true; await held; await route.continue(); });
   try {
@@ -264,7 +264,7 @@ test("existing working reads, writes, open and personal-media deletion reject a 
 test("focus during an adoption refetch cannot invalidate the foreground Update outcome", async ({ page }) => {
   const f = await fixture(); await cardPublish(f, "Reviewed instructions"); await open(page, f.decks[0]);
   let release!: () => void; const held = new Promise<void>((resolve) => { release = resolve; }); let captured = false;
-  await page.route(`**/api/decks-data/${f.decks[0]}`, async (route) => {
+  await page.route(`**/api/decks-data/${f.decks[0]}/preparation`, async (route) => {
     if (route.request().method() === "GET") {
       const response = await route.fetch(); captured = true; await held; await route.fulfill({ response }); return;
     }

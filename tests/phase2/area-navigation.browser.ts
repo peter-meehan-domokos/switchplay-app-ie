@@ -115,7 +115,7 @@ test("explicit Restore and open survives opening failure, supports retry, and le
     await show(page); await dialog(page).getByRole("button", { name: /^Archived/ }).click();
     await dialog(page).getByRole("button", { name: "Select archived Archived practice", exact: true }).click();
     let fail = true;
-    await page.route("**/api/decks-data", async (route) => {
+    await page.route("**/api/decks-data/*/preparation", async (route) => {
       if (fail && route.request().method() === "POST") { fail = false; return route.fulfill({ status: 500, json: { error: "Simulated opening failure" } }); }
       return route.continue();
     });
@@ -206,7 +206,7 @@ test("an obsolete working-entry response cannot replace a newer same-Deck Card t
   const gate = new Promise<void>((resolve) => { release = resolve; }), started = new Promise<void>((resolve) => { notify = resolve; });
   try {
     await show(page); let intercept = true;
-    await page.route("**/api/decks-data", async (route) => {
+    await page.route("**/api/decks-data/*/preparation", async (route) => {
       if (intercept && route.request().method() === "POST") {
         intercept = false; const response = await route.fetch(); notify(); await gate; await route.fulfill({ response });
       } else await route.continue();

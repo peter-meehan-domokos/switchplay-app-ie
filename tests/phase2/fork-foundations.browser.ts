@@ -6,6 +6,9 @@ import { createDefaultCardContent, createDefaultDeckContent } from "../../src/li
 import { forkCardContent } from "../../src/lib/cards/forks";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 import { deckDraftContent } from "../../src/lib/cards/publicationRules";
+// CardRepository.writePersonalReflection loads this lazily. Under the Playwright TS transform a lazy
+// import() of an uncached .ts module fails, so load it through the transform first.
+import "../../src/lib/groupExperiences/contracts";
 
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
@@ -154,10 +157,10 @@ for (const origin of ["library", "my-decks"] as const) test(`${origin} fork disp
   const box = (await header.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2); await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.75 + 220, box.y + box.height / 2, { steps: 12 }); await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
+  await expect(page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true })).toBeVisible();
   await expect(page.locator(".focused-card-surface--back").getByText("Retained original observation", { exact: true })).toBeVisible();
   await expect(page.locator(".focused-card-surface--back").getByAltText("Retained source evidence")).toBeVisible();
-  await page.getByRole("button", { name: "Add media", exact: true }).click();
+  await page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true }).click();
   const remove = page.getByRole("dialog", { name: "Card media", exact: true }).getByRole("button", { name: /Delete image Retained source evidence/ });
   await expect(remove).toBeVisible();
   // Another actor cannot delete this user's source-stored item, including when

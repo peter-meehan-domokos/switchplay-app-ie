@@ -219,7 +219,7 @@ test("version changes after selection revalidation cannot silently open a newer 
   const f = await fixture(page, "single");
   try {
     await show(page);
-    await page.route("**/api/decks-data", async (route) => {
+    await page.route("**/api/decks-data/*/preparation", async (route) => {
       if (route.request().method() !== "POST") return route.continue();
       await f.repo.users().updateOne({ _id: new ObjectId(f.actor) }, { $set: { "cardsData.$[card].cardTemplateVersion": 2 } },
         { arrayFilters: [{ "card.cardTemplateId": f.original.root.cardTemplateId }] });

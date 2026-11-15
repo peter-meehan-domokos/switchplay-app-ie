@@ -16,7 +16,7 @@ test("Framework APIs expose the sample catalogue privately and enforce authentic
       expect(response.status()).toBe(200); expect(response.headers()["cache-control"]).toBe("private, no-store");
       expect(response.headers()["vary"]).toContain("Cookie"); expect(response.headers()["x-personal-viewer"]).toBe(process.env.PHASE2_USER_ID!);
       const frameworks = (await response.json()).frameworks;
-      expect(frameworks.map((framework: { id: string }) => framework.id)).toEqual(["leaving-cert-hl"]);
+      expect(frameworks.map((framework: { id: string }) => framework.id)).toEqual(["leaving-cert-hl", "functions-and-graphs", "salva-skills-plan"]);
       expect(frameworks[0].areas.map((area: { id: string }) => area.id)).toEqual(["algebra", "calculus", "trigonometry"]);
       expect((await page.request.get(path, { headers: { "X-Personal-Viewer": "another-user" } })).status()).toBe(409);
     }

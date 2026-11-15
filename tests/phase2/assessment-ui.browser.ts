@@ -185,7 +185,7 @@ test("connected assessments, actual fork publication, archived Framework summari
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
     // Reload restores the URL-selected Deck through its normal POST/open path.
     // Finish that legitimate recency write before taking a read-only baseline.
-    const reopened = page.waitForResponse(response => new URL(response.url()).pathname === "/api/decks-data" && response.request().method() === "POST");
+    const reopened = page.waitForResponse(response => /^\/api\/decks-data\/[^/]+\/preparation$/.test(new URL(response.url()).pathname) && response.request().method() === "POST");
     await page.reload(); expect((await reopened).ok()).toBe(true);
     const retained = (await read<{ history: AssessmentHistory }>(historyUrl)).history;
     expect(retained.results).toHaveLength(2); expect(retained.results.some((result) => result.id === sourceEvent.id)).toBe(false);
@@ -245,7 +245,7 @@ for (const width of [320, 390, 1440]) test(`quiet back metadata and + Test at ${
       const front = ".focused-card-surface--front .card-semantic-anchors";
       await expect(page.locator(front)).toBeVisible(); await swipeHeader(page, `${front} .card-title-anchor`, 1);
       const header = page.locator(backSelector);
-      await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
+      await expect(page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true })).toBeVisible();
       await expect(header.locator(".assessment-empty-control")).toHaveText("+ Test");
       await expect(header.getByLabel("Confidence 7 out of 10")).toHaveText("7");
       const dimensions = (await geometry(page, [backSelector]))[backSelector];
@@ -388,7 +388,7 @@ test("working Card back assessment CRUD and focused gestures preserve geometry; 
     await expect(front.locator(".assessment-indicator")).toHaveCount(0);
     await front.getByRole("button", { name: "Move target date one day later" }).click();
     await swipeHeader(page, ".focused-card-surface--front .card-title-anchor", 1);
-    await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
+    await expect(page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true })).toBeVisible();
     await expect(dialog(page)).toHaveCount(0);
     await header.getByRole("button", { name: "Open assessment history" }).click();
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();

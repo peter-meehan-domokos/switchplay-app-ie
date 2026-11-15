@@ -62,7 +62,7 @@ test("working upload survives focused Card navigation and saves against its orig
     const header = (await geometry(page, [headerSelector]))[headerSelector];
     await page.mouse.move(header[0] + header[2] * .75, header[1] + header[3] / 2);
     await page.mouse.down(); await page.mouse.move(header[0] + header[2] * .75 + 220, header[1] + header[3] / 2, { steps: 12 }); await page.mouse.up();
-    await page.getByRole("button", { name: "Add media", exact: true }).click();
+    await page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true }).click();
     let requestStarted = false;
     await page.route("**/api/media/images/direct-upload", async (route) => {
       requestStarted = true; await heldUpload; await route.continue();
@@ -264,7 +264,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
       compareGeometry(await geometry(page, Object.keys(focusedTitle)), focusedTitle);
       await expect(page.getByLabel("Progress preview")).toHaveCount(0);
       await expect(page.locator(".completion-strip-fill, .step-progress-fill, .focused-card-surface--back, .card-reflection-editor, .user-card-media-editor")).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /target date|completion|Add media|Add reflection/i })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /target date|completion|Media Centre|Add reflection/i })).toHaveCount(0);
       await expect(page.locator(".deck-card-date").first()).toBeEmpty();
       await page.screenshot({ path: testInfo.outputPath(`canonical-${viewport.width}.png`), fullPage: true });
 

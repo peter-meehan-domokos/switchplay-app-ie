@@ -11,6 +11,7 @@ import { main } from "../scripts/rename-group-card-data";
 import { assertGroupExperienceIndexes, createGroupExperienceIndexes, GROUP_COLLECTIONS } from "../src/lib/groupExperiences/indexes";
 import { groupFixture, completion } from "./helpers/groupExperiences";
 import { GroupExperienceRepository } from "../src/lib/groupExperiences/repository";
+import { CardRepository } from "../src/lib/cards/repository";
 import { mutateGroupAssessment, readGroupAssessments } from "../src/lib/groupExperiences/assessments";
 
 let mongo: MongoMemoryReplSet, client: MongoClient;
@@ -100,17 +101,21 @@ test("a migrated Group resumes learning and assessment operations without modify
   await mutateGroupAssessment(f.repo, "alice", f.experienceId, source, add);
   const people = BSON.EJSON.stringify(await f.cards.users().find().sort({ _id: 1 }).toArray());
   await f.repo.cardData().rename("groupCardState", { dropTarget: false });
-  const restarted = new GroupExperienceRepository(f.cards);
-  await assert.rejects(restarted.get("alice", f.experienceId), { code: "GROUP_CARD_RENAME_REQUIRED" });
-  await executeGroupCardRename(f.cards.db, await planGroupCardRename(f.cards.db));
-  assert.equal((await readGroupAssessments(restarted, "alice", f.experienceId, source)).tests[0].id, "before");
-  await restarted.writeLearning("alice", f.experienceId, cardTemplateId, "group", completion("b0"));
-  const next = await mutateGroupAssessment(restarted, "alice", f.experienceId, source, { ...add, id: "after", expectedRevision: 1 });
-  assert.equal(next.revision, 2); assert.equal(next.tests.length, 2);
-  const row = await restarted.cardData().findOne({ experienceId: f.experienceId, cardTemplateId });
-  assert.equal(row!.items.filter(step => step.completionStatus === "done").length, 2);
-  assert.equal(BSON.EJSON.stringify(await f.cards.users().find().sort({ _id: 1 }).toArray()), people);
-  await assert.rejects(mutateGroupAssessment(restarted, "bob", f.experienceId, source, { ...add, viewerUserId: "bob", id: "forged", expectedRevision: 2 }), { code: "GROUP_FORBIDDEN" });
+  // A restart is a new process: readiness is cached per MongoClient (202f909), so use a fresh client.
+  const restartedClient = await new MongoClient(mongo.getUri()).connect();
+  try {
+    const restarted = new GroupExperienceRepository(new CardRepository(restartedClient.db(f.cards.db.databaseName), restartedClient));
+    await assert.rejects(restarted.get("alice", f.experienceId), { code: "GROUP_CARD_RENAME_REQUIRED" });
+    await executeGroupCardRename(f.cards.db, await planGroupCardRename(f.cards.db));
+    assert.equal((await readGroupAssessments(restarted, "alice", f.experienceId, source)).tests[0].id, "before");
+    await restarted.writeLearning("alice", f.experienceId, cardTemplateId, "group", completion("b0"));
+    const next = await mutateGroupAssessment(restarted, "alice", f.experienceId, source, { ...add, id: "after", expectedRevision: 1 });
+    assert.equal(next.revision, 2); assert.equal(next.tests.length, 2);
+    const row = await restarted.cardData().findOne({ experienceId: f.experienceId, cardTemplateId });
+    assert.equal(row!.items.filter(step => step.completionStatus === "done").length, 2);
+    assert.equal(BSON.EJSON.stringify(await f.cards.users().find().sort({ _id: 1 }).toArray()), people);
+    await assert.rejects(mutateGroupAssessment(restarted, "bob", f.experienceId, source, { ...add, viewerUserId: "bob", id: "forged", expectedRevision: 2 }), { code: "GROUP_FORBIDDEN" });
+  } finally { await restartedClient.close(); }
 });
 test("explicit CLI inspects, writes a private plan, executes, verifies and recovers a lost acknowledgement", async () => {
   const db = database(); await legacy(db); const dir = await mkdtemp(join(tmpdir(), "group-card-rename-"));

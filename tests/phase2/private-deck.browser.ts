@@ -53,7 +53,7 @@ async function flip(page: Page) {
   const box = await header.boundingBox(); expect(box).not.toBeNull();
   await page.mouse.move(box!.x + box!.width * 0.75, box!.y + box!.height * 0.5);
   await page.mouse.down(); await page.mouse.move(box!.x + box!.width * 0.75 + 220, box!.y + box!.height * 0.5, { steps: 12 }); await page.mouse.up();
-  await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
+  await expect(page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true })).toBeVisible();
 }
 test("private Creator → adopted work → media/state → recoverable publication → archive/restore", async ({ page }) => {
   // Asset delivery is mocked; actual upload authorization and metadata persistence remain real.
@@ -163,10 +163,12 @@ test("private Creator → adopted work → media/state → recoverable publicati
   expect((await signalSaved).ok()).toBeTruthy();
   await page.getByRole("button", { name: "Add a reflection", exact: true }).click();
   await page.locator(".reflection-editor-modal textarea").fill("A useful private reflection"); await page.locator(".reflection-editor-modal").getByRole("button", { name: "Save", exact: true }).click();
-  await page.getByRole("button", { name: "Add media", exact: true }).click();
+  await page.locator(".focused-card-surface--back").getByRole("button", { name: "Media Centre", exact: true }).click();
   await page.getByLabel("Choose image", { exact: true }).setInputFiles({ name: "proof.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jY3sAAAAASUVORK5CYII=", "base64") });
   await expect(page.getByRole("button", { name: /Delete image proof/ })).toBeVisible();
   await page.getByRole("dialog", { name: "Card media", exact: true }).getByRole("button", { name: "Close", exact: true }).click();
+  // The Media Centre keeps the app inert until its exit animation completes.
+  await expect(page.getByRole("dialog", { name: "Card media", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Close focused card", exact: true }).press("Enter");
   await page.getByRole("button", { name: "Back", exact: true }).click(); await expect(page.getByRole("heading", { name: "My Decks", exact: true })).toBeVisible();
   user = await database().collection("users").findOne({ _id: actor() });
