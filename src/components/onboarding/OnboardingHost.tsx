@@ -113,13 +113,14 @@ export default function OnboardingHost() {
 
   const layout = buildOnboardingLayout(eligible ? status : null, ui);
 
-  // The welcome is acknowledged only once it has actually been presented, and never for a collapsed control.
-  useEffect(() => {
-    if (layout.kind !== "welcome" || !status || presentedFor.current === status.actorId) return;
-    presentedFor.current = status.actorId;
+  // Called by the committed lazy view, not merely by a layout that may still be suspended or fail to load.
+  const welcomePresented = useCallback(() => {
+    const actor = statusRef.current?.actorId;
+    if (!actor || presentedFor.current === actor) return;
+    presentedFor.current = actor;
     patch({ welcomePresented: true });
-    void post("/api/account/onboarding", { action: "acknowledge", expectedUserId: status.actorId }); // failure only means it may show again
-  }, [layout.kind, status, patch]);
+    void post("/api/account/onboarding", { action: "acknowledge", expectedUserId: actor }); // failure only means it may show again
+  }, [patch]);
 
   const send = useCallback(async () => {
     const actor = statusRef.current?.actorId, email = ui.draft.trim();
@@ -143,6 +144,7 @@ export default function OnboardingHost() {
       <OnboardingErrorBoundary>
         <Suspense fallback={null}>
           <Onboarding actions={{
+            welcomePresented,
             setDraft: value => patch({ draft: value }), send: () => void send(), openWelcome: () => patch({ openedByRequest: true }),
             explore: () => patch({ welcomeDismissed: true }),
             requestSession: () => { patch({ welcomeDismissed: true }); window.location.assign("/#early-access"); },

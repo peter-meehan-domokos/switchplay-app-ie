@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import type { GuardianLayout, OnboardingLayout, OnboardingUi } from "./onboardingLayout";
 import styles from "./Onboarding.module.css";
 
 export type OnboardingActions = Readonly<{
   setDraft: (value: string) => void; send: () => void; openWelcome: () => void; explore: () => void;
-  requestSession: () => void; dismissReminder: () => void;
+  requestSession: () => void; dismissReminder: () => void; welcomePresented: () => void;
 }>;
 
 function GuardianForm({ guardian, ui, actions, id }: { guardian: GuardianLayout; ui: OnboardingUi; actions: OnboardingActions; id: string }) {
@@ -23,6 +24,9 @@ function GuardianForm({ guardian, ui, actions, id }: { guardian: GuardianLayout;
 }
 
 export default function Onboarding({ layout, ui, actions }: { layout: OnboardingLayout; ui: OnboardingUi; actions: OnboardingActions }) {
+  const welcomeVisible = layout.kind === "welcome";
+  const { welcomePresented } = actions;
+  useEffect(() => { if (welcomeVisible) welcomePresented(); }, [welcomeVisible, welcomePresented]);
   if (layout.kind === "none") return null;
   const message = ui.message ? <p className={ui.message.tone === "error" ? styles.error : styles.note} role={ui.message.tone === "error" ? "alert" : "status"}>{ui.message.text}</p> : null;
   if (layout.kind === "pill") {

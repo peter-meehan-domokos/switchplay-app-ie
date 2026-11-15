@@ -61,7 +61,7 @@ test("registration welcome: fades in, stays readable ~5 s over a covered page, f
   expect(hold.at - enter.at).toBeGreaterThan(400); expect(hold.at - enter.at).toBeLessThan(900); // entrance ~0.5 s
   expect(exit.at - hold.at).toBeGreaterThan(4800); expect(exit.at - hold.at).toBeLessThan(5500); // fully readable ~5 s
   expect(navigations[0]).toBeGreaterThan(exit.at + 400); // My Decks opens only after the exit animation has run
-  expect((await page.request.get(`${origin}/api/auth/me`)).status()).toBe(200);
+  expect(await page.evaluate(async () => (await fetch("/api/auth/me")).status)).toBe(200);
 });
 test("reduced motion: no animation at all, but the message still stays about five seconds", async ({ browser }) => {
   const { page, navigations, phases } = await registerStudent(browser, "reduce");

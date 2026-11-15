@@ -164,7 +164,8 @@ export async function decideParentalApproval(db: Db, client: MongoClient, input:
         // Email ownership plus declaration, recorded as such: not independent verification of anyone's age or responsibility.
         [`${PATH}.guardianDeclaration`]: { textVersion: GUARDIAN_DECLARATION.version, declaredAt: now, emailConfirmedAt: now } },
       $push: { [`${PATH}.history`]: event(status, { kind: "guardian", reference: `email-action:${link.action._id.toHexString()}` }, now,
-        { generation: link.action.generation, guardianEmail: link.action.recipient, declarationVersion: GUARDIAN_DECLARATION.version, sourceSite: link.action.sourceSite }) },
+        { generation: link.action.generation, guardianEmail: link.action.recipient, declarationVersion: GUARDIAN_DECLARATION.version, sourceSite: link.action.sourceSite,
+          explanation: link.approval!.explanation }) },
     } as never, { session });
     if (result.matchedCount !== 1) throw new Error("LINK_NOT_USABLE");
     return { status, account: link.account, generation: link.action.generation, recipient: link.action.recipient, sourceSite: link.action.sourceSite ?? "puckle" };
@@ -191,7 +192,7 @@ export async function withdrawParentalApproval(db: Db, client: MongoClient, inpu
     const link = await loadParentLink(db, input.token, now, session);
     if (link.action.purpose !== "parent-management" || link.state !== "valid") throw new Error("LINK_NOT_USABLE");
     await endApproval(db, session, link.account._id, link.action.generation, now,
-      event("withdrawn", { kind: "guardian", reference: `email-action:${link.action._id.toHexString()}` }, now, { generation: link.action.generation, guardianEmail: link.action.recipient }),
+      event("withdrawn", { kind: "guardian", reference: `email-action:${link.action._id.toHexString()}` }, now, { generation: link.action.generation, guardianEmail: link.action.recipient, explanation: link.approval!.explanation }),
       { [`${PATH}.guardianEmail`]: link.action.recipient });
   });
   return { status: "withdrawn" as const };
@@ -204,7 +205,7 @@ export async function revokeParentalApprovalAsOperator(db: Db, client: MongoClie
     const approval = account?.safeguarding?.groupExperienceApproval;
     if (!approval || approval.status !== "approved") throw new Error("APPROVAL_STATE_CHANGED");
     await endApproval(db, session, userId, approval.generation, now,
-      event("revoked", { kind: "operator", reference: review.actor }, now, { reason: review.reason, generation: approval.generation, guardianEmail: approval.guardianEmail }));
+      event("revoked", { kind: "operator", reference: review.actor }, now, { reason: review.reason, generation: approval.generation, guardianEmail: approval.guardianEmail, explanation: approval.explanation }));
   });
 }
 
@@ -218,7 +219,7 @@ export async function renewParentLink(db: Db, input: { token: unknown; requester
   const purpose = link.action.purpose as ParentPurpose;
   if (purpose === "parent-request") {
     await users(db).updateOne({ _id: link.account._id, [`${PATH}.status`]: "pending", [`${PATH}.generation`]: link.approval.generation },
-      { $push: { [`${PATH}.history`]: event("resent", { kind: "guardian", reference: `renewal:${link.action._id.toHexString()}` }, now, { generation: link.approval.generation, guardianEmail: recipient }) } } as never);
+      { $push: { [`${PATH}.history`]: event("resent", { kind: "guardian", reference: `renewal:${link.action._id.toHexString()}` }, now, { generation: link.approval.generation, guardianEmail: recipient, explanation: link.approval.explanation }) } } as never);
   }
   const fresh = await issueLink(db, { userId: link.account._id, purpose, generation: link.approval.generation, recipient, sourceSite: link.action.sourceSite ?? "puckle" }, now);
   await sendLink(db, link.account, fresh, purpose, recipient, link.approval.generation, mail);

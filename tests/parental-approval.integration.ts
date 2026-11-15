@@ -198,3 +198,27 @@ test("shared facts need no Puckle profile; a child without one is addressed by u
   const kid = await child("2012-01-01", false), email = guardian(); await request(kid._id, email);
   assert.equal((await parentLinkDetails(db, lastToken(email), at(1000)) as { child: string }).child, kid.username);
 });
+
+test("decisions, withdrawal and operator revocation retain the explanation actually shown, not a later deployment's text", async () => {
+  const explanation = { version: "accepted-earlier-version", text: "The activity explanation attached to this request." };
+  for (const ending of ["withdraw", "revoke", "decline"] as const) {
+    const kid = await child(), email = guardian();
+    await request(kid._id, email);
+    // Simulate a request issued under an earlier disclosure version, still valid after a deployment.
+    await db.collection("users").updateOne({ _id: kid._id }, { $set: { "safeguarding.groupExperienceApproval.explanation": explanation } });
+    const token = lastToken(email);
+    assert.deepEqual((await parentLinkDetails(db, token, at(1000)) as { explanation: unknown }).explanation, explanation);
+    await decide(token, ending === "decline" ? "decline" : "approve");
+    assert.deepEqual((await approval(kid._id)).history.at(-1).explanation, explanation);
+    if (ending === "withdraw") await withdrawParentalApproval(db, client, { token: lastToken(email), confirm: true }, () => at(2 * DAY));
+    if (ending === "revoke") await revokeParentalApprovalAsOperator(db, client, kid._id, { actor: "founder", reason: "Reviewed request" }, at(2 * DAY));
+    assert.deepEqual((await approval(kid._id)).history.at(-1).explanation, explanation);
+    await untouched(kid);
+  }
+  const kid = await child(), email = guardian();
+  await request(kid._id, email);
+  await db.collection("users").updateOne({ _id: kid._id }, { $set: { "safeguarding.groupExperienceApproval.explanation": explanation } });
+  await renewParentLink(db, { token: lastToken(email), requester: "renew-earlier-explanation" }, mail, at(8 * DAY));
+  assert.deepEqual((await approval(kid._id)).history.at(-1).explanation, explanation);
+  assert.deepEqual((await parentLinkDetails(db, lastToken(email), at(8 * DAY)) as { explanation: unknown }).explanation, explanation);
+});

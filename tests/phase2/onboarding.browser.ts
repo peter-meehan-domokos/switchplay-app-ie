@@ -80,7 +80,7 @@ test("private learning stays available: skipping the guardian step changes nothi
   const kid = await young(), { page } = await open(browser, kid.username); await expect(welcome(page)).toBeVisible();
   await welcome(page).getByRole("button", { name: "Explore Puckle" }).click();
   expect((await db.collection("users").findOne({ _id: kid._id }))!.safeguarding.groupExperienceApproval).toBeUndefined();
-  expect((await page.request.get(`${origin}/api/auth/me`)).status()).toBe(200); await expect(page.locator("main").first()).toBeVisible();
+  expect(await page.evaluate(async () => (await fetch("/api/auth/me")).status)).toBe(200); await expect(page.locator("main").first()).toBeVisible();
 });
 test("approved hides reminders; declined and withdrawn are truthful with an explicit ask-again; 16 and unknown DOB show nothing", async ({ browser }) => {
   const cases: [Awaited<ReturnType<typeof account>>, RegExp | null][] = [
