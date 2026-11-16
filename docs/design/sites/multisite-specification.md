@@ -17,7 +17,7 @@ The three websites will later serve different audiences:
 | Website | Domain | Future focus | Header brand in this phase |
 |---|---|---|---|
 | Strat17 | `strat17.com` | General creator/follower learning platform | `strat17` |
-| Puckle | `puckle.co` | Maths tuition and learning | `puckle` |
+| Puckle | `puckleup.com` | Maths tuition and learning | `puckle` |
 | Switchplay | `switchplay.ie` | Basketball clubs and coaching | `switchplay` |
 
 Use the actual existing header typography/capitalisation conventions where appropriate; the requirement is that the **correct brand name** appears on each site.
@@ -55,7 +55,7 @@ If common assets or low-level utilities remain shared initially, Copilot should 
 For any supported public website route:
 
 - Requests under `strat17.com` show the Strat17 version.
-- Requests under `puckle.co` show the Puckle version.
+- Requests under `puckleup.com` show the Puckle version.
 - Requests under `switchplay.ie` show the Switchplay version.
 
 Requirements:

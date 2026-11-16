@@ -6,8 +6,8 @@ import { main } from "../scripts/email-delivery";
 // The real Resend adapter, exercised against a stubbed fetch: no network, no real email.
 const KEY = "re_TestOnlyKey_1234567890";
 const READY: Record<string, string> = {
-  RESEND_API_KEY: KEY, ACCOUNT_EMAIL_TRACKING_DISABLED: "1", ACCOUNT_EMAIL_SECRET: "x".repeat(40), PUCKLE_FOUNDER_EMAIL: "founder@puckle.co",
-  ACCOUNT_EMAIL_PUCKLE_ORIGIN: "https://puckle.co", ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle <hello@puckle.co>",
+  RESEND_API_KEY: KEY, ACCOUNT_EMAIL_TRACKING_DISABLED: "1", ACCOUNT_EMAIL_SECRET: "x".repeat(40), PUCKLE_FOUNDER_EMAIL: "founder@puckleup.com",
+  ACCOUNT_EMAIL_PUCKLE_ORIGIN: "https://puckleup.com", ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle <hello@puckleup.com>",
   ACCOUNT_EMAIL_SWITCHPLAY_ORIGIN: "https://switchplay.ie", ACCOUNT_EMAIL_SWITCHPLAY_FROM: "Switchplay <hello@switchplay.ie>",
   ACCOUNT_EMAIL_STRAT17_ORIGIN: "https://strat17.com", ACCOUNT_EMAIL_STRAT17_FROM: "hello@strat17.com",
 };
@@ -21,7 +21,7 @@ beforeEach(() => {
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => { calls.push({ url: String(url), init: init ?? {} }); return reply(); }) as typeof fetch;
 });
 afterEach(() => { globalThis.fetch = realFetch; for (const key of Object.keys(process.env)) delete process.env[key]; Object.assign(process.env, saved); });
-const message = { to: "parent@example.com", subject: "Puckle: approval needed for Niamh", text: "Open https://puckle.co/api/account-actions/open#secret" };
+const message = { to: "parent@example.com", subject: "Puckle: approval needed for Niamh", text: "Open https://puckleup.com/api/account-actions/open#secret" };
 
 test("sends one Resend API request with the trusted sender, bearer key, JSON body and a timeout", async () => {
   const delivery = await siteEmailSender("puckle")(message);
@@ -29,7 +29,7 @@ test("sends one Resend API request with the trusted sender, bearer key, JSON bod
   assert.equal(url, "https://api.resend.com/emails"); assert.equal(init.method, "POST"); assert.ok(init.signal, "bounded by a timeout");
   const headers = init.headers as Record<string, string>;
   assert.equal(headers.Authorization, `Bearer ${KEY}`); assert.equal(headers["Content-Type"], "application/json");
-  assert.deepEqual(JSON.parse(String(init.body)), { from: "Puckle <hello@puckle.co>", to: ["parent@example.com"], subject: message.subject, text: message.text });
+  assert.deepEqual(JSON.parse(String(init.body)), { from: "Puckle <hello@puckleup.com>", to: ["parent@example.com"], subject: message.subject, text: message.text });
   assert.deepEqual([delivery.status, delivery.reference], ["sent", "resend:4ef9a417-02e9-4d39-ad75-9611e0fcc33c"]);
 });
 test("each site sends from its own configured identity", async () => {
@@ -62,11 +62,11 @@ test("without a key, or before tracking is confirmed off, nothing is sent and th
   assert.equal((await deliverEmail(async () => { throw new Error("boom"); }, message)).status, "unknown");
 });
 test("sender identities must be a real address, optionally with a display name; no header injection", () => {
-  for (const ok of ["Puckle <hello@puckle.co>", "hello@puckle.co", "Puckle Team <no-reply@mail.puckle.co>"]) assert.equal(isValidSender(ok), true, ok);
-  for (const bad of ["Puckle", "Puckle <hello>", "hello@puckle.co\nBcc: x@y.z", "<hello@puckle.co", "a b@puckle.co"]) assert.equal(isValidSender(bad), false, bad);
+  for (const ok of ["Puckle <hello@puckleup.com>", "hello@puckleup.com", "Puckle Team <no-reply@mail.puckleup.com>"]) assert.equal(isValidSender(ok), true, ok);
+  for (const bad of ["Puckle", "Puckle <hello>", "hello@puckleup.com\nBcc: x@y.z", "<hello@puckleup.com", "a b@puckleup.com"]) assert.equal(isValidSender(bad), false, bad);
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle" }), /INVALID/);
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "not a url" }), /INVALID/);
-  assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "http://puckle.co" }), /INVALID/, "https only outside local testing");
+  assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "http://puckleup.com" }), /INVALID/, "https only outside local testing");
 });
 test("the readiness report can be limited to one site", () => {
   const partial = { ...READY, ACCOUNT_EMAIL_SWITCHPLAY_FROM: undefined, ACCOUNT_EMAIL_STRAT17_ORIGIN: undefined };

@@ -15,11 +15,11 @@ the sites are reachable only on Preview deployments (using `?site=`) and on the 
   `switchplayEarlyAccessSignups`, `switchplayCreatorInterestSubmissions`); the legacy collections (`contactSupportSubmissions`,
   `earlyAccessSignups`, `creatorInterestSubmissions`) stop receiving new records and are left untouched. Check that nothing outside
   this repository (Atlas views/exports, scripts, manual processes) reads the legacy collection names before merging.
-- `puckle.co` and `strat17.com` are not attached to the project, so they are not publicly reachable yet.
+- `puckleup.com` and `strat17.com` are not attached to the project, so they are not publicly reachable yet.
 
 ## Manual steps (cutover)
 
-1. Add `puckle.co`, `www.puckle.co`, `strat17.com`, `www.strat17.com` to the existing Vercel project `switchplay-app-ie`
+1. Add `puckleup.com`, `www.puckleup.com`, `strat17.com`, `www.strat17.com` to the existing Vercel project `switchplay-app-ie`
    (the Vercel account currently lists only `switchplay.ie`). Set DNS per Vercel's instructions at each registrar/DNS provider
    (at least one of these appears to use Cloudflare DNS: use DNS-only, not proxied, records unless you decide otherwise).
 2. Canonical domains are the **apex** domains. For every domain set the apex as primary and redirect `www.` → apex (308) in the
@@ -30,7 +30,7 @@ the sites are reachable only on Preview deployments (using `?site=`) and on the 
    after Preview verification.
 4. Environment variables are shared (same project); no new variables are expected. Confirm Production still has the existing
    `MONGODB_*`, auth and Cloudflare variables.
-5. Create or verify the mailboxes (or forwards): `info@puckle.co`, `info@strat17.com`, `info@switchplay.ie`.
+5. Create or verify the mailboxes (or forwards): `hello@puckleup.com`, `info@strat17.com`, `info@switchplay.ie`.
 6. If previews are used for iPhone testing, check Vercel Deployment Protection settings. On previews and LAN hosts use `?site=`.
 
 ## Pre-launch gates (per domain, before public launch)
@@ -39,7 +39,7 @@ the sites are reachable only on Preview deployments (using `?site=`) and on the 
   entity/controller wording is correct).
 - Mailbox for that domain works.
 - Smoke test on the live domain: `/`, `/contact`, `/privacy`, each form (use a test submission and then check the site's own
-  collections), `/login`, direct load and refresh of each page, and that `puckle.co/step-visuals` works while
+  collections), `/login`, direct load and refresh of each page, and that `puckleup.com/step-visuals` works while
   `strat17.com/step-visuals` and `switchplay.ie/step-visuals` return 404.
 
 ## Cutover order

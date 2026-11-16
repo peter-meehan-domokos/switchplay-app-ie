@@ -6,7 +6,7 @@ export const DEFAULT_SITE: SiteId = "puckle";
 
 const PRODUCTION_HOSTS: Readonly<Record<string, SiteId>> = {
   "strat17.com": "strat17",
-  "puckle.co": "puckle",
+  "puckleup.com": "puckle",
   "switchplay.ie": "switchplay",
 };
 

@@ -6,8 +6,8 @@ import OnboardingHost from "@/components/onboarding/OnboardingHost";
 
 export const metadata: Metadata = {
   title: {
-    default: "SWITCHPLAY — The unofficial way to get there.",
-    template: "%s | SWITCHPLAY",
+    default: "PUCKLE — The unofficial way to get there.",
+    template: "%s | PUCKLE",
   },
   description: "A clear path, not just another video. Follow the steps of someone who's done it.",
 };
