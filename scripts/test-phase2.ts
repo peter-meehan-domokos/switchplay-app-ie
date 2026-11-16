@@ -5,6 +5,7 @@ import { once } from "node:events";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import bcrypt from "bcryptjs";
 import { createFoundationIndexes } from "../src/lib/cards/repository";
 import { createInfoCardIndexes, InfoCardRepository } from "../src/lib/infoCards/repository";
@@ -33,6 +34,25 @@ const media = createServer((request, response) => {
 let mediaOrigin = "";
 const output: string[] = [];
 const interactive = process.argv.includes("--dev");
+/**
+ * Manual review with REAL email through Resend, still on the disposable database. Refused unless the private
+ * settings file defines a test redirect, so every message goes to that one inbox labelled "[TEST for <recipient>]".
+ */
+const realEmail = process.argv.includes("--real-email");
+if (realEmail && !interactive) throw new Error("--real-email is for the interactive review server (--dev) only.");
+function realEmailSettings(): Record<string, string> {
+  const file = process.env.PUCKLE_EMAIL_ENV_FILE ?? `${process.env.HOME}/.puckle-email.env`;
+  const values: Record<string, string> = {};
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/); if (!match) continue;
+    values[match[1]] = match[2].replace(/^"(.*)"$/, "$1");
+  }
+  for (const name of ["RESEND_API_KEY", "ACCOUNT_EMAIL_TRACKING_DISABLED", "ACCOUNT_EMAIL_PUCKLE_FROM", "ACCOUNT_EMAIL_SECRET", "ACCOUNT_EMAIL_REDIRECT_TO"]) {
+    if (!values[name]) throw new Error(`--real-email needs ${name} in the private settings file (names only; nothing is printed).`);
+  }
+  if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(values.ACCOUNT_EMAIL_REDIRECT_TO)) throw new Error("ACCOUNT_EMAIL_REDIRECT_TO must be one valid address.");
+  return values;
+}
 /** Manual phone review: email links use the loopback origin, so also print the same link on the Wi-Fi address. */
 let phoneOrigin = "";
 const phoneLink = (text: string) => { const match = phoneOrigin && text.match(/https?:\/\/[^\s/]+(\/api\/account-actions\/open#[\w-]{43})/); return match ? `Phone link: ${phoneOrigin}${match[1]}\n` : ""; };
@@ -105,6 +125,13 @@ try {
     ACCOUNT_EMAIL_SWITCHPLAY_ORIGIN: baseURL, ACCOUNT_EMAIL_SWITCHPLAY_FROM: "Switchplay fixture <security@example.invalid>",
     ACCOUNT_EMAIL_STRAT17_ORIGIN: baseURL, ACCOUNT_EMAIL_STRAT17_FROM: "Strat17 fixture <security@example.invalid>",
   };
+  if (realEmail) {
+    const settings = realEmailSettings(), reviewOrigin = lan && lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)) ? `http://${lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip))}:${appPort}` : baseURL;
+    delete (env as Record<string, string | undefined>).ACCOUNT_EMAIL_TEST_ENDPOINT; // the real transport is used
+    Object.assign(env, { RESEND_API_KEY: settings.RESEND_API_KEY, ACCOUNT_EMAIL_TRACKING_DISABLED: settings.ACCOUNT_EMAIL_TRACKING_DISABLED, ACCOUNT_EMAIL_SECRET: settings.ACCOUNT_EMAIL_SECRET,
+      ACCOUNT_EMAIL_PUCKLE_FROM: settings.ACCOUNT_EMAIL_PUCKLE_FROM, ACCOUNT_EMAIL_REDIRECT_TO: settings.ACCOUNT_EMAIL_REDIRECT_TO, PUCKLE_FOUNDER_EMAIL: settings.PUCKLE_FOUNDER_EMAIL ?? "",
+      ACCOUNT_EMAIL_PUCKLE_ORIGIN: reviewOrigin }); // links in emails open this review server (on the phone when --lan)
+  }
   if (liveInfoMedia) Object.assign(env, {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("CLOUDFLARE_"))),
     PHASE2_LIVE_INFO_MEDIA: "1", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "0", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1",
@@ -130,14 +157,14 @@ try {
     const reviewIP = lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip));
     if (lan && reviewIP) phoneOrigin = `http://${reviewIP}:${appPort}`;
     // Send the two parent-approval requests through the real HTTP endpoint so their links appear below.
-    for (const [username, guardian] of [["young", "guardian@example.invalid"], ["young2", "guardian2@example.invalid"]]) {
+    if (!realEmail) for (const [username, guardian] of [["young", "guardian@example.invalid"], ["young2", "guardian2@example.invalid"]]) { // no automatic sends in real-email mode
       const login = await fetch(`${baseURL}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier: username, password: "local-test-only" }) });
       const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
       await fetch(`${baseURL}/api/account/parental-approval`, { method: "POST", headers: { "Content-Type": "application/json", Origin: baseURL, Cookie: cookie, "x-forwarded-for": `10.250.0.${username.length}` }, body: JSON.stringify({ action: "request", guardianEmail: guardian }) });
     }
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/library?tab=info-cards`) : [];
     await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, mongoUri: uri, infoCards }, null, 2));
-    console.log(`Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+    console.log(`Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. ${realEmail ? "REAL EMAIL via Resend: every message goes only to the test redirect inbox, labelled [TEST for <recipient>]. " : ""}Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
     const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media"].includes(arg))], { env, stdio: "inherit" });
