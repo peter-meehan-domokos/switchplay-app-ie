@@ -143,7 +143,9 @@ test("A-level registers with level stored as null; a 15-year-old sees the privat
   const user = (await db.collection("users").findOne({ email }))!;
   expect((await db.collection("puckleMemberships").findOne({ userId: user._id }))!.education).toEqual({ course: "a-level", courseOther: null, level: null, levelOther: null });
   expect(user.safeguarding.dateOfBirth).toBe(`${thisYear - 14}-01-01`);
-  await expect(page.getByText(/approval/i)).toHaveCount(0);
+  // Entry needs no approval: nothing is recorded. (The optional parent request may or may not have rendered yet, so the
+  // page text is not a stable thing to assert; asserting its absence passed only while a cold /decks compile was still running.)
+  expect(user.safeguarding.groupExperienceApproval).toBeUndefined();
 });
 test("teacher: blank introduction is fine, ordinary rights only, confirmation and a founder alert; no DOB asked", async ({ browser }) => {
   const page = await open(browser), email = emailOf("teacher"), username = unique("Tea");
@@ -239,7 +241,10 @@ test("resend is limited by a visible cooldown", async ({ browser }) => {
 });
 test("an already signed-in visitor is not offered registration", async ({ browser }) => {
   const page = await open(browser, "/");
-  expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).status()).toBe(200);
+  // Own account: the shared "phase2" user is deliberately given wrong passwords in membership-security, which throttles its logins.
+  const username = unique("Signed"), now = new Date();
+  await db.collection("users").insertOne({ username, email: `${username.toLowerCase()}@example.invalid`, passwordHash: await bcrypt.hash("local-test-only", 4), cardsData: [], decksData: [], sharedDeckData: [], permissions: { publicPublishing: false }, createdAt: now, updatedAt: now });
+  expect((await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } })).status()).toBe(200);
   await page.goto(`${origin}/join`); await expect(page.getByRole("heading", { name: "You're already signed in." })).toBeVisible(); await expect(page.getByLabel("Choose a username")).toHaveCount(0);
 });
 test("Join is Puckle-only: other websites have no page and refuse the APIs; bad requests are refused without storing anything", async ({ browser, playwright }) => {
