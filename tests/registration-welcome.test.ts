@@ -3,14 +3,14 @@ import { test } from "node:test";
 import { isReminderDismissed, rememberReminderDismissed } from "../src/components/onboarding/onboardingSession";
 import { welcomeSchedule, welcomeTimeline, welcomeTotalMs } from "../src/app/sites/puckle/lib/registrationWelcome";
 
-test("the welcome enters, stays fully readable for 5 seconds, exits, and only then opens My Decks", () => {
+test("the welcome enters, stays fully readable for 4 seconds, exits, and only then opens My Decks", () => {
   const timeline = welcomeTimeline(false);
-  assert.deepEqual(timeline, { enterMs: 500, holdMs: 5000, exitMs: 500 }); assert.equal(welcomeTotalMs(timeline), 6000);
-  assert.deepEqual(welcomeSchedule(timeline), [{ phase: "hold", at: 500 }, { phase: "exit", at: 5500 }, { phase: "navigate", at: 6000 }]);
+  assert.deepEqual(timeline, { enterMs: 500, holdMs: 4000, exitMs: 500 }); assert.equal(welcomeTotalMs(timeline), 5000);
+  assert.deepEqual(welcomeSchedule(timeline), [{ phase: "hold", at: 500 }, { phase: "exit", at: 4500 }, { phase: "navigate", at: 5000 }]);
 });
 test("reduced motion removes the animations but keeps the readable time", () => {
   const timeline = welcomeTimeline(true);
-  assert.deepEqual(timeline, { enterMs: 0, holdMs: 5000, exitMs: 0 }); assert.equal(welcomeSchedule(timeline).at(-1)!.at, 5000);
+  assert.deepEqual(timeline, { enterMs: 0, holdMs: 4000, exitMs: 0 }); assert.equal(welcomeSchedule(timeline).at(-1)!.at, 4000);
   assert.ok(welcomeSchedule(timeline).every((step, index, steps) => index === 0 || step.at >= steps[index - 1].at), "steps are in order");
 });
 const fake = () => { const data = new Map<string, string>(); return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) }; };

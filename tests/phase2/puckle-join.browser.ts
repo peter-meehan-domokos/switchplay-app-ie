@@ -143,7 +143,9 @@ test("A-level registers with level stored as null; a 15-year-old sees the privat
   const user = (await db.collection("users").findOne({ email }))!;
   expect((await db.collection("puckleMemberships").findOne({ userId: user._id }))!.education).toEqual({ course: "a-level", courseOther: null, level: null, levelOther: null });
   expect(user.safeguarding.dateOfBirth).toBe(`${thisYear - 14}-01-01`);
-  await expect(page.getByText(/approval/i)).toHaveCount(0);
+  // Entry needs no approval: nothing is recorded. (The optional parent request may or may not have rendered yet, so the
+  // page text is not a stable thing to assert; asserting its absence passed only while a cold /decks compile was still running.)
+  expect(user.safeguarding.groupExperienceApproval).toBeUndefined();
 });
 test("teacher: blank introduction is fine, ordinary rights only, confirmation and a founder alert; no DOB asked", async ({ browser }) => {
   const page = await open(browser), email = emailOf("teacher"), username = unique("Tea");
@@ -158,7 +160,7 @@ test("teacher: blank introduction is fine, ordinary rights only, confirmation an
   const membership = (await db.collection("puckleMemberships").findOne({ userId: user._id }))!; expect(membership).toMatchObject({ registrationCategory: "teacher", welcome: { eligible: false } });
   expect(membership.teacherIntroduction).toBeUndefined();
   await waitFor(async () => (await db.collection("puckleMemberships").findOne({ _id: membership._id }))?.founderNotification?.status === "sent");
-  expect((await mailTo("founder@example.invalid", new RegExp(email))).subject).toBe("Puckle: new teacher registration");
+  expect((await mailTo("founder@example.invalid", new RegExp(email))).subject).toMatch(/^\[ACTION\] 🍎 NEW TEACHER: /);
   await page.getByRole("link", { name: "Open Puckle" }).click(); await page.waitForURL(`${origin}/decks`);
 });
 test("no-email student and teacher: credentials are cleared and hidden, mobile is required, a contact request is saved and no account exists", async ({ browser }) => {
@@ -180,7 +182,7 @@ test("no-email student and teacher: credentials are cleared and hidden, mobile i
   expect(await db.collection("users").countDocuments()).toBe(before); expect(await db.collection("users").findOne({ username: "typed_name" })).toBeNull();
   expect((await page.request.get("/api/auth/me")).status()).toBe(401);
   await waitFor(async () => (await db.collection("puckleJoinContactRequests").findOne({ _id: saved._id }))?.founderNotification?.status === "sent");
-  expect((await mailTo("founder@example.invalid", new RegExp(name))).subject).toBe("Puckle: no-email student contact request");
+  expect((await mailTo("founder@example.invalid", new RegExp(name))).subject).toMatch(/^\[ACTION\] 📱 CALL BACK \(no email, student\): /);
   const teacher = await open(browser); const teacherName = unique("Nomailteach"); await choose(teacher, "I'm a teacher");
   await teacher.getByLabel("Your name").fill(teacherName); await teacher.getByRole("button", { name: "Don't have an email address?" }).click(); await teacher.locator("#join-phone").fill("871234568"); await submit(teacher).click();
   await expect(teacher.getByRole("heading", { name: "Thanks, we have your details." })).toBeVisible();
@@ -239,7 +241,10 @@ test("resend is limited by a visible cooldown", async ({ browser }) => {
 });
 test("an already signed-in visitor is not offered registration", async ({ browser }) => {
   const page = await open(browser, "/");
-  expect((await page.request.post("/api/auth/login", { data: { identifier: "phase2", password: "local-test-only" } })).status()).toBe(200);
+  // Own account: the shared "phase2" user is deliberately given wrong passwords in membership-security, which throttles its logins.
+  const username = unique("Signed"), now = new Date();
+  await db.collection("users").insertOne({ username, email: `${username.toLowerCase()}@example.invalid`, passwordHash: await bcrypt.hash("local-test-only", 4), cardsData: [], decksData: [], sharedDeckData: [], permissions: { publicPublishing: false }, createdAt: now, updatedAt: now });
+  expect((await page.request.post("/api/auth/login", { data: { identifier: username, password: "local-test-only" } })).status()).toBe(200);
   await page.goto(`${origin}/join`); await expect(page.getByRole("heading", { name: "You're already signed in." })).toBeVisible(); await expect(page.getByLabel("Choose a username")).toHaveCount(0);
 });
 test("Join is Puckle-only: other websites have no page and refuse the APIs; bad requests are refused without storing anything", async ({ browser, playwright }) => {

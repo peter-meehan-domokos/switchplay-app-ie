@@ -11,7 +11,7 @@ Document conventions: **[AGREED]** = approved requirement/decision. **[IMPLEMENT
 
 ## 1. Summary
 
-One Next.js app, one repo, one Vercel project, standard GitHub → Vercel deployment. Three independent public websites live in `src/app/sites/{strat17,puckle,switchplay}/`. A small `src/proxy.ts` rewrites a request on a domain to that site's folder, so `puckle.co/contact` is served by `src/app/sites/puckle/contact`. Application routes (`/login`, `/decks`, `/api/*` …) are never rewritten. Each site has its own pages, components, CSS, images, form validation and form API handlers; shared code is limited to a short, explicit infrastructure list enforced by an automated test.
+One Next.js app, one repo, one Vercel project, standard GitHub → Vercel deployment. Three independent public websites live in `src/app/sites/{strat17,puckle,switchplay}/`. A small `src/proxy.ts` rewrites a request on a domain to that site's folder, so `puckleup.com/contact` is served by `src/app/sites/puckle/contact`. Application routes (`/login`, `/decks`, `/api/*` …) are never rewritten. Each site has its own pages, components, CSS, images, form validation and form API handlers; shared code is limited to a short, explicit infrastructure list enforced by an automated test.
 
 The authenticated application is protected by (a) changing almost none of its files, (b) an automated diff-allowlist check, (c) before/after automated comparison of existing test suites, built route table, built CSS and screenshots. The **only** application-adjacent change is the reduced login branding in §4.6 (the `/login` page only), implemented as optional props that default to today's behaviour. The logged-out embedded login screens, the eight application pages that use them, the root layout and the authenticated application are explicitly **not** changed and will continue to show Switchplay branding until a later phase.
 
@@ -29,7 +29,7 @@ The authenticated application is protected by (a) changing almost none of its fi
 | Q5-out | **Explicitly out of scope:** `EmbeddedAuthScreen` and the eight application pages using it; the root layout (no site-aware metadata, no dynamic rendering); logged-out embedded login screens and the authenticated application (they keep Switchplay branding, including some browser titles and support messages, until a later phase). No change to application appearance, styling or functionality. |
 | Q6 | Separate login session per domain (host-only cookie, as today). |
 | Q7 | Leave unused original public-site components in place; no cleanup. |
-| Q8 | Every public page uses its own site's name throughout (no cross-references). Contact: Puckle `info@puckle.co`, Switchplay `info@switchplay.ie`, Strat17 `info@strat17.com`. Report complications before implementation. |
+| Q8 | Every public page uses its own site's name throughout (no cross-references). Contact: Puckle `hello@puckleup.com`, Switchplay `info@switchplay.ie`, Strat17 `info@strat17.com`. Report complications before implementation. |
 | Q9 | `/dev/*` untouched and outside site routing. |
 | Q10 | Per-site titles, descriptions and social metadata. |
 | Q11 | **No footer markers.** Local subdomains and the override identify sites. (Supersedes the draft plan.) |
@@ -37,7 +37,7 @@ The authenticated application is protected by (a) changing almost none of its fi
 | — | `/step-visuals` is served only on Puckle (404 elsewhere); not copied. |
 | R1 | Styling independence with a clear website/app styling boundary (see §4.5). |
 | R2 | Application must be protected by automated tests/verification, not manual testing by you. |
-| R3 | A page can exist on one site only (e.g. `puckle.co/tuition`; 404 on the others). |
+| R3 | A page can exist on one site only (e.g. `puckleup.com/tuition`; 404 on the others). |
 | R4 | Separate business logic/validation by default; shared only for genuinely generic infrastructure. |
 | R5 | Keep the standard GitHub → Vercel workflow, existing repo and project; no extra projects/pipelines. Manual Vercel/DNS steps documented separately; no production domain/DNS changes without approval. |
 
@@ -86,7 +86,7 @@ Three forms POST to `/api/public/{contact,early-access,creator-interest}`. Each 
 
 - GitHub repo `peter-meehan-domokos/switchplay-app-ie`, default branch `main`; GitHub deployments show **Production** from `main` and **Preview** per branch. Single Vercel project `switchplay-app-ie` (framework Next.js, root `.`); `vercel.json` contains only framework/install/build commands (no domains, redirects or rewrites).
 - The project's production URL is **`https://www.switchplay.ie`**. `curl` shows **`switchplay.ie` currently 307-redirects to `www.switchplay.ie`** (i.e. today **www is canonical, the opposite of Q3**).
-- The Vercel account's domain list contains only `switchplay.ie`. `puckle.co` and `strat17.com` are **not** registered/added in this Vercel account. (DNS for at least one of them appears to be on Cloudflare nameservers; I did not verify further.)
+- The Vercel account's domain list contains only `switchplay.ie`. `puckleup.com` and `strat17.com` are **not** registered/added in this Vercel account. (DNS for at least one of them appears to be on Cloudflare nameservers; I did not verify further.)
 - The directory is not linked to Vercel (`.vercel/` absent). I did not link it or change anything.
 
 ---
@@ -119,7 +119,7 @@ public/images/sites/{strat17,puckle,switchplay}/         # copies of the 2 hero 
 `siteResolver` is a pure function: `resolveSite({ host, siteCookie })`.
 
 1. Normalise host: lower-case, strip port, strip leading `www.`.
-2. Production domains: `strat17.com`, `puckle.co`, `switchplay.ie` → their site. These **ignore** the override (Q2).
+2. Production domains: `strat17.com`, `puckleup.com`, `switchplay.ie` → their site. These **ignore** the override (Q2).
 3. `<site>.localhost` → that site (local development).
 4. Any other host (localhost, IP, `*.vercel.app`): a valid `site` cookie is honoured; otherwise **default `puckle`** (Q1). (The `?site=` query is handled by the proxy, step 5a, not by `resolveSite`.)
 5. Proxy behaviour per request:
@@ -218,12 +218,12 @@ It is a thin wrapper over the existing `siteResolver` (the same function the pro
 
 ### 4.7 Brand text, contact details and metadata (Q8, Q10)
 
-- Each site's copy uses its own name in header, hero/section copy, image `alt` text, form copy, contact and privacy pages, and its own `SUPPORT_EMAIL` constant (`info@puckle.co`, `info@switchplay.ie`, `info@strat17.com`).
+- Each site's copy uses its own name in header, hero/section copy, image `alt` text, form copy, contact and privacy pages, and its own `SUPPORT_EMAIL` constant (`hello@puckleup.com`, `info@switchplay.ie`, `info@strat17.com`).
 - Each site's `layout.tsx`/page metadata sets title, template, description, Open Graph (`siteName`) and Twitter fields with its own name. Copy text is otherwise unchanged (spec: no content redesign), so descriptions are the current sentences with the brand swapped.
 - Automated test T12 scans each site folder and fails if it contains another site's name or domain.
 - **Approved handling and pre-launch conditions [AGREED, D6]:**
   1. **Privacy policy:** it names an operator/data controller and contact address. Each site's copy uses that site's name and email mechanically. **Pre-launch gate:** the accuracy of each privacy policy (including the legal entity/controller identity) must be verified before public launch of that domain; this is a launch checklist item, not a code task.
-  2. **Mailboxes:** `info@puckle.co` and `info@strat17.com` (and `info@switchplay.ie`) must exist or forward somewhere (manual, outside the repo). **Pre-launch gate:** working mailboxes verified before public launch. Nothing in the code sends email, so no technical dependency.
+  2. **Mailboxes:** `hello@puckleup.com` and `info@strat17.com` (and `info@switchplay.ie`) must exist or forward somewhere (manual, outside the repo). **Pre-launch gate:** working mailboxes verified before public launch. Nothing in the code sends email, so no technical dependency.
   3. **Header "Step Visuals" link** exists only in the Puckle copy (Strat17/Switchplay would otherwise show a dead link). This is a necessary, intentional visible difference beyond brand.
   4. `SupportErrorMessage` remains Switchplay-branded for the app; the site copies carry their own version so public pages stay clean.
   5. Per-site favicon/OG image are not in scope; all sites share the current favicon (flagged, not changed). Social previews will carry the correct names but the same favicon.
@@ -273,12 +273,12 @@ Estimated change: ~3 near-identical site folders (mostly copied), ~120 lines of 
 ## 7. Tests and verification
 
 **Unit (`npm run test:unit`, `node --test`)**
-- T1 `siteResolver`: apex/`www`/port/case; `<site>.localhost`; lookalike hosts (`evilpuckle.co`, `puckle.co.evil.com`) do not match; unknown → Puckle.
-- T2 Rewrite targets for every site/path incl. nested paths and query strings; `puckle.co/tuition` → `/sites/puckle/tuition`.
+- T1 `siteResolver`: apex/`www`/port/case; `<site>.localhost`; lookalike hosts (`evilpuckleup.com`, `puckleup.com.evil.com`) do not match; unknown → Puckle.
+- T2 Rewrite targets for every site/path incl. nested paths and query strings; `puckleup.com/tuition` → `/sites/puckle/tuition`.
 - T3 App prefixes pass through on all hosts; T3b new top-level `src/app` folders must be reserved or `sites` (fails otherwise).
-- T4 `/step-visuals` allowed on Puckle only (including `www.puckle.co` and override-puckle on non-prod); `/sites/*` direct → 404.
+- T4 `/step-visuals` allowed on Puckle only (including `www.puckleup.com` and override-puckle on non-prod); `/sites/*` direct → 404.
 - T5 Override cookie: a valid `site` cookie is honoured on `localhost`/IP/`*.vercel.app`; **ignored on all three production domains and their `www` variants**.
-- T14 `?site=` proxy behaviour (non-production host): valid value → 307 to the same path with the parameter removed, other query parameters preserved (e.g. `/login?returnTo=%2Fdecks&site=puckle` → `/login?returnTo=%2Fdecks`), `Set-Cookie: site=puckle` (`path=/`, `sameSite=lax`, `secure` only on https), and it also works for reserved routes (`/login`, `/decks`) and public routes; invalid value (`?site=evil`) → ignored, no cookie, no redirect; non-GET/HEAD requests never redirected; no loop (the redirected URL has no parameter); the auth session cookie is never read or written. **Production domains (`puckle.co`, `www.puckle.co`, `switchplay.ie`, `strat17.com` and www variants): `?site=` → no redirect, no cookie, request handled normally.** Reserved routes are otherwise passed through unchanged.
+- T14 `?site=` proxy behaviour (non-production host): valid value → 307 to the same path with the parameter removed, other query parameters preserved (e.g. `/login?returnTo=%2Fdecks&site=puckle` → `/login?returnTo=%2Fdecks`), `Set-Cookie: site=puckle` (`path=/`, `sameSite=lax`, `secure` only on https), and it also works for reserved routes (`/login`, `/decks`) and public routes; invalid value (`?site=evil`) → ignored, no cookie, no redirect; non-GET/HEAD requests never redirected; no loop (the redirected URL has no parameter); the auth session cookie is never read or written. **Production domains (`puckleup.com`, `www.puckleup.com`, `switchplay.ie`, `strat17.com` and www variants): `?site=` → no redirect, no cookie, request handled normally.** Reserved routes are otherwise passed through unchanged.
 - T11 Import guard: no file under `sites/<a>` or `api/public/<a>` imports from another site, from `components/public-site`, or from anything outside the shared allow-list in §4.3.
 - T12 Brand guard: no site folder contains another site's name or domain.
 - T13 Style guard: site code has no non-module CSS import; `:global` only nested under a module class.
@@ -312,14 +312,14 @@ Estimated change: ~3 near-identical site folders (mostly copied), ~120 lines of 
 - **Workstream A — code implementation (in scope now).** Everything in §3–§7: a normal branch, pull request and standard GitHub → Vercel deployment (branches → Preview, `main` → Production) using the existing repository and the existing Vercel project. No `vercel.json` change and no extra project/pipeline. Routing by `proxy.ts` is the documented Next.js 16 mechanism [AGREED, D7]: one project serves three domains through one request-rewrite layer, which is standard Next.js/Vercel capability.
 - **Workstream B — Vercel/DNS/mailbox changes (NOT part of implementation; each requires separate explicit approval at cutover).** Listed below, documented in `docs/engineering/sites/vercel-domain-setup.md` (written during implementation), and **never performed by the implementation work**.
 
-**Effect of merging Workstream A to `main` (no domain change needed):** `main` deploys to production automatically. After merge, `www.switchplay.ie` / `switchplay.ie` will be served by the proxy from the Switchplay site folder (same content, titles and email as today). Unknown hosts, including the `switchplay-app-ie.vercel.app` alias, show Puckle (Q1). `puckle.co` and `strat17.com` are not attached to the project, so those sites are reachable only via Preview deployments (`?site=`) until cutover. See concern C1 in §9 about form storage at merge time.
+**Effect of merging Workstream A to `main` (no domain change needed):** `main` deploys to production automatically. After merge, `www.switchplay.ie` / `switchplay.ie` will be served by the proxy from the Switchplay site folder (same content, titles and email as today). Unknown hosts, including the `switchplay-app-ie.vercel.app` alias, show Puckle (Q1). `puckleup.com` and `strat17.com` are not attached to the project, so those sites are reachable only via Preview deployments (`?site=`) until cutover. See concern C1 in §9 about form storage at merge time.
 
 **Workstream B — manual tasks (separately approved cutover):**
-1. Add `puckle.co`, `strat17.com` (+ `www.` variants) to project `switchplay-app-ie`, and set DNS at the registrar/DNS provider per Vercel's instructions (apparently Cloudflare for at least one domain — to be verified at that time; if proxied via Cloudflare orange-cloud, Vercel recommends DNS-only).
+1. Add `puckleup.com`, `strat17.com` (+ `www.` variants) to project `switchplay-app-ie`, and set DNS at the registrar/DNS provider per Vercel's instructions (apparently Cloudflare for at least one domain — to be verified at that time; if proxied via Cloudflare orange-cloud, Vercel recommends DNS-only).
 2. **Reverse the existing Switchplay canonical [AGREED, D2]:** currently `switchplay.ie` → 307 → `www.switchplay.ie`. Set `switchplay.ie` as primary and redirect `www.switchplay.ie` → apex (308) in the Vercel dashboard. Consequences to accept at cutover: (a) sessions are host-only, so users logged in at `www.switchplay.ie` must log in again at `switchplay.ie`; (b) existing `www` links redirect; (c) search engines re-index. Apply only at the cutover, ideally off-peak and after Preview verification.
-3. For `puckle.co` and `strat17.com`: apex primary, `www` redirecting to apex.
+3. For `puckleup.com` and `strat17.com`: apex primary, `www` redirecting to apex.
 4. Confirm Production env vars apply (same project, no new variables expected).
-5. Create/verify mailboxes or forwards for `info@puckle.co`, `info@strat17.com`, `info@switchplay.ie`.
+5. Create/verify mailboxes or forwards for `hello@puckleup.com`, `info@strat17.com`, `info@switchplay.ie`.
 6. Check Vercel Deployment Protection on previews if iPhone testing of preview URLs is needed.
 7. **Pre-launch gates (before public launch of each domain):** privacy-policy accuracy verified for that site (§4.7); mailbox working; smoke test of homepage, contact, privacy, forms and `/login` on that domain.
 8. Cutover sequence (after approval, after Preview verification): add domains → verify → switch DNS → apply canonical redirects → smoke test each domain. Until then `www.switchplay.ie` continues as configured today.

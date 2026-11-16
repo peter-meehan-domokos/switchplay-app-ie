@@ -24,7 +24,7 @@ function get(path: string, host: string, extraHeaders: Record<string, string> = 
 
 const sites = [
   { host: "strat17.com", name: "Strat17", title: "STRAT17", email: "info@strat17.com", others: ["switchplay", "puckle"] },
-  { host: "puckle.co", name: "Puckle", title: "PUCKLE", email: "info@puckle.co", others: ["switchplay", "strat17"] },
+  { host: "puckleup.com", name: "Puckle", title: "PUCKLE", email: "hello@puckleup.com", others: ["switchplay", "strat17"] },
   { host: "switchplay.ie", name: "Switchplay", title: "SWITCHPLAY", email: "info@switchplay.ie", others: ["puckle", "strat17"] },
 ] as const;
 
@@ -45,8 +45,8 @@ for (const site of sites) {
       }
       const contact = await get("/contact", variant);
       assert.ok(contact.body.includes(`mailto:${site.email}`), "contact email");
-      assert.ok(!contact.body.includes('href="/step-visuals"') || site.host === "puckle.co", "Step Visuals link only on Puckle");
-      assert.equal((await get("/", variant)).body.includes('href="/step-visuals"'), site.host === "puckle.co");
+      assert.ok(!contact.body.includes('href="/step-visuals"') || site.host === "puckleup.com", "Step Visuals link only on Puckle");
+      assert.equal((await get("/", variant)).body.includes('href="/step-visuals"'), site.host === "puckleup.com");
     });
   }
 
@@ -67,14 +67,14 @@ for (const site of sites) {
     assert.match(login.body, new RegExp(`<title>Sign in \\| ${site.title}</title>`));
     assert.match(login.body, new RegExp(`aria-label="${site.title} home"`));
     assert.match(login.body, new RegExp(`<p class="eyebrow">${site.name}</p>`));
-    assert.equal(login.body.includes('href="/step-visuals"'), site.host === "puckle.co");
+    assert.equal(login.body.includes('href="/step-visuals"'), site.host === "puckleup.com");
   });
 
   test(`${site.host}: /sites/* is not directly reachable and /step-visuals is Puckle-only`, { skip }, async () => {
     for (const path of ["/sites/puckle", "/sites/strat17/contact", "/sites/switchplay/privacy"]) {
       assert.equal((await get(path, site.host)).status, 404, path);
     }
-    assert.equal((await get("/step-visuals", site.host)).status, site.host === "puckle.co" ? 200 : 404);
+    assert.equal((await get("/step-visuals", site.host)).status, site.host === "puckleup.com" ? 200 : 404);
     assert.equal((await get("/tuition", site.host)).status, 404, "a page that exists on no website is a 404");
   });
 }
@@ -104,7 +104,7 @@ test("?site= override works on non-production hosts and is inert on production d
   assert.match(home.body, /aria-label="STRAT17 home"/);
   assert.match((await get("/", "localhost:3000")).body, /aria-label="PUCKLE home"/, "unknown hosts default to Puckle");
 
-  for (const host of ["puckle.co", "www.puckle.co", "strat17.com", "switchplay.ie"]) {
+  for (const host of ["puckleup.com", "www.puckleup.com", "strat17.com", "switchplay.ie"]) {
     const reply = await get("/login?site=strat17", host);
     assert.equal(reply.status, 200, host);
     assert.equal(reply.headers["set-cookie"], undefined, host);

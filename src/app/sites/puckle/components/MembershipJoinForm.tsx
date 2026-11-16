@@ -9,7 +9,7 @@ import {
   withLevel, withMobile, withNoEmail, withOutcome, withShowPassword, withStage, withText, withVerifiedProof, withoutErrors, withoutProof,
   type JoinChoice, type JoinErrors, type JoinFieldKey, type JoinFlowState, type JoinFormState,
 } from "../lib/membershipJoinLayout";
-import { SITE_NAME, SUPPORT_EMAIL } from "../siteInfo";
+import { SITE_NAME, CONTACT_EMAIL } from "../siteInfo";
 import buttonStyles from "./PublicButton.module.css";
 import formStyles from "./CreatorInterestForm.module.css";
 import InterestRegistrationForm from "./InterestRegistrationForm";
@@ -187,7 +187,7 @@ export default function MembershipJoinForm() {
             <>
               <h2>You&apos;re on the list.</h2>
               {outcome.byEmail ? (
-                <p>You&apos;ve asked for occasional {SITE_NAME} updates by email, and we&apos;ll send them as {SITE_NAME} develops. No account was created. To stop them at any time, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+                <p>You&apos;ve asked for occasional {SITE_NAME} updates by email, and we&apos;ll send them as {SITE_NAME} develops. No account was created. To stop them at any time, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
               ) : (
                 <p>Thanks. We&apos;ll use your mobile number only to follow up on this request. Updates are sent by email, so none will be sent to you, and no marketing texts. No account was created.</p>
               )}

@@ -30,7 +30,7 @@ export type AccountEmailChallenge = {
   delivery: FounderNotification;
 };
 export type AccountEmailAction = {
-  purpose: "password-reset" | "parent-request" | "parent-management";
+  purpose: "password-reset" | "parent-request";
   userId: ObjectId; scopeId?: "shared-group-experiences"; tokenDigest: string;
   generation: number; recipient: string; expiresAt: Date; cleanupAt: Date; usedAt?: Date;
   /** A newer link of the same purpose superseded this one; it may only renew, never decide. */

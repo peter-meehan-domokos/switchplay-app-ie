@@ -66,13 +66,25 @@ test("verified student registration creates one ordinary account, one profile an
   const membership = (await db.collection("puckleMemberships").findOne({ userId: outcome.userId }))!;
   assert.equal(membership.registrationCategory, "student"); assert.equal(membership.initialRegistrationSource, "join"); assert.equal(membership.welcome.eligible, true);
   assert.equal(membership.welcome.seenAt, undefined); assert.deepEqual(membership.education, { course: "gcse", courseOther: null, level: "higher-tier", levelOther: null });
-  assert.equal(membership.mobile, null); assert.equal(membership.founderNotification, undefined);
+  assert.equal(membership.mobile, null); assert.deepEqual(membership.founderNotification, { status: "pending" });
   assert.ok(!JSON.stringify(membership).match(/2010|passwordHash|permissions|approval|assurance/), "profile holds no DOB, credentials, permission or approval data");
   const challenge = (await db.collection("accountEmailChallenges").findOne({ challengeId: request.challengeId }))!;
   assert.ok(challenge.usedAt instanceof Date); assert.ok(!JSON.stringify(challenge).match(/2010|passphrase|Ada|gcse/), "proof record keeps no registration data");
   const session = await readSessionToken(outcome.sessionToken);
   assert.deepEqual([session?.userId, session?.sessionVersion, session?.email, session?.username], [outcome.userId.toHexString(), 0, email, request.username]);
-  assert.equal(outcome.notify, undefined, "ordinary students need no founder approval or alert");
+  // Informational only: the founder is told about every new student, but nothing waits on approval.
+  assert.equal(typeof outcome.notify, "function"); assert.equal(captured.some(m => m.subject.startsWith("[FYI] 🎓 NEW STUDENT:") && m.text.includes(String(request.username))), false, "sent after the response, not during registration");
+  await outcome.notify!();
+  assert.equal((await db.collection("puckleMemberships").findOne({ _id: outcome.membershipId }))!.founderNotification.status, "sent");
+  const alert = captured.at(-1)!; assert.equal(alert.subject, "[FYI] 🎓 NEW STUDENT: Ada"); assert.deepEqual(alert.to, ["founder@example.invalid"]);
+  for (const expected of ["Name: Ada", `Username: ${request.username}`, `Email: ${email}`, "Course: GCSE maths", "Level: higher-tier", "Registered: 20", " UTC", "No approval is needed"]) assert.ok(alert.text.includes(expected), expected);
+  assert.ok(!alert.text.match(/passphrase|passwordHash|2010|dateOfBirth|Date of birth|Mobile:/), "no password, hash or date of birth; no mobile line when none was given");
+});
+test("the student alert includes the mobile number when one was given, never a date of birth", async () => {
+  const { input: request } = await input(email => studentDetails(email, { mobile: "+353871234599", education: { course: "a-level", courseOther: "", level: null, levelOther: "" } }));
+  const outcome = await registerPuckleMember(db, client, request); assert.equal(outcome.kind, "created"); if (outcome.kind !== "created") return;
+  await outcome.notify!(); const text = captured.at(-1)!.text;
+  assert.match(text, /Mobile: \+353871234599/); assert.match(text, /Course: A-level maths/); assert.match(text, /Level: Not applicable \(A-level\)/); assert.ok(!text.includes("2010-05-01"));
 });
 test("A-level students are stored with level null; Other and Don't know keep their answers", async () => {
   const cases: [Record<string, unknown>, Record<string, unknown>][] = [

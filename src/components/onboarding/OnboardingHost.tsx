@@ -123,20 +123,20 @@ export default function OnboardingHost() {
   }, [patch]);
 
   const send = useCallback(async () => {
-    const actor = statusRef.current?.actorId, email = ui.draft.trim();
-    if (!actor || !email || ui.sending) return;
+    const actor = statusRef.current?.actorId, email = ui.draft.trim(), phone = ui.phoneDraft.trim();
+    if (!actor || (!email && !phone) || ui.sending) return;
     patch({ sending: true, message: null });
-    const result = await post("/api/account/parental-approval", { action: "request", guardianEmail: email, expectedUserId: actor });
+    const result = await post("/api/account/parental-approval", { action: "request", ...(email ? { guardianEmail: email } : {}), ...(phone ? { guardianPhone: phone, phoneCountryCode: "IE" } : {}), expectedUserId: actor });
     if (statusRef.current?.actorId !== actor) return; // the account changed meanwhile: nothing from this response may show
     if (result.status === 200) {
-      patch({ sending: false, draft: "", message: { text: typeof result.body?.message === "string" ? result.body.message : "Request sent.", tone: "info" } });
+      patch({ sending: false, draft: "", phoneDraft: "", message: { text: typeof result.body?.message === "string" ? result.body.message : "Request sent.", tone: "info" } });
       void refresh("quiet");
     } else if (result.status === 401 || result.status === 409 && result.body?.code === "ACTOR_MISMATCH") {
       void refresh("auth");
     } else {
       patch({ sending: false, message: { text: result.status === 0 ? "We couldn't reach Puckle. Your entry is still here. Please try again." : typeof result.body?.error === "string" ? result.body.error : "Something went wrong. Please try again.", tone: "error" } });
     }
-  }, [patch, refresh, ui.draft, ui.sending]);
+  }, [patch, refresh, ui.draft, ui.phoneDraft, ui.sending]);
 
   if (!eligible) return null;
   return (
@@ -145,7 +145,7 @@ export default function OnboardingHost() {
         <Suspense fallback={null}>
           <Onboarding actions={{
             welcomePresented,
-            setDraft: value => patch({ draft: value }), send: () => void send(), openWelcome: () => patch({ openedByRequest: true }),
+            setDraft: value => patch({ draft: value }), setPhoneDraft: value => patch({ phoneDraft: value }), send: () => void send(), openWelcome: () => patch({ openedByRequest: true }),
             explore: () => patch({ welcomeDismissed: true }),
             requestSession: () => { patch({ welcomeDismissed: true }); window.location.assign("/#early-access"); },
             dismissReminder: () => { patch({ reminderDismissed: true }); if (status) rememberReminderDismissed(status.actorId); },

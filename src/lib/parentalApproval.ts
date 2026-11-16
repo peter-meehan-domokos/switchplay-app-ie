@@ -1,18 +1,21 @@
-// Server-only. One shared Group Experience approval per account, common to Puckle, Switchplay and Strat17.
+// Server-only. One shared Group Experience approval per account, covering Puckle everywhere it runs.
 // Records facts only: no group permission decision, no live-tuition permission, no age verification.
 import { ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { ageOn, dublinToday } from "./age";
 import { normaliseAccountEmail } from "./accountCredentials";
-import { parentApprovalManagementEmail, parentApprovalRequestEmail } from "./accountEmailTemplates";
+import { parentApprovalRequestEmail } from "./accountEmailTemplates";
 import { randomEmailToken, requireEmailToken, tokenDigest } from "./emailActionTokens";
-import { limitEmailRequest } from "./emailRequestLimits";
+import { limitEmailRequest, limitRequesterAction } from "./emailRequestLimits";
+import { notifyFounder } from "./founderNotifications";
 import { withMongoTransaction } from "./mongodb";
 import {
-  GROUP_EXPERIENCE_EXPLANATION, GROUP_EXPERIENCE_SCOPE, GUARDIAN_DECLARATION, SITE_DISPLAY_NAMES,
+  GROUP_EXPERIENCE_EXPLANATION, GROUP_EXPERIENCE_SCOPE, GUARDIAN_DECLARATION,
   type ApprovalEvent, type ApprovalStatus, type GroupExperienceApproval,
 } from "./parentalApprovalScope";
 import type { AccountEmailAction } from "./puckleMemberships";
 import { deliverEmail, type EmailSender } from "./siteEmail";
+import { founderParentApprovalRequestEmail, founderParentContactRequestEmail, founderParentDecisionEmail } from "@/app/sites/puckle/lib/memberEmailTemplates";
+import { normaliseMobile } from "@/app/sites/puckle/lib/membershipRegistration";
 import type { SiteId } from "./sites/siteResolver";
 import type { UserSafeguarding } from "./userSafeguarding";
 
@@ -25,7 +28,7 @@ const PATH = "safeguarding.groupExperienceApproval";
 
 type Mail = { send: EmailSender; name: string; origin: string };
 type Account = { _id: ObjectId; email: string; username: string; safeguarding?: UserSafeguarding };
-type ParentPurpose = "parent-request" | "parent-management";
+type ParentPurpose = "parent-request";
 type Action = AccountEmailAction & { _id: ObjectId };
 const users = (db: Db) => db.collection<Account>("users");
 const actions = (db: Db) => db.collection<AccountEmailAction>("accountEmailActions");
@@ -79,7 +82,7 @@ async function issueLink(db: Db, input: { userId: ObjectId; purpose: ParentPurpo
 }
 async function sendLink(db: Db, account: Account, link: { token: string; digest: string }, purpose: ParentPurpose, recipient: string, generation: number, mail: Mail) {
   const child = await childDisplayName(db, account);
-  const template = purpose === "parent-request" ? parentApprovalRequestEmail : parentApprovalManagementEmail;
+  const template = parentApprovalRequestEmail; // the only email a parent receives from the approval flow
   const delivery = await deliverEmail(mail.send, { to: recipient, ...template(mail.name, mail.origin, link.token, child) });
   await actions(db).updateOne({ tokenDigest: link.digest }, { $set: { delivery } });
   // The approval's delivery field describes the request email only; it is never evidence of a decision.
@@ -87,45 +90,77 @@ async function sendLink(db: Db, account: Account, link: { token: string; digest:
   return delivery;
 }
 
-/** Student-initiated request or resend. Sending is automatic; there is no founder approval step. */
-export async function requestParentalApproval(db: Db, input: { userId: ObjectId; guardianEmail: unknown; sourceSite: SiteId; requester: string }, mail: Mail, now = new Date()) {
-  const account = await users(db).findOne({ _id: input.userId }, { projection: { email: 1, username: 1, "safeguarding.dateOfBirth": 1, [PATH]: 1 } });
+/** Optional unverified parent/guardian mobile: stored for personal follow-up only (no SMS, no login, never a decision channel). */
+function guardianMobile(value: unknown, country: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try { return normaliseMobile(value.trim(), typeof country === "string" && country ? country : "IE") || null; } catch { throw new Error("INVALID_MOBILE"); }
+}
+const hasText = (value: unknown) => typeof value === "string" && value.trim().length > 0;
+async function eligibleChild(db: Db, userId: ObjectId, now: Date) {
+  const account = await users(db).findOne({ _id: userId }, { projection: { email: 1, username: 1, "safeguarding.dateOfBirth": 1, [PATH]: 1 } });
   if (!account) throw new Error("ACCOUNT_NOT_FOUND");
   const eligibility = approvalEligibility(account.safeguarding?.dateOfBirth, dublinToday(now));
   if (eligibility === "not-required") throw new Error("APPROVAL_NOT_REQUIRED");
   if (eligibility === "age-unknown") throw new Error("APPROVAL_AGE_UNKNOWN");
+  // Replacing an approved guardian silently would rewrite evidence: that needs reviewed support instead.
+  if (statusOf(account.safeguarding?.groupExperienceApproval) === "approved") throw new Error("APPROVAL_ALREADY_GRANTED");
+  return account;
+}
+export type ApprovalRequestResult =
+  | { status: "pending"; resent: boolean; delivery: string; notify?: () => Promise<void> }
+  | { status: "contact-requested"; notify: () => Promise<void> };
+
+/**
+ * Student-initiated request or resend. Sending is automatic; there is no founder approval step.
+ * With an email, the guardian gets the approval link (an optional mobile is stored for personal follow-up).
+ * With ONLY a mobile, nothing can be sent: the founder is asked to contact the parent personally and no approval is recorded.
+ */
+export async function requestParentalApproval(db: Db, input: { userId: ObjectId; guardianEmail?: unknown; guardianPhone?: unknown; phoneCountryCode?: unknown; sourceSite: SiteId; requester: string }, mail: Mail, now = new Date()): Promise<ApprovalRequestResult> {
+  const account = await eligibleChild(db, input.userId, now);
+  const phone = guardianMobile(input.guardianPhone, input.phoneCountryCode);
+  if (!hasText(input.guardianEmail)) {
+    if (!phone) throw new Error("GUARDIAN_CONTACT_REQUIRED");
+    await limitRequesterAction(db, "guardian-phone", input.requester, 5, 3600, now);
+    const child = await childDisplayName(db, account), _id = new ObjectId();
+    await db.collection("puckleJoinContactRequests").insertOne({ _id, kind: "guardian-approval-contact-request", studentUserId: input.userId, studentName: child, guardianMobile: phone,
+      sourceSite: input.sourceSite, createdAt: now, founderNotification: { status: "pending" } });
+    return { status: "contact-requested", notify: () => notifyFounder(db, { collection: "puckleJoinContactRequests", id: _id }, founderParentContactRequestEmail({ id: _id.toHexString(), childName: child, username: account.username, guardianPhone: phone })) };
+  }
   const guardianEmail = normaliseAccountEmail(input.guardianEmail);
   if (guardianEmail === account.email) throw new Error("GUARDIAN_EMAIL_IS_ACCOUNT");
   const current = account.safeguarding?.groupExperienceApproval;
-  // Replacing an approved guardian silently would rewrite evidence: that needs reviewed support instead.
-  if (statusOf(current) === "approved") throw new Error("APPROVAL_ALREADY_GRANTED");
   const resend = current?.status === "pending" && current.guardianEmail === guardianEmail;
   await limitEmailRequest(db, guardianEmail, input.requester, now);
   const generation = resend ? current!.generation : (current?.generation ?? 0) + 1;
   const actor = { kind: "student" as const, reference: input.userId.toHexString() };
   const record = event(resend ? "resent" : "requested", actor, now, { generation, guardianEmail, sourceSite: input.sourceSite });
-  const fields = { scopeId: SCOPE, status: "pending" as const, generation, explanation: record.explanation, sourceSite: input.sourceSite, guardianEmail, requestedAt: now, delivery: { status: "pending" as const } };
+  const fields = { scopeId: SCOPE, status: "pending" as const, generation, explanation: record.explanation, sourceSite: input.sourceSite, guardianEmail, requestedAt: now, delivery: { status: "pending" as const },
+    ...(phone ? { guardianPhone: phone } : {}), ...(resend ? {} : { founderNotification: { status: "pending" as const } }) };
   const result = current
     ? await users(db).updateOne({ _id: input.userId, [`${PATH}.generation`]: current.generation, [`${PATH}.status`]: current.status },
       { $set: Object.fromEntries(Object.entries(fields).map(([key, value]) => [`${PATH}.${key}`, value])),
-        ...(resend ? {} : { $unset: { [`${PATH}.decidedAt`]: "", [`${PATH}.withdrawnAt`]: "", [`${PATH}.guardianDeclaration`]: "" } }),
+        ...(resend ? {} : { $unset: { [`${PATH}.decidedAt`]: "", [`${PATH}.withdrawnAt`]: "", [`${PATH}.guardianDeclaration`]: "", ...(phone ? {} : { [`${PATH}.guardianPhone`]: "" }) } }),
         $push: { [`${PATH}.history`]: record } } as never)
     : await users(db).updateOne({ _id: input.userId, [PATH]: { $exists: false } }, { $set: { [PATH]: { ...fields, history: [record] } } });
   if (result.matchedCount !== 1) throw new Error("APPROVAL_STATE_CHANGED");
   const link = await issueLink(db, { userId: input.userId, purpose: "parent-request", generation, recipient: guardianEmail, sourceSite: input.sourceSite }, now);
   const delivery = await sendLink(db, account, link, "parent-request", guardianEmail, generation, mail);
-  return { status: "pending" as const, resent: resend, delivery: delivery.status };
+  const child = await childDisplayName(db, account);
+  // A founder alert only for a genuinely new request (not every resend). Outcome is kept beside the approval record.
+  const notify = resend ? undefined : () => notifyFounder(db, { collection: "users", id: input.userId }, founderParentApprovalRequestEmail({ id: input.userId.toHexString(), childName: child, username: account.username,
+    guardianEmail, guardianPhone: phone, delivery: delivery.status, sourceSite: input.sourceSite }), undefined, `${PATH}.founderNotification`);
+  return { status: "pending", resent: resend, delivery: delivery.status, ...(notify ? { notify } : {}) };
 }
 
 // ---- parent links -----------------------------------------------------------------------------
 type LinkState = "valid" | "expired" | "replaced" | "decided";
 async function loadParentLink(db: Db, token: unknown, now: Date, session?: ClientSession) {
-  const action = await actions(db).findOne({ tokenDigest: tokenDigest(requireEmailToken(token)), purpose: { $in: ["parent-request", "parent-management"] } }, { session }) as Action | null;
+  const action = await actions(db).findOne({ tokenDigest: tokenDigest(requireEmailToken(token)), purpose: "parent-request" }, { session }) as Action | null;
   if (!action || action.scopeId !== SCOPE) throw new Error("INVALID_EMAIL_PROOF");
   const account = await users(db).findOne({ _id: action.userId }, { session, projection: { email: 1, username: 1, [PATH]: 1 } });
   if (!account) throw new Error("INVALID_EMAIL_PROOF");
   const approval = account.safeguarding?.groupExperienceApproval;
-  const expectedStatus = action.purpose === "parent-request" ? "pending" : "approved";
+  const expectedStatus = "pending";
   // The target and its state come from the persisted capability, never from who is signed in or another tab.
   const current = !!approval && approval.scopeId === SCOPE && approval.generation === action.generation && approval.guardianEmail === action.recipient;
   const state: LinkState = !current || approval!.status !== expectedStatus || action.usedAt ? "decided"
@@ -140,7 +175,6 @@ export async function parentLinkDetails(db: Db, token: unknown, now = new Date()
   return {
     purpose: link.action.purpose, state: link.state, renewable: false,
     child: await childDisplayName(db, link.account),
-    sites: GROUP_EXPERIENCE_SCOPE.sites.map(site => SITE_DISPLAY_NAMES[site]),
     explanation: { version: link.approval!.explanation.version, text: link.approval!.explanation.text },
     declaration: GUARDIAN_DECLARATION,
   };
@@ -157,7 +191,7 @@ export async function decideParentalApproval(db: Db, client: MongoClient, input:
     if (link.action.purpose !== "parent-request" || link.state !== "valid") throw new Error("LINK_NOT_USABLE");
     const used = await actions(db).updateOne({ _id: link.action._id, usedAt: { $exists: false }, replacedAt: { $exists: false } }, { $set: { usedAt: now } }, { session });
     if (used.matchedCount !== 1) throw new Error("LINK_NOT_USABLE");
-    const status = decision === "approve" ? "approved" : "declined";
+    const status: "approved" | "declined" = decision === "approve" ? "approved" : "declined";
     const result = await users(db).updateOne({ _id: link.account._id, [`${PATH}.scopeId`]: SCOPE, [`${PATH}.status`]: "pending",
       [`${PATH}.generation`]: link.action.generation, [`${PATH}.guardianEmail`]: link.action.recipient }, {
       $set: { [`${PATH}.status`]: status, [`${PATH}.decidedAt`]: now,
@@ -168,34 +202,19 @@ export async function decideParentalApproval(db: Db, client: MongoClient, input:
           explanation: link.approval!.explanation }) },
     } as never, { session });
     if (result.matchedCount !== 1) throw new Error("LINK_NOT_USABLE");
-    return { status, account: link.account, generation: link.action.generation, recipient: link.action.recipient, sourceSite: link.action.sourceSite ?? "puckle" };
+    return { status, account: link.account, recipient: link.action.recipient, guardianPhone: link.approval!.guardianPhone, decidedAt: now };
   });
-  if (outcome.status !== "approved") return { status: outcome.status, managementEmail: null };
-  // A distinct withdrawal capability; consuming the request link never removes the ability to withdraw.
-  const now = clock();
-  const link = await issueLink(db, { userId: outcome.account._id, purpose: "parent-management", generation: outcome.generation, recipient: outcome.recipient, sourceSite: outcome.sourceSite }, now);
-  const delivery = await sendLink(db, outcome.account, link, "parent-management", outcome.recipient, outcome.generation, mail);
-  return { status: outcome.status, managementEmail: delivery.status };
+  // Informational alert to the founder after the response; the decision itself is already committed.
+  const child = await childDisplayName(db, outcome.account);
+  const notify = () => notifyFounder(db, { collection: "users", id: outcome.account._id }, founderParentDecisionEmail({ id: outcome.account._id.toHexString(), childName: child, username: outcome.account.username,
+    decision: outcome.status, guardianEmail: outcome.recipient, guardianPhone: outcome.guardianPhone ?? null, decidedAt: outcome.decidedAt }), undefined, `${PATH}.decisionFounderNotification`);
+  return { status: outcome.status, notify };
 }
 
-async function endApproval(db: Db, session: ClientSession, userId: ObjectId, generation: number, now: Date, record: ApprovalEvent, extraFilter: Record<string, unknown> = {}) {
-  const result = await users(db).updateOne({ _id: userId, [`${PATH}.status`]: "approved", [`${PATH}.generation`]: generation, ...extraFilter },
+async function endApproval(db: Db, session: ClientSession, userId: ObjectId, generation: number, now: Date, record: ApprovalEvent) {
+  const result = await users(db).updateOne({ _id: userId, [`${PATH}.status`]: "approved", [`${PATH}.generation`]: generation },
     { $set: { [`${PATH}.status`]: "withdrawn", [`${PATH}.withdrawnAt`]: now }, $push: { [`${PATH}.history`]: record } } as never, { session });
   if (result.matchedCount !== 1) throw new Error("LINK_NOT_USABLE");
-  await actions(db).updateMany({ userId, purpose: "parent-management", usedAt: { $exists: false } }, { $set: { usedAt: now } }, { session });
-}
-/** Guardian withdrawal via a management link. Learning data is never touched. */
-export async function withdrawParentalApproval(db: Db, client: MongoClient, input: { token: unknown; confirm: unknown }, clock: () => Date = () => new Date()) {
-  if (input.confirm !== true) throw new Error("DECLARATION_REQUIRED");
-  await withMongoTransaction(client, async session => {
-    const now = clock();
-    const link = await loadParentLink(db, input.token, now, session);
-    if (link.action.purpose !== "parent-management" || link.state !== "valid") throw new Error("LINK_NOT_USABLE");
-    await endApproval(db, session, link.account._id, link.action.generation, now,
-      event("withdrawn", { kind: "guardian", reference: `email-action:${link.action._id.toHexString()}` }, now, { generation: link.action.generation, guardianEmail: link.action.recipient, explanation: link.approval!.explanation }),
-      { [`${PATH}.guardianEmail`]: link.action.recipient });
-  });
-  return { status: "withdrawn" as const };
 }
 /** Trusted operator process only (no HTTP entry): a reviewed revocation, recorded distinctly from a guardian withdrawal. */
 export async function revokeParentalApprovalAsOperator(db: Db, client: MongoClient, userId: ObjectId, review: { actor: string; reason: string }, now = new Date()) {
@@ -216,7 +235,7 @@ export async function renewParentLink(db: Db, input: { token: unknown; requester
   if (!link.renewable || !link.approval?.guardianEmail) return;
   const recipient = link.approval.guardianEmail;
   try { await limitEmailRequest(db, recipient, input.requester, now); } catch { return; }
-  const purpose = link.action.purpose as ParentPurpose;
+  const purpose: ParentPurpose = "parent-request";
   if (purpose === "parent-request") {
     await users(db).updateOne({ _id: link.account._id, [`${PATH}.status`]: "pending", [`${PATH}.generation`]: link.approval.generation },
       { $push: { [`${PATH}.history`]: event("resent", { kind: "guardian", reference: `renewal:${link.action._id.toHexString()}` }, now, { generation: link.approval.generation, guardianEmail: recipient, explanation: link.approval.explanation }) } } as never);

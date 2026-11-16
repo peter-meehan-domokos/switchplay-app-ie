@@ -11,6 +11,8 @@ export async function notifyFounder(
   target: { collection: string; id: ObjectId },
   message: Omit<EmailMessage, "to">,
   send?: EmailSender,
+  /** Where the outcome is recorded on the target document (default: a top-level founderNotification field). */
+  field = "founderNotification",
 ) {
   const attemptedAt = new Date();
   try {
@@ -18,12 +20,12 @@ export async function notifyFounder(
     const outcome = !to || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(to)
       ? { status: "failed" as const, attemptedAt, reference: "founder-email-not-configured" }
       : await deliverEmail(send ?? siteEmailSender("puckle"), { ...message, to });
-    await db.collection(target.collection).updateOne({ _id: target.id }, { $set: { founderNotification: outcome } });
+    await db.collection(target.collection).updateOne({ _id: target.id }, { $set: { [field]: outcome } });
   } catch {
     // Configuration or database problems must not surface to the person who submitted.
     try {
       await db.collection(target.collection).updateOne({ _id: target.id },
-        { $set: { founderNotification: { status: "unknown", attemptedAt, reference: "notification-interrupted" } } });
+        { $set: { [field]: { status: "unknown", attemptedAt, reference: "notification-interrupted" } } });
     } catch { /* leave pending for manual recovery */ }
   }
 }

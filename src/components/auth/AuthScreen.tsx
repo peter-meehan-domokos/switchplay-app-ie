@@ -12,7 +12,7 @@ type AuthScreenProps = {
   site?: SiteId;
 };
 
-export default function AuthScreen({ redirectTo, site = "switchplay" }: AuthScreenProps) {
+export default function AuthScreen({ redirectTo, site = "puckle" }: AuthScreenProps) {
   const brand = siteBrands[site];
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");

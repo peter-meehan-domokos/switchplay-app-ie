@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const SUPPORT_EMAIL = "info@switchplay.ie";
+export const SUPPORT_EMAIL = "support@puckleup.com";
 
 type SupportErrorMessageProps = {
   className?: string;

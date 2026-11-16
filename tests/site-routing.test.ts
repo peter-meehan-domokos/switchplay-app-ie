@@ -7,7 +7,7 @@ import { decideSiteRoute, RESERVED_APP_SEGMENTS } from "../src/lib/sites/siteRou
 
 const productionHosts = [
   ["strat17.com", "strat17"],
-  ["puckle.co", "puckle"],
+  ["puckleup.com", "puckle"],
   ["switchplay.ie", "switchplay"],
 ] as const;
 
@@ -28,10 +28,10 @@ test("resolves <site>.localhost development hosts", () => {
 });
 
 test("does not match lookalike hosts and defaults unknown hosts to Puckle", () => {
-  for (const host of ["evilpuckle.co", "puckle.co.evil.com", "xswitchplay.ie", "strat17.com.au", "", null, undefined, "localhost:3000", "192.168.1.38:3000", "foo.vercel.app"]) {
+  for (const host of ["evilpuckleup.com", "puckleup.com.evil.com", "xswitchplay.ie", "strat17.com.au", "", null, undefined, "localhost:3000", "192.168.1.38:3000", "foo.vercel.app"]) {
     assert.equal(resolveSite({ host }), "puckle", String(host));
   }
-  assert.equal(normaliseHost("WWW.Puckle.CO:443"), "puckle.co");
+  assert.equal(normaliseHost("WWW.Puckleup.COM:443"), "puckleup.com");
 });
 
 test("site cookie applies only off the production domains", () => {
@@ -56,7 +56,7 @@ test("rewrites public paths to the site folder, including site-only pages", () =
 
 test("application routes pass through untouched on every host", () => {
   const paths = ["/login", "/decks", "/library", "/library/abc", "/creator/new", "/creator/edit/x", "/progress", "/internal/info-maths", "/dev/maths-fonts", "/api/auth/login", "/api/public/puckle/contact", "/_next/data/x.json"];
-  const hosts = ["strat17.com", "www.puckle.co", "switchplay.ie", "localhost:3000", "puckle.localhost:3000", "foo.vercel.app"];
+  const hosts = ["strat17.com", "www.puckleup.com", "switchplay.ie", "localhost:3000", "puckle.localhost:3000", "foo.vercel.app"];
   for (const host of hosts) for (const pathname of paths) {
     assert.deepEqual(decideSiteRoute({ host, pathname, method: "GET" }), { kind: "pass" }, `${host}${pathname}`);
     assert.deepEqual(decideSiteRoute({ host, pathname, method: "POST" }), { kind: "pass" }, `POST ${host}${pathname}`);
@@ -65,14 +65,14 @@ test("application routes pass through untouched on every host", () => {
 });
 
 test("/step-visuals is served only on Puckle; /sites/* is never directly reachable", () => {
-  assert.deepEqual(decideSiteRoute({ host: "puckle.co", pathname: "/step-visuals", method: "GET" }), { kind: "pass" });
-  assert.deepEqual(decideSiteRoute({ host: "www.puckle.co", pathname: "/step-visuals/lab", method: "GET" }), { kind: "pass" });
+  assert.deepEqual(decideSiteRoute({ host: "puckleup.com", pathname: "/step-visuals", method: "GET" }), { kind: "pass" });
+  assert.deepEqual(decideSiteRoute({ host: "www.puckleup.com", pathname: "/step-visuals/lab", method: "GET" }), { kind: "pass" });
   assert.deepEqual(decideSiteRoute({ host: "localhost:3000", pathname: "/step-visuals", method: "GET" }), { kind: "pass" });
   assert.deepEqual(decideSiteRoute({ host: "localhost:3000", pathname: "/step-visuals", method: "GET", siteCookie: "switchplay" }), { kind: "notFound" });
   for (const host of ["strat17.com", "switchplay.ie", "www.switchplay.ie", "strat17.localhost"]) {
     assert.deepEqual(decideSiteRoute({ host, pathname: "/step-visuals", method: "GET" }), { kind: "notFound" }, host);
   }
-  for (const host of ["puckle.co", "strat17.com", "localhost:3000"]) {
+  for (const host of ["puckleup.com", "strat17.com", "localhost:3000"]) {
     assert.deepEqual(decideSiteRoute({ host, pathname: "/sites/puckle", method: "GET" }), { kind: "notFound" });
     assert.deepEqual(decideSiteRoute({ host, pathname: "/sites/strat17/contact", method: "GET" }), { kind: "notFound" });
   }
@@ -87,7 +87,7 @@ test("?site= is honoured on non-production hosts only, for GET/HEAD, valid value
   for (const [host] of productionHosts) for (const variant of [host, `www.${host}`]) {
     assert.deepEqual(decideSiteRoute({ host: variant, pathname: "/login", method: "GET", siteQuery: "puckle" }), { kind: "pass" }, variant);
   }
-  assert.equal(decideSiteRoute({ host: "puckle.co", pathname: "/", method: "GET", siteQuery: "strat17" }).kind, "rewrite");
+  assert.equal(decideSiteRoute({ host: "puckleup.com", pathname: "/", method: "GET", siteQuery: "strat17" }).kind, "rewrite");
 });
 
 function request(url: string, init: { method?: string; headers?: Record<string, string> } = {}) {
@@ -111,7 +111,7 @@ test("proxy redirects ?site= to the clean URL with a site cookie, preserving oth
 });
 
 test("proxy never sets the override on production domains and does not loop", () => {
-  for (const host of ["puckle.co", "www.puckle.co", "strat17.com", "switchplay.ie", "www.switchplay.ie"]) {
+  for (const host of ["puckleup.com", "www.puckleup.com", "strat17.com", "switchplay.ie", "www.switchplay.ie"]) {
     const response = proxy(request(`https://${host}/login?site=strat17`, { headers: { host } }));
     assert.equal(response.headers.get("set-cookie"), null, host);
     assert.equal(response.headers.get("location"), null, host);
@@ -122,10 +122,10 @@ test("proxy never sets the override on production domains and does not loop", ()
 });
 
 test("proxy rewrites public paths and leaves reserved routes alone", () => {
-  const rewrite = proxy(request("https://puckle.co/tuition", { headers: { host: "puckle.co" } }));
-  assert.equal(rewrite.headers.get("x-middleware-rewrite"), "https://puckle.co/sites/puckle/tuition");
+  const rewrite = proxy(request("https://puckleup.com/tuition", { headers: { host: "puckleup.com" } }));
+  assert.equal(rewrite.headers.get("x-middleware-rewrite"), "https://puckleup.com/sites/puckle/tuition");
 
-  const login = proxy(request("https://puckle.co/login", { headers: { host: "puckle.co" } }));
+  const login = proxy(request("https://puckleup.com/login", { headers: { host: "puckleup.com" } }));
   assert.equal(login.headers.get("x-middleware-next"), "1");
   assert.equal(login.headers.get("x-middleware-rewrite"), null);
 

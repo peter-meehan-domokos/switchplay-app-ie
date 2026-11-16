@@ -1,3 +1,6 @@
 export const SITE_NAME = "Puckle";
 export const SITE_TITLE_NAME = "PUCKLE";
-export const SUPPORT_EMAIL = "info@puckle.co";
+/** General contact address (contact page, privacy questions, unsubscribing). */
+export const CONTACT_EMAIL = "hello@puckleup.com";
+/** Help address shown when something goes wrong. */
+export const SUPPORT_EMAIL = "support@puckleup.com";

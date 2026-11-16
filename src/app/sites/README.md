@@ -1,12 +1,12 @@
 # Public websites
 
-Three independent public websites share this one Next.js app: `strat17` (strat17.com), `puckle` (puckle.co) and
+Three independent public websites share this one Next.js app: `strat17` (strat17.com), `puckle` (puckleup.com) and
 `switchplay` (switchplay.ie). They started as exact copies of the original public website and are meant to diverge.
 
 ## How a request reaches a website
 
 `src/proxy.ts` (logic in `src/lib/sites/siteRouting.ts` and `siteResolver.ts`) maps the host to a site and rewrites
-public paths: `puckle.co/contact` is served by `src/app/sites/puckle/contact/page.tsx`. The browser URL does not change.
+public paths: `puckleup.com/contact` is served by `src/app/sites/puckle/contact/page.tsx`. The browser URL does not change.
 
 - Application routes are never rewritten: `api`, `creator`, `decks`, `dev`, `internal`, `library`, `login`, `progress`.
   They are listed in `RESERVED_APP_SEGMENTS`. **Adding a new top-level folder under `src/app` requires adding it to that

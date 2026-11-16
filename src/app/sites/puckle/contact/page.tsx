@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ContactSupportForm from "../components/ContactSupportForm";
 import PublicHeader from "../components/PublicHeader";
 import PublicLayout from "../components/PublicLayout";
-import { SITE_NAME, SUPPORT_EMAIL } from "../siteInfo";
+import { SITE_NAME, CONTACT_EMAIL } from "../siteInfo";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default function ContactPage() {
           <p>Have a question, need help or want to work with us? We&apos;d love to hear from you.</p>
           <p className={styles.contactNote}>
             Prefer email? Contact us directly at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
           </p>
         </header>
         <div className={styles.formWrap}>

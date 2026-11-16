@@ -4,7 +4,7 @@
  * motion there is no animation, but the message still stays for the same readable time.
  */
 export const WELCOME_ENTER_MS = 500;
-export const WELCOME_HOLD_MS = 5000;
+export const WELCOME_HOLD_MS = 4000;
 export const WELCOME_EXIT_MS = 500;
 export type WelcomePhase = "enter" | "hold" | "exit";
 export type WelcomeTimeline = Readonly<{ enterMs: number; holdMs: number; exitMs: number }>;

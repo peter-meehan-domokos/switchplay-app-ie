@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { welcomeSchedule, welcomeTimeline, WELCOME_ENTER_MS, WELCOME_EXIT_MS, type WelcomePhase } from "../lib/registrationWelcome";
 import { SITE_NAME } from "../siteInfo";
-import buttonStyles from "./PublicButton.module.css";
 import styles from "./MembershipJoinForm.module.css";
 
 /**
  * Shown once, straight after a verified student registration. It covers the page with the site's own
  * background, fades in, stays readable, fades out, and only then opens My Decks, so neither the Join
- * page nor a half-loaded application is ever visible behind it. "Open Puckle" skips the wait.
+ * page nor a half-loaded application is ever visible behind it.
  */
 export default function RegistrationWelcome() {
   const [phase, setPhase] = useState<WelcomePhase>("enter");
@@ -29,7 +28,6 @@ export default function RegistrationWelcome() {
       <div className={`${styles.success} ${styles.welcomeCard}`} ref={cardRef} role="status" tabIndex={-1}>
         <h2>Welcome to {SITE_NAME}!</h2>
         <p>Your account is ready and you&apos;re signed in. Taking you to your library…</p>
-        <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="/decks">Open {SITE_NAME}</a>
       </div>
     </div>
   );
