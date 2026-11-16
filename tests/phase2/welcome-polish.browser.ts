@@ -44,7 +44,7 @@ async function registerStudent(browser: Browser, reducedMotion?: "reduce") {
 }
 const overlay = (page: Page) => page.getByTestId("registration-welcome");
 
-test("registration welcome: fades in, stays readable ~5 s over a covered page, fades out, and only then opens My Decks", async ({ browser }) => {
+test("registration welcome: fades in, stays readable ~4 s over a covered page, fades out, and only then opens My Decks", async ({ browser }) => {
   const { page, navigations, phases } = await registerStudent(browser);
   await expect(overlay(page)).toBeVisible(); const shown = Date.now();
   await expect(overlay(page).getByRole("heading", { name: "Welcome to Puckle!" })).toBeVisible();
@@ -52,28 +52,28 @@ test("registration welcome: fades in, stays readable ~5 s over a covered page, f
   expect(await overlay(page).evaluate(el => getComputedStyle(el).animationName)).toMatch(/welcomeIn$/);
   expect(await page.evaluate(() => { const el = document.elementFromPoint(195, 40); return !!el?.closest('[data-testid="registration-welcome"]'); })).toBe(true);
   await page.waitForTimeout(1500); await expect(overlay(page)).toHaveAttribute("data-phase", "hold"); expect(await overlay(page).locator("[role=status]").evaluate(el => getComputedStyle(el).opacity)).toBe("1");
-  await page.waitForTimeout(2500); // ~4.5 s after it appeared: still readable, My Decks has not been revealed
+  await page.waitForTimeout(2000); // ~3.5 s after it appeared: still readable, My Decks has not been revealed
   await expect(overlay(page)).toHaveAttribute("data-phase", "hold"); expect(navigations).toEqual([]); expect(new URL(page.url()).pathname).toBe("/join");
   await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown;
-  expect(total).toBeGreaterThan(5400); expect(total).toBeLessThan(8500);
+  expect(total).toBeGreaterThan(4400); expect(total).toBeLessThan(7500);
   expect(phases.map(entry => entry.phase)).toEqual(["enter", "hold", "exit"]);
   const [enter, hold, exit] = phases; expect(enter.animation).toMatch(/cardIn$/); expect(exit.animation).toMatch(/cardOut$/);
   expect(hold.at - enter.at).toBeGreaterThan(400); expect(hold.at - enter.at).toBeLessThan(900); // entrance ~0.5 s
-  expect(exit.at - hold.at).toBeGreaterThan(4800); expect(exit.at - hold.at).toBeLessThan(5500); // fully readable ~5 s
+  expect(exit.at - hold.at).toBeGreaterThan(3800); expect(exit.at - hold.at).toBeLessThan(4500); // fully readable ~4 s
   expect(navigations[0]).toBeGreaterThan(exit.at + 400); // My Decks opens only after the exit animation has run
   expect((await page.request.get(`${origin}/api/auth/me`)).status()).toBe(200);
 });
-test("reduced motion: no animation at all, but the message still stays about five seconds", async ({ browser }) => {
+test("reduced motion: no animation at all, but the message still stays about four seconds", async ({ browser }) => {
   const { page, navigations, phases } = await registerStudent(browser, "reduce");
   await expect(overlay(page)).toBeVisible(); const shown = Date.now();
   expect(await overlay(page).evaluate(el => getComputedStyle(el).animationName)).toBe("none"); expect(await overlay(page).locator("[role=status]").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
-  await page.waitForTimeout(4000); expect(navigations).toEqual([]);
-  await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(4700); expect(total).toBeLessThan(7000);
+  await page.waitForTimeout(3000); expect(navigations).toEqual([]);
+  await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(3700); expect(total).toBeLessThan(6000);
   expect(phases.every(entry => entry.animation === "none")).toBe(true); expect(phases.at(-1)!.phase).toBe("exit"); expect(navigations[0] - phases.at(-1)!.at).toBeLessThan(900); // no exit animation to wait for
 });
-test("Open Puckle skips the wait; ordinary sign-ins never show the registration welcome", async ({ browser }) => {
+test("the welcome has no button to press; ordinary sign-ins never show the registration welcome", async ({ browser }) => {
   const { page, email } = await registerStudent(browser); await expect(overlay(page)).toBeVisible();
-  const started = Date.now(); await overlay(page).getByRole("link", { name: "Open Puckle" }).click(); await page.waitForURL(`${origin}/decks`); expect(Date.now() - started).toBeLessThan(4000);
+  await expect(overlay(page).getByRole("link")).toHaveCount(0); await expect(overlay(page).getByRole("button")).toHaveCount(0); await page.waitForURL(`${origin}/decks`);
   const user = (await db.collection("users").findOne({ email }))!;
   const again = await (await context(browser, { login: user.username as string, password: "a perfectly good passphrase" })).newPage(); // plain sign-in then /decks
   await again.goto(`${origin}/decks`); await again.waitForTimeout(1200); await expect(overlay(again)).toHaveCount(0); expect(new URL(again.url()).pathname).toBe("/decks");
