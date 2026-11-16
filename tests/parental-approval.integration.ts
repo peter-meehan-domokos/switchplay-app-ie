@@ -72,7 +72,7 @@ test("a request records the common scope, draft explanation, provenance and hist
   assert.deepEqual(record.history.map((e: { kind: string; actor: { kind: string } }) => [e.kind, e.actor.kind]), [["requested", "student"]]);
   const token = lastToken(email), link = (await db.collection("accountEmailActions").findOne({ userId: kid._id, purpose: "parent-request" }))!;
   assert.equal(link.expiresAt.getTime() - T0.getTime(), 7 * DAY); assert.ok(!JSON.stringify(link).includes(token), "only a digest is stored");
-  assert.match(messages.at(-1)!.text, /Puckle, Switchplay and Strat17/); assert.match(messages.at(-1)!.text, /Opening the link changes nothing/);
+  assert.match(messages.at(-1)!.text, /Group Experiences on Puckle\./); assert.doesNotMatch(messages.at(-1)!.text, /switchplay|strat17/i); assert.match(messages.at(-1)!.text, /Opening the link changes nothing/);
   await untouched(kid);
   const summary = await approvalSummary(db, kid._id, "2026-11-14");
   assert.deepEqual([summary.status, summary.eligibility, summary.canRequest, summary.delivery], ["pending", "eligible", true, "sent"]); assert.ok(!summary.guardianEmail!.includes(email.split("@")[0]));
@@ -101,7 +101,7 @@ test("reading the link changes nothing; approval needs the declaration and recor
   const kid = await child(), email = guardian(); await request(kid._id, email); const token = lastToken(email);
   const before = await approval(kid._id), details = await parentLinkDetails(db, token, at(1000));
   assert.equal(details.state, "valid"); assert.equal((details as { child: string }).child, `Kid${n - 1}`);
-  assert.deepEqual((details as { sites: string[] }).sites, ["Puckle", "Switchplay", "Strat17"]); assert.ok(!JSON.stringify(details).match(/2012|example\.invalid/), "no DOB or email in page context");
+  assert.ok(!("sites" in details), "no list of other sites is sent to the page"); assert.ok(!JSON.stringify(details).match(/2012|example\.invalid/), "no DOB or email in page context");
   assert.deepEqual(await approval(kid._id), before);
   await assert.rejects(decide(token, "approve", false), /DECLARATION_REQUIRED/); await assert.rejects(decide(token, "maybe"), /INVALID_DECISION/);
   assert.equal((await approval(kid._id)).status, "pending");

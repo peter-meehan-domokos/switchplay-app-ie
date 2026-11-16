@@ -12,11 +12,12 @@ test("eligibility: under 16 by Dublin calendar date; unknown DOB is never treate
   assert.equal(approvalEligibility("2008-02-29", "2024-02-29"), "not-required");
   for (const unknown of [null, undefined, ""]) assert.equal(approvalEligibility(unknown, "2026-11-14"), "age-unknown");
 });
-test("one common disclosure covers all three websites, explains withdrawal and excludes live tuition", () => {
+test("one common disclosure, in Puckle's name only, explains withdrawal and excludes live tuition", () => {
   assert.equal(GROUP_EXPERIENCE_SCOPE.scopeId, "shared-group-experiences");
-  for (const site of ["Puckle", "Switchplay", "Strat17"]) assert.match(GROUP_EXPERIENCE_EXPLANATION.text, new RegExp(site));
+  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /Puckle/); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /switchplay|strat17/i);
+  assert.equal(GROUP_EXPERIENCE_EXPLANATION.version, "shared-group-experiences-v2-draft", "reworded text carries a new version; past approvals keep what they read");
   assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /withdraw/i); assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /not permission for live tuition/);
-  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /one approval covers/i);
+  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /one approval covers equivalent Group Experiences anywhere in Puckle/i);
   assert.ok(GROUP_EXPERIENCE_EXPLANATION.version && GUARDIAN_DECLARATION.version);
   assert.match(GUARDIAN_DECLARATION.text, /parent or legal guardian/);
 });

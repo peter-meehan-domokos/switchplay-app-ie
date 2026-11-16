@@ -1,4 +1,4 @@
-// Server-only. One shared Group Experience approval per account, common to Puckle, Switchplay and Strat17.
+// Server-only. One shared Group Experience approval per account, covering Puckle everywhere it runs.
 // Records facts only: no group permission decision, no live-tuition permission, no age verification.
 import { ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { ageOn, dublinToday } from "./age";
@@ -9,7 +9,7 @@ import { limitEmailRequest, limitRequesterAction } from "./emailRequestLimits";
 import { notifyFounder } from "./founderNotifications";
 import { withMongoTransaction } from "./mongodb";
 import {
-  GROUP_EXPERIENCE_EXPLANATION, GROUP_EXPERIENCE_SCOPE, GUARDIAN_DECLARATION, SITE_DISPLAY_NAMES,
+  GROUP_EXPERIENCE_EXPLANATION, GROUP_EXPERIENCE_SCOPE, GUARDIAN_DECLARATION,
   type ApprovalEvent, type ApprovalStatus, type GroupExperienceApproval,
 } from "./parentalApprovalScope";
 import type { AccountEmailAction } from "./puckleMemberships";
@@ -175,7 +175,6 @@ export async function parentLinkDetails(db: Db, token: unknown, now = new Date()
   return {
     purpose: link.action.purpose, state: link.state, renewable: false,
     child: await childDisplayName(db, link.account),
-    sites: GROUP_EXPERIENCE_SCOPE.sites.map(site => SITE_DISPLAY_NAMES[site]),
     explanation: { version: link.approval!.explanation.version, text: link.approval!.explanation.text },
     declaration: GUARDIAN_DECLARATION,
   };

@@ -62,7 +62,7 @@ test("parent approves on a phone: explanation, explicit declaration, no sign-in,
   const { page, requests } = await parentPage(browser, token);
   await expect(page.getByRole("heading", { name: "Parent or guardian approval" })).toBeVisible();
   expect(page.url()).toBe(`${origin}/api/account-actions/open`);
-  await expect(page.locator("#parent .child")).toHaveText("Niamh"); await expect(page.getByText(/one approval covers equivalent Group Experiences on Puckle, Switchplay and Strat17/)).toBeVisible();
+  await expect(page.locator("#parent .child")).toHaveText("Niamh"); await expect(page.getByText(/one approval covers equivalent Group Experiences anywhere in Puckle/)).toBeVisible();
   await expect(page.getByText(/not permission for live tuition/)).toBeVisible();
   const declaration = page.getByRole("checkbox", { name: /parent or legal guardian/ }); await expect(declaration).not.toBeChecked(); await noOverflow(page);
   expect((await approvalOf(kid._id)).status).toBe("pending"); // Opening and reading decided nothing.
