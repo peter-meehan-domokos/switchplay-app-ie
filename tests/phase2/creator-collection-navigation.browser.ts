@@ -36,7 +36,7 @@ test("new Deck return follows visibility intent and reload, warns about unpublis
   await expect(leave).toContainText("saved in My Drafts"); await leave.getByRole("button", { name: "Cancel", exact: true }).click();
   let workingOpens = 0; page.on("request", request => { if (new URL(request.url()).pathname === "/api/decks-data" && request.method() === "POST") workingOpens++; });
   await back.click(); await leave.getByRole("button", { name: "Leave without publishing", exact: true }).click();
-  await expect(page).toHaveURL(/\/library$/); expect(workingOpens).toBe(0); // this account has no decks, so My Decks sends it to the Library
+  await expect(page).toHaveURL(/\/decks$/); await expect(page.getByRole("heading", { name: "My Decks", exact: true })).toBeVisible(); expect(workingOpens).toBe(0);
 });
 
 test("existing Deck origins stay collection-based through reload and visibility changes", async ({ page }) => {
