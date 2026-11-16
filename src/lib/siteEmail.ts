@@ -1,5 +1,6 @@
 import type { SiteId } from "./sites/siteResolver";
 import { assertDisposableDatabase } from "./cards/localDatabase";
+import { SUPPORT_EMAIL } from "./parentalApprovalScope";
 export type EmailMessage = { to: string; subject: string; text: string };
 export type Delivery = { status: "sent" | "failed" | "unknown"; attemptedAt: Date; reference: string };
 export type EmailSender = (message: EmailMessage) => Promise<Delivery>;
@@ -26,7 +27,10 @@ export function siteEmailConfig(site: SiteId, env: Env = process.env) {
   const local = ["localhost", "127.0.0.1"].includes(url.hostname) || url.hostname.endsWith(".localhost") || reviewLanOrigin(url, env);
   if ((url.protocol !== "https:" && !(local && url.protocol === "http:")) || url.username || url.password || url.origin !== candidate) throw new Error("EMAIL_CONFIGURATION_INVALID");
   }
-  return { origin, allowedOrigins, from, name: { puckle: "Puckle", switchplay: "Switchplay", strat17: "Strat17" }[site] };
+  // Replies go to support. Puckle defaults to its support address; other sites only if they set ACCOUNT_EMAIL_<SITE>_REPLY_TO.
+  const replyTo = env[`${prefix}_REPLY_TO`]?.trim() || (site === "puckle" ? SUPPORT_EMAIL : undefined);
+  if (replyTo && !isValidSender(replyTo)) throw new Error("EMAIL_CONFIGURATION_INVALID");
+  return { origin, allowedOrigins, from, replyTo, name: { puckle: "Puckle", switchplay: "Switchplay", strat17: "Strat17" }[site] };
 }
 /**
  * TESTING ONLY. When ACCOUNT_EMAIL_REDIRECT_TO is a single valid address, every message is delivered to that
@@ -58,7 +62,7 @@ export function siteEmailSender(site: SiteId, env: Env = process.env): EmailSend
       }
       const response = await fetch(endpoint, { method: "POST", signal: AbortSignal.timeout(8000),
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${fixture ? "local-fixture" : env.RESEND_API_KEY}` },
-        body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text,
+        body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}),
           ...(original.to !== message.to ? { headers: { "X-Intended-Recipient": original.to } } : {}) }),
       });
       if (response.status === 429) return { status: "failed", attemptedAt, reference: "provider-rate-limited" };

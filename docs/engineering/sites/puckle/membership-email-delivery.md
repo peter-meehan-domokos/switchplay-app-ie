@@ -8,7 +8,7 @@ Every email the app sends goes through one adapter, `src/lib/siteEmail.ts`, whic
 **To students, parents and teachers** (sent from `Puckle <hello@puckleup.com>`):
 - Join verification code (and the "you already have an account" notice).
 - Password reset link.
-- Parental approval request: one email to the parent, with one link to approve or decline. There is no withdrawal link. A parent withdraws by replying to that email (it reaches `hello@puckleup.com`), and the founder records it with the operator revocation tool.
+- Parental approval request: one email to the parent, with one link to approve or decline. There is no withdrawal link. A parent withdraws by replying to that email (replies go to `support@puckleup.com`) or by emailing support, and the founder records it with the operator revocation tool.
 
 **To the founder** (`PUCKLE_FOUNDER_EMAIL`, sent after the page has responded, so they never delay a visitor). Subjects follow `[ACTION|FYI] <icon> EVENT: name` so they can be filtered in Gmail:
 - New student registration, new teacher registration (the account and course details, never a password or date of birth).
@@ -23,7 +23,7 @@ The outcome of each alert is stored on the record it came from (`sent`, `failed`
 - **Sending** is by Resend, from the verified domain `puckleup.com`. DNS (in Cloudflare) holds Resend's DKIM record (`resend._domainkey`) and the bounce subdomain `rsend.puckleup.com`.
 - **Receiving** is by Google Workspace. `puckleup.com` is a secondary domain, `hello@`, `support@` and `notifications@` are aliases of the primary user, and replies to any email we send arrive in that mailbox. The root MX and SPF records are Google's. Resend does not use them.
 - **DMARC** is `v=DMARC1; p=none;` (monitor only). It can be tightened later, once every legitimate sender is passing.
-- **Addresses shown to the public:** `hello@puckleup.com` on the contact and privacy pages; `support@puckleup.com` where the site says something went wrong.
+- **Addresses shown to the public:** `hello@puckleup.com` on the contact and privacy pages; `support@puckleup.com` where the site says something went wrong, and in the parental approval email, the approval page and its explanation. Replies to all Puckle emails go to `support@puckleup.com`.
 
 ## One-time setup (already done for puckleup.com; repeat for each new domain)
 1. **Resend domain:** add the domain, add the DNS records Resend shows, wait for "Verified".
@@ -40,6 +40,7 @@ The outcome of each alert is stored on the record it came from (`sent`, `failed`
 | `ACCOUNT_EMAIL_PUCKLE_ORIGIN` | `https://puckleup.com` (email links are built from this, never from request headers) |
 | `ACCOUNT_EMAIL_PUCKLE_ALLOWED_ORIGINS` | optional, e.g. `https://www.puckleup.com` |
 | `ACCOUNT_EMAIL_SWITCHPLAY_FROM` / `_ORIGIN`, `ACCOUNT_EMAIL_STRAT17_FROM` / `_ORIGIN` | the same for the other two sites, once they are live (needed for password reset sent from those sites) |
+| `ACCOUNT_EMAIL_PUCKLE_REPLY_TO` | optional; defaults to `support@puckleup.com`. Replies to Puckle emails go here, while they are still sent from `hello@puckleup.com`. |
 | `PUCKLE_FOUNDER_EMAIL` | the address that receives founder alerts (`notifications@puckleup.com`) |
 | `ACCOUNT_TRUST_PROXY_IP` | `1` on Vercel (its proxy sets `x-forwarded-for`), so rate limits are per visitor |
 

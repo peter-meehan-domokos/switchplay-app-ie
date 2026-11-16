@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { existingAccountEmail, parentApprovalRequestEmail, passwordResetEmail, verificationEmail } from "../src/lib/accountEmailTemplates";
 import { emailActionDocument } from "../src/lib/emailActionDocument";
 import { GROUP_EXPERIENCE_EXPLANATION, GUARDIAN_DECLARATION } from "../src/lib/parentalApprovalScope";
+import { parentalApprovalError } from "../src/lib/parentalApprovalHttp";
 import * as founder from "../src/app/sites/puckle/lib/memberEmailTemplates";
 
 // Everything a student, parent or the founder can read in a Puckle email or on the approval page speaks only of Puckle.
@@ -33,4 +34,12 @@ test("founder alerts name only Puckle", () => {
     founder.founderParentDecisionEmail({ id: "i", childName: "N", username: "n", decision: "declined", guardianEmail: "m@example.com", guardianPhone: null, decidedAt: new Date() }),
   ];
   for (const alert of alerts) { assert.doesNotMatch(alert.subject, OTHER_NAMES); assert.doesNotMatch(alert.text, OTHER_NAMES, alert.subject); }
+});
+test("parents and students are told to use support@puckleup.com, consistently, and the page and errors agree", async () => {
+  const request = parentApprovalRequestEmail("Puckle", "https://puckleup.com", T, "Niamh");
+  assert.match(request.text, /reply to this email or write to support@puckleup\.com/); assert.doesNotMatch(request.text, /hello@/);
+  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /support@puckleup\.com/);
+  const page = await emailActionDocument().text();
+  assert.match(page, /write to support@puckleup\.com/); assert.doesNotMatch(page, /hello@|contact the website/);
+  for (const code of ["APPROVAL_AGE_UNKNOWN", "APPROVAL_ALREADY_GRANTED"]) assert.match(((await parentalApprovalError(new Error(code)).json()) as { error: string }).error, /support@puckleup\.com/);
 });

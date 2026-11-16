@@ -29,7 +29,7 @@ test("sends one Resend API request with the trusted sender, bearer key, JSON bod
   assert.equal(url, "https://api.resend.com/emails"); assert.equal(init.method, "POST"); assert.ok(init.signal, "bounded by a timeout");
   const headers = init.headers as Record<string, string>;
   assert.equal(headers.Authorization, `Bearer ${KEY}`); assert.equal(headers["Content-Type"], "application/json");
-  assert.deepEqual(JSON.parse(String(init.body)), { from: "Puckle <hello@puckleup.com>", to: ["parent@example.com"], subject: message.subject, text: message.text });
+  assert.deepEqual(JSON.parse(String(init.body)), { from: "Puckle <hello@puckleup.com>", to: ["parent@example.com"], subject: message.subject, text: message.text, reply_to: "support@puckleup.com" });
   assert.deepEqual([delivery.status, delivery.reference], ["sent", "resend:4ef9a417-02e9-4d39-ad75-9611e0fcc33c"]);
 });
 test("each site sends from its own configured identity", async () => {
@@ -67,6 +67,14 @@ test("sender identities must be a real address, optionally with a display name; 
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle" }), /INVALID/);
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "not a url" }), /INVALID/);
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "http://puckleup.com" }), /INVALID/, "https only outside local testing");
+});
+test("replies to Puckle email go to support@puckleup.com; other sites only if configured; never an invalid address", async () => {
+  await siteEmailSender("puckle")(message); await siteEmailSender("switchplay")(message);
+  assert.equal(JSON.parse(String(calls[0].init.body)).reply_to, "support@puckleup.com"); assert.equal("reply_to" in JSON.parse(String(calls[1].init.body)), false);
+  process.env.ACCOUNT_EMAIL_PUCKLE_REPLY_TO = "Puckle Help <help@puckleup.com>"; await siteEmailSender("puckle")(message);
+  assert.equal(JSON.parse(String(calls[2].init.body)).reply_to, "Puckle Help <help@puckleup.com>");
+  assert.equal(JSON.parse(String(calls[2].init.body)).from, "Puckle <hello@puckleup.com>", "sender is unchanged");
+  assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_REPLY_TO: "not an address" }), /INVALID/);
 });
 test("the readiness report can be limited to one site", () => {
   const partial = { ...READY, ACCOUNT_EMAIL_SWITCHPLAY_FROM: undefined, ACCOUNT_EMAIL_STRAT17_ORIGIN: undefined };
