@@ -14,8 +14,11 @@ export async function POST(request: Request) {
     }
     const result = await decideParentalApproval(db, client, { token: body.token, decision: body.decision, declaration: body.declaration }, mail);
     const message = result.status === "approved"
-      ? `Thank you. Your approval is recorded.${result.managementEmail === "sent" ? " We've emailed you a link you can use to withdraw it at any time." : " We couldn't confirm the email with your withdrawal link was sent; contact us if you need it."}`
-      : "Thank you. You declined, and your choice is recorded.";
+      ? result.managementEmail === "sent"
+        ? "Thank you. Your approval has been recorded. We've emailed you a link you can use to withdraw it at any time."
+        // The approval is saved either way; only the follow-up email is uncertain, so say exactly that.
+        : "Thank you. Your approval has been recorded. We tried to email you a link for withdrawing it later, but can't be sure it was sent. If it hasn't arrived in a few minutes, please contact us and we'll help."
+      : "Thank you. Your decision to decline has been recorded.";
     return securityJson({ status: result.status, message });
   } catch (error) { return parentalApprovalError(error); }
 }

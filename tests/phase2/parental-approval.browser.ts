@@ -69,7 +69,7 @@ test("parent approves on a phone: explanation, explicit declaration, no sign-in,
   await page.getByRole("button", { name: "Approve" }).click(); await expect(page.getByRole("status")).toContainText("tick the box");
   expect((await approvalOf(kid._id)).status).toBe("pending");
   await declaration.check(); await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByRole("status")).toContainText("Your approval is recorded"); await expect(page.getByRole("button", { name: "Approve" })).toBeHidden();
+  await expect(page.getByRole("status")).toContainText("Your approval has been recorded"); await expect(page.getByRole("button", { name: "Approve" })).toBeHidden();
   const record = await approvalOf(kid._id); expect(record).toMatchObject({ status: "approved", guardianDeclaration: { textVersion: "guardian-declaration-v1" } });
   expect((await db.collection("users").findOne({ _id: kid._id }))!.cardsData).toEqual([{ keep: true }]);
   expect(requests.every(url => url.startsWith(origin) && !url.includes(token))).toBe(true); expect(requests.join("\n")).not.toMatch(/analytics|vercel/);
@@ -90,7 +90,7 @@ test("a used link and a second tab cannot change a decision; decline is recorded
   await ask(kidContext, { action: "request", guardianEmail: guardian }); const token = await tokenFor(guardian, /approval needed/);
   const first = (await parentPage(browser, token)).page, second = (await parentPage(browser, token)).page;
   await expect(second.getByRole("button", { name: "Approve" })).toBeVisible();
-  await first.getByRole("checkbox").check(); await first.getByRole("button", { name: "Decline" }).click(); await expect(first.getByRole("status")).toContainText("You declined");
+  await first.getByRole("checkbox").check(); await first.getByRole("button", { name: "Decline" }).click(); await expect(first.getByRole("status")).toContainText("decision to decline has been recorded");
   await second.getByRole("checkbox").check(); await second.getByRole("button", { name: "Approve" }).click(); await expect(second.getByRole("status")).toContainText("can no longer be used");
   expect((await approvalOf(kid._id)).status).toBe("declined");
   const reopened = (await parentPage(browser, token)).page; await expect(reopened.getByRole("status")).toContainText("already been used"); await expect(reopened.getByRole("button", { name: "Approve" })).toHaveCount(0);
