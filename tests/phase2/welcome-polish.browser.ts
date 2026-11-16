@@ -38,13 +38,13 @@ async function registerStudent(browser: Browser, reducedMotion?: "reduce") {
       if ((window as unknown as { __last?: string }).__last !== phase) { (window as unknown as { __last?: string }).__last = phase; (window as unknown as { __reportPhase: (p: string, a: string) => void }).__reportPhase(phase, getComputedStyle(card).animationName); }
     }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-phase"] });
   });
-  const navigations: number[] = []; page.on("framenavigated", frame => { if (frame === page.mainFrame() && new URL(frame.url()).pathname === "/decks") navigations.push(Date.now()); });
+  const navigations: number[] = []; page.on("framenavigated", frame => { if (frame === page.mainFrame() && new URL(frame.url()).pathname === "/library") navigations.push(Date.now()); });
   await page.locator("button[type=submit]").click();
   return { page, navigations, email, phases };
 }
 const overlay = (page: Page) => page.getByTestId("registration-welcome");
 
-test("registration welcome: fades in, stays readable ~4 s over a covered page, fades out, and only then opens My Decks", async ({ browser }) => {
+test("registration welcome: fades in, stays readable ~4 s over a covered page, fades out, and only then opens the Library", async ({ browser }) => {
   const { page, navigations, phases } = await registerStudent(browser);
   await expect(overlay(page)).toBeVisible(); const shown = Date.now();
   await expect(overlay(page).getByRole("heading", { name: "Welcome to Puckle!" })).toBeVisible();
@@ -54,7 +54,7 @@ test("registration welcome: fades in, stays readable ~4 s over a covered page, f
   await page.waitForTimeout(1500); await expect(overlay(page)).toHaveAttribute("data-phase", "hold"); expect(await overlay(page).locator("[role=status]").evaluate(el => getComputedStyle(el).opacity)).toBe("1");
   await page.waitForTimeout(2000); // ~3.5 s after it appeared: still readable, My Decks has not been revealed
   await expect(overlay(page)).toHaveAttribute("data-phase", "hold"); expect(navigations).toEqual([]); expect(new URL(page.url()).pathname).toBe("/join");
-  await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown;
+  await page.waitForURL(`${origin}/library`); const total = navigations[0] - shown;
   expect(total).toBeGreaterThan(4400); expect(total).toBeLessThan(7500);
   expect(phases.map(entry => entry.phase)).toEqual(["enter", "hold", "exit"]);
   const [enter, hold, exit] = phases; expect(enter.animation).toMatch(/cardIn$/); expect(exit.animation).toMatch(/cardOut$/);
@@ -68,15 +68,15 @@ test("reduced motion: no animation at all, but the message still stays about fou
   await expect(overlay(page)).toBeVisible(); const shown = Date.now();
   expect(await overlay(page).evaluate(el => getComputedStyle(el).animationName)).toBe("none"); expect(await overlay(page).locator("[role=status]").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await page.waitForTimeout(3000); expect(navigations).toEqual([]);
-  await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(3400); expect(total).toBeLessThan(6000);
+  await page.waitForURL(`${origin}/library`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(3400); expect(total).toBeLessThan(6000);
   expect(phases.every(entry => entry.animation === "none")).toBe(true); expect(phases.at(-1)!.phase).toBe("exit"); expect(navigations[0] - phases.at(-1)!.at).toBeLessThan(900); // no exit animation to wait for
 });
 test("the welcome has no button to press; ordinary sign-ins never show the registration welcome", async ({ browser }) => {
   const { page, email } = await registerStudent(browser); await expect(overlay(page)).toBeVisible();
-  await expect(overlay(page).getByRole("link")).toHaveCount(0); await expect(overlay(page).getByRole("button")).toHaveCount(0); await page.waitForURL(`${origin}/decks`);
+  await expect(overlay(page).getByRole("link")).toHaveCount(0); await expect(overlay(page).getByRole("button")).toHaveCount(0); await page.waitForURL(`${origin}/library`);
   const user = (await db.collection("users").findOne({ email }))!;
   const again = await (await context(browser, { login: user.username as string, password: "a perfectly good passphrase" })).newPage(); // plain sign-in then /decks
-  await again.goto(`${origin}/decks`); await again.waitForTimeout(1200); await expect(overlay(again)).toHaveCount(0); expect(new URL(again.url()).pathname).toBe("/decks");
+  await again.goto(`${origin}/decks`); await again.waitForTimeout(1200); await expect(overlay(again)).toHaveCount(0); expect(new URL(again.url()).pathname).toBe("/library"); // a member with no decks is sent to the Library;
 });
 
 async function account(options: { dob?: string; eligible?: boolean; approval?: Record<string, unknown> } = {}) {

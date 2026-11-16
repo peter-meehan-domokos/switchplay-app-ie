@@ -85,7 +85,7 @@ test("course and level behave as specified, including A-level disabling and clea
   await course.selectOption("other"); await expect(page.getByLabel("Which course?")).toBeVisible(); expect(await level.locator("option").allTextContents()).toEqual(["Choose your level", "Other", "Don't know"]);
   await course.selectOption("dont-know"); await expect(page.getByLabel("Which course?")).toHaveCount(0); expect(await level.locator("option").allTextContents()).toEqual(["Choose your level", "Other", "Don't know"]);
 });
-test("student: verify email, account is created, session starts and /decks opens; private learning works and public publishing stays forbidden", async ({ browser }) => {
+test("student: verify email, account is created, session starts and the Library opens (My Decks is empty); private learning works and public publishing stays forbidden", async ({ browser }) => {
   const page = await open(browser), email = emailOf("student"), username = unique("Stu");
   const usersBefore = await db.collection("users").countDocuments();
   await fillStudent(page, { username, email });
@@ -97,7 +97,7 @@ test("student: verify email, account is created, session starts and /decks opens
   await expect(page.getByText("That code isn't right, or it has expired.")).toBeVisible(); expect(await db.collection("users").findOne({ email })).toBeNull();
   await noOverflow(page);
   await page.locator("#join-code").fill(code); await submit(page).click();
-  await page.waitForURL(`${origin}/decks`);
+  await page.waitForURL(`${origin}/library`);
   const session = (await page.context().cookies()).find(c => c.name === "switchplay_session"); expect(session?.httpOnly).toBe(true);
   const me = await page.request.get("/api/auth/me"); expect(me.status()).toBe(200); expect((await me.json()).user.username).toBe(username);
   const user = (await db.collection("users").findOne({ email }))!;
@@ -131,7 +131,7 @@ test("a taken username is flagged on its field, everything else is kept, and the
   await expect(page.locator("#join-dobYear")).toHaveValue(String(thisYear - 17)); await expect(page.getByLabel("Choose a password")).toHaveValue("a perfectly good passphrase");
   expect(await db.collection("users").findOne({ email })).toBeNull();
   await expect(submit(page)).toHaveText("Create my account");
-  await page.getByLabel("Choose a username").fill("taken_one"); await submit(page).click(); await page.waitForURL(`${origin}/decks`);
+  await page.getByLabel("Choose a username").fill("taken_one"); await submit(page).click(); await page.waitForURL(`${origin}/library`);
   expect((await outbox()).filter(m => m.to.includes(email)).length).toBe(1);
   expect(await db.collection("users").findOne({ email })).toMatchObject({ username: "taken_one" });
 });
@@ -139,11 +139,11 @@ test("A-level registers with level stored as null; a 15-year-old sees the privat
   const page = await open(browser), email = emailOf("alevel"), username = unique("Alv");
   await fillStudent(page, { username, email, course: "a-level", day: "1", month: "1", year: String(thisYear - 14) });
   await expect(page.getByText("You're good to go! You can start learning privately on Puckle now. Some group features will need a parent or guardian's approval.")).toBeVisible();
-  await submit(page).click(); await page.locator("#join-code").fill(await codeFor(email)); await submit(page).click(); await page.waitForURL(`${origin}/decks`);
+  await submit(page).click(); await page.locator("#join-code").fill(await codeFor(email)); await submit(page).click(); await page.waitForURL(`${origin}/library`);
   const user = (await db.collection("users").findOne({ email }))!;
   expect((await db.collection("puckleMemberships").findOne({ userId: user._id }))!.education).toEqual({ course: "a-level", courseOther: null, level: null, levelOther: null });
   expect(user.safeguarding.dateOfBirth).toBe(`${thisYear - 14}-01-01`);
-  await expect(page.getByText(/approval/i)).toHaveCount(0);
+  expect(user.safeguarding.groupExperienceApproval).toBeUndefined(); // allowed in without any approval; the Library then offers the optional parent request
 });
 test("teacher: blank introduction is fine, ordinary rights only, confirmation and a founder alert; no DOB asked", async ({ browser }) => {
   const page = await open(browser), email = emailOf("teacher"), username = unique("Tea");
@@ -159,7 +159,7 @@ test("teacher: blank introduction is fine, ordinary rights only, confirmation an
   expect(membership.teacherIntroduction).toBeUndefined();
   await waitFor(async () => (await db.collection("puckleMemberships").findOne({ _id: membership._id }))?.founderNotification?.status === "sent");
   expect((await mailTo("founder@example.invalid", new RegExp(email))).subject).toMatch(/^\[ACTION\] 🍎 NEW TEACHER: /);
-  await page.getByRole("link", { name: "Open Puckle" }).click(); await page.waitForURL(`${origin}/decks`);
+  await page.getByRole("link", { name: "Open Puckle" }).click(); await page.waitForURL(`${origin}/library`);
 });
 test("no-email student and teacher: credentials are cleared and hidden, mobile is required, a contact request is saved and no account exists", async ({ browser }) => {
   const page = await open(browser), name = unique("Nomail"), before = await db.collection("users").countDocuments();
@@ -228,7 +228,7 @@ test("changing the email invalidates the earlier code; Change my details returns
   await page.getByLabel("Email", { exact: true }).fill(second); await expect(submit(page)).toHaveText("Email me a verification code"); await submit(page).click();
   await page.locator("#join-code").fill(firstCode); await submit(page).click(); await expect(page.getByText("That code isn't right, or it has expired.")).toBeVisible();
   expect(await db.collection("users").findOne({ email: { $in: [first, second] } })).toBeNull();
-  await page.locator("#join-code").fill(await codeFor(second)); await submit(page).click(); await page.waitForURL(`${origin}/decks`);
+  await page.locator("#join-code").fill(await codeFor(second)); await submit(page).click(); await page.waitForURL(`${origin}/library`);
   expect(await db.collection("users").findOne({ email: second })).not.toBeNull(); expect(await db.collection("users").findOne({ email: first })).toBeNull();
 });
 test("resend is limited by a visible cooldown", async ({ browser }) => {
