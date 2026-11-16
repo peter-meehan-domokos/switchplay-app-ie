@@ -28,12 +28,24 @@ export function siteEmailConfig(site: SiteId, env: Env = process.env) {
   }
   return { origin, allowedOrigins, from, name: { puckle: "Puckle", switchplay: "Switchplay", strat17: "Strat17" }[site] };
 }
+/**
+ * TESTING ONLY. When ACCOUNT_EMAIL_REDIRECT_TO is a single valid address, every message is delivered to that
+ * inbox instead of its real recipient, clearly labelled with who it was meant for, so real delivery can be
+ * exercised end to end without emailing anyone else. Unset in production.
+ */
+export function redirectedMessage(message: EmailMessage, redirectTo: string | undefined): EmailMessage {
+  const target = redirectTo?.trim();
+  if (!target) return message;
+  if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(target)) throw new Error("EMAIL_CONFIGURATION_INVALID");
+  return { to: target, subject: `[TEST for ${message.to}] ${message.subject}`, text: `TEST REDIRECT: this email was intended for ${message.to}.\n\n${message.text}` };
+}
 /** No request-host links or fallback sender. Provider acceptance is not inbox delivery. */
 export function siteEmailSender(site: SiteId, env: Env = process.env): EmailSender {
   const config = siteEmailConfig(site, env);
-  return async (message) => {
+  return async (original) => {
     const attemptedAt = new Date();
     try {
+      const message = redirectedMessage(original, env.ACCOUNT_EMAIL_REDIRECT_TO);
       let endpoint = "https://api.resend.com/emails";
       const fixture = env.ACCOUNT_EMAIL_TEST_ENDPOINT;
       if (fixture) {
@@ -46,7 +58,8 @@ export function siteEmailSender(site: SiteId, env: Env = process.env): EmailSend
       }
       const response = await fetch(endpoint, { method: "POST", signal: AbortSignal.timeout(8000),
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${fixture ? "local-fixture" : env.RESEND_API_KEY}` },
-        body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text }),
+        body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text,
+          ...(original.to !== message.to ? { headers: { "X-Intended-Recipient": original.to } } : {}) }),
       });
       if (response.status === 429) return { status: "failed", attemptedAt, reference: "provider-rate-limited" };
       if (!response.ok) return { status: "failed", attemptedAt, reference: `provider-http-${response.status}` };
@@ -71,7 +84,7 @@ export async function deliverEmail(send: EmailSender, message: EmailMessage): Pr
  * Names-only readiness report for real delivery (no values are ever returned). Used by the operator
  * command `scripts/email-delivery.ts --check` before enabling or testing production email.
  */
-export function emailConfigurationReport(env: Env = process.env) {
+export function emailConfigurationReport(env: Env = process.env, only?: SiteId) {
   const problems: string[] = [];
   if (!env.RESEND_API_KEY) problems.push("RESEND_API_KEY is not set");
   else if (!/^re_[A-Za-z0-9_]{8,}$/.test(env.RESEND_API_KEY)) problems.push("RESEND_API_KEY does not look like a Resend API key (re_...)");
@@ -80,7 +93,7 @@ export function emailConfigurationReport(env: Env = process.env) {
   if (env.ACCOUNT_EMAIL_TEST_ENDPOINT) problems.push("ACCOUNT_EMAIL_TEST_ENDPOINT is a test-only setting and must not be set where real email is sent");
   const founder = env.PUCKLE_FOUNDER_EMAIL?.trim();
   if (!founder || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(founder)) problems.push("PUCKLE_FOUNDER_EMAIL is not a single valid address (founder alerts would be recorded as failed)");
-  const sites = (["puckle", "switchplay", "strat17"] as const).map(site => {
+  const sites = (["puckle", "switchplay", "strat17"] as const).filter(site => !only || site === only).map(site => {
     try {
       const config = siteEmailConfig(site, env);
       if (!config.origin.startsWith("https://")) problems.push(`ACCOUNT_EMAIL_${site.toUpperCase()}_ORIGIN is not https (only acceptable for local testing)`);
@@ -90,5 +103,7 @@ export function emailConfigurationReport(env: Env = process.env) {
       return { site, ready: false };
     }
   });
-  return { ready: problems.length === 0, sites, problems };
+  const redirect = env.ACCOUNT_EMAIL_REDIRECT_TO?.trim() || null;
+  if (redirect && !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(redirect)) problems.push("ACCOUNT_EMAIL_REDIRECT_TO is not a single valid address");
+  return { ready: problems.length === 0, sites, problems, redirect };
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
-import { deliverEmail, emailConfigurationReport, isValidSender, siteEmailConfig, siteEmailSender } from "../src/lib/siteEmail";
+import { deliverEmail, emailConfigurationReport, isValidSender, redirectedMessage, siteEmailConfig, siteEmailSender } from "../src/lib/siteEmail";
 import { main } from "../scripts/email-delivery";
 
 // The real Resend adapter, exercised against a stubbed fetch: no network, no real email.
@@ -68,8 +68,26 @@ test("sender identities must be a real address, optionally with a display name; 
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "not a url" }), /INVALID/);
   assert.throws(() => siteEmailConfig("puckle", { ...READY, ACCOUNT_EMAIL_PUCKLE_ORIGIN: "http://puckle.co" }), /INVALID/, "https only outside local testing");
 });
+test("the readiness report can be limited to one site", () => {
+  const partial = { ...READY, ACCOUNT_EMAIL_SWITCHPLAY_FROM: undefined, ACCOUNT_EMAIL_STRAT17_ORIGIN: undefined };
+  assert.equal(emailConfigurationReport(partial).ready, false);
+  assert.deepEqual(emailConfigurationReport(partial, "puckle"), { ready: true, redirect: null, sites: [{ site: "puckle", ready: true }], problems: [] });
+});
+test("test redirect: every message goes to one inbox, labelled with its intended recipient; off by default", async () => {
+  assert.deepEqual(redirectedMessage(message, undefined), message); assert.deepEqual(redirectedMessage(message, "  "), message);
+  const redirected = redirectedMessage(message, "peter@example.org");
+  assert.deepEqual([redirected.to, redirected.subject], ["peter@example.org", "[TEST for parent@example.com] Puckle: approval needed for Niamh"]);
+  assert.match(redirected.text, /^TEST REDIRECT: this email was intended for parent@example\.com\.\n\n/); assert.ok(redirected.text.endsWith(message.text));
+  assert.throws(() => redirectedMessage(message, "a@b.com, c@d.com"), /INVALID/);
+  process.env.ACCOUNT_EMAIL_REDIRECT_TO = "peter@example.org";
+  await siteEmailSender("puckle")(message);
+  const sent = JSON.parse(String(calls[0].init.body)); assert.deepEqual(sent.to, ["peter@example.org"]); assert.match(sent.subject, /^\[TEST for parent@example\.com\]/);
+  assert.equal(sent.headers["X-Intended-Recipient"], "parent@example.com"); assert.ok(!JSON.stringify(sent).includes('"to":["parent@example.com"]'));
+  assert.equal(emailConfigurationReport({ ...READY, ACCOUNT_EMAIL_REDIRECT_TO: "peter@example.org" }).redirect, "peter@example.org");
+  assert.match(emailConfigurationReport({ ...READY, ACCOUNT_EMAIL_REDIRECT_TO: "nope" }).problems.join(), /REDIRECT_TO/);
+});
 test("the readiness report names what is missing without revealing any value", () => {
-  assert.deepEqual(emailConfigurationReport(READY), { ready: true, sites: [{ site: "puckle", ready: true }, { site: "switchplay", ready: true }, { site: "strat17", ready: true }], problems: [] });
+  assert.deepEqual(emailConfigurationReport(READY), { ready: true, redirect: null, sites: [{ site: "puckle", ready: true }, { site: "switchplay", ready: true }, { site: "strat17", ready: true }], problems: [] });
   const report = emailConfigurationReport({ ...READY, RESEND_API_KEY: "sk_live_wrong", ACCOUNT_EMAIL_TRACKING_DISABLED: "0", PUCKLE_FOUNDER_EMAIL: "", ACCOUNT_EMAIL_TEST_ENDPOINT: "http://127.0.0.1:1/email", ACCOUNT_EMAIL_STRAT17_FROM: undefined });
   assert.equal(report.ready, false);
   for (const name of ["RESEND_API_KEY", "ACCOUNT_EMAIL_TRACKING_DISABLED", "PUCKLE_FOUNDER_EMAIL", "ACCOUNT_EMAIL_TEST_ENDPOINT", "ACCOUNT_EMAIL_STRAT17"]) assert.ok(report.problems.some(problem => problem.includes(name)), name);

@@ -5,17 +5,19 @@ import { isSiteId } from "../src/lib/sites/siteResolver";
 
 /**
  * Operator command for real email delivery through Resend. Never prints a secret or an email body.
- *   --check                                              readiness report (variable names only)
+ *   --check [--site <site>]                              readiness report (variable names only), optionally for one site
  *   --send-test --site <puckle|switchplay|strat17> --to <address> --confirm-send
  *                                                        sends ONE plain test message through the real sender
  * It does not connect to any database.
  */
-const USAGE = "usage: email-delivery --check | --send-test --site <puckle|switchplay|strat17> --to <address> --confirm-send";
+const USAGE = "usage: email-delivery --check [--site <site>] | --send-test --site <puckle|switchplay|strat17> --to <address> --confirm-send";
 export async function main(args = process.argv.slice(2), env: Record<string, string | undefined> = process.env) {
   const value = (name: string) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
-  const report = emailConfigurationReport(env);
+  const only = value("--site"), scope = isSiteId(only) ? only : undefined;
+  const report = emailConfigurationReport(env, scope);
   if (args.includes("--check")) {
     console.log(report.ready ? "Email delivery is configured." : `Email delivery is NOT ready:\n  ${report.problems.join("\n  ")}`);
+    if (report.redirect) console.log(`TEST REDIRECT ACTIVE: every email is delivered to ${report.redirect}, labelled "[TEST for <intended address>]". Not for production.`);
     console.log(report.sites.map(row => `${row.site}: ${row.ready ? "sender and origin configured" : "not configured"}`).join("\n"));
     return report.ready ? 0 : 2;
   }
