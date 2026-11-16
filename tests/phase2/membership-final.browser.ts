@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
 import { cardFixture, deckFixture } from "../fixtures/frameworks";
 
@@ -101,8 +102,9 @@ test("browser login/logout and Secure production sessions work on all three site
 
 for (const width of [320, 390]) test(`onboarding preserves private learning DOM, progress and swipe/flip at ${width}px`, async ({ browser }) => {
   const _id = new ObjectId(), actor = _id.toHexString(), now = new Date(), username = `learn-${actor}`;
-  const card = cardFixture(`card-${actor}`), deck = deckFixture(`deck-${actor}`, [card.root.cardTemplateId]);
+  const card = cardFixture(randomUUID()), deck = deckFixture(randomUUID(), [card.root.cardTemplateId]);
   card.root.ownerUserId = deck.root.ownerUserId = actor;
+  card.version.content.steps.forEach((step, index) => { step.description = `Practise step ${index + 1}.`; });
   card.version.publishedByUserId = deck.version.publishedByUserId = actor;
   deck.root.draft!.title = deck.version.content.title = "Final private path";
   await db().collection("users").insertOne({ _id, username, email: `${username}@example.invalid`, passwordHash: await bcrypt.hash("local-test-only", 4),
@@ -132,7 +134,9 @@ for (const width of [320, 390]) test(`onboarding preserves private learning DOM,
     const initialRequests = requests;
     await open.click(); await expect(page.locator(".deck-detail h1")).toHaveText("Final private path");
     await page.locator(".deck-card[role=button]").press("Enter");
+    const saved = page.waitForResponse(r => r.request().method() === "PATCH" && r.request().postDataJSON()?.type === "completion");
     await page.getByRole("button", { name: "Update step progress. Current status: todo", exact: true }).first().click();
+    const response = await saved; expect(await response.text(), "completion save response").toContain("true");
     await expect.poll(async () => (await db().collection("users").findOne({ _id }))!.cardsData[0].items[0].completionStatus).toBe("inProgress");
     const title = page.locator(".focused-card-surface--front .card-title-anchor");
     await expect(title).toBeVisible(); await page.waitForTimeout(400); // allow the existing card focus animation to settle

@@ -139,12 +139,12 @@ test("embedded sign-in and sign-out on the same URL start and end onboarding wit
   await expect(host(slow).locator("section")).toHaveCount(0); await expect(slow.getByLabel("Parent or guardian's email")).toHaveCount(0);
 });
 test("a slow connection still welcomes an idle student after two seconds; early outside interaction collapses it without acknowledging", async ({ browser }) => {
-  const idle = await account(), a = await open(browser, idle.username, "/library");
+  const idle = await account(), a = { page: await (await context(browser, idle.username)).newPage() };
   await a.page.route("**/api/account/onboarding", async route => { if (route.request().method() !== "GET") return route.continue(); await new Promise(r => setTimeout(r, 2500)); await route.continue(); });
-  await a.page.reload(); await expect(welcome(a.page)).toBeVisible({ timeout: 10_000 });
-  const busy = await account(), b = await open(browser, busy.username, "/library");
+  await a.page.goto(`${origin}/library`); await expect(welcome(a.page)).toBeVisible({ timeout: 10_000 });
+  const busy = await account(), b = { page: await (await context(browser, busy.username)).newPage() };
   await b.page.route("**/api/account/onboarding", async route => { if (route.request().method() !== "GET") return route.continue(); await new Promise(r => setTimeout(r, 2500)); await route.continue(); });
-  await b.page.reload(); await b.page.mouse.click(180, 400);
+  await b.page.goto(`${origin}/library`); await expect(host(b.page)).toBeAttached(); await b.page.mouse.click(180, 400);
   await expect(pill(b.page)).toBeVisible({ timeout: 10_000 }); await expect(welcome(b.page)).toHaveCount(0); expect(await seenAt(busy._id)).toBeUndefined();
   await pill(b.page).click(); await expect(welcome(b.page)).toBeVisible(); await expect.poll(() => seenAt(busy._id)).toBeTruthy();
 });

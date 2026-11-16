@@ -46,7 +46,7 @@ const overlay = (page: Page) => page.getByTestId("registration-welcome");
 
 test("registration welcome: fades in, stays readable ~5 s over a covered page, fades out, and only then opens My Decks", async ({ browser }) => {
   const { page, navigations, phases } = await registerStudent(browser);
-  await expect(overlay(page)).toBeVisible(); const shown = Date.now();
+  await expect(overlay(page)).toBeVisible(); await expect.poll(() => phases.length).toBeGreaterThan(0); const shown = phases[0].at;
   await expect(overlay(page).getByRole("heading", { name: "Welcome to Puckle!" })).toBeVisible();
   // Entrance is an animation, and the Join page behind it is covered completely (no header or form peeking through).
   expect(await overlay(page).evaluate(el => getComputedStyle(el).animationName)).toMatch(/welcomeIn$/);
@@ -65,7 +65,7 @@ test("registration welcome: fades in, stays readable ~5 s over a covered page, f
 });
 test("reduced motion: no animation at all, but the message still stays about five seconds", async ({ browser }) => {
   const { page, navigations, phases } = await registerStudent(browser, "reduce");
-  await expect(overlay(page)).toBeVisible(); const shown = Date.now();
+  await expect(overlay(page)).toBeVisible(); await expect.poll(() => phases.length).toBeGreaterThan(0); const shown = phases[0].at;
   expect(await overlay(page).evaluate(el => getComputedStyle(el).animationName)).toBe("none"); expect(await overlay(page).locator("[role=status]").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await page.waitForTimeout(4000); expect(navigations).toEqual([]);
   await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(4700); expect(total).toBeLessThan(7000);
