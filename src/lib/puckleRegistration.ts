@@ -12,7 +12,7 @@ import type { MembershipCategory, PuckleMembership } from "./puckleMemberships";
 import { getCurrentSite } from "./sites/getCurrentSite";
 import { newSelfDeclaredSafeguarding } from "./userSafeguarding";
 import { isJoinOpen } from "@/app/sites/puckle/lib/joinAvailability";
-import { founderTeacherRegistrationEmail } from "@/app/sites/puckle/lib/memberEmailTemplates";
+import { founderStudentRegistrationEmail, founderTeacherRegistrationEmail } from "@/app/sites/puckle/lib/memberEmailTemplates";
 import { validateRegistrationDetails, type RegistrationDetails } from "@/app/sites/puckle/lib/membershipRegistration";
 
 /** Explicit Puckle orchestration: shared account helpers + Puckle profile, in one transaction. */
@@ -49,7 +49,7 @@ export async function registerPuckleMember(
     ...(details.education ? { education: details.education } : {}),
     ...(details.teacherIntroduction ? { teacherIntroduction: details.teacherIntroduction } : {}),
     initialRegistrationSource: "join", welcome: { eligible: isStudent }, createdAt: now, updatedAt: now,
-    ...(isStudent ? {} : { founderNotification: { status: "pending" as const } }),
+    founderNotification: { status: "pending" as const }, // every registration alerts the founder; neither needs approval
   };
   const account = isStudent && details.dateOfBirth
     ? { ...prepared, document: { ...prepared.document, safeguarding: newSelfDeclaredSafeguarding(details.dateOfBirth, now) } }
@@ -71,8 +71,9 @@ export async function registerPuckleMember(
   }
   return {
     kind: "created", userId: prepared.document._id, membershipId, category: details.registrationCategory, sessionToken: prepared.sessionToken,
-    ...(isStudent ? {} : { notify: () => notifyFounder(db, { collection: "puckleMemberships", id: membershipId }, founderTeacherRegistrationEmail({
-      id: membershipId.toHexString(), name: details.name, email: details.email!, mobile: details.mobile, introduction: details.teacherIntroduction ?? "" })) }),
+    notify: () => notifyFounder(db, { collection: "puckleMemberships", id: membershipId }, isStudent
+      ? founderStudentRegistrationEmail({ id: membershipId.toHexString(), name: details.name, username: prepared.document.username, email: details.email!, mobile: details.mobile, education: details.education, registeredAt: now })
+      : founderTeacherRegistrationEmail({ id: membershipId.toHexString(), name: details.name, email: details.email!, mobile: details.mobile, introduction: details.teacherIntroduction ?? "" })),
   };
 }
 

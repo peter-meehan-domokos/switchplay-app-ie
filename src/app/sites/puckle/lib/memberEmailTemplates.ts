@@ -17,6 +17,14 @@ export function founderTeacherRegistrationEmail(input: { id: string; name: strin
     `A teacher has created a Puckle account (ordinary access; no publishing permission).\n\n${line("Name", input.name)}${line("Email", input.email)}${line("Mobile", input.mobile)}`
     + `${input.introduction ? `\nIntroduction:\n${input.introduction}\n` : "\nNo introduction given.\n"}\nRecord: puckleMemberships _id ${input.id}\nPlease follow up personally.` };
 }
+/** Informational only: students join without approval. No password, hash or date of birth. */
+export function founderStudentRegistrationEmail(input: { id: string; name: string; username: string; email: string; mobile: string | null; education?: Education; registeredAt: Date }): Message {
+  const course = input.education ? input.education.course === "other" ? `Other (${input.education.courseOther})` : COURSES[input.education.course] : null;
+  const level = !input.education ? null : input.education.level === null ? "Not applicable (A-level)" : input.education.level === "other" ? `Other (${input.education.levelOther})` : input.education.level;
+  return { subject: "Puckle: New student registration", text:
+    `A new student has joined Puckle. No approval is needed.\n\n${line("Name", input.name)}${line("Username", input.username)}${line("Email", input.email)}${line("Mobile", input.mobile)}`
+    + `${line("Course", course)}${line("Level", level)}${line("Registered", `${input.registeredAt.toISOString().slice(0, 16).replace("T", " ")} UTC`)}\nRecord: puckleMemberships _id ${input.id}` };
+}
 export function founderNoEmailRequestEmail(input: { id: string; category: MembershipCategory; name: string; mobile: string; education?: Education; introduction?: string }): Message {
   return { subject: `Puckle: no-email ${input.category} contact request`, text:
     `Someone without an email address asked Puckle to contact them. No account was created.\n\n${line("Category", input.category)}${line("Name", input.name)}${line("Mobile", input.mobile)}`
