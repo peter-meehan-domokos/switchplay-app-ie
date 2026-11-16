@@ -6,7 +6,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { MongoClient, ObjectId, type Db } from "mongodb";
 import { preparePuckleMembership } from "../scripts/prepare-puckle-membership";
 import {
-  approvalSummary, decideParentalApproval, parentLinkDetails, renewParentLink, requestParentalApproval, revokeParentalApprovalAsOperator, withdrawParentalApproval,
+  approvalSummary, decideParentalApproval, parentLinkDetails, renewParentLink, requestParentalApproval, revokeParentalApprovalAsOperator,
 } from "../src/lib/parentalApproval";
 import { completePasswordReset, requestPasswordReset } from "../src/lib/passwordRecovery";
 import { getSafeguardingFacts } from "../src/lib/userSafeguarding";
@@ -105,7 +105,7 @@ test("reading the link changes nothing; approval needs the declaration and recor
   assert.deepEqual(await approval(kid._id), before);
   await assert.rejects(decide(token, "approve", false), /DECLARATION_REQUIRED/); await assert.rejects(decide(token, "maybe"), /INVALID_DECISION/);
   assert.equal((await approval(kid._id)).status, "pending");
-  assert.deepEqual(await decide(token, "approve"), { status: "approved", managementEmail: "sent" });
+  const decision = await decide(token, "approve"); assert.equal(decision.status, "approved"); assert.equal(typeof decision.notify, "function");
   const record = await approval(kid._id);
   assert.deepEqual([record.status, record.guardianDeclaration.textVersion, record.decidedAt.toISOString()], ["approved", "guardian-declaration-v1", at(DAY).toISOString()]);
   assert.deepEqual(record.history.at(-1).actor.kind, "guardian"); assert.equal(record.history.at(-1).guardianEmail, email);
@@ -133,10 +133,10 @@ test("wrong-purpose and forged tokens cannot act", async () => {
   await requestPasswordReset(db, kid.email, "req-reset", mail, T0); const resetToken = lastToken(kid.email);
   await assert.rejects(decide(resetToken, "approve"), /INVALID_EMAIL_PROOF/);
   await assert.rejects(completePasswordReset(db, client, requestToken, "a brand new password", () => T0), /INVALID_EMAIL_PROOF/);
-  await assert.rejects(withdrawParentalApproval(db, client, { token: requestToken, confirm: true }, () => T0), /LINK_NOT_USABLE/);
   for (const forged of ["x".repeat(43), "short", undefined, 42]) await assert.rejects(decide(forged as string, "approve"), /INVALID_EMAIL_PROOF/);
-  await decide(requestToken, "approve"); const management = lastToken(email);
-  await assert.rejects(decide(management, "approve"), /LINK_NOT_USABLE/, "a management link cannot approve");
+  const sentBefore = messages.length; await decide(requestToken, "approve");
+  assert.equal(messages.length, sentBefore, "approving sends the parent no further email: there is no withdrawal link");
+  assert.equal(await db.collection("accountEmailActions").countDocuments({ userId: kid._id, purpose: "parent-management" }), 0);
   assert.equal((await approval(kid._id)).status, "approved");
 });
 test("expired links cannot decide; they renew only to the recorded guardian, and only within the retention window", async () => {
@@ -160,38 +160,40 @@ test("replacing the guardian while pending invalidates the first guardian's link
   await assert.rejects(decide(firstToken, "approve"), /LINK_NOT_USABLE/); await decide(secondToken, "approve");
   assert.equal((await approval(kid._id)).guardianEmail, second);
 });
-test("approved: no silent guardian change; withdrawal needs confirmation, keeps evidence and learning; re-request starts a new generation", async () => {
+test("approved: no silent guardian change; an operator revocation keeps evidence and learning, and a re-request starts a new generation", async () => {
   const kid = await child(), email = guardian(); await request(kid._id, email); await decide(lastToken(email), "approve");
   await assert.rejects(request(kid._id, guardian(), at(2 * DAY)), /APPROVAL_ALREADY_GRANTED/);
-  const management = lastToken(email);
-  assert.equal((await parentLinkDetails(db, management, at(DAY))).purpose, "parent-management");
-  await assert.rejects(withdrawParentalApproval(db, client, { token: management, confirm: false }, () => at(2 * DAY)), /DECLARATION_REQUIRED/);
-  await withdrawParentalApproval(db, client, { token: management, confirm: true }, () => at(2 * DAY));
-  const record = await approval(kid._id); assert.deepEqual([record.status, record.withdrawnAt.toISOString()], ["withdrawn", at(2 * DAY).toISOString()]);
-  assert.deepEqual(record.history.map((e: { kind: string }) => e.kind), ["requested", "approved", "withdrawn"]);
+  await assert.rejects(revokeParentalApprovalAsOperator(db, client, kid._id, { actor: "", reason: "x" }), /REVIEW_DETAILS_REQUIRED/);
+  await revokeParentalApprovalAsOperator(db, client, kid._id, { actor: "founder", reason: "Reviewed: guardian details disputed" }, at(2 * DAY));
+  const record = await approval(kid._id), last = record.history.at(-1);
+  assert.deepEqual([record.status, record.withdrawnAt.toISOString(), last.kind, last.actor, last.reason], ["withdrawn", at(2 * DAY).toISOString(), "revoked", { kind: "operator", reference: "founder" }, "Reviewed: guardian details disputed"]);
+  assert.deepEqual(record.history.map((e: { kind: string }) => e.kind), ["requested", "approved", "revoked"]);
   await untouched(kid);
-  await assert.rejects(withdrawParentalApproval(db, client, { token: management, confirm: true }, () => at(2 * DAY)), /LINK_NOT_USABLE/);
   await request(kid._id, email, at(3 * DAY)); const again = await approval(kid._id);
   assert.deepEqual([again.status, again.generation, again.withdrawnAt, again.guardianDeclaration], ["pending", 2, undefined, undefined]);
   assert.equal(again.history.find((e: { kind: string }) => e.kind === "approved").declarationVersion, "guardian-declaration-v1", "past declaration kept in history");
 });
-test("decline allows an explicit re-request; expired management links renew to the recorded guardian", async () => {
-  const kid = await child(), email = guardian(); await request(kid._id, email); await decide(lastToken(email), "decline");
+test("decline allows an explicit re-request, and a decision link cannot be used again", async () => {
+  const kid = await child(), email = guardian(); await request(kid._id, email); const declineToken = lastToken(email); await decide(declineToken, "decline");
   assert.equal((await approvalSummary(db, kid._id)).canRequest, true);
-  await request(kid._id, email, at(2 * DAY)); await decide(lastToken(email), "approve", true, at(3 * DAY)); const management = lastToken(email);
-  const later = at(11 * DAY); assert.equal((await parentLinkDetails(db, management, later)).state, "expired");
-  await renewParentLink(db, { token: management, requester: "x" }, mail, later); const renewed = lastToken(email);
-  assert.equal((await parentLinkDetails(db, renewed, later)).purpose, "parent-management");
-  await withdrawParentalApproval(db, client, { token: renewed, confirm: true }, () => later); assert.equal((await approval(kid._id)).status, "withdrawn");
+  await assert.rejects(decide(declineToken, "approve"), /LINK_NOT_USABLE/);
+  await request(kid._id, email, at(2 * DAY)); await decide(lastToken(email), "approve", true, at(3 * DAY));
+  assert.equal((await approval(kid._id)).status, "approved");
 });
-test("operator revocation is recorded as withdrawn with a distinct actor and reason and disables the guardian's link", async () => {
-  const kid = await child(), email = guardian(); await request(kid._id, email); await decide(lastToken(email), "approve"); const management = lastToken(email);
-  await assert.rejects(revokeParentalApprovalAsOperator(db, client, kid._id, { actor: "", reason: "x" }), /REVIEW_DETAILS_REQUIRED/);
-  await revokeParentalApprovalAsOperator(db, client, kid._id, { actor: "founder", reason: "Reviewed: guardian details disputed" }, at(2 * DAY));
-  const last = (await approval(kid._id)).history.at(-1);
-  assert.deepEqual([(await approval(kid._id)).status, last.kind, last.actor, last.reason], ["withdrawn", "revoked", { kind: "operator", reference: "founder" }, "Reviewed: guardian details disputed"]);
-  assert.equal((await parentLinkDetails(db, management, at(2 * DAY))).state, "decided");
-  await untouched(kid);
+test("founder alerts for decisions: [FYI] approved / declined, after the response, with the parent's contact details and no link or date of birth", async () => {
+  for (const [decision, subject, outcome] of [["approve", /^\[FYI\] ✅ PARENT APPROVED: Kid\d+$/, "approved"], ["decline", /^\[FYI\] ❌ PARENT DECLINED: Kid\d+$/, "declined"]] as const) {
+    const kid = await child(), email = guardian();
+    await requestParentalApproval(db, { userId: kid._id, guardianEmail: email, guardianPhone: "087 123 9999", sourceSite: "puckle", requester: `d-${kid._id}` }, mail, T0);
+    const token = lastToken(email), sent = founderMail.length;
+    const result = await decide(token, decision); assert.equal(result.status, outcome); assert.equal(founderMail.length, sent, "not sent during the decision");
+    assert.deepEqual((await approval(kid._id)).decisionFounderNotification, undefined, "recorded only once sent");
+    await result.notify(); const alert = founderMail.at(-1)!;
+    assert.deepEqual(alert.to, ["founder@example.invalid"]); assert.match(alert.subject, subject);
+    assert.ok(alert.text.includes(`Decided by (email): ${email}`)); assert.ok(alert.text.includes("+353871239999")); assert.ok(alert.text.includes(" UTC"));
+    assert.ok(!alert.text.includes(token) && !/2012|date of birth|open#/i.test(alert.text), "no link, token or date of birth");
+    assert.equal((await approval(kid._id)).decisionFounderNotification.status, "sent");
+    assert.equal((await db.collection("users").findOne({ _id: kid._id }))!.decisionFounderNotification, undefined, "kept beside the approval record, not on the account");
+  }
 });
 test("one approval is the same shared fact on every website; a different source site needs no second approval", async () => {
   const kid = await child(), email = guardian(); await request(kid._id, email, T0, "strat17"); await decide(lastToken(email), "approve");

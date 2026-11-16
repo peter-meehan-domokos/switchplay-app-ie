@@ -55,7 +55,7 @@ test("a signed-in under-16 requests approval; forged fields and other origins ar
   expect((await ask(adultContext, { action: "request", guardianEmail: `${unique("p")}@example.invalid` })).status()).toBe(409);
   expect(await db.collection("users").countDocuments({ email: guardian })).toBe(0);
 });
-test("parent approves on a phone: explanation, explicit declaration, no sign-in, no token leaks; then withdraws with the separate link", async ({ browser }) => {
+test("parent approves on a phone: explanation, explicit declaration, no sign-in, no token leaks; no follow-up email; the founder is told", async ({ browser }) => {
   const kid = await child(), guardian = `${unique("parent")}@example.invalid`, kidContext = await signedIn(browser, kid.username);
   await ask(kidContext, { action: "request", guardianEmail: guardian });
   const token = await tokenFor(guardian, /approval needed/);
@@ -69,21 +69,20 @@ test("parent approves on a phone: explanation, explicit declaration, no sign-in,
   await page.getByRole("button", { name: "Approve" }).click(); await expect(page.getByRole("status")).toContainText("tick the box");
   expect((await approvalOf(kid._id)).status).toBe("pending");
   await declaration.check(); await page.getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByRole("status")).toContainText("Your approval has been recorded"); await expect(page.getByRole("button", { name: "Approve" })).toBeHidden();
+  await expect(page.getByRole("status")).toContainText("Your approval has been recorded. You do not need to do anything else"); await expect(page.getByRole("button", { name: "Approve" })).toBeHidden();
   const record = await approvalOf(kid._id); expect(record).toMatchObject({ status: "approved", guardianDeclaration: { textVersion: "guardian-declaration-v1" } });
   expect((await db.collection("users").findOne({ _id: kid._id }))!.cardsData).toEqual([{ keep: true }]);
   expect(requests.every(url => url.startsWith(origin) && !url.includes(token))).toBe(true); expect(requests.join("\n")).not.toMatch(/analytics|vercel/);
   expect((await page.context().request.get(`${origin}/api/auth/me`)).status()).toBe(401); // The parent is not signed in as anyone.
   expect((await kidContext.request.get(`${origin}/api/auth/me`)).status()).toBe(200); // The child's own session is unaffected.
   await page.reload(); await expect(page.getByRole("status")).toContainText("Reopen the link");
-  const management = await tokenFor(guardian, /you approved/);
-  const manage = (await parentPage(browser, management)).page;
-  await expect(manage.getByRole("heading", { name: "Manage your approval" })).toBeVisible(); await noOverflow(manage);
-  await manage.getByRole("button", { name: "Withdraw approval" }).click(); await expect(manage.getByRole("status")).toContainText("tick the box");
-  await manage.getByRole("checkbox", { name: "I want to withdraw my approval." }).check(); await manage.getByRole("button", { name: "Withdraw approval" }).click();
-  await expect(manage.getByRole("status")).toContainText("withdrawn");
-  expect((await approvalOf(kid._id)).status).toBe("withdrawn");
-  expect(await (await kidContext.request.get(`${origin}/api/account/parental-approval`)).json()).toMatchObject({ status: "withdrawn", canRequest: true });
+  // No second email to the parent, and no withdrawal link of any kind.
+  await page.waitForTimeout(1500); expect((await outbox()).filter(m => m.to.includes(guardian)).length).toBe(1);
+  expect(await db.collection("accountEmailActions").countDocuments({ userId: kid._id, purpose: { $ne: "parent-request" } })).toBe(0);
+  // The founder is told, after the response.
+  await expect.poll(async () => (await outbox()).some(m => m.to.includes("founder@example.invalid") && /^\[FYI\] ✅ PARENT APPROVED: Niamh$/.test(m.subject))).toBe(true);
+  await expect.poll(async () => (await approvalOf(kid._id)).decisionFounderNotification?.status).toBe("sent");
+  expect(await (await kidContext.request.get(`${origin}/api/account/parental-approval`)).json()).toMatchObject({ status: "approved", canRequest: false });
 });
 test("a used link and a second tab cannot change a decision; decline is recorded", async ({ browser }) => {
   const kid = await child(), guardian = `${unique("parent")}@example.invalid`, kidContext = await signedIn(browser, kid.username);
@@ -91,6 +90,7 @@ test("a used link and a second tab cannot change a decision; decline is recorded
   const first = (await parentPage(browser, token)).page, second = (await parentPage(browser, token)).page;
   await expect(second.getByRole("button", { name: "Approve" })).toBeVisible();
   await first.getByRole("checkbox").check(); await first.getByRole("button", { name: "Decline" }).click(); await expect(first.getByRole("status")).toContainText("decision to decline has been recorded");
+  await expect.poll(async () => (await outbox()).some(m => m.to.includes("founder@example.invalid") && /^\[FYI\] ❌ PARENT DECLINED: Niamh$/.test(m.subject))).toBe(true);
   await second.getByRole("checkbox").check(); await second.getByRole("button", { name: "Approve" }).click(); await expect(second.getByRole("status")).toContainText("can no longer be used");
   expect((await approvalOf(kid._id)).status).toBe("declined");
   const reopened = (await parentPage(browser, token)).page; await expect(reopened.getByRole("status")).toContainText("already been used"); await expect(reopened.getByRole("button", { name: "Approve" })).toHaveCount(0);

@@ -61,3 +61,10 @@ export function founderParentContactRequestEmail(input: { id: string; childName:
     `A student under 16 gave only a mobile number for a parent or guardian, so no approval email could be sent. Group Experience approval is NOT recorded. Please contact the parent personally.\n\n`
     + `${line("Student", input.childName)}${line("Username", input.username)}${line("Parent/guardian mobile (not verified)", input.guardianPhone)}\nRecord: puckleJoinContactRequests _id ${input.id}\nThe student can keep learning privately meanwhile.` };
 }
+/** Informational: the parent decided by email. Nothing is needed from you. */
+export function founderParentDecisionEmail(input: { id: string; childName: string; username: string; decision: "approved" | "declined"; guardianEmail: string; guardianPhone: string | null; decidedAt: Date }): Message {
+  const approved = input.decision === "approved";
+  return { subject: subject("FYI", approved ? "✅" : "❌", approved ? "PARENT APPROVED" : "PARENT DECLINED", input.childName), text:
+    `${approved ? "A parent or guardian approved Group Experiences for a student. It is recorded." : "A parent or guardian declined Group Experiences for a student. It is recorded; the student can keep learning privately and may ask again."} Nothing is needed from you.\n\n`
+    + `${line("Student", input.childName)}${line("Username", input.username)}${line("Decided by (email)", input.guardianEmail)}${line("Parent/guardian mobile (not verified)", input.guardianPhone)}${line("Decided", `${input.decidedAt.toISOString().slice(0, 16).replace("T", " ")} UTC`)}\nAccount _id ${input.id}` };
+}
