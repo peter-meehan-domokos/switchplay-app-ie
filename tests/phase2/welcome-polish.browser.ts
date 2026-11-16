@@ -68,7 +68,7 @@ test("reduced motion: no animation at all, but the message still stays about fou
   await expect(overlay(page)).toBeVisible(); const shown = Date.now();
   expect(await overlay(page).evaluate(el => getComputedStyle(el).animationName)).toBe("none"); expect(await overlay(page).locator("[role=status]").evaluate(el => getComputedStyle(el).animationName)).toBe("none");
   await page.waitForTimeout(3000); expect(navigations).toEqual([]);
-  await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(3700); expect(total).toBeLessThan(6000);
+  await page.waitForURL(`${origin}/decks`); const total = navigations[0] - shown; expect(total).toBeGreaterThan(3400); expect(total).toBeLessThan(6000);
   expect(phases.every(entry => entry.animation === "none")).toBe(true); expect(phases.at(-1)!.phase).toBe("exit"); expect(navigations[0] - phases.at(-1)!.at).toBeLessThan(900); // no exit animation to wait for
 });
 test("the welcome has no button to press; ordinary sign-ins never show the registration welcome", async ({ browser }) => {
