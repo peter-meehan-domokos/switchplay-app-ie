@@ -158,7 +158,7 @@ test("teacher: blank introduction is fine, ordinary rights only, confirmation an
   const membership = (await db.collection("puckleMemberships").findOne({ userId: user._id }))!; expect(membership).toMatchObject({ registrationCategory: "teacher", welcome: { eligible: false } });
   expect(membership.teacherIntroduction).toBeUndefined();
   await waitFor(async () => (await db.collection("puckleMemberships").findOne({ _id: membership._id }))?.founderNotification?.status === "sent");
-  expect((await mailTo("founder@example.invalid", new RegExp(email))).subject).toBe("Puckle: new teacher registration");
+  expect((await mailTo("founder@example.invalid", new RegExp(email))).subject).toMatch(/^\[ACTION\] 🍎 NEW TEACHER: /);
   await page.getByRole("link", { name: "Open Puckle" }).click(); await page.waitForURL(`${origin}/decks`);
 });
 test("no-email student and teacher: credentials are cleared and hidden, mobile is required, a contact request is saved and no account exists", async ({ browser }) => {
@@ -180,7 +180,7 @@ test("no-email student and teacher: credentials are cleared and hidden, mobile i
   expect(await db.collection("users").countDocuments()).toBe(before); expect(await db.collection("users").findOne({ username: "typed_name" })).toBeNull();
   expect((await page.request.get("/api/auth/me")).status()).toBe(401);
   await waitFor(async () => (await db.collection("puckleJoinContactRequests").findOne({ _id: saved._id }))?.founderNotification?.status === "sent");
-  expect((await mailTo("founder@example.invalid", new RegExp(name))).subject).toBe("Puckle: no-email student contact request");
+  expect((await mailTo("founder@example.invalid", new RegExp(name))).subject).toMatch(/^\[ACTION\] 📱 CALL BACK \(no email, student\): /);
   const teacher = await open(browser); const teacherName = unique("Nomailteach"); await choose(teacher, "I'm a teacher");
   await teacher.getByLabel("Your name").fill(teacherName); await teacher.getByRole("button", { name: "Don't have an email address?" }).click(); await teacher.locator("#join-phone").fill("871234568"); await submit(teacher).click();
   await expect(teacher.getByRole("heading", { name: "Thanks, we have your details." })).toBeVisible();

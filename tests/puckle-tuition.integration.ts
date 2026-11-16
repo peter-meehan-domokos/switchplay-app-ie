@@ -106,7 +106,7 @@ test("founder alert: sent outcome, readable content, no account claim; failure a
   assert.equal(captured.some(m => m.text.includes("Mary Murphy")), false, "nothing is sent while saving");
   await saved.notify();
   assert.equal((await db.collection("puckleTuitionEnquiries").findOne({ _id: saved.id }))!.founderNotification.status, "sent");
-  const mail = captured.at(-1)!; assert.equal(mail.subject, "Puckle: new tuition enquiry"); assert.match(mail.text, /Mary Murphy/); assert.match(mail.text, /Nothing is booked/); assert.match(mail.text, new RegExp(saved.id.toHexString()));
+  const mail = captured.at(-1)!; assert.match(mail.subject, /^\[ACTION\] 📩 TUITION ENQUIRY: /); assert.match(mail.text, /Mary Murphy/); assert.match(mail.text, /Nothing is booked/); assert.match(mail.text, new RegExp(saved.id.toHexString()));
   const second = await saveTuitionEnquiry(db, guardian, null, NOW); assert.equal(second.ok, true); if (!second.ok) return;
   const configured = process.env.PUCKLE_FOUNDER_EMAIL; delete process.env.PUCKLE_FOUNDER_EMAIL;
   try { await second.notify(); } finally { process.env.PUCKLE_FOUNDER_EMAIL = configured; }

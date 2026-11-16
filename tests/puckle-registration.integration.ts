@@ -73,10 +73,10 @@ test("verified student registration creates one ordinary account, one profile an
   const session = await readSessionToken(outcome.sessionToken);
   assert.deepEqual([session?.userId, session?.sessionVersion, session?.email, session?.username], [outcome.userId.toHexString(), 0, email, request.username]);
   // Informational only: the founder is told about every new student, but nothing waits on approval.
-  assert.equal(typeof outcome.notify, "function"); assert.equal(captured.some(m => m.subject === "Puckle: New student registration" && m.text.includes(String(request.username))), false, "sent after the response, not during registration");
+  assert.equal(typeof outcome.notify, "function"); assert.equal(captured.some(m => m.subject.startsWith("[FYI] 🎓 NEW STUDENT:") && m.text.includes(String(request.username))), false, "sent after the response, not during registration");
   await outcome.notify!();
   assert.equal((await db.collection("puckleMemberships").findOne({ _id: outcome.membershipId }))!.founderNotification.status, "sent");
-  const alert = captured.at(-1)!; assert.equal(alert.subject, "Puckle: New student registration"); assert.deepEqual(alert.to, ["founder@example.invalid"]);
+  const alert = captured.at(-1)!; assert.equal(alert.subject, "[FYI] 🎓 NEW STUDENT: Ada"); assert.deepEqual(alert.to, ["founder@example.invalid"]);
   for (const expected of ["Name: Ada", `Username: ${request.username}`, `Email: ${email}`, "Course: GCSE maths", "Level: higher-tier", "Registered: 20", " UTC", "No approval is needed"]) assert.ok(alert.text.includes(expected), expected);
   assert.ok(!alert.text.match(/passphrase|passwordHash|2010|dateOfBirth|Date of birth|Mobile:/), "no password, hash or date of birth; no mobile line when none was given");
 });

@@ -47,7 +47,7 @@ test("visitors keep the original three-way choice and submit without an account;
   const saved = (await rows().findOne({ contactName: parent }))!; expect(saved).toMatchObject({ enquirerType: "parent-guardian", studentName: "Jamie", contactRelationship: "parent-guardian" }); expect(saved.userId).toBeUndefined();
   expect(await db.collection("users").countDocuments()).toBe(users); expect(await db.collection("puckleMemberships").countDocuments()).toBe(memberships);
   await waitFor(async () => (await rows().findOne({ _id: saved._id }))?.founderNotification?.status === "sent");
-  const mail = (await outbox()).filter(m => m.to.includes("founder@example.invalid") && m.text.includes(parent)).at(-1)!; expect(mail.subject).toBe("Puckle: new tuition enquiry");
+  const mail = (await outbox()).filter(m => m.to.includes("founder@example.invalid") && m.text.includes(parent)).at(-1)!; expect(mail.subject).toMatch(/^\[ACTION\] 📩 TUITION ENQUIRY: parent of Jamie, gcse$/);
 });
 test("adult visitor and validation errors keep what was typed", async ({ browser }) => {
   const page = await open(browser); await page.getByRole("radio", { name: "Student aged 18 or over" }).check();

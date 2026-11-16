@@ -39,6 +39,9 @@ export type GroupExperienceApproval = {
   explanation: ApprovalExplanation;
   sourceSite?: (typeof GROUP_EXPERIENCE_SCOPE.sites)[number];
   guardianEmail?: string;
+  /** Optional, unverified, for personal follow-up only. */
+  guardianPhone?: string;
+  founderNotification?: { status: "pending" | "sent" | "failed" | "unknown"; attemptedAt?: Date; reference?: string };
   guardianDeclaration?: { textVersion: string; declaredAt: Date; emailConfirmedAt: Date };
   requestedAt?: Date; decidedAt?: Date; withdrawnAt?: Date;
   delivery?: { status: "pending" | "sent" | "failed" | "unknown"; attemptedAt?: Date; reference?: string };

@@ -10,14 +10,14 @@ export type OnboardingStatus = Readonly<{
 export type OnboardingUi = Readonly<{
   outsideInteraction: boolean; blocked: boolean; confirming: boolean; unavailable: boolean;
   welcomePresented: boolean; welcomeDismissed: boolean; reminderDismissed: boolean; openedByRequest: boolean;
-  draft: string; sending: boolean; message: Readonly<{ text: string; tone: "info" | "error" }> | null;
+  draft: string; phoneDraft: string; sending: boolean; message: Readonly<{ text: string; tone: "info" | "error" }> | null;
 }>;
 export const initialOnboardingUi: OnboardingUi = {
   outsideInteraction: false, blocked: false, confirming: false, unavailable: false, welcomePresented: false, welcomeDismissed: false,
-  reminderDismissed: false, openedByRequest: false, draft: "", sending: false, message: null,
+  reminderDismissed: false, openedByRequest: false, draft: "", phoneDraft: "", sending: false, message: null,
 };
 export type GuardianLayout = Readonly<{
-  intro: string; statusLine: string | null; deliveryNote: string | null; buttonLabel: string; emailLabel: string;
+  intro: string; statusLine: string | null; deliveryNote: string | null; buttonLabel: string; emailLabel: string; phoneLabel: string; phoneHint: string;
 }>;
 export type OnboardingLayout =
   | Readonly<{ kind: "none" }>
@@ -30,12 +30,13 @@ export function guardianLayoutFor(status: OnboardingStatus, welcome: boolean): G
   const approval = status.approval;
   if (!approval || approval.eligibility !== "eligible" || !approval.canRequest || !FORM_STATES.includes(approval.status)) return null;
   const delivery = approval.status === "pending" && approval.delivery && approval.delivery !== "sent" ? "We couldn't confirm the email was sent. You can send it again." : null;
-  const emailLabel = "Parent or guardian's email";
+  const emailLabel = "Parent or guardian's email", phoneLabel = "Parent or guardian's mobile (optional)";
+  const phoneHint = "Include the country code, for example +353 87 123 4567. If they don't use email, enter just a mobile number and we'll contact them ourselves; approval isn't recorded until we have.";
   switch (approval.status) {
-    case "pending": return { intro: "We've asked your parent or guardian to approve group features. You can keep learning meanwhile.", statusLine: approval.guardianEmail ? `Sent to ${approval.guardianEmail}.` : null, deliveryNote: delivery, buttonLabel: "Send it again", emailLabel };
-    case "declined": return { intro: "Your parent or guardian declined group features. You can still learn privately. You can ask again if things change.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel };
-    case "withdrawn": return { intro: "Your parent or guardian withdrew their approval for group features. You can still learn privately. You can ask again.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel };
-    default: return { intro: welcome ? "You're under 16, so group features need a parent or guardian's approval. This is optional and you can learn privately right now. To ask now, enter their email and we'll send them a request." : "Group features need a parent or guardian's approval. Want to ask now? You can keep learning privately either way.", statusLine: null, deliveryNote: null, buttonLabel: "Send approval request", emailLabel };
+    case "pending": return { intro: "We've asked your parent or guardian to approve group features. You can keep learning meanwhile.", statusLine: approval.guardianEmail ? `Sent to ${approval.guardianEmail}.` : null, deliveryNote: delivery, buttonLabel: "Send it again", emailLabel, phoneLabel, phoneHint };
+    case "declined": return { intro: "Your parent or guardian declined group features. You can still learn privately. You can ask again if things change.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
+    case "withdrawn": return { intro: "Your parent or guardian withdrew their approval for group features. You can still learn privately. You can ask again.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
+    default: return { intro: welcome ? "You're under 16, so group features need a parent or guardian's approval. This is optional and you can learn privately right now. To ask now, enter their email and we'll send them a request." : "Group features need a parent or guardian's approval. Want to ask now? You can keep learning privately either way.", statusLine: null, deliveryNote: null, buttonLabel: "Send approval request", emailLabel, phoneLabel, phoneHint };
   }
 }
 

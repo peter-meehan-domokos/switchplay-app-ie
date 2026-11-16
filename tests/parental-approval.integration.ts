@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { createServer, type Server } from "node:http";
+import { once } from "node:events";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { MongoClient, ObjectId, type Db } from "mongodb";
 import { preparePuckleMembership } from "../scripts/prepare-puckle-membership";
@@ -11,7 +13,8 @@ import { getSafeguardingFacts } from "../src/lib/userSafeguarding";
 import { GROUP_EXPERIENCE_EXPLANATION } from "../src/lib/parentalApprovalScope";
 import type { EmailMessage, Delivery } from "../src/lib/siteEmail";
 
-let server: MongoMemoryReplSet, client: MongoClient, db: Db;
+let server: MongoMemoryReplSet, client: MongoClient, db: Db, fixture: Server;
+const founderMail: { to: string[]; subject: string; text: string }[] = [];
 const messages: EmailMessage[] = [];
 let deliver: () => Delivery["status"] = () => "sent";
 const mail = { name: "Puckle", origin: "https://puckle.invalid", send: async (message: EmailMessage) => { messages.push(message); return { status: deliver(), attemptedAt: new Date(), reference: "fixture" } as Delivery; } };
@@ -21,9 +24,13 @@ before(async () => {
   server = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
   Object.assign(process.env, { MONGODB_URI: server.getUri(), MONGODB_DB: "switchplay_test_parental_approval", SWITCHPLAY_DATABASE_MODE: "disposable",
     SESSION_SECRET: "test-session-secret", ACCOUNT_EMAIL_SECRET: "test-email-key-with-at-least-32-bytes" });
+  // Founder alerts use the real sender, pointed at a local fixture endpoint (disposable database only).
+  Object.assign(process.env, { PUCKLE_FOUNDER_EMAIL: "founder@example.invalid", ACCOUNT_EMAIL_PUCKLE_ORIGIN: "http://127.0.0.1:3999", ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle fixture <x@example.invalid>" });
+  fixture = createServer((req, res) => { let body = ""; req.on("data", c => { body += c; }); req.on("end", () => { founderMail.push(JSON.parse(body)); res.end("{}"); }); });
+  fixture.listen(0, "127.0.0.1"); await once(fixture, "listening"); process.env.ACCOUNT_EMAIL_TEST_ENDPOINT = `http://127.0.0.1:${(fixture.address() as { port: number }).port}`;
   client = await new MongoClient(server.getUri()).connect(); db = client.db(process.env.MONGODB_DB); await preparePuckleMembership(db);
 });
-after(async () => { await client?.close(); await server?.stop(); });
+after(async () => { await client?.close(); await server?.stop(); fixture?.close(); });
 
 async function child(dateOfBirth: string | null = "2012-05-01", profile = true) {
   const _id = new ObjectId(), seq = ++n;
@@ -57,7 +64,8 @@ test("eligibility: unknown DOB and 16+ cannot request; under-16 can; requesting 
 });
 test("a request records the common scope, draft explanation, provenance and history; sends a 7-day link; changes nothing else", async () => {
   const kid = await child(), email = guardian(), result = await request(kid._id, email, T0, "switchplay");
-  assert.deepEqual(result, { status: "pending", resent: false, delivery: "sent" });
+  const { notify, ...visibleResult } = result as typeof result & { notify?: unknown }; assert.equal(typeof notify, "function");
+  assert.deepEqual(visibleResult, { status: "pending", resent: false, delivery: "sent" });
   const record = await approval(kid._id);
   assert.deepEqual([record.scopeId, record.status, record.generation, record.sourceSite, record.guardianEmail, record.explanation.version, record.delivery.status],
     ["shared-group-experiences", "pending", 1, "switchplay", email, GROUP_EXPERIENCE_EXPLANATION.version, "sent"]);
@@ -74,7 +82,7 @@ test("own email, malformed email and rapid resends are refused; a later resend r
   await assert.rejects(request(kid._id, kid.email), /GUARDIAN_EMAIL_IS_ACCOUNT/); await assert.rejects(request(kid._id, "not-an-email"), /INVALID_EMAIL/);
   await request(kid._id, email); const first = lastToken(email);
   await assert.rejects(request(kid._id, email, at(5_000)), /RATE_LIMITED/, "about one-minute cooldown");
-  const resent = await request(kid._id, email, at(MIN)); assert.equal(resent.resent, true);
+  const resent = await request(kid._id, email, at(MIN)); assert.equal(resent.status === "pending" && resent.resent, true);
   const second = lastToken(email); assert.notEqual(first, second); assert.equal((await approval(kid._id)).generation, 1, "a resend keeps the generation");
   assert.deepEqual(await parentLinkDetails(db, first, at(MIN + 1)), { purpose: "parent-request", state: "replaced", renewable: true });
   await assert.rejects(decide(first, "approve"), /LINK_NOT_USABLE/);
@@ -84,10 +92,10 @@ test("own email, malformed email and rapid resends are refused; a later resend r
 test("failed or uncertain delivery is reported truthfully and leaves a pending request that can be resent", async () => {
   const kid = await child(), email = guardian();
   deliver = () => "failed";
-  try { assert.equal((await request(kid._id, email)).delivery, "failed"); } finally { deliver = () => "sent"; }
+  try { assert.equal(((await request(kid._id, email)) as { delivery: string }).delivery, "failed"); } finally { deliver = () => "sent"; }
   assert.deepEqual([(await approval(kid._id)).status, (await approval(kid._id)).delivery.status], ["pending", "failed"]);
   assert.equal((await approvalSummary(db, kid._id)).delivery, "failed");
-  assert.equal((await request(kid._id, email, at(MIN))).delivery, "sent"); assert.equal((await approval(kid._id)).delivery.status, "sent");
+  assert.equal(((await request(kid._id, email, at(MIN))) as { delivery: string }).delivery, "sent"); assert.equal((await approval(kid._id)).delivery.status, "sent");
 });
 test("reading the link changes nothing; approval needs the declaration and records evidence without verifying age", async () => {
   const kid = await child(), email = guardian(); await request(kid._id, email); const token = lastToken(email);
@@ -197,4 +205,51 @@ test("one approval is the same shared fact on every website; a different source 
 test("shared facts need no Puckle profile; a child without one is addressed by username", async () => {
   const kid = await child("2012-01-01", false), email = guardian(); await request(kid._id, email);
   assert.equal((await parentLinkDetails(db, lastToken(email), at(1000)) as { child: string }).child, kid.username);
+});
+
+const asPending = <T extends { status: string }>(result: T) => { assert.equal(result.status, "pending"); return result as Extract<T, { status: "pending" }>; };
+test("a new approval request alerts the founder (FYI) with the parent's email and optional mobile; resends do not", async () => {
+  const kid = await child(), email = guardian();
+  const first = asPending(await requestParentalApproval(db, { userId: kid._id, guardianEmail: email, guardianPhone: "087 123 4567", sourceSite: "puckle", requester: `r-${kid._id}` }, mail, T0));
+  assert.equal(typeof first.notify, "function"); assert.equal(founderMail.some(m => m.text.includes(email)), false, "sent after the response, not during the request");
+  const record = await approval(kid._id); assert.equal(record.guardianPhone, "+353871234567"); assert.deepEqual(record.founderNotification, { status: "pending" });
+  await first.notify!();
+  const alert = founderMail.at(-1)!; assert.deepEqual(alert.to, ["founder@example.invalid"]); assert.match(alert.subject, /^\[FYI\] 👪 PARENT APPROVAL SENT: Kid\d+$/);
+  assert.ok(alert.text.includes(`Parent/guardian email: ${email}`)); assert.ok(alert.text.includes("+353871234567")); assert.match(alert.text, /Email delivery: sent/); assert.ok(!/2012|date of birth/i.test(alert.text));
+  assert.equal((await approval(kid._id)).founderNotification.status, "sent");
+  assert.equal((await db.collection("users").findOne({ _id: kid._id }))!.founderNotification, undefined, "outcome lives with the approval record, not at the top of the account");
+  const resend = asPending(await requestParentalApproval(db, { userId: kid._id, guardianEmail: email, sourceSite: "puckle", requester: `r2-${kid._id}` }, mail, at(MIN)));
+  assert.equal(resend.resent, true); assert.equal(resend.notify, undefined, "no alert for a resend"); assert.equal((await approval(kid._id)).guardianPhone, "+353871234567", "a resend keeps the stored mobile");
+});
+test("the parent mobile is optional with an email; it is validated, normalised and replaced or cleared on a new request", async () => {
+  const kid = await child(), one = guardian(), two = guardian();
+  await assert.rejects(requestParentalApproval(db, { userId: kid._id, guardianEmail: one, guardianPhone: "12", sourceSite: "puckle", requester: "x1" }, mail, T0), /INVALID_MOBILE/);
+  assert.equal((await db.collection("users").findOne({ _id: kid._id }))!.safeguarding.groupExperienceApproval, undefined, "nothing saved on a bad number");
+  await requestParentalApproval(db, { userId: kid._id, guardianEmail: one, guardianPhone: "+353 86 765 4321", sourceSite: "puckle", requester: "x2" }, mail, T0);
+  assert.equal((await approval(kid._id)).guardianPhone, "+353867654321");
+  await requestParentalApproval(db, { userId: kid._id, guardianEmail: two, sourceSite: "puckle", requester: "x3" }, mail, at(MIN));
+  assert.equal((await approval(kid._id)).guardianPhone, undefined, "a different guardian starts clean");
+});
+test("a parent with no email: only a mobile saves a contact request and alerts the founder (ACTION); no approval is recorded and nothing is emailed to anyone", async () => {
+  const kid = await child(), sent = messages.length, before = JSON.stringify((await db.collection("users").findOne({ _id: kid._id }))!.safeguarding);
+  const result = await requestParentalApproval(db, { userId: kid._id, guardianPhone: "087 111 2222", sourceSite: "puckle", requester: "p1" }, mail, T0);
+  assert.equal(result.status, "contact-requested"); assert.equal(messages.length, sent, "no approval email exists to send");
+  assert.equal(JSON.stringify((await db.collection("users").findOne({ _id: kid._id }))!.safeguarding), before, "approval state untouched: not pending, not approved");
+  assert.equal(await db.collection("accountEmailActions").countDocuments({ userId: kid._id, purpose: "parent-request" }), 0);
+  const row = (await db.collection("puckleJoinContactRequests").findOne({ studentUserId: kid._id }))!;
+  assert.deepEqual([row.kind, row.guardianMobile, row.founderNotification], ["guardian-approval-contact-request", "+353871112222", { status: "pending" }]);
+  await result.notify(); const alert = founderMail.at(-1)!;
+  assert.match(alert.subject, /^\[ACTION\] 📞 PARENT HAS NO EMAIL, PLEASE CALL: Kid\d+$/); assert.ok(alert.text.includes("+353871112222")); assert.match(alert.text, /NOT recorded/);
+  assert.equal((await db.collection("puckleJoinContactRequests").findOne({ _id: row._id }))!.founderNotification.status, "sent");
+});
+test("a parent contact needs an email or a mobile, only under-16 students can ask, and phone-only is rate limited", async () => {
+  const kid = await child();
+  await assert.rejects(requestParentalApproval(db, { userId: kid._id, sourceSite: "puckle", requester: "n1" }, mail, T0), /GUARDIAN_CONTACT_REQUIRED/);
+  await assert.rejects(requestParentalApproval(db, { userId: kid._id, guardianEmail: "  ", guardianPhone: "  ", sourceSite: "puckle", requester: "n1" }, mail, T0), /GUARDIAN_CONTACT_REQUIRED/);
+  await assert.rejects(requestParentalApproval(db, { userId: kid._id, guardianPhone: "abc", sourceSite: "puckle", requester: "n2" }, mail, T0), /INVALID_MOBILE/);
+  for (const dob of [null, "2010-11-14"]) await assert.rejects(requestParentalApproval(db, { userId: (await child(dob))._id, guardianPhone: "087 111 2222", sourceSite: "puckle", requester: "n3" }, mail, T0), /APPROVAL_(AGE_UNKNOWN|NOT_REQUIRED)/);
+  const approved = await child(), email = guardian(); await request(approved._id, email); await decide(lastToken(email), "approve");
+  await assert.rejects(requestParentalApproval(db, { userId: approved._id, guardianPhone: "087 111 2222", sourceSite: "puckle", requester: "n4" }, mail, at(2 * DAY)), /APPROVAL_ALREADY_GRANTED/);
+  const results = await Promise.allSettled(Array.from({ length: 6 }, () => requestParentalApproval(db, { userId: kid._id, guardianPhone: "087 111 2222", sourceSite: "puckle", requester: "flood" }, mail, T0)));
+  assert.equal(results.filter(r => r.status === "fulfilled").length, 5); assert.equal(results.filter(r => r.status === "rejected").length, 1, "the sixth in an hour is refused");
 });
