@@ -20,6 +20,10 @@ async function outbox() { return await fetch(`${process.env.PHASE2_MEDIA_FIXTURE
 type Options = { dob?: string | null; category?: "student" | "teacher" | null; eligible?: boolean; email?: string; approval?: Record<string, unknown> };
 async function account(options: Options = {}) {
   const _id = new ObjectId(), username = unique("Pre"), now = new Date();
+  if (options.email) { // fixed addresses (the access list) can be reused by several tests
+    const old = await db.collection("users").findOne({ email: options.email }, { projection: { _id: 1 } });
+    if (old) { await db.collection("puckleMemberships").deleteMany({ userId: old._id }); await db.collection("users").deleteOne({ _id: old._id }); }
+  }
   const dob = options.dob === undefined ? `${year - 17}-03-03` : options.dob;
   await db.collection("users").insertOne({ _id, email: options.email ?? `${username.toLowerCase()}@example.invalid`, username, passwordHash: await bcrypt.hash("local-test-only", 4), cardsData: [], decksData: [], sharedDeckData: [], permissions: { publicPublishing: false },
     safeguarding: { ...(dob ? { dateOfBirth: dob, dobSource: "self-declared", dobRecordedAt: now, ageAssurance: { verification: "none" } } : {}),
@@ -40,8 +44,8 @@ const seenAt = async (id: ObjectId) => (await db.collection("puckleMemberships")
 const noOverflow = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 const myDecks = (page: Page) => page.getByRole("heading", { name: "My Decks", exact: true });
 const MESSAGES = {
-  studentLead: "Our maths content opens in early December.",
-  studentBody: "Join us from the beginning, improve your maths and help shape what we create next.",
+  studentLead: "New maths content starts arriving in early December.",
+  studentBody: "You're here from the beginning. Improve your maths and help shape what we create next.",
   studentFollow: "Maths lessons with Puckle are available today, using our interactive learning platform.",
   teacherBody: "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.",
   otherLead: "We're opening in early December.",
@@ -205,6 +209,7 @@ test.describe("pre-launch mode on", () => {
     await expect(page.getByLabel("Parent or guardian's email")).toHaveCount(0); // collapsed until asked, so a phone stays uncluttered
     await noOverflow(page);
     await section.getByRole("button", { name: "Ask a parent or guardian" }).click();
+    await expect(page.getByText("Group features need a parent or guardian's approval. Want to ask now? You can keep learning privately either way.", { exact: true })).toBeVisible(); // the original form introduction, unchanged
     const guardian = `${unique("mum")}@example.invalid`;
     await page.getByLabel("Parent or guardian's email").fill(guardian); await page.getByRole("button", { name: "Send approval request" }).click();
     await expect.poll(async () => (await db.collection("users").findOne({ _id: kid._id }))!.safeguarding.groupExperienceApproval?.status).toBe("pending");
@@ -224,13 +229,20 @@ test.describe("pre-launch mode on", () => {
     const ctx = await context(browser), page = await ctx.newPage(); await page.goto(`${origin}/join`);
     const notice = page.locator('[data-join="prelaunch-notice"]');
     await expect(notice.getByRole("heading", { name: "Join Puckle now" })).toBeVisible();
-    await expect(notice.getByText("Our maths content opens in early December. Sign up today to be among the first to use it.", { exact: true })).toBeVisible();
+    await expect(notice.getByText("New maths content starts arriving in early December. Sign up today to be among the first to use it.", { exact: true })).toBeVisible();
     await expect(notice.getByText("Want to get started now? Maths lessons with Puckle are already available, using our interactive learning platform.")).toBeVisible();
     await expect(page.getByLabel("First name")).toBeVisible(); // the existing form is intact
+    await expect(page.getByText("Join free to learn maths with Puckle's cards", { exact: false })).toHaveCount(0); // replaced, never shown together
+    // Spacing at 390px: heading to first paragraph about 20% more than the 8px base, first paragraph to the get-started line about 25% more.
+    const gaps = await notice.evaluate(el => { const [h, a, b] = [el.querySelector("h2")!, ...el.querySelectorAll("p")].map(n => n.getBoundingClientRect()); return { headingToText: a.top - h.bottom, textToStart: b.top - a.bottom }; });
+    expect(gaps.headingToText).toBeGreaterThan(9); expect(gaps.headingToText).toBeLessThan(11);
+    expect(gaps.textToStart).toBeGreaterThan(9.5); expect(gaps.textToStart).toBeLessThan(12);
+    await noOverflow(page);
     await page.getByRole("radio", { name: "I'm a teacher" }).check();
     await expect(notice.getByRole("heading", { name: "Join Puckle as a teacher" })).toBeVisible();
-    await expect(notice.getByText("Our maths content opens in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", { exact: true })).toBeVisible();
+    await expect(notice.getByText("New maths content starts arriving in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", { exact: true })).toBeVisible();
     await expect(notice.getByText("Want to get started now?")).toHaveCount(0);
+    await expect(page.getByText("Teachers are welcome to explore Puckle and help shape it.", { exact: false })).toBeVisible(); // teacher introduction kept
     await page.getByRole("radio", { name: "I'm interested in Puckle" }).check(); await expect(notice).toHaveCount(0);
     await page.getByRole("radio", { name: "I'm here to learn" }).check(); await noOverflow(page);
     await ctx.close();
@@ -250,7 +262,7 @@ test.describe("pre-launch mode on", () => {
       expect(code, "verification email").not.toBe("");
       await page.getByLabel(/6-digit code|code/i).first().fill(code); await page.locator("button[type=submit]").click();
       const user = async () => (await db.collection("users").findOne({ username }))!;
-      if (listed) { await expect(page.getByTestId("registration-welcome")).toBeVisible(); await page.waitForURL(`${origin}/decks`, { timeout: 20_000 }); await expect(myDecks(page)).toBeVisible(); await expect.poll(async () => (await db.collection("puckleMemberships").findOne({ userId: (await user())._id }))?.welcome.seenAt).toBeTruthy(); }
+      if (listed) { await expect(page.getByTestId("registration-welcome")).toContainText("Taking you to your space…"); await page.waitForURL(`${origin}/decks`, { timeout: 20_000 }); await expect(myDecks(page)).toBeVisible(); await expect.poll(async () => (await db.collection("puckleMemberships").findOne({ userId: (await user())._id }))?.welcome.seenAt).toBeTruthy(); }
       else {
         await page.waitForURL(`${origin}/decks`, { timeout: 20_000 }); await expect(welcome(page)).toBeVisible(); await expect(page.getByTestId("registration-welcome")).toHaveCount(0);
         await page.waitForTimeout(1500);
@@ -269,8 +281,12 @@ test.describe("pre-launch mode off", () => {
     const student = await account({ eligible: true }), { ctx, page } = await open(browser, student.username);
     await expect(welcome(page)).toHaveCount(0); await expect(original(page)).toBeVisible(); await expect.poll(() => seenAt(student._id)).toBeTruthy();
     expect((await ctx.request.get(`${origin}/api/decks-data`)).status()).toBe(200);
-    await page.goto(`${origin}/join`); await expect(page.locator('[data-join="prelaunch-notice"]')).toHaveCount(0);
     await ctx.close();
+    const visitor = await context(browser), join = await visitor.newPage(); await join.goto(`${origin}/join`);
+    await expect(join.locator('[data-join="prelaunch-notice"]')).toHaveCount(0);
+    await expect(join.getByText("Join free to learn maths with Puckle's cards and keep track of your progress.", { exact: true })).toBeVisible(); // the original student introduction
+    await expect(join.getByText("early December", { exact: false })).toHaveCount(0);
+    await visitor.close();
   });
 
   test("an access list without pre-launch mode changes nothing", async ({ browser }) => {

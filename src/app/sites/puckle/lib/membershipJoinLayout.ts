@@ -200,7 +200,8 @@ export type FieldView = Readonly<{ visible: boolean; required: boolean; label: s
 export type MembershipJoinLayout = Readonly<{
   heading: string;
   choices: readonly { id: JoinChoice; label: string; selected: boolean }[];
-  intro: string;
+  /** Null while the pre-launch student introduction replaces it. */
+  intro: string | null;
   /** Pre-launch wording above the student and teacher forms; null outside pre-launch mode and for the interest choice. */
   prelaunchNotice: JoinPrelaunchNotice | null;
   stage: JoinFlowState["stage"];
@@ -251,7 +252,7 @@ export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowSt
   return {
     heading: JOIN_HEADING,
     choices: JOIN_CHOICES.map(id => ({ id, label: CHOICE_LABELS[id], selected: id === choice })),
-    intro: INTROS[choice],
+    intro: prelaunch && choice === "student" ? null : INTROS[choice],
     prelaunchNotice: prelaunch ? joinPrelaunchNotice(choice) : null,
     stage: flow.stage,
     name: field(isStudent ? "First name" : "Your name", true, true, errors.name),

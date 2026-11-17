@@ -3,12 +3,12 @@ export type JoinPrelaunchNotice = Readonly<{ heading: string; text: string; tuit
 export function joinPrelaunchNotice(choice: string): JoinPrelaunchNotice | null {
   if (choice === "student") return {
     heading: "Join Puckle now",
-    text: "Our maths content opens in early December. Sign up today to be among the first to use it.",
+    text: "New maths content starts arriving in early December. Sign up today to be among the first to use it.",
     tuition: { lead: "Want to get started now?", text: "Maths lessons with Puckle are already available, using our interactive learning platform." },
   };
   if (choice === "teacher") return {
     heading: "Join Puckle as a teacher",
-    text: "Our maths content opens in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.",
+    text: "New maths content starts arriving in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.",
     tuition: null,
   };
   return null;

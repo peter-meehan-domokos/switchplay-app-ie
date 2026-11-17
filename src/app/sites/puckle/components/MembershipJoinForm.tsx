@@ -219,13 +219,13 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
           </fieldset>
         ) : null}
         {layout.prelaunchNotice ? (
-          <div className={styles.prelaunchNotice} data-join="prelaunch-notice">
+          <div className={`${styles.prelaunchNotice} ${layout.prelaunchNotice.tuition ? styles.prelaunchNoticeStudent : ""}`} data-join="prelaunch-notice">
             <h2>{layout.prelaunchNotice.heading}</h2>
             <p>{layout.prelaunchNotice.text}</p>
             {layout.prelaunchNotice.tuition ? <p><strong>{layout.prelaunchNotice.tuition.lead}</strong> {layout.prelaunchNotice.tuition.text}</p> : null}
           </div>
         ) : null}
-        <p className={styles.intro}>{layout.intro}</p>
+        {layout.intro !== null ? <p className={styles.intro}>{layout.intro}</p> : null}
         {formError ? <p className={formStyles.formError} role="alert">{formError.text}{accountLinks}</p> : null}
 
         {codeStage ? (

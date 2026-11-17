@@ -31,26 +31,17 @@ const INTEREST_FOLLOW_UP = {
   action: { kind: "email", address: CONTACT_EMAIL, href: `mailto:${CONTACT_EMAIL}` },
 } as const;
 
-/** The existing form, with an introduction that does not talk about learning or group features this early. */
-const GUARDIAN_INTRO: Readonly<Record<string, string>> = {
-  "not-requested": "Enter their email and we'll send them a request.",
-  pending: "We've asked your parent or guardian for their permission.",
-  declined: "Your parent or guardian said no for now. You can ask again if things change.",
-  withdrawn: "Your parent or guardian withdrew their permission. You can ask again.",
-};
-
 export const audienceOf = (category: string | null | undefined): PrelaunchAudience => category === "student" || category === "teacher" ? category : "other";
 
 export function buildPrelaunchLayout(input: { category: string | null | undefined; approval?: OnboardingStatus["approval"] }): PrelaunchLayout {
   const audience = audienceOf(input.category);
   if (audience === "student") {
     // Same facts and rules as the original onboarding: shown only while approval is genuinely needed and not yet obtained.
-    const found = guardianLayoutFor({ actorId: "", show: true, student: true, approval: input.approval }, false);
-    const guardian = found && input.approval ? { ...found, intro: GUARDIAN_INTRO[input.approval.status] ?? found.intro } : found;
+    const guardian = guardianLayoutFor({ actorId: "", show: true, student: true, approval: input.approval }, false);
     return {
       audience, kicker: KICKER, heading: HEADING,
-      lead: "Our maths content opens in early December.",
-      body: "Join us from the beginning, improve your maths and help shape what we create next.",
+      lead: "New maths content starts arriving in early December.",
+      body: "You're here from the beginning. Improve your maths and help shape what we create next.",
       followUp: {
         heading: "Want to get started now?",
         text: "Maths lessons with Puckle are available today, using our interactive learning platform.",
@@ -62,7 +53,7 @@ export function buildPrelaunchLayout(input: { category: string | null | undefine
   if (audience === "teacher") {
     return {
       audience, kicker: KICKER, heading: HEADING,
-      lead: "Our maths content opens in early December.",
+      lead: "New maths content starts arriving in early December.",
       body: "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.",
       followUp: INTEREST_FOLLOW_UP, parentApproval: null,
     };

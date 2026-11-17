@@ -27,7 +27,7 @@ export default function RegistrationWelcome() {
       style={{ "--welcome-enter": `${WELCOME_ENTER_MS}ms`, "--welcome-exit": `${WELCOME_EXIT_MS}ms` } as React.CSSProperties}>
       <div className={`${styles.success} ${styles.welcomeCard}`} ref={cardRef} role="status" tabIndex={-1}>
         <h2>Welcome to {SITE_NAME}!</h2>
-        <p>Your account is ready and you&apos;re signed in. Taking you to your library…</p>
+        <p>Your account is ready and you&apos;re signed in. Taking you to your space…</p>
       </div>
     </div>
   );

@@ -311,6 +311,10 @@
   line-height: 1.2;
 }
 
+/* Student introduction only: about 20% more room under the heading and 25% before the get-started line (gap is 8px). */
+.prelaunchNoticeStudent h2 { margin-bottom: 1.6px; }
+.prelaunchNoticeStudent p + p { margin-top: 2px; }
+
 .prelaunchNotice p {
   color: var(--sp-site-text-muted);
   font-size: 1rem;

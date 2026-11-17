@@ -6,6 +6,7 @@ import { proxy } from "../src/proxy";
 import { isPrelaunchMode, prelaunchAccessFor, prelaunchAccessList } from "../src/lib/prelaunch";
 import { classifyPrelaunchPath, decidePrelaunchRoute, PRELAUNCH_REWRITE_PATH } from "../src/lib/sites/prelaunchRouting";
 import { buildPrelaunchLayout, audienceOf, TUITION_ENQUIRY_HREF } from "../src/app/sites/puckle/lib/prelaunchLayout";
+import { guardianLayoutFor } from "../src/components/onboarding/onboardingLayout";
 import { joinPrelaunchNotice } from "../src/app/sites/puckle/lib/joinPrelaunchNotice";
 import { buildMembershipJoinLayout, initialJoinFlowState, initialJoinFormState, withChoice } from "../src/app/sites/puckle/lib/membershipJoinLayout";
 
@@ -139,12 +140,12 @@ test("public Puckle pages, login and the registration and sign-in APIs are never
 
 test("layout wording: student, teacher and other audiences, exactly as agreed", () => {
   const student = buildPrelaunchLayout({ category: "student" });
-  assert.deepEqual([student.kicker, student.heading, student.lead, student.body, student.followUp.heading, student.followUp.text], ["EARLY ACCESS", "Welcome to Puckle!", "Our maths content opens in early December.",
-    "Join us from the beginning, improve your maths and help shape what we create next.", "Want to get started now?", "Maths lessons with Puckle are available today, using our interactive learning platform."]);
+  assert.deepEqual([student.kicker, student.heading, student.lead, student.body, student.followUp.heading, student.followUp.text], ["EARLY ACCESS", "Welcome to Puckle!", "New maths content starts arriving in early December.",
+    "You're here from the beginning. Improve your maths and help shape what we create next.", "Want to get started now?", "Maths lessons with Puckle are available today, using our interactive learning platform."]);
   assert.deepEqual(student.followUp.action, { kind: "enquire", label: "Enquire about lessons", href: TUITION_ENQUIRY_HREF });
   assert.equal(TUITION_ENQUIRY_HREF, "/#early-access");
   const teacher = buildPrelaunchLayout({ category: "teacher" });
-  assert.equal(teacher.lead, "Our maths content opens in early December.");
+  assert.equal(teacher.lead, "New maths content starts arriving in early December.");
   assert.equal(teacher.body, "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.");
   const other = buildPrelaunchLayout({ category: undefined });
   assert.equal(other.lead, "We're opening in early December.");
@@ -166,7 +167,9 @@ test("layout: the parent section is only for a student who still needs approval,
     assert.equal(layout.parentApproval?.heading, "Parent or guardian approval", status);
     assert.equal(layout.parentApproval?.text, "Some sharing features require permission from a parent or guardian.");
     const wording = JSON.stringify(layout);
-    assert.doesNotMatch(wording, /group experience/i, status); assert.doesNotMatch(wording, /learn(ing)? privately|keep learning/i, status);
+    assert.doesNotMatch(layout.parentApproval!.text + layout.parentApproval!.heading, /group experience/i, status);
+    // The request form keeps the original wording exactly, in pre-launch and normal modes alike.
+    assert.deepEqual(layout.parentApproval?.guardian, guardianLayoutFor({ actorId: "", show: true, student: true, approval: approval(status) }, false), status);
   }
   assert.equal(buildPrelaunchLayout({ category: "student", approval: approval("approved", "eligible", false) }).parentApproval, null);
   assert.equal(buildPrelaunchLayout({ category: "student", approval: approval("not-requested", "not-required", false) }).parentApproval, null);
@@ -177,11 +180,17 @@ test("layout: the parent section is only for a student who still needs approval,
 });
 
 test("Join pre-launch wording: student and teacher only, and only in pre-launch mode", () => {
-  assert.deepEqual(joinPrelaunchNotice("student"), { heading: "Join Puckle now", text: "Our maths content opens in early December. Sign up today to be among the first to use it.",
+  assert.deepEqual(joinPrelaunchNotice("student"), { heading: "Join Puckle now", text: "New maths content starts arriving in early December. Sign up today to be among the first to use it.",
     tuition: { lead: "Want to get started now?", text: "Maths lessons with Puckle are already available, using our interactive learning platform." } });
-  assert.deepEqual(joinPrelaunchNotice("teacher"), { heading: "Join Puckle as a teacher", text: "Our maths content opens in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", tuition: null });
+  assert.deepEqual(joinPrelaunchNotice("teacher"), { heading: "Join Puckle as a teacher", text: "New maths content starts arriving in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", tuition: null });
   assert.equal(joinPrelaunchNotice("interest"), null);
   const layoutOf = (choice: "student" | "teacher" | "interest", prelaunch?: boolean) => buildMembershipJoinLayout(withChoice(initialJoinFormState, choice), initialJoinFlowState, {}, 0, "2026-11-17", prelaunch);
+  // The environment decides which student introduction appears; both stay in the code and never show together.
+  assert.equal(layoutOf("student").intro, "Join free to learn maths with Puckle's cards and keep track of your progress.");
+  assert.equal(layoutOf("student", false).intro, "Join free to learn maths with Puckle's cards and keep track of your progress.");
+  assert.equal(layoutOf("student", true).intro, null);
+  assert.equal(layoutOf("teacher", true).intro, "Teachers are welcome to explore Puckle and help shape it. You'll get an ordinary account to try things out.");
+  assert.equal(layoutOf("interest", true).intro, "Interested in Puckle? Leave your details and we'll send you occasional updates as it develops.");
   assert.equal(layoutOf("student").prelaunchNotice, null);
   assert.equal(layoutOf("student", true)?.prelaunchNotice?.heading, "Join Puckle now");
   assert.equal(layoutOf("teacher", true)?.prelaunchNotice?.heading, "Join Puckle as a teacher");
