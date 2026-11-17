@@ -75,3 +75,25 @@ npm run test:phase2 -- private-deck.browser.ts
 ```
 
 Run all browser commands sequentially: production and development runs also share the Playwright trace-output directory. The two development commands additionally share their Next build directory; keep password-reset security tests separate from the private Deck suite, which uses the original fixture password. An initial combined batch was deliberately interrupted to avoid that known fixture dependency; an overlapping development start hit the build-directory lock and is not an application failure.
+
+## Post-Phase 8: email branch merged (17 November 2026)
+
+`site/puckle-email` (`3ce543a`) was merged into `site/puckle` in merge commit `3df6e71`. It adds real email through Resend (`docs/engineering/sites/puckle/membership-email-delivery.md` is the setup and production guide), founder alerts, the optional parent mobile and phone-only contact route, Reply-To `support@puckleup.com`, Puckle branding with the `puckleup.com` domain mapping and addresses, the shorter welcome without its button, and the `--real-email` review mode.
+
+**Parental withdrawal was removed intentionally.** The guardian withdrawal link, its management email and `withdrawParentalApproval` no longer exist. Statements above about withdrawal (the explanation-retention fix and the real-delivery smoke test of "withdrawal management") are historical. Parents currently withdraw by replying to the approval email or writing to `support@puckleup.com`, and the founder records it with `revokeParentalApprovalAsOperator`. The product owner will add a withdrawal UI component before public launch. The parent explanation is now `shared-group-experiences-v4-draft` (not `v1-draft`) and still needs approval before real parental requests.
+
+Conflict decisions worth keeping:
+- Explanation retention (Phase 8) is kept on approve, decline, operator revoke and resend events. Only the withdrawal path was dropped.
+- Onboarding keeps both `welcomePresented` (acknowledge only once the lazy view has rendered) and `setPhoneDraft` (parent mobile).
+- `scripts/test-phase2.ts` keeps `--production` and `--real-email` and refuses to combine them.
+- Welcome timing tests measure from the first rendered phase and assert the intended 0.5 s in + 4 s readable + 0.5 s out (4 s with reduced motion).
+
+Corrections found during combined verification (both also present on `b649649`, not merge regressions):
+- `dc8bbd8`: in production builds the Join page scrolled sideways on a 390 px phone because `.field input { width: 100% }` and `.checkbox input` had equal specificity and production reverses the CSS load order; the "Show password" checkbox rule is now more specific. Phase 8 never ran Join in production mode; dev mode (used for iPhone review) never showed it.
+- `f5200d6`: the slow-connection onboarding test clicked during the "Loading Library…" fallback, before the host's listeners attached (2/4 failures on `b649649` in production); it now clicks once the Library has rendered, still before the delayed status.
+
+Verification on the merged branch: typecheck and lint (0 errors) clean; 553 unit and 449 integration tests (including shared-membership, public-publishing-permissions and onboarding-status Group Experience compatibility) pass; production mode `membership-final`, onboarding and welcome 25/25; dev suites for Join, tuition, welcome, onboarding, parental approval, Library, deck menu and creator navigation pass; `info-cards-authoring` + `membership-security` 31/31 and `private-deck` + `public-publishing-permissions` 19/19 in their own commands. Join and parental approval are dev-mode only: under `--production`, Playwright's API-only cookie jar does not send Secure cookies on loopback, so their `page.request` calls get `401` (noted in `membership-final.browser.ts`).
+
+Known, non-merge test failures:
+- `area-navigation.browser.ts` "Creator retains Progress return context": the Progress return was removed deliberately in `79ce232` (24 October); the test was never updated. Unrelated to membership or email.
+- Login throttling makes runs order-dependent: `membership-security.browser.ts` deliberately submits wrong passwords for the shared `phase2` user, so suites run after it in the same command that log in as `phase2` (for example `private-deck`, `public-publishing-permissions`) get `401`. They pass in their own command. Keep the security suite in a separate command, as in the commands above.
