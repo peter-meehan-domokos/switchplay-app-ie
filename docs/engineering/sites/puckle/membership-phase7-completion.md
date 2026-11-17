@@ -22,7 +22,7 @@
 2. Run `--assess` read-only against production (needs explicit authorisation and a read-only credential). Complete the draft: for each account decide `true` (genuinely trusted to publish publicly) or `false`. Accounts with malformed permissions, or whose DOB or Puckle details you want recorded, are listed separately.
 3. Save the manifest privately (not in Git); dry-run it against a restored copy, then against production. Review the report line by line.
 4. Apply with `--apply --confirm-live <manifestId>` in production mode, then rerun the dry run: every account should read `already-applied`.
-5. Only then deploy the permission enforcement (2P), then later open Join (`PUCKLE_JOIN_ENABLED=1`) after Phase 8. Trusted users must never lose publishing between deployments.
+5. Only then deploy the permission enforcement (2P), then Join (no flag any more) goes live with the merge to `main`. Trusted users must never lose publishing between deployments.
 
 ## What is missing to prepare the real review
 Account-specific evidence needs read access to the live users and publication collections, which this task did not have or use. So there is no list of real accounts, no trusted-account proposals and no accounts needing individual decisions yet. The only inputs required are your read-only access authorisation and your own trust decisions.

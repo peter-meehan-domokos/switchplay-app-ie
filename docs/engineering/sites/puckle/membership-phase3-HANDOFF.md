@@ -11,7 +11,7 @@ Authorisation: Phase 3 only (user message of 14 Nov 2026). **No commit, push, me
 
 - Pure layout pipeline `src/app/sites/puckle/lib/membershipJoinLayout.ts` (`buildMembershipJoinLayout`, `withXxx` state helpers) feeds all Join components (project rule: `[Component]Layout.ts`). Components never patch layout output.
 - Puckle site code may import only the approved shared aliases (`tests/site-independence.test.ts`). Server orchestration therefore lives in `src/lib/puckleRegistration.ts` / `src/lib/puckleJoinContacts.ts` / `src/lib/founderNotifications.ts`; Puckle route handlers under `src/app/api/public/puckle/` are thin and call them. Narrow allow-list additions were made in the site-independence test.
-- Registration kill-switch: Join page, header link and the three APIs are open only when `NODE_ENV !== "production"` or `PUCKLE_JOIN_ENABLED=1` (satisfies "do not expose public registration on a production deployment"). Header keeps `/#early-access` while closed.
+- (Superseded: the `PUCKLE_JOIN_ENABLED` registration kill-switch was removed. Join is always enabled; the header Join button always goes to `/join`.)
 - Email verification reuses Phase 2 `/api/auth/email-verification` (request/verify) unchanged. Final registration consumes the proof inside the same Mongo transaction as account + profile insertion (`consumeEmailProof` + `insertAccount` + `puckleMemberships`).
 - Session cookie is written only after commit from a pre-signed token. Founder notification via `after()` after commit; status stored `pending` with the source record.
 - Student DOB stored in `users.safeguarding` (`dobSource: "self-declared"`, `ageAssurance: {verification: "none"}`); never in `puckleMemberships`.

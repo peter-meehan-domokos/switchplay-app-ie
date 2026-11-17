@@ -3,7 +3,7 @@
 This guide records the real email arrangement for **puckleup.com** and the steps to switch it on in production. It is also the template for the next sites (PuckleClubs and Puckleyard, once renamed): repeat the same steps with their own domain.
 
 ## What sends email, and what it is for
-Every email the app sends goes through one adapter, `src/lib/siteEmail.ts`, which calls the Resend API (`POST https://api.resend.com/emails`, 8 s timeout). There is no other mail path. Until the settings below are present on the server, every send is recorded as `failed` (`configuration-required`) and nothing leaves it. Public Join stays closed until `PUCKLE_JOIN_ENABLED=1`, independently of email.
+Every email the app sends goes through one adapter, `src/lib/siteEmail.ts`, which calls the Resend API (`POST https://api.resend.com/emails`, 8 s timeout). There is no other mail path. Until the settings below are present on the server, every send is recorded as `failed` (`configuration-required`) and nothing leaves it. Public Join is always enabled; there is no Join feature flag.
 
 **To students, parents and teachers** (sent from `Puckle <hello@puckleup.com>`):
 - Join verification code (and the "you already have an account" notice).
@@ -66,4 +66,4 @@ Run them with the same variables loaded (for example `node --env-file=<file> --i
 1. Add `puckleup.com` (and `www.puckleup.com`) to the Vercel project and point DNS at it (see `docs/engineering/sites/vercel-domain-setup.md`).
 2. Set the production variables above, with no `ACCOUNT_EMAIL_REDIRECT_TO`.
 3. Run `--check` against them, then one `--send-test` to yourself.
-4. Only then set `PUCKLE_JOIN_ENABLED=1` to open public Join.
+4. Public Join has no flag: it opens when this code is merged to `main`.

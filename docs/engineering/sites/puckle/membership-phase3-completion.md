@@ -29,7 +29,7 @@ New: `src/lib/puckleRegistration.ts`, `puckleJoinContacts.ts`, `founderNotificat
 
 ## Configuration
 
-- `PUCKLE_JOIN_ENABLED=1` opens Join on a production build (page, header link and APIs). Unset = closed (`/join` 404, header keeps `/#early-access`). Dev/test are open. **Do not set before Phase 7 permission review and Phase 8 verification.**
+- (Superseded: the `PUCKLE_JOIN_ENABLED` flag was removed. Join page, header link and APIs are always enabled.)
 - `PUCKLE_FOUNDER_EMAIL` (founder alert recipient). Sender/origin/provider variables are the Phase 2 ones. `ACCOUNT_TRUST_PROXY_IP=1` only behind an ingress that overwrites `x-forwarded-for`, otherwise all requesters share one limit bucket (10 code requests/h and 10 contact submissions/h site-wide).
 - Operational retrieval: list `puckleMemberships` (teachers), `puckleJoinContactRequests`, `puckleInterestContacts` by `createdAt`; filter `founderNotification.status` in `pending|failed|unknown`.
 

@@ -13,7 +13,6 @@ import { saveInterestContact, saveNoEmailJoinContact } from "./puckleJoinContact
 import type { MembershipCategory, PuckleMembership } from "./puckleMemberships";
 import { getCurrentSite } from "./sites/getCurrentSite";
 import { newSelfDeclaredSafeguarding } from "./userSafeguarding";
-import { isJoinOpen } from "@/app/sites/puckle/lib/joinAvailability";
 import { founderStudentRegistrationEmail, founderTeacherRegistrationEmail } from "@/app/sites/puckle/lib/memberEmailTemplates";
 import { validateRegistrationDetails, type RegistrationDetails } from "@/app/sites/puckle/lib/membershipRegistration";
 
@@ -87,7 +86,7 @@ function strict(body: unknown, keys: string[]): Record<string, unknown> | null {
   if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => !keys.includes(key))) return null;
   return body as Record<string, unknown>;
 }
-async function closedToThisRequest() { return !isJoinOpen() || (await getCurrentSite()) !== "puckle"; }
+async function closedToThisRequest() { return (await getCurrentSite()) !== "puckle"; }
 
 export async function handleMembershipRegistration(request: Request): Promise<Handled> {
   try {

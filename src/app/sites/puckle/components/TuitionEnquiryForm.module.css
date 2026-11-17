@@ -3,7 +3,8 @@
   gap: 28px;
   border-top: 1px solid rgba(255, 250, 240, 0.12);
   padding-block: clamp(48px, 12vw, 80px) clamp(40px, 10vw, 96px);
-  scroll-margin-top: clamp(24px, 7vw, 72px);
+  /* Land with the heading at the top of the screen: cancel the section's own top padding, leave a small gap. */
+  scroll-margin-top: calc(16px - clamp(48px, 12vw, 80px));
 }
 
 .copy {

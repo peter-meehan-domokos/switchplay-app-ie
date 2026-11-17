@@ -59,7 +59,7 @@ After integration, rerun auth/reset/version races, permission/revocation/Copy te
 
 The production migration is **complete**, per the user's 15 November report: all 11 accounts processed, no remaining dry-run work, logical backup restored and independently checked. Older Phase 7/handoff statements saying live execution is outstanding are historical. No production migration, backup, database assessment or permission assignment was repeated. The manifest's old blanket statement excluding `isAdmin` is superseded by `d82b1f5` and its explicit reviewed disposition support.
 
-Keep `PUCKLE_JOIN_ENABLED` closed in the live environment until release prerequisites are accepted. Phase 8 does not authorise deployment or live configuration changes.
+(Superseded: the `PUCKLE_JOIN_ENABLED` flag was removed; Join is always enabled, so merge to `main` only when ready to accept students.) Phase 8 does not authorise deployment or live configuration changes.
 
 ## Final scope
 

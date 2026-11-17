@@ -5,7 +5,6 @@ import {
   initialJoinFlowState, initialJoinFormState, validateJoinForm, withChoice, withCode, withCodeSent, withCourse, withLevel, withMobile,
   withNoEmail, withStage, withText, withVerifiedProof, type JoinFormState,
 } from "../src/app/sites/puckle/lib/membershipJoinLayout";
-import { isJoinOpen } from "../src/app/sites/puckle/lib/joinAvailability";
 import { validateInterestContact, validateNoEmailContact, validateRegistrationDetails } from "../src/app/sites/puckle/lib/membershipRegistration";
 
 const TODAY = "2026-11-14";
@@ -208,10 +207,12 @@ test("building layouts never mutates state, flow or errors", () => {
   layoutOf(form); validateJoinForm(form, TODAY); buildAccountPayload(form, flow); buildContactPayload(form); buildInterestPayload(form);
   assert.equal(JSON.stringify([form, flow]), before);
 });
-test("public Join stays closed on a production deployment unless explicitly opened", () => {
-  assert.equal(isJoinOpen({ NODE_ENV: "production" }), false);
-  assert.equal(isJoinOpen({ NODE_ENV: "production", PUCKLE_JOIN_ENABLED: "true" }), false);
-  assert.equal(isJoinOpen({ NODE_ENV: "production", PUCKLE_JOIN_ENABLED: "1" }), true);
-  assert.equal(isJoinOpen({ NODE_ENV: "development" }), true);
-  assert.equal(isJoinOpen({ NODE_ENV: "test" }), true);
+test("the header Join button goes to registration, not the free-session enquiry form", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { TUITION_ENQUIRY_HREF } = await import("../src/app/sites/puckle/lib/prelaunchLayout");
+  const header = readFileSync("src/app/sites/puckle/components/PublicHeader.tsx", "utf8");
+  assert.match(header, /href="\/join"/);
+  assert.doesNotMatch(header, /early-access/);
+  assert.equal(TUITION_ENQUIRY_HREF, "/#early-access");
+  assert.notEqual(TUITION_ENQUIRY_HREF, "/join");
 });
