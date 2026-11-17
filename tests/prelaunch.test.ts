@@ -166,7 +166,6 @@ test("layout: the parent section is only for a student who still needs approval,
     const layout = buildPrelaunchLayout({ category: "student", approval: approval(status) });
     assert.equal(layout.parentApproval?.heading, "Parent or guardian approval", status);
     assert.equal(layout.parentApproval?.text, "Some sharing features require permission from a parent or guardian.");
-    const wording = JSON.stringify(layout);
     assert.doesNotMatch(layout.parentApproval!.text + layout.parentApproval!.heading, /group experience/i, status);
     // The request form keeps the original wording exactly, in pre-launch and normal modes alike.
     assert.deepEqual(layout.parentApproval?.guardian, guardianLayoutFor({ actorId: "", show: true, student: true, approval: approval(status) }, false), status);
