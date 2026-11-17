@@ -15,6 +15,13 @@ const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "
 // orchestration its public Join routes call. Other websites gain no access to them.
 const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration", "@/lib/puckleEnquiries"];
 
+// Puckle's pre-launch welcome reuses the existing parent approval request and sign-in screen, the pre-launch decision
+// and the sign-out notification instead of duplicating them. Other websites gain no access to them.
+const PUCKLE_PRELAUNCH_ALIASES = [
+  "@/lib/prelaunch", "@/lib/parentalApproval", "@/lib/authSessionEvents", "@/components/auth/EmbeddedAuthScreen",
+  "@/components/onboarding/GuardianForm", "@/components/onboarding/onboardingLayout",
+];
+
 const siteDirs = (site: SiteId) => [
   join(appDir, "sites", site),
   join(appDir, "api", "public", site),
@@ -63,7 +70,7 @@ test("websites import only their own code and the approved shared infrastructure
           } else if (specifier.startsWith("@/")) {
             const target = join(root, "src", specifier.slice(2));
             allowed = isWithin(target, own) || SHARED_ALIASES.includes(specifier)
-              || site === "puckle" && PUCKLE_JOIN_ALIASES.includes(specifier);
+              || site === "puckle" && (PUCKLE_JOIN_ALIASES.includes(specifier) || PUCKLE_PRELAUNCH_ALIASES.includes(specifier));
           } else {
             allowed = true;
           }
@@ -136,8 +143,9 @@ test("each website's forms post to that website's own endpoints", () => {
   for (const site of SITE_IDS) {
     const components = join(appDir, "sites", site, "components");
     const endpoints = listFiles(components).flatMap((file) => [...readFileSync(file, "utf8").matchAll(/fetch\("(\/api\/[^"]+)"/g)].map((match) => match[1]));
-    // Puckle's tuition form also reads its signed-in context from its own public API folder.
-    const extra = site === "puckle" ? [`/api/public/${site}/tuition-context`] : [];
+    // Puckle's tuition form also reads its signed-in context from its own public API folder, and the pre-launch
+    // welcome uses the existing parental approval request and sign-out.
+    const extra = site === "puckle" ? [`/api/public/${site}/tuition-context`, "/api/account/parental-approval", "/api/auth/logout"] : [];
     assert.deepEqual(endpoints.toSorted(), [`/api/public/${site}/contact`, `/api/public/${site}/creator-interest`, `/api/public/${site}/early-access`, ...extra].toSorted());
   }
 });
