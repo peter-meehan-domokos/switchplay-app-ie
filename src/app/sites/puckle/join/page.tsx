@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { isPrelaunchMode } from "@/lib/prelaunch";
 import MembershipJoinForm from "../components/MembershipJoinForm";
 import styles from "../components/MembershipJoinForm.module.css";
 import buttonStyles from "../components/PublicButton.module.css";
@@ -29,7 +30,7 @@ export default async function JoinPage() {
           <Link className={`${buttonStyles.button} ${buttonStyles.primary}`} href="/decks">Open {SITE_NAME}</Link>
         </section>
       ) : (
-        <MembershipJoinForm />
+        <MembershipJoinForm prelaunch={isPrelaunchMode()} />
       )}
     </PublicLayout>
   );

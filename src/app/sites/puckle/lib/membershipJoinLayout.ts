@@ -1,6 +1,7 @@
 import { ageOn, dublinToday, parseDateOfBirth } from "@/lib/age";
 import { validateNewPassword } from "@/lib/accountCredentials";
 import type { MathsCourse, MathsLevel } from "@/lib/puckleMemberships";
+import { joinPrelaunchNotice, type JoinPrelaunchNotice } from "./joinPrelaunchNotice";
 import { COURSE_LEVELS, EMAIL_PATTERN, normaliseMobile } from "./membershipRegistration";
 
 /**
@@ -200,6 +201,8 @@ export type MembershipJoinLayout = Readonly<{
   heading: string;
   choices: readonly { id: JoinChoice; label: string; selected: boolean }[];
   intro: string;
+  /** Pre-launch wording above the student and teacher forms; null outside pre-launch mode and for the interest choice. */
+  prelaunchNotice: JoinPrelaunchNotice | null;
   stage: JoinFlowState["stage"];
   name: FieldView; username: FieldView; email: FieldView; password: FieldView & { inputType: "text" | "password" };
   mobile: FieldView; contactError?: string;
@@ -223,7 +226,7 @@ export function ageNoticeFor(status: DobStatus): string | null {
   if (status.kind !== "valid" || status.age >= 16) return null;
   return "You're good to go! You can start learning privately on Puckle now. Some group features will need a parent or guardian's approval.";
 }
-export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowState, errors: JoinErrors = {}, nowMs = 0, today = dublinToday()): MembershipJoinLayout {
+export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowState, errors: JoinErrors = {}, nowMs = 0, today = dublinToday(), prelaunch = false): MembershipJoinLayout {
   const { choice, noEmail } = state;
   const isStudent = choice === "student", isTeacher = choice === "teacher", isInterest = choice === "interest";
   const emailRoute = !noEmail;
@@ -249,6 +252,7 @@ export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowSt
     heading: JOIN_HEADING,
     choices: JOIN_CHOICES.map(id => ({ id, label: CHOICE_LABELS[id], selected: id === choice })),
     intro: INTROS[choice],
+    prelaunchNotice: prelaunch ? joinPrelaunchNotice(choice) : null,
     stage: flow.stage,
     name: field(isStudent ? "First name" : "Your name", true, true, errors.name),
     username: field("Choose a username", accountRoute, true, errors.username, "3–30 letters, numbers, underscores or hyphens. Case matters."),

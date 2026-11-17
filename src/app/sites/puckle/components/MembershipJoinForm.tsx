@@ -38,7 +38,7 @@ function describe(response: JoinResponse): FormError {
   return GENERIC;
 }
 
-export default function MembershipJoinForm() {
+export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ prelaunch?: boolean }>) {
   const [form, setForm] = useState<JoinFormState>(initialJoinFormState);
   const [flow, setFlow] = useState<JoinFlowState>(initialJoinFlowState);
   const [errors, setErrors] = useState<JoinErrors>({});
@@ -49,7 +49,7 @@ export default function MembershipJoinForm() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const doneRef = useRef<HTMLDivElement | null>(null);
   const codeRef = useRef<HTMLInputElement | null>(null);
-  const layout = buildMembershipJoinLayout(form, flow, errors, nowMs);
+  const layout = buildMembershipJoinLayout(form, flow, errors, nowMs, undefined, prelaunch);
 
   useEffect(() => {
     if (flow.stage === "code") codeRef.current?.focus();
@@ -100,6 +100,8 @@ export default function MembershipJoinForm() {
     if (response.status === 201 && body?.ok === true) {
       const category = body.category === "teacher" ? "teacher" : "student";
       const signedIn = body.signedIn === true;
+      // Pre-launch members land on the pre-launch welcome (served at /decks) rather than the timed welcome or an "Open Puckle" button.
+      if (signedIn && body.prelaunch === true) { window.location.assign("/decks"); return; }
       setFlow(withOutcome(proofFlow, { kind: "account", category, signedIn }));
       release();
       // A signed-in student sees the timed welcome, which then opens My Decks (RegistrationWelcome).
@@ -215,6 +217,13 @@ export default function MembershipJoinForm() {
               </label>
             ))}
           </fieldset>
+        ) : null}
+        {layout.prelaunchNotice ? (
+          <div className={styles.prelaunchNotice} data-join="prelaunch-notice">
+            <h2>{layout.prelaunchNotice.heading}</h2>
+            <p>{layout.prelaunchNotice.text}</p>
+            {layout.prelaunchNotice.tuition ? <p><strong>{layout.prelaunchNotice.tuition.lead}</strong> {layout.prelaunchNotice.tuition.text}</p> : null}
+          </div>
         ) : null}
         <p className={styles.intro}>{layout.intro}</p>
         {formError ? <p className={formStyles.formError} role="alert">{formError.text}{accountLinks}</p> : null}
