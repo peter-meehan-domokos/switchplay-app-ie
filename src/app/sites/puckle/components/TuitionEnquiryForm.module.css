@@ -5,6 +5,9 @@
   padding-block: clamp(48px, 12vw, 80px) clamp(40px, 10vw, 96px);
   /* Land with the heading at the top of the screen: cancel the section's own top padding, leave a small gap. */
   scroll-margin-top: calc(16px - clamp(48px, 12vw, 80px));
+  /* The section is last on the page, so it needs enough height for the browser to scroll its heading to the top. */
+  min-height: 100svh;
+  align-content: start;
 }
 
 .copy {
