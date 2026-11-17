@@ -2,6 +2,7 @@ import Link from "next/link";
 import SwitchplayBrandLink from "@/components/brand/SwitchplayBrandLink";
 import { getCurrentUser } from "@/lib/auth";
 import type { SiteId } from "@/lib/sites/siteResolver";
+import PublicSignOutButton from "@/components/auth/PublicSignOutButton";
 import styles from "./PublicHeader.module.css";
 
 type PublicHeaderProps = {
@@ -18,7 +19,7 @@ export default async function PublicHeader({
   site,
 }: PublicHeaderProps) {
   const user = await getCurrentUser();
-  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Log in" };
+  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Sign in" };
 
   return (
     <header className={styles.header}>
@@ -42,6 +43,7 @@ export default async function PublicHeader({
             {authLink.label}
           </Link>
         ) : null}
+        {user ? <PublicSignOutButton className={styles.navLink} /> : null}
       </nav>
     </header>
   );

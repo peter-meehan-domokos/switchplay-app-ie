@@ -138,7 +138,7 @@ test("public website navigation links to the standalone lab", async ({ page }) =
   await expect(link).toHaveAttribute("href", "/step-visuals");
   await expect(navigation.getByRole("link", { name: "Contact", exact: true })).toHaveAttribute("href", "/contact");
   await expect(navigation.getByRole("link", { name: "Join", exact: true })).toHaveAttribute("href", "/#early-access");
-  await expect(navigation.getByRole("link", { name: "Log in", exact: true })).toHaveAttribute("href", "/login");
+  await expect(navigation.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute("href", "/login");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await link.click();
   await expect(page).toHaveURL(/\/step-visuals$/);

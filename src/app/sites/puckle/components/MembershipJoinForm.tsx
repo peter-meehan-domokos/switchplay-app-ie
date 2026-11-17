@@ -284,7 +284,7 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
         </p>
       </form>
       <p className={styles.crossLinks}>
-        Already have an account? <Link href="/login">Log in</Link>. Prefer to try a session first? <Link href="/#early-access">Request a free session</Link>.
+        Already have an account? <Link href="/login">Sign in</Link>. Prefer to try a session first? <Link href="/#early-access">Request a free session</Link>.
       </p>
     </section>
   );

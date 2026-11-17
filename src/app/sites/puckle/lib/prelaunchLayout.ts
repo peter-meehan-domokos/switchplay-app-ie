@@ -44,8 +44,8 @@ export function buildPrelaunchLayout(input: { category: string | null | undefine
       body: "You're here from the beginning. Improve your maths and help shape what we create next.",
       followUp: {
         heading: "Want to get started now?",
-        text: "Maths lessons with Puckle are available today, using our interactive learning platform.",
-        action: { kind: "enquire", label: "Enquire about lessons", href: TUITION_ENQUIRY_HREF },
+        text: "Maths lessons with Puckle are available today. Or join us for a free introductory session to see how the platform works and discuss your maths.",
+        action: { kind: "enquire", label: "Request a free session", href: TUITION_ENQUIRY_HREF },
       },
       parentApproval: guardian ? { heading: "Parent or guardian approval", text: "Some sharing features require permission from a parent or guardian.", openLabel: "Ask a parent or guardian", guardian } : null,
     };

@@ -140,7 +140,7 @@ test("guardian draft survives blur and app switching; account change or sign-out
 test("embedded sign-in and sign-out on the same URL start and end onboarding without a reload; late old responses never render for the new account", async ({ browser }) => {
   const student = await account(), ctx = await context(browser), page = await ctx.newPage(); await page.goto(`${origin}/decks`);
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible(); await page.waitForTimeout(600); await expect(host(page).locator("section")).toHaveCount(0);
-  await page.getByLabel("Username or email").fill(student.username); await page.getByLabel("Password").fill("local-test-only"); await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByLabel("Username or email").fill(student.username); await page.getByLabel("Password", { exact: true }).fill("local-test-only"); await page.getByRole("button", { name: "Sign in" }).click();
   await expect(welcome(page)).toBeVisible();
   // A slow response for the first account arrives after a different, welcome-less account has signed in.
   const kid = await young(), teacher = await account({ category: "teacher", eligible: false });

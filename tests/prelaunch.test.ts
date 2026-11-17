@@ -141,8 +141,8 @@ test("public Puckle pages, login and the registration and sign-in APIs are never
 test("layout wording: student, teacher and other audiences, exactly as agreed", () => {
   const student = buildPrelaunchLayout({ category: "student" });
   assert.deepEqual([student.kicker, student.heading, student.lead, student.body, student.followUp.heading, student.followUp.text], ["EARLY ACCESS", "Welcome to Puckle!", "New maths content starts arriving in early December.",
-    "You're here from the beginning. Improve your maths and help shape what we create next.", "Want to get started now?", "Maths lessons with Puckle are available today, using our interactive learning platform."]);
-  assert.deepEqual(student.followUp.action, { kind: "enquire", label: "Enquire about lessons", href: TUITION_ENQUIRY_HREF });
+    "You're here from the beginning. Improve your maths and help shape what we create next.", "Want to get started now?", "Maths lessons with Puckle are available today. Or join us for a free introductory session to see how the platform works and discuss your maths."]);
+  assert.deepEqual(student.followUp.action, { kind: "enquire", label: "Request a free session", href: TUITION_ENQUIRY_HREF });
   assert.equal(TUITION_ENQUIRY_HREF, "/#early-access");
   const teacher = buildPrelaunchLayout({ category: "teacher" });
   assert.equal(teacher.lead, "New maths content starts arriving in early December.");

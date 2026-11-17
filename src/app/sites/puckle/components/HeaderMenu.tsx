@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
+import PublicSignOutButton from "@/components/auth/PublicSignOutButton";
 import styles from "./PublicHeader.module.css";
 
 type HeaderMenuLink = {
@@ -11,9 +12,11 @@ type HeaderMenuLink = {
 
 type HeaderMenuProps = {
   links: ReadonlyArray<HeaderMenuLink>;
+  /** Shown last, for a signed-in member only. */
+  signOut?: boolean;
 };
 
-export default function HeaderMenu({ links }: HeaderMenuProps) {
+export default function HeaderMenu({ links, signOut = false }: HeaderMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -69,6 +72,7 @@ export default function HeaderMenu({ links }: HeaderMenuProps) {
             {link.label}
           </Link>
         ))}
+        {signOut ? <PublicSignOutButton className={styles.navLink} onDone={() => setOpen(false)} /> : null}
       </nav>
     </div>
   );

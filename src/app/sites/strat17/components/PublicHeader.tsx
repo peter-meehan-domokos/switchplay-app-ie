@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BrandLink from "./BrandLink";
 import { getCurrentUser } from "@/lib/auth";
+import PublicSignOutButton from "@/components/auth/PublicSignOutButton";
 import styles from "./PublicHeader.module.css";
 
 type PublicHeaderProps = {
@@ -10,7 +11,7 @@ type PublicHeaderProps = {
 
 export default async function PublicHeader({ showJoinLink = true, showLoginLink = true }: PublicHeaderProps) {
   const user = await getCurrentUser();
-  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Log in" };
+  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Sign in" };
 
   return (
     <header className={styles.header}>
@@ -29,6 +30,7 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
             {authLink.label}
           </Link>
         ) : null}
+        {user ? <PublicSignOutButton className={styles.navLink} /> : null}
       </nav>
     </header>
   );

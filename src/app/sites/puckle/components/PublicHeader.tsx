@@ -16,7 +16,7 @@ type PublicHeaderProps = {
 
 export default async function PublicHeader({ showJoinLink = true, showLoginLink = true }: PublicHeaderProps) {
   const user = await getCurrentUser();
-  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Log in" };
+  const authLink = user ? { href: "/decks", label: "Open App" } : { href: "/login", label: "Sign in" };
   const menuLinks = [
     { href: "/contact", label: "Contact" },
     ...(SHOW_STEP_VISUALS_LINK ? [{ href: "/step-visuals", label: "Step Visuals" }] : []),
@@ -32,7 +32,7 @@ export default async function PublicHeader({ showJoinLink = true, showLoginLink 
             Join
           </Link>
         ) : null}
-        <HeaderMenu links={menuLinks} />
+        <HeaderMenu links={menuLinks} signOut={!!user} />
       </div>
     </header>
   );

@@ -9,7 +9,7 @@ const root = resolve(__dirname, "..");
 const appDir = join(root, "src", "app");
 
 // Infrastructure the independent websites may share; everything else must be the site's own code.
-const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "@/lib/age"];
+const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "@/lib/age", "@/components/auth/PublicSignOutButton"];
 
 // Puckle-only shared modules: the profile contract, new-credential rules (browser-safe validation) and the server
 // orchestration its public Join routes call. Other websites gain no access to them.

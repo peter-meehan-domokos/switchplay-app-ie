@@ -54,7 +54,7 @@ Applied by the proxy (`src/proxy.ts`) before any page or API runs, using the pur
 
 Shown at `/decks` (and the other restricted pages) in place of the platform, and as the landing page after registration and after every sign-in. It is a separate presentation (`prelaunchLayout.ts`, `PrelaunchWelcome.tsx`) and is not dismissible into the platform.
 
-- **Student:** early-access message, "Enquire about lessons" (opens the existing tuition enquiry form on the home page at `/#early-access`), and a small secondary "Parent or guardian approval" section only for a student who is under 16 and has not yet been approved. It opens the existing parent request form and uses the existing request and email.
+- **Student:** early-access message, "Request a free session" (the same wording as the public site; opens the existing tuition enquiry form on the home page at `/#early-access`), and a small secondary "Parent or guardian approval" section only for a student who is under 16 and has not yet been approved. It opens the existing parent request form and uses the existing request and email.
 - **Teacher:** early-access message with `hello@puckleup.com` as a plain email link. No button or form.
 - **Signed-in account with no student or teacher membership:** the general message, with the same email link. The Join "I'm interested in Puckle" choice creates no account, so it is unchanged and keeps its own "You're on the list" confirmation.
 

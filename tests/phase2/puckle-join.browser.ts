@@ -104,7 +104,7 @@ test("student: verify email, account is created, session starts and /decks opens
   expect([user.cardsData, user.decksData, user.permissions, user.isAdmin]).toEqual([[], [], { publicPublishing: false }, false]);
   expect(user.safeguarding).toMatchObject({ dateOfBirth: `${thisYear - 17}-06-14`, dobSource: "self-declared", ageAssurance: { verification: "none" } });
   const membership = (await db.collection("puckleMemberships").findOne({ userId: user._id }))!; expect(membership).toMatchObject({ registrationCategory: "student", name: "Ada", mobile: null, welcome: { eligible: true } });
-  await expect(page.getByRole("link", { name: "Log in" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Sign in" })).toHaveCount(0);
   // Immediate personal learning, no NEW_MODEL_USER_REQUIRED and no second login.
   const actor = user._id.toHexString(), main = new CardRepository(db, client);
   const content = () => ({ ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]), intro: { title: "My first card", description: null, mediaItem: null } });

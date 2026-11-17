@@ -109,7 +109,7 @@ test("reminder dismissal lasts the browser session, per account: survives reload
 test("explicit sign-in and sign-out are new sessions: an eligible student gets the full welcome, never the small button", async ({ browser }) => {
   const first = await account({ eligible: true }), second = await account({ eligible: true }), ctx = await context(browser), page = await ctx.newPage();
   await page.goto(`${origin}/decks`); await page.mouse.click(180, 400); await page.keyboard.press("Tab"); // plenty of outside interaction before signing in
-  await page.getByLabel("Username or email").fill(first.username); await page.getByLabel("Password").fill("local-test-only"); await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByLabel("Username or email").fill(first.username); await page.getByLabel("Password", { exact: true }).fill("local-test-only"); await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.locator('[data-onboarding="welcome"]')).toBeVisible(); await expect(page.locator('[data-onboarding="pill"]')).toHaveCount(0);
   await page.locator('[data-onboarding="welcome"]').getByRole("button", { name: "Explore Puckle" }).click();
   await page.mouse.click(180, 300); // interaction in the first session, then sign out and a different student signs in on the same URL

@@ -17,6 +17,7 @@ export default function AuthScreen({ redirectTo, site = "puckle" }: AuthScreenPr
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -73,9 +74,13 @@ export default function AuthScreen({ redirectTo, site = "puckle" }: AuthScreenPr
               name="password"
               onChange={(event) => setPassword(event.target.value)}
               required
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
             />
+          </label>
+          <label className="auth-show-password">
+            <input checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} type="checkbox" />
+            <span>Show password</span>
           </label>
 
           {error ? <SupportErrorMessage className="auth-error" email={brand.supportEmail} /> : null}

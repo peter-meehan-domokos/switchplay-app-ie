@@ -46,7 +46,7 @@ const myDecks = (page: Page) => page.getByRole("heading", { name: "My Decks", ex
 const MESSAGES = {
   studentLead: "New maths content starts arriving in early December.",
   studentBody: "You're here from the beginning. Improve your maths and help shape what we create next.",
-  studentFollow: "Maths lessons with Puckle are available today, using our interactive learning platform.",
+  studentFollow: "Maths lessons with Puckle are available today. Or join us for a free introductory session to see how the platform works and discuss your maths.",
   teacherBody: "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.",
   otherLead: "We're opening in early December.",
   otherBody: "You're joining Puckle at the beginning. We're creating new ways to learn maths, and we'd love you to be part of what comes next.",
@@ -64,7 +64,10 @@ test.describe("pre-launch mode on", () => {
     await expect(page.getByRole("heading", { name: "Welcome to Puckle!", level: 1 })).toBeVisible();
     for (const text of [MESSAGES.studentLead, MESSAGES.studentBody, MESSAGES.studentFollow]) await expect(page.getByText(text, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Want to get started now?" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Enquire about lessons" })).toHaveAttribute("href", "/#early-access");
+    await expect(page.getByRole("link", { name: "Request a free session" })).toHaveAttribute("href", "/#early-access");
+    await page.getByRole("link", { name: "Request a free session" }).click(); // the existing tuition enquiry form, unchanged and still reachable
+    await expect(page).toHaveURL(`${origin}/#early-access`); await expect(page.getByRole("heading", { name: "Try Puckle for yourself." })).toBeVisible();
+    await page.goBack();
     await expect(page.getByText(/one-to-one/i)).toHaveCount(0);
     await expect(page.getByRole("link", { name: /get in touch/i })).toHaveCount(0);
     expect(new URL(page.url()).pathname).toBe("/decks");
@@ -106,7 +109,7 @@ test.describe("pre-launch mode on", () => {
     // Subsequent sign-in: the embedded sign-in screen on My Decks leads to the pre-launch welcome.
     const fresh = await context(browser), signIn = await fresh.newPage();
     await signIn.goto(`${origin}/decks`); await expect(signIn.getByRole("heading", { name: "Sign in" })).toBeVisible(); await expect(welcome(signIn)).toHaveCount(0);
-    await signIn.getByLabel("Username or email").fill(student.username); await signIn.getByLabel("Password").fill("local-test-only"); await signIn.getByRole("button", { name: "Sign in" }).click();
+    await signIn.getByLabel("Username or email").fill(student.username); await signIn.getByLabel("Password", { exact: true }).fill("local-test-only"); await signIn.getByRole("button", { name: "Sign in" }).click();
     await expect(welcome(signIn)).toBeVisible();
     await signIn.goto(`${origin}/login`); await expect(signIn).toHaveURL(`${origin}/decks`); await expect(welcome(signIn)).toBeVisible();
     await fresh.close();
@@ -117,7 +120,7 @@ test.describe("pre-launch mode on", () => {
     for (const listed of [false, true]) {
       const person = await account(listed ? { email: ALLOWED_ONE } : {}), ctx = await context(browser), page = await ctx.newPage();
       await page.goto(`${origin}/decks`); await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-      await page.getByLabel("Username or email").fill(person.username); await page.getByLabel("Password").fill("local-test-only"); await page.getByRole("button", { name: "Sign in" }).click();
+      await page.getByLabel("Username or email").fill(person.username); await page.getByLabel("Password", { exact: true }).fill("local-test-only"); await page.getByRole("button", { name: "Sign in" }).click();
       if (listed) { await expect(myDecks(page)).toBeVisible(); await expect(welcome(page)).toHaveCount(0); }
       else {
         await expect(welcome(page)).toBeVisible(); await expect(myDecks(page)).toHaveCount(0); await noOverflow(page);
@@ -185,7 +188,7 @@ test.describe("pre-launch mode on", () => {
     for (const text of [MESSAGES.studentLead, MESSAGES.teacherBody, MESSAGES.received]) await expect(page.getByText(text, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: MESSAGES.thanks })).toBeVisible();
     await expect(page.getByRole("link", { name: "hello@puckleup.com" })).toHaveAttribute("href", "mailto:hello@puckleup.com");
-    await expect(page.getByRole("link", { name: /get in touch|enquire/i })).toHaveCount(0); await expect(page.getByRole("button")).toHaveCount(1); // only Sign out
+    await expect(page.getByRole("link", { name: /get in touch|enquire|free session/i })).toHaveCount(0); await expect(page.getByRole("button")).toHaveCount(1); // only Sign out
     await expect(page.locator("form, input, textarea")).toHaveCount(0);
     await expect(page.locator('[data-prelaunch="approval"]')).toHaveCount(0); await noOverflow(page); await ctx.close();
   });
@@ -196,7 +199,7 @@ test.describe("pre-launch mode on", () => {
     for (const text of [MESSAGES.otherLead, MESSAGES.otherBody, MESSAGES.received]) await expect(page.getByText(text, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: MESSAGES.thanks })).toBeVisible();
     await expect(page.getByRole("link", { name: "hello@puckleup.com" })).toHaveAttribute("href", "mailto:hello@puckleup.com");
-    await expect(page.getByRole("link", { name: /get in touch|enquire/i })).toHaveCount(0); await expect(page.locator("form, input, textarea")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /get in touch|enquire|free session/i })).toHaveCount(0); await expect(page.locator("form, input, textarea")).toHaveCount(0);
     await ctx.close();
   });
 
