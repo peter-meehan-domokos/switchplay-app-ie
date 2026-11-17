@@ -1,7 +1,7 @@
 import type { UserSafeguarding } from "./userSafeguarding";
 import type { UserPermissions } from "./userPermissions";
 import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { ObjectId, type ClientSession, type Db, type WithId } from "mongodb";
 import type { CardData } from "./cards/model";
@@ -10,17 +10,12 @@ import { validateCoreCredentials, validateNewPassword } from "./accountCredentia
 import type { UserDeckData } from "@/components/decks/types";
 import { assertApplicationDatabase } from "@/lib/applicationDatabase";
 import { getCollection } from "@/lib/mongodb";
+import { SESSION_COOKIE_NAME, getSessionSecret, readSessionToken } from "@/lib/sessionToken";
+
+export { readSessionToken };
 
 const USERS_COLLECTION = "users";
-const SESSION_COOKIE_NAME = "switchplay_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30;
-
-type SessionUser = {
-	userId: string;
-	email: string;
-	username: string;
-	sessionVersion: number;
-};
 
 export type UserDocument = {
 	safeguarding?: UserSafeguarding;
@@ -58,16 +53,6 @@ export type LegacyAuthUser = {
 
 export type AuthUser = Omit<LegacyAuthUser, "decksData" | "sharedDeckData">;
 
-function getSessionSecret() {
-	const secret = process.env.SESSION_SECRET;
-
-	if (!secret) {
-		throw new Error("SESSION_SECRET is not set.");
-	}
-
-	return new TextEncoder().encode(secret);
-}
-
 function toIsoString(value: Date | string) {
 	return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
@@ -99,32 +84,6 @@ export async function prepareSession(user: AuthUser, sessionVersion = 0) {
 		.setIssuedAt()
 		.setExpirationTime(`${SESSION_DURATION_SECONDS}s`)
 		.sign(getSessionSecret());
-}
-
-export async function readSessionToken(token: string): Promise<SessionUser | null> {
-	try {
-		const { payload } = await jwtVerify(token, getSessionSecret(), {
-			algorithms: ["HS256"],
-		});
-
-		if (
-			typeof payload.sub !== "string" ||
-			typeof payload.email !== "string" ||
-			typeof payload.username !== "string" ||
-			!Number.isSafeInteger(payload.sessionVersion ?? 0) || Number(payload.sessionVersion ?? 0) < 0
-		) {
-			return null;
-		}
-
-		return {
-			userId: payload.sub,
-			email: payload.email,
-			username: payload.username,
-			sessionVersion: Number(payload.sessionVersion ?? 0),
-		};
-	} catch {
-		return null;
-	}
 }
 
 const AUTH_PROJECTION = { _id: 1, email: 1, username: 1, isAdmin: 1, createdAt: 1, updatedAt: 1, sessionVersion: 1 };

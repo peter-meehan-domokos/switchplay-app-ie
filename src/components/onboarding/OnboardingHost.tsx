@@ -4,7 +4,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExtern
 import { usePathname } from "next/navigation";
 import { onAuthChange } from "@/lib/authSessionEvents";
 import OnboardingErrorBoundary from "./OnboardingErrorBoundary";
-import { buildOnboardingLayout, initialOnboardingUi, type OnboardingStatus, type OnboardingUi } from "./onboardingLayout";
+import { buildOnboardingLayout, guardianRequestBody, initialOnboardingUi, type OnboardingStatus, type OnboardingUi } from "./onboardingLayout";
 import { isReminderDismissed, rememberReminderDismissed } from "./onboardingSession";
 import { isEligibleRoute, isPresentationBlocked, observeIntroHosts } from "./onboardingPresentation";
 import styles from "./Onboarding.module.css";
@@ -126,7 +126,7 @@ export default function OnboardingHost() {
     const actor = statusRef.current?.actorId, email = ui.draft.trim(), phone = ui.phoneDraft.trim();
     if (!actor || (!email && !phone) || ui.sending) return;
     patch({ sending: true, message: null });
-    const result = await post("/api/account/parental-approval", { action: "request", ...(email ? { guardianEmail: email } : {}), ...(phone ? { guardianPhone: phone, phoneCountryCode: "IE" } : {}), expectedUserId: actor });
+    const result = await post("/api/account/parental-approval", guardianRequestBody(actor, email, phone));
     if (statusRef.current?.actorId !== actor) return; // the account changed meanwhile: nothing from this response may show
     if (result.status === 200) {
       patch({ sending: false, draft: "", phoneDraft: "", message: { text: typeof result.body?.message === "string" ? result.body.message : "Request sent.", tone: "info" } });

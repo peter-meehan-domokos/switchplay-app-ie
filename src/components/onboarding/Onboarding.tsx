@@ -1,31 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import type { GuardianLayout, OnboardingLayout, OnboardingUi } from "./onboardingLayout";
+import type { OnboardingLayout, OnboardingUi } from "./onboardingLayout";
+import { GuardianForm } from "./GuardianForm";
 import styles from "./Onboarding.module.css";
 
 export type OnboardingActions = Readonly<{
   setDraft: (value: string) => void; setPhoneDraft: (value: string) => void; send: () => void; openWelcome: () => void; explore: () => void;
   requestSession: () => void; dismissReminder: () => void; welcomePresented: () => void;
 }>;
-
-function GuardianForm({ guardian, ui, actions, id }: { guardian: GuardianLayout; ui: OnboardingUi; actions: OnboardingActions; id: string }) {
-  return (
-    <form className={styles.form} noValidate onSubmit={event => { event.preventDefault(); actions.send(); }}>
-      <p className={styles.text}>{guardian.intro}</p>
-      {guardian.statusLine ? <p className={styles.text}>{guardian.statusLine}</p> : null}
-      {guardian.deliveryNote ? <p className={styles.note}>{guardian.deliveryNote}</p> : null}
-      <label className={styles.label} htmlFor={id}>{guardian.emailLabel}</label>
-      <input autoCapitalize="none" autoComplete="off" autoCorrect="off" className={styles.input} disabled={ui.sending} id={id} inputMode="email"
-        maxLength={254} onChange={event => actions.setDraft(event.target.value)} spellCheck={false} type="email" value={ui.draft} />
-      <label className={styles.label} htmlFor={`${id}-phone`}>{guardian.phoneLabel}</label>
-      <input autoComplete="off" className={styles.input} disabled={ui.sending} id={`${id}-phone`} inputMode="tel" maxLength={30}
-        onChange={event => actions.setPhoneDraft(event.target.value)} type="tel" value={ui.phoneDraft} />
-      <p className={styles.small}>{guardian.phoneHint}</p>
-      <button className={styles.primary} disabled={ui.sending || (!ui.draft.trim() && !ui.phoneDraft.trim())} type="submit">{ui.sending ? "Sending…" : guardian.buttonLabel}</button>
-    </form>
-  );
-}
 
 export default function Onboarding({ layout, ui, actions }: { layout: OnboardingLayout; ui: OnboardingUi; actions: OnboardingActions }) {
   const welcomeVisible = layout.kind === "welcome";

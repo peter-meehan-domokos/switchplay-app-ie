@@ -40,6 +40,11 @@ export function guardianLayoutFor(status: OnboardingStatus, welcome: boolean): G
   }
 }
 
+/** Body of the existing parental approval request, shared by every place that asks. */
+export function guardianRequestBody(actorId: string, email: string, phone: string) {
+  return { action: "request", ...(email ? { guardianEmail: email } : {}), ...(phone ? { guardianPhone: phone, phoneCountryCode: "IE" } : {}), expectedUserId: actorId };
+}
+
 export function buildOnboardingLayout(status: OnboardingStatus | null, ui: OnboardingUi): OnboardingLayout {
   if (!status || !status.show || ui.confirming || ui.unavailable || ui.blocked) return { kind: "none" };
   const welcomeLive = (!!status.student && !!status.welcomePending) || ui.welcomePresented;
