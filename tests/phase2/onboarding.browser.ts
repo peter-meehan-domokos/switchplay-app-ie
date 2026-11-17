@@ -157,7 +157,10 @@ test("a slow connection still welcomes an idle student after two seconds; early 
   await a.page.goto(`${origin}/library`); await expect(welcome(a.page)).toBeVisible({ timeout: 10_000 });
   const busy = await account(), b = { page: await (await context(browser, busy.username)).newPage() };
   await b.page.route("**/api/account/onboarding", async route => { if (route.request().method() !== "GET") return route.continue(); await new Promise(r => setTimeout(r, 2500)); await route.continue(); });
-  await b.page.goto(`${origin}/library`); await expect(host(b.page)).toBeAttached(); await b.page.mouse.click(180, 400);
+  await b.page.goto(`${origin}/library`); await expect(host(b.page)).toBeAttached();
+  // "Early" means before the delayed status arrives (2.5 s), not within the first milliseconds of hydration: a click
+  // that lands on the "Loading Library…" fallback before the host's listeners are attached made this test flaky.
+  await expect(b.page.locator(".library-shell")).toBeVisible(); expect(await seenAt(busy._id)).toBeUndefined(); await b.page.mouse.click(180, 400);
   await expect(pill(b.page)).toBeVisible({ timeout: 10_000 }); await expect(welcome(b.page)).toHaveCount(0); expect(await seenAt(busy._id)).toBeUndefined();
   await pill(b.page).click(); await expect(welcome(b.page)).toBeVisible(); await expect.poll(() => seenAt(busy._id)).toBeTruthy();
 });
