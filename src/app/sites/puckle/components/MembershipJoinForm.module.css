@@ -138,7 +138,8 @@
   line-height: 1.45;
 }
 
-.checkbox input {
+/* Type selector raises specificity above `.field input` (CreatorInterestForm.module.css), whose load order differs in production builds. */
+.checkbox input[type="checkbox"] {
   width: 22px;
   height: 22px;
   flex: none;
