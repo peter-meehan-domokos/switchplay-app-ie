@@ -1,3 +1,5 @@
+import { prelaunchAccessFor } from "./prelaunch";
+import { readSessionToken } from "./sessionToken";
 import { ObjectId, type Db, type MongoClient } from "mongodb";
 import { after } from "next/server";
 import { dublinToday } from "./age";
@@ -99,7 +101,9 @@ export async function handleMembershipRegistration(request: Request): Promise<Ha
     if (outcome.kind === "conflict") return outcome.field === "username" ? refuse(409, "USERNAME_TAKEN", { field: "username" }) : refuse(409, "ACCOUNT_UNAVAILABLE");
     // The account is committed. Cookie failure must never be retried as a second registration.
     const signedIn = await writePreparedSessionCookie(outcome.sessionToken).then(() => true, () => false);
-    return { response: securityJson({ ok: true, signedIn, category: outcome.category, destination: "/decks" }, 201), notify: outcome.notify };
+    // In pre-launch mode a non-exempt member lands on the pre-launch welcome (at /decks) instead of the timed registration welcome.
+    const prelaunch = prelaunchAccessFor({ site: "puckle", email: (await readSessionToken(outcome.sessionToken))?.email }) === "prelaunch";
+    return { response: securityJson({ ok: true, signedIn, category: outcome.category, destination: "/decks", prelaunch }, 201), notify: outcome.notify };
   } catch (error) { return { response: securityError(error) }; }
 }
 

@@ -94,8 +94,8 @@ function request(url: string, init: { method?: string; headers?: Record<string, 
   return new NextRequest(url, { method: init.method ?? "GET", headers: init.headers });
 }
 
-test("proxy redirects ?site= to the clean URL with a site cookie, preserving other parameters", () => {
-  const response = proxy(request("http://localhost:3000/login?returnTo=%2Fdecks&site=puckle"));
+test("proxy redirects ?site= to the clean URL with a site cookie, preserving other parameters", async () => {
+  const response = await proxy(request("http://localhost:3000/login?returnTo=%2Fdecks&site=puckle"));
   assert.equal(response.status, 307);
   assert.equal(response.headers.get("location"), "http://localhost:3000/login?returnTo=%2Fdecks");
   const cookie = response.headers.get("set-cookie") ?? "";
@@ -105,31 +105,31 @@ test("proxy redirects ?site= to the clean URL with a site cookie, preserving oth
   assert.doesNotMatch(cookie, /Secure/i);
   assert.doesNotMatch(cookie, /Domain=/i);
 
-  const https = proxy(request("https://foo.vercel.app/?site=switchplay"));
+  const https = await proxy(request("https://foo.vercel.app/?site=switchplay"));
   assert.equal(https.headers.get("location"), "https://foo.vercel.app/");
   assert.match(https.headers.get("set-cookie") ?? "", /Secure/i);
 });
 
-test("proxy never sets the override on production domains and does not loop", () => {
+test("proxy never sets the override on production domains and does not loop", async () => {
   for (const host of ["puckleup.com", "www.puckleup.com", "strat17.com", "switchplay.ie", "www.switchplay.ie"]) {
-    const response = proxy(request(`https://${host}/login?site=strat17`, { headers: { host } }));
+    const response = await proxy(request(`https://${host}/login?site=strat17`, { headers: { host } }));
     assert.equal(response.headers.get("set-cookie"), null, host);
     assert.equal(response.headers.get("location"), null, host);
   }
-  const redirected = proxy(request("http://localhost:3000/login"));
+  const redirected = await proxy(request("http://localhost:3000/login"));
   assert.equal(redirected.headers.get("location"), null);
   assert.equal(redirected.headers.get("x-middleware-next"), "1");
 });
 
-test("proxy rewrites public paths and leaves reserved routes alone", () => {
-  const rewrite = proxy(request("https://puckleup.com/tuition", { headers: { host: "puckleup.com" } }));
+test("proxy rewrites public paths and leaves reserved routes alone", async () => {
+  const rewrite = await proxy(request("https://puckleup.com/tuition", { headers: { host: "puckleup.com" } }));
   assert.equal(rewrite.headers.get("x-middleware-rewrite"), "https://puckleup.com/sites/puckle/tuition");
 
-  const login = proxy(request("https://puckleup.com/login", { headers: { host: "puckleup.com" } }));
+  const login = await proxy(request("https://puckleup.com/login", { headers: { host: "puckleup.com" } }));
   assert.equal(login.headers.get("x-middleware-next"), "1");
   assert.equal(login.headers.get("x-middleware-rewrite"), null);
 
-  const notFound = proxy(request("https://strat17.com/step-visuals", { headers: { host: "strat17.com" } }));
+  const notFound = await proxy(request("https://strat17.com/step-visuals", { headers: { host: "strat17.com" } }));
   assert.match(notFound.headers.get("x-middleware-rewrite") ?? "", /\/sites\/__not-found__$/);
 });
 

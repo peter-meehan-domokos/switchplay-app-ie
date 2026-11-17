@@ -52,3 +52,23 @@ test("status and acknowledgement change nothing else on the account", async () =
   await onboardingStatus(db, id, "puckle"); await acknowledgeWelcome(db, id);
   assert.equal(JSON.stringify(await db.collection("users").findOne({ _id: id })), before);
 });
+
+test("pre-launch mode: the original welcome is neither offered nor recorded to a member on the pre-launch welcome, and returns untouched for exempt accounts and when mode is off", async () => {
+  const saved = { mode: process.env.PUCKLE_PRELAUNCH_MODE, list: process.env.PUCKLE_PRELAUNCH_ACCESS };
+  try {
+    process.env.PUCKLE_PRELAUNCH_MODE = "1"; process.env.PUCKLE_PRELAUNCH_ACCESS = " Tester@Example.INVALID ,other@example.invalid";
+    const id = await account({ dob: "2013-02-02" }), email = "someone@example.invalid";
+    assert.deepEqual(await onboardingStatus(db, id, "puckle", email), { actorId: id.toHexString(), show: false }); // no welcome, no reminder, no approval panel
+    assert.equal((await db.collection("puckleMemberships").findOne({ userId: id }))!.welcome.seenAt, undefined); // still unseen: the original welcome is kept for the full launch
+    const fresh = await account({ dob: "2000-01-01" });
+    assert.equal((await onboardingStatus(db, fresh, "puckle", "TESTER@example.invalid") as { welcomePending: boolean }).welcomePending, true); // exempt: the original rules apply
+    assert.equal((await onboardingStatus(db, fresh, "puckle", "tester@example.invalid") as { show: boolean }).show, true);
+    assert.deepEqual(await onboardingStatus(db, fresh, "switchplay", email), { actorId: fresh.toHexString(), show: false });
+    process.env.PUCKLE_PRELAUNCH_MODE = "0";
+    assert.equal((await onboardingStatus(db, fresh, "puckle", email) as { welcomePending: boolean }).welcomePending, true); // mode off: everyone, by the existing rules
+    delete process.env.PUCKLE_PRELAUNCH_MODE;
+    assert.equal((await onboardingStatus(db, fresh, "puckle") as { welcomePending: boolean }).welcomePending, true);
+  } finally {
+    for (const [key, value] of [["PUCKLE_PRELAUNCH_MODE", saved.mode], ["PUCKLE_PRELAUNCH_ACCESS", saved.list]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  }
+});
