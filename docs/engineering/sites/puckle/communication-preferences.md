@@ -28,7 +28,7 @@ Account settings and a no-account manage link are **not** built yet; see Open de
 `communicationPreferences: { answers, channels: { email, sms }, source, wordingVersion, recordedAt }` is saved on the same record as the
 sign-up, in the same insert (atomic with the account transaction): `puckleMemberships` (accounts), `puckleJoinContactRequests` (mobile-only
 requests) and `puckleInterestContacts` (interested parties). A missing field means unknown: never opted in, never implicitly No.
-`wordingVersion` is `puckle-communication-preferences-v1`; `source` is `join-form` or `join-interest-form`. The old implied
+`wordingVersion` is `puckle-communication-preferences-v2` for records written from now on (earlier records keep `-v1`, with no migration; it changed when the student and teacher form became two questions); `source` is `join-form` or `join-interest-form`. The old implied
 `communication.emailUpdates` field is no longer written (legacy records keep it).
 
 ## Recipient rule

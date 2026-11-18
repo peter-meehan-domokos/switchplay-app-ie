@@ -39,7 +39,7 @@ test("settings: existing members start unknown and load their audience", async (
 test("settings: choices save, persist and can be changed, opting out included", async () => {
   const id = await member("student"), now = new Date("2026-11-19T09:00:00Z");
   const saved = await saveMemberPreferences(db, id, { communicationPreferences: { answers: { ...prefs(ALL_STUDENT, "no").answers, puckleUpdates: "yes" }, channels: { email: true, sms: false } } }, now);
-  assert.deepEqual([saved.source, saved.wordingVersion, saved.recordedAt, saved.channels], ["account-settings", "puckle-communication-preferences-v1", now, { email: true, sms: false }]);
+  assert.deepEqual([saved.source, saved.wordingVersion, saved.recordedAt, saved.channels], ["account-settings", "puckle-communication-preferences-v2", now, { email: true, sms: false }]);
   const row = (await membershipOf(id))!;
   assert.equal(row.communicationPreferences.answers.puckleUpdates, "yes"); assert.equal(row.updatedAt.toISOString(), now.toISOString());
   assert.equal(isOptedIn(row.communicationPreferences, "puckleUpdates", "email"), true);
@@ -114,4 +114,12 @@ test("a management link updates or withdraws the choices without an account", as
   await assert.rejects(saveInterestPreferences(db, token, { communicationPreferences: prefs(SHARED, "no"), email: "evil@example.invalid" }), /PREFERENCES_INVALID/);
   await saveInterestPreferences(db, token, { communicationPreferences: { answers: { ...prefs(SHARED, "no").answers, puckleUpdates: "yes" }, channels: { email: false, sms: true } }, mobile: "+353871234599", phoneCountryCode: "IE" });
   assert.equal((await db.collection("puckleInterestContacts").findOne({ _id: one.id }))!.mobile, "+353871234599", "a mobile can be added for Text");
+});
+
+test("records saved under the earlier wording keep their version until their owner saves again", async () => {
+  const id = await member("student", { communicationPreferences: { answers: { ...prefs(ALL_STUDENT, "no").answers, puckleUpdates: "yes" }, channels: { email: true, sms: false }, source: "join-form", wordingVersion: "puckle-communication-preferences-v1", recordedAt: new Date("2026-11-01T00:00:00Z") } });
+  assert.equal((await loadMemberPreferences(db, id))!.stored!.wordingVersion, "puckle-communication-preferences-v1");
+  assert.equal((await membershipOf(id))!.communicationPreferences.wordingVersion, "puckle-communication-preferences-v1", "loading never rewrites it");
+  const saved = await saveMemberPreferences(db, id, { communicationPreferences: prefs(ALL_STUDENT, "no") });
+  assert.equal(saved.wordingVersion, "puckle-communication-preferences-v2");
 });

@@ -167,7 +167,7 @@ test("interest is an updates sign-up: no marketing checkbox, needs only an email
   const payload = buildInterestPayload(text(text(named, { email: "sam@example.com" }), { reason: "parent" })).details;
   assert.ok(!("emailUpdates" in payload));
   const accepted = validateInterestContact(payload, new Date(0));
-  assert.deepEqual([accepted.email, accepted.communicationPreferences.source, accepted.communicationPreferences.wordingVersion, accepted.communicationPreferences.channels], ["sam@example.com", "join-interest-form", "puckle-communication-preferences-v1", { email: false, sms: false }]);
+  assert.deepEqual([accepted.email, accepted.communicationPreferences.source, accepted.communicationPreferences.wordingVersion, accepted.communicationPreferences.channels], ["sam@example.com", "join-interest-form", "puckle-communication-preferences-v2", { email: false, sms: false }]);
   const mobileOnly = validateInterestContact(buildInterestPayload(withMobile(noEmail, "+353871234567")).details);
   assert.equal(mobileOnly.email, null, "mobile-only contact");
   assert.throws(() => validateInterestContact({ ...payload, emailUpdates: true }), /UNEXPECTED_FIELD/);

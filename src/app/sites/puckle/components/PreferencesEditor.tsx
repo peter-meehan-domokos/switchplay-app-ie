@@ -68,12 +68,12 @@ export default function PreferencesEditor({ idPrefix, audience, initial, hasEmai
     <form className={styles.form} noValidate onSubmit={(event: FormEvent) => { event.preventDefault(); void save(state, mobile); }} ref={formRef}>
       <CommunicationPreferences idPrefix={idPrefix} layout={layout}
         onAnswer={(field, value) => edit(withAnswer(state, audience, field, value), [field, "channels"])}
-        onChannel={(channel, checked) => edit(withChannel(state, channel, checked), ["channels"])} />
-      {needsMobile ? (
+        onChannel={(channel, checked) => edit(withChannel(state, channel, checked), ["channels"])}
+        belowChannels={needsMobile ? (
         <div className={styles.mobile}>
           <PublicPhoneInput idPrefix={`${idPrefix}-mobile`} label="Mobile number for text messages" maxLength={30} onPhoneChange={value => { setMobile(value); setStatus(IDLE); setErrors(current => ({ ...current, channels: undefined })); }} setRef={() => undefined} value={mobile} />
         </div>
-      ) : null}
+        ) : null} />
       <div className={styles.actions}>
         <button className={`${buttonStyles.button} ${buttonStyles.primary}`} disabled={status.kind === "saving"} type="submit">{status.kind === "saving" ? "Saving…" : "Save changes"}</button>
         {unsubscribe ? (

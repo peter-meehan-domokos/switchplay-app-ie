@@ -106,7 +106,7 @@ test("saved choices pre-populate an editing screen and unknown stays unanswered"
 test("the server stores explicit answers with provenance and rejects anything incomplete", () => {
   const stored = validateCommunicationPreferences(payload("student", "no"), "student", { email: null, mobile: null }, "join-form", NOW);
   assert.deepEqual(stored.answers, answers("student", "no"));
-  assert.deepEqual([stored.source, stored.wordingVersion, stored.recordedAt, stored.channels], ["join-form", "puckle-communication-preferences-v1", NOW, { email: false, sms: false }]);
+  assert.deepEqual([stored.source, stored.wordingVersion, stored.recordedAt, stored.channels], ["join-form", "puckle-communication-preferences-v2", NOW, { email: false, sms: false }]);
   for (const audience of ["student", "teacher", "interest"] as const) {
     assert.equal(Object.keys(validateCommunicationPreferences(payload(audience, "no"), audience, both, "x", NOW).answers).length, audience === "interest" ? 3 : 4);
     const missing = { ...answers(audience, "no") }; delete missing.puckleUpdates;

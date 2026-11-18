@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Answer } from "../lib/communicationPreferences";
 import type { ChannelsView, PreferenceField, PreferenceRowView, PreferencesLayout } from "../lib/communicationPreferencesLayout";
 import styles from "./CommunicationPreferences.module.css";
@@ -8,10 +9,12 @@ type Props = Readonly<{
   idPrefix: string; layout: PreferencesLayout;
   onAnswer: (field: PreferenceField, value: Answer) => void;
   onChannel: (channel: "email" | "sms", checked: boolean) => void;
+  /** Shown directly beneath the delivery choices (for example the mobile number needed for Text message). */
+  belowChannels?: ReactNode;
 }>;
 
 /** Compact Yes | No rows plus the conditional delivery box. Renders the layout only; nothing is preselected. */
-export default function CommunicationPreferences({ idPrefix, layout, onAnswer, onChannel }: Props) {
+export default function CommunicationPreferences({ idPrefix, layout, onAnswer, onChannel, belowChannels }: Props) {
   const renderRow = (row: PreferenceRowView) => {
     const base = `${idPrefix}-${row.field}`;
     return (
@@ -62,7 +65,7 @@ export default function CommunicationPreferences({ idPrefix, layout, onAnswer, o
             <h3 className={styles.groupTitle} id={`${idPrefix}-${group.id}-group`}>{group.title}</h3>
             {group.text ? <p className={styles.groupText}>{group.text}</p> : null}
             <div className={group.id === "updates" ? styles.nested : undefined}>{group.rows.map(renderRow)}</div>
-            {group.channels ? renderChannels(group.channels) : null}
+            {group.channels ? <>{renderChannels(group.channels)}{group.channels.visible ? belowChannels : null}</> : null}
           </div>
         ))}
       </section>
@@ -73,6 +76,7 @@ export default function CommunicationPreferences({ idPrefix, layout, onAnswer, o
       <h2 id={`${idPrefix}-prefs-title`}>{layout.heading}</h2>
       {layout.rows.map(renderRow)}
       {renderChannels(layout.channels)}
+      {layout.channels.visible ? belowChannels : null}
     </section>
   );
 }

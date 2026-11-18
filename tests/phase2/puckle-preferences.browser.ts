@@ -98,7 +98,7 @@ test("unanswered choices and a missing channel or mobile are blocked inline, kee
   const user = (await db.collection("users").findOne({ email }))!;
   const membership = (await db.collection("puckleMemberships").findOne({ userId: user._id }))!;
   expect(membership.communicationPreferences).toMatchObject({ answers: { puckleUpdates: "yes", newsAndOffers: "yes", occasionalPersonalContact: "no", guidedMathsInvitations: "yes" },
-    channels: { email: true, sms: true }, source: "join-form", wordingVersion: "puckle-communication-preferences-v1" });
+    channels: { email: true, sms: true }, source: "join-form", wordingVersion: "puckle-communication-preferences-v2" });
   expect(membership.communicationPreferences.recordedAt).toBeInstanceOf(Date);
   await expect.poll(async () => (await outbox()).some(m => m.to.includes("founder@example.invalid") && m.subject.includes("NEW STUDENT") && /Puckle Updates: Yes/.test(m.text) && /Delivery: Email and Text message/.test(m.text))).toBe(true);
 });

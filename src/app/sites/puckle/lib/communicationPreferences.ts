@@ -12,7 +12,8 @@ export type StoredPreferences = {
   source: string; wordingVersion: string; recordedAt: Date;
 };
 
-export const PREFERENCES_WORDING_VERSION = "puckle-communication-preferences-v1";
+/** v2: the student and teacher form asks two questions, one of which covers three stored preferences. Earlier records keep v1. */
+export const PREFERENCES_WORDING_VERSION = "puckle-communication-preferences-v2";
 export const PREFERENCES_HEADING = "Stay in touch with Puckle";
 
 export const PREFERENCE_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: string; text: string }>>> = {

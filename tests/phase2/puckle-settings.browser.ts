@@ -56,6 +56,10 @@ for (const width of [390, 1280]) {
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByText(/valid mobile number above to receive text messages/)).toBeVisible();
     await expect(page.locator("#settings-mobile-phone")).toBeVisible();
+    // The number is asked for directly beneath the delivery choices, inside the Puckle Updates group.
+    await expect(updates.locator("#settings-mobile-phone")).toBeVisible(); await expect(personal.locator("#settings-mobile-phone")).toHaveCount(0);
+    const boxBottom = await box.boundingBox().then(rect => rect!.y + rect!.height), mobileTop = await page.locator("#settings-mobile-phone").boundingBox().then(rect => rect!.y);
+    expect(mobileTop).toBeGreaterThanOrEqual(boxBottom);
     await page.locator("#settings-mobile-phone").fill("871234567"); await box.getByRole("checkbox", { name: "Email" }).check();
     await noOverflow(page);
     await page.screenshot({ path: `phase2-test-results/settings-${width}.png`, fullPage: true });

@@ -202,7 +202,7 @@ test("interest sign-up: no marketing checkbox until Yes, choices are stored expl
   await expect(page.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(page.getByText(/we've saved your choices/)).toBeVisible();
   await expect(page.getByRole("link", { name: "change or unsubscribe from your choices" })).toHaveAttribute("href", /^\/preferences\/manage#/); await expect(page.getByText(/No account was created/)).toBeVisible(); await expect(page.getByText("Please check your inbox for our confirmation email.")).toBeVisible(); await noOverflow(page);
   const saved = (await db.collection("puckleInterestContacts").findOne({ name }))!;
-  expect(saved).toMatchObject({ email, mobile: null, reason: "", communicationPreferences: { channels: { email: false, sms: false }, source: "join-interest-form", wordingVersion: "puckle-communication-preferences-v1" } });
+  expect(saved).toMatchObject({ email, mobile: null, reason: "", communicationPreferences: { channels: { email: false, sms: false }, source: "join-interest-form", wordingVersion: "puckle-communication-preferences-v2" } });
   expect(saved.communication).toBeUndefined(); expect(saved.communicationPreferences.recordedAt).toBeInstanceOf(Date);
   expect(await db.collection("users").countDocuments()).toBe(before); expect(await db.collection("users").findOne({ email })).toBeNull(); expect(await db.collection("puckleMemberships").findOne({ name })).toBeNull();
   await waitFor(async () => (await db.collection("puckleInterestContacts").findOne({ _id: saved._id }))?.founderNotification?.status === "sent");

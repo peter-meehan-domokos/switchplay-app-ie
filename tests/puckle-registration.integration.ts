@@ -271,7 +271,7 @@ test("interest contacts never create accounts and store only the explicit commun
   const rows = Object.fromEntries(await Promise.all([["interested", interested], ["declined", declined], ["mobileOnly", mobileOnly]].map(async ([name, saved]) => [name, (await db.collection("puckleInterestContacts").findOne({ _id: (saved as typeof interested).id }))!])));
   assert.equal((await counts()).users, before.users + 1, "only the fixture user above"); assert.equal((await counts()).memberships, before.memberships);
   assert.deepEqual([rows.interested.communicationPreferences.answers, rows.interested.communicationPreferences.channels, rows.interested.communicationPreferences.wordingVersion, rows.interested.communicationPreferences.recordedAt.toISOString()],
-    [yes.answers, yes.channels, "puckle-communication-preferences-v1", "2026-11-14T10:00:00.000Z"]);
+    [yes.answers, yes.channels, "puckle-communication-preferences-v2", "2026-11-14T10:00:00.000Z"]);
   assert.equal(rows.declined.communicationPreferences.answers.puckleUpdates, "no", "submitting with an email is not a request for updates");
   assert.deepEqual(rows.declined.communicationPreferences.channels, { email: false, sms: false });
   assert.equal(rows.declined.communication, undefined, "the implied email-updates request no longer exists");
