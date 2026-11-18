@@ -9,7 +9,7 @@ import {
   withLevel, withMobile, withNoEmail, withOutcome, withPreferenceAnswer, withPreferenceChannel, withShowPassword, withStage, withText, withVerifiedProof, withoutErrors, withoutProof,
   type JoinChoice, type JoinErrors, type JoinFieldKey, type JoinFlowState, type JoinFormState,
 } from "../lib/membershipJoinLayout";
-import { SITE_NAME, CONTACT_EMAIL } from "../siteInfo";
+import { SITE_NAME, CONTACT_EMAIL, PHONE_LINES } from "../siteInfo";
 import buttonStyles from "./PublicButton.module.css";
 import formStyles from "./CreatorInterestForm.module.css";
 import InterestRegistrationForm from "./InterestRegistrationForm";
@@ -20,6 +20,9 @@ import PublicPhoneInput from "./PublicPhoneInput";
 import RegistrationWelcome from "./RegistrationWelcome";
 import StudentRegistrationForm from "./StudentRegistrationForm";
 import TeacherRegistrationForm from "./TeacherRegistrationForm";
+
+/** The numbers people can text to change or withdraw their choices (a manual process for now). */
+const TextNumbers = () => <>{PHONE_LINES.map((line, index) => <span key={line.country}>{index ? " or " : ""}{line.display} ({line.country})</span>)}</>;
 
 type FormError = Readonly<{ text: string; accountLinks?: boolean }>;
 /** Editing a field clears only the errors that edit can resolve. */
@@ -131,7 +134,7 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
   async function submitContact() {
     const response = await (form.choice === "interest" ? submitInterest(buildInterestPayload(form)) : submitJoinContact(buildContactPayload(form)));
     if (response.status === 201 && response.body?.ok === true) {
-      setFlow(withOutcome(flow, form.choice === "interest" ? { kind: "interest", byEmail: !form.noEmail && !!form.email.trim() } : { kind: "contact-request", category: form.choice === "teacher" ? "teacher" : "student" }));
+      setFlow(withOutcome(flow, form.choice === "interest" ? { kind: "interest", byEmail: !form.noEmail && !!form.email.trim(), ...(typeof response.body.manage === "string" && response.body.manage.startsWith("/preferences/manage#") ? { manageLink: response.body.manage } : {}) } : { kind: "contact-request", category: form.choice === "teacher" ? "teacher" : "student" }));
       return release();
     }
     const code = typeof response.body?.code === "string" ? response.body.code : "";
@@ -184,15 +187,17 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
           ) : outcome.kind === "contact-request" ? (
             <>
               <h2>Thanks, we have your details.</h2>
-              <p>{SITE_NAME} will contact you on your mobile number about next steps. No account has been created yet.</p>
+              <p>{SITE_NAME} will contact you on your mobile number about next steps. No account has been created yet. To change or withdraw your communication choices, text Puckle on <TextNumbers />.</p>
             </>
           ) : (
             <>
               <h2>You&apos;re on the list.</h2>
               {outcome.byEmail ? (
-                <p>Thanks, we&apos;ve saved your choices. No account was created. To change or withdraw them at any time, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+                <p>Thanks, we&apos;ve saved your choices. No account was created. {outcome.manageLink
+                  ? <>You can <a href={outcome.manageLink}>change or unsubscribe from your choices</a> at any time, without an account.</>
+                  : <>To change or withdraw them at any time, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</>}</p>
               ) : (
-                <p>Thanks, we&apos;ve saved your choices. We&apos;ll use your mobile number to follow up on this request, and for any text messages you chose. To change or withdraw your choices, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. No account was created.</p>
+                <p>Thanks, we&apos;ve saved your choices. We&apos;ll use your mobile number to follow up on this request, and for any text messages you chose. To change or withdraw your choices, text Puckle on <TextNumbers />. No account was created.</p>
               )}
             </>
           )}

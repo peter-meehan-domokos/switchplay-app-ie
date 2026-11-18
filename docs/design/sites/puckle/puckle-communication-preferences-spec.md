@@ -1,6 +1,6 @@
 # Puckle — Communication Preferences
 
-**Implementation specification v1.0 — approved wording and design, pending codebase verification**  
+**Implementation specification v1.1 — approved wording and design; implemented (see Section 16)**  
 **Scope:** Puckle registration, preference storage, account settings and opt-out handling  
 **Separate from:** Puckle Contact and Support page specification
 
@@ -221,3 +221,19 @@ Reuse shared UI where genuinely useful without coupling different site branding 
 
 Before editing, Claude must inspect existing implementation, identify reuse opportunities and flag any **material** incompatibilities or unsettled legal/product decisions. Do not replace approved product decisions with agent preferences. Implement as directly as practicable once existing paths are verified. Add relevant tests first where feasible and report the results and any actual blockers. **No commit, push, merge or deploy without explicit approval.**
 
+
+## 16. Implementation decisions (v1.1)
+
+Recorded after verifying the codebase. These resolve the open points above.
+
+1. **Settings for signed-in students and teachers.** The Puckle app menu gets a **Settings** item (exact label). It opens a simple Settings
+   page whose first section is **Communication Preferences**, using the same controls, validation and data as registration. Saved answers
+   are pre-populated; existing members with nothing saved see every choice unanswered. It is not added to the public website menu and
+   other websites' menus are unchanged. Settings is a section on a page, not a general settings system.
+2. **Interested parties who registered with an email address** manage their choices through a signed management link (no account): an
+   unguessable token bound to their own record, which can change choices or unsubscribe from everything.
+3. **People who registered with only a mobile number** change or unsubscribe by texting Puckle, a manual process. Their confirmation
+   explains this. There is no automated SMS management.
+4. **No special pre-launch behaviour** was added for any of this.
+5. **Out of scope and unchanged:** the other websites, the unused creator-interest forms, and registration, authentication and
+   parental-approval behaviour.

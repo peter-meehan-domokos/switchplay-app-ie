@@ -200,7 +200,7 @@ test("interest sign-up: no marketing checkbox until Yes, choices are stored expl
   await answerAll(page); await submit(page).click(); await expect(page.getByText("Enter an email address or a mobile number.")).toBeVisible(); await expect(page.getByText("Tell us what brings you")).toHaveCount(0);
   await page.getByLabel("Your name").fill(name); await page.getByLabel("Email", { exact: false }).first().fill(email); await submit(page).click();
   await expect(page.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(page.getByText(/we've saved your choices/)).toBeVisible();
-  await expect(page.getByRole("link", { name: /@/ })).toHaveAttribute("href", /^mailto:/); await expect(page.getByText(/No account was created/)).toBeVisible(); await noOverflow(page);
+  await expect(page.getByRole("link", { name: "change or unsubscribe from your choices" })).toHaveAttribute("href", /^\/preferences\/manage#/); await expect(page.getByText(/No account was created/)).toBeVisible(); await noOverflow(page);
   const saved = (await db.collection("puckleInterestContacts").findOne({ name }))!;
   expect(saved).toMatchObject({ email, mobile: null, reason: "", communicationPreferences: { channels: { email: false, sms: false }, source: "join-interest-form", wordingVersion: "puckle-communication-preferences-v1" } });
   expect(saved.communication).toBeUndefined(); expect(saved.communicationPreferences.recordedAt).toBeInstanceOf(Date);

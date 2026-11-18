@@ -13,7 +13,7 @@ const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "
 
 // Puckle-only shared modules: the profile contract, new-credential rules (browser-safe validation) and the server
 // orchestration its public Join routes call. Other websites gain no access to them.
-const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration", "@/lib/puckleEnquiries"];
+const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration", "@/lib/puckleEnquiries", "@/lib/puckleCommunicationPreferences"];
 
 // Puckle's pre-launch welcome reuses the existing parent approval request and sign-in screen, the pre-launch decision
 // and the sign-out notification instead of duplicating them. Other websites gain no access to them.

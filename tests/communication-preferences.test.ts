@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { describePreferences, isOptedIn, preferenceKeysFor, validateCommunicationPreferences } from "../src/app/sites/puckle/lib/communicationPreferences";
 import {
-  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, preferencesStateFrom, validatePreferencesState, withAnswer, withAudienceChange, withChannel, withoutEmailChannel,
+  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, preferencesStateFrom, validatePreferencesState, withAllNo, withAnswer, withAudienceChange, withChannel, withoutEmailChannel,
 } from "../src/app/sites/puckle/lib/communicationPreferencesLayout";
 import { buildMembershipJoinLayout, initialJoinFlowState, initialJoinFormState, validateJoinForm, withChoice, withNoEmail, withPreferenceAnswer, withPreferenceChannel, withText } from "../src/app/sites/puckle/lib/membershipJoinLayout";
 import { validateInterestContact, validateRegistrationDetails } from "../src/app/sites/puckle/lib/membershipRegistration";
@@ -168,4 +168,12 @@ test("state helpers never mutate", () => {
   const before = JSON.stringify(initialPreferencesState);
   withAnswer(initialPreferencesState, "student", "puckleUpdates", "yes"); withChannel(initialPreferencesState, "sms", true); withoutEmailChannel(initialPreferencesState);
   assert.equal(JSON.stringify(initialPreferencesState), before);
+});
+test("unsubscribe sets every choice for the audience to No and clears the channels", () => {
+  const on = withChannel(withAnswer(withAnswer(initialPreferencesState, "teacher", "puckleUpdates", "yes"), "teacher", "invitations", "yes"), "email", true);
+  const none = withAllNo(on, "teacher");
+  assert.deepEqual([none.puckleUpdates, none.newsAndOffers, none.occasionalPersonalContact, none.invitations, none.email, none.sms], ["no", "no", "no", "no", false, false]);
+  assert.deepEqual(validatePreferencesState(none, "teacher", { emailAvailable: true, hasEmail: true, hasMobile: false }), {});
+  assert.equal(withAllNo(initialPreferencesState, "interest").invitations, "", "interested parties have no invitation choice");
+  assert.equal(on.email, true, "the original state is untouched");
 });

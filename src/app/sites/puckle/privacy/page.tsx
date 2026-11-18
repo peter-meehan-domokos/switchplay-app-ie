@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PublicHeader from "../components/PublicHeader";
+import Link from "next/link";import PublicHeader from "../components/PublicHeader";
 import PublicLayout from "../components/PublicLayout";
 import { SITE_NAME, CONTACT_EMAIL } from "../siteInfo";
 import styles from "./page.module.css";
@@ -67,7 +67,10 @@ export default function PrivacyPage() {
           <p>
             Whatever you choose, we still send the messages needed to run your account (such as verification codes,
             password resets, parent or guardian approval emails and important service notices) and we reply to
-            questions and support requests you send us. To change or withdraw your choices, email {CONTACT_EMAIL}.
+            questions and support requests you send us. You can change or withdraw your choices at any time: in Settings
+            if you have an account, through the link we give you if you signed up with an email address and no account, or by
+            texting us on the numbers on our <Link href="/contact">contact page</Link> if you gave only a mobile number.
+            You can also email {CONTACT_EMAIL}.
           </p>
         </section>
 

@@ -36,7 +36,7 @@ export type JoinFormState = Readonly<{
 export type JoinOutcome =
   | { kind: "account"; category: "student" | "teacher"; signedIn: boolean }
   | { kind: "contact-request"; category: "student" | "teacher" }
-  | { kind: "interest"; byEmail: boolean };
+  | { kind: "interest"; byEmail: boolean; manageLink?: string };
 export type JoinFlowState = Readonly<{
   stage: "details" | "code" | "done";
   binding: { challengeId: string; flowToken: string } | null;

@@ -4,6 +4,7 @@ import { validateInterestContact, validateNoEmailContact } from "@/app/sites/puc
 import { founderInterestEmail, founderNoEmailRequestEmail } from "@/app/sites/puckle/lib/memberEmailTemplates";
 import type { InterestContact, NoEmailJoinContact } from "./puckleMemberships";
 import { notifyFounder } from "./founderNotifications";
+import { manageLink } from "./puckleCommunicationPreferences";
 
 /**
  * Contact-only records. Neither creates an account, profile, username reservation or credential,
@@ -22,7 +23,9 @@ export async function saveInterestContact(db: Db, value: unknown, now = new Date
   const record: InterestContact = { ...validateInterestContact(value, now), createdAt: now, founderNotification: { status: "pending" } };
   const _id = new Id();
   await db.collection<InterestContact & { _id: ObjectId }>("puckleInterestContacts").insertOne({ _id, ...record });
-  return { id: _id, notify: () => notifyFounder(db, { collection: "puckleInterestContacts", id: _id }, founderInterestEmail({
+  // An email sign-up gets a signed link to change or withdraw its choices. Without the email secret there is simply no link.
+  const manage = record.email ? (() => { try { return manageLink(_id); } catch { return undefined; } })() : undefined;
+  return { id: _id, manage, notify: () => notifyFounder(db, { collection: "puckleInterestContacts", id: _id }, founderInterestEmail({
     id: _id.toHexString(), name: record.name, email: record.email, mobile: record.mobile, reason: record.reason,
     message: record.message, preferences: record.communicationPreferences })) };
 }

@@ -4,10 +4,12 @@ import { announceAuthChange } from "@/lib/authSessionEvents";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useSettingsLink } from "./SettingsLink";
 
 type OverviewMenuProps = { username: string; userId: string };
 export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
   const router = useRouter();
+  const settingsHref = useSettingsLink();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -53,6 +55,7 @@ export default function OverviewMenu({ username, userId }: OverviewMenuProps) {
             Create
           </Link>
           <div className="overview-menu-divider" role="separator" aria-orientation="horizontal" />
+          {settingsHref ? <Link className="deck-menu-item" href={settingsHref} role="menuitem" onClick={() => setIsOpen(false)}>Settings</Link> : null}
           <Link className="deck-menu-item" href="/contact" role="menuitem" onClick={() => setIsOpen(false)}>
             Support
           </Link>

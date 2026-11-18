@@ -46,10 +46,13 @@ export const withChannel = (state: PreferencesState, channel: "email" | "sms", c
 /** Switching between student, teacher and interested clears the audience-specific invitation answer. */
 export const withAudienceChange = (state: PreferencesState, audience: PreferencesAudience): PreferencesState =>
   withoutStaleChannels({ ...state, invitations: "" }, audience);
+/** Unsubscribe from everything: every choice for the audience becomes No and the channels are cleared. */
+export const withAllNo = (state: PreferencesState, audience: PreferencesAudience): PreferencesState =>
+  PREFERENCE_FIELDS.reduce((next, field) => keyFor(field, audience) ? withAnswer(next, audience, field, "no") : next, state);
 /** The email channel cannot apply without an email address (for example the mobile-only route). */
 export const withoutEmailChannel = (state: PreferencesState): PreferencesState => state.email ? { ...state, email: false } : state;
 
-export function preferencesStateFrom(stored: StoredPreferences | null | undefined, audience: PreferencesAudience): PreferencesState {
+export function preferencesStateFrom(stored: Pick<StoredPreferences, "answers" | "channels"> | null | undefined, audience: PreferencesAudience): PreferencesState {
   if (!stored) return initialPreferencesState;
   const invitation = invitationKey(audience);
   return {
