@@ -346,6 +346,11 @@
     gap: 56px;
   }
 
+  /* Bring the first step closer to the section heading without changing the gap between the steps themselves. */
+  .primary .header {
+    margin-bottom: -40px;
+  }
+
   .beat:not(.beatReverse) .media,
   .beat:not(.beatReverse) .feedback {
     width: 100%;

@@ -57,13 +57,15 @@ test("Explore keeps a sensible text width at 900-1100px and is unchanged on wide
 });
 
 const follow = async (page: Page) => { await page.evaluate(() => { location.hash = "#early-access"; }); await page.waitForTimeout(600); };
-const landing = (page: Page) => page.evaluate(() => ({ titleTop: document.getElementById("enquiry-title")!.getBoundingClientRect().top,
+const landing = (page: Page) => page.evaluate(() => ({ sectionTop: document.getElementById("early-access")!.getBoundingClientRect().top,
+  padding: parseFloat(getComputedStyle(document.getElementById("early-access")!).paddingTop), titleTop: document.getElementById("enquiry-title")!.getBoundingClientRect().top,
   spare: document.documentElement.scrollHeight - innerHeight - scrollY }));
 
 test("following a link to the registration form puts its heading at the top, with little spare scroll room on tablet and up", async ({ browser }) => {
   for (const [width, height] of [[390, 600], [390, 844], [768, 1024], [820, 700], [1024, 768], [1280, 600], [1280, 800], [1440, 1000], [1440, 1300]] as const) {
     const page = await open(browser, width, height); await follow(page); const where = await landing(page);
-    expect(where.titleTop, `${width}x${height}: heading near the top`).toBeGreaterThanOrEqual(8); expect(where.titleTop).toBeLessThanOrEqual(26);
+    expect(Math.abs(where.sectionTop), `${width}x${height}: lands on the top of the section`).toBeLessThanOrEqual(2);
+    expect(Math.abs(where.titleTop - where.padding - 1), `${width}x${height}: the section top padding is visible above the heading`).toBeLessThanOrEqual(4);
     if (width >= 760) expect(where.spare, `${width}x${height}: spare scroll room`).toBeLessThanOrEqual(30); // phones keep their existing room
     await page.context().close();
   }
@@ -79,7 +81,7 @@ test("an expanded registration form is fully reachable and the heading still lan
     const button = await page.getByRole("button", { name: "Request a free session" }).boundingBox();
     expect(button!.y + button!.height, `${width}x${height}: submit button reachable`).toBeLessThanOrEqual(height);
     await page.evaluate(() => scrollTo(0, 0)); await follow(page);
-    expect((await landing(page)).titleTop, `${width}x${height}: heading at top with the form expanded`).toBeLessThanOrEqual(26);
+    expect((await landing(page)).sectionTop, `${width}x${height}: section at top with the form expanded`).toBeLessThanOrEqual(2);
     await page.context().close();
   }
 });
@@ -110,7 +112,21 @@ test("the hero has a Request a free session button that sits inside the centred 
     await page.screenshot({ path: `phase2-test-results/homepage-hero-cta-${width}.png` });
     await button.click(); await page.waitForTimeout(800);
     const top = await page.evaluate(() => document.getElementById("enquiry-title")!.getBoundingClientRect().top);
-    expect(top, `${width}px: heading near the top after click`).toBeLessThan(60); expect(top).toBeGreaterThan(0);
+    expect(top, `${width}px: heading sits below the section padding after click`).toBeGreaterThan(40); expect(top).toBeLessThan(90);
+    await page.context().close();
+  }
+});
+
+test("the Learning heading sits closer to the first step on laptop, with the steps themselves unchanged", async ({ browser }) => {
+  for (const [width, expectMax] of [[1280, 40], [1024, 40], [390, 400]] as const) {
+    const page = await open(browser, width, 800), gaps = await page.evaluate(() => {
+      const top = (element: Element) => element.getBoundingClientRect();
+      const h2 = document.getElementById("learning-title")!, beats = [...h2.closest("section")!.querySelectorAll(":scope > div")];
+      return { heading: top(beats[0]).top - top(h2).bottom, between: top(beats[1]).top - top(beats[0]).bottom };
+    });
+    expect(gaps.heading, `${width}px: heading to first step`).toBeLessThanOrEqual(expectMax);
+    if (width >= 900) expect(gaps.between, `${width}px: gap between steps unchanged`).toBeGreaterThanOrEqual(56);
+    await page.screenshot({ path: `phase2-test-results/homepage-learning-${width}.png` });
     await page.context().close();
   }
 });
