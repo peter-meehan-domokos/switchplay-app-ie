@@ -23,7 +23,8 @@ test.beforeAll(async () => {
         playbackViewerUserId={scope.actor} onClose={()=>{}} onPrevious={()=>{}} onNext={()=>{}} traversalDirection="next" transition={{duration:0}} />;
     }
     createRoot(document.getElementById('root')).render(<App />);
-  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", define: {
+  ` }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic",
+    loader: { ".ttf": "dataurl", ".woff": "dataurl", ".woff2": "dataurl" }, define: {
     "process.env.NODE_ENV": JSON.stringify("test"), "process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA": JSON.stringify("1"),
     "process.env.NEXT_PUBLIC_PHASE2_MOCK_MEDIA": JSON.stringify("0"), "process.env": "{}",
   } };
@@ -110,6 +111,7 @@ for (const mode of ["working", "canonical"]) test(`${mode}: each grant prepares 
   await page.goto(`https://fixture.invalid/?${mode}`);
   await page.addStyleTag({content:await readFile("src/app/globals.css", "utf8") + componentCss});
   await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   try {
     await page.evaluate(() => (window as unknown as Harness).mountCard()); await expect.poll(()=>grants.size).toBe(4);
     await grants.get("intro")!();
@@ -170,6 +172,7 @@ test("renewed grants replace thumbnails; learner/version changes and closing rel
     return route.abort();
   });
   await page.goto("https://fixture.invalid/?working");await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss});await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   await page.evaluate(()=>(window as unknown as Harness).mountCard());
   await expect.poll(()=>page.evaluate(()=>(window as unknown as {decoded:string[]}).decoded.length)).toBe(4);
   await page.locator(".active-card-identity").press("Enter");await expect(page.locator(".switchplay-video-poster")).toBeVisible();
@@ -188,7 +191,7 @@ test("renewed grants replace thumbnails; learner/version changes and closing rel
   await expect(page.locator(".switchplay-video-poster")).toHaveAttribute("src",/context=bob-2-intro/);
   await page.evaluate(()=>{(window as unknown as {closingImage:Element}).closingImage=document.querySelector(".switchplay-video-poster")!;});
   await page.evaluate(()=>(window as unknown as Harness).unmountCard());
-  expect(await page.evaluate(()=>{const image=(window as unknown as {closingImage:Element}).closingImage;return !image.isConnected&&!image.hasAttribute("src");})).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>{const image=(window as unknown as {closingImage:Element}).closingImage;return !image.isConnected&&!image.hasAttribute("src");})).toBe(true);
 });
 
 test("delayed and failed thumbnails leave a visible loading message; video readiness ends loading independently", async ({page}) => {
@@ -206,6 +209,7 @@ test("delayed and failed thumbnails leave a visible loading message; video readi
     return route.abort();
   });
   await page.goto("https://fixture.invalid/?working"); await page.addStyleTag({content:await readFile("src/app/globals.css","utf8") + componentCss}); await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   try {
     await page.evaluate(()=>(window as unknown as Harness).mountCard()); await expect.poll(()=>!!releaseImage).toBe(true);
     await page.locator(".active-card-identity").press("Enter");
@@ -280,6 +284,18 @@ for(const engine of ["chromium","webkit"]) for(const paused of [true,false]) tes
     }
     await expect(poster).toHaveCount(0);expect((await renderedPixel(page))[1]).toBeGreaterThan(130);
     await page.screenshot({path:`/tmp/switchplay-handoff-${engine}-${paused?"paused":"playing"}.png`});
+    if (paused) {
+      // Real decoded metadata/seek/frame handling, rather than controlled media
+      // properties, proves that a nonzero session position becomes visible.
+      await video.evaluate((element: HTMLVideoElement) => { element.currentTime = 0.4; });
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => !element.seeking && Math.abs(element.currentTime - 0.4) < 0.05)).toBe(true);
+      await page.getByRole("region", { name: "STEP 1 detail", exact: true }).getByRole("button", { name: "Previous", exact: true }).click();
+      await expect(page.getByRole("region", { name: "STEP 1 detail", exact: true })).toHaveCount(0);
+      await expect(video).toBeVisible();
+      await page.getByRole("region", { name: "INTRO detail", exact: true }).getByRole("button", { name: "Next", exact: true }).click();
+      await expect.poll(() => video.evaluate((element: HTMLVideoElement) => !element.seeking && Math.abs(element.currentTime - 0.4) < 0.05)).toBe(true);
+      await expect(video).toBeVisible(); expect(await video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
+    }
   } finally {if(browser)await browser.close();}
 });
 type Harness = { mountCard(actor?: string, version?: number): void; unmountCard(): void; setHidden(hidden: boolean): void };
@@ -299,6 +315,7 @@ for (const mode of ["working", "canonical"]) test(`${mode} focused Card prepares
   await page.route("https://videodelivery.net/**", route => route.abort());
   page.on("pageerror", error => { throw error; });
   await page.goto(`https://fixture.invalid/?${mode}`); await page.addScriptTag({content:bundle});
+  await expect.poll(()=>page.evaluate(()=>typeof (window as unknown as Harness).mountCard)).toBe("function");
   await page.evaluate(() => (window as unknown as Harness).mountCard());
   await expect.poll(() => grants.length).toBe(4);
   if (mode === "canonical") await expect.poll(() => statuses.length).toBe(4);

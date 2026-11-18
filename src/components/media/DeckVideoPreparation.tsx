@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, ty
 import { createDeckVideoPreparation, type DeckVideoCard } from "@/lib/deckVideoPreparation";
 import { deckPresentationIdentity, hasPersonalCard, hasPersonalDeck, type PresentedCard, type PresentedDeck } from "@/components/decks/presentation";
 import { isCloudflareStreamVideoMediaItem } from "@/lib/media";
+import { introductionVideo } from "@/lib/stepMedia";
 
 const PreparationContext = createContext<ReturnType<typeof createDeckVideoPreparation> | null>(null);
 const ViewerContext = createContext<string | undefined>(undefined);
@@ -14,7 +15,8 @@ function videoCard(card: PresentedCard, viewer?: string): DeckVideoCard {
   const actor = hasPersonalCard(card) ? card.dataOwnerUserId : viewer;
   const version = hasPersonalCard(card) ? card.adoptedVersion : card.version;
   const mode = hasPersonalCard(card) ? "working" : "canonical";
-  const intro = isCloudflareStreamVideoMediaItem(card.intro.mediaItem) ? card.intro.mediaItem : null;
+  const video = introductionVideo(card.intro);
+  const intro = isCloudflareStreamVideoMediaItem(video) ? video : null;
   return {
     key: JSON.stringify([actor, mode, card.cardTemplateId, version, intro?.assetId]),
     context: process.env.NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA === "1" && actor && version && card.cardTemplateId

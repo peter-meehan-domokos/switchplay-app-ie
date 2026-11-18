@@ -1,6 +1,13 @@
 import { isRecord, nonblank } from "../cards/domain";
+import { getInteractiveVisual } from "../interactiveVisuals/catalogue";
 
-export type FrameworkItem = { readonly id: string; readonly title: string; readonly cardTemplateIds: readonly string[] };
+export type FrameworkItem = {
+  readonly id: string;
+  readonly title: string;
+  readonly cardTemplateIds: readonly string[];
+  /** Independent references, never inputs to Card progress calculations. Absent means empty for old configurations. */
+  readonly interactiveVisualIds?: readonly string[];
+};
 // Configured identities only: this does not establish accessible Deck destinations.
 export function hasConfiguredCards(item: FrameworkItem): boolean {
   return item.cardTemplateIds.length > 0;
@@ -56,10 +63,17 @@ export function validateFrameworkConfiguration(value: unknown): FrameworkIssue[]
       if (!Array.isArray(area.items)) { report("INVALID_ITEMS", ap, id); return; }
       area.items.forEach((item, ii) => {
         const ip = `${ap}.items[${ii}]`;
-        if (!entity(item, ["id", "title", "cardTemplateIds"], ip, id)) return;
+        if (!entity(item, ["id", "title", "cardTemplateIds", "interactiveVisualIds"], ip, id)) return;
         const itemId = item.id as string;
         if (itemIds.has(itemId)) report("DUPLICATE_ITEM_ID", ip, id);
         itemIds.add(itemId);
+        if (Object.hasOwn(item, "interactiveVisualIds")) {
+          if (!Array.isArray(item.interactiveVisualIds)) report("INVALID_INTERACTIVE_VISUAL_MAPPINGS", ip, id);
+          else item.interactiveVisualIds.forEach((visualId: unknown, index: number, ids: unknown[]) => {
+            if (!identifier(visualId) || !getInteractiveVisual(visualId)) report("INVALID_INTERACTIVE_VISUAL_ID", ip, id);
+            else if (ids.indexOf(visualId) !== index) report("DUPLICATE_INTERACTIVE_VISUAL_MAPPING", ip, id);
+          });
+        }
         if (!Array.isArray(item.cardTemplateIds)) { report("INVALID_CARD_MAPPINGS", ip, id); return; }
         item.cardTemplateIds.forEach((cardId: unknown) => {
           if (!identifier(cardId)) { report("INVALID_CARD_ID", ip, id); return; }

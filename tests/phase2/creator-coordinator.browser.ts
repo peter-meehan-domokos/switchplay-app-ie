@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { MongoClient } from "mongodb";
 import { assertDisposableDatabase } from "../../src/lib/cards/localDatabase";
+import { uploadCreatorIntroVideo } from "./helpers/creatorMedia";
 let client: MongoClient;
 test.beforeAll(async () => { assertDisposableDatabase(); client = await new MongoClient(process.env.MONGODB_URI!).connect(); });
 test.afterAll(async () => { await client?.close(); });
@@ -115,13 +116,13 @@ test("authorized intro upload keeps its original Card after renumbering and afte
   let started = false;
   const origin = process.env.PHASE2_MEDIA_FIXTURE_ORIGIN!;
   await page.route(`${origin}/upload`, async (route) => { started = true; await pause.promise; await route.continue(); });
-  await card(page, b).locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({ name: "stable-target.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
+  await uploadCreatorIntroVideo(page, card(page, b), { name: "stable-target.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
   await expect.poll(() => started).toBe(true);
   await remove(page, a); await expect(card(page, b).locator(".creator-card-label-button")).toHaveText("Card 1");
   await remove(page, b);
   await page.locator(".creator-back-link").click();
   await expect(page).toHaveURL(/\/decks(?:\?reveal=[^&]+)?$/); pause.resolve();
-  await expect.poll(async () => (await cardRoot(b))?.draft.intro.mediaItem?.description).toBe("stable-target.mp4");
+  await expect.poll(async () => (await cardRoot(b))?.draft.intro.mediaItems?.[0]?.media.description).toBe("stable-target.mp4");
   expect((await cardRoot(a))!.draft.intro.mediaItem).toBeNull();
   await expect(page.locator(".creator-entity-save-error")).toHaveCount(0);
 });
@@ -134,7 +135,7 @@ for (const operation of ["upload", "save"] as const) test(`detached ${operation}
   const documentTime = await page.evaluate(() => performance.timeOrigin);
   if (operation === "upload") {
     await page.route(`${process.env.PHASE2_MEDIA_FIXTURE_ORIGIN!}/upload`, async route => { started = true; await pause.promise; await route.continue(); });
-    await card(page, id).locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({ name: "detached-library.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
+    await uploadCreatorIntroVideo(page, card(page, id), { name: "detached-library.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture video") });
   } else {
     await page.route(`**/api/card-templates/${id}`, async route => {
       if (route.request().method() === "PATCH") { started = true; await pause.promise; }
@@ -147,7 +148,7 @@ for (const operation of ["upload", "save"] as const) test(`detached ${operation}
   await page.getByRole("button", { name: "Leave without publishing", exact: true }).click();
   await expect(page).toHaveURL("/library"); expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentTime);
   pause.resolve();
-  await expect.poll(async () => operation === "upload" ? (await cardRoot(id))?.draft.intro.mediaItem?.description : (await cardRoot(id))?.draft.steps[0].description)
+  await expect.poll(async () => operation === "upload" ? (await cardRoot(id))?.draft.intro.mediaItems?.[0]?.media.description : (await cardRoot(id))?.draft.steps[0].description)
     .toBe(operation === "upload" ? "detached-library.mp4" : "Detached work survives Library return");
 });
 

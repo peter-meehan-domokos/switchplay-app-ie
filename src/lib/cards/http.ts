@@ -5,11 +5,11 @@ import { LibraryPreviewConflict } from "./libraryEntry";
 import { UpdateReviewConflict } from "./updateAdoption";
 import { AssessmentConflict } from "../assessments/contracts";
 
-export async function cardRequest(run: (repo: CardRepository, actor: string) => Promise<unknown>) {
+export async function cardRequest(run: (repo: CardRepository, actor: string) => Promise<unknown>, stepMediaProtocol?: string | null) {
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    const result = await run(await CardRepository.application(), user.id);
+    const result = await run(await CardRepository.application(stepMediaProtocol), user.id);
     return Response.json(result ?? { ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AssessmentConflict) return Response.json({ error: error.code, code: error.code,
@@ -53,7 +53,7 @@ export async function creatorRequestBoundary(request: Request, run: (repo: CardR
     const expected = request.headers.get("X-Creator-Actor");
     requireCondition(expected === null || expected === actor, "CREATOR_SESSION_CONFLICT");
     return run(repo, actor);
-  });
+  }, request.headers.get("X-Step-Media-Protocol"));
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("Vary", "Cookie");
   return response;

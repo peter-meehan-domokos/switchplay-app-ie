@@ -4,6 +4,7 @@ import { isImageMediaItem, isMediaItem, isVideoMediaItem, type MediaItem } from 
 import { assertAdoption, assertCardContent, assertDeckContent, requireCondition } from "./domain";
 import type { CardTemplateVersion, DeckTemplateVersion } from "./model";
 import { deckDraftContent } from "./publicationRules";
+import type { StepMediaDestination, StepMediaItem } from "../stepMedia";
 
 export type CreatorAttribution = { username: string; immediateSourceUsername: string | null };
 export type LibraryCardPresentation = CanonicalCardPresentation & { creator: CreatorAttribution };
@@ -58,6 +59,21 @@ export function canonicalIntroductionDTO(value: DeckIntroduction | null): DeckIn
   return { image, video };
 }
 
+function instructionalMediaDTO(value: StepMediaDestination): StepMediaDestination {
+  if (value.mediaItems === undefined) return { mediaItem: canonicalMediaDTO(value.mediaItem) };
+  return { mediaItems: value.mediaItems.map((item): StepMediaItem => {
+    const base = { id: item.id, label: item.label };
+    if (item.kind === "activity") return { ...base, kind: "activity", activityId: item.activityId };
+    const media = canonicalMediaDTO(item.media);
+    if (item.kind === "video") {
+      requireCondition(isVideoMediaItem(media), "INVALID_CANONICAL_MEDIA");
+      return { ...base, kind: "video", media };
+    }
+    requireCondition(isImageMediaItem(media), "INVALID_CANONICAL_MEDIA");
+    return { ...base, kind: "image", media, alt: item.alt };
+  }) };
+}
+
 export function libraryCardPresentation(version: CardTemplateVersion, label: string, creator: CreatorAttribution): LibraryCardPresentation {
   requireCondition(version.visibility === "public", "LIBRARY_CARD_FORBIDDEN");
   return cardContentPresentation(version, label, creator);
@@ -71,12 +87,12 @@ export function cardContentPresentation(version: CardTemplateVersion, label: str
   return { surface: "canonical", id: version.cardTemplateId, cardTemplateId: version.cardTemplateId,
     ...(content.infoCardIds !== undefined ? { infoCardIds: [...content.infoCardIds] } : {}),
     version: version.version, label, creator: { username: creator.username, immediateSourceUsername: creator.immediateSourceUsername },
-    intro: { title: content.intro.title, description: content.intro.description, mediaItem: canonicalMediaDTO(content.intro.mediaItem) },
+    intro: { title: content.intro.title, description: content.intro.description, ...instructionalMediaDTO(content.intro) },
     steps: content.steps.map((step) => ({ stepId: step.stepId,
       ...(step.title !== undefined ? { title: step.title } : {}), description: step.description,
       ...(step.descriptionContent !== undefined ? { descriptionContent: step.descriptionContent.map((span) => span.type === "link"
         ? { type: "link" as const, text: span.text, url: span.url } : { type: "text" as const, text: span.text }) } : {}),
-      mediaItem: canonicalMediaDTO(step.mediaItem),
+      ...instructionalMediaDTO(step),
     })),
   };
 }

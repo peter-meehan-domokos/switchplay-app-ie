@@ -7,6 +7,7 @@ import { publishedVideoGuard } from "@/components/media/publishedVideo";
 import CardStack, { type CardTransitionPhase } from "./CardStack";
 import { getPlayableDeckIntroductionVideo } from "./deckIntroPreview";
 import FocusedCardView, { type FocusedCardViewProps, type FocusedTraversalDirection } from "./FocusedCardView";
+import { VisualLearningRecordsProvider } from "@/components/interactiveVisuals/VisualLearningRecordsProvider";
 import { deckPresentationIdentity, hasPersonalDeck, type PresentedDeck, type PresentedCard, type CardBackPresentation } from "./presentation";
 import { DECK_GESTURE_THRESHOLDS } from "./gestures/gestureThresholds";
 import { useDeckGestures } from "./gestures/useDeckGestures";
@@ -422,6 +423,7 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
     deckGestures.vector.distance >= DECK_GESTURE_THRESHOLDS.deadZonePx;
 
   return (
+    <VisualLearningRecordsProvider accountId={hasPersonalDeck(deck) ? deck.dataOwnerUserId : playbackViewerUserId}>
     <DeckVideoPreparationProvider deck={deck} viewerUserId={playbackViewerUserId} activeIndex={activeCardIndex} suspended={isDeckFlipped || isDeckIntroExpanded}>
     <motion.section
       ref={deckDetailRef}
@@ -502,9 +504,11 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
         {isFocusModeOpen && activeCard ? (
           renderFocusedCard ? <FocusedCardSlot render={renderFocusedCard} props={{
             onOpenMedia: openMedia, mediaViewerOpen, card: activeCard, cardIndex: activeCardIndex, deckTemplateId: deck.deckTemplateId,
+            deckVersion: hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version,
             totalCards: cards.length, onClose: closeFocusMode, onPrevious: goToPreviousFocusedCard,
             onNext: goToNextFocusedCard, isDeckFlipped, traversalDirection: focusedTraversalDirection, transition,
           }} /> : <FocusedCardView card={activeCard} cardIndex={activeCardIndex} deckTemplateId={deck.deckTemplateId}
+            deckVersion={hasPersonalDeck(deck) ? deck.adoptedVersion : deck.version}
             totalCards={cards.length} onClose={closeFocusMode} onPrevious={goToPreviousFocusedCard}
             onNext={goToNextFocusedCard} isDeckFlipped={isDeckFlipped}
             traversalDirection={focusedTraversalDirection} transition={transition} />
@@ -548,5 +552,6 @@ export default function DeckScene({ deck, playbackViewerUserId, isDeckFlipped = 
 
     </motion.section>
     </DeckVideoPreparationProvider>
+    </VisualLearningRecordsProvider>
   );
 }

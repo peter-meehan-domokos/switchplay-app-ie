@@ -1,3 +1,4 @@
+import { assertImageDelivery } from "./instructionalImageOwnership";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { MediaItem } from "../media";
 import { isMediaItem } from "../media";
@@ -25,21 +26,31 @@ export async function authorizeProtectedMedia(repo: CardRepository, actor: strin
     const user = await repo.getPersonalUser(actor, session);
     requireCondition(user, "MEDIA_FORBIDDEN");
     // Includes retained/archived/source records, always scoped to this actor.
-    for (const card of user.cardsData ?? []) for (const item of contentMedia(card.mediaItems)) if (matches(item)) return item;
+    for (const card of user.cardsData ?? []) for (const item of contentMedia(card.mediaItems)) if (matches(item)) {
+      if (provider === "r2" && !/(?:^|\/)(?:user-cards|user-decks)\//.test(new URL(item.src).pathname))
+        await assertImageDelivery(repo.db, { scope: "card", targetId: card.cardTemplateId }, item, session);
+      return item;
+    }
     for (const [rootsCollection, versionsCollection, idField] of [
       [repo.cards(), repo.cardVersions(), "cardTemplateId"],
       [repo.decks(), repo.deckVersions(), "deckTemplateId"],
     ] as const) {
       const roots = await rootsCollection.find({ $or: [{ ownerUserId: actor }, { visibility: "public" }] }, { session }).toArray();
       for (const root of roots) if (root.ownerUserId === actor) {
-        const item = contentMedia(root.draft).find(matches); if (item) return item;
+        const item = contentMedia(root.draft).find(matches); if (item) {
+          if (provider === "r2") await assertImageDelivery(repo.db, { scope: idField === "cardTemplateId" ? "card" : "deck", targetId: String(root[idField as keyof typeof root]) }, item, session, false);
+          return item;
+        }
       }
       // Immutable visibility matters: public roots do not expose private-era versions.
       const clauses = roots.map((root) => ({ [idField]: root[idField as keyof typeof root], ...(root.ownerUserId === actor ? {} : { visibility: "public" as const }) }));
       if (!clauses.length) continue;
       for (let offset = 0; offset < clauses.length; offset += 100) {
         const versions = await versionsCollection.find({ $or: clauses.slice(offset, offset + 100) }, { session }).toArray();
-        for (const version of versions) { const item = contentMedia(version.content).find(matches); if (item) return item; }
+        for (const version of versions) { const item = contentMedia(version.content).find(matches); if (item) {
+          if (provider === "r2") await assertImageDelivery(repo.db, { scope: idField === "cardTemplateId" ? "card" : "deck", targetId: String(version[idField as keyof typeof version]) }, item, session);
+          return item;
+        } }
       }
     }
     requireCondition(false, "MEDIA_FORBIDDEN");

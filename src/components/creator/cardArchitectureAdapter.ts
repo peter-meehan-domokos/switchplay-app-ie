@@ -48,17 +48,21 @@ export function privateGraph(board: BoardState, baseline?: CreatorBoardDTO | nul
     const original = baseline?.cards.find((card) => card.root.cardTemplateId === column.cardId)?.content;
     const card: CardContent = { ...(original ?? {}), suggestedTargetDate: column.targetDate ?? "",
       ...(column.infoCardIds !== undefined ? { infoCardIds: [...column.infoCardIds] } : {}),
-      intro: { title: column.cardTitle === "" && original?.intro.title == null ? null : column.cardTitle ?? null, description: column.introDescription ?? null, mediaItem: column.introMediaItem ?? null },
+      intro: { title: column.cardTitle === "" && original?.intro.title == null ? null : column.cardTitle ?? null, description: column.introDescription ?? null,
+        ...(column.introMediaItems !== undefined ? { mediaItems: column.introMediaItems } : { mediaItem: column.introMediaItem ?? null }) },
       steps: board.rows.map((row) => {
         const pair = board.pairs[board.cells[getCreatorCellId(column.id, row)].pairId!];
         const old = original?.steps.find((step) => step.stepId === pair.stepId);
         const retained = { ...old };
         delete retained.title;
         delete retained.descriptionContent;
+        delete retained.mediaItem;
+        delete retained.mediaItems;
         return { ...retained, stepId: pair.stepId,
           ...(pair.stepTitle != null ? { title: pair.stepTitle } : {}), description: pair.stepText,
           ...(pair.stepDescriptionContent !== undefined ? { descriptionContent: pair.stepDescriptionContent } : {}),
-          ...(original && old?.mediaItem === undefined && pair.stepMediaItem === null ? {} : { mediaItem: pair.stepMediaItem }) };
+          ...(pair.stepMediaItems !== undefined ? { mediaItems: pair.stepMediaItems }
+            : original && old?.mediaItem === undefined && pair.stepMediaItem === null ? {} : { mediaItem: pair.stepMediaItem }) };
       }) };
     return { cardTemplateId: column.cardId!, content: card };
   });

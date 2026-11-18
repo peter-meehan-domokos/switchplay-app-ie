@@ -90,9 +90,9 @@ function ExplainedText({ parts, active }: { parts: TermText; active: boolean }) 
 }
 
 /** Activity-specific composition: no changes to shared frames or the later-stage renderer. */
-export default function IntroStages({ state, presentation, active, dispatch, headingRef, onExit }: {
+export default function IntroStages({ state, presentation, active, dispatch, headingRef, onExit, hosted = false }: {
   state: IntegrationState; presentation: IntegrationPresentation; active: boolean; dispatch: Dispatch<IntegrationAction>;
-  headingRef: RefObject<HTMLHeadingElement | null>; onExit?: () => void;
+  headingRef: RefObject<HTMLHeadingElement | null>; onExit?: () => void; hosted?: boolean;
 }) {
   const context = { revision: state.revision };
   const disabled = !active || !!state.edit;
@@ -113,9 +113,9 @@ export default function IntroStages({ state, presentation, active, dispatch, hea
       </> : presentation.lines.map((line, index) => <p key={index}>{line.parts ? <ExplainedText parts={line.parts} active={active} /> : line.text}</p>)}
     </div>
     <p className={styles.insight}>{presentation.note}</p>
-    <nav className={styles.navigation} aria-label="Activity progression">
+    {!hosted ? <nav className={styles.navigation} aria-label="Activity progression">
       <button type="button" disabled={disabled || !canGoPrevious(state)} onClick={() => dispatch({ ...context, type: "previous" })}><span aria-hidden="true">← </span>Previous</button>
       <button type="button" disabled={disabled || !presentation.nextEnabled}
-      onClick={() => dispatch({ ...context, type: "next" })}>Next <span aria-hidden="true">→</span></button></nav>
+      onClick={() => dispatch({ ...context, type: "next" })}>Next <span aria-hidden="true">→</span></button></nav> : null}
   </div>;
 }

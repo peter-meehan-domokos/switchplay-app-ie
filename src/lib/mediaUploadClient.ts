@@ -23,6 +23,7 @@ export type ImageDirectUploadResponse = {
   mediaItemId?: string;
   uploadURL: string;
   attachmentProof?: string;
+  headers?: Record<string, string>;
 };
 
 export type StreamDirectUploadResponse = {
@@ -270,11 +271,12 @@ export async function requestStreamVideoReadiness(
   return responseBody;
 }
 
-export async function uploadFileToR2(uploadURL: string, file: File, signal: AbortSignal) {
+export async function uploadFileToR2(uploadURL: string, file: File, signal: AbortSignal, headers?: Record<string, string>) {
   const response = await fetch(uploadURL, {
     method: "PUT",
     headers: {
       "Content-Type": file.type,
+      ...headers,
     },
     body: file,
     signal,
@@ -391,7 +393,7 @@ export async function uploadImageMedia(
 ): Promise<CloudflareR2ImageMediaItem> {
   const directUpload = await requestImageDirectUpload(target, file, signal);
   throwIfUploadAborted(signal);
-  await uploadFileToR2(directUpload.uploadURL, file, signal);
+  await uploadFileToR2(directUpload.uploadURL, file, signal, directUpload.headers);
   throwIfUploadAborted(signal);
 
   const item = createImageMediaItem(directUpload, file.name || "Introduction image");

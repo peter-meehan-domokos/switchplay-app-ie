@@ -4,7 +4,7 @@
  * Pages: only the learning areas are restricted. Everything else (public site, login, account emails) is open.
  * APIs: fail closed. Only the groups below stay open; any other /api path is part of the unfinished platform.
  */
-export const PRELAUNCH_RESTRICTED_PAGE_SEGMENTS = ["decks", "library", "progress", "creator"] as const;
+export const PRELAUNCH_RESTRICTED_PAGE_SEGMENTS = ["decks", "library", "progress", "creator", "interactive-visuals"] as const;
 
 /** Prefix match on a path segment boundary. */
 const under = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);

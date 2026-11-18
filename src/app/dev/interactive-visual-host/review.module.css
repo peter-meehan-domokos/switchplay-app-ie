@@ -1,0 +1,5 @@
+.review { min-height: 100dvh; background: #f7f8f3; color: #24332f; }
+.menu { display: grid; gap: 16px; max-width: 420px; padding: 24px; }
+.menu button { min-height: 44px; border: 1px solid #9daea4; border-radius: 8px; background: white; color: inherit; padding: 8px; }
+.initialPreview { width: 390px; height: 844px; padding: 12px; box-sizing: border-box; background: #f7f8f3; --spv-surface-height: 820px; }
+.mock { display: grid; place-content: center; box-sizing: border-box; border: 2px dashed #28634f; background: #e5ece4; }

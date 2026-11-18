@@ -2,6 +2,7 @@ import { isIsoDateOnlyString } from "../dateOnly";
 import { getConfidenceScore } from "../signals";
 import { isImageMediaItem, isVideoMediaItem } from "../media";
 import { infoReferences } from "../infoCards/domain";
+import { hasModernStepMedia, STEP_MEDIA_PROTOCOL, validStepMediaItems } from "../stepMedia";
 import type { AdoptedVersion, CardContent, CardData, CardTemplateRoot, DeckContent, DeckTemplateRoot, Step } from "./model";
 
 export class CardArchitectureError extends Error {
@@ -22,19 +23,30 @@ function keys(value: Record<string, unknown>, allowed: string[]) {
 }
 function text(value: unknown, nullable = false) { requireCondition(typeof value === "string" || (nullable && value === null), "INVALID_CONTENT_TEXT"); }
 function media(value: unknown) { requireCondition(value == null || isImageMediaItem(value) || isVideoMediaItem(value), "INVALID_CANONICAL_MEDIA"); }
+function instructionalDestination(value: Record<string, unknown>, intro = false) {
+  if (Object.hasOwn(value, "mediaItems")) {
+    requireCondition(!Object.hasOwn(value, "mediaItem") && validStepMediaItems(value.mediaItems), "INVALID_STEP_MEDIA");
+  } else {
+    if (intro) requireCondition(Object.hasOwn(value, "mediaItem") && value.mediaItem !== undefined, "INVALID_CARD_INTRO");
+    media(value.mediaItem);
+  }
+}
+export function assertStepMediaWrite(protocol: string | null | undefined, next: CardContent, previous?: CardContent | null) {
+  requireCondition(protocol === STEP_MEDIA_PROTOCOL || (!hasModernStepMedia(next) && !hasModernStepMedia(previous)), "STEP_MEDIA_CLIENT_REVISION_REQUIRED");
+}
 export function assertCardContent(value: unknown): asserts value is CardContent {
   requireCondition(isRecord(value), "INVALID_CARD_CONTENT"); keys(value, ["intro", "steps", "suggestedTargetDate", "mediaItem", "infoCardIds"]);
   infoReferences(value.infoCardIds);
   media(value.mediaItem);
-  requireCondition(isRecord(value.intro), "INVALID_CARD_INTRO"); keys(value.intro, ["title", "description", "mediaItem"]);
-  requireCondition(Object.hasOwn(value.intro, "mediaItem") && value.intro.mediaItem !== undefined, "INVALID_CARD_INTRO");
-  text(value.intro.title, true); text(value.intro.description, true); media(value.intro.mediaItem);
+  requireCondition(isRecord(value.intro), "INVALID_CARD_INTRO"); keys(value.intro, ["title", "description", "mediaItem", "mediaItems"]);
+  instructionalDestination(value.intro, true);
+  text(value.intro.title, true); text(value.intro.description, true);
   requireCondition(value.suggestedTargetDate === "" || isIsoDateOnlyString(value.suggestedTargetDate), "INVALID_SUGGESTED_DATE");
   requireCondition(Array.isArray(value.steps) && value.steps.length === 3, "CARD_REQUIRES_THREE_STEPS");
   const ids = new Set();
   for (const step of value.steps) {
     requireCondition(isRecord(step) && nonblank(step.stepId), "INVALID_STEP");
-    keys(step, ["stepId", "title", "description", "descriptionContent", "mediaItem", "forkedFrom"]);
+    keys(step, ["stepId", "title", "description", "descriptionContent", "mediaItem", "mediaItems", "forkedFrom"]);
     if (step.forkedFrom !== undefined) {
       requireCondition(isRecord(step.forkedFrom) && nonblank(step.forkedFrom.cardTemplateId)
         && nonblank(step.forkedFrom.stepId) && Number.isInteger(step.forkedFrom.version) && Number(step.forkedFrom.version) >= 1, "INVALID_STEP_LINEAGE");
@@ -42,7 +54,7 @@ export function assertCardContent(value: unknown): asserts value is CardContent 
     }
     requireCondition(!ids.has(step.stepId), "DUPLICATE_STEP_ID"); ids.add(step.stepId);
     if (step.title !== undefined) text(step.title);
-    text(step.description, true); media(step.mediaItem);
+    text(step.description, true); instructionalDestination(step);
     if (step.descriptionContent !== undefined) {
       requireCondition(Array.isArray(step.descriptionContent), "INVALID_RICH_TEXT");
       for (const span of step.descriptionContent) {

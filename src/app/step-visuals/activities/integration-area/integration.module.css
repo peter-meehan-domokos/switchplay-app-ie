@@ -1,4 +1,5 @@
 .activity { box-sizing: border-box; color: #24332f; font-family: Arial, Helvetica, sans-serif; line-height: 1.45; width: 100%; min-width: 0; scroll-margin-top: 4rem; }
+.container { container-type: size; }
 .activity *, .activity *::before, .activity *::after { box-sizing: border-box; }
 .heading { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 8px; }
 .heading h1 { margin: 0; font-size: 1.35rem; line-height: 1.25; font-weight: 700; }
@@ -9,7 +10,7 @@
 .instruction { grid-area: instruction; min-height: 4.2em; margin: 0 0 8px; font-size: 0.875rem; line-height: 1.4; color: #4c5b52; }
 .calibration { visibility: hidden; pointer-events: none; user-select: none; }
 .body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.graph { position: relative; min-width: 0; height: clamp(240px, calc(100dvh - 500px), 400px); border-radius: 14px; background: #fffdf8; }
+.graph { position: relative; min-width: 0; height: 100%; border-radius: 14px; background: #fffdf8; }
 .svg { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
 .grid { fill: none; stroke: #e7ebe3; stroke-width: 1; }
 .axes { fill: none; stroke: #7f8d83; stroke-width: 1.2; }
@@ -71,7 +72,7 @@
 .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (min-width: 700px) {
   .body { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: 16px; }
-  .graph { grid-column: 1; grid-row: 1; height: clamp(300px, calc(100dvh - 300px), 420px); }
+  .graph { grid-column: 1; grid-row: 1; height: 100%; }
   .math { grid-column: 2; grid-row: 1; }
   .controls { grid-column: 1; grid-row: 2; }
   .note { grid-column: 2; grid-row: 2; }

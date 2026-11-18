@@ -2,6 +2,7 @@ import type { CardRepository } from "./repository";
 import { nonblank, requireCondition } from "./domain";
 import { isCloudflareStreamVideoMediaItem } from "../media";
 import { assertNotInfoMedia } from "../infoCards/mediaRegistry";
+import { instructionalMedia } from "../stepMedia";
 // Public-only even for owners. Authorization proves exact immutable membership
 // before contacting Stream; possession of a UID does not confer access.
 export async function authorizeLibraryVideo(repo: CardRepository, actor: string, context: {
@@ -15,7 +16,7 @@ export async function authorizeLibraryVideo(repo: CardRepository, actor: string,
       const root = await repo.cards().findOne({ cardTemplateId: context.templateId, visibility: "public", latestVersion: { $gte: context.version } }, { session });
       const version = await repo.cardVersions().findOne({ cardTemplateId: context.templateId, version: context.version, visibility: "public" }, { session });
       requireCondition(root && version, "LIBRARY_MEDIA_FORBIDDEN");
-      const media = [version.content.intro.mediaItem, ...version.content.steps.map((step) => step.mediaItem)];
+      const media = instructionalMedia(version.content);
       requireCondition(media.some((item) => isCloudflareStreamVideoMediaItem(item) && item.assetId === context.assetId), "MEDIA_OUTSIDE_CONTEXT");
     } else {
       const root = await repo.decks().findOne({ deckTemplateId: context.templateId, visibility: "public", latestVersion: { $gte: context.version } }, { session });

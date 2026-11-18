@@ -33,6 +33,36 @@ export async function verifyCloudflareR2InfoCardObject(actor: string, infoCardId
     || !isSupportedImageUploadContentType(object.ContentType ?? "") || !object.ContentLength) throw new CloudflareR2ValidationError("Info-card image is not ready");
 }
 
+// Canonical instructional images use the existing bucket, with an independent namespace.
+export async function createInstructionalImageUpload({ creator, scope, targetId, contentType, signedUrlImpl = getSignedUrl }: {
+  creator: string; scope: "card" | "deck"; targetId: string; contentType: string; signedUrlImpl?: typeof getSignedUrl;
+}) {
+  if (![creator, targetId].every(id => /^[a-zA-Z0-9_-]{1,200}$/.test(id))) throw new CloudflareR2ValidationError("Invalid image upload target");
+  const type = assertSupportedImageUploadContentType(contentType), config = getCloudflareR2Config();
+  const assetId = `instructional-images/${creator}/${scope}/${targetId}/${crypto.randomUUID()}.${getFileExtensionForImageUploadContentType(type)}`;
+  // The signed object key binds scope/target; only the established creator metadata header is needed.
+  const headers = { "Content-Type": type, "If-None-Match": "*", "x-amz-meta-creator": creator };
+  const command = new PutObjectCommand({ Bucket: config.bucketName, Key: assetId, ContentType: type, IfNoneMatch: "*",
+    Metadata: { creator } });
+  const uploadURL = await signedUrlImpl(createCloudflareR2S3Client(config), command, {
+    expiresIn: R2_PRESIGNED_UPLOAD_EXPIRATION_SECONDS,
+    signableHeaders: new Set(Object.keys(headers).map(key => key.toLowerCase())),
+    unhoistableHeaders: new Set(Object.keys(headers).filter(key => key.startsWith("x-amz-meta-"))),
+  });
+  return { assetId, deliveryUrl: createR2PublicObjectUrl(assetId), uploadURL, headers };
+}
+
+export async function verifyInstructionalImageObject(allocation: {
+  assetId: string; src: string; ownerUserId: string; uploadScope: string; uploadTargetId: string;
+}) {
+  const config = getCloudflareR2Config();
+  if (!allocation.assetId.startsWith(`instructional-images/${allocation.ownerUserId}/${allocation.uploadScope}/${allocation.uploadTargetId}/`)
+    || allocation.src !== createR2PublicObjectUrl(allocation.assetId)) throw new CloudflareR2ValidationError("Invalid image provenance");
+  const object = await createCloudflareR2S3Client(config).send(new HeadObjectCommand({ Bucket: config.bucketName, Key: allocation.assetId }));
+  if (object.Metadata?.creator !== allocation.ownerUserId || !isSupportedImageUploadContentType(object.ContentType ?? "")
+    || !object.ContentLength || object.ContentLength > 10 * 1024 * 1024) throw new CloudflareR2ValidationError("Image is not ready");
+}
+
 type CloudflareR2Config = {
   accessKeyId: string;
   accountId: string;

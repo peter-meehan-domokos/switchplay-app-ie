@@ -7,6 +7,7 @@ export const RESERVED_APP_SEGMENTS = [
   "creator",
   "decks",
   "dev",
+  "interactive-visuals",
   "internal",
   "library",
   "login",

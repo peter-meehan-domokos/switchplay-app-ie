@@ -62,6 +62,7 @@ test("application routes pass through untouched on every host", () => {
     assert.deepEqual(decideSiteRoute({ host, pathname, method: "POST" }), { kind: "pass" }, `POST ${host}${pathname}`);
   }
   assert.ok(RESERVED_APP_SEGMENTS.includes("login"));
+  assert.ok(RESERVED_APP_SEGMENTS.includes("interactive-visuals"));
 });
 
 test("/step-visuals is served only on Puckle; /sites/* is never directly reachable", () => {

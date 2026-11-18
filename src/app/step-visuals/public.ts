@@ -4,11 +4,15 @@ export { default as Card1Sparkline } from "./sparklines/Card1Sparkline";
 export type { Card1SparklineProps } from "./sparklines/Card1Sparkline";
 export type { SparklineVariant } from "./core/sparklines/card1SparklineLayout";
 export type { RootInteger } from "./activities/roots-factors/model";
+export { createRootsHostedState, restoreRootsHostedState, reduceRootsHostedState, acknowledgeRootsEvents, rootsSnapshot, isRootsSnapshot, rootsHostNavigation, rootsBackToStart } from "./activities/roots-factors/hostState";
+export type { RootsHostedState, RootsSnapshot } from "./activities/roots-factors/hostState";
 export type {
   Card1LearningCallbacks, Card1LearningResult, Card1LearningEvent, Card1SessionRecords,
   Card1AttemptSnapshot, Card1PredictionRecord, Card1CheckRecord, Card1RootPlacement, Card1LearningStage,
 } from "./activities/roots-factors/learningRecords";
 export { default as IntegrationActivity } from "./activities/integration-area/integration-activity";
+export { createIntegrationHostedState, restoreIntegrationHostedState, reduceIntegrationHostedState, acknowledgeIntegrationEvents, integrationSnapshot, isIntegrationSnapshot, integrationHostNavigation, integrationBackToStart } from "./activities/integration-area/hostState";
+export type { IntegrationHostedState, IntegrationSnapshot } from "./activities/integration-area/hostState";
 export { default as Tooltip } from "./platform/web/tooltip";
 export type { TooltipProps } from "./platform/web/tooltip";
 export type { IntegrationActivityProps } from "./activities/integration-area/integration-activity";

@@ -5,7 +5,7 @@ import { selectionLabel } from "./math-presentation";
 import { createIntegrationAttemptId } from "./notifications";
 import styles from "./later-stages.module.css";
 
-export type StageProps = { state: IntegrationState; active: boolean; dispatch: Dispatch<IntegrationAction> };
+export type StageProps = { state: IntegrationState; active: boolean; dispatch: Dispatch<IntegrationAction>; hosted?: boolean };
 export function FunctionTabs({ state, active, dispatch }: StageProps) {
   if (state.stage === 4) return <div className={styles.selector} role="group" aria-label="Graph selector">{(["rising", "square", "rule"] as const).map(subsection => <button key={subsection} type="button" disabled={!active || !!state.edit} aria-pressed={state.divisionSubsection === subsection} onClick={() => dispatch({ type: "division-subsection", revision: state.revision, subsection })}>{subsection === "rule" ? "The rule" : selectionLabel(subsection)}</button>)}</div>;
   const choices: readonly GrowthFunction[] = state.stage === 3 ? ["flat", "rising", "square"] : ["rising", "square"];

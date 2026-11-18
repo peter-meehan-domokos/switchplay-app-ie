@@ -38,6 +38,14 @@ export default function AuthScreen({ redirectTo, site = "puckle" }: AuthScreenPr
       return;
     }
 
+    const result = await response.json();
+    if (result.user?.id && result.visualGuest) {
+      // Progress association runs independently of successful account login and
+      // retains its journal across the existing internal return navigation.
+      void import("@/lib/visualLearningRecords/loginHandoff").then(({ startVisualGuestLoginHandoff }) =>
+        startVisualGuestLoginHandoff(result.user.id, result.visualGuest)).catch(() => {});
+    }
+
     announceAuthChange();
     startTransition(() => {
       if (redirectTo) {

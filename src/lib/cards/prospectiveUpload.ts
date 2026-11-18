@@ -7,6 +7,7 @@ import { assertCardVersionAccess, assertDeckVersionAccess } from "./versionAcces
 import { assertAdoption, isRecord, nonblank, requireCondition } from "./domain";
 import { assertForkContext } from "./forks";
 import type { MediaItem } from "../media";
+import { destinationMedia, instructionalMedia, MAX_STEP_MEDIA } from "../stepMedia";
 
 export type ProspectiveUpload = { kind: "card"; source: CardForkSource; targetId: string; slot: "intro" | string; context: ForkContext }
   | { kind: "deck"; source: DeckForkSource; targetId: string; slot: "image" | "video"; context: ForkContext };
@@ -37,7 +38,7 @@ export async function signProspectiveAttachment(actor: string, prospective: Pros
     .setIssuedAt().setExpirationTime("30m").sign(secret());
 }
 export async function assertProspectiveAttachment(actor: string, prospective: ProspectiveUpload, item: MediaItem, proofs: string[] = []) {
-  requireCondition("assetId" in item && Array.isArray(proofs) && proofs.length <= 8 && proofs.every((proof) => nonblank(proof) && proof.length <= 4096), "INVALID_UPLOAD_ATTACHMENT");
+  requireCondition("assetId" in item && Array.isArray(proofs) && proofs.length <= MAX_STEP_MEDIA * 4 + 1 && proofs.every((proof) => nonblank(proof) && proof.length <= 4096), "INVALID_UPLOAD_ATTACHMENT");
   for (const proof of proofs) {
     let payload;
     try { payload = (await jwtVerify(proof, secret(), { algorithms: ["HS256"] })).payload; } catch { continue; }
@@ -56,8 +57,9 @@ export async function validateForkAttachments(actor: string, prospective: Omit<P
   before: CardContent | DeckContent, after: CardContent | DeckContent, proofs?: string[]) {
   // Existing integrations may reuse canonical media freely. Only new provider assets need a prospective proof.
   if ("steps" in before && "steps" in after) {
-    const originals = [before.intro.mediaItem, before.mediaItem, ...before.steps.map((step) => step.mediaItem)];
-    for (const entry of [{ slot: "intro", item: after.intro.mediaItem }, { slot: "media", item: after.mediaItem }, ...after.steps.map((step) => ({ slot: step.forkedFrom?.stepId ?? step.stepId, item: step.mediaItem }))]) {
+    const originals = [...instructionalMedia(before), before.mediaItem];
+    for (const entry of [...destinationMedia(after.intro).map((item) => ({ slot: "intro", item })), { slot: "media", item: after.mediaItem },
+      ...after.steps.flatMap((step) => destinationMedia(step).map((item) => ({ slot: step.forkedFrom?.stepId ?? step.stepId, item })))]) {
       if (!entry.item || originals.some((item) => sameAsset(item, entry.item))) continue;
       await assertProspectiveAttachment(actor, { ...prospective, slot: entry.slot } as ProspectiveUpload, entry.item, proofs);
     }

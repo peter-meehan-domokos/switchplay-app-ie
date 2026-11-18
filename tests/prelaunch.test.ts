@@ -45,7 +45,7 @@ test("Switchplay and Strat17 are never in pre-launch mode", () => {
 });
 
 test("path classification: learning pages and every other API are restricted; account, auth, public and parental approval stay open", () => {
-  for (const path of ["/decks", "/library", "/library/abc", "/progress", "/creator", "/creator/new", "/creator/info-cards/x"]) assert.equal(classifyPrelaunchPath(path), "restricted-page", path);
+  for (const path of ["/decks", "/library", "/library/abc", "/progress", "/creator", "/creator/new", "/creator/info-cards/x", "/interactive-visuals/roots-and-factors-v1"]) assert.equal(classifyPrelaunchPath(path), "restricted-page", path);
   for (const path of ["/api/decks-data", "/api/decks-data/shared", "/api/library/decks", "/api/creator/drafts", "/api/card-templates/x", "/api/deck-templates", "/api/frameworks", "/api/info-cards", "/api/media/protected",
     "/api/users", "/api/items-data/x/tests", "/api/account/public-publishing", "/api/accountx", "/api/authx/login", "/api/publicity", "/api"]) assert.equal(classifyPrelaunchPath(path), "restricted-api", path);
   for (const path of ["/api/auth/login", "/api/auth/logout", "/api/auth/me", "/api/auth/email-verification", "/api/auth/password-reset/request", "/api/public/puckle/membership", "/api/public/puckle/early-access",

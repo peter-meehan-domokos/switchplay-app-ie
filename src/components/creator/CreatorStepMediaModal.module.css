@@ -1,0 +1,25 @@
+.dialog {
+  margin: auto;
+  width: min(600px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  border: 1px solid #cbd5da;
+  border-radius: 12px;
+  padding: 18px;
+  background: #fff;
+  color: #24434e;
+}
+.dialog::backdrop { background: rgb(18 34 42 / 45%); }
+.header, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.header { justify-content: space-between; }
+.header h2 { font-size: 18px; font-weight: 650; }
+.actions > label { min-width: 0; max-width: 100%; }
+.actions input[type="file"] { display: block; width: 100%; max-width: 100%; font-size: 13px; }
+.list { display: grid; gap: 14px; margin: 16px 0; padding: 0; list-style: none; }
+.item { display: grid; gap: 8px; border: 1px solid #d7e1e2; border-radius: 8px; padding: 10px; }
+.field { display: grid; gap: 4px; }
+.field input, .field select { width: 100%; min-width: 0; border: 1px solid #aabcc1; border-radius: 4px; padding: 6px; background: white; }
+.error { color: #9b2939; font-size: 14px; }
+.description { margin: 8px 0; font-size: 14px; }
+.preview { max-height: 140px; overflow: hidden; }
+.preview > * { max-height: 140px; }

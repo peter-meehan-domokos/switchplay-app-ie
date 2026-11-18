@@ -81,11 +81,13 @@ test("media-first foreign edit uploads without creating an unchanged copy, then 
   let release!:()=>void;const gate=new Promise<void>((resolve)=>release=resolve);
   await page.route("**/api/media/stream/direct-upload",async(route)=>{const response=await route.fetch();await gate;await route.fulfill({response});});
   const column=page.locator(`[data-card-template-id="${h.card.cardTemplateId}"]`);
-  await column.locator('.creator-card-intro-media-slot input[type="file"]').setInputFiles({name:"first-edit.mp4",mimeType:"video/mp4",buffer:Buffer.from("fixture video")});
+  await column.locator('.creator-card-intro-media-slot .creator-media-upload-control').click();
   await page.getByRole("dialog",{name:"Edit your own Card"}).getByRole("button",{name:"Continue editing",exact:true}).click();
+  await page.locator('dialog[data-creator-step-media]').getByLabel("Add video", { exact: true }).setInputFiles({name:"first-edit.mp4",mimeType:"video/mp4",buffer:Buffer.from("fixture video")});
+  await page.locator('dialog[data-creator-step-media]').getByRole("button", { name: "Close", exact: true }).click();
   await expect(column.getByText("Uploading...",{exact:true})).toBeVisible();
   expect(await h.repo.cards().countDocuments({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId})).toBe(0);
-  release();await expect.poll(async()=>{const root=await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId});return root?.draft?.intro.mediaItem?.description;}).toBe("first-edit.mp4");
+  release();await expect.poll(async()=>{const root=await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId});const item=root?.draft?.intro.mediaItems?.[0];return item && item.kind !== "activity" ? item.media.description : undefined;}).toBe("first-edit.mp4");
   const target=(await h.repo.cards().findOne({ownerUserId:h.actor,"forkedFrom.cardTemplateId":h.card.cardTemplateId}))!;
   expect(target.draft!.steps[0].forkedFrom?.stepId).toBe(h.card.draft!.steps[0].stepId);
   expect((await h.repo.getPersonalUser(h.actor))!.cardsData).toEqual(before!.cardsData);
