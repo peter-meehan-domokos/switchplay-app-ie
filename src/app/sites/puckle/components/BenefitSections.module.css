@@ -378,8 +378,10 @@
     align-items: center;
   }
 
+  /* Explore: the image column is capped at 660px but never takes more than 60% of the row, so the text keeps a sensible width
+     on iPad-sized screens (it was ~120px wide at 900px). From about 1200px the cap applies and nothing changes. */
   .beatReverse {
-    grid-template-columns: minmax(0, 660px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, min(660px, 60%)) minmax(0, 1fr);
   }
 
   .beatReverse .media {

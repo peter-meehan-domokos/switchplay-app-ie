@@ -34,7 +34,7 @@ function LearningSection() {
 
       <div className={styles.beat}>
         <div className={styles.beatCopy}>
-          <p className={styles.stepLabel}>Learn</p>
+          <p className={styles.stepLabel}>1. Learn</p>
           <h3 className={styles.beatTitle}>Explanations that actually explain.</h3>
           <p className={styles.body}>
             Watch our videos when you need them. See why the maths works — not just which steps to copy.
@@ -54,7 +54,7 @@ function LearningSection() {
 
       <div className={`${styles.beat} ${styles.beatReverse}`}>
         <div className={styles.beatCopy}>
-          <p className={styles.stepLabel}>Explore</p>
+          <p className={styles.stepLabel}>2. Explore</p>
           <h3 className={styles.beatTitle}>Interactive visuals you can play with.</h3>
           <p className={styles.body}>
             Change graphs, move points and experiment with mathematical ideas for yourself.
@@ -74,7 +74,7 @@ function LearningSection() {
 
       <div className={styles.beat}>
         <div className={styles.beatCopy}>
-          <p className={styles.stepLabel}>Test yourself</p>
+          <p className={styles.stepLabel}>3. Test yourself</p>
           <h3 className={styles.beatTitle}>Comments on your work. Video feedback just for you.</h3>
           <p className={styles.body}>
             Upload a photo of your work and find out what to improve and what to try next.

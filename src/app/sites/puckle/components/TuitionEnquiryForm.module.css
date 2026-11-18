@@ -170,6 +170,11 @@
 
 @media (min-width: 760px) {
   .section {
+    /* Tablet and up: the footer and the page's bottom padding already provide scroll room below this section, so the section only
+       needs to supply the rest (measured: the heading reached the top with 115-134px to spare). 120px is the homepage footer's
+       guaranteed height (see .footerBlock in HomePage.module.css); the section's own top padding and the 16px landing gap are
+       added back because they are what sits above the heading. */
+    min-height: calc(100svh - 120px - var(--sp-site-spacing-comfortable) + clamp(48px, 12vw, 80px) - 16px);
     grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 1.2fr);
     align-items: start;
     gap: clamp(34px, 7vw, 72px);

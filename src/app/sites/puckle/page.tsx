@@ -36,12 +36,12 @@ export default function Home() {
   return (
     <PublicLayout
       footer={
-        <>
+        <div className={styles.footerBlock}>
           <p className={styles.footerInvite}>
             Interested in contributing to Puckle? <Link href="/contact">Get in touch.</Link>
           </p>
           <PublicFooter />
-        </>
+        </div>
       }
     >
       <PublicHeader />
