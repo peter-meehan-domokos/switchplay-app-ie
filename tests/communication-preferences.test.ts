@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { describePreferences, isOptedIn, preferenceKeysFor, validateCommunicationPreferences } from "../src/app/sites/puckle/lib/communicationPreferences";
 import {
-  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, preferencesStateFrom, validatePreferencesState, withAllNo, withAnswer, withAudienceChange, withChannel, withoutEmailChannel,
+  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, preferencesStateFrom, validatePreferencesState, withAllNo, withAnswer, withAudienceChange, withChannel, withUpdatesAnswer, withoutEmailChannel,
 } from "../src/app/sites/puckle/lib/communicationPreferencesLayout";
-import { buildMembershipJoinLayout, initialJoinFlowState, initialJoinFormState, validateJoinForm, withChoice, withNoEmail, withPreferenceAnswer, withPreferenceChannel, withText } from "../src/app/sites/puckle/lib/membershipJoinLayout";
+import { buildMembershipJoinLayout, buildRegistrationDetails, initialJoinFlowState, initialJoinFormState, validateJoinForm, withChoice, withNoEmail, withPreferenceAnswer, withPreferenceChannel, withText } from "../src/app/sites/puckle/lib/membershipJoinLayout";
 import { validateInterestContact, validateRegistrationDetails } from "../src/app/sites/puckle/lib/membershipRegistration";
 
 const NOW = new Date("2026-11-18T12:00:00Z");
@@ -19,8 +19,8 @@ test("each audience sees the approved titles and supporting lines, in order", ()
     ["News and offers", "Major new features, special offers and promotions."],
     ["Occasional personal contact", "We may get in touch to offer help or ask for feedback."],
   ];
-  assert.deepEqual(rowsOf("student"), [...shared, ["Guided maths invitations", "Receive invitations to teacher-led maths programmes, from short revision activities to longer projects, where you progress at your own pace as part of a group."]]);
-  assert.deepEqual(rowsOf("teacher"), [...shared, ["Teacher collaboration invitations", "Opportunities to observe student learning, collaborate on teaching resources or explore professional development."]]);
+  assert.deepEqual(rowsOf("student"), [...shared, ["Guided maths invitations", "Invitations to join teacher-led maths activities and revision groups."]]);
+  assert.deepEqual(rowsOf("teacher"), [...shared, ["Teacher collaboration invitations", "Invitations to explore teaching ideas, share resources and collaborate"]]);
   assert.deepEqual(rowsOf("interest"), shared);
 });
 test("nothing is preselected and the layout heading is the approved one", () => {
@@ -53,11 +53,14 @@ test("channels start unchecked, are independent, and are never kept without a br
   assert.equal(personalOnly.email, false);
   assert.deepEqual(buildPreferencesPayload(withChannel(withAnswer(initialPreferencesState, "student", "occasionalPersonalContact", "yes"), "sms", true), "student").channels, { email: false, sms: false });
 });
-test("changing audience clears the audience-specific invitation answer", () => {
-  const student = withAnswer(withAnswer(initialPreferencesState, "student", "invitations", "yes"), "student", "puckleUpdates", "no");
+test("changing audience keeps the derived answers in step: students and teachers follow Puckle Updates, interested parties start clean", () => {
+  const student = withUpdatesAnswer(initialPreferencesState, "student", "yes");
   const teacher = withAudienceChange(student, "teacher");
-  assert.equal(teacher.invitations, ""); assert.equal(teacher.puckleUpdates, "no");
-  assert.equal(withAudienceChange(withChannel(student, "sms", true), "teacher").sms, false);
+  assert.deepEqual([teacher.puckleUpdates, teacher.newsAndOffers, teacher.invitations], ["yes", "yes", "yes"]);
+  const interest = withAudienceChange(student, "interest");
+  assert.deepEqual([interest.puckleUpdates, interest.newsAndOffers, interest.invitations], ["yes", "", ""], "the interested-party answers are not carried over");
+  assert.deepEqual([withAudienceChange(interest, "teacher").newsAndOffers, withAudienceChange(interest, "teacher").invitations], ["yes", "yes"]);
+  assert.equal(withAudienceChange(withChannel(withUpdatesAnswer(initialPreferencesState, "student", "no"), "sms", true), "teacher").sms, false);
 });
 test("submission is blocked until every choice is answered; an all-No set is valid", () => {
   const found = validatePreferencesState(initialPreferencesState, "student", { emailAvailable: true, hasEmail: true, hasMobile: true });
@@ -87,8 +90,9 @@ test("the Join form wires the section: answers, hidden consent and the mobile-on
   const mobileOnly = withNoEmail(withEmail, true);
   assert.equal(mobileOnly.preferences.email, false, "no email address means no email channel");
   assert.equal(layoutOf(mobileOnly).preferences.channels.emailOffered, false);
-  assert.equal(layoutOf(withChoice(student, "teacher")).preferences.rows[3].title, "Teacher collaboration invitations");
-  assert.equal(layoutOf(withChoice(withPreferenceAnswer(student, "invitations", "yes"), "teacher")).preferences.rows[3].value, "");
+  assert.deepEqual(layoutOf(withChoice(student, "teacher")).preferences.rows.map(row => row.title), ["Puckle Updates", "Occasional personal contact"], "students and teachers answer two questions");
+  assert.equal(layoutOf(withChoice(student, "teacher")).preferences.rows[0].value, "yes", "Puckle Updates stays answered when the audience changes");
+  assert.equal(layoutOf(withChoice(student, "interest")).preferences.rows.length, 3, "the interested-party form keeps its own three");
 });
 test("saved choices pre-populate an editing screen and unknown stays unanswered", () => {
   const stored = validateCommunicationPreferences({ answers: { ...answers("teacher", "yes"), occasionalPersonalContact: "no" }, channels: { email: true, sms: false } }, "teacher", both, "account-settings", NOW);
@@ -176,4 +180,76 @@ test("unsubscribe sets every choice for the audience to No and clears the channe
   assert.deepEqual(validatePreferencesState(none, "teacher", { emailAvailable: true, hasEmail: true, hasMobile: false }), {});
   assert.equal(withAllNo(initialPreferencesState, "interest").invitations, "", "interested parties have no invitation choice");
   assert.equal(on.email, true, "the original state is untouched");
+});
+
+// ---- the two-question student and teacher registration --------------------------------------------
+const joined = (choice: "student" | "teacher", updates: "yes" | "no" | "", personal: "yes" | "no" | "") => {
+  let form = withChoice(initialJoinFormState, choice);
+  if (updates) form = withPreferenceAnswer(form, "puckleUpdates", updates);
+  if (personal) form = withPreferenceAnswer(form, "occasionalPersonalContact", personal);
+  return form;
+};
+test("registration asks two questions with the approved wording, nothing preselected", () => {
+  for (const [choice, text] of [["student", "Maths content, guided activities, news and occasional offers."], ["teacher", "Teaching resources, collaboration opportunities, news and occasional offers."]] as const) {
+    const layout = buildMembershipJoinLayout(joined(choice, "", ""), initialJoinFlowState).preferences;
+    assert.deepEqual(layout.rows.map(row => [row.field, row.title, row.text, row.value]), [
+      ["puckleUpdates", "Puckle Updates", text, ""], ["occasionalPersonalContact", "Occasional personal contact", "We may get in touch to offer help or ask for feedback.", ""]]);
+  }
+});
+test("both registration questions must be answered, and declining both is valid", () => {
+  for (const choice of ["student", "teacher"] as const) {
+    assert.deepEqual(Object.keys(validateJoinForm(joined(choice, "", ""))).filter(key => ["puckleUpdates", "newsAndOffers", "occasionalPersonalContact", "invitations"].includes(key)).sort(), ["occasionalPersonalContact", "puckleUpdates"]);
+    assert.equal(validateJoinForm(joined(choice, "yes", "")).occasionalPersonalContact, "Choose Yes or No.");
+    assert.equal(validateJoinForm(joined(choice, "", "no")).puckleUpdates, "Choose Yes or No.");
+    const declined = validateJoinForm(joined(choice, "no", "no"));
+    assert.equal(declined.puckleUpdates, undefined); assert.equal(declined.occasionalPersonalContact, undefined); assert.equal(declined.channels, undefined);
+  }
+});
+test("Puckle Updates maps onto the three stored broadcast preferences, personal contact stays independent", () => {
+  const stored = (choice: "student" | "teacher", updates: "yes" | "no", personal: "yes" | "no", email = false) => {
+    const base = withText(withText(joined(choice, updates, personal), "name", "Ada"), "email", "a@example.com");
+    const details = buildRegistrationDetails(email ? withPreferenceChannel(base, "email", true) : base);
+    // The same request body the browser sends, through the unchanged server validator.
+    const body = { ...details, ...(choice === "student" ? { dateOfBirth: "2010-05-01", education: { course: "gcse", courseOther: "", level: "higher-tier", levelOther: "" } } : {}) };
+    return validateRegistrationDetails(body, "email", "2026-11-18", NOW).communicationPreferences.answers;
+  };
+  for (const choice of ["student", "teacher"] as const) {
+    const invitation = choice === "student" ? "guidedMathsInvitations" : "teacherCollaborationInvitations";
+    assert.deepEqual(stored(choice, "yes", "yes", true), { puckleUpdates: "yes", newsAndOffers: "yes", [invitation]: "yes", occasionalPersonalContact: "yes" }, "all Yes");
+    assert.deepEqual(stored(choice, "no", "no"), { puckleUpdates: "no", newsAndOffers: "no", [invitation]: "no", occasionalPersonalContact: "no" }, "all No");
+    assert.deepEqual(stored(choice, "yes", "no", true), { puckleUpdates: "yes", newsAndOffers: "yes", [invitation]: "yes", occasionalPersonalContact: "no" }, "updates only");
+    assert.deepEqual(stored(choice, "no", "yes"), { puckleUpdates: "no", newsAndOffers: "no", [invitation]: "no", occasionalPersonalContact: "yes" }, "personal contact only");
+  }
+});
+test("changing Puckle Updates changes all three together and removes a channel that no longer applies", () => {
+  const on = withPreferenceChannel(joined("student", "yes", "no"), "sms", true);
+  assert.equal(on.preferences.sms, true);
+  const off = withPreferenceAnswer(on, "puckleUpdates", "no");
+  assert.deepEqual([off.preferences.puckleUpdates, off.preferences.newsAndOffers, off.preferences.invitations, off.preferences.sms], ["no", "no", "no", false]);
+  assert.equal(buildMembershipJoinLayout(joined("student", "no", "yes"), initialJoinFlowState).preferences.channels.visible, false, "personal contact alone needs no delivery channel");
+});
+
+// ---- Settings: the same four stored preferences, presented in groups ---------------------------------
+test("Settings groups the three update preferences under Puckle Updates and keeps personal contact apart", () => {
+  const stored = { answers: { puckleUpdates: "yes", newsAndOffers: "no", occasionalPersonalContact: "yes", guidedMathsInvitations: "no" }, channels: { email: true, sms: false } } as const;
+  const layoutFor = (audience: "student" | "teacher") => buildPreferencesLayout(preferencesStateFrom(audience === "student" ? stored : { ...stored, answers: { puckleUpdates: "yes", newsAndOffers: "no", occasionalPersonalContact: "yes", teacherCollaborationInvitations: "no" } }, audience), audience, {}, { emailAvailable: true }, "settings");
+  const student = layoutFor("student");
+  assert.deepEqual(student.groups!.map(group => [group.id, group.title, group.rows.map(row => row.title)]), [
+    ["updates", "Puckle Updates", ["New maths content", "News and offers", "Guided maths invitations"]], ["personal", "Personal contact", ["Occasional personal contact"]]]);
+  assert.equal(student.groups![0].text, "Choose which updates and invitations you would like to receive.");
+  assert.deepEqual(student.groups![0].rows.map(row => row.text), ["A fortnightly roundup of new lessons, interactive activities and revision materials.", "Major new features, special offers and promotions.", "Invitations to teacher-led maths activities and revision groups."]);
+  assert.equal(student.groups![0].channels!.visible, true, "the delivery choice sits under Puckle Updates");
+  assert.equal(student.groups![1].channels, undefined);
+  assert.equal(layoutFor("teacher").groups![0].rows[2].title, "Teacher collaboration invitations");
+  assert.equal(layoutFor("teacher").groups![0].rows[2].text, "Invitations to explore teaching ideas, share resources and collaborate with other teachers.");
+  assert.deepEqual(student.groups!.flatMap(group => group.rows.map(row => row.value)), ["yes", "no", "no", "yes"], "saved answers pre-populate each row independently");
+});
+test("Settings edits each preference independently and a saved set round trips unchanged", () => {
+  const stored = validateCommunicationPreferences({ answers: { puckleUpdates: "no", newsAndOffers: "yes", occasionalPersonalContact: "no", guidedMathsInvitations: "no" }, channels: { email: true, sms: false } }, "student", both, "account-settings", NOW);
+  const state = preferencesStateFrom(stored, "student");
+  assert.deepEqual(buildPreferencesPayload(state, "student").answers, stored.answers, "mixed legacy answers load and save as they were");
+  const changed = withAnswer(state, "student", "invitations", "yes");
+  assert.deepEqual(buildPreferencesPayload(changed, "student").answers, { ...stored.answers, guidedMathsInvitations: "yes" }, "one preference changes alone");
+  assert.deepEqual(validatePreferencesState(changed, "student", { emailAvailable: true, hasEmail: true, hasMobile: false }, "settings"), {});
+  assert.deepEqual(Object.keys(validatePreferencesState(initialPreferencesState, "student", { emailAvailable: true, hasEmail: true, hasMobile: false }, "settings")).sort(), ["invitations", "newsAndOffers", "occasionalPersonalContact", "puckleUpdates"]);
 });

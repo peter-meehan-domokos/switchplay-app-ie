@@ -23,11 +23,11 @@ export default async function SettingsPage() {
       <section aria-labelledby="settings-title" className={styles.page}>
         <h1 id="settings-title">Settings</h1>
         <div className={styles.setting}>
-          <h2 className={styles.settingTitle}>Communication Preferences</h2>
+          <h2 className={styles.settingTitle}>Communication preferences</h2>
           {state ? (
             <>
               <p className={styles.intro}>Choose which optional messages Puckle may send you. We always send the messages needed to run your account, and we reply to anything you ask us.</p>
-              <PreferencesEditor audience={state.audience} endpoint="/api/account/communication-preferences" hasEmail hasMobile={state.hasMobile} idPrefix="settings" initial={state.stored} />
+              <PreferencesEditor audience={state.audience} endpoint="/api/account/communication-preferences" hasEmail hasMobile={state.hasMobile} idPrefix="settings" initial={state.stored} variant="settings" />
             </>
           ) : (
             <p className={styles.intro}>Communication preferences are available to Puckle students and teachers.</p>

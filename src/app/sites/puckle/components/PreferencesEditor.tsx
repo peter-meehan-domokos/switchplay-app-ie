@@ -4,7 +4,7 @@ import { type FormEvent, useRef, useState } from "react";
 import type { PreferencesAudience, StoredPreferences } from "../lib/communicationPreferences";
 import {
   buildPreferencesLayout, buildPreferencesPayload, preferencesStateFrom, validatePreferencesState, withAllNo, withAnswer, withChannel,
-  type PreferenceField, type PreferencesErrors, type PreferencesState,
+  type PreferenceField, type PreferencesErrors, type PreferencesState, type PreferencesVariant,
 } from "../lib/communicationPreferencesLayout";
 import { normaliseMobile } from "../lib/membershipRegistration";
 import buttonStyles from "./PublicButton.module.css";
@@ -18,6 +18,8 @@ type Props = Readonly<{
   /** What the person already has on file, so a channel can be checked before saving. */
   hasEmail: boolean; hasMobile: boolean;
   endpoint: string; extraBody?: Readonly<Record<string, unknown>>; unsubscribe?: boolean;
+  /** Settings groups the update choices under Puckle Updates; the no-account page keeps the plain list. */
+  variant?: PreferencesVariant;
 }>;
 type Status = Readonly<{ kind: "idle" | "saving" | "saved" | "error"; text: string }>;
 const IDLE: Status = { kind: "idle", text: "" };
@@ -28,7 +30,7 @@ const ERRORS: Readonly<Record<string, string>> = {
 const mobileValid = (value: string) => { try { return !!normaliseMobile(value, "IE"); } catch { return false; } };
 
 /** Editing screen for saved choices. Saved answers are pre-populated; nothing changes until Save. */
-export default function PreferencesEditor({ idPrefix, audience, initial, hasEmail, hasMobile, endpoint, extraBody = {}, unsubscribe = false }: Props) {
+export default function PreferencesEditor({ idPrefix, audience, initial, hasEmail, hasMobile, endpoint, extraBody = {}, unsubscribe = false, variant = "full" }: Props) {
   const [state, setState] = useState<PreferencesState>(() => preferencesStateFrom(initial, audience));
   const [mobile, setMobile] = useState("");
   const [errors, setErrors] = useState<PreferencesErrors>({});
@@ -36,7 +38,7 @@ export default function PreferencesEditor({ idPrefix, audience, initial, hasEmai
   const busy = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const needsMobile = !hasMobile && state.sms;
-  const layout = buildPreferencesLayout(state, audience, errors, { emailAvailable: hasEmail });
+  const layout = buildPreferencesLayout(state, audience, errors, { emailAvailable: hasEmail }, variant);
 
   const edit = (next: PreferencesState, cleared: readonly (PreferenceField | "channels")[]) => {
     setState(next); setStatus(IDLE);

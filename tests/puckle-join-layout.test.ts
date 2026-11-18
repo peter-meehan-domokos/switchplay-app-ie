@@ -136,7 +136,7 @@ test("password and username rules mirror the server and report every problem at 
   for (const username of ["ab", "has space", "a@b.com", "x".repeat(31), "naïve"]) assert.ok(validateJoinForm(text(base, { username }), TODAY).username, username);
   for (const username of ["abc", "A_b-9", "x".repeat(30)]) assert.equal(validateJoinForm(text(base, { username }), TODAY).username, undefined, username);
   const many = validateJoinForm(initialJoinFormState, TODAY);
-  assert.deepEqual(Object.keys(many).sort(), ["course", "dob", "email", "name", "occasionalPersonalContact", "password", "invitations", "newsAndOffers", "puckleUpdates", "username"].sort());
+  assert.deepEqual(Object.keys(many).sort(), ["course", "dob", "email", "name", "occasionalPersonalContact", "password", "puckleUpdates", "username"].sort());
 });
 test("mobile is optional with email, required without, and must be valid when supplied", () => {
   assert.equal(validateJoinForm(validStudent(), TODAY).mobile, undefined);

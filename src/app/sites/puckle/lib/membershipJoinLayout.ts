@@ -3,7 +3,7 @@ import { validateNewPassword } from "@/lib/accountCredentials";
 import type { MathsCourse, MathsLevel } from "@/lib/puckleMemberships";
 import { joinPrelaunchNotice, type JoinPrelaunchNotice } from "./joinPrelaunchNotice";
 import {
-  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, validatePreferencesState, withAnswer, withAudienceChange, withChannel, withoutEmailChannel,
+  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, registrationVariantFor, validatePreferencesState, withAnswer, withAudienceChange, withChannel, withUpdatesAnswer, withoutEmailChannel,
   type PreferenceField, type PreferencesErrorKey, type PreferencesLayout, type PreferencesState,
 } from "./communicationPreferencesLayout";
 import type { Answer } from "./communicationPreferences";
@@ -68,7 +68,7 @@ export const withText = <K extends "name" | "username" | "email" | "password" | 
   ({ ...state, [key]: value });
 export const withMobile = (state: JoinFormState, mobile: string): JoinFormState => ({ ...state, mobile });
 export const withPreferenceAnswer = (state: JoinFormState, field: PreferenceField, value: Answer): JoinFormState =>
-  ({ ...state, preferences: withAnswer(state.preferences, state.choice, field, value) });
+  ({ ...state, preferences: field === "puckleUpdates" && state.choice !== "interest" ? withUpdatesAnswer(state.preferences, state.choice, value) : withAnswer(state.preferences, state.choice, field, value) });
 export const withPreferenceChannel = (state: JoinFormState, channel: "email" | "sms", checked: boolean): JoinFormState =>
   ({ ...state, preferences: withChannel(state.preferences, channel, checked) });
 export const withShowPassword = (state: JoinFormState, showPassword: boolean): JoinFormState => ({ ...state, showPassword });
@@ -158,7 +158,7 @@ export function validateJoinForm(state: JoinFormState, today = dublinToday()): J
     ...(state.choice === "interest" && emailRoute && !email && !state.mobile.trim() ? { contact: FIELD_MESSAGES.contact } : {}),
     ...(dobMessage ? { dob: dobMessage } : {}),
     ...(state.choice === "student" ? educationErrors(state) : {}),
-    ...validatePreferencesState(state.preferences, state.choice, preferenceContacts(state)),
+    ...validatePreferencesState(state.preferences, state.choice, preferenceContacts(state), registrationVariantFor(state.choice)),
   };
   return errors;
 }
@@ -303,7 +303,7 @@ export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowSt
       reason: field("What brings you to Puckle? (optional)", isInterest, false, errors.reason, "For example: parent, teacher, student or just curious."),
       mobileOnlyNote: isInterest && noEmail ? "We'll use your number to follow up on your request, and for any text messages you choose below." : null,
     },
-    preferences: buildPreferencesLayout(state.preferences, choice, errors, { emailAvailable: emailRoute }),
+    preferences: buildPreferencesLayout(state.preferences, choice, errors, { emailAvailable: emailRoute }, registrationVariantFor(choice)),
     code: { visible: codeStage, email: flow.codeEmail ?? "", field: field("Verification code", codeStage, true, errors.code, "The 6-digit code we emailed you. It expires in 10 minutes."),
       canResend: resendInSeconds === 0, resendInSeconds },
     submission: { kind: submissionKind, ...submission },

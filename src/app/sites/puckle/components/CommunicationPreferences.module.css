@@ -132,3 +132,44 @@
   font-size: 0.9rem;
   line-height: 1.4;
 }
+
+/* Settings: update preferences nested under Puckle Updates; personal contact is a separate block. */
+.group {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: calc(var(--sp-site-card-radius) - 6px);
+}
+
+.separate {
+  margin-top: 16px;
+}
+
+.group .row:first-of-type {
+  border-top: 0;
+}
+
+.groupTitle {
+  color: var(--sp-site-text);
+  font-size: 1.1rem;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.groupText {
+  color: var(--sp-site-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.nested {
+  display: grid;
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(168, 214, 228, 0.3);
+}
+
+.nested .row:first-child {
+  border-top: 0;
+}

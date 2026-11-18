@@ -54,15 +54,16 @@ export default function PrivacyPage() {
           </p>
           <h3>Communication choices</h3>
           <p>
-            When you join, we ask you to answer Yes or No to each optional communication: Puckle Updates (a fortnightly
-            roundup of new maths content and activities), News and offers (major new features, special offers and
-            promotions), Occasional personal contact (we may get in touch to offer help or ask for feedback) and, for
-            students, invitations to guided maths programmes or, for teachers, invitations to collaborate. If you say Yes
-            to updates, offers or invitations, you also choose whether we send them by email, text message or both. We
-            record your answers with the date and the wording you saw, and only send optional messages you have said Yes
-            to, by the channels you chose. Answering No is fine and does not affect joining. Saying Yes to one choice is
-            not permission for another. People who joined before these choices existed have not been asked, and we treat
-            that as no.
+            When you join as a student or teacher, we ask you to answer Yes or No to two optional communications: Puckle
+            Updates (content, guided activities or collaboration opportunities, news and occasional offers) and
+            Occasional personal contact (we may get in touch to offer help or ask for feedback). Saying Yes to Puckle
+            Updates covers new content, news and offers, and invitations, which you can then change one by one in
+            Settings. If you only register your interest, you answer for updates, news and offers, and personal contact
+            separately. If you say Yes to updates, offers or invitations, you also choose whether we send them by email,
+            text message or both. We record your answers with the date and the wording you saw, and only send optional
+            messages you have said Yes to, by the channels you chose. Answering No is fine and does not affect joining.
+            Saying Yes to one choice is not permission for another. People who joined before these choices existed have
+            not been asked, and we treat that as no.
           </p>
           <p>
             Whatever you choose, we still send the messages needed to run your account (such as verification codes,

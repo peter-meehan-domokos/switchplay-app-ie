@@ -21,12 +21,33 @@ export const PREFERENCE_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: 
   occasionalPersonalContact: { title: "Occasional personal contact", text: "We may get in touch to offer help or ask for feedback." },
   guidedMathsInvitations: {
     title: "Guided maths invitations",
-    text: "Receive invitations to teacher-led maths programmes, from short revision activities to longer projects, where you progress at your own pace as part of a group.",
+    text: "Invitations to join teacher-led maths activities and revision groups.",
   },
   teacherCollaborationInvitations: {
     title: "Teacher collaboration invitations",
-    text: "Opportunities to observe student learning, collaborate on teaching resources or explore professional development.",
+    text: "Invitations to explore teaching ideas, share resources and collaborate",
   },
+};
+
+/**
+ * Presentation only. The initial student and teacher registration asks two questions, and Puckle Updates answers the three
+ * broadcast preferences together. Settings shows the same stored preferences individually, grouped under Puckle Updates.
+ */
+export const REGISTRATION_UPDATES_TEXT: Readonly<Record<"student" | "teacher", string>> = {
+  student: "Maths content, guided activities, news and occasional offers.",
+  teacher: "Teaching resources, collaboration opportunities, news and occasional offers.",
+};
+export const SETTINGS_HEADING = "Communication preferences";
+export const SETTINGS_GROUPS = {
+  updates: { title: "Puckle Updates", text: "Choose which updates and invitations you would like to receive." },
+  personal: { title: "Personal contact", text: "" },
+} as const;
+/** Wording of each individual preference on the Settings page. */
+export const SETTINGS_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: string; text: string }>>> = {
+  ...PREFERENCE_ITEMS,
+  puckleUpdates: { title: "New maths content", text: "A fortnightly roundup of new lessons, interactive activities and revision materials." },
+  guidedMathsInvitations: { title: "Guided maths invitations", text: "Invitations to teacher-led maths activities and revision groups." },
+  teacherCollaborationInvitations: { title: "Teacher collaboration invitations", text: "Invitations to explore teaching ideas, share resources and collaborate with other teachers." },
 };
 
 const SHARED: readonly PreferenceKey[] = ["puckleUpdates", "newsAndOffers", "occasionalPersonalContact"];

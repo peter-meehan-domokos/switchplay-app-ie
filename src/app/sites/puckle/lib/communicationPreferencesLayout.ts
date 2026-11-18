@@ -1,5 +1,5 @@
 import {
-  channelLabel, hasBroadcastYes, PREFERENCE_ITEMS, PREFERENCES_HEADING, preferenceKeysFor,
+  channelLabel, hasBroadcastYes, PREFERENCE_ITEMS, PREFERENCES_HEADING, preferenceKeysFor, REGISTRATION_UPDATES_TEXT, SETTINGS_GROUPS, SETTINGS_HEADING, SETTINGS_ITEMS,
   type Answer, type PreferenceKey, type PreferencesAudience, type StoredPreferences,
 } from "./communicationPreferences";
 
@@ -43,9 +43,16 @@ const withoutStaleChannels = (state: PreferencesState, audience: PreferencesAudi
 export const withAnswer = (state: PreferencesState, audience: PreferencesAudience, field: PreferenceField, value: Answer): PreferencesState =>
   withoutStaleChannels({ ...state, [field]: value }, audience);
 export const withChannel = (state: PreferencesState, channel: "email" | "sms", checked: boolean): PreferencesState => ({ ...state, [channel]: checked });
-/** Switching between student, teacher and interested clears the audience-specific invitation answer. */
+/**
+ * Puckle Updates answers the three broadcast preferences together on the student and teacher registration forms, so a
+ * student or teacher keeps those in step. The interested-party form has its own separate answers, so leaving the other
+ * forms for it clears what they derived.
+ */
+export const withUpdatesAnswer = (state: PreferencesState, audience: PreferencesAudience, value: Answer): PreferencesState =>
+  withoutStaleChannels({ ...state, puckleUpdates: value, newsAndOffers: value, invitations: value }, audience);
 export const withAudienceChange = (state: PreferencesState, audience: PreferencesAudience): PreferencesState =>
-  withoutStaleChannels({ ...state, invitations: "" }, audience);
+  audience === "interest" ? withoutStaleChannels({ ...state, newsAndOffers: "", invitations: "" }, audience)
+    : withoutStaleChannels({ ...state, newsAndOffers: state.puckleUpdates, invitations: state.puckleUpdates }, audience);
 /** Unsubscribe from everything: every choice for the audience becomes No and the channels are cleared. */
 export const withAllNo = (state: PreferencesState, audience: PreferencesAudience): PreferencesState =>
   PREFERENCE_FIELDS.reduce((next, field) => keyFor(field, audience) ? withAnswer(next, audience, field, "no") : next, state);
@@ -69,8 +76,14 @@ export function buildPreferencesPayload(state: PreferencesState, audience: Prefe
   return { answers, channels: { email: on && state.email, sms: on && state.sms } };
 }
 
-export function validatePreferencesState(state: PreferencesState, audience: PreferencesAudience, contacts: PreferencesContacts): PreferencesErrors {
-  const unanswered = PREFERENCE_FIELDS.filter(field => keyFor(field, audience) && !state[field]);
+/** full: every preference is its own row. registration: the two-question student and teacher form. settings: grouped full rows. */
+export type PreferencesVariant = "full" | "registration" | "settings";
+export const registrationVariantFor = (audience: PreferencesAudience): PreferencesVariant => audience === "interest" ? "full" : "registration";
+const REGISTRATION_FIELDS: readonly PreferenceField[] = ["puckleUpdates", "occasionalPersonalContact"];
+const fieldsFor = (variant: PreferencesVariant) => variant === "registration" ? REGISTRATION_FIELDS : PREFERENCE_FIELDS;
+
+export function validatePreferencesState(state: PreferencesState, audience: PreferencesAudience, contacts: PreferencesContacts, variant: PreferencesVariant = "full"): PreferencesErrors {
+  const unanswered = fieldsFor(variant).filter(field => keyFor(field, audience) && !state[field]);
   const on = broadcastYes(state, audience);
   const channels = !on ? undefined
     : !state.email && !state.sms ? PREFERENCE_MESSAGES.channels
@@ -80,19 +93,29 @@ export function validatePreferencesState(state: PreferencesState, audience: Pref
 }
 
 export type PreferenceRowView = Readonly<{ field: PreferenceField; title: string; text: string; value: Answer | ""; error?: string }>;
+export type ChannelsView = Readonly<{ visible: boolean; label: string; emailOffered: boolean; email: boolean; sms: boolean; error?: string }>;
+/** Settings only: the update preferences nested under Puckle Updates (with their delivery choice), and personal contact apart. */
+export type PreferenceGroupView = Readonly<{ id: "updates" | "personal"; title: string; text: string; rows: readonly PreferenceRowView[]; channels?: ChannelsView }>;
 export type PreferencesLayout = Readonly<{
   heading: string;
   rows: readonly PreferenceRowView[];
-  channels: Readonly<{ visible: boolean; label: string; emailOffered: boolean; email: boolean; sms: boolean; error?: string }>;
+  channels: ChannelsView;
+  groups?: readonly PreferenceGroupView[];
 }>;
-export function buildPreferencesLayout(state: PreferencesState, audience: PreferencesAudience, errors: PreferencesErrors, contacts: Pick<PreferencesContacts, "emailAvailable">): PreferencesLayout {
-  const rows = PREFERENCE_FIELDS.flatMap(field => {
+export function buildPreferencesLayout(state: PreferencesState, audience: PreferencesAudience, errors: PreferencesErrors, contacts: Pick<PreferencesContacts, "emailAvailable">, variant: PreferencesVariant = "full"): PreferencesLayout {
+  const wording = (field: PreferenceField, key: PreferenceKey) =>
+    variant === "settings" ? SETTINGS_ITEMS[key]
+    : variant === "registration" && field === "puckleUpdates" && audience !== "interest" ? { title: PREFERENCE_ITEMS[key].title, text: REGISTRATION_UPDATES_TEXT[audience] }
+    : PREFERENCE_ITEMS[key];
+  const rows = fieldsFor(variant).flatMap(field => {
     const key = keyFor(field, audience);
-    return key ? [{ field, title: PREFERENCE_ITEMS[key].title, text: PREFERENCE_ITEMS[key].text, value: state[field], ...(errors[field] ? { error: errors[field] } : {}) }] : [];
+    return key ? [{ field, ...wording(field, key), value: state[field], ...(errors[field] ? { error: errors[field] } : {}) }] : [];
   });
   const visible = broadcastYes(state, audience);
-  return {
-    heading: PREFERENCES_HEADING, rows,
-    channels: { visible, label: channelLabel(audience), emailOffered: contacts.emailAvailable, email: visible && state.email, sms: visible && state.sms, ...(errors.channels ? { error: errors.channels } : {}) },
-  };
+  const channels: ChannelsView = { visible, label: channelLabel(audience), emailOffered: contacts.emailAvailable, email: visible && state.email, sms: visible && state.sms, ...(errors.channels ? { error: errors.channels } : {}) };
+  const groups = variant !== "settings" ? undefined : [
+    { id: "updates" as const, ...SETTINGS_GROUPS.updates, rows: rows.filter(row => row.field !== "occasionalPersonalContact"), channels },
+    { id: "personal" as const, ...SETTINGS_GROUPS.personal, rows: rows.filter(row => row.field === "occasionalPersonalContact") },
+  ];
+  return { heading: variant === "settings" ? SETTINGS_HEADING : PREFERENCES_HEADING, rows, channels, ...(groups ? { groups } : {}) };
 }

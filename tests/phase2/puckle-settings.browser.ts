@@ -36,13 +36,19 @@ for (const width of [390, 1280]) {
     const item = page.getByRole("menuitem", { name: "Settings", exact: true });
     await expect(item).toBeVisible(); await item.click(); await page.waitForURL(`${origin}/settings`);
     await expect(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Communication Preferences" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Communication preferences" })).toBeVisible();
     // An existing member with nothing saved sees every choice unanswered, never a Yes or a No.
     expect(await section(page).locator("input[type=radio]:checked").count()).toBe(0);
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(section(page).getByText("Choose Yes or No.")).toHaveCount(4);
-    await expect(group(page, "Puckle Updates").locator("input").first()).toBeFocused();
-    await answer(page, "Puckle Updates", "Yes"); await answer(page, "News and offers", "No"); await answer(page, "Occasional personal contact", "Yes"); await answer(page, "Guided maths invitations", "No");
+    // Update choices are nested under Puckle Updates; personal contact is a separate group.
+    const updates = section(page).getByRole("group", { name: "Puckle Updates" }), personal = section(page).getByRole("group", { name: "Personal contact" });
+    await expect(updates.getByRole("radiogroup")).toHaveCount(3); await expect(personal.getByRole("radiogroup")).toHaveCount(1);
+    await expect(updates.getByText("Choose which updates and invitations you would like to receive.")).toBeVisible();
+    await expect(updates.getByText("A fortnightly roundup of new lessons, interactive activities and revision materials.")).toBeVisible();
+    await expect(updates.getByText("Invitations to teacher-led maths activities and revision groups.")).toBeVisible();
+    await expect(group(page, "New maths content").locator("input").first()).toBeFocused();
+    await answer(page, "New maths content", "Yes"); await answer(page, "News and offers", "No"); await answer(page, "Occasional personal contact", "Yes"); await answer(page, "Guided maths invitations", "No");
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(section(page).getByText("Choose email, text message or both.")).toBeVisible();
     const box = section(page).getByRole("group", { name: "Receive updates and invitations by" });
@@ -59,9 +65,9 @@ for (const width of [390, 1280]) {
     expect((await db.collection("puckleMemberships").findOne({ userId: user._id }))!.mobile).toBe("+353871234567");
     // Saved choices come back pre-populated, and opting out persists.
     await page.reload();
-    await expect(group(page, "Puckle Updates").getByRole("radio", { name: "Yes" })).toBeChecked(); await expect(group(page, "News and offers").getByRole("radio", { name: "No" })).toBeChecked();
+    await expect(group(page, "New maths content").getByRole("radio", { name: "Yes" })).toBeChecked(); await expect(group(page, "News and offers").getByRole("radio", { name: "No" })).toBeChecked();
     await expect(section(page).getByRole("checkbox", { name: "Email" })).toBeChecked(); await expect(page.locator("#settings-mobile-phone")).toHaveCount(0);
-    await answer(page, "Puckle Updates", "No"); await expect(section(page).getByRole("group", { name: /Receive updates/ })).toHaveCount(0);
+    await answer(page, "New maths content", "No"); await expect(section(page).getByRole("group", { name: /Receive updates/ })).toHaveCount(0);
     await page.getByRole("button", { name: "Save changes" }).click(); await expect(page.getByText("Your choices are saved.")).toBeVisible();
     expect(await stored(user._id)).toMatchObject({ channels: { email: false, sms: false } });
     await noOverflow(page);
@@ -70,7 +76,7 @@ for (const width of [390, 1280]) {
 test("Settings needs a sign-in, serves teachers their own invitation choice, and the app menu has no Settings on other websites", async ({ browser }) => {
   const out = await (await context(browser, 390)).newPage(); await out.goto(`${origin}/settings`); await out.waitForURL(/\/login/);
   const teacher = await student("teacher"), page = await (await context(browser, 390, teacher.username)).newPage(); await page.goto(`${origin}/settings`);
-  await expect(section(page).locator("span[id$='-title']")).toHaveText(["Puckle Updates", "News and offers", "Occasional personal contact", "Teacher collaboration invitations"]);
+  await expect(section(page).locator("span[id$='-title']")).toHaveText(["New maths content", "News and offers", "Teacher collaboration invitations", "Occasional personal contact"]);
   const other = await (await context(browser, 390, teacher.username, "switchplay")).newPage(); await other.goto(`${origin}/decks`);
   await other.getByRole("button", { name: "Overview menu" }).click(); await expect(other.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
   await expect(other.getByRole("menuitem", { name: "Settings" })).toHaveCount(0);

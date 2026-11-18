@@ -36,45 +36,44 @@ async function fillStudent(page: Page, email: string, username: string) {
 }
 
 for (const width of [390, 1280]) {
-  test(`approved copy, order and layout at ${width}px; nothing is preselected`, async ({ browser }) => {
+  test(`student registration asks two questions with the approved copy at ${width}px; nothing is preselected`, async ({ browser }) => {
     const page = await open(browser, width);
     await expect(section(page).getByRole("heading", { name: "Stay in touch with Puckle" })).toBeVisible();
-    expect(await titles(page)).toEqual(["Puckle Updates", "News and offers", "Occasional personal contact", "Guided maths invitations"]);
-    for (const line of ["A fortnightly roundup of new maths content and activities.", "Major new features, special offers and promotions.", "We may get in touch to offer help or ask for feedback.",
-      "Receive invitations to teacher-led maths programmes, from short revision activities to longer projects, where you progress at your own pace as part of a group."]) await expect(section(page).getByText(line, { exact: true })).toBeVisible();
+    expect(await titles(page)).toEqual(["Puckle Updates", "Occasional personal contact"]);
+    for (const line of ["Maths content, guided activities, news and occasional offers.", "We may get in touch to offer help or ask for feedback."]) await expect(section(page).getByText(line, { exact: true })).toBeVisible();
     expect(await section(page).locator("input[type=radio]:checked").count()).toBe(0);
     await expect(section(page).getByRole("group", { name: /Receive updates/ })).toHaveCount(0);
     await noOverflow(page);
-    // Yes and No are equally available on every row, and the long supporting line wraps inside the viewport.
     for (const row of await section(page).getByRole("radiogroup").all()) { await expect(row.getByText("Yes", { exact: true })).toBeVisible(); await expect(row.getByText("No", { exact: true })).toBeVisible(); }
-    const box = await section(page).locator("p", { hasText: "Receive invitations" }).boundingBox();
+    const box = await section(page).locator("p", { hasText: "Maths content" }).boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(width + 1);
     await page.screenshot({ path: `phase2-test-results/preferences-${width}.png`, fullPage: true });
   });
 }
-test("teacher shows the teacher invitation, interested parties see only three choices", async ({ browser }) => {
+test("teachers see their own Puckle Updates wording, interested parties keep their three separate choices", async ({ browser }) => {
   const page = await open(browser);
   await page.getByRole("radio", { name: "I'm a teacher" }).check();
-  expect(await titles(page)).toEqual(["Puckle Updates", "News and offers", "Occasional personal contact", "Teacher collaboration invitations"]);
-  await expect(section(page).getByText("Opportunities to observe student learning, collaborate on teaching resources or explore professional development.", { exact: true })).toBeVisible();
+  expect(await titles(page)).toEqual(["Puckle Updates", "Occasional personal contact"]);
+  await expect(section(page).getByText("Teaching resources, collaboration opportunities, news and occasional offers.", { exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "I'm interested in Puckle" }).check();
   expect(await titles(page)).toEqual(["Puckle Updates", "News and offers", "Occasional personal contact"]);
   await answer(page, "Puckle Updates", "Yes");
   await expect(section(page).getByRole("group", { name: "Receive updates by" })).toBeVisible();
-  // Switching audience clears the audience-specific answer: no stale consent travels.
-  await page.getByRole("radio", { name: "I'm here to learn" }).check(); await answer(page, "Guided maths invitations", "Yes");
-  await page.getByRole("radio", { name: "I'm a teacher" }).check();
-  await expect(group(page, "Teacher collaboration invitations").locator("input:checked")).toHaveCount(0);
+  // Interested parties answer for themselves: nothing carries over from the other forms.
+  await page.getByRole("radio", { name: "I'm here to learn" }).check();
+  await expect(group(page, "Puckle Updates").getByRole("radio", { name: "Yes" })).toBeChecked();
+  await page.getByRole("radio", { name: "I'm interested in Puckle" }).check();
+  await expect(group(page, "News and offers").locator("input:checked")).toHaveCount(0);
 });
-test("the channel box follows the Yes answers, starts unchecked, and personal contact alone never shows it", async ({ browser }) => {
+test("the channel box follows Puckle Updates, starts unchecked, and personal contact alone never shows it", async ({ browser }) => {
   const page = await open(browser), box = section(page).getByRole("group", { name: "Receive updates and invitations by" });
   await answer(page, "Occasional personal contact", "Yes"); await expect(box).toHaveCount(0);
-  await answer(page, "News and offers", "Yes"); await expect(box).toBeVisible();
+  await answer(page, "Puckle Updates", "Yes"); await expect(box).toBeVisible();
   await expect(box.getByRole("checkbox", { name: "Email" })).not.toBeChecked(); await expect(box.getByRole("checkbox", { name: "Text message" })).not.toBeChecked();
   await box.getByRole("checkbox", { name: "Email" }).check(); await box.getByRole("checkbox", { name: "Text message" }).check();
   await expect(box.getByRole("checkbox", { name: "Email" })).toBeChecked(); await expect(box.getByRole("checkbox", { name: "Text message" })).toBeChecked();
-  await answer(page, "News and offers", "No"); await expect(box).toHaveCount(0);
-  await answer(page, "Guided maths invitations", "Yes"); await expect(box).toBeVisible();
+  await answer(page, "Puckle Updates", "No"); await expect(box).toHaveCount(0);
+  await answer(page, "Puckle Updates", "Yes"); await expect(box).toBeVisible();
   await expect(box.getByRole("checkbox", { name: "Email" })).not.toBeChecked(); // hidden choices never linger
   await noOverflow(page);
 });
@@ -82,10 +81,10 @@ test("unanswered choices and a missing channel or mobile are blocked inline, kee
   const page = await open(browser), email = emailOf("prefs"), username = unique("Prf");
   await fillStudent(page, email, username);
   await submit(page).click();
-  await expect(section(page).getByText("Choose Yes or No.")).toHaveCount(4);
+  await expect(section(page).getByText("Choose Yes or No.")).toHaveCount(2);
   await expect(group(page, "Puckle Updates").locator("input").first()).toBeFocused();
   await expect(page.getByLabel("First name")).toHaveValue("Ada");
-  await answer(page, "Puckle Updates", "Yes"); await answer(page, "News and offers", "No"); await answer(page, "Occasional personal contact", "Yes"); await answer(page, "Guided maths invitations", "No");
+  await answer(page, "Puckle Updates", "Yes"); await answer(page, "Occasional personal contact", "No");
   await submit(page).click();
   await expect(section(page).getByText("Choose email, text message or both.")).toBeVisible();
   const box = section(page).getByRole("group", { name: "Receive updates and invitations by" });
@@ -98,7 +97,7 @@ test("unanswered choices and a missing channel or mobile are blocked inline, kee
   await page.locator("#join-code").fill(await codeFor(email)); await submit(page).click(); await page.waitForURL(`${origin}/decks`);
   const user = (await db.collection("users").findOne({ email }))!;
   const membership = (await db.collection("puckleMemberships").findOne({ userId: user._id }))!;
-  expect(membership.communicationPreferences).toMatchObject({ answers: { puckleUpdates: "yes", newsAndOffers: "no", occasionalPersonalContact: "yes", guidedMathsInvitations: "no" },
+  expect(membership.communicationPreferences).toMatchObject({ answers: { puckleUpdates: "yes", newsAndOffers: "yes", occasionalPersonalContact: "no", guidedMathsInvitations: "yes" },
     channels: { email: true, sms: true }, source: "join-form", wordingVersion: "puckle-communication-preferences-v1" });
   expect(membership.communicationPreferences.recordedAt).toBeInstanceOf(Date);
   await expect.poll(async () => (await outbox()).some(m => m.to.includes("founder@example.invalid") && m.subject.includes("NEW STUDENT") && /Puckle Updates: Yes/.test(m.text) && /Delivery: Email and Text message/.test(m.text))).toBe(true);
@@ -111,9 +110,8 @@ test("an all-No set is a valid sign-up for a mobile-only contact request, which 
   await answer(page, "Puckle Updates", "Yes");
   const box = section(page).getByRole("group", { name: "Receive updates and invitations by" });
   await expect(box.getByRole("checkbox", { name: "Email" })).toHaveCount(0); await expect(box.getByRole("checkbox", { name: "Text message" })).toBeVisible();
-  await answer(page, "Puckle Updates", "No");
-  for (const title of ["News and offers", "Occasional personal contact", "Guided maths invitations"]) await answer(page, title, "No");
+  await answer(page, "Puckle Updates", "No"); await answer(page, "Occasional personal contact", "No");
   await submit(page).click(); await expect(page.getByRole("heading", { name: "Thanks, we have your details." })).toBeVisible();
   const saved = (await db.collection("puckleJoinContactRequests").findOne({ name }))!;
-  expect(saved.communicationPreferences).toMatchObject({ channels: { email: false, sms: false }, answers: { puckleUpdates: "no", guidedMathsInvitations: "no" } });
+  expect(saved.communicationPreferences).toMatchObject({ channels: { email: false, sms: false }, answers: { puckleUpdates: "no", newsAndOffers: "no", guidedMathsInvitations: "no", occasionalPersonalContact: "no" } });
 });

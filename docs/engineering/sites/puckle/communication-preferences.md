@@ -4,14 +4,19 @@ Implements the registration, storage and validation parts of `docs/design/sites/
 Account settings and a no-account manage link are **not** built yet; see Open decisions.
 
 ## Behaviour
-- The Join form (student, teacher, interested party) shows a "Stay in touch with Puckle" section: four Yes | No choices for students and
-  teachers, three for interested parties, with the approved titles and lines. Nothing is preselected and every choice must be answered.
-  An all-No set is valid.
+- The Join form shows a "Stay in touch with Puckle" section. Students and teachers answer two Yes | No questions (Puckle Updates, with
+  audience wording, and Occasional personal contact); interested parties answer three (Puckle Updates, News and offers, Occasional personal
+  contact). Nothing is preselected and every question must be answered. An all-No set is valid.
+- Presentation only: for students and teachers, Puckle Updates sets puckleUpdates, newsAndOffers and the audience invitation answer together
+  (`withUpdatesAnswer` in the layout, so state, validation and payload keep all four stored preferences). The server contract, validator and
+  stored shape are unchanged. Settings (`variant: "settings"`) shows the same stored preferences individually: New maths content, News and
+  offers and the invitation preference nested under Puckle Updates with the delivery choice, and Occasional personal contact under
+  Personal contact. The no-account manage page keeps the plain list.
 - A delivery box ("Receive updates and invitations by" / "Receive updates by" for interested parties) appears only while Puckle Updates,
   News and offers or the audience's invitation choice is Yes. Occasional personal contact alone never shows it. Email and Text message are
   independent, unchecked checkboxes; at least one is required. Email needs an email address, Text needs a valid mobile number.
   Clearing the last broadcast Yes clears both channels, so hidden state never lingers as consent. On the mobile-only route only Text is offered.
-- Switching between student, teacher and interested clears the audience-specific invitation answer.
+- Switching between student and teacher keeps the derived answers in step with Puckle Updates; switching to interested party clears them.
 
 ## Code
 - `src/app/sites/puckle/lib/communicationPreferences.ts` - approved wording, stored shape, `validateCommunicationPreferences` (authoritative,
