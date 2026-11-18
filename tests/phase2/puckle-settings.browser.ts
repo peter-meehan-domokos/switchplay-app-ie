@@ -46,9 +46,9 @@ for (const width of [390, 1280]) {
     await expect(updates.getByRole("radiogroup")).toHaveCount(3); await expect(personal.getByRole("radiogroup")).toHaveCount(1);
     await expect(updates.getByText("Choose which updates and invitations you would like to receive.")).toBeVisible();
     await expect(updates.getByText("A fortnightly roundup of new lessons, interactive activities and revision materials.")).toBeVisible();
-    await expect(updates.getByText("Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group.")).toBeVisible();
+    await expect(updates.getByText("Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group.")).toBeVisible();
     await expect(group(page, "New maths content").locator("input").first()).toBeFocused();
-    await answer(page, "New maths content", "Yes"); await answer(page, "News and offers", "No"); await answer(page, "Occasional personal contact", "Yes"); await answer(page, "Group Experiences invitations", "No");
+    await answer(page, "New maths content", "Yes"); await answer(page, "News and offers", "No"); await answer(page, "Occasional personal contact", "Yes"); await answer(page, "Group experiences invitations", "No");
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(section(page).getByText("Choose email, text message or both.")).toBeVisible();
     const box = section(page).getByRole("group", { name: "Receive updates and invitations by" });

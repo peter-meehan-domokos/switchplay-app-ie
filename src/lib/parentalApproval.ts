@@ -1,4 +1,4 @@
-// Server-only. One shared Group Experience approval per account, covering Puckle everywhere it runs.
+// Server-only. One shared group experience approval per account, covering Puckle everywhere it runs.
 // Records facts only: no group permission decision, no live-tuition permission, no age verification.
 import { ObjectId, type ClientSession, type Db, type MongoClient } from "mongodb";
 import { ageOn, dublinToday } from "./age";
@@ -34,7 +34,7 @@ const users = (db: Db) => db.collection<Account>("users");
 const actions = (db: Db) => db.collection<AccountEmailAction>("accountEmailActions");
 
 export type Eligibility = "eligible" | "not-required" | "age-unknown";
-/** Under-16 Group Experience participation needs approval; unknown DOB is never treated as 16 or over. */
+/** Under-16 group experience participation needs approval; unknown DOB is never treated as 16 or over. */
 export function approvalEligibility(dateOfBirth: string | null | undefined, today = dublinToday()): Eligibility {
   if (!dateOfBirth) return "age-unknown";
   return ageOn(dateOfBirth, today) < APPROVAL_AGE_LIMIT ? "eligible" : "not-required";

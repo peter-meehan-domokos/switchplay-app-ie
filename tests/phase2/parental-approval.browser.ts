@@ -62,8 +62,16 @@ test("parent approves on a phone: explanation, explicit declaration, no sign-in,
   const { page, requests } = await parentPage(browser, token);
   await expect(page.getByRole("heading", { name: "Parent or guardian approval" })).toBeVisible();
   expect(page.url()).toBe(`${origin}/api/account-actions/open`);
-  await expect(page.locator("#parent .child")).toHaveText("Niamh"); await expect(page.getByText(/one approval covers equivalent group learning anywhere in Puckle/)).toBeVisible();
-  await expect(page.getByText(/not permission for live tuition/)).toBeVisible();
+  await expect(page.locator("#parent .child")).toHaveText("Niamh"); await expect(page.getByText("Students under 16 need a parent or guardian's approval to take part in group learning.")).toBeVisible();
+  await expect(page.getByText(/does not cover live tuition/)).toBeVisible();
+  // The three contact options are a real list, and the email address and both phone numbers are links.
+  const options = page.locator("#parent .explanation ul li"); await expect(options).toHaveCount(3);
+  await expect(options.nth(0)).toHaveText("Reply to the email we sent you.");
+  await expect(options.nth(1).getByRole("link", { name: "support@puckleup.com" })).toHaveAttribute("href", "mailto:support@puckleup.com");
+  await expect(options.nth(2).getByRole("link", { name: "+353 85 207 6241" })).toHaveAttribute("href", "tel:+353852076241");
+  await expect(options.nth(2).getByRole("link", { name: "+44 7547 196642" })).toHaveAttribute("href", "tel:+447547196642");
+  await expect(page.locator("#parent > p").last().getByRole("link", { name: "support@puckleup.com" })).toHaveAttribute("href", "mailto:support@puckleup.com");
+  await page.screenshot({ path: "phase2-test-results/parent-approval-390.png", fullPage: true });
   const declaration = page.getByRole("checkbox", { name: /parent or legal guardian/ }); await expect(declaration).not.toBeChecked(); await noOverflow(page);
   expect((await approvalOf(kid._id)).status).toBe("pending"); // Opening and reading decided nothing.
   await page.getByRole("button", { name: "Approve" }).click(); await expect(page.getByRole("status")).toContainText("tick the box");

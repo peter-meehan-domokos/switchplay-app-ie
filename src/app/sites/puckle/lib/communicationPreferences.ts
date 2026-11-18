@@ -21,8 +21,8 @@ export const PREFERENCE_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: 
   newsAndOffers: { title: "News and offers", text: "Major new features, special offers and promotions." },
   occasionalPersonalContact: { title: "Occasional personal contact", text: "We may get in touch to offer help or ask for feedback." },
   guidedMathsInvitations: {
-    title: "Group Experiences invitations",
-    text: "Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group.",
+    title: "Group experiences invitations",
+    text: "Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group.",
   },
   teacherCollaborationInvitations: {
     title: "Teacher collaboration invitations",
@@ -47,7 +47,7 @@ export const SETTINGS_GROUPS = {
 export const SETTINGS_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: string; text: string }>>> = {
   ...PREFERENCE_ITEMS,
   puckleUpdates: { title: "New maths content", text: "A fortnightly roundup of new lessons, interactive activities and revision materials." },
-  guidedMathsInvitations: { title: "Group Experiences invitations", text: "Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group." },
+  guidedMathsInvitations: { title: "Group experiences invitations", text: "Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group." },
   teacherCollaborationInvitations: { title: "Teacher collaboration invitations", text: "Invitations to explore teaching ideas, share resources and collaborate with other teachers." },
 };
 

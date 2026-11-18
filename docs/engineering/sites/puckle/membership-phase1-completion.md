@@ -76,4 +76,4 @@ The initial integration attempt was blocked by sandbox socket permissions (`list
 
 Phase 1 is ready for review: models, validation, indexes and targeted-write checks pass; no existing learning runtime file or public route was changed. There are no Phase 1 questions or additional runtime edits requiring approval. Final consent wording and purpose-based retention remain the existing later-phase review inputs, not invented defaults.
 
-No account registration, email, onboarding, publishing restriction, Group Experience operation or backfill has been implemented. No commit, push, merge or deployment was performed. Stop here pending explicit authorisation for any next phase or commit.
+No account registration, email, onboarding, publishing restriction, group experience operation or backfill has been implemented. No commit, push, merge or deployment was performed. Stop here pending explicit authorisation for any next phase or commit.

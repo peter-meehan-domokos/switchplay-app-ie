@@ -11,7 +11,7 @@ Puckle, Switchplay and Strat17 share ordinary users and authentication. Keep cre
 
 New email-based student/teacher registration proves email ownership before account creation and automatically establishes the normal session afterwards. Mobile is visible immediately on all Join categories and optional with email. Student/teacher no-email mode creates only a mobile contact request for founder follow-up; interest submissions are always contacts. No SMS authentication or phone login.
 
-One parental approval covers equivalent Group Experiences across all three websites under the accepted common scope/explanation. Approval is not permission for live tuition. The project records/exposes facts and performs no Group Experience enforcement. No active group implementation is needed to complete membership work.
+One parental approval covers equivalent group experiences across all three websites under the accepted common scope/explanation. Approval is not permission for live tuition. The project records/exposes facts and performs no group experience enforcement. No active group implementation is needed to complete membership work.
 
 Remove all previous provisional memberships, enquiry-linked claims/invitations, issuer endpoints, account activation pages/tokens and public existing-account linking. Email challenges and approval/reset action capabilities are purpose-specific security records, not membership activation machinery. Future personal/admin membership invitations, reusable admin onboarding and manual account arrangements for no-email contacts are separate work. seed:user stays unchanged.
 
@@ -66,7 +66,7 @@ users keeps its identity/credential/account fields and existing learning data. A
 | dateOfBirth | Strict YYYY-MM-DD date-only or absent. The sole account-authoritative DOB. Never an authoritative age counter. |
 | ageAssurance | Status unknown, self-declared, unverified or independently-verified; method, recordedAt, relevant evidence reference/verifiedAt where justified. Operator-supplied facts use unverified status and operator-entered method unless stronger evidence exists. New Puckle student input is self-declared. No public payload can set verified evidence. |
 | dateOfBirthHistory | Reviewed old/new values, reason, actor, time and relationship to invalidated assurance. Never transfer verification tied to an old DOB to a new DOB. |
-| groupExperienceApproval | One common activity-scope record: scopeId, accepted explanationVersion/scope snapshot, status, guardian contact/declaration evidence, request/decision/withdrawal timestamps and history. Applies to equivalent Group Experiences on Puckle, Switchplay and Strat17. |
+| groupExperienceApproval | One common activity-scope record: scopeId, accepted explanationVersion/scope snapshot, status, guardian contact/declaration evidence, request/decision/withdrawal timestamps and history. Applies to equivalent group experiences on Puckle, Switchplay and Strat17. |
 
 Use one concrete common scope identifier, for example shared-group-experiences, with a versioned explanation describing the three sites and actual visibility/sharing conditions. The sending site's ID is provenance/branding, never a per-site approval key. Do not add puckleApproved/switchplayApproved/strat17Approved or require a maths profile to read shared facts. Materially expanded/divergent activity may require a later additional approval; do not implement that future activity or automatically broaden consent now.
 
@@ -286,7 +286,7 @@ Every phase identifies existing/new files, database work, dependencies, tests, r
 
 **Database:** Targeted shared safeguarding approval/history and action-token writes. Request generation/state preconditions prevent stale/replayed/recipient-replaced links changing decisions. Source website is provenance, not approval scope identity. Management renewal uses recorded guardian recipient, not arbitrary input. Current approved guardian replacement needs reviewed support/renewal rather than silently rewriting approval evidence.
 
-**Dependencies:** Phases 1–2, final common disclosure and sender configuration. Can be tested independently of application onboarding or any active Group Experience code.
+**Dependencies:** Phases 1–2, final common disclosure and sender configuration. Can be tested independently of application onboarding or any active group experience code.
 
 **Unit/integration/E2E tests:** tests/parental-approval.test.ts/.integration.ts and parent browser journeys. Cover no request, send failure/unknown/delay, pending/resend/expiry/renewal, explicit approve/decline/withdraw/re-request, replaced/wrong-scope/wrong-purpose/replayed token, concurrent decisions and multiple child tabs. Assert target identity comes from action context and expected ID, not current logged-in person. Approving once returns the same common facts for Puckle/Switchplay/Strat17; changing only source website requests no second approval. Assert authority fields cannot be forged and user credentials/learning arrays remain byte-for-byte or structurally unchanged. Parent approval does not change assurance to independently verified.
 
@@ -346,7 +346,7 @@ Every phase identifies existing/new files, database work, dependencies, tests, r
 
 **Regression risks:** Mistaking development rendering or mocked sessions for production proof, assuming absence of group code blocks membership, overlooking an extra runtime-file change, claiming a general DB outage is an onboarding-only failure. Keep measurements and scope assertions explicit.
 
-**Acceptance checkpoint:** New functions and unaffected application behaviour have reviewable evidence; only justified documented existing-file edits remain; remaining external launch decisions are recorded. No Group Experience enforcement or future administrative onboarding is represented as delivered.
+**Acceptance checkpoint:** New functions and unaffected application behaviour have reviewable evidence; only justified documented existing-file edits remain; remaining external launch decisions are recorded. No group experience enforcement or future administrative onboarding is represented as delivered.
 
 ## 7. Final verification checklist and measurable regression evidence
 
@@ -398,7 +398,7 @@ Every phase identifies existing/new files, database work, dependencies, tests, r
 - [ ] Test 320px/390px/tablet/desktop plus real iOS Safari/Android Chrome, email links opening another browser, mobile keyboards and Shadow DOM styles/focus/safe areas. Preserve screen-reader labels, error/success announcements and keyboard navigation.
 - [ ] Exercise modal/fullscreen media priority, document capture/bubble shortcuts, Escape/Tab/touch/wheel and outside Card gestures. Panel only captures its own interactions; body/global CSS/learning handlers are unchanged.
 - [ ] Inject status timeout/500, optional chunk/render failure, local storage/channel failure, failed acknowledgement and stale async actions. Application stays mounted/usable and prior-user overlay content is cleared before identity revalidation.
-- [ ] Final two-document scope audit confirms no live provisional/invitation/activation/linking requirements, per-site approvals, global mandatory student profile, SMS auth, Group Experience implementation or reusable admin onboarding. Evidence claims reflect what was actually run.
+- [ ] Final two-document scope audit confirms no live provisional/invitation/activation/linking requirements, per-site approvals, global mandatory student profile, SMS auth, group experience implementation or reusable admin onboarding. Evidence claims reflect what was actually run.
 
 ## 8. QUESTIONS and external pre-launch dependencies
 
@@ -408,11 +408,11 @@ Settled defaults are not reopened: common cross-site approval; client host/notif
 | --- | --- | --- |
 | Shared login-route approval | Approve the exact small helper call change below so credential checking and signed version share a snapshot. No AuthUser/API/navigation change. | Before phase 2 implementation includes that file. |
 | Email provider/configuration | Supply one provider, verified sender settings, founder recipient and canonical production/development/preview action origins. Use one shared transport with Puckle templates, not three implementations. | Before live email acceptance; fixtures permit earlier development. |
-| Common activity explanation | Safeguarding owner must supply/approve actual equivalent Group Experience visibility/sharing/withdrawal wording covering all three sites and accepted version. Do not invent capabilities from absent group code or send a placeholder as final consent. | Before real approval requests/public launch, not a blocker to data-contract tests. |
+| Common activity explanation | Safeguarding owner must supply/approve actual equivalent group experience visibility/sharing/withdrawal wording covering all three sites and accepted version. Do not invent capabilities from absent group code or send a placeholder as final consent. | Before real approval requests/public launch, not a blocker to data-contract tests. |
 | Evidence retention/correction review | Approve purpose-based retention/review/deletion criteria and the operator's correction/evidence procedure; do not assign one arbitrary lifetime to users/history/transient tokens. Code supports reviewed targeted changes and history. | Before production collection/retention policy acceptance. |
 | Known-account manifest | Supply explicit account identifiers and known values/evidence; review dry-run and unknown origins before applying. | Phase 7 apply checkpoint. |
 
-External legal/privacy review must confirm private learning for ages 13–15 without initial parental approval, children's notices and proportionate age/guardian assurance. Separate safeguarding work owns teacher/false-DOB bypass protection, corrected under-13 account policy, stronger verification and every Group Experience enforcement/withdrawal/age-transition effect. Before an under-16 public experience exposes groups, that enforcement must be ready; this membership project neither implements it nor is blocked by absent group code. Confirm the existing human under-18 live-tuition permission process separately.
+External legal/privacy review must confirm private learning for ages 13–15 without initial parental approval, children's notices and proportionate age/guardian assurance. Separate safeguarding work owns teacher/false-DOB bypass protection, corrected under-13 account policy, stronger verification and every group experience enforcement/withdrawal/age-transition effect. Before an under-16 public experience exposes groups, that enforcement must be ready; this membership project neither implements it nor is blocked by absent group code. Confirm the existing human under-18 live-tuition permission process separately.
 
 The fact that one common approval covers three sites is settled. Later material divergence may need additional approval, but there is no future multisite permission/profile engine in this plan.
 

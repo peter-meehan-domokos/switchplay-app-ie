@@ -34,7 +34,7 @@ The founder grants or revokes the boolean directly in MongoDB; no management API
 
 Before those checks are enabled, review existing accounts explicitly: preserve publishing for a founder-approved list of genuinely trusted account IDs, assign false to other accounts, and refuse unreviewed/conflicting changes. Account creation date alone is not evidence of trust. This permission preparation covers all existing shared accounts; the educational/safeguarding backfill remains limited to explicitly selected users.
 
-Public-publishing permission is separate from Group Experience age eligibility and parental approval. This project does not enforce Group Experience permissions.
+Public-publishing permission is separate from group experience age eligibility and parental approval. This project does not enforce group experience permissions.
 
 ### Current scope
 
@@ -123,7 +123,7 @@ Email-based registration collects name, chosen username, email/password, immedia
 
 Encourage what/who they teach, intended use and ideas for developing Puckle, without a structured school questionnaire. Blank introduction must succeed. After verified registration, establish the normal session, confirm that Puckle will be in touch and notify the founder for personal follow-up.
 
-No-email teachers submit a mobile contact request instead, with no account/password. They receive a personal-follow-up confirmation. Registering as a teacher does not establish adulthood. Teacher/false-DOB bypass concerns belong to separate age-assurance and Group Experience safeguarding work.
+No-email teachers submit a mobile contact request instead, with no account/password. They receive a personal-follow-up confirmation. Registering as a teacher does not establish adulthood. Teacher/false-DOB bypass concerns belong to separate age-assurance and group experience safeguarding work.
 
 ## 6. General-interest registration and communication permission
 
@@ -185,7 +185,7 @@ Link an authenticated student's own request to their account where established. 
 
 Parental permission before live tuition under 18 remains an independent human operational requirement. This project adds no scheduling or automated session-arrangement system.
 
-## 9. Shared safeguarding and one cross-site Group Experience approval
+## 9. Shared safeguarding and one cross-site group experience approval
 
 ### Age information
 
@@ -195,11 +195,11 @@ DOB corrections require review, reason, actor, timestamp and previous/new value.
 
 ### One shared activity scope
 
-**One parental approval covers equivalent Group Experience participation across Puckle, Switchplay and Strat17.** These sites use the same underlying Group Experience functionality with different learning content. No extra approval is required merely for changing websites.
+**One parental approval covers equivalent group experience participation across Puckle, Switchplay and Strat17.** These sites use the same underlying group experience functionality with different learning content. No extra approval is required merely for changing websites.
 
 The explanation must explicitly describe all three websites, the shared activity, actual visibility/sharing conditions and withdrawal. Store the common activity scope, accepted explanation version, decision/declaration and timestamps in the shared account's approval record/history. The sending website is provenance/branding, not a separate approval key.
 
-If activity materially expands/diverges later, a further approval may be needed for that expanded scope. Do not broaden accepted scope automatically or require renewed approval merely because the website changes. Group Experience approval is not live-tuition permission.
+If activity materially expands/diverges later, a further approval may be needed for that expanded scope. Do not broaden accepted scope automatically or require renewed approval merely because the website changes. Group experience approval is not live-tuition permission.
 
 ### Required records and workflow
 
@@ -213,7 +213,7 @@ Guardian email ownership plus declaration is recorded as such, not as independen
 
 ### External enforcement boundary
 
-Under-16 Group Experience participation requires parental approval, including private groups, creation/joining and perspectives. Applying that requirement server-side is entirely separate backlog work. This project only records/exposes facts; it changes no Group Experience creation, permissions, perspectives, data or media operation. Withdrawal and turning 16 update facts/reminders here, not group access.
+Under-16 group experience participation requires parental approval, including private groups, creation/joining and perspectives. Applying that requirement server-side is entirely separate backlog work. This project only records/exposes facts; it changes no group experience creation, permissions, perspectives, data or media operation. Withdrawal and turning 16 update facts/reminders here, not group access.
 
 The active group implementation need not be present to complete membership work. Before a public under-16 experience exposes groups, the separate enforcement and legal/safeguarding checks must be complete. Ages 13–15 private learning without initial approval remains subject to the agreed legal/privacy review.
 
@@ -291,7 +291,7 @@ Existing shared authenticated infrastructure changes are limited to auth.ts help
 
 The expressly agreed publishing exception permits only actual public-publication checks in Card/Deck and Info Card repositories and minimum feedback in existing error presenters. The engineering plan identifies exact files for review before implementation. No Creator/Library redesign, extra administration screen, publishing approval API, media limit or rendering restriction is included. The unused username-directory endpoint is a separate removal recommendation under REQUIRES EXPLICIT APPROVAL, not already authorised.
 
-No other changes to My Decks, Creator, CardData/DeckData operations, learning progress/confidence/reflections, media, Step Visuals, groups, existing navigation/gestures or global styles. Tests may exercise these. Teacher age-bypass protections, stronger age verification and Group Experience enforcement remain separate work. Any further unavoidable existing runtime edit requires exact file/change/reason and explicit approval.
+No other changes to My Decks, Creator, CardData/DeckData operations, learning progress/confidence/reflections, media, Step Visuals, groups, existing navigation/gestures or global styles. Tests may exercise these. Teacher age-bypass protections, stronger age verification and group experience enforcement remain separate work. Any further unavoidable existing runtime edit requires exact file/change/reason and explicit approval.
 
 ## 15. Acceptance and pre-launch review
 
@@ -304,12 +304,12 @@ The final engineering checklist must verify:
 - Every existing account has an explicit permissions record; founder-reviewed trusted users retain publishing, new students/teachers default false, missing flags deny public publication and revocation stops new public versions through every route, including Copy. Private publication/learning and existing public content remain intact.
 - Teacher introduction is optional; teacher privileges remain normal; interest contacts never receive accounts or implicit email/SMS marketing permission.
 - Tuition remains one independent form; known-DOB students skip category selection, under-18 guardian requirements resist forgery, and founder follow-up does not depend on membership.
-- One shared Group Experience approval is visible through authorised backend facts for all three sites with its accepted scope/version/history, without separate per-site approval or implemented group enforcement.
+- One shared group experience approval is visible through authorised backend facts for all three sites with its accepted scope/version/history, without separate per-site approval or implemented group enforcement.
 - The first welcome includes optional 13–15 parent setup; later reminders, expiry/withdrawal and age transitions are correct; under-16 and under-18 rules remain distinct.
 - Production public static/dynamic classification and relevant caching remain unchanged; no gesture-driven onboarding requests or learning-component re-renders occur. Network/module failure, same-URL auth changes, cross-tab changes on return, preserved drafts across blur, long-lived sessions without expiry timers, expanded introductions/dialogs/fullscreen media and mobile/keyboard/touch interactions are verified.
 - Founder notification failure preserves saved records and is operationally retrievable. No-email usage can be counted without PII analytics.
 - Backfill dry-run/apply/rerun/conflict tests preserve identities, credentials, provenance and all learning data; reviewed publishing assignments precede enforcement/public registration and cover every existing account without blanket trust.
 
-Before public launch, complete the legal/privacy review for private learning by children, proportionate DOB/guardian assurance, children's notices and justified retention; finalise the actual common Group Experience disclosure and separate enforcement readiness. Confirm the operational under-18 live-tuition permission process. Do not silently alter the agreed policy to resolve an external review issue.
+Before public launch, complete the legal/privacy review for private learning by children, proportionate DOB/guardian assurance, children's notices and justified retention; finalise the actual common group experience disclosure and separate enforcement readiness. Confirm the operational under-18 live-tuition permission process. Do not silently alter the agreed policy to resolve an external review issue.
 
 Remaining implementation approvals/configuration are identified in the engineering plan. This specification describes the approved product direction; editing it does not authorise implementation, database writes or deployment.

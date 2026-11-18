@@ -40,6 +40,6 @@ test("parents and students are told to use support@puckleup.com, consistently, a
   assert.match(request.text, /reply to this email or write to support@puckleup\.com/); assert.doesNotMatch(request.text, /hello@/);
   assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /support@puckleup\.com/);
   const page = await emailActionDocument().text();
-  assert.match(page, /write to support@puckleup\.com/); assert.doesNotMatch(page, /hello@|contact the website/);
+  assert.match(page, /write to <a href="mailto:support@puckleup\.com">support@puckleup\.com<\/a>/); assert.doesNotMatch(page, /hello@|contact the website/);
   for (const code of ["APPROVAL_AGE_UNKNOWN", "APPROVAL_ALREADY_GRANTED"]) assert.match(((await parentalApprovalError(new Error(code)).json()) as { error: string }).error, /support@puckleup\.com/);
 });

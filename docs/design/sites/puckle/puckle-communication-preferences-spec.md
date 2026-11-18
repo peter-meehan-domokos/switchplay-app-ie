@@ -34,9 +34,9 @@ Neither Yes nor No is selected initially. All choices should have equally promin
 | **Puckle Updates** | A fortnightly roundup of new maths content and activities. |
 | **News and offers** | Major new features, special offers and promotions. |
 | **Occasional personal contact** | We may get in touch to offer help or ask for feedback. |
-| **Group Experiences invitations** | Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group. |
+| **Group experiences invitations** | Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group. |
 
-**Important meaning of the fourth choice:** it opts the student into **receiving invitations**, not joining an activity. The activities are teacher-led *asynchronous Group Experiences* built around a Deck. Students can progress independently while participating in a group; these are **not scheduled live group lessons**. They may be short revision activities or longer projects. Do not replace the approved wording with “small-group sessions”, “live classes”, “join now” or equivalent.
+**Important meaning of the fourth choice:** it opts the student into **receiving invitations**, not joining an activity. The activities are teacher-led *asynchronous group experiences* built around a Deck. Students can progress independently while participating in a group; these are **not scheduled live group lessons**. They may be short revision activities or longer projects. Do not replace the approved wording with “small-group sessions”, “live classes”, “join now” or equivalent.
 
 ### Teacher form: exact four choices, in this order
 
@@ -47,13 +47,13 @@ Fourth choice:
 - **Teacher collaboration invitations**
 - *Opportunities to observe student learning, collaborate on teaching resources or explore professional development.*
 
-This covers invitations to observe student Group Experiences, to work with other teachers on teaching resources and to join professional-learning activities. Do not imply that formal/accredited CPD is currently offered.
+This covers invitations to observe student group experiences, to work with other teachers on teaching resources and to join professional-learning activities. Do not imply that formal/accredited CPD is currently offered.
 
 **Retain** the existing teacher-specific registration wording (including the message that Puckle will be in touch), teacher interest questions and submission behaviour.
 
 ### Other interested parties: three choices
 
-Use only the **first three shared choices** (Puckle Updates, News and offers, Occasional personal contact) in the same order and design. Do not show Group Experiences or teacher collaboration invitations for this audience.
+Use only the **first three shared choices** (Puckle Updates, News and offers, Occasional personal contact) in the same order and design. Do not show group experiences or teacher collaboration invitations for this audience.
 
 This sign-up may not create an authenticated account; inspect the current interested-party flow before choosing how to persist or edit preferences.
 
@@ -100,9 +100,9 @@ Occasional major features, new services, offers and promotions. It is a separate
 
 Permission for Puckle to **initiate** occasional individual contact, such as offering help or asking for ideas/feedback. This may happen through available email, SMS or telephone contact details where appropriate. It is **not** permission for routine, repeated unsolicited contact, and it is not a prerequisite for answering an enquiry the person initiated.
 
-### Group Experiences invitations / Teacher collaboration invitations
+### Group experiences invitations / Teacher collaboration invitations
 
-Permission to send individual or group invitations to the corresponding opportunities described above. This choice is **not** acceptance of an invitation, enrolment into a Group Experience, booking or consent to paid tuition. Sending an invitation should be governed by the selected Email/Text message delivery channels.
+Permission to send individual or group invitations to the corresponding opportunities described above. This choice is **not** acceptance of an invitation, enrolment into a group experience, booking or consent to paid tuition. Sending an invitation should be governed by the selected Email/Text message delivery channels.
 
 ## 6. Contact, support and teacher enquiries are separate
 
@@ -170,7 +170,7 @@ Server-side requirements:
 
 - Review Puckle's registration disclosures and Privacy page for accuracy about the four purposes, delivery channels, how to change preferences, and the difference between essential support/account messages and optional outreach.
 - Preserve teacher-specific wording and existing parent-related copy except where a precise communications disclosure is necessary; report material text changes.
-- Keep the exact user-facing titles/descriptions from Section 2. Use **Group Experiences** consistently in student-facing copy (not group learning, Group Programmes or similar), and do not call these asynchronous activities “live sessions”. The short explanation is: *Teacher-led maths activities you complete at your own pace, as part of a group.*
+- Keep the exact user-facing titles/descriptions from Section 2. Use **group experiences** consistently in student-facing copy (not group learning, group programmes or similar), and do not call these asynchronous activities “live sessions”. The short explanation is: *Teacher-led maths activities you complete at your own pace, as part of a group.*
 
 ## 12. Implementation locations to inspect and update
 
@@ -212,7 +212,7 @@ Reuse shared UI where genuinely useful without coupling different site branding 
 - Changes to the separately specified Contact and Support page.
 - A second WhatsApp Business identity or marketing over WhatsApp.
 - Automated SMS provider integration, scheduled emails, a bulk-mail campaign dashboard or campaign analytics.
-- Group Experience creation, joining, payment, entitlement or membership logic.
+- Group experience creation, joining, payment, entitlement or membership logic.
 - Changes to post-login learning experiences, authentication rules, current parent/guardian approvals or unrelated site identities.
 - Automatic changes to consent defaults, pre-selected Yes answers, forced marketing consent, or marketing messages sent merely by registering.
 

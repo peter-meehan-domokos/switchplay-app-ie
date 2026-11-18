@@ -50,23 +50,23 @@ export function founderTuitionEnquiryEmail(input: { id: string; linkedAccount: b
     + `${line("Course", d.mathsCourse)}${line("Email", d.email)}${line("Mobile", d.phone)}${line("Preferred contact", d.preferredContactMethod)}${line("Linked to a signed-in Puckle student", input.linkedAccount ? "yes" : null)}`
     + `${d.message ? `\nMessage:\n${d.message}\n` : ""}\nRecord: puckleTuitionEnquiries _id ${input.id}\nPlease arrange the introduction personally.` };
 }
-/** Informational: a student asked a parent/guardian (by email) to approve Group Experiences. No decision is needed from you. */
+/** Informational: a student asked a parent/guardian (by email) to approve group experiences. No decision is needed from you. */
 export function founderParentApprovalRequestEmail(input: { id: string; childName: string; username: string; guardianEmail: string; guardianPhone: string | null; delivery: string; sourceSite: string }): Message {
   return { subject: subject("FYI", "👪", "PARENT APPROVAL SENT", input.childName), text:
-    `A student asked a parent or guardian to approve Group Experiences. The approval email went to the parent; nothing is needed from you.\n\n${line("Student", input.childName)}${line("Username", input.username)}`
+    `A student asked a parent or guardian to approve group experiences. The approval email went to the parent; nothing is needed from you.\n\n${line("Student", input.childName)}${line("Username", input.username)}`
     + `${line("Parent/guardian email", input.guardianEmail)}${line("Parent/guardian mobile (not verified)", input.guardianPhone)}${line("Email delivery", input.delivery)}${line("Requested from", input.sourceSite)}\nAccount _id ${input.id}` };
 }
 /** Needs you: the parent has no email address, so no approval link could be sent. */
 export function founderParentContactRequestEmail(input: { id: string; childName: string; username: string; guardianPhone: string }): Message {
   return { subject: subject("ACTION", "📞", "PARENT HAS NO EMAIL, PLEASE CALL", input.childName), text:
-    `A student under 16 gave only a mobile number for a parent or guardian, so no approval email could be sent. Group Experience approval is NOT recorded. Please contact the parent personally.\n\n`
+    `A student under 16 gave only a mobile number for a parent or guardian, so no approval email could be sent. Group experience approval is NOT recorded. Please contact the parent personally.\n\n`
     + `${line("Student", input.childName)}${line("Username", input.username)}${line("Parent/guardian mobile (not verified)", input.guardianPhone)}\nRecord: puckleJoinContactRequests _id ${input.id}\nThe student can keep learning privately meanwhile.` };
 }
 /** Informational: the parent decided by email. Nothing is needed from you. */
 export function founderParentDecisionEmail(input: { id: string; childName: string; username: string; decision: "approved" | "declined"; guardianEmail: string; guardianPhone: string | null; decidedAt: Date }): Message {
   const approved = input.decision === "approved";
   return { subject: subject("FYI", approved ? "✅" : "❌", approved ? "PARENT APPROVED" : "PARENT DECLINED", input.childName), text:
-    `${approved ? "A parent or guardian approved Group Experiences for a student. It is recorded." : "A parent or guardian declined Group Experiences for a student. It is recorded; the student can keep learning privately and may ask again."} Nothing is needed from you.\n\n`
+    `${approved ? "A parent or guardian approved group experiences for a student. It is recorded." : "A parent or guardian declined group experiences for a student. It is recorded; the student can keep learning privately and may ask again."} Nothing is needed from you.\n\n`
     + `${line("Student", input.childName)}${line("Username", input.username)}${line("Decided by (email)", input.guardianEmail)}${line("Parent/guardian mobile (not verified)", input.guardianPhone)}${line("Decided", `${input.decidedAt.toISOString().slice(0, 16).replace("T", " ")} UTC`)}\nAccount _id ${input.id}` };
 }
 

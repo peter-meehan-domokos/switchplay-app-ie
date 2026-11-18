@@ -19,7 +19,7 @@ test("each audience sees the approved titles and supporting lines, in order", ()
     ["News and offers", "Major new features, special offers and promotions."],
     ["Occasional personal contact", "We may get in touch to offer help or ask for feedback."],
   ];
-  assert.deepEqual(rowsOf("student"), [...shared, ["Group Experiences invitations", "Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group."]]);
+  assert.deepEqual(rowsOf("student"), [...shared, ["Group experiences invitations", "Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group."]]);
   assert.deepEqual(rowsOf("teacher"), [...shared, ["Teacher collaboration invitations", "Invitations to explore teaching ideas, share resources and collaborate"]]);
   assert.deepEqual(rowsOf("interest"), shared);
 });
@@ -235,9 +235,9 @@ test("Settings groups the three update preferences under Puckle Updates and keep
   const layoutFor = (audience: "student" | "teacher") => buildPreferencesLayout(preferencesStateFrom(audience === "student" ? stored : { ...stored, answers: { puckleUpdates: "yes", newsAndOffers: "no", occasionalPersonalContact: "yes", teacherCollaborationInvitations: "no" } }, audience), audience, {}, { emailAvailable: true }, "settings");
   const student = layoutFor("student");
   assert.deepEqual(student.groups!.map(group => [group.id, group.title, group.rows.map(row => row.title)]), [
-    ["updates", "Puckle Updates", ["New maths content", "News and offers", "Group Experiences invitations"]], ["personal", "Personal contact", ["Occasional personal contact"]]]);
+    ["updates", "Puckle Updates", ["New maths content", "News and offers", "Group experiences invitations"]], ["personal", "Personal contact", ["Occasional personal contact"]]]);
   assert.equal(student.groups![0].text, "Choose which updates and invitations you would like to receive.");
-  assert.deepEqual(student.groups![0].rows.map(row => row.text), ["A fortnightly roundup of new lessons, interactive activities and revision materials.", "Major new features, special offers and promotions.", "Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group."]);
+  assert.deepEqual(student.groups![0].rows.map(row => row.text), ["A fortnightly roundup of new lessons, interactive activities and revision materials.", "Major new features, special offers and promotions.", "Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group."]);
   assert.equal(student.groups![0].channels!.visible, true, "the delivery choice sits under Puckle Updates");
   assert.equal(student.groups![1].channels, undefined);
   assert.equal(layoutFor("teacher").groups![0].rows[2].title, "Teacher collaboration invitations");

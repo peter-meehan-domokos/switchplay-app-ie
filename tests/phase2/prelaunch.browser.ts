@@ -212,7 +212,7 @@ test.describe("pre-launch mode on", () => {
     await expect(page.getByLabel("Parent or guardian's email")).toHaveCount(0); // collapsed until asked, so a phone stays uncluttered
     await noOverflow(page);
     await section.getByRole("button", { name: "Ask a parent or guardian" }).click();
-    await expect(page.getByText("Group Experiences need a parent or guardian's approval. Want to ask now? You can keep learning privately either way.", { exact: true })).toBeVisible(); // the original form introduction, unchanged
+    await expect(page.getByText("Group options need a parent or guardian's approval. Want to ask now? You can keep learning privately either way.", { exact: true })).toBeVisible(); // the original form introduction, unchanged
     const guardian = `${unique("mum")}@example.invalid`;
     await page.getByLabel("Parent or guardian's email").fill(guardian); await page.getByRole("button", { name: "Send approval request" }).click();
     await expect.poll(async () => (await db.collection("users").findOne({ _id: kid._id }))!.safeguarding.groupExperienceApproval?.status).toBe("pending");
