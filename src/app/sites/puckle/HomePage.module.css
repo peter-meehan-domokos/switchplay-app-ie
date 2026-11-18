@@ -144,9 +144,16 @@
   }
 }
 
+/* Hero call to action: larger screens only (760px and up, matching the site's other tablet breakpoint). */
 .heroCta {
-  display: flex;
-  margin-top: 6px;
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .heroCta {
+    display: flex;
+    margin-top: 6px;
+  }
 }
 
 .curriculumLine {

@@ -98,6 +98,7 @@ test("the hero has a Request a free session button that sits inside the centred 
   for (const [width, height] of [[390, 800], [834, 1112], [1024, 768], [1280, 800]] as const) {
     const page = await open(browser, width, height);
     const button = page.locator("section[aria-labelledby=home-hero-title] a[href='#early-access']");
+    if (width < 760) { await expect(button, "hidden on phones").toBeHidden(); await page.context().close(); continue; }
     await expect(button).toHaveText("Request a free session");
     const inside = await page.evaluate(() => {
       const copy = document.getElementById("home-hero-title")!.parentElement!, link = copy.querySelector("a[href='#early-access']")!.getBoundingClientRect();
