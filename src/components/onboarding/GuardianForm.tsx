@@ -1,5 +1,6 @@
 "use client";
 
+import PublicPhoneInput from "@/app/sites/puckle/components/PublicPhoneInput";
 import type { GuardianLayout, OnboardingUi } from "./onboardingLayout";
 import styles from "./Onboarding.module.css";
 
@@ -15,9 +16,7 @@ export function GuardianForm({ guardian, ui, actions, id }: { guardian: Guardian
       <label className={styles.label} htmlFor={id}>{guardian.emailLabel}</label>
       <input autoCapitalize="none" autoComplete="off" autoCorrect="off" className={styles.input} disabled={ui.sending} id={id} inputMode="email"
         maxLength={254} onChange={event => actions.setDraft(event.target.value)} spellCheck={false} type="email" value={ui.draft} />
-      <label className={styles.label} htmlFor={`${id}-phone`}>{guardian.phoneLabel}</label>
-      <input autoComplete="off" className={styles.input} disabled={ui.sending} id={`${id}-phone`} inputMode="tel" maxLength={30}
-        onChange={event => actions.setPhoneDraft(event.target.value)} type="tel" value={ui.phoneDraft} />
+      <PublicPhoneInput className={styles.phone} idPrefix={id} label={guardian.phoneLabel} maxLength={30} onPhoneChange={actions.setPhoneDraft} setRef={() => undefined} value={ui.phoneDraft} />
       <p className={styles.small}>{guardian.phoneHint}</p>
       <button className={styles.primary} disabled={ui.sending || (!ui.draft.trim() && !ui.phoneDraft.trim())} type="submit">{ui.sending ? "Sending…" : guardian.buttonLabel}</button>
     </form>

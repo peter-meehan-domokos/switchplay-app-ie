@@ -31,7 +31,7 @@ export function guardianLayoutFor(status: OnboardingStatus, welcome: boolean): G
   if (!approval || approval.eligibility !== "eligible" || !approval.canRequest || !FORM_STATES.includes(approval.status)) return null;
   const delivery = approval.status === "pending" && approval.delivery && approval.delivery !== "sent" ? "We couldn't confirm the email was sent. You can send it again." : null;
   const emailLabel = "Parent or guardian's email", phoneLabel = "Parent or guardian's mobile (optional)";
-  const phoneHint = "Include the country code, for example +353 87 123 4567. If they don't use email, enter just a mobile number and we'll contact them ourselves; approval isn't recorded until we have.";
+  const phoneHint = "If they don't use email, enter just a mobile number and we'll contact them ourselves; approval isn't recorded until we have.";
   switch (approval.status) {
     case "pending": return { intro: "We've asked your parent or guardian to approve group features. You can keep learning meanwhile.", statusLine: approval.guardianEmail ? `Sent to ${approval.guardianEmail}.` : null, deliveryNote: delivery, buttonLabel: "Send it again", emailLabel, phoneLabel, phoneHint };
     case "declined": return { intro: "Your parent or guardian declined group features. You can still learn privately. You can ask again if things change.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
@@ -42,7 +42,7 @@ export function guardianLayoutFor(status: OnboardingStatus, welcome: boolean): G
 
 /** Body of the existing parental approval request, shared by every place that asks. */
 export function guardianRequestBody(actorId: string, email: string, phone: string) {
-  return { action: "request", ...(email ? { guardianEmail: email } : {}), ...(phone ? { guardianPhone: phone, phoneCountryCode: "IE" } : {}), expectedUserId: actorId };
+  return { action: "request", ...(email ? { guardianEmail: email } : {}), ...(phone ? { guardianPhone: phone } : {}), expectedUserId: actorId };
 }
 
 export function buildOnboardingLayout(status: OnboardingStatus | null, ui: OnboardingUi): OnboardingLayout {

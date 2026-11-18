@@ -79,15 +79,15 @@ test("under-16 first welcome: optional guardian email sends the real request; st
 test("under-16 welcome: the parent's mobile is optional; a parent with no email gets a personal-contact request, the founder is alerted, nothing is approved", async ({ browser }) => {
   const kid = await young(), { page } = await open(browser, kid.username); await expect(welcome(page)).toBeVisible();
   const send = welcome(page).getByRole("button", { name: "Send approval request" });
-  await expect(page.getByLabel("Parent or guardian's mobile (optional)")).toBeVisible(); await expect(welcome(page).getByText(/don't use email/)).toBeVisible(); await expect(send).toBeDisabled(); await fits(page, welcome(page));
-  await page.getByLabel("Parent or guardian's mobile (optional)").fill("+353 87 111 2222"); await expect(send).toBeEnabled(); await send.click();
+  await expect(page.getByLabel("Parent or guardian's mobile (optional)")).toBeVisible(); await expect(welcome(page).getByText(/don't use email/)).toBeVisible(); await expect(welcome(page).getByText(/Include the country code/)).toHaveCount(0); await expect(welcome(page).locator(".PhoneInputCountrySelect")).toHaveCount(1); await expect(send).toBeDisabled(); await fits(page, welcome(page));
+  await welcome(page).locator(".PhoneInputCountrySelect").selectOption("IE"); await page.getByLabel("Parent or guardian's mobile (optional)").pressSequentially("871112222"); await expect(send).toBeEnabled(); await send.click();
   await expect(welcome(page).getByText(/passed your parent or guardian's number/)).toBeVisible();
   expect((await db.collection("users").findOne({ _id: kid._id }))!.safeguarding.groupExperienceApproval).toBeUndefined();
   const row = (await db.collection("puckleJoinContactRequests").findOne({ studentUserId: kid._id }))!; expect(row).toMatchObject({ kind: "guardian-approval-contact-request", guardianMobile: "+353871112222" });
   await expect.poll(async () => (await outbox()).some(m => m.to.includes("founder@example.invalid") && m.text.includes("+353871112222"))).toBe(true);
   const mail = (await outbox()).find(m => m.to.includes("founder@example.invalid") && m.text.includes("+353871112222"))!;
   expect(mail.subject).toMatch(/^\[ACTION\] 📞 PARENT HAS NO EMAIL, PLEASE CALL: Niamh$/);
-  await page.getByLabel("Parent or guardian's mobile (optional)").fill("not a number"); await send.click(); await expect(welcome(page).getByRole("alert")).toContainText("valid mobile number");
+  await page.getByLabel("Parent or guardian's mobile (optional)").fill(""); await page.getByLabel("Parent or guardian's mobile (optional)").pressSequentially("87"); await send.click(); await expect(welcome(page).getByRole("alert")).toContainText("valid mobile number");
 });
 test("private learning stays available: skipping the guardian step changes nothing", async ({ browser }) => {
   const kid = await young(), { page } = await open(browser, kid.username); await expect(welcome(page)).toBeVisible();

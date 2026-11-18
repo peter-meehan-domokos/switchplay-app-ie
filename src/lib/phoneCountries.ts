@@ -21,6 +21,19 @@ export function getDefaultPhoneCountryCodeFromLocales(locales: readonly string[]
   return DEFAULT_PHONE_COUNTRY_CODE;
 }
 
+/** A valid country from Vercel's x-vercel-ip-country value, or null (absent on local development and in tests). */
+export function parseVisitorCountry(value: string | null | undefined): CountryCode | null {
+  const code = value?.trim().toUpperCase() ?? "";
+  return /^[A-Z]{2}$/.test(code) && isSupportedCountry(code) ? (code as CountryCode) : null;
+}
+
+export const visitorCountryFromHeaders = (headers: Pick<Headers, "get">) => parseVisitorCountry(headers.get("x-vercel-ip-country"));
+
+/** The initial phone country: the visitor's IP country, else the browser language, else Ireland. Never overrides a user choice. */
+export function resolveInitialPhoneCountry(input: { visitorCountry: string | null | undefined; locales: readonly string[] }): CountryCode {
+  return parseVisitorCountry(input.visitorCountry) ?? getDefaultPhoneCountryCodeFromLocales(input.locales);
+}
+
 export function normalizePhoneNumberFallback(value: string) {
   return value.trim().replace(PHONE_DECORATION_PATTERN, "");
 }

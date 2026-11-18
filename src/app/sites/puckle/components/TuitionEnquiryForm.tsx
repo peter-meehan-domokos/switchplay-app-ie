@@ -304,7 +304,6 @@ export default function TuitionEnquiryForm() {
                   />
                   <PublicPhoneInput
                     contactErrorId={fieldErrors.contact ? "enquiry-contact-error" : undefined}
-                    detectCountry={false}
                     error={fieldErrors.phone}
                     forceInvalid={Boolean(fieldErrors.contact)}
                     idPrefix="enquiry"

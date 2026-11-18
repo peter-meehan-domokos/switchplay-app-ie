@@ -145,7 +145,7 @@ test("each website's forms post to that website's own endpoints", () => {
     const endpoints = listFiles(components).flatMap((file) => [...readFileSync(file, "utf8").matchAll(/fetch\("(\/api\/[^"]+)"/g)].map((match) => match[1]));
     // Puckle's tuition form also reads its signed-in context from its own public API folder, and the pre-launch
     // welcome uses the existing parental approval request and sign-out.
-    const extra = site === "puckle" ? [`/api/public/${site}/tuition-context`, "/api/account/parental-approval", "/api/auth/logout"] : [];
+    const extra = site === "puckle" ? [`/api/public/${site}/tuition-context`, `/api/public/${site}/visitor-country`, "/api/account/parental-approval", "/api/auth/logout"] : [];
     assert.deepEqual(endpoints.toSorted(), [`/api/public/${site}/contact`, `/api/public/${site}/creator-interest`, `/api/public/${site}/early-access`, ...extra].toSorted());
   }
 });

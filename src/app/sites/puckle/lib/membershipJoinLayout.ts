@@ -101,7 +101,7 @@ export const FIELD_MESSAGES = {
   name: "Enter your name.", username: "Choose a username of 3–30 letters, numbers, underscores or hyphens.",
   email: "Enter a valid email address.", emailRequired: "Enter your email address.",
   password: "Use at least 12 characters. A password can be at most 72 bytes, so very long passwords or many emoji may not fit.",
-  mobile: "Enter a valid mobile number, including its country code.", mobileRequired: "Enter a mobile number so we can contact you.",
+  mobile: "Enter a valid mobile number.", mobileRequired: "Enter a mobile number so we can contact you.",
   contact: "Enter an email address or a mobile number.", dobMissing: "Enter your date of birth.", dobInvalid: "Enter a real date of birth as day, month and year.",
   underMinimum: "You need to be at least 13 to join Puckle.", course: "Choose your maths course.", courseOther: "Tell us which course.",
   level: "Choose your level.", levelOther: "Tell us which level.", reason: "Tell us what brings you to Puckle.",
