@@ -69,3 +69,17 @@ export function founderParentDecisionEmail(input: { id: string; childName: strin
     `${approved ? "A parent or guardian approved Group Experiences for a student. It is recorded." : "A parent or guardian declined Group Experiences for a student. It is recorded; the student can keep learning privately and may ask again."} Nothing is needed from you.\n\n`
     + `${line("Student", input.childName)}${line("Username", input.username)}${line("Decided by (email)", input.guardianEmail)}${line("Parent/guardian mobile (not verified)", input.guardianPhone)}${line("Decided", `${input.decidedAt.toISOString().slice(0, 16).replace("T", " ")} UTC`)}\nAccount _id ${input.id}` };
 }
+
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => `&#${character.charCodeAt(0)};`);
+/**
+ * The only email an interested party receives from registering. Strictly administrative: no marketing, no personal
+ * details and no summary of their choices. The link is the existing signed management link (full URL, never relative).
+ */
+export function interestConfirmationEmail(link: string): { subject: string; text: string; html: string } {
+  const intro = "Thank you for registering your interest in Puckle.";
+  const manage = "You can review or change your communication preferences, or unsubscribe, at any time using the link below:";
+  const ignore = "If you did not submit this form, you can ignore this email.";
+  return { subject: "Your Puckle registration",
+    text: `${intro}\n\n${manage}\n\nManage your preferences: ${link}\n\n${ignore}\n\nPuckle`,
+    html: `<p>${intro}</p><p>${manage}</p><p><a href="${escapeHtml(link)}">Manage your preferences</a></p><p>${ignore}</p><p>Puckle</p>` };
+}

@@ -200,7 +200,7 @@ test("interest sign-up: no marketing checkbox until Yes, choices are stored expl
   await answerAll(page); await submit(page).click(); await expect(page.getByText("Enter an email address or a mobile number.")).toBeVisible(); await expect(page.getByText("Tell us what brings you")).toHaveCount(0);
   await page.getByLabel("Your name").fill(name); await page.getByLabel("Email", { exact: false }).first().fill(email); await submit(page).click();
   await expect(page.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(page.getByText(/we've saved your choices/)).toBeVisible();
-  await expect(page.getByRole("link", { name: "change or unsubscribe from your choices" })).toHaveAttribute("href", /^\/preferences\/manage#/); await expect(page.getByText(/No account was created/)).toBeVisible(); await noOverflow(page);
+  await expect(page.getByRole("link", { name: "change or unsubscribe from your choices" })).toHaveAttribute("href", /^\/preferences\/manage#/); await expect(page.getByText(/No account was created/)).toBeVisible(); await expect(page.getByText("Please check your inbox for our confirmation email.")).toBeVisible(); await noOverflow(page);
   const saved = (await db.collection("puckleInterestContacts").findOne({ name }))!;
   expect(saved).toMatchObject({ email, mobile: null, reason: "", communicationPreferences: { channels: { email: false, sms: false }, source: "join-interest-form", wordingVersion: "puckle-communication-preferences-v1" } });
   expect(saved.communication).toBeUndefined(); expect(saved.communicationPreferences.recordedAt).toBeInstanceOf(Date);
@@ -211,7 +211,7 @@ test("interest sign-up: no marketing checkbox until Yes, choices are stored expl
   await second.getByRole("button", { name: "Don't have an email address?" }).click();
   await expect(second.getByText(/follow up on your request, and for any text messages you choose below/)).toBeVisible(); await expect(second.getByLabel("Email", { exact: true })).toHaveCount(0);
   await second.locator("#join-phone").fill("871234569"); await answerAll(second); await submit(second).click();
-  await expect(second.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(second.getByText(/follow up on this request/)).toBeVisible(); await expect(second.getByText(/asked for occasional/)).toHaveCount(0);
+  await expect(second.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(second.getByText(/follow up on this request/)).toBeVisible(); await expect(second.getByText(/confirmation email/)).toHaveCount(0); await expect(second.getByText(/asked for occasional/)).toHaveCount(0);
   expect(await db.collection("puckleInterestContacts").findOne({ name: mobileOnly })).toMatchObject({ email: null, mobile: "+353871234569", reason: "teacher" });
   expect(await db.collection("users").countDocuments()).toBe(before);
 });

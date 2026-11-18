@@ -106,7 +106,7 @@ export async function handleMembershipRegistration(request: Request): Promise<Ha
   } catch (error) { return { response: securityError(error) }; }
 }
 
-async function handleContact(request: Request, save: (db: Db, body: Record<string, unknown>) => Promise<{ notify: () => Promise<void>; manage?: string }>, keys: string[]): Promise<Handled> {
+async function handleContact(request: Request, save: (db: Db, body: Record<string, unknown>, requester: string) => Promise<{ notify: () => Promise<void>; manage?: string }>, keys: string[]): Promise<Handled> {
   try {
     if (await closedToThisRequest()) return refuse(404, "NOT_FOUND");
     const { body, requester } = await securityRequest(request, JOIN_MAX_BYTES);
@@ -116,7 +116,7 @@ async function handleContact(request: Request, save: (db: Db, body: Record<strin
     if (typeof input.companyWebsite === "string" && input.companyWebsite.trim()) return { response: securityJson({ ok: true }, 201) };
     const db = await getDatabase();
     await limitRequesterAction(db, "join-contact", requester, 10, 3600, new Date());
-    try { const saved = await save(db, input); return { response: securityJson({ ok: true, ...(saved.manage ? { manage: saved.manage } : {}) }, 201), notify: saved.notify }; }
+    try { const saved = await save(db, input, requester); return { response: securityJson({ ok: true, ...(saved.manage ? { manage: saved.manage } : {}) }, 201), notify: saved.notify }; }
     catch (error) {
       const code = codeOf(error);
       // Only validator codes are reported. Anything else (including database failure) is a sanitised 503.
@@ -126,6 +126,6 @@ async function handleContact(request: Request, save: (db: Db, body: Record<strin
   } catch (error) { return { response: securityError(error) }; }
 }
 export const handleNoEmailContact = (request: Request) => handleContact(request, (db, input) => saveNoEmailJoinContact(db, input.details), ["details"]);
-export const handleInterestContact = (request: Request) => handleContact(request, (db, input) => saveInterestContact(db, input.details), ["details"]);
+export const handleInterestContact = (request: Request) => handleContact(request, (db, input, requester) => saveInterestContact(db, input.details, new Date(), { requester }), ["details"]);
 /** Route-handler helper: schedule the founder alert after the response, never awaiting it. */
 export function respondAndNotify({ response, notify }: Handled) { if (notify) after(notify); return response; }

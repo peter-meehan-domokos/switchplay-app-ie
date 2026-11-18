@@ -28,6 +28,8 @@ export type InterestContact = {
   /** Legacy records only: the earlier implied "email updates" request. New records use communicationPreferences. */
   communication?: { emailUpdates: boolean; source: string; wordingVersion: string; recordedAt: Date };
   createdAt: Date; founderNotification: FounderNotification;
+  /** Outcome of the administrative confirmation email (email sign-ups only). Never holds the link or the address. */
+  confirmationEmail?: { status: "pending" | "sent" | "failed" | "unknown" | "rate-limited"; attemptedAt?: Date; reference?: string };
 };
 /** Transient contracts only; no verification/token workflow in Phase 1. */
 export type AccountEmailChallenge = {

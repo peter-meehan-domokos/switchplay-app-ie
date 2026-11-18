@@ -193,9 +193,12 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
             <>
               <h2>You&apos;re on the list.</h2>
               {outcome.byEmail ? (
+                <>
                 <p>Thanks, we&apos;ve saved your choices. No account was created. {outcome.manageLink
                   ? <>You can <a href={outcome.manageLink}>change or unsubscribe from your choices</a> at any time, without an account.</>
                   : <>To change or withdraw them at any time, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</>}</p>
+                <p>Please check your inbox for our confirmation email.</p>
+                </>
               ) : (
                 <p>Thanks, we&apos;ve saved your choices. We&apos;ll use your mobile number to follow up on this request, and for any text messages you chose. To change or withdraw your choices, text Puckle on <TextNumbers />. No account was created.</p>
               )}

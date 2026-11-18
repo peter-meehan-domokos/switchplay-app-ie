@@ -1,7 +1,8 @@
 import type { SiteId } from "./sites/siteResolver";
 import { assertDisposableDatabase } from "./cards/localDatabase";
 import { SUPPORT_EMAIL } from "./parentalApprovalScope";
-export type EmailMessage = { to: string; subject: string; text: string };
+/** html is optional: a message that needs a link with its own label sends both parts. */
+export type EmailMessage = { to: string; subject: string; text: string; html?: string };
 export type Delivery = { status: "sent" | "failed" | "unknown"; attemptedAt: Date; reference: string };
 export type EmailSender = (message: EmailMessage) => Promise<Delivery>;
 /** Manual phone review on a private network only. Requires the runner's disposable-database guard; never set in deployment. */
@@ -41,7 +42,8 @@ export function redirectedMessage(message: EmailMessage, redirectTo: string | un
   const target = redirectTo?.trim();
   if (!target) return message;
   if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(target)) throw new Error("EMAIL_CONFIGURATION_INVALID");
-  return { to: target, subject: `[TEST for ${message.to}] ${message.subject}`, text: `TEST REDIRECT: this email was intended for ${message.to}.\n\n${message.text}` };
+  return { to: target, subject: `[TEST for ${message.to}] ${message.subject}`, text: `TEST REDIRECT: this email was intended for ${message.to}.\n\n${message.text}`,
+    ...(message.html ? { html: `<p>TEST REDIRECT: this email was intended for ${message.to.replace(/[&<>"]/g, "")}.</p>${message.html}` } : {}) };
 }
 /** No request-host links or fallback sender. Provider acceptance is not inbox delivery. */
 export function siteEmailSender(site: SiteId, env: Env = process.env): EmailSender {
@@ -62,7 +64,7 @@ export function siteEmailSender(site: SiteId, env: Env = process.env): EmailSend
       }
       const response = await fetch(endpoint, { method: "POST", signal: AbortSignal.timeout(8000),
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${fixture ? "local-fixture" : env.RESEND_API_KEY}` },
-        body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text, ...(config.replyTo ? { reply_to: config.replyTo } : {}),
+        body: JSON.stringify({ from: config.from, to: [message.to], subject: message.subject, text: message.text, ...(message.html ? { html: message.html } : {}), ...(config.replyTo ? { reply_to: config.replyTo } : {}),
           ...(original.to !== message.to ? { headers: { "X-Intended-Recipient": original.to } } : {}) }),
       });
       if (response.status === 429) return { status: "failed", attemptedAt, reference: "provider-rate-limited" };
