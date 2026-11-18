@@ -19,33 +19,11 @@
 }
 
 .header p,
-.contactNote {
-  color: var(--sp-site-text-muted);
-  font-size: clamp(1.04rem, 4.2vw, 1.28rem);
-  line-height: 1.55;
-}
 
-.formWrap {
-  display: grid;
-  gap: 24px;
-  max-width: 58rem;
-}
-
-.contactNote {
-  max-width: 42rem;
-  border-left: 3px solid rgba(168, 214, 228, 0.48);
-  background: rgba(255, 250, 240, 0.045);
-  border-radius: 0 calc(var(--sp-site-card-radius) - 6px) calc(var(--sp-site-card-radius) - 6px) 0;
-  padding: 14px 16px;
-}
-
-.contactNote a {
+.formHeading {
   color: var(--sp-site-text);
-  text-decoration-color: rgba(168, 214, 228, 0.6);
-  text-underline-offset: 4px;
-}
-
-.contactNote a:focus-visible {
-  outline: 3px solid var(--sp-site-accent-blue);
-  outline-offset: 4px;
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  font-weight: 820;
+  line-height: 1.15;
+  margin-bottom: 8px;
 }

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import ContactPanel from "../components/ContactPanel";
 import ContactSupportForm from "../components/ContactSupportForm";
 import PublicHeader from "../components/PublicHeader";
 import PublicLayout from "../components/PublicLayout";
-import { SITE_NAME, CONTACT_EMAIL } from "../siteInfo";
+import { SITE_NAME } from "../siteInfo";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
@@ -18,12 +19,10 @@ export default function ContactPage() {
         <header className={styles.header}>
           <h1 id="contact-title">Contact and support</h1>
           <p>Have a question, need help or want to work with us? We&apos;d love to hear from you.</p>
-          <p className={styles.contactNote}>
-            Prefer email? Contact us directly at{" "}
-            <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
-          </p>
         </header>
+        <ContactPanel />
         <div className={styles.formWrap}>
+          <h2 className={styles.formHeading}>Or send us a message</h2>
           <ContactSupportForm />
         </div>
       </section>
