@@ -53,36 +53,27 @@ export default function PrivacyPage() {
             separately from accounts.
           </p>
           <h3>Communication choices</h3>
-          <p>
-            When you join as a student or teacher, we ask you to answer Yes or No to two optional communications: Puckle
-            Updates (content, Group Experiences or collaboration opportunities, news and occasional offers) and
-            Occasional personal contact (we may get in touch to offer help or ask for feedback). Saying Yes to Puckle
-            Updates covers new content, news and offers, and invitations, which you can then change one by one in
-            Settings. If you only register your interest, you answer for updates, news and offers, and personal contact
-            separately. If you say Yes to updates, offers or invitations, you also choose whether we send them by email,
-            text message or both. We record your answers with the date and the wording you saw, and only send optional
-            messages you have said Yes to, by the channels you chose. Answering No is fine and does not affect joining.
-            Saying Yes to one choice is not permission for another. People who joined before these choices existed have
-            not been asked, and we treat that as no.
-          </p>
-          <p>
-            Whatever you choose, we still send the messages needed to run your account (such as verification codes,
-            password resets, parent or guardian approval emails and important service notices) and we reply to
-            questions and support requests you send us. You can change or withdraw your choices at any time: in Settings
-            if you have an account, through the link we give you if you signed up with an email address and no account, or by
-            texting us on the numbers on our <Link href="/contact">contact page</Link> if you gave only a mobile number.
-            You can also email {CONTACT_EMAIL}.
-          </p>
+            <p>
+              When you join Puckle, you can choose to receive Puckle Updates (new maths content, group options,
+              collaboration opportunities, news and offers) and, separately, allow occasional personal contact
+              for help or feedback. Students and teachers can manage individual update preferences in Settings.
+              Others can choose them when signing up.
+            </p>
+            <p>
+              You can receive updates by email, text or both, and change your choices at any time through Settings,
+              your confirmation email link or our <Link href="/contact">contact page</Link>. We still send essential
+              account messages and respond to your support requests.
+            </p>
         </section>
 
         <section className={styles.section}>
           <h2>Parent or guardian approval</h2>
           <p>
-            Students under 16 need a parent or guardian&apos;s approval before taking part in Group Learning. If a
+            Students under 16 need a parent or guardian&apos;s approval before taking part in group learning. If a
             student gives us a parent or guardian&apos;s email address, we email that person a link to read what is
             involved and approve or decline. We record their email address, their decision, the statement they confirmed,
             the version of the explanation they read and when. This is not a check of anyone&apos;s identity or age. One
-            approval covers Group Learning on Puckle.
+            approval covers group learning on Puckle.
             It is not permission for live tuition. The parent or guardian can withdraw it at any time; withdrawing does not
             delete the student&apos;s learning.
           </p>

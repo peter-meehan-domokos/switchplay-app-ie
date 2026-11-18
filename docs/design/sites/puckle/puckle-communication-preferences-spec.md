@@ -170,7 +170,7 @@ Server-side requirements:
 
 - Review Puckle's registration disclosures and Privacy page for accuracy about the four purposes, delivery channels, how to change preferences, and the difference between essential support/account messages and optional outreach.
 - Preserve teacher-specific wording and existing parent-related copy except where a precise communications disclosure is necessary; report material text changes.
-- Keep the exact user-facing titles/descriptions from Section 2. Use **Group Experiences** consistently in student-facing copy (not Group Learning, Group Programmes or similar), and do not call these asynchronous activities “live sessions”. The short explanation is: *Teacher-led maths activities you complete at your own pace, as part of a group.*
+- Keep the exact user-facing titles/descriptions from Section 2. Use **Group Experiences** consistently in student-facing copy (not group learning, Group Programmes or similar), and do not call these asynchronous activities “live sessions”. The short explanation is: *Teacher-led maths activities you complete at your own pace, as part of a group.*
 
 ## 12. Implementation locations to inspect and update
 

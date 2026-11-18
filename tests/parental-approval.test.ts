@@ -17,7 +17,7 @@ test("one common disclosure, in Puckle's name only, explains withdrawal and excl
   assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /Puckle/); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /switchplay|strat17/i);
   assert.equal(GROUP_EXPERIENCE_EXPLANATION.version, "shared-group-experiences-v4-draft", "reworded text carries a new version; past approvals keep what they read");
   assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /withdraw your approval at any time by replying to the email we sent you, or by emailing support@puckleup\.com\./i); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /hello@/); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /withdraw[^.]*link/i, "there is no withdrawal link"); assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /not permission for live tuition/);
-  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /one approval covers equivalent Group Learning anywhere in Puckle/i);
+  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /one approval covers equivalent group learning anywhere in Puckle/i);
   assert.ok(GROUP_EXPERIENCE_EXPLANATION.version && GUARDIAN_DECLARATION.version);
   assert.match(GUARDIAN_DECLARATION.text, /parent or legal guardian/);
 });
@@ -25,14 +25,14 @@ test("guardian addresses are masked in the student's summary", () => {
   assert.equal(maskEmail("parent@example.com"), "p•••••@example.com"); assert.equal(maskEmail("a@b.co"), "a•@b.co");
 });
 
-// Parents see "Group Learning" (they would not know what Group Experiences means); students see "Group Experiences".
-test("terminology: everything a parent reads says Group Learning, and everything a student reads says Group Experiences", async () => {
+// Parents see "group learning" (they would not know what Group Experiences means); students see "Group Experiences".
+test("terminology: everything a parent reads says group learning, and everything a student reads says Group Experiences", async () => {
   const { readFileSync } = await import("node:fs");
   const read = (path: string) => readFileSync(path, "utf8");
   const parentFacing = ["src/lib/accountEmailTemplates.ts", "src/lib/emailActionDocument.ts", "src/lib/parentalApprovalScope.ts"].map(read).join("\n");
-  assert.match(parentFacing, /Group Learning/); assert.doesNotMatch(parentFacing, /Group Experiences/);
+  assert.match(parentFacing, /group learning/); assert.doesNotMatch(parentFacing, /Group Experiences/);
   const privacy = read("src/app/sites/puckle/privacy/page.tsx"), parentSection = privacy.slice(privacy.indexOf("Parent or guardian approval"));
-  assert.match(parentSection, /Group Learning/); assert.doesNotMatch(parentSection.slice(0, parentSection.indexOf("</section>")), /Group Experiences/);
+  assert.match(parentSection, /group learning/); assert.doesNotMatch(parentSection.slice(0, parentSection.indexOf("</section>")), /Group Experiences/);
   const studentFacing = ["src/components/onboarding/onboardingLayout.ts", "src/app/sites/puckle/lib/membershipJoinLayout.ts"].map(read).join("\n");
-  assert.match(studentFacing, /Group Experiences/); assert.doesNotMatch(studentFacing, /Group Learning|group features/i);
+  assert.match(studentFacing, /Group Experiences/); assert.doesNotMatch(studentFacing, /group learning|group features/i);
 });
