@@ -119,7 +119,7 @@ test("date of birth boundaries: 13th birthday today, the day before, leap day an
 });
 test("under-16 students see private-learning wording; 16 and over see none", () => {
   const notice = (year: string) => layoutOf(text(initialJoinFormState, { dobDay: "14", dobMonth: "11", dobYear: year })).student.ageNotice;
-  const agreed = "You're good to go! You can start learning privately on Puckle now. Some group features will need a parent or guardian's approval.";
+  const agreed = "You're good to go! You can start learning privately on Puckle now. Some Group Experiences will need a parent or guardian's approval.";
   assert.equal(notice("2013"), agreed); assert.equal(notice("2011"), agreed);
   assert.equal(notice("2010"), null); assert.equal(notice("2009"), null); assert.equal(notice("2014"), null);
   assert.equal(layoutOf(text(withChoice(initialJoinFormState, "teacher"), { dobYear: "2013" })).student.ageNotice, null);

@@ -35,7 +35,7 @@ export default function Onboarding({ layout, ui, actions }: { layout: Onboarding
     );
   }
   return (
-    <section aria-label="Group features" className={styles.reminder} data-onboarding="reminder">
+    <section aria-label="Group Experiences" className={styles.reminder} data-onboarding="reminder">
       <div className={styles.row}>
         <h2 className={styles.heading}>{layout.heading}</h2>
         <button aria-label="Dismiss" className={styles.close} onClick={actions.dismissReminder} type="button">×</button>
