@@ -12,7 +12,7 @@ export const GROUP_EXPERIENCE_EXPLANATION = {
   version: "shared-group-experiences-v4-draft",
   text: [
     "Puckle is a learning platform run by one team. Your child has a single Puckle account, which they use everywhere Puckle runs.",
-    "Group Learning are optional activities on Puckle where students learn together in a group, for example joining a private group, taking part in shared activities, and sharing their work, comments or views with the other members of that group. Other members of the group can see what your child chooses to share there. Your child's private learning stays private.",
+    "Group Learning is an optional activity on Puckle where students learn together in a group, for example joining a private group, taking part in shared activities, and sharing their work, comments or views with the other members of that group. Other members of the group can see what your child chooses to share there. Your child's private learning stays private.",
     "Students under 16 need a parent or guardian's approval before taking part. This one approval covers equivalent Group Learning anywhere in Puckle, so you will not be asked again each time Puckle adds a new site or app. It is not permission for live tuition, which is arranged separately with you.",
     `You can withdraw your approval at any time by replying to the email we sent you, or by emailing ${SUPPORT_EMAIL}. Withdrawing stops future participation; it does not delete your child's learning.`,
   ].join("\n\n"),
