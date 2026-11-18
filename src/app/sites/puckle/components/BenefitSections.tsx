@@ -183,10 +183,10 @@ function ProgressSection() {
         <Image
           alt="Two example Info Cards on quadratics: a handwritten note on completing the square, and a short video explanation"
           className={styles.mediaImage}
-          height={1000}
+          height={1058}
           sizes="(min-width: 900px) 540px, calc(100vw - 32px)"
-          src="/images/sites/puckle/puckle-collaboration.png"
-          width={1440}
+          src="/images/sites/puckle/puckle-collaboration-v2.png"
+          width={1487}
         />
       </figure>
       <ul className={styles.ideas}>
