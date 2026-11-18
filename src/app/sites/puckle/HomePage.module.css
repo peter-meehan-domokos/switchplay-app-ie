@@ -63,6 +63,20 @@
   display: none;
 }
 
+/* Early call to action beneath the bridge text: same button and destination as the later one, centred in this block. */
+.bridgeCta {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.bridgeCtaNote {
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
 /* Portrait phones only: both lines of the bridge text fit (line 2 is ~328px), so break after "your".
    Narrower screens and tablet/desktop wrap naturally. */
 @media (min-width: 375px) and (max-width: 480px) and (orientation: portrait) {

@@ -83,6 +83,12 @@ export default function Home() {
               Every card has three steps. Complete your <br className={styles.bridgeBreak} />
               cards to build exam skills and see your progress.
             </p>
+            <div className={styles.bridgeCta}>
+              <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
+                Request a free session
+              </a>
+              <p className={styles.bridgeCtaNote}>Free 20–30 minute online maths session.</p>
+            </div>
           </div>
         </div>
       </section>

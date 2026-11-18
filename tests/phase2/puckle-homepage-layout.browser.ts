@@ -99,7 +99,7 @@ for (const [name, width, height] of [["phone", 390, 844], ["ipad-portrait", 820,
 test("the hero has a Request a free session button that sits inside the centred text block and scrolls to the registration heading", async ({ browser }) => {
   for (const [width, height] of [[390, 800], [834, 1112], [1024, 768], [1280, 800]] as const) {
     const page = await open(browser, width, height);
-    const button = page.locator("section[aria-labelledby=home-hero-title] a[href='#early-access']");
+    const button = page.locator("#home-hero-title").locator("..").locator("a[href='#early-access']");
     if (width < 760) { await expect(button, "hidden on phones").toBeHidden(); await page.context().close(); continue; }
     await expect(button).toHaveText("Request a free session");
     const inside = await page.evaluate(() => {
@@ -127,6 +127,34 @@ test("the Learning heading sits closer to the first step on laptop, with the ste
     expect(gaps.heading, `${width}px: heading to first step`).toBeLessThanOrEqual(expectMax);
     if (width >= 900) expect(gaps.between, `${width}px: gap between steps unchanged`).toBeGreaterThanOrEqual(56);
     await page.screenshot({ path: `phase2-test-results/homepage-learning-${width}.png` });
+    await page.context().close();
+  }
+});
+
+test("an early Request a free session button sits centred under the hero bridge text, and the Keep / Learn ideas stack on small phones", async ({ browser }) => {
+  for (const [width, height] of [[360, 740], [390, 844], [480, 900], [700, 900], [1024, 768], [1280, 800]] as const) {
+    const page = await open(browser, width, height);
+    const early = await page.evaluate(() => {
+      const bridge = [...document.querySelectorAll("p")].find(p => p.textContent === "Card by Card. Step by step.")!.parentElement!;
+      const link = bridge.querySelector("a[href='#early-access']")!, note = bridge.querySelector("a + p, div > p:last-child")!, rect = (e: Element) => e.getBoundingClientRect();
+      const text = bridge.querySelector("p:nth-child(2)")!, next = document.querySelector("#learning-title")!.closest("section")!;
+      return { label: link.textContent, note: note.textContent, centre: (rect(link).left + rect(link).right) / 2 - (rect(bridge).left + rect(bridge).right) / 2,
+        below: rect(link).top - rect(text).bottom, noteGap: rect(note).top - rect(link).bottom, gapAfter: rect(next).top - rect(note).bottom };
+    });
+    expect(early.label).toBe("Request a free session"); expect(early.note).toBe("Free 20–30 minute online maths session.");
+    expect(Math.abs(early.centre), `${width}px: button centred in the block`).toBeLessThanOrEqual(2);
+    expect(early.below, `${width}px: space above`).toBeGreaterThanOrEqual(16); expect(early.gapAfter, `${width}px: space before the next section`).toBeGreaterThan(24);
+    const ideas = await page.evaluate(() => {
+      const items = [...document.querySelectorAll("li")].filter(li => /^(Keep what helps|Learn from others)\./.test(li.textContent!)).map(li => li.getBoundingClientRect());
+      return { sideBySide: Math.abs(items[0].top - items[1].top) < 4, gap: items[1].top - items[0].bottom, overflow: items.some(r => r.left < -1 || r.right > innerWidth + 1) };
+    });
+    expect(ideas.overflow, `${width}px: no overflow`).toBe(false);
+    expect(ideas.sideBySide, `${width}px: ideas ${width < 480 ? "stacked" : "side by side"}`).toBe(width >= 480);
+    if (width < 480) expect(ideas.gap).toBeGreaterThanOrEqual(8);
+    await noOverflow(page);
+    await page.screenshot({ path: `phase2-test-results/homepage-early-cta-${width}.png`, fullPage: false });
+    await page.getByText("Free 20–30 minute online maths session.").locator("..").locator("a").click(); await page.waitForTimeout(600);
+    expect(Math.abs((await landing(page)).sectionTop), `${width}px: early button reaches the registration section`).toBeLessThanOrEqual(2);
     await page.context().close();
   }
 });
