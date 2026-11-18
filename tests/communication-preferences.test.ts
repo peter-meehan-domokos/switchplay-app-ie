@@ -190,7 +190,7 @@ const joined = (choice: "student" | "teacher", updates: "yes" | "no" | "", perso
   return form;
 };
 test("registration asks two questions with the approved wording, nothing preselected", () => {
-  for (const [choice, text] of [["student", "Maths content, Group Experiences, news and occasional offers."], ["teacher", "Teaching resources, collaboration opportunities, news and occasional offers."]] as const) {
+  for (const [choice, text] of [["student", "Maths content, group invites and occasional offers"], ["teacher", "Teaching resources, collaboration opportunities, news and occasional offers."]] as const) {
     const layout = buildMembershipJoinLayout(joined(choice, "", ""), initialJoinFlowState).preferences;
     assert.deepEqual(layout.rows.map(row => [row.field, row.title, row.text, row.value]), [
       ["puckleUpdates", "Puckle Updates", text, ""], ["occasionalPersonalContact", "Occasional personal contact", "We may get in touch to offer help or ask for feedback.", ""]]);

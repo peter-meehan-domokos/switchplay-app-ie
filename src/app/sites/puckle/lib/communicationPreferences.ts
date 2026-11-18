@@ -35,7 +35,7 @@ export const PREFERENCE_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: 
  * broadcast preferences together. Settings shows the same stored preferences individually, grouped under Puckle Updates.
  */
 export const REGISTRATION_UPDATES_TEXT: Readonly<Record<"student" | "teacher", string>> = {
-  student: "Maths content, Group Experiences, news and occasional offers.",
+  student: "Maths content, group invites and occasional offers",
   teacher: "Teaching resources, collaboration opportunities, news and occasional offers.",
 };
 export const SETTINGS_HEADING = "Communication preferences";

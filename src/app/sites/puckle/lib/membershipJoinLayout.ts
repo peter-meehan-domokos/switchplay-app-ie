@@ -248,7 +248,7 @@ const INTROS: Readonly<Record<JoinChoice, string>> = {
 };
 export function ageNoticeFor(status: DobStatus): string | null {
   if (status.kind !== "valid" || status.age >= 16) return null;
-  return "You're good to go! You can start learning privately on Puckle now. Some Group Experiences will need a parent or guardian's approval.";
+  return "You're good to go! You can start learning privately on Puckle now. Some group options will need a parent or guardian's approval.";
 }
 export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowState, errors: JoinErrors = {}, nowMs = 0, today = dublinToday(), prelaunch = false): MembershipJoinLayout {
   const { choice, noEmail } = state;

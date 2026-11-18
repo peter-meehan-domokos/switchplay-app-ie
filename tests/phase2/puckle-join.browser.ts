@@ -141,7 +141,7 @@ test("a taken username is flagged on its field, everything else is kept, and the
 test("A-level registers with level stored as null; a 15-year-old sees the private-learning wording and is allowed in", async ({ browser }) => {
   const page = await open(browser), email = emailOf("alevel"), username = unique("Alv");
   await fillStudent(page, { username, email, course: "a-level", day: "1", month: "1", year: String(thisYear - 14) });
-  await expect(page.getByText("You're good to go! You can start learning privately on Puckle now. Some Group Experiences will need a parent or guardian's approval.")).toBeVisible();
+  await expect(page.getByText("You're good to go! You can start learning privately on Puckle now. Some group options will need a parent or guardian's approval.")).toBeVisible();
   await submit(page).click(); await page.locator("#join-code").fill(await codeFor(email)); await submit(page).click(); await page.waitForURL(`${origin}/decks`);
   const user = (await db.collection("users").findOne({ email }))!;
   expect((await db.collection("puckleMemberships").findOne({ userId: user._id }))!.education).toEqual({ course: "a-level", courseOther: null, level: null, levelOther: null });
