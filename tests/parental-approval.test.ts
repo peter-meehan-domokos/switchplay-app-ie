@@ -17,7 +17,7 @@ test("one common disclosure, in Puckle's name only, explains withdrawal and excl
   const text = GROUP_EXPERIENCE_EXPLANATION.text;
   assert.equal(GROUP_EXPERIENCE_SCOPE.scopeId, "shared-group-experiences");
   assert.match(text, /Puckle/); assert.doesNotMatch(text, /switchplay|strat17/i); assert.doesNotMatch(text, /hello@/);
-  assert.equal(GROUP_EXPERIENCE_EXPLANATION.version, "shared-group-experiences-v5-draft", "reworded text carries a new version; past approvals keep what they read");
+  assert.equal(GROUP_EXPERIENCE_EXPLANATION.version, "shared-group-experiences-v6-draft", "reworded text carries a new version; past approvals keep what they read");
   assert.match(text, /does not cover live tuition, which is arranged separately with you\./);
   assert.match(text, /Withdrawing approval stops future participation but does not delete your child's learning\./);
   assert.ok(GROUP_EXPERIENCE_EXPLANATION.version && GUARDIAN_DECLARATION.version);
@@ -26,8 +26,8 @@ test("one common disclosure, in Puckle's name only, explains withdrawal and excl
 test("the approved explanation keeps its paragraphs and shows the three contact options as a list", () => {
   const blocks = GROUP_EXPERIENCE_EXPLANATION.text.split("\n\n");
   assert.equal(blocks.length, 6);
-  assert.equal(blocks[0], "Puckle is a learning platform led by qualified and experienced secondary school maths teachers. Your child can study independently and take part in optional teacher-led activities.");
-  assert.match(blocks[1], /^Group learning allows students to work through teacher-provided learning materials at their own pace/);
+  assert.equal(blocks[0], "Puckle is a learning platform where your child can study independently and take part in optional teacher-led activities.");
+  assert.match(blocks[1], /^Group learning allows students to work through materials provided by qualified, experienced teachers at their own pace/);
   assert.match(blocks[1], /Students cannot comment on each other's work, and there is no private messaging or sharing between students\. Your child's personal learning outside the group remains private\.$/);
   assert.equal(blocks[2], "Students under 16 need a parent or guardian's approval to take part in group learning. This approval does not cover live tuition, which is arranged separately with you.");
   assert.equal(blocks[3], "To discuss group learning or withdraw your approval, you can:");

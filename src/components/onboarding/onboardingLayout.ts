@@ -34,8 +34,8 @@ export function guardianLayoutFor(status: OnboardingStatus, welcome: boolean): G
   const phoneHint = "If they don't use email, enter just a mobile number and we'll contact them ourselves; approval isn't recorded until we have.";
   switch (approval.status) {
     case "pending": return { intro: "We've asked your parent or guardian to approve group options. You can keep learning meanwhile.", statusLine: approval.guardianEmail ? `Sent to ${approval.guardianEmail}.` : null, deliveryNote: delivery, buttonLabel: "Send it again", emailLabel, phoneLabel, phoneHint };
-    case "declined": return { intro: "Your parent or guardian declined group experiences. You can still learn privately. You can ask again if things change.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
-    case "withdrawn": return { intro: "Your parent or guardian withdrew their approval for group experiences. You can still learn privately. You can ask again.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
+    case "declined": return { intro: "Your parent or guardian declined group options. You can still learn privately. You can ask again if things change.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
+    case "withdrawn": return { intro: "Your parent or guardian withdrew their approval for group options. You can still learn privately. You can ask again.", statusLine: null, deliveryNote: null, buttonLabel: "Ask again", emailLabel, phoneLabel, phoneHint };
     default: return { intro: welcome ? "You're under 16, so group options need a parent or guardian's approval. This is optional and you can learn privately right now. To ask now, enter their email and we'll send them a request." : "Group options need a parent or guardian's approval. Want to ask now? You can keep learning privately either way.", statusLine: null, deliveryNote: null, buttonLabel: "Send approval request", emailLabel, phoneLabel, phoneHint };
   }
 }
@@ -57,5 +57,5 @@ export function buildOnboardingLayout(status: OnboardingStatus | null, ui: Onboa
   }
   const guardian = guardianLayoutFor(status, false);
   if (!guardian || ui.reminderDismissed) return { kind: "none" };
-  return { kind: "reminder", heading: "Group experiences", guardian, supportLink: true };
+  return { kind: "reminder", heading: "Group options", guardian, supportLink: true };
 }

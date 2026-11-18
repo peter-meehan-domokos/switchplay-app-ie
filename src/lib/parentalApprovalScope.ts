@@ -9,12 +9,12 @@ export const GROUP_EXPERIENCE_SCOPE = {
 export const SUPPORT_EMAIL = "support@puckleup.com";
 /** One common disclosure, in Puckle's name only. Versioned: a new text needs a new version, so past approvals keep the wording the parent actually read. */
 export const GROUP_EXPERIENCE_EXPLANATION = {
-  // v5: reworded and given a contact list. Each approval stores the text its parent actually saw, so earlier approvals and pending links are unaffected.
-  version: "shared-group-experiences-v5-draft",
+  // v6: reworded and given a contact list (v5 was an earlier draft of it). Each approval stores the text its parent actually saw, so earlier approvals and pending links are unaffected.
+  version: "shared-group-experiences-v6-draft",
   // Paragraphs are separated by a blank line. A paragraph whose lines all start with "- " is shown as a list; email addresses and phone numbers are shown as links.
   text: [
-    "Puckle is a learning platform led by qualified and experienced secondary school maths teachers. Your child can study independently and take part in optional teacher-led activities.",
-    "Group learning allows students to work through teacher-provided learning materials at their own pace, with the teacher overseeing their progress and participation. Students can share their ideas, reflections and ways of doing things to help others learn. Anything they share is visible to the entire group and supervised by the teacher. Students cannot comment on each other's work, and there is no private messaging or sharing between students. Your child's personal learning outside the group remains private.",
+    "Puckle is a learning platform where your child can study independently and take part in optional teacher-led activities.",
+    "Group learning allows students to work through materials provided by qualified, experienced teachers at their own pace, with the teacher overseeing their progress and participation. Students can share their ideas, reflections and ways of doing things to help others learn. Anything they share is visible to the entire group and supervised by the teacher. Students cannot comment on each other's work, and there is no private messaging or sharing between students. Your child's personal learning outside the group remains private.",
     "Students under 16 need a parent or guardian's approval to take part in group learning. This approval does not cover live tuition, which is arranged separately with you.",
     "To discuss group learning or withdraw your approval, you can:",
     `- Reply to the email we sent you.\n- Email ${SUPPORT_EMAIL}.\n- Call us on +353 85 207 6241 (Ireland) or +44 7547 196642 (UK).`,

@@ -34,7 +34,7 @@ Neither Yes nor No is selected initially. All choices should have equally promin
 | **Puckle Updates** | A fortnightly roundup of new maths content and activities. |
 | **News and offers** | Major new features, special offers and promotions. |
 | **Occasional personal contact** | We may get in touch to offer help or ask for feedback. |
-| **Group experiences invitations** | Invitations to group experiences: teacher-led maths activities you complete at your own pace, as part of a group. |
+| **Group invites** | Invitations to join teacher-guided maths and revision activities you complete at your own pace. |
 
 **Important meaning of the fourth choice:** it opts the student into **receiving invitations**, not joining an activity. The activities are teacher-led *asynchronous group experiences* built around a Deck. Students can progress independently while participating in a group; these are **not scheduled live group lessons**. They may be short revision activities or longer projects. Do not replace the approved wording with “small-group sessions”, “live classes”, “join now” or equivalent.
 
@@ -100,7 +100,7 @@ Occasional major features, new services, offers and promotions. It is a separate
 
 Permission for Puckle to **initiate** occasional individual contact, such as offering help or asking for ideas/feedback. This may happen through available email, SMS or telephone contact details where appropriate. It is **not** permission for routine, repeated unsolicited contact, and it is not a prerequisite for answering an enquiry the person initiated.
 
-### Group experiences invitations / Teacher collaboration invitations
+### Group invites / Teacher collaboration invitations
 
 Permission to send individual or group invitations to the corresponding opportunities described above. This choice is **not** acceptance of an invitation, enrolment into a group experience, booking or consent to paid tuition. Sending an invitation should be governed by the selected Email/Text message delivery channels.
 
@@ -170,7 +170,7 @@ Server-side requirements:
 
 - Review Puckle's registration disclosures and Privacy page for accuracy about the four purposes, delivery channels, how to change preferences, and the difference between essential support/account messages and optional outreach.
 - Preserve teacher-specific wording and existing parent-related copy except where a precise communications disclosure is necessary; report material text changes.
-- Keep the exact user-facing titles/descriptions from Section 2. Use **group experiences** consistently in student-facing copy (not group learning, group programmes or similar), and do not call these asynchronous activities “live sessions”. The short explanation is: *Teacher-led maths activities you complete at your own pace, as part of a group.*
+- Keep the exact user-facing titles/descriptions from Section 2. Use **group options** in student-facing copy (the student invitation preference is titled **Group invites**) (not group learning, group programmes or similar), and do not call these asynchronous activities “live sessions”. The short explanation is: *Teacher-led maths activities you complete at your own pace, as part of a group.*
 
 ## 12. Implementation locations to inspect and update
 
