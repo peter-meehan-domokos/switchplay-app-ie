@@ -93,3 +93,23 @@ for (const [name, width, height] of [["phone", 390, 844], ["ipad-portrait", 820,
     await noOverflow(page);
   });
 }
+
+test("the hero has a Request a free session button that sits inside the centred text block and scrolls to the registration heading", async ({ browser }) => {
+  for (const [width, height] of [[390, 800], [834, 1112], [1024, 768], [1280, 800]] as const) {
+    const page = await open(browser, width, height);
+    const button = page.locator("section[aria-labelledby=home-hero-title] a[href='#early-access']");
+    await expect(button).toHaveText("Request a free session");
+    const inside = await page.evaluate(() => {
+      const copy = document.getElementById("home-hero-title")!.parentElement!, link = copy.querySelector("a[href='#early-access']")!.getBoundingClientRect();
+      return { fits: link.right <= copy.getBoundingClientRect().right + 1 && link.bottom <= copy.getBoundingClientRect().bottom + 1 };
+    });
+    expect(inside.fits, `${width}px: button within hero text`).toBe(true);
+    if (width >= 840) expect(Math.abs((await heroMetrics(page)).dy), `${width}px: block still centred`).toBeLessThanOrEqual(3);
+    await noOverflow(page);
+    await page.screenshot({ path: `phase2-test-results/homepage-hero-cta-${width}.png` });
+    await button.click(); await page.waitForTimeout(800);
+    const top = await page.evaluate(() => document.getElementById("enquiry-title")!.getBoundingClientRect().top);
+    expect(top, `${width}px: heading near the top after click`).toBeLessThan(60); expect(top).toBeGreaterThan(0);
+    await page.context().close();
+  }
+});

@@ -99,9 +99,16 @@
     display: contents;
   }
 
+  /* The text block must not make row 1 taller than the image (that would push the caption down), so it takes no
+     height of its own: it fills the row (min-height) and centres its content, overflowing equally top and bottom. */
   .heroCopy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     grid-column: 1;
     grid-row: 1;
+    height: 0;
+    min-height: 100%;
   }
 
   .artworkPanel {
@@ -135,6 +142,11 @@
     font-size: clamp(2.6rem, 4vw, 3.6rem);
     max-width: 14ch;
   }
+}
+
+.heroCta {
+  display: flex;
+  margin-top: 6px;
 }
 
 .curriculumLine {

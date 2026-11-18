@@ -5,6 +5,7 @@ import { brandFontClassName } from "./components/BrandLink";
 import PublicLayout from "./components/PublicLayout";
 import PublicHeader from "./components/PublicHeader";
 import PublicFooter from "./components/PublicFooter";
+import buttonStyles from "./components/PublicButton.module.css";
 import BenefitSections from "./components/BenefitSections";
 import TuitionEnquiryForm from "./components/TuitionEnquiryForm";
 import { SITE_TITLE_NAME } from "./siteInfo";
@@ -56,6 +57,11 @@ export default function Home() {
           <p className={styles.curriculumLine}>
             Leaving Cert &amp; Junior Cycle · GCSE &amp; A-level
           </p>
+          <div className={styles.heroCta}>
+            <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
+              Request a free session
+            </a>
+          </div>
         </div>
         <div className={styles.artwork}>
           <figure className={styles.artworkPanel}>
