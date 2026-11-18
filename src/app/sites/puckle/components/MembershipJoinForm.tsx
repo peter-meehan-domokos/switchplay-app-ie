@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { bindingFrom, continueGuestVisualProgress, currentTimeMs, requestEmailCode, submitAccount, submitInterest, submitJoinContact, verifyEmailCode, type JoinResponse } from "../lib/joinClient";
+import { bindingFrom, currentTimeMs, requestEmailCode, submitAccount, submitInterest, submitJoinContact, verifyEmailCode, type JoinResponse } from "../lib/joinClient";
 import {
   buildAccountPayload, buildContactPayload, buildInterestPayload, buildMembershipJoinLayout, codeIsCurrent, errorsFromServerCode, FIELD_MESSAGES,
   initialJoinFlowState, initialJoinFormState, normalisedEmail, validateJoinForm, withChoice, withCode, withCodeSent, withCourse,
@@ -104,7 +104,6 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
     if (response.status === 201 && body?.ok === true) {
       const category = body.category === "teacher" ? "teacher" : "student";
       const signedIn = body.signedIn === true;
-      if (signedIn) await continueGuestVisualProgress();
       // Pre-launch members land on the pre-launch welcome (served at /decks) rather than the timed welcome or an "Open Puckle" button.
       if (signedIn && body.prelaunch === true) { window.location.assign("/decks"); return; }
       setFlow(withOutcome(proofFlow, { kind: "account", category, signedIn }));
