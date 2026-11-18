@@ -13,7 +13,7 @@ test("account and parent emails sent for Puckle never mention any other website 
   const messages = [verificationEmail("Puckle", "123456"), existingAccountEmail("Puckle", "https://puckleup.com"), passwordResetEmail("Puckle", "https://puckleup.com", T),
     parentApprovalRequestEmail("Puckle", "https://puckleup.com", T, "Niamh")];
   for (const message of messages) { assert.doesNotMatch(message.subject, OTHER_NAMES, message.subject); assert.doesNotMatch(message.text, OTHER_NAMES, message.subject); }
-  assert.match(messages[3].text, /Group Experiences on Puckle\./);
+  assert.match(messages[3].text, /Group Learning on Puckle\./);
 });
 test("the parent approval explanation and declaration name only Puckle", () => {
   assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, OTHER_NAMES); assert.doesNotMatch(GUARDIAN_DECLARATION.text, OTHER_NAMES);

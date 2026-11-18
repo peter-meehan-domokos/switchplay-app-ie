@@ -17,7 +17,7 @@ test("one common disclosure, in Puckle's name only, explains withdrawal and excl
   assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /Puckle/); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /switchplay|strat17/i);
   assert.equal(GROUP_EXPERIENCE_EXPLANATION.version, "shared-group-experiences-v4-draft", "reworded text carries a new version; past approvals keep what they read");
   assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /withdraw your approval at any time by replying to the email we sent you, or by emailing support@puckleup\.com\./i); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /hello@/); assert.doesNotMatch(GROUP_EXPERIENCE_EXPLANATION.text, /withdraw[^.]*link/i, "there is no withdrawal link"); assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /not permission for live tuition/);
-  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /one approval covers equivalent Group Experiences anywhere in Puckle/i);
+  assert.match(GROUP_EXPERIENCE_EXPLANATION.text, /one approval covers equivalent Group Learning anywhere in Puckle/i);
   assert.ok(GROUP_EXPERIENCE_EXPLANATION.version && GUARDIAN_DECLARATION.version);
   assert.match(GUARDIAN_DECLARATION.text, /parent or legal guardian/);
 });

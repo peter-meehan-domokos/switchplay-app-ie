@@ -160,7 +160,7 @@ test("layout wording: student, teacher and other audiences, exactly as agreed", 
   assert.equal(audienceOf(null), "other");
 });
 
-test("layout: the parent section is only for a student who still needs approval, and never says Group Experiences or implies general approval", () => {
+test("layout: the parent section is only for a student who still needs approval, and never says Group Learning or implies general approval", () => {
   const approval = (status: string, eligibility = "eligible", canRequest = true) => ({ eligibility, status, canRequest, guardianEmail: status === "pending" ? "m***@example.com" : null, delivery: status === "pending" ? "sent" : null }) as never;
   for (const status of ["not-requested", "pending", "declined", "withdrawn"]) {
     const layout = buildPrelaunchLayout({ category: "student", approval: approval(status) });

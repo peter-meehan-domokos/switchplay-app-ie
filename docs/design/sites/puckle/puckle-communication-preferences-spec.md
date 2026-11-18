@@ -36,7 +36,7 @@ Neither Yes nor No is selected initially. All choices should have equally promin
 | **Occasional personal contact** | We may get in touch to offer help or ask for feedback. |
 | **Guided maths invitations** | Receive invitations to teacher-led maths programmes, from short revision activities to longer projects, where you progress at your own pace as part of a group. |
 
-**Important meaning of the fourth choice:** it opts the student into **receiving invitations**, not joining an activity. The activities are teacher-led *asynchronous Group Experiences* built around a Deck. Students can progress independently while participating in a group; these are **not scheduled live group lessons**. They may be short revision activities or longer projects. Do not replace the approved wording with “small-group sessions”, “live classes”, “join now” or equivalent.
+**Important meaning of the fourth choice:** it opts the student into **receiving invitations**, not joining an activity. The activities are teacher-led *asynchronous Group Learning* built around a Deck. Students can progress independently while participating in a group; these are **not scheduled live group lessons**. They may be short revision activities or longer projects. Do not replace the approved wording with “small-group sessions”, “live classes”, “join now” or equivalent.
 
 ### Teacher form: exact four choices, in this order
 
@@ -47,7 +47,7 @@ Fourth choice:
 - **Teacher collaboration invitations**
 - *Opportunities to observe student learning, collaborate on teaching resources or explore professional development.*
 
-This covers invitations to observe student Group Experiences, to work with other teachers on teaching resources and to join professional-learning activities. Do not imply that formal/accredited CPD is currently offered.
+This covers invitations to observe student Group Learning, to work with other teachers on teaching resources and to join professional-learning activities. Do not imply that formal/accredited CPD is currently offered.
 
 **Retain** the existing teacher-specific registration wording (including the message that Puckle will be in touch), teacher interest questions and submission behaviour.
 

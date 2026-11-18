@@ -78,11 +78,11 @@ export default function PrivacyPage() {
         <section className={styles.section}>
           <h2>Parent or guardian approval</h2>
           <p>
-            Students under 16 need a parent or guardian&apos;s approval before taking part in Group Experiences. If a
+            Students under 16 need a parent or guardian&apos;s approval before taking part in Group Learning. If a
             student gives us a parent or guardian&apos;s email address, we email that person a link to read what is
             involved and approve or decline. We record their email address, their decision, the statement they confirmed,
             the version of the explanation they read and when. This is not a check of anyone&apos;s identity or age. One
-            approval covers Group Experiences on Puckle.
+            approval covers Group Learning on Puckle.
             It is not permission for live tuition. The parent or guardian can withdraw it at any time; withdrawing does not
             delete the student&apos;s learning.
           </p>

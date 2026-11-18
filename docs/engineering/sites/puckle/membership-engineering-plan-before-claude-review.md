@@ -11,7 +11,7 @@ Puckle, Switchplay and Strat17 share ordinary users and authentication. Keep cre
 
 New email-based student/teacher registration proves email ownership before account creation and automatically establishes the normal session afterwards. Mobile is visible immediately on all Join categories and optional with email. Student/teacher no-email mode creates only a mobile contact request for founder follow-up; interest submissions are always contacts. No SMS authentication or phone login.
 
-One parental approval covers equivalent Group Experiences across all three websites under the accepted common scope/explanation. Approval is not permission for live tuition. The project records/exposes facts and performs no Group Experience enforcement. No active group implementation is needed to complete membership work.
+One parental approval covers equivalent Group Learning across all three websites under the accepted common scope/explanation. Approval is not permission for live tuition. The project records/exposes facts and performs no Group Experience enforcement. No active group implementation is needed to complete membership work.
 
 Remove all previous provisional memberships, enquiry-linked claims/invitations, issuer endpoints, account activation pages/tokens and public existing-account linking. Email challenges and approval/reset action capabilities are purpose-specific security records, not membership activation machinery. Future personal/admin membership invitations, reusable admin onboarding and manual account arrangements for no-email contacts are separate work. seed:user stays unchanged.
 
@@ -66,7 +66,7 @@ users keeps its identity/credential/account fields and existing learning data. A
 | dateOfBirth | Strict YYYY-MM-DD date-only or absent. The sole account-authoritative DOB. Never an authoritative age counter. |
 | ageAssurance | Status unknown, self-declared, unverified or independently-verified; method, recordedAt, relevant evidence reference/verifiedAt where justified. Operator-supplied facts use unverified status and operator-entered method unless stronger evidence exists. New Puckle student input is self-declared. No public payload can set verified evidence. |
 | dateOfBirthHistory | Reviewed old/new values, reason, actor, time and relationship to invalidated assurance. Never transfer verification tied to an old DOB to a new DOB. |
-| groupExperienceApproval | One common activity-scope record: scopeId, accepted explanationVersion/scope snapshot, status, guardian contact/declaration evidence, request/decision/withdrawal timestamps and history. Applies to equivalent Group Experiences on Puckle, Switchplay and Strat17. |
+| groupExperienceApproval | One common activity-scope record: scopeId, accepted explanationVersion/scope snapshot, status, guardian contact/declaration evidence, request/decision/withdrawal timestamps and history. Applies to equivalent Group Learning on Puckle, Switchplay and Strat17. |
 
 Use one concrete common scope identifier, for example shared-group-experiences, with a versioned explanation describing the three sites and actual visibility/sharing conditions. The sending site's ID is provenance/branding, never a per-site approval key. Do not add puckleApproved/switchplayApproved/strat17Approved or require a maths profile to read shared facts. Materially expanded/divergent activity may require a later additional approval; do not implement that future activity or automatically broaden consent now.
 
