@@ -40,7 +40,7 @@ for (const width of [390, 1280]) {
     const page = await open(browser, width);
     await expect(section(page).getByRole("heading", { name: "Stay in touch with Puckle" })).toBeVisible();
     expect(await titles(page)).toEqual(["Puckle Updates", "Occasional personal contact"]);
-    for (const line of ["Maths content, guided activities, news and occasional offers.", "We may get in touch to offer help or ask for feedback."]) await expect(section(page).getByText(line, { exact: true })).toBeVisible();
+    for (const line of ["Maths content, Group Experiences, news and occasional offers.", "We may get in touch to offer help or ask for feedback."]) await expect(section(page).getByText(line, { exact: true })).toBeVisible();
     expect(await section(page).locator("input[type=radio]:checked").count()).toBe(0);
     await expect(section(page).getByRole("group", { name: /Receive updates/ })).toHaveCount(0);
     await noOverflow(page);

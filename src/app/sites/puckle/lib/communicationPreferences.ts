@@ -21,8 +21,8 @@ export const PREFERENCE_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: 
   newsAndOffers: { title: "News and offers", text: "Major new features, special offers and promotions." },
   occasionalPersonalContact: { title: "Occasional personal contact", text: "We may get in touch to offer help or ask for feedback." },
   guidedMathsInvitations: {
-    title: "Guided maths invitations",
-    text: "Invitations to join teacher-led maths activities and revision groups.",
+    title: "Group Experiences invitations",
+    text: "Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group.",
   },
   teacherCollaborationInvitations: {
     title: "Teacher collaboration invitations",
@@ -35,7 +35,7 @@ export const PREFERENCE_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: 
  * broadcast preferences together. Settings shows the same stored preferences individually, grouped under Puckle Updates.
  */
 export const REGISTRATION_UPDATES_TEXT: Readonly<Record<"student" | "teacher", string>> = {
-  student: "Maths content, guided activities, news and occasional offers.",
+  student: "Maths content, Group Experiences, news and occasional offers.",
   teacher: "Teaching resources, collaboration opportunities, news and occasional offers.",
 };
 export const SETTINGS_HEADING = "Communication preferences";
@@ -47,7 +47,7 @@ export const SETTINGS_GROUPS = {
 export const SETTINGS_ITEMS: Readonly<Record<PreferenceKey, Readonly<{ title: string; text: string }>>> = {
   ...PREFERENCE_ITEMS,
   puckleUpdates: { title: "New maths content", text: "A fortnightly roundup of new lessons, interactive activities and revision materials." },
-  guidedMathsInvitations: { title: "Guided maths invitations", text: "Invitations to teacher-led maths activities and revision groups." },
+  guidedMathsInvitations: { title: "Group Experiences invitations", text: "Invitations to Group Experiences: teacher-led maths activities you complete at your own pace, as part of a group." },
   teacherCollaborationInvitations: { title: "Teacher collaboration invitations", text: "Invitations to explore teaching ideas, share resources and collaborate with other teachers." },
 };
 

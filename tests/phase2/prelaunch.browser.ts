@@ -208,7 +208,7 @@ test.describe("pre-launch mode on", () => {
     const section = page.locator('[data-prelaunch="approval"]');
     await expect(section).toBeVisible(); await expect(section.getByRole("heading", { name: "Parent or guardian approval" })).toBeVisible();
     await expect(section.getByText("Some sharing features require permission from a parent or guardian.", { exact: true })).toBeVisible();
-    await expect(welcome(page).getByText(/group learning/i)).toHaveCount(0);
+    await expect(welcome(page).getByText(/group experiences?/i)).toHaveCount(0);
     await expect(page.getByLabel("Parent or guardian's email")).toHaveCount(0); // collapsed until asked, so a phone stays uncluttered
     await noOverflow(page);
     await section.getByRole("button", { name: "Ask a parent or guardian" }).click();

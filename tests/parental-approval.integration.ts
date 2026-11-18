@@ -72,7 +72,7 @@ test("a request records the common scope, draft explanation, provenance and hist
   assert.deepEqual(record.history.map((e: { kind: string; actor: { kind: string } }) => [e.kind, e.actor.kind]), [["requested", "student"]]);
   const token = lastToken(email), link = (await db.collection("accountEmailActions").findOne({ userId: kid._id, purpose: "parent-request" }))!;
   assert.equal(link.expiresAt.getTime() - T0.getTime(), 7 * DAY); assert.ok(!JSON.stringify(link).includes(token), "only a digest is stored");
-  assert.match(messages.at(-1)!.text, /Group Learning on Puckle\./); assert.doesNotMatch(messages.at(-1)!.text, /switchplay|strat17/i); assert.match(messages.at(-1)!.text, /Opening the link changes nothing/);
+  assert.match(messages.at(-1)!.text, /Group Experiences on Puckle\./); assert.doesNotMatch(messages.at(-1)!.text, /switchplay|strat17/i); assert.match(messages.at(-1)!.text, /Opening the link changes nothing/);
   await untouched(kid);
   const summary = await approvalSummary(db, kid._id, "2026-11-14");
   assert.deepEqual([summary.status, summary.eligibility, summary.canRequest, summary.delivery], ["pending", "eligible", true, "sent"]); assert.ok(!summary.guardianEmail!.includes(email.split("@")[0]));

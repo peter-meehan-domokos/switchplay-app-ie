@@ -58,3 +58,4 @@ Student, teacher, mobile-only and interest alerts end with a short "Communicatio
 - Pre-launch members cannot reach `/api/account/...` (the pre-launch gate blocks it) and do not see the app menu, so Settings is for
   fully launched members. No special pre-launch handling was added.
 - The management link does not expire (like a conventional unsubscribe link) and is rate limited only by being unguessable.
+- Terminology: student-facing copy says Group Experiences (invitation preference title Group Experiences invitations, with the short explanation). The stored key stays `guidedMathsInvitations`; only wording changed.

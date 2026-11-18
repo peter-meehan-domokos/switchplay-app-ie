@@ -55,7 +55,7 @@ export default function PrivacyPage() {
           <h3>Communication choices</h3>
           <p>
             When you join as a student or teacher, we ask you to answer Yes or No to two optional communications: Puckle
-            Updates (content, guided activities or collaboration opportunities, news and occasional offers) and
+            Updates (content, Group Experiences or collaboration opportunities, news and occasional offers) and
             Occasional personal contact (we may get in touch to offer help or ask for feedback). Saying Yes to Puckle
             Updates covers new content, news and offers, and invitations, which you can then change one by one in
             Settings. If you only register your interest, you answer for updates, news and offers, and personal contact
@@ -78,11 +78,11 @@ export default function PrivacyPage() {
         <section className={styles.section}>
           <h2>Parent or guardian approval</h2>
           <p>
-            Students under 16 need a parent or guardian&apos;s approval before taking part in Group Learning. If a
+            Students under 16 need a parent or guardian&apos;s approval before taking part in Group Experiences. If a
             student gives us a parent or guardian&apos;s email address, we email that person a link to read what is
             involved and approve or decline. We record their email address, their decision, the statement they confirmed,
             the version of the explanation they read and when. This is not a check of anyone&apos;s identity or age. One
-            approval covers Group Learning on Puckle.
+            approval covers Group Experiences on Puckle.
             It is not permission for live tuition. The parent or guardian can withdraw it at any time; withdrawing does not
             delete the student&apos;s learning.
           </p>
