@@ -71,7 +71,7 @@ export default function Home() {
               height={985}
               priority
               sizes="(min-width: 840px) 540px, min(380px, calc(100vw - 32px))"
-              src="/images/sites/puckle/hero-cropped.png"
+              src="/images/sites/puckle/hero-cropped-v2.png"
               width={1199}
             />
           </figure>
