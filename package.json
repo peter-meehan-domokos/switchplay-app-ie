@@ -14,11 +14,15 @@
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx --test --test-concurrency=1 tests/*.integration.ts",
+    "test:sites": "node --import tsx --test tests/sites-http.check.ts",
     "migration:plan": "node --import tsx scripts/migrate-first-class-cards.ts",
     "migration:phase8": "node --import tsx scripts/prepare-phase8.ts",
     "typecheck": "node scripts/clean-next-types.mjs && next typegen && tsc --noEmit",
     "test:phase2": "node --import tsx scripts/test-phase2.ts",
-    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev"
+    "dev:phase2": "node --import tsx scripts/test-phase2.ts --dev",
+    "prepare:puckle-membership": "node --import tsx scripts/prepare-puckle-membership.ts",
+    "backfill:known-puckle-users": "node --import tsx scripts/backfill-known-puckle-users.ts",
+    "email:delivery": "node --import tsx scripts/email-delivery.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1125.0",

@@ -20,7 +20,7 @@ async function setup() {
   const db = client.db(`switchplay_test_personal_lifecycle_${sequence++}`);
   await createFoundationIndexes(db);
   const repo = new CardRepository(db, client);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, decksData: [], cardsData: [], sharedDeckData: [{ parked: true }] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ parked: true }] })));
   return repo;
 }
 const content = (): CardContent => ({ intro: { title: "Practice", description: null, mediaItem: null }, suggestedTargetDate: "",

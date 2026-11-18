@@ -19,7 +19,7 @@ before(async () => {
   server = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } }); client = await new MongoClient(server.getUri()).connect();
   const db = client.db("switchplay_test_visual_api"); await createFoundationIndexes(db); await createVisualLearningRecordIndexes(db);
   cards = new CardRepository(db, client, "1"); records = new VisualLearningRecordRepository(db, client);
-  await cards.users().insertMany(["learner", "owner", "other"].map(_id => ({ _id, cardsData: [], decksData: [] })));
+  await cards.users().insertMany(["learner", "owner", "other"].map(_id => ({ _id, permissions: { publicPublishing: true }, cardsData: [], decksData: [] })));
   for (const [id, visibility] of [["public-card", "public"], ["private-card", "private"]] as const) {
     const content = createDefaultCardContent([`${id}-1`, `${id}-2`, `${id}-3`]); content.intro.title = "Activity practice";
     content.intro = withStepMedia(content.intro, [{ id: "visual", label: "Explore", kind: "activity", activityId: "roots-and-factors" }]);

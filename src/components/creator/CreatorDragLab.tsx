@@ -30,7 +30,7 @@ import { loadCreatorDraftEntries, creatorDraftHref, type CreatorDraftEntry } fro
 import CreatorPublishControl from "./CreatorPublishControl";
 import CreatorVisibilityControl from "./CreatorVisibilityControl";
 import CreatorPublicConfirmation from "./CreatorPublicConfirmation";
-import { cardPublicationPresentation, deckPublicationPresentation, requiresPublicInfoAttachments, creatorPublicationErrorMessage } from "./creatorPublicationPresentation";
+import { cardPublicationPresentation, deckPublicationPresentation, requiresPublicInfoAttachments, creatorPublicationErrorMessage, PUBLIC_PUBLISHING_FORBIDDEN_MESSAGE } from "./creatorPublicationPresentation";
 import { creatorRequest } from "./creatorRequest";
 import type { CreatorDTO } from "@/lib/cards/readModels";
 import { sameContent } from "@/lib/cards/publicationRules";
@@ -1779,7 +1779,9 @@ export default function CreatorDragLab({ canPreviewOutput, creatorReturnTarget, 
           <div className="creator-feedback">
           {navigationPending ? <p className="creator-navigation-status" role="status">Finishing saves and uploads before leaving…</p> : null}
           {publishMessage ? (
-              <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}</p>
+              <p className={`creator-save-message creator-save-message--${publishStatus}`}>{publishMessage}
+                {publishStatus === "error" && publishMessage === PUBLIC_PUBLISHING_FORBIDDEN_MESSAGE
+                  ? <button type="button" className="creator-modal-primary" onClick={() => { setPublishMessage(""); setPublishStatus("idle"); }}>OK</button> : null}</p>
           ) : null}
       {[{ id: "deck", label: "Deck", lane: persistence.deck }, ...getCardColumns(board.columns).map((column, index) => ({ id: column.cardId!, label: `Card ${index + 1}`, lane: persistence.cards.get(column.cardId!)! }))].filter(({ lane }) => lane.error).map(({ id, label, lane }) => (
         <p className="creator-entity-save-error" role="alert" key={id}>

@@ -1,0 +1,48 @@
+.form {
+  display: grid;
+  gap: 18px;
+  max-width: 42rem;
+}
+
+.mobile {
+  max-width: 28rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.unsubscribe {
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--sp-site-text);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 214, 228, 0.6);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.unsubscribe:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 4px;
+}
+
+.status,
+.error {
+  min-height: 1.4em;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.status {
+  color: var(--sp-site-text-muted);
+}
+
+.error {
+  color: #ffb4a8;
+}

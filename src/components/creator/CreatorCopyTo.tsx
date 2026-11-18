@@ -28,6 +28,9 @@ export default function CreatorCopyTo({ cardTemplateId, deckTemplateId, ensureCr
       for (let attempt = 0; ; attempt++) {
         try { result = await request<CopyCardResult>(url, "POST", command); break; }
         catch (cause) {
+          if (cause instanceof CreatorRequestError && cause.code === "PUBLIC_PUBLISHING_FORBIDDEN") {
+            setError("This Copy would publish publicly and requires approval. Nothing was copied. You can still copy to a private Deck."); return;
+          }
           const transient = !(cause instanceof CreatorRequestError) || cause.status >= 500;
           if (!transient) { setError("The destination changed or is unavailable. Refresh destinations before trying again."); return; }
           if (attempt === 3) { setRetry(command); setError("Copy could not be confirmed. Retry the same request to check its outcome."); return; }

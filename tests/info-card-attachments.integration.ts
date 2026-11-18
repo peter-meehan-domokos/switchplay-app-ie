@@ -26,7 +26,7 @@ after(async () => { await client?.close(); await mongo?.stop(); });
 async function setup() {
   const main = new CardRepository(client.db(`switchplay_test_info_attachments_${sequence++}`), client);
   await createFoundationIndexes(main.db); await createInfoCardIndexes(main.db);
-  await main.users().insertMany(["alice", "bob"].map(_id => ({ _id, username: _id, cardsData: [], decksData: [] })));
+  await main.users().insertMany(["alice", "bob"].map(_id => ({ _id, permissions: { publicPublishing: true }, username: _id, cardsData: [], decksData: [] })));
   const info = new InfoCardRepository(main.db, client);
   await info.createSeries("alice", "series", "Basics");
   for (const [id, visibility] of [["a", "public"], ["b", "public"], ["private", "private"]] as const) {

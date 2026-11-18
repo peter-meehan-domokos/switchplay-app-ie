@@ -19,7 +19,7 @@ before(async () => {
 after(async () => { await client?.close(); await server?.stop(); });
 async function setup() {
   const db = client.db(`switchplay_info_cards_test_${seq++}`); await createInfoCardIndexes(db);
-  await db.collection("users").insertMany(["alice", "bob", "carol"].map(id => ({ _id: id, username: `${id}-name` })) as never);
+  await db.collection("users").insertMany(["alice", "bob", "carol"].map(id => ({ _id: id, permissions: { publicPublishing: true }, username: `${id}-name` })) as never);
   return new InfoCardRepository(db, client, { async assertReady() {} });
 }
 const content = (seriesId = "s", title = "Signs"): InfoDraft => ({ title, body: "Keep the sign with its number.\n\nUse brackets to make it clear.", seriesId, mediaItem: null });

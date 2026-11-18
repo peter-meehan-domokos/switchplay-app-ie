@@ -310,3 +310,14 @@ credentials fail closed. Direct provider-URL protection and real upload/playback
 acceptance remain separate Cloudflare work. The development Maths catalogue still
 contains placeholder Card mappings and needs deliberate curriculum selection before
 expecting production Framework figures.
+
+## Note: multisite collections (added after Phase 8)
+
+The Phase 8 migration was completed on 14 October 2026. The three public websites introduced later write to nine new,
+site-specific collections in the same `switchplay` database (`strat17…`, `puckle…`, `switchplay…` + `CreatorInterestSubmissions`,
+`EarlyAccessSignups`, `ContactSupportSubmissions`). `migration:phase8 --verify` checks that the database contains exactly the
+collection inventory that existed at the time of the migration, so **once any of the new collections exists, `--verify` reports
+`UNEXPECTED_COLLECTIONS` even though the application is working correctly**. This is an accepted limitation of the historical,
+one-off tooling; the script, backups and original collections were intentionally left unchanged. The incompatibility is isolated
+to that command (`scripts/migration/phase8.ts`, `scripts/prepare-phase8.ts`): nothing in `src/`, the normal test suites (which use
+their own in-memory databases) or the new submission handlers imports or depends on it.

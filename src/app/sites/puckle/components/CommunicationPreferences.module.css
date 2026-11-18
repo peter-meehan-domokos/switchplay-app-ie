@@ -1,0 +1,175 @@
+.section {
+  display: grid;
+  gap: 0;
+}
+
+.section h2 {
+  margin-bottom: 4px;
+  color: var(--sp-site-text);
+  font-size: clamp(1.2rem, 4.4vw, 1.45rem);
+  font-weight: 820;
+  line-height: 1.2;
+}
+
+.row {
+  display: grid;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid rgba(255, 250, 240, 0.12);
+}
+
+.row:first-of-type {
+  border-top: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.title {
+  color: var(--sp-site-text);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.text {
+  max-width: 40rem;
+  color: var(--sp-site-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.segmented {
+  display: inline-flex;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid rgba(168, 214, 228, 0.4);
+  border-radius: 999px;
+}
+
+.option {
+  position: relative;
+  display: inline-flex;
+  min-width: 56px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  color: var(--sp-site-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.option + .option {
+  border-left: 1px solid rgba(168, 214, 228, 0.4);
+}
+
+.option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.option:has(input:checked) {
+  background: #fffaf0;
+  color: #090b10;
+}
+
+.option:has(input:focus-visible) {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 2px;
+}
+
+.channels {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: calc(var(--sp-site-card-radius) - 6px);
+  background: rgba(255, 250, 240, 0.045);
+}
+
+.channels legend {
+  padding: 0 6px;
+  color: var(--sp-site-text);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.channelOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.check {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  color: var(--sp-site-text);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #fffaf0;
+}
+
+.error {
+  color: #ffb4a8;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Settings: update preferences nested under Puckle Updates; personal contact is a separate block. */
+.group {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid rgba(168, 214, 228, 0.24);
+  border-radius: calc(var(--sp-site-card-radius) - 6px);
+}
+
+.separate {
+  margin-top: 16px;
+}
+
+.group .row:first-of-type {
+  border-top: 0;
+}
+
+.groupTitle {
+  color: var(--sp-site-text);
+  font-size: 1.1rem;
+  font-weight: 820;
+  line-height: 1.25;
+}
+
+.groupText {
+  color: var(--sp-site-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.nested {
+  display: grid;
+  margin-left: 4px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(168, 214, 228, 0.3);
+}
+
+.nested .row:first-child {
+  border-top: 0;
+}

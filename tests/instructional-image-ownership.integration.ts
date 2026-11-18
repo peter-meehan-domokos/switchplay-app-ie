@@ -29,7 +29,7 @@ after(async () => { await client?.close(); await server?.stop(); });
 async function fixture() {
   const repo = new CardRepository(client.db(`switchplay_test_image_ownership_${sequence++}`), client, "1");
   await repo.db.createCollection(INSTRUCTIONAL_IMAGE_ALLOCATIONS); await createFoundationIndexes(repo.db);
-  await repo.users().insertMany(["alice", "bob", "learner"].map(_id => ({ _id, cardsData: [], decksData: [] })));
+  await repo.users().insertMany(["alice", "bob", "learner"].map(_id => ({ _id, permissions: { publicPublishing: true }, cardsData: [], decksData: [] })));
   const content = createDefaultCardContent(["one", "two", "three"]); content.intro.title = "Study a graph";
   await repo.createCardDraft("alice", content, "public", "card");
   return { repo, content };

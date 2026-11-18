@@ -87,6 +87,10 @@ export class InfoCardEditorController {
     clearTimeout(this.timer);
     if (!this.error) this.timer = setTimeout(() => { void this.flush().catch(() => {}); }, 250);
   }
+  // Acknowledge a rejected public publication without touching content or visibility.
+  dismissPublicationRefusal() {
+    if (this.errorOperation === "publish" && this.error instanceof CreatorRequestError && this.error.code === "PUBLIC_PUBLISHING_FORBIDDEN") { this.error = null; this.errorOperation = null; this.changed(); }
+  }
   stopTimer() { clearTimeout(this.timer); }
   async ensureCreated() {
     if (this.ack) return;

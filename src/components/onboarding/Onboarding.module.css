@@ -1,0 +1,148 @@
+/*
+ * Everything here is scoped by CSS-module hashing and sets its own inherited properties explicitly, so the
+ * application's global element rules (fonts, buttons, inputs, headings) cannot restyle onboarding and
+ * onboarding cannot restyle the application. No selector targets an application element.
+ * Stacking: Deck intro layers use z-index 39/40/70 and Creator dialogs 80, but the host hides itself while
+ * those are presented, so a modest fixed value below 70 is enough.
+ */
+.root {
+  all: initial;
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  direction: ltr;
+}
+
+.root *, .root *::before, .root *::after { box-sizing: border-box; }
+
+.welcome, .reminder, .pill {
+  all: initial;
+  position: fixed;
+  pointer-events: auto;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #172033;
+  direction: ltr;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+.welcome, .reminder {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #c8d0de;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  padding: 16px;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.welcome {
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  max-width: 440px;
+}
+
+.reminder {
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  width: min(320px, calc(100vw - 24px));
+}
+
+.pill {
+  display: inline-block;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #2347a0;
+  border-radius: 999px;
+  background: #2347a0;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.heading { display: block; margin: 0 0 8px; font-size: 18px; font-weight: 700; line-height: 1.25; color: #172033; }
+.text, .note, .error, .small { display: block; margin: 0 0 10px; font-size: 15px; line-height: 1.45; color: #172033; }
+.note { color: #475569; }
+.error { color: #9f1239; font-weight: 600; }
+.small { font-size: 13px; color: #475569; margin: 12px 0 0; }
+.link { color: #2347a0; text-decoration: underline; }
+.row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.actions { display: grid; gap: 8px; margin: 12px 0; }
+.form { display: block; margin-top: 12px; }
+.label { display: block; margin: 8px 0 4px; font-size: 14px; font-weight: 600; color: #172033; }
+
+.input {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  font-size: 16px; /* 16px stops iOS zooming into the field */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input:focus-visible, .primary:focus-visible, .secondary:focus-visible, .pill:focus-visible, .close:focus-visible, .link:focus-visible { outline: 3px solid #2347a0; outline-offset: 2px; }
+
+.primary, .secondary {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.primary { border: 1px solid #2347a0; background: #2347a0; color: #ffffff; }
+.secondary { border: 1px solid #2347a0; background: #ffffff; color: #2347a0; }
+.primary:disabled { opacity: 0.55; cursor: default; }
+.actions .primary, .actions .secondary { margin-top: 0; }
+
+.close {
+  all: initial;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px 0 0;
+  text-align: center;
+  font: inherit;
+  font-size: 24px;
+  line-height: 44px;
+  color: #475569;
+  cursor: pointer;
+}
+
+/* The shared Puckle phone input, restyled for the light panels this form sits on. Doubled class beats its site styles. */
+.phone.phone {
+  --sp-site-text: #172033;
+  --sp-site-text-muted: #4b5565;
+  --sp-site-accent-blue: #2347a0;
+  --sp-site-card-radius: 16px;
+  margin-top: 8px;
+}
+.phone.phone label { font-size: 14px; font-weight: 600; }
+.phone.phone :global(.PhoneInputInput), .phone.phone :global(.PhoneInputCountry) { border-color: #94a3b8; background: #ffffff; }
+.phone.phone :global(.PhoneInputInput) { min-height: 46px; padding: 10px 12px; font-size: 16px; }
+.phone.phone :global(.PhoneInputCountry) { min-height: 46px; }
+.phone.phone:focus-within :global(.PhoneInputCountry), .phone.phone :global(.PhoneInputInput:focus) { box-shadow: none; outline: 3px solid #2347a0; outline-offset: 2px; }

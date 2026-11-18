@@ -1,3 +1,5 @@
+import { SettingsLinkProvider } from "@/components/layout/SettingsLink";
+import { getCurrentSite } from "@/lib/sites/getCurrentSite";
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import AppShell from "@/components/layout/AppShell";
 import { getCurrentUser } from "@/lib/auth";
@@ -7,5 +9,6 @@ export default async function DecksPage() {
   const user = await getCurrentUser();
   if (!user) return <EmbeddedAuthScreen />;
   const memberships = await membershipDTO(await CardRepository.application(), user.id);
-  return <AppShell memberships={memberships} currentUserId={user.id} userName={user.username} />;
+  const settings = (await getCurrentSite()) === "puckle" ? "/settings" : undefined;
+  return <SettingsLinkProvider href={settings}><AppShell memberships={memberships} currentUserId={user.id} userName={user.username} /></SettingsLinkProvider>;
 }

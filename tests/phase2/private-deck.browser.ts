@@ -56,6 +56,8 @@ async function flip(page: Page) {
   await expect(page.getByRole("button", { name: "Add media", exact: true })).toBeVisible();
 }
 test("private Creator → adopted work → media/state → recoverable publication → archive/restore", async ({ page }) => {
+  let onboardingRequests = 0;
+  page.on("request", request => { if (request.url().includes("/api/account/onboarding")) onboardingRequests++; });
   // Asset delivery is mocked; actual upload authorization and metadata persistence remain real.
   await page.route(/https:\/\/(.*cloudflare.*|.*videodelivery.*|.*youtube.*)\//, (route) => route.abort());
   await login(page); await page.getByRole("button", { name: "Overview menu", exact: true }).click();
@@ -107,7 +109,9 @@ test("private Creator → adopted work → media/state → recoverable publicati
   expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(cardIds.length);
   const admitted = user!.decksData.find((data: { deckTemplateId: string }) => data.deckTemplateId === id);
   expect(admitted.deckTemplateVersion).toBe(1); expect(admitted.openedAt).toBeNull(); expect(admitted.cadenceAnchorDate).toBeNull();
-  await page.goto("/decks"); await page.getByRole("button", { name: "Open Phase 2 path", exact: true }).last().click();
+  await Promise.all([page.waitForResponse(response => response.url().endsWith("/api/account/onboarding")), page.goto("/decks")]);
+  const onboardingAtEntry = onboardingRequests;
+  await page.getByRole("button", { name: "Open Phase 2 path", exact: true }).last().click();
   await expect(page.locator(".deck-detail h1")).toHaveText("Phase 2 path");
   user = await database().collection("users").findOne({ _id: actor() });
   expect(user!.cardsData.filter((data: { cardTemplateId: string }) => cardIds.includes(data.cardTemplateId))).toHaveLength(cardIds.length);
@@ -137,6 +141,7 @@ test("private Creator → adopted work → media/state → recoverable publicati
   await expect(page.getByRole("button", { name: "Update step progress. Current status: done", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Move target date one day later", exact: true }).click();
   await flip(page);
+  expect(onboardingRequests).toBe(onboardingAtEntry); // Card focus, progress changes and the swipe/flip never fetch onboarding
   let signalPosition = "";
   await expect.poll(async () => {
     const current = JSON.stringify(await page.getByRole("button", { name: "Adjust Start reading", exact: true }).boundingBox());

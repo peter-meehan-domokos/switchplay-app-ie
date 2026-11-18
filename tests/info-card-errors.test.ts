@@ -25,3 +25,8 @@ test("server publication failures preserve the draft without suggesting the crea
     if (failure === "browser-startup") assert.match(message, /browser could not start/);
   }
 });
+
+test("public publishing denial explains approval without suggesting loss of the draft", () => {
+  const message = infoCardError(new CreatorRequestError(403, "PUBLIC_PUBLISHING_FORBIDDEN"));
+  assert.match(message, /requires approval/); assert.match(message, /draft is saved/); assert.match(message, /private work/);
+});

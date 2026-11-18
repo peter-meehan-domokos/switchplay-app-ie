@@ -1,3 +1,5 @@
+import { SettingsLinkProvider } from "@/components/layout/SettingsLink";
+import { getCurrentSite } from "@/lib/sites/getCurrentSite";
 import EmbeddedAuthScreen from "@/components/auth/EmbeddedAuthScreen";
 import LibraryShell from "@/components/library/LibraryShell";
 import { getCurrentUser } from "@/lib/auth";
@@ -8,8 +10,9 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
   const user = await getCurrentUser();
   if (!user) return <EmbeddedAuthScreen />;
   const query = await searchParams;
+  const settings = (await getCurrentSite()) === "puckle" ? "/settings" : undefined;
   if (query.tab === "info-cards") {
-    return <InfoCardsLibrary key={user.id} actor={user.id} username={user.username} publishedId={query.published} />;
+    return <SettingsLinkProvider href={settings}><InfoCardsLibrary key={user.id} actor={user.id} username={user.username} publishedId={query.published} /></SettingsLinkProvider>;
   }
   const repo = await CardRepository.application();
   const collection = await libraryCollection(repo, user.id);
@@ -17,5 +20,5 @@ export default async function LibraryPage({ searchParams }: { searchParams: Prom
   // actor's highlight into the new session. Check only an already-public row.
   const publishedId = query.published && collection.entries.some(item => item.deckTemplateId === query.published)
     && await repo.decks().findOne({ deckTemplateId: query.published, ownerUserId: user.id }, { projection: { _id: 1 } }) ? query.published : undefined;
-  return <LibraryShell key={user.id} initialCollection={collection} currentUserId={user.id} userName={user.username} publishedId={publishedId} />;
+  return <SettingsLinkProvider href={settings}><LibraryShell key={user.id} initialCollection={collection} currentUserId={user.id} userName={user.username} publishedId={publishedId} /></SettingsLinkProvider>;
 }

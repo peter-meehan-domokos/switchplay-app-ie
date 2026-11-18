@@ -14,7 +14,7 @@ before(async () => { server = await MongoMemoryReplSet.create({ replSet: { count
 after(async () => { await client?.close(); await server?.stop(); });
 async function setup(personal = false) {
   const repo = new CardRepository(client.db(`switchplay_test_forks_${sequence++}`), client); await createFoundationIndexes(repo.db);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, decksData: [], cardsData: [], sharedDeckData: [{ untouched: true }] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ untouched: true }] })));
   const media = { id: "canonical-video", mediaType: "video" as const, provider: "cloudflare-stream" as const,
     assetId: "trusted-source", src: "https://iframe.videodelivery.net/trusted-source", description: "Source video" };
   const content = { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]), intro: { title: "Bob practice", description: null, mediaItem: media } };

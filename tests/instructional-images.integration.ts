@@ -18,7 +18,7 @@ before(async () => {
 after(async () => { await client?.close(); await server?.stop(); });
 async function fixture(name: string, privateEra = false) {
   const db = client.db(`switchplay_test_instructional_${name}`), repo = new CardRepository(db, client, "1");
-  await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await repo.users().insertMany(["owner", "learner", "other"].map(_id => ({ _id, cardsData: [], decksData: [] })));
+  await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await repo.users().insertMany(["owner", "learner", "other"].map(_id => ({ _id, permissions: { publicPublishing: true }, cardsData: [], decksData: [] })));
   const image: ImageMediaItem = { id: "diagram", mediaType: "image", provider: "cloudflare-r2", src: "https://r2.invalid/instructional-images/owner/card/card/image.png", assetId: "instructional-images/owner/card/card/image.png", description: "Diagram" };
   await recordImageAllocation(db, "owner", { scope: "card", targetId: "card" }, { assetId: image.assetId!, deliveryUrl: image.src });
   const base = createDefaultCardContent(["one", "two", "three"]);

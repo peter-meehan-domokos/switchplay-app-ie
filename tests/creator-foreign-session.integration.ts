@@ -25,7 +25,7 @@ class MemoryStorage {
 }
 async function setup(ownDeck = false, ownCard = false) {
   const repo = new CardRepository(client.db(`switchplay_test_foreign_session_${sequence++}`), client); await createFoundationIndexes(repo.db);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, decksData: [], cardsData: [] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [] })));
   const a = await repo.createCardDraft(ownCard ? "alice" : "bob", { ...createDefaultCardContent([randomUUID(),randomUUID(),randomUUID()]), intro: { title: "Practice", description: null, mediaItem: null } }, "public");
   const b = await repo.createCardDraft("bob", { ...createDefaultCardContent([randomUUID(),randomUUID(),randomUUID()]), intro: { title: "Unchanged", description: null, mediaItem: null } }, "public");
   await repo.publishCard(a.ownerUserId, a.cardTemplateId, 0); await repo.publishCard("bob", b.cardTemplateId, 0);

@@ -51,6 +51,7 @@ async function setupCLI(db: Db) {
 }
 async function mediaDraft() {
   const db = database(); await createInfoCardIndexes(db);
+  await db.collection("users").insertOne({ _id: "alice", permissions: { publicPublishing: true } } as never);
   const repo = new InfoCardRepository(db, client, { async assertReady() {} });
   await repo.createSeries("alice", "series", "Basics"); const root = await repo.create("alice", "card");
   const media = video("first-video");

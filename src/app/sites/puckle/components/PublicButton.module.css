@@ -1,0 +1,50 @@
+.button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 4px;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.primary {
+  border: 1px solid rgba(255, 250, 240, 0.16);
+  background: #fffaf0;
+  color: #090b10;
+  padding: 0 22px;
+}
+
+.primary:hover {
+  background: #f2e7d3;
+  border-color: rgba(255, 250, 240, 0.32);
+}
+
+.secondary {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--sp-site-text);
+  padding: 0 8px;
+}
+
+.secondary:hover {
+  color: var(--sp-site-accent-blue);
+}

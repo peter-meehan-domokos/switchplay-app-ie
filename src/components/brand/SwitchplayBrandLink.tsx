@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
 import styles from "./SwitchplayBrandLink.module.css";
+import { siteBrands } from "@/lib/sites/siteBrands";
+import type { SiteId } from "@/lib/sites/siteResolver";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -10,17 +12,20 @@ const spaceGrotesk = Space_Grotesk({
 
 type SwitchplayBrandLinkProps = {
   className?: string;
+  site?: SiteId;
 };
 
-export default function SwitchplayBrandLink({ className }: SwitchplayBrandLinkProps) {
+export default function SwitchplayBrandLink({ className, site = "switchplay" }: SwitchplayBrandLinkProps) {
+  const brand = siteBrands[site];
   const linkClassName = className
     ? `${spaceGrotesk.variable} ${styles.brandLink} ${className}`
     : `${spaceGrotesk.variable} ${styles.brandLink}`;
 
   return (
     
-    <Link className={linkClassName} href="/" aria-label="SWITCHPLAY home">
-      SWITCH<span className={styles.brandNumber}>PLAY</span>
+    <Link className={linkClassName} href="/" aria-label={`${brand.titleName} home`}>
+      {brand.brandLead}
+      {brand.brandTail ? <span className={styles.brandNumber}>{brand.brandTail}</span> : null}
     </Link>
   );
 }

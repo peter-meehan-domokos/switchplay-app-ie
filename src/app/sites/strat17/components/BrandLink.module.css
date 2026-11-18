@@ -1,0 +1,23 @@
+.brandLink {
+  color: #fffaf0;
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(1.23rem, 5.28vw, 1.52rem);
+  font-weight: 630;
+  letter-spacing: -0.024em;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.brandLink:hover {
+  color: #fffaf0;
+}
+
+.brandNumber {
+  margin-left: 0.04em;
+}
+
+.brandLink:focus-visible {
+  outline: 3px solid rgba(168, 214, 228, 0.9);
+  outline-offset: 4px;
+}

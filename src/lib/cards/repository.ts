@@ -1,3 +1,4 @@
+import { requirePublicPublishing } from "../userPermissions";
 import { assertImageAttachments, assertImagePublication, inheritImageAllocations, prepareImagePublication } from "./instructionalImageOwnership";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -685,6 +686,7 @@ export class CardRepository {
       await assertImagePublication(this.db, { scope: "card", targetId: cardTemplateId }, root.draft, session);
       await this.guardInfoReferences(actor, [root.draft], visibility, session);
       const version = root.latestVersion + 1; const now = new Date();
+      if (visibility === "public") await requirePublicPublishing(this.db, actor, session);
       await this.cardVersions().insertOne({ cardTemplateId, version, content: root.draft, visibility, ...note,
         ...(version === 1 && root.forkedFrom ? { forkPublicationReceipt: { revision: expectedRevision } } : {}), publishedAt: now, publishedByUserId: actor }, { session });
       const result = await this.cards().updateOne({ cardTemplateId, revision: expectedRevision }, { $set: { latestVersion: version, visibility, draft: null, updatedAt: now }, $unset: { draftVisibility: "" }, $inc: { revision: 1 } }, { session });
@@ -785,6 +787,7 @@ export class CardRepository {
     await this.guardCardRoots(cards.map((card) => card.cardTemplateId), session);
     const now = new Date();
     const byId = new Map(cards.map((card) => [card.cardTemplateId, card])); const version = root.latestVersion + 1;
+    if (visibility === "public") await requirePublicPublishing(this.db, actor, session);
     await this.deckVersions().insertOne({ deckTemplateId, version, content: { ...root.draft,
       cards: root.draft.cards.map(({ cardTemplateId }) => ({ cardTemplateId, cardVersionAtPublish: byId.get(cardTemplateId)!.latestVersion })),
     }, visibility, ...this.note(updateNote), ...(copyReceipt ? { copyReceipt } : {}),

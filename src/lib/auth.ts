@@ -1,25 +1,33 @@
+import type { UserSafeguarding } from "./userSafeguarding";
+import type { UserPermissions } from "./userPermissions";
 import bcrypt from "bcryptjs";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose";
 import { cookies } from "next/headers";
-import { ObjectId, type WithId } from "mongodb";
+import { ObjectId, type ClientSession, type Db, type WithId } from "mongodb";
+import type { CardData } from "./cards/model";
+import { newAccountPermissions } from "./userPermissions";
+import { validateCoreCredentials, validateNewPassword } from "./accountCredentials";
 import type { UserDeckData } from "@/components/decks/types";
 import { assertApplicationDatabase } from "@/lib/applicationDatabase";
 import { getCollection } from "@/lib/mongodb";
+import { SESSION_COOKIE_NAME, getSessionSecret, readSessionToken } from "@/lib/sessionToken";
+
+export { readSessionToken };
 
 const USERS_COLLECTION = "users";
-const SESSION_COOKIE_NAME = "switchplay_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30;
 
-type SessionUser = {
-	userId: string;
-	email: string;
-	username: string;
-};
-
 export type UserDocument = {
+	safeguarding?: UserSafeguarding;
+	permissions?: UserPermissions;
+	emailVerifiedAt?: Date;
+	sessionVersion?: number;
+	passwordChangedAt?: Date;
+	publicPublishingRevision?: number;
 	email: string;
 	username: string;
 	passwordHash: string;
+	cardsData?: CardData[];
 	decksData: UserDeckData[];
 	sharedDeckData?: SharedDeckDataReference[];
 	isAdmin?: boolean;
@@ -45,16 +53,6 @@ export type LegacyAuthUser = {
 
 export type AuthUser = Omit<LegacyAuthUser, "decksData" | "sharedDeckData">;
 
-function getSessionSecret() {
-	const secret = process.env.SESSION_SECRET;
-
-	if (!secret) {
-		throw new Error("SESSION_SECRET is not set.");
-	}
-
-	return new TextEncoder().encode(secret);
-}
-
 function toIsoString(value: Date | string) {
 	return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
@@ -75,10 +73,11 @@ async function getUsersCollection() {
 	return getCollection<UserDocument>(USERS_COLLECTION);
 }
 
-async function createSessionToken(user: AuthUser) {
+export async function prepareSession(user: AuthUser, sessionVersion = 0) {
 	return new SignJWT({
 		email: user.email,
 		username: user.username,
+		sessionVersion,
 	})
 		.setProtectedHeader({ alg: "HS256" })
 		.setSubject(user.id)
@@ -87,31 +86,9 @@ async function createSessionToken(user: AuthUser) {
 		.sign(getSessionSecret());
 }
 
-async function readSessionToken(token: string): Promise<SessionUser | null> {
-	try {
-		const { payload } = await jwtVerify(token, getSessionSecret(), {
-			algorithms: ["HS256"],
-		});
+const AUTH_PROJECTION = { _id: 1, email: 1, username: 1, isAdmin: 1, createdAt: 1, updatedAt: 1, sessionVersion: 1 };
 
-		if (
-			typeof payload.sub !== "string" ||
-			typeof payload.email !== "string" ||
-			typeof payload.username !== "string"
-		) {
-			return null;
-		}
-
-		return {
-			userId: payload.sub,
-			email: payload.email,
-			username: payload.username,
-		};
-	} catch {
-		return null;
-	}
-}
-
-export async function authenticateUser(identifier: string, password: string): Promise<AuthUser | null> {
+async function checkedCredentials(identifier: string, password: string) {
 	const users = await getUsersCollection();
 	const normalizedIdentifier = identifier.trim();
 	const isEmailLogin = normalizedIdentifier.includes("@");
@@ -119,6 +96,7 @@ export async function authenticateUser(identifier: string, password: string): Pr
 		isEmailLogin
 			? { email: normalizedIdentifier.toLowerCase() }
 			: { username: normalizedIdentifier },
+		{ projection: { ...AUTH_PROJECTION, passwordHash: 1 } },
 	);
 
 	if (!user) {
@@ -131,12 +109,35 @@ export async function authenticateUser(identifier: string, password: string): Pr
 		return null;
 	}
 
-	return toAuthUser(user);
+	return { user: toAuthUser(user), version: user.sessionVersion ?? 0 };
 }
 
+export async function authenticateUser(identifier: string, password: string): Promise<AuthUser | null> {
+	return (await checkedCredentials(identifier, password))?.user ?? null;
+}
+
+export async function preparePasswordSession(identifier: string, password: string) {
+	const checked = await checkedCredentials(identifier, password);
+	if (!checked) return null;
+	// Never reload a newer version after checking an older password snapshot.
+	return { user: checked.user, sessionToken: await prepareSession(checked.user, checked.version) };
+}
+
+export async function signInWithPassword(identifier: string, password: string): Promise<AuthUser | null> {
+	const prepared = await preparePasswordSession(identifier, password);
+	if (!prepared) return null;
+	await writePreparedSessionCookie(prepared.sessionToken);
+	return prepared.user;
+}
+
+// Compatibility helper. Version zero is safe for legacy callers; credential login
+// must use signInWithPassword rather than stamping a fresh database version here.
 export async function setSession(user: AuthUser) {
+	await writePreparedSessionCookie(await prepareSession(user));
+}
+
+export async function writePreparedSessionCookie(sessionToken: string) {
 	const cookieStore = await cookies();
-	const sessionToken = await createSessionToken(user);
 
 	cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
 		httpOnly: true,
@@ -161,8 +162,15 @@ export async function clearSession() {
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
 	const cookieStore = await cookies();
-	const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+	return getUserForSessionToken(cookieStore.get(SESSION_COOKIE_NAME)?.value);
+}
 
+/** Same checks as getCurrentUser for a token read from a Cookie header (no next/headers request scope needed). */
+export function sessionTokenFromCookieHeader(header: string | null): string | undefined {
+	return header?.split(";").map(part => part.trim()).find(part => part.startsWith(`${SESSION_COOKIE_NAME}=`))?.slice(SESSION_COOKIE_NAME.length + 1);
+}
+
+export async function getUserForSessionToken(sessionToken: string | undefined): Promise<AuthUser | null> {
 	if (!sessionToken) {
 		return null;
 	}
@@ -174,7 +182,35 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 	}
 
 	const users = await getUsersCollection();
-	const user = await users.findOne({ _id: new ObjectId(session.userId) });
+	const user = await users.findOne({ _id: new ObjectId(session.userId) }, { projection: AUTH_PROJECTION });
 
-	return user ? toAuthUser(user) : null;
+	return user && (user.sessionVersion ?? 0) === session.sessionVersion ? toAuthUser(user) : null;
+}
+
+/** Prepare outside any retried transaction; no account is persisted here. */
+export async function prepareAccountCredentials(input: { username: unknown; email: unknown; password: unknown }, now = new Date()) {
+ const credentials = validateCoreCredentials(input);
+ const document: WithId<UserDocument> = {
+  _id: new ObjectId(), username: credentials.username, email: credentials.email,
+  passwordHash: await hashNewPassword(credentials.password), cardsData: [], decksData: [], sharedDeckData: [],
+  isAdmin: false, permissions: newAccountPermissions(), sessionVersion: 0, createdAt: now, updatedAt: now,
+ };
+ const user = toAuthUser(document);
+ const sessionToken = await prepareSession(user, 0);
+ return { document, user, sessionToken };
+}
+export async function hashNewPassword(password: unknown) {
+ return bcrypt.hash(validateNewPassword(password), 12);
+}
+/** Caller consumes matching email proof and inserts its profile in this same transaction. */
+export async function insertAccount(db: Db, session: ClientSession, prepared: Awaited<ReturnType<typeof prepareAccountCredentials>>, emailVerifiedAt: Date) {
+ if (!session.inTransaction()) throw new Error("ACCOUNT_TRANSACTION_REQUIRED");
+ await db.collection<UserDocument>(USERS_COLLECTION).insertOne({ ...prepared.document, emailVerifiedAt }, { session });
+ return prepared.user;
+}
+/** Let Mongo roll the transaction back; never turn a collision into an existing-account login. */
+export function accountConflict(error: unknown): "username" | "email" | null {
+ if (!error || typeof error !== "object" || !("code" in error) || error.code !== 11000) return null;
+ const key = "keyPattern" in error ? error.keyPattern as Record<string, unknown> : {};
+ return key.username ? "username" : key.email ? "email" : null;
 }

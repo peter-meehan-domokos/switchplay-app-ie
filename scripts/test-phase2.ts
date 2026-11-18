@@ -5,20 +5,30 @@ import { once } from "node:events";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import bcrypt from "bcryptjs";
 import { createFoundationIndexes } from "../src/lib/cards/repository";
 import { createVisualLearningRecordIndexes } from "../src/lib/visualLearningRecords/repository";
 import { createInfoCardIndexes, InfoCardRepository } from "../src/lib/infoCards/repository";
 import { networkInterfaces } from "node:os";
+import { preparePuckleMembership } from "./prepare-puckle-membership";
 import { loadEnvConfig } from "@next/env";
 import { seedVisualReview } from "./fixtures/plugged-in-review";
 import { createVisualReviewServer } from "./fixtures/plugged-in-review-server";
 
 // This runner never uses an environment URI. It owns and destroys its replica set.
 let mongo: MongoMemoryReplSet | undefined, client: MongoClient | undefined, app: ChildProcess | undefined;
+const capturedEmails: unknown[] = [];
 let reviewHandler: Awaited<ReturnType<typeof createVisualReviewServer>> | undefined;
 const imageObjects = new Map<string, { bytes: Buffer; headers: Record<string, string> }>();
 const media = createServer(async (request, response) => {
+  if (request.url === "/emails" && request.method === "GET") { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(capturedEmails)); return; }
+  if (request.url === "/email" && request.method === "POST") {
+    let body = ""; request.on("data", chunk => { body += chunk; });
+    request.on("end", () => { const message = JSON.parse(body); capturedEmails.push(message);
+      // Manual review only: the code is otherwise invisible to a phone. Local fixture mail, never sent anywhere.
+      if (interactive) console.log(`[captured email] to ${String(message.to)} | ${message.subject}\n${message.text}\n${phoneLink(message.text)}`); response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify({ id: "fixture-accepted" })); }); return;
+  }
   response.setHeader("Access-Control-Allow-Origin", "*");
   response.setHeader("Access-Control-Allow-Methods", "PUT,POST,GET,OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "*");
@@ -49,6 +59,33 @@ const media = createServer(async (request, response) => {
 let mediaOrigin = "";
 const output: string[] = [];
 const interactive = process.argv.includes("--dev");
+if (process.argv.includes("--production") && process.argv.includes("--real-email")) {
+  throw new Error("--production and --real-email cannot be combined: production verification is automated and disposable, real email is for manual review only.");
+}
+const production = process.argv.includes("--production");
+if (production && interactive) throw new Error("Production verification is non-interactive and disposable only.");
+/**
+ * Manual review with REAL email through Resend, still on the disposable database. Refused unless the private
+ * settings file defines a test redirect, so every message goes to that one inbox labelled "[TEST for <recipient>]".
+ */
+const realEmail = process.argv.includes("--real-email");
+if (realEmail && !interactive) throw new Error("--real-email is for the interactive review server (--dev) only.");
+function realEmailSettings(): Record<string, string> {
+  const file = process.env.PUCKLE_EMAIL_ENV_FILE ?? `${process.env.HOME}/.puckle-email.env`;
+  const values: Record<string, string> = {};
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/); if (!match) continue;
+    values[match[1]] = match[2].replace(/^"(.*)"$/, "$1");
+  }
+  for (const name of ["RESEND_API_KEY", "ACCOUNT_EMAIL_TRACKING_DISABLED", "ACCOUNT_EMAIL_PUCKLE_FROM", "ACCOUNT_EMAIL_SECRET", "ACCOUNT_EMAIL_REDIRECT_TO"]) {
+    if (!values[name]) throw new Error(`--real-email needs ${name} in the private settings file (names only; nothing is printed).`);
+  }
+  if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(values.ACCOUNT_EMAIL_REDIRECT_TO)) throw new Error("ACCOUNT_EMAIL_REDIRECT_TO must be one valid address.");
+  return values;
+}
+/** Manual phone review: email links use the loopback origin, so also print the same link on the Wi-Fi address. */
+let phoneOrigin = "";
+const phoneLink = (text: string) => { const match = phoneOrigin && text.match(/https?:\/\/[^\s/]+(\/api\/account-actions\/open#[\w-]{43})/); return match ? `Phone link: ${phoneOrigin}${match[1]}\n` : ""; };
 const lan = interactive && process.argv.includes("--lan");
 const infoCards = process.argv.includes("--info-cards");
 const visualReview = process.argv.includes("--visual-review");
@@ -61,7 +98,7 @@ if (liveInfoMedia && (interactive || !process.argv.includes("info-cards-live-med
   throw new Error("Live providers are restricted to the explicitly authorised, self-cleaning info-cards-live-media.browser.ts check.");
 }
 if (liveInfoMedia) loadEnvConfig(process.cwd(), true);
-const mode = interactive ? "dev" : "test";
+const mode = production ? "production" : interactive ? "dev" : "test";
 async function stop(child: ChildProcess | undefined) {
   if (!child || child.exitCode !== null) return;
   child.kill("SIGTERM");
@@ -71,11 +108,20 @@ async function main() {
 try {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1, storageEngine: "wiredTiger" } });
   const uri = mongo.getUri(), database = `switchplay_phase2_browser_${randomUUID().replaceAll("-", "")}`;
-  client = await new MongoClient(uri).connect(); const db = client.db(database); await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await createInfoCardIndexes(db);
+  client = await new MongoClient(uri).connect(); const db = client.db(database); await db.createCollection("instructionalImageAllocations"); await createFoundationIndexes(db); await createInfoCardIndexes(db); await preparePuckleMembership(db);
   await createVisualLearningRecordIndexes(db);
   const now = new Date(); const userId = new ObjectId();
   await db.collection("users").insertMany([userId, new ObjectId()].map((_id, index) => ({ _id, email: `phase2-${index}@example.invalid`, username: index === 0 ? "phase2" : "other", passwordHash: bcrypt.hashSync("local-test-only", 4),
-    decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
+    permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ parked: "preserve exactly" }], createdAt: now, updatedAt: now })));
+  // Manual review only: an account that starts WITHOUT public-publishing approval, so denial can be tested without editing the database.
+  // Manual review only: two under-16 students for the parent-approval screens (requests are sent once the server is up).
+  if (interactive) for (const [index, username] of ["young", "young2"].entries()) {
+    const _id = new ObjectId();
+    await db.collection("users").insertOne({ _id, email: `${username}@example.invalid`, username, passwordHash: bcrypt.hashSync("local-test-only", 4), permissions: { publicPublishing: false },
+      safeguarding: { dateOfBirth: `${now.getFullYear() - 14}-0${index + 1}-15`, dobSource: "self-declared", dobRecordedAt: now, ageAssurance: { verification: "none" } }, decksData: [], cardsData: [], sharedDeckData: [], createdAt: now, updatedAt: now });
+    await db.collection("puckleMemberships").insertOne({ userId: _id, name: index ? "Oisín" : "Niamh", registrationCategory: "student", mobile: null, initialRegistrationSource: "join", welcome: { eligible: true }, createdAt: now, updatedAt: now });
+  }
+  if (interactive) await db.collection("users").insertOne({ _id: new ObjectId(), email: "phase2-unapproved@example.invalid", username: "unapproved", passwordHash: bcrypt.hashSync("local-test-only", 4), permissions: { publicPublishing: false }, decksData: [], cardsData: [], sharedDeckData: [], createdAt: now, updatedAt: now });
   if (infoCards) {
     const repo = new InfoCardRepository(db, client), other = (await db.collection("users").findOne({ username: "other" }))!._id.toString();
     for (const [actor, suffix] of [[userId.toHexString(), "owner"], [other, "other"]]) {
@@ -105,13 +151,28 @@ try {
   const entryPath = visualReview ? `/review/${randomUUID()}` : undefined;
   if (visualReview) reviewHandler = await createVisualReviewServer({ appOrigin: baseURL, appPort, hosts: ["localhost", "127.0.0.1", ...lanIPs], actor: userId.toHexString(), entryPath: entryPath!, deckPath: deckPath! });
   const env = { ...process.env, SWITCHPLAY_DATABASE_MODE: "disposable", MONGODB_URI: uri, MONGODB_DB: database, SESSION_SECRET: "local-phase2-browser-test-secret-only",
-    SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", ...(lan ? lanIPs : [])].join(","),
+    ...(production ? { NODE_ENV: "production" as const } : {}), // this runner owns the only database/server affected
+    SWITCHPLAY_REVIEW_ORIGINS: ["127.0.0.1", "localhost", "*.localhost", ...(lan ? lanIPs : [])].join(","),
     NEXT_PUBLIC_PHASE2_VISUAL_REVIEW: visualReview ? "1" : "0", NEXT_PUBLIC_PHASE2_VISUAL_REVIEW_MEDIA_ORIGIN: reviewMediaOrigin ?? "",
     PHASE2_BROWSER_TEST: "1", PHASE2_INTERACTIVE: interactive ? "1" : "0", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "1", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "0", INFO_CARDS_ALLOW_PUBLIC_IMAGE_TRIAL: "0", PHASE2_BASE_URL: baseURL, PHASE2_USER_ID: userId.toHexString(), PHASE2_MEDIA_FIXTURE_ORIGIN: mediaOrigin,
     CLOUDFLARE_ACCOUNT_ID: "local-fixture", CLOUDFLARE_R2_ACCESS_KEY_ID: "local-fixture", CLOUDFLARE_R2_SECRET_ACCESS_KEY: "local-fixture",
     CLOUDFLARE_R2_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
     CLOUDFLARE_R2_USER_DATA_BUCKET_NAME: "local-fixture", CLOUDFLARE_R2_USER_DATA_PUBLIC_BASE_URL: `${mediaOrigin}/assets`,
-    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture" };
+    CLOUDFLARE_STREAM_API_TOKEN: "local-fixture",
+    ACCOUNT_EMAIL_SECRET: "local-only-email-secret-at-least-32-bytes", ACCOUNT_EMAIL_TEST_ENDPOINT: `${mediaOrigin}/email`,
+    ACCOUNT_EMAIL_PUCKLE_ORIGIN: baseURL, ACCOUNT_EMAIL_PUCKLE_FROM: "Puckle fixture <security@example.invalid>",
+    PUCKLE_FOUNDER_EMAIL: "founder@example.invalid", ACCOUNT_TRUST_PROXY_IP: "1", // tests/reviewers present distinct forwarded addresses; unset means one shared bucket
+    ...(lan ? { ACCOUNT_EMAIL_LAN_REVIEW: "1", ACCOUNT_EMAIL_PUCKLE_ALLOWED_ORIGINS: lanIPs.filter(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)).map(ip => `http://${ip}:${appPort}`).join(",") } : {}),
+    ACCOUNT_EMAIL_SWITCHPLAY_ORIGIN: baseURL, ACCOUNT_EMAIL_SWITCHPLAY_FROM: "Switchplay fixture <security@example.invalid>",
+    ACCOUNT_EMAIL_STRAT17_ORIGIN: baseURL, ACCOUNT_EMAIL_STRAT17_FROM: "Strat17 fixture <security@example.invalid>",
+  };
+  if (realEmail) {
+    const settings = realEmailSettings(), reviewOrigin = lan && lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip)) ? `http://${lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip))}:${appPort}` : baseURL;
+    delete (env as Record<string, string | undefined>).ACCOUNT_EMAIL_TEST_ENDPOINT; // the real transport is used
+    Object.assign(env, { RESEND_API_KEY: settings.RESEND_API_KEY, ACCOUNT_EMAIL_TRACKING_DISABLED: settings.ACCOUNT_EMAIL_TRACKING_DISABLED, ACCOUNT_EMAIL_SECRET: settings.ACCOUNT_EMAIL_SECRET,
+      ACCOUNT_EMAIL_PUCKLE_FROM: settings.ACCOUNT_EMAIL_PUCKLE_FROM, ACCOUNT_EMAIL_REDIRECT_TO: settings.ACCOUNT_EMAIL_REDIRECT_TO, PUCKLE_FOUNDER_EMAIL: settings.PUCKLE_FOUNDER_EMAIL ?? "",
+      ACCOUNT_EMAIL_PUCKLE_ORIGIN: reviewOrigin }); // links in emails open this review server (on the phone when --lan)
+  }
   if (liveInfoMedia) Object.assign(env, {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("CLOUDFLARE_"))),
     PHASE2_LIVE_INFO_MEDIA: "1", NEXT_PUBLIC_PHASE2_MOCK_MEDIA: "0", NEXT_PUBLIC_SWITCHPLAY_PROTECTED_MEDIA: "1",
@@ -120,7 +181,20 @@ try {
   await mkdir("phase2-test-results", { recursive: true });
   await writeFile(`phase2-test-results/tsconfig-${mode}.json`, JSON.stringify({ extends: "../tsconfig.json",
     include: ["../next-env.d.ts", "../src/**/*.ts", "../src/**/*.tsx", `../${env.PHASE2_INTERACTIVE === "1" ? ".next-phase2" : ".next-phase2-test"}/dev/types/**/*.ts`] }, null, 2));
-  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", lan ? "0.0.0.0" : "127.0.0.1", "--port", String(appPort)], { env, stdio: ["ignore", "pipe", "pipe"] });
+  // Next rewrites the public-site routes through a request URL it normalises to "localhost". Binding by that
+  // name (resolved to IPv4, so still loopback-only) keeps those rewrites internal; "127.0.0.1" makes them loop.
+  const appEnv = { ...env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --dns-result-order=ipv4first`.trim() };
+  if (production) {
+    const build = spawn(process.execPath, ["node_modules/next/dist/bin/next", "build"], { env: appEnv, stdio: ["ignore", "pipe", "pipe"] });
+    app = build; // cleanup also stops an interrupted build
+    const buildOutput: string[] = [];
+    build.stdout!.on("data", value => buildOutput.push(String(value)));
+    build.stderr!.on("data", value => buildOutput.push(String(value)));
+    const [code] = await once(build, "exit");
+    await writeFile("phase2-test-results/build-production.log", buildOutput.join(""));
+    if (code !== 0) throw new Error("Production build failed; see phase2-test-results/build-production.log");
+  }
+  app = spawn(process.execPath, ["node_modules/next/dist/bin/next", production ? "start" : "dev", "--hostname", lan ? "0.0.0.0" : "localhost", "--port", String(appPort)], { env: appEnv, stdio: ["ignore", "pipe", "pipe"] });
   app.stdout!.on("data", (value) => { output.push(String(value)); if (interactive) process.stdout.write(value); });
   app.stderr!.on("data", (value) => { output.push(String(value)); if (interactive) process.stderr.write(value); });
   const deadline = Date.now() + 90_000;
@@ -131,15 +205,30 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   if (process.argv.includes("--dev")) {
+    const reviewIP = lanIPs.find(ip => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip));
+    if (lan && reviewIP) phoneOrigin = `http://${reviewIP}:${appPort}`;
+    // Send the two parent-approval requests through the real HTTP endpoint so their links appear below.
+    if (!realEmail) for (const [username, guardian] of [["young", "guardian@example.invalid"], ["young2", "guardian2@example.invalid"]]) { // no automatic sends in real-email mode
+      const login = await fetch(`${baseURL}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifier: username, password: "local-test-only" }) });
+      const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+      await fetch(`${baseURL}/api/account/parental-approval`, { method: "POST", headers: { "Content-Type": "application/json", Origin: baseURL, Cookie: cookie, "x-forwarded-for": `10.250.0.${username.length}` }, body: JSON.stringify({ action: "request", guardianEmail: guardian }) });
+    }
     const phoneURLs = lan ? Object.values(networkInterfaces()).flatMap(rows => rows ?? []).filter(row => row.family === "IPv4" && !row.internal).map(row => `http://${row.address}:${appPort}/library?tab=info-cards`) : [];
     const reviewURL = visualReview ? `${reviewMediaOrigin}${entryPath}` : undefined;
-    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, infoCards, reviewURL, deckPath, mediaPort: address.port }, null, 2));
+    await writeFile("phase2-test-results/review-server.json", JSON.stringify({ pid: process.pid, appPid: app.pid, baseURL, phoneURLs, database, mongoUri: uri, infoCards, reviewURL, deckPath, mediaPort: address.port }, null, 2));
     console.log(visualReview ? `iPhone review: ${reviewURL}\nFour published demonstration cards are ready. This link signs into the disposable learner and opens the real deck.\nProgress lasts until this runner stops. Local silent MP4 samples do not validate Cloudflare HLS. PID ${process.pid}`
-      : `Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
+      : `Disposable app: ${baseURL}/library?tab=info-cards\n${phoneURLs.map(url => `Phone: ${url}`).join("\n")}\nSign in: phase2 / local-test-only (or other / local-test-only)\nInfo media remains gated. Main-card media services are mocked. ${realEmail ? "REAL EMAIL via Resend: every message goes only to the test redirect inbox, labelled [TEST for <recipient>]. " : ""}Data is discarded when stopped. Press Ctrl+C to stop. PID ${process.pid}`);
     await new Promise<void>((resolve) => { process.once("SIGINT", resolve); process.once("SIGTERM", resolve); });
   } else {
-    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--visuals"].includes(arg))], { env, stdio: "inherit" });
+    const runner = spawn(process.execPath, ["node_modules/@playwright/test/cli.js", "test", "--config", "playwright.phase2.config.ts", ...process.argv.slice(2).filter(arg => !["--info-cards", "--lan", "--live-info-media", "--production", "--visuals"].includes(arg))], { env, stdio: "inherit" });
     const [code] = await once(runner, "exit"); process.exitCode = typeof code === "number" ? code : 1;
+  }
+  if (process.argv.includes("membership-security.browser.ts")) {
+    for (const message of capturedEmails as { text: string }[]) {
+      for (const match of message.text.matchAll(/#([A-Za-z0-9_-]{43})/g)) {
+        if (output.join("").includes(match[1])) throw new Error("Security test: action secret appeared in server logs");
+      }
+    }
   }
   await writeFile(`phase2-test-results/server-${mode}.log`, output.join(""));
 } catch (error) {

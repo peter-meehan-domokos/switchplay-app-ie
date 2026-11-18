@@ -6,7 +6,7 @@ export default function EmbeddedAuthScreen() {
   return (
     <div className={styles.embeddedAuthScreen}>
       <div className={styles.brandRow}>
-        <SwitchplayBrandLink />
+        <SwitchplayBrandLink site="puckle" />
       </div>
       <div className={styles.authArea}>
         <AuthScreen />

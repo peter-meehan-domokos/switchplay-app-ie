@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import CreatorPublishControl from "../src/components/creator/CreatorPublishControl";
-import { cardPublicationPresentation, deckPublicationPresentation } from "../src/components/creator/creatorPublicationPresentation";
+import { cardPublicationPresentation, deckPublicationPresentation, creatorPublicationErrorMessage } from "../src/components/creator/creatorPublicationPresentation";
 import { sameContent } from "../src/lib/cards/publicationRules";
 import { createDefaultCardContent, createDefaultDeckContent } from "../src/lib/cards/creatorDefaults";
 import { isPhase2MockVideo } from "../src/lib/phase2MediaFixture";
@@ -135,4 +135,9 @@ test("visibility-only publication work is active and public Decks explain privat
   const card = createDefaultCardContent(["a", "b", "c"]), cardLane = lane(card, card);
   assert.equal(cardPublicationPresentation({ ...cardLane, ack: { ...cardLane.ack, root: { ...cardLane.ack.root, draft: card,
     visibility: "private", draftVisibility: "public" } } }).eligible, true);
+});
+
+test("public publishing denial preserves private work and explains approval", () => {
+  const message = creatorPublicationErrorMessage(new Error("PUBLIC_PUBLISHING_FORBIDDEN"));
+  assert.match(message, /requires approval/); assert.match(message, /edits are retained/); assert.match(message, /private work/);
 });

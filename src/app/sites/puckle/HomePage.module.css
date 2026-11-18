@@ -1,0 +1,194 @@
+.hero {
+  display: grid;
+  gap: 22px;
+  padding-block: 12px 0;
+}
+
+.heroCopy {
+  display: grid;
+  gap: 10px;
+  max-width: 680px;
+}
+
+.title {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(1.9rem, 8.4vw, 2.6rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  max-width: 12ch;
+  text-wrap: balance;
+}
+
+.supportingText {
+  color: var(--sp-site-text-muted);
+  font-size: clamp(0.98rem, 4vw, 1.12rem);
+  line-height: 1.55;
+  max-width: 30rem;
+}
+
+.artwork {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  margin-bottom: 8px;
+}
+
+.bridge {
+  display: grid;
+  gap: 4px;
+  max-width: 380px;
+  text-align: center;
+}
+
+.bridgeTitle {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: 1.3125rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.bridgeText {
+  color: var(--sp-site-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+.bridgeBreak {
+  display: none;
+}
+
+/* Portrait phones only: both lines of the bridge text fit (line 2 is ~328px), so break after "your".
+   Narrower screens and tablet/desktop wrap naturally. */
+@media (min-width: 375px) and (max-width: 480px) and (orientation: portrait) {
+  .bridgeBreak {
+    display: inline;
+  }
+}
+
+.artworkPanel {
+  border-radius: var(--sp-site-card-radius);
+  justify-self: center;
+  max-width: 380px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.artworkImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (min-width: 840px) {
+  /* The artwork wrapper stops being a box, so the image and its caption become separate grid items: the headline is centred
+     against the image row only, and the caption sits in the row beneath the image. */
+  .hero {
+    column-gap: clamp(18px, 6vw, 72px);
+    row-gap: 14px;
+    grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.82fr);
+    align-items: center;
+  }
+
+  .artwork {
+    display: contents;
+  }
+
+  /* The text block must not make row 1 taller than the image (that would push the caption down), so it takes no
+     height of its own: it fills the row (min-height) and centres its content, overflowing equally top and bottom. */
+  .heroCopy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    grid-column: 1;
+    grid-row: 1;
+    height: 0;
+    min-height: 100%;
+  }
+
+  .artworkPanel {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .bridge {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .heroCopy {
+    gap: 18px;
+  }
+
+  .artworkPanel {
+    max-width: 540px;
+  }
+
+  .bridge {
+    max-width: 540px;
+  }
+
+  .bridgeTitle {
+    font-size: 1.5rem;
+  }
+
+  .title {
+    font-size: clamp(2.6rem, 4vw, 3.6rem);
+    max-width: 14ch;
+  }
+}
+
+/* Hero call to action: larger screens only (760px and up, matching the site's other tablet breakpoint). */
+.heroCta {
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .heroCta {
+    display: flex;
+    margin-top: 6px;
+  }
+}
+
+.curriculumLine {
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+/* Homepage footer: never shorter than this, because the registration section's minimum height assumes 120px of footer
+   (48px of footer padding plus this) when it works out how much room the heading needs to scroll to the top. */
+.footerBlock {
+  min-height: 72px;
+}
+
+.footerInvite {
+  color: var(--sp-site-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.footerInvite a {
+  color: var(--sp-site-text);
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 214, 228, 0.5);
+  text-underline-offset: 3px;
+}
+
+.footerInvite a:hover {
+  text-decoration-color: var(--sp-site-accent-blue);
+}
+
+.footerInvite a:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 3px;
+}

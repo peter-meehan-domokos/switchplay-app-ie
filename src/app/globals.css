@@ -100,6 +100,25 @@ input {
   outline-offset: 2px;
 }
 
+/* Same pattern as the Join form's Show password option. A type selector keeps the checkbox out of the .auth-field input rules. */
+.auth-show-password {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  color: #d9deea;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.auth-show-password input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  margin: 0;
+  accent-color: #a8d6e4;
+}
+
 .auth-error,
 .session-error {
   color: #ffb6ad;

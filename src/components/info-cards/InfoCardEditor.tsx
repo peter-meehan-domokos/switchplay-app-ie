@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import InfoCardFace from "./InfoCardFace";
 import { InfoCardEditorController, type InfoEditorDTO, type SeriesOption } from "./infoCardEditorController";
-import { actorCreatorTransport, CreatorActorLifetime, creatorRequest } from "../creator/creatorRequest";
+import { actorCreatorTransport, CreatorActorLifetime, creatorRequest, CreatorRequestError } from "../creator/creatorRequest";
 import CreatorModeSelector from "../creator/CreatorModeSelector";
 import CreatorVisibilityControl from "../creator/CreatorVisibilityControl";
 import { measureInfoCapacity } from "@/lib/infoCards/capacity";
@@ -186,7 +186,9 @@ export default function InfoCardEditor({ id, actor, username, initial, navigatio
       </div>
     </header>
     {message && <p className={styles.message} role="status">{message}</p>}
-    {error && <div role="alert" className={styles.message}><p>{error}</p>
+    {error && controller.error instanceof CreatorRequestError && controller.error.code === "PUBLIC_PUBLISHING_FORBIDDEN"
+      ? <div role="alert" className={styles.message}><p>{error}</p><button type="button" onClick={() => controller.dismissPublicationRefusal()}>OK</button></div>
+      : error && <div role="alert" className={styles.message}><p>{error}</p>
       <button type="button" disabled={controller.publishing} onClick={() => void controller.retry().then(() => { if (controller.ack?.selectedSeries) setSeries(controller.ack.selectedSeries); }).catch(() => {})}>Retry</button>
       <button type="button" onClick={() => { if (window.confirm("Replace your local edits with the saved version? Copy any text you want to keep first.")) { controller.discardSubmittedRecovery(); window.location.reload(); } }}>Reload saved version</button></div>}
     <div className={styles.layout}>

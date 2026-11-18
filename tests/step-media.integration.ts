@@ -19,7 +19,7 @@ after(async () => { await client?.close(); await server?.stop(); });
 test("stored modern drafts and published versions resist old saves/forks and retain completion state", async () => {
   const db = client.db("switchplay_test_step_media"), repo = new CardRepository(db, client, "1"), old = new CardRepository(db, client);
   await createFoundationIndexes(db);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, cardsData: [], decksData: [] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, cardsData: [], decksData: [] })));
   const legacy = createDefaultCardContent(["one", "two", "three"]);
   legacy.intro.title = "Media practice";
   const root = await old.createCardDraft("alice", legacy, "public", "card");

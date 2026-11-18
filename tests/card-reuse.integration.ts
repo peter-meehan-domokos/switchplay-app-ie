@@ -14,7 +14,7 @@ after(async () => { await client?.close(); await server?.stop(); });
 async function setup() {
   const db = client.db(`switchplay_test_reuse_${sequence++}`); await createFoundationIndexes(db);
   const repo = new CardRepository(db, client);
-  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, decksData: [], cardsData: [], sharedDeckData: [{ raw: true }] })));
+  await repo.users().insertMany(["alice", "bob"].map((_id) => ({ _id, permissions: { publicPublishing: true }, decksData: [], cardsData: [], sharedDeckData: [{ raw: true }] })));
   const card = await repo.createCardDraft("alice", { ...createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]), intro: { title: "Practice", description: null, mediaItem: null } });
   const second = await repo.createCardDraft("alice", createDefaultCardContent([randomUUID(), randomUUID(), randomUUID()]));
   const source = await repo.createDeckDraft("alice", { ...createDefaultDeckContent([]), title: "Source", cards: [card, second].map((root) => ({ cardTemplateId: root.cardTemplateId })) });

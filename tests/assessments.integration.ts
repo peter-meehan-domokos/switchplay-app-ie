@@ -34,7 +34,7 @@ async function setup() {
   await repo.cardVersions().insertMany(cards.map((card) => structuredClone(card.version)));
   await repo.decks().insertOne(deck.root); await repo.deckVersions().insertOne(deck.version);
   await repo.users().insertMany([{ _id: "alice", decksData: [deck.data], cardsData: cards.map((card) => card.data) },
-    { _id: "bob", decksData: [], cardsData: [] }]);
+    { _id: "bob", decksData: [], cardsData: [] }].map(user => ({ ...user, permissions: { publicPublishing: true } })));
   return { repo, cards };
 }
 const mutate = (repo: CardRepository, command: AssessmentCommand, catalogue = frameworkFixtures()) => mutateAssessment(repo, "alice", command, catalogue);

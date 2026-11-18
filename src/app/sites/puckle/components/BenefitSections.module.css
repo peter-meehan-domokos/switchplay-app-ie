@@ -1,0 +1,449 @@
+.sections {
+  display: grid;
+  gap: 56px;
+  margin-top: 56px;
+  padding-bottom: 56px;
+}
+
+.section {
+  display: grid;
+  gap: 40px;
+  scroll-margin-block-start: 24px;
+}
+
+.primary {
+  gap: 36px;
+}
+
+.secondary {
+  gap: 24px;
+}
+
+.header {
+  display: grid;
+  gap: 16px;
+  max-width: 40rem;
+}
+
+.eyebrow {
+  color: var(--sp-site-accent-blue);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+.primaryTitle,
+.secondaryTitle {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.primaryTitle {
+  font-size: clamp(2rem, 9vw, 2.25rem);
+  line-height: 1.1;
+}
+
+.secondaryTitle {
+  font-size: clamp(1.625rem, 7.4vw, 1.875rem);
+  line-height: 1.15;
+}
+
+.body {
+  color: var(--sp-site-text-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.beat {
+  display: grid;
+  gap: 20px;
+}
+
+/* Explore is the lead demonstration: the other two sit slightly narrower on mobile. */
+.beat:not(.beatReverse) .media,
+.beat:not(.beatReverse) .feedback {
+  justify-self: start;
+  width: 94%;
+}
+
+.beatCopy {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  max-width: 34rem;
+}
+
+.stepLabel {
+  color: var(--sp-site-accent-blue);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.beatTitle {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: 1.3125rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.media {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(168, 214, 228, 0.12);
+  border-radius: 20px;
+  width: 100%;
+}
+
+.mediaImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Test-yourself illustration (HTML/CSS) */
+.feedback {
+  display: grid;
+  gap: 14px;
+  border: 1px solid rgba(168, 214, 228, 0.12);
+  border-radius: 20px;
+  background: #151b27;
+  padding: 14px;
+}
+
+.paper {
+  display: grid;
+  gap: 6px;
+  border-radius: 12px;
+  background: #faf7ef;
+  color: #2b3f57;
+  padding: 14px 16px 12px;
+}
+
+.workingTitle {
+  margin: 0 0 4px;
+  border-bottom: 1px solid rgba(43, 63, 87, 0.2);
+  padding-bottom: 6px;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.workingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.working {
+  font-size: 1.5rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.flagged {
+  text-decoration: underline wavy #d9702b;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 5px;
+}
+
+.comment {
+  color: #c4571a;
+  font-size: 1.15rem;
+  line-height: 1.1;
+}
+
+.commentGood {
+  color: #2a7f6f;
+}
+
+.videoFeedback {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.thumbnail {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 112px;
+  height: 70px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #272e3a;
+}
+
+.thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+}
+
+.play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play svg {
+  box-sizing: content-box;
+  border-radius: 50%;
+  background: rgba(9, 11, 16, 0.78);
+  fill: #fffaf0;
+  padding: 8px 8px 8px 10px;
+}
+
+.videoLabel {
+  color: var(--sp-site-text);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+/* Section 2 */
+.portrait {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  width: 220px;
+}
+
+.portraitImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 20px;
+}
+
+.credential {
+  display: grid;
+  justify-items: start;
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.credential span {
+  white-space: nowrap;
+}
+
+.deliveryNote {
+  margin-top: -10px;
+  color: var(--sp-site-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.tuitionCopy,
+.progressIntro {
+  display: grid;
+  gap: 16px;
+  align-content: center;
+  max-width: 36rem;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--sp-site-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.options li {
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* Section 3 */
+.ideas {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  color: var(--sp-site-text-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+  list-style: none;
+}
+
+.ideas li {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  text-wrap: balance;
+}
+
+/* Two compact, balanced columns beneath the illustration (stacked on very narrow screens). */
+@media (min-width: 360px) {
+  .ideas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    font-size: 0.9375rem;
+  }
+}
+
+.ideas strong {
+  color: var(--sp-site-text);
+  font-weight: 650;
+}
+
+.cta {
+  display: flex;
+  margin-top: 4px;
+}
+
+@media (max-width: 359px) {
+  .workingRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .working {
+    font-size: 1.35rem;
+  }
+
+  .comment {
+    padding-left: 12px;
+  }
+}
+
+@media (min-width: 900px) {
+  .sections {
+    gap: 88px;
+    margin-top: 56px;
+    padding-bottom: 72px;
+  }
+
+  .primary {
+    gap: 56px;
+  }
+
+  /* Bring the first step closer to the section heading without changing the gap between the steps themselves. */
+  .primary .header {
+    margin-bottom: -40px;
+  }
+
+  .beat:not(.beatReverse) .media,
+  .beat:not(.beatReverse) .feedback {
+    width: 100%;
+  }
+
+  .secondary {
+    gap: 48px;
+  }
+
+  .primaryTitle {
+    font-size: 3.1rem;
+  }
+
+  .secondaryTitle {
+    font-size: 2.5rem;
+  }
+
+  .body,
+  .ideas {
+    font-size: 1.0625rem;
+  }
+
+  .beatTitle {
+    font-size: 1.5rem;
+  }
+
+  .beat {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
+    gap: 48px;
+    align-items: center;
+  }
+
+  /* Explore: the image column is capped at 660px but never takes more than 60% of the row, so the text keeps a sensible width
+     on iPad-sized screens (it was ~120px wide at 900px). From about 1200px the cap applies and nothing changes. */
+  .beatReverse {
+    grid-template-columns: minmax(0, min(660px, 60%)) minmax(0, 1fr);
+  }
+
+  .beatReverse .media {
+    order: -1;
+  }
+
+  .feedback {
+    padding: 20px;
+  }
+
+  .tuition {
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-areas:
+      "portrait header"
+      "portrait copy";
+    column-gap: 56px;
+    row-gap: 16px;
+    align-items: start;
+  }
+
+  .tuitionHeader {
+    grid-area: header;
+    align-self: end;
+  }
+
+  .portrait {
+    grid-area: portrait;
+    width: 286px;
+  }
+
+  .tuitionCopy {
+    grid-area: copy;
+    align-content: start;
+  }
+
+  .progress {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
+    grid-template-areas:
+      "intro media"
+      "ideas media";
+    column-gap: 56px;
+    row-gap: 24px;
+    align-items: start;
+  }
+
+  .progressIntro {
+    grid-area: intro;
+    align-self: end;
+  }
+
+  .progressMedia {
+    grid-area: media;
+    align-self: center;
+  }
+
+  .ideas {
+    grid-area: ideas;
+  }
+
+}

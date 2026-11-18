@@ -1,4 +1,4 @@
-import { authenticateUser, setSession } from "@/lib/auth";
+import { signInWithPassword } from "@/lib/auth";
 import { visualGuestLoginContext } from "@/lib/visualLearningRecords/guestServer";
 
 export async function POST(request: Request) {
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await authenticateUser(identifier, password);
+    const user = await signInWithPassword(identifier, password);
 
     if (!user) {
       return Response.json(
@@ -22,8 +22,6 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
-
-    await setSession(user);
 
     const visualGuest = await visualGuestLoginContext(user.id);
     return Response.json({ user, ...(visualGuest ? { visualGuest } : {}) }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
