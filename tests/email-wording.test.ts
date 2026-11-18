@@ -26,7 +26,7 @@ test("founder alerts name only Puckle", () => {
     founder.founderStudentRegistrationEmail({ id: "i", name: "Ada", username: "ada", email: "a@example.com", mobile: null, registeredAt: new Date() }),
     founder.founderTeacherRegistrationEmail({ id: "i", name: "T", email: "t@example.com", mobile: null, introduction: "" }),
     founder.founderNoEmailRequestEmail({ id: "i", category: "student", name: "S", mobile: "+353871234567" }),
-    founder.founderInterestEmail({ id: "i", name: "P", email: "p@example.com", mobile: null, reason: "", message: "", emailUpdates: true }),
+    founder.founderInterestEmail({ id: "i", name: "P", email: "p@example.com", mobile: null, reason: "", message: "" }),
     founder.founderTuitionEnquiryEmail({ id: "i", linkedAccount: false, data: { enquirerType: "parent-guardian", studentName: "A", contactName: "M", mathsCourse: "gcse", email: null, phone: "+353871234567", preferredContactMethod: "text", message: "" } }),
     founder.founderParentApprovalRequestEmail({ id: "i", childName: "N", username: "n", guardianEmail: "m@example.com", guardianPhone: null, delivery: "sent", sourceSite: "puckle" }),
     founder.founderParentContactRequestEmail({ id: "i", childName: "N", username: "n", guardianPhone: "+353871234567" }),

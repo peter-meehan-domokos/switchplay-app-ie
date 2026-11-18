@@ -4,7 +4,7 @@ import type { MembershipJoinLayout } from "../lib/membershipJoinLayout";
 import { JoinTextArea, type JoinSectionProps } from "./JoinFields";
 import styles from "./MembershipJoinForm.module.css";
 
-/** Occasional-updates sign-up: submitting is the request, so there is no separate consent control. */
+/** Interested-party sign-up. Communication choices are asked in the shared preferences section below. */
 export default function InterestRegistrationForm({ layout, form, edit }: JoinSectionProps & Readonly<{ layout: MembershipJoinLayout["interest"] }>) {
   if (!layout.visible) return null;
   return (

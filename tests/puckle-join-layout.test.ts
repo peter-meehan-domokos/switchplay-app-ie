@@ -3,7 +3,7 @@ import { test } from "node:test";
 import {
   buildAccountPayload, buildContactPayload, buildInterestPayload, buildMembershipJoinLayout, buildRegistrationDetails, dobStatus, errorsFromServerCode,
   initialJoinFlowState, initialJoinFormState, validateJoinForm, withChoice, withCode, withCodeSent, withCourse, withLevel, withMobile,
-  withNoEmail, withStage, withText, withVerifiedProof, type JoinFormState,
+  withNoEmail, withPreferenceAnswer, withStage, withText, withVerifiedProof, type JoinFormState,
 } from "../src/app/sites/puckle/lib/membershipJoinLayout";
 import { validateInterestContact, validateNoEmailContact, validateRegistrationDetails } from "../src/app/sites/puckle/lib/membershipRegistration";
 
@@ -12,8 +12,11 @@ const flow = initialJoinFlowState;
 const layoutOf = (form: JoinFormState, f = flow, errors = {}, now = 0) => buildMembershipJoinLayout(form, f, errors, now, TODAY);
 const text = (form: JoinFormState, values: Partial<Record<Parameters<typeof withText>[1], string>>) =>
   Object.entries(values).reduce((state, [key, value]) => withText(state, key as Parameters<typeof withText>[1], value as string), form);
+/** Answers every communication choice for the form's audience with No: a complete, consent-free set. */
+const allNo = (form: JoinFormState) => (["puckleUpdates", "newsAndOffers", "occasionalPersonalContact", "invitations"] as const)
+  .reduce((state, field) => field === "invitations" && state.choice === "interest" ? state : withPreferenceAnswer(state, field, "no"), form);
 const validStudent = (extra: Partial<Record<Parameters<typeof withText>[1], string>> = {}) =>
-  withLevel(withCourse(text(initialJoinFormState, { name: "Ada", username: "ada_l", email: "Ada@Example.com ", password: "correct horse battery", dobDay: "14", dobMonth: "11", dobYear: "2010", ...extra }), "gcse"), "higher-tier");
+  allNo(withLevel(withCourse(text(initialJoinFormState, { name: "Ada", username: "ada_l", email: "Ada@Example.com ", password: "correct horse battery", dobDay: "14", dobMonth: "11", dobYear: "2010", ...extra }), "gcse"), "higher-tier"));
 
 test("student is selected by default and every choice shows mobile and the no-email route immediately", () => {
   const initial = layoutOf(initialJoinFormState);
@@ -133,7 +136,7 @@ test("password and username rules mirror the server and report every problem at 
   for (const username of ["ab", "has space", "a@b.com", "x".repeat(31), "naïve"]) assert.ok(validateJoinForm(text(base, { username }), TODAY).username, username);
   for (const username of ["abc", "A_b-9", "x".repeat(30)]) assert.equal(validateJoinForm(text(base, { username }), TODAY).username, undefined, username);
   const many = validateJoinForm(initialJoinFormState, TODAY);
-  assert.deepEqual(Object.keys(many).sort(), ["course", "dob", "email", "name", "password", "username"]);
+  assert.deepEqual(Object.keys(many).sort(), ["course", "dob", "email", "name", "occasionalPersonalContact", "password", "invitations", "newsAndOffers", "puckleUpdates", "username"].sort());
 });
 test("mobile is optional with email, required without, and must be valid when supplied", () => {
   assert.equal(validateJoinForm(validStudent(), TODAY).mobile, undefined);
@@ -144,27 +147,29 @@ test("mobile is optional with email, required without, and must be valid when su
   assert.equal(validateJoinForm(noEmail, TODAY).mobile, "Enter a mobile number so we can contact you.");
   assert.deepEqual(validateJoinForm(withMobile(noEmail, "+353871234567"), TODAY), {});
 });
-test("interest is an updates sign-up: one purpose, no checkbox, needs only an email or a mobile", () => {
+test("interest is an updates sign-up: no marketing checkbox, needs only an email or a mobile", () => {
   const interest = withChoice(initialJoinFormState, "interest");
+  const answered = allNo(interest);
   const layout = layoutOf(interest);
   assert.equal(layout.intro, "Interested in Puckle? Leave your details and we'll send you occasional updates as it develops.");
   assert.equal(layout.submission.label, "Keep me updated"); assert.equal(layout.submission.kind, "interest");
   assert.ok(!("emailUpdates" in layout.interest), "no marketing checkbox");
   assert.equal(layout.interest.reason.label, "What brings you to Puckle? (optional)"); assert.equal(layout.interest.reason.required, false);
-  assert.deepEqual(Object.keys(validateJoinForm(interest, TODAY)).sort(), ["contact", "name"]);
-  const named = text(interest, { name: "Sam" });
+  assert.deepEqual(Object.keys(validateJoinForm(answered, TODAY)).sort(), ["contact", "name"]);
+  assert.deepEqual(Object.keys(validateJoinForm(interest, TODAY)).sort(), ["contact", "name", "newsAndOffers", "occasionalPersonalContact", "puckleUpdates"]);
+  const named = text(answered, { name: "Sam" });
   assert.equal(validateJoinForm(withMobile(named, "+353871234567"), TODAY).contact, undefined);
   assert.deepEqual(validateJoinForm(text(named, { email: "sam@example.com" }), TODAY), {}, "reason is optional");
   const noEmail = withNoEmail(named, true);
   assert.equal(validateJoinForm(noEmail, TODAY).mobile, "Enter a mobile number so we can contact you.");
-  assert.match(layoutOf(noEmail).interest.mobileOnlyNote!, /No marketing texts/); assert.match(layoutOf(noEmail).submission.notice!, /follow up/);
+  assert.match(layoutOf(noEmail).interest.mobileOnlyNote!, /text messages you choose/); assert.match(layoutOf(noEmail).submission.notice!, /follow up/);
   assert.equal(layoutOf(text(named, { email: "sam@example.com" })).interest.mobileOnlyNote, null);
   const payload = buildInterestPayload(text(text(named, { email: "sam@example.com" }), { reason: "parent" })).details;
   assert.ok(!("emailUpdates" in payload));
   const accepted = validateInterestContact(payload, new Date(0));
-  assert.deepEqual([accepted.email, accepted.communication.emailUpdates, accepted.communication.source, accepted.communication.wordingVersion], ["sam@example.com", true, "join-interest-form", "puckle-updates-signup-v1"]);
+  assert.deepEqual([accepted.email, accepted.communicationPreferences.source, accepted.communicationPreferences.wordingVersion, accepted.communicationPreferences.channels], ["sam@example.com", "join-interest-form", "puckle-communication-preferences-v1", { email: false, sms: false }]);
   const mobileOnly = validateInterestContact(buildInterestPayload(withMobile(noEmail, "+353871234567")).details);
-  assert.deepEqual([mobileOnly.email, mobileOnly.communication.emailUpdates], [null, false], "mobile-only is follow-up only");
+  assert.equal(mobileOnly.email, null, "mobile-only contact");
   assert.throws(() => validateInterestContact({ ...payload, emailUpdates: true }), /UNEXPECTED_FIELD/);
 });
 test("email flow: code, verification and a corrected username reuse the same proof", () => {
@@ -185,15 +190,16 @@ test("email flow: code, verification and a corrected username reuse the same pro
   assert.equal(withCode(flow, "12a3 456789").code, "123456");
 });
 test("every valid client form is accepted by the authoritative server validators", () => {
-  const forms = [validStudent(), withMobile(validStudent(), "+353871234567"), withCourse(validStudent(), "a-level"), withChoice(text(validStudent(), {}), "teacher"),
-    text(withChoice(validStudent(), "teacher"), { teacherIntroduction: "I teach Junior Cycle maths." })];
+  const teacherOf = (form: JoinFormState) => allNo(withChoice(form, "teacher"));
+  const forms = [validStudent(), withMobile(validStudent(), "+353871234567"), withCourse(validStudent(), "a-level"), teacherOf(text(validStudent(), {})),
+    text(teacherOf(validStudent()), { teacherIntroduction: "I teach Junior Cycle maths." })];
   for (const form of forms) {
     assert.deepEqual(validateJoinForm(form, TODAY), {});
     const accepted = validateRegistrationDetails(buildRegistrationDetails(form, TODAY), "email", TODAY);
     assert.equal(accepted.email, "ada@example.com");
     assert.equal(accepted.registrationCategory, form.choice);
   }
-  const teacher = validateRegistrationDetails(buildRegistrationDetails(withChoice(validStudent(), "teacher"), TODAY), "email", TODAY);
+  const teacher = validateRegistrationDetails(buildRegistrationDetails(allNo(withChoice(validStudent(), "teacher")), TODAY), "email", TODAY);
   assert.equal(teacher.dateOfBirth, undefined); assert.equal(teacher.education, undefined); assert.equal(teacher.teacherIntroduction, "");
 });
 test("server rejection codes map back onto correctable fields", () => {

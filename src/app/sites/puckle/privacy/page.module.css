@@ -48,3 +48,10 @@
   outline: 3px solid var(--sp-site-accent-blue);
   outline-offset: 4px;
 }
+
+.section h3 {
+  color: var(--sp-site-text);
+  font-size: 1.1rem;
+  font-weight: 820;
+  line-height: 1.2;
+}

@@ -16,7 +16,7 @@ export async function saveNoEmailJoinContact(db: Db, value: unknown, now = new D
   await db.collection<NoEmailJoinContact & { _id: ObjectId }>("puckleJoinContactRequests").insertOne({ _id, ...record });
   return { id: _id, notify: () => notifyFounder(db, { collection: "puckleJoinContactRequests", id: _id }, founderNoEmailRequestEmail({
     id: _id.toHexString(), category: record.registrationCategory, name: record.name, mobile: record.mobile,
-    education: record.education, introduction: record.teacherIntroduction })) };
+    education: record.education, introduction: record.teacherIntroduction, preferences: record.communicationPreferences })) };
 }
 export async function saveInterestContact(db: Db, value: unknown, now = new Date()) {
   const record: InterestContact = { ...validateInterestContact(value, now), createdAt: now, founderNotification: { status: "pending" } };
@@ -24,5 +24,5 @@ export async function saveInterestContact(db: Db, value: unknown, now = new Date
   await db.collection<InterestContact & { _id: ObjectId }>("puckleInterestContacts").insertOne({ _id, ...record });
   return { id: _id, notify: () => notifyFounder(db, { collection: "puckleInterestContacts", id: _id }, founderInterestEmail({
     id: _id.toHexString(), name: record.name, email: record.email, mobile: record.mobile, reason: record.reason,
-    message: record.message, emailUpdates: record.communication.emailUpdates })) };
+    message: record.message, preferences: record.communicationPreferences })) };
 }

@@ -1,5 +1,6 @@
 import { ageOn, dublinToday } from "@/lib/age";
 import { formatPhoneAsE164 } from "@/lib/phoneCountries";
+import { validateCommunicationPreferences, type StoredPreferences } from "./communicationPreferences";
 import type { Education, MathsCourse, MathsLevel, MembershipCategory } from "@/lib/puckleMemberships";
 
 export const COURSE_LEVELS: Record<MathsCourse, readonly MathsLevel[]> = {
@@ -8,11 +9,12 @@ export const COURSE_LEVELS: Record<MathsCourse, readonly MathsLevel[]> = {
   gcse: ["higher-tier", "foundation-tier", "other", "dont-know"],
   "a-level": [], other: ["other", "dont-know"], "dont-know": ["other", "dont-know"],
 };
-export const INTEREST_WORDING_VERSION = "puckle-updates-signup-v1";
 export const INTEREST_SOURCE = "join-interest-form";
+export const JOIN_SOURCE = "join-form";
 export type RegistrationDetails = {
   registrationCategory: MembershipCategory; name: string; email: string | null; mobile: string | null;
   dateOfBirth?: string; education?: Education; teacherIntroduction?: string;
+  communicationPreferences: StoredPreferences;
 };
 type Input = Record<string, unknown>;
 function object(value: unknown): Input {
@@ -68,13 +70,16 @@ function contacts(input: Input, mode: "email" | "no-email" | "interest") {
   return { email: email || null, mobile: mobile || null };
 }
 /** Category/profile validation only. Does not accept credentials, verify email or create accounts. */
-export function validateRegistrationDetails(value: unknown, mode: "email" | "no-email", today = dublinToday()): RegistrationDetails {
+export function validateRegistrationDetails(value: unknown, mode: "email" | "no-email", today = dublinToday(), now = new Date()): RegistrationDetails {
   if (mode !== "email" && mode !== "no-email") throw new Error("INVALID_CONTACT_MODE");
   const input = object(value);
-  allowed(input, ["registrationCategory", "name", "email", "mobile", "phoneCountryCode", "dateOfBirth", "education", "teacherIntroduction"]);
+  allowed(input, ["registrationCategory", "name", "email", "mobile", "phoneCountryCode", "dateOfBirth", "education", "teacherIntroduction", "communicationPreferences"]);
   const category = input.registrationCategory;
   if (category !== "student" && category !== "teacher") throw new Error("INVALID_REGISTRATION_CATEGORY");
-  const result: RegistrationDetails = { registrationCategory: category, name: text(input.name, 100, true), ...contacts(input, mode) };
+  const contact = contacts(input, mode);
+  // Every choice must be answered; the channels must fit the contact details given. Nothing is ever inferred.
+  const communicationPreferences = validateCommunicationPreferences(input.communicationPreferences, category, contact, JOIN_SOURCE, now);
+  const result: RegistrationDetails = { registrationCategory: category, name: text(input.name, 100, true), ...contact, communicationPreferences };
   if (category === "student") {
     const dateOfBirth = text(input.dateOfBirth, 10, true);
     if (ageOn(dateOfBirth, today) < 13) throw new Error("MINIMUM_AGE_13");
@@ -84,18 +89,18 @@ export function validateRegistrationDetails(value: unknown, mode: "email" | "no-
   if (input.dateOfBirth !== undefined || input.education !== undefined) throw new Error("INCOMPATIBLE_CATEGORY_FIELDS");
   return { ...result, teacherIntroduction: text(input.teacherIntroduction, 2000) };
 }
-export function validateNoEmailContact(value: unknown, today = dublinToday()) {
-  const data = validateRegistrationDetails(value, "no-email", today);
+export function validateNoEmailContact(value: unknown, today = dublinToday(), now = new Date()) {
+  const data = validateRegistrationDetails(value, "no-email", today, now);
   return { kind: "no-email-join-request" as const, noEmailReason: "no-email-address" as const,
-    registrationCategory: data.registrationCategory, name: data.name, mobile: data.mobile!,
+    registrationCategory: data.registrationCategory, name: data.name, mobile: data.mobile!, communicationPreferences: data.communicationPreferences,
     ...(data.dateOfBirth ? { submittedDateOfBirth: data.dateOfBirth, education: data.education } : {}),
     ...(data.teacherIntroduction !== undefined ? { teacherIntroduction: data.teacherIntroduction } : {}) };
 }
 export function validateInterestContact(value: unknown, now = new Date()) {
   const input = object(value);
-  allowed(input, ["name", "email", "mobile", "phoneCountryCode", "reason", "message"]);
+  allowed(input, ["name", "email", "mobile", "phoneCountryCode", "reason", "message", "communicationPreferences"]);
   const contact = contacts(input, "interest");
+  // Nothing is inferred from submitting: only the explicit answers are stored.
   return { name: text(input.name, 100, true), ...contact, reason: text(input.reason, 500), message: text(input.message, 2000),
-    // Submitting the form is the affirmative request for occasional email updates. A mobile-only contact is follow-up only: no SMS marketing.
-    communication: { emailUpdates: !!contact.email, source: INTEREST_SOURCE, wordingVersion: INTEREST_WORDING_VERSION, recordedAt: now } };
+    communicationPreferences: validateCommunicationPreferences(input.communicationPreferences, "interest", contact, INTEREST_SOURCE, now) };
 }

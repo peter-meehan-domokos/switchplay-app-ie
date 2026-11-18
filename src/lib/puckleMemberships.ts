@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { StoredPreferences } from "@/app/sites/puckle/lib/communicationPreferences";
 export type MembershipCategory = "student" | "teacher";
 export type MathsCourse = "leaving-cert" | "junior-cycle" | "gcse" | "a-level" | "other" | "dont-know";
 export type MathsLevel = "higher" | "ordinary" | "foundation" | "higher-tier" | "foundation-tier" | "other" | "dont-know";
@@ -10,17 +11,22 @@ export type PuckleMembership = {
   initialRegistrationSource: "join" | "admin-script" | "invitation" | "unknown";
   provisioning?: { method: "known-account-backfill"; recordedAt: Date; recordedBy: string };
   welcome: { eligible: boolean; seenAt?: Date };
+  /** Absent for members who joined before preferences existed: unknown, never opted in. */
+  communicationPreferences?: StoredPreferences;
   createdAt: Date; updatedAt: Date; founderNotification?: FounderNotification;
 };
 export type NoEmailJoinContact = {
   kind: "no-email-join-request"; noEmailReason: "no-email-address";
   registrationCategory: MembershipCategory; name: string; mobile: string;
   submittedDateOfBirth?: string; education?: Education; teacherIntroduction?: string;
+  communicationPreferences: StoredPreferences;
   createdAt: Date; founderNotification: FounderNotification;
 };
 export type InterestContact = {
   name: string; email: string | null; mobile: string | null; reason: string; message: string;
-  communication: { emailUpdates: boolean; source: string; wordingVersion: string; recordedAt: Date };
+  communicationPreferences: StoredPreferences;
+  /** Legacy records only: the earlier implied "email updates" request. New records use communicationPreferences. */
+  communication?: { emailUpdates: boolean; source: string; wordingVersion: string; recordedAt: Date };
   createdAt: Date; founderNotification: FounderNotification;
 };
 /** Transient contracts only; no verification/token workflow in Phase 1. */

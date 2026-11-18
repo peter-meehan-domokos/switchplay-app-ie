@@ -36,7 +36,7 @@ export async function registerPuckleMember(
 ): Promise<RegisterOutcome> {
   const now = options.now ?? new Date();
   let details: RegistrationDetails;
-  try { details = validateRegistrationDetails(input.details, "email", dublinToday(now)); }
+  try { details = validateRegistrationDetails(input.details, "email", dublinToday(now), now); }
   catch (error) { return { kind: "invalid", code: codeOf(error) ?? "INVALID_SUBMISSION" }; }
   if (!await hasVerifiedEmailProof(db, { challengeId: input.challengeId as string, flowToken: input.flowToken as string, proof: input.proof, email: details.email }, now)) return { kind: "proof" };
   // Session signing and hashing happen before the transaction. A failure here creates nothing.
@@ -49,7 +49,7 @@ export async function registerPuckleMember(
     userId: prepared.document._id, name: details.name, registrationCategory: details.registrationCategory, mobile: details.mobile,
     ...(details.education ? { education: details.education } : {}),
     ...(details.teacherIntroduction ? { teacherIntroduction: details.teacherIntroduction } : {}),
-    initialRegistrationSource: "join", welcome: { eligible: isStudent }, createdAt: now, updatedAt: now,
+    initialRegistrationSource: "join", welcome: { eligible: isStudent }, communicationPreferences: details.communicationPreferences, createdAt: now, updatedAt: now,
     founderNotification: { status: "pending" as const }, // every registration alerts the founder; neither needs approval
   };
   const account = isStudent && details.dateOfBirth
@@ -73,8 +73,8 @@ export async function registerPuckleMember(
   return {
     kind: "created", userId: prepared.document._id, membershipId, category: details.registrationCategory, sessionToken: prepared.sessionToken,
     notify: () => notifyFounder(db, { collection: "puckleMemberships", id: membershipId }, isStudent
-      ? founderStudentRegistrationEmail({ id: membershipId.toHexString(), name: details.name, username: prepared.document.username, email: details.email!, mobile: details.mobile, education: details.education, registeredAt: now })
-      : founderTeacherRegistrationEmail({ id: membershipId.toHexString(), name: details.name, email: details.email!, mobile: details.mobile, introduction: details.teacherIntroduction ?? "" })),
+      ? founderStudentRegistrationEmail({ id: membershipId.toHexString(), name: details.name, username: prepared.document.username, email: details.email!, mobile: details.mobile, education: details.education, registeredAt: now, preferences: details.communicationPreferences })
+      : founderTeacherRegistrationEmail({ id: membershipId.toHexString(), name: details.name, email: details.email!, mobile: details.mobile, introduction: details.teacherIntroduction ?? "", preferences: details.communicationPreferences })),
   };
 }
 

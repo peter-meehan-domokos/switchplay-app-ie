@@ -2,6 +2,11 @@ import { ageOn, dublinToday, parseDateOfBirth } from "@/lib/age";
 import { validateNewPassword } from "@/lib/accountCredentials";
 import type { MathsCourse, MathsLevel } from "@/lib/puckleMemberships";
 import { joinPrelaunchNotice, type JoinPrelaunchNotice } from "./joinPrelaunchNotice";
+import {
+  buildPreferencesLayout, buildPreferencesPayload, initialPreferencesState, validatePreferencesState, withAnswer, withAudienceChange, withChannel, withoutEmailChannel,
+  type PreferenceField, type PreferencesErrorKey, type PreferencesLayout, type PreferencesState,
+} from "./communicationPreferencesLayout";
+import type { Answer } from "./communicationPreferences";
 import { COURSE_LEVELS, EMAIL_PATTERN, normaliseMobile } from "./membershipRegistration";
 
 /**
@@ -25,6 +30,8 @@ export type JoinFormState = Readonly<{
   dobDay: string; dobMonth: string; dobYear: string;
   course: MathsCourse | ""; courseOther: string; level: MathsLevel | ""; levelOther: string;
   teacherIntroduction: string; reason: string; message: string; companyWebsite: string;
+  /** Communication choices. Every answer starts unanswered. */
+  preferences: PreferencesState;
 }>;
 export type JoinOutcome =
   | { kind: "account"; category: "student" | "teacher"; signedIn: boolean }
@@ -38,13 +45,13 @@ export type JoinFlowState = Readonly<{
   code: string; outcome: JoinOutcome | null;
 }>;
 export type JoinFieldKey = "name" | "username" | "email" | "password" | "mobile" | "contact" | "dob" | "course" | "courseOther"
-  | "level" | "levelOther" | "teacherIntroduction" | "reason" | "message" | "code";
+  | "level" | "levelOther" | "teacherIntroduction" | "reason" | "message" | "code" | PreferencesErrorKey;
 export type JoinErrors = Readonly<Partial<Record<JoinFieldKey, string>>>;
 
 export const initialJoinFormState: JoinFormState = {
   choice: "student", noEmail: false, name: "", username: "", email: "", password: "", showPassword: false,
   mobile: "", phoneCountryCode: DEFAULT_PHONE_REGION, dobDay: "", dobMonth: "", dobYear: "",
-  course: "", courseOther: "", level: "", levelOther: "", teacherIntroduction: "", reason: "", message: "", companyWebsite: "",
+  course: "", courseOther: "", level: "", levelOther: "", teacherIntroduction: "", reason: "", message: "", companyWebsite: "", preferences: initialPreferencesState,
 };
 export const initialJoinFlowState: JoinFlowState = { stage: "details", binding: null, codeEmail: null, codeSentAt: null, proof: null, code: "", outcome: null };
 
@@ -52,14 +59,18 @@ export const initialJoinFlowState: JoinFlowState = { stage: "details", binding: 
 const credentialsCleared = { username: "", password: "", showPassword: false } as const;
 /** Common details survive moving between choices; credentials never travel into a contact-only choice. */
 export const withChoice = (state: JoinFormState, choice: JoinChoice): JoinFormState =>
-  choice === state.choice ? state : { ...state, choice, ...(choice === "interest" ? credentialsCleared : {}) };
+  choice === state.choice ? state : { ...state, choice, preferences: withAudienceChange(state.preferences, choice), ...(choice === "interest" ? credentialsCleared : {}) };
 /** The no-email route has no credential controls: they are cleared, never merely hidden. */
 export const withNoEmail = (state: JoinFormState, noEmail: boolean): JoinFormState =>
-  noEmail === state.noEmail ? state : noEmail ? { ...state, noEmail, email: "", ...credentialsCleared } : { ...state, noEmail };
+  noEmail === state.noEmail ? state : noEmail ? { ...state, noEmail, email: "", preferences: withoutEmailChannel(state.preferences), ...credentialsCleared } : { ...state, noEmail };
 export const withText = <K extends "name" | "username" | "email" | "password" | "dobDay" | "dobMonth" | "dobYear" | "courseOther" | "levelOther"
   | "teacherIntroduction" | "reason" | "message" | "companyWebsite" | "phoneCountryCode">(state: JoinFormState, key: K, value: string): JoinFormState =>
   ({ ...state, [key]: value });
 export const withMobile = (state: JoinFormState, mobile: string): JoinFormState => ({ ...state, mobile });
+export const withPreferenceAnswer = (state: JoinFormState, field: PreferenceField, value: Answer): JoinFormState =>
+  ({ ...state, preferences: withAnswer(state.preferences, state.choice, field, value) });
+export const withPreferenceChannel = (state: JoinFormState, channel: "email" | "sms", checked: boolean): JoinFormState =>
+  ({ ...state, preferences: withChannel(state.preferences, channel, checked) });
 export const withShowPassword = (state: JoinFormState, showPassword: boolean): JoinFormState => ({ ...state, showPassword });
 /** Changing course clears every incompatible level answer and its custom text. */
 export const withCourse = (state: JoinFormState, course: MathsCourse | ""): JoinFormState =>
@@ -123,6 +134,12 @@ const educationErrors = (state: JoinFormState): JoinErrors => {
     ...(!aLevel && state.level === "other" && !state.levelOther.trim() ? { levelOther: FIELD_MESSAGES.levelOther } : {}),
   };
 };
+/** What the rest of the form offers a delivery channel: Email needs a valid address, Text needs a valid mobile. */
+const preferenceContacts = (state: JoinFormState) => ({
+  emailAvailable: !state.noEmail,
+  hasEmail: !state.noEmail && EMAIL_PATTERN.test(state.email.trim().toLowerCase()),
+  hasMobile: !!state.mobile.trim() && mobileProblem(state) === null,
+});
 export function validateJoinForm(state: JoinFormState, today = dublinToday()): JoinErrors {
   const mobile = mobileProblem(state);
   const email = state.email.trim();
@@ -141,6 +158,7 @@ export function validateJoinForm(state: JoinFormState, today = dublinToday()): J
     ...(state.choice === "interest" && emailRoute && !email && !state.mobile.trim() ? { contact: FIELD_MESSAGES.contact } : {}),
     ...(dobMessage ? { dob: dobMessage } : {}),
     ...(state.choice === "student" ? educationErrors(state) : {}),
+    ...validatePreferencesState(state.preferences, state.choice, preferenceContacts(state)),
   };
   return errors;
 }
@@ -149,6 +167,8 @@ const SERVER_CODE_FIELD: Readonly<Record<string, JoinFieldKey>> = {
   INVALID_MOBILE: "mobile", NO_EMAIL_REQUIRES_MOBILE: "mobile", CONTACT_REQUIRED: "contact", INVALID_TEXT: "name",
   MINIMUM_AGE_13: "dob", INVALID_DATE_OF_BIRTH: "dob", FUTURE_DATE_OF_BIRTH: "dob",
   INVALID_COURSE: "course", INVALID_LEVEL: "level", INVALID_LEVEL_TEXT: "levelOther",
+  PREFERENCES_INCOMPLETE: "puckleUpdates", PREFERENCES_INVALID: "puckleUpdates", CHANNELS_WITHOUT_CONSENT: "puckleUpdates",
+  CHANNEL_REQUIRED: "channels", EMAIL_CHANNEL_NEEDS_EMAIL: "channels", SMS_CHANNEL_NEEDS_MOBILE: "channels",
 };
 /** Maps an authoritative server rejection onto the field the person can correct; null means a form-level message. */
 export function errorsFromServerCode(code: string): JoinErrors | null {
@@ -158,6 +178,7 @@ export function errorsFromServerCode(code: string): JoinErrors | null {
     username: FIELD_MESSAGES.username, password: FIELD_MESSAGES.password, email: FIELD_MESSAGES.email, mobile: FIELD_MESSAGES.mobile,
     contact: FIELD_MESSAGES.contact, name: FIELD_MESSAGES.name, dob: code === "MINIMUM_AGE_13" ? FIELD_MESSAGES.underMinimum : FIELD_MESSAGES.dobInvalid,
     course: FIELD_MESSAGES.course, level: FIELD_MESSAGES.level, levelOther: FIELD_MESSAGES.levelOther,
+    puckleUpdates: "Choose Yes or No for each option.", channels: code === "CHANNEL_REQUIRED" ? "Choose email, text message or both." : code === "EMAIL_CHANNEL_NEEDS_EMAIL" ? "Add your email address above to receive emails, or untick Email." : "Add a valid mobile number above to receive text messages, or untick Text message.",
   };
   return { [field]: messages[field] ?? "Check this field." };
 }
@@ -169,7 +190,8 @@ const education = (state: JoinFormState) => ({
 });
 /** Only the active choice's fields are ever submitted. */
 export function buildRegistrationDetails(state: JoinFormState, today = dublinToday()) {
-  const common = { name: state.name.trim(), email: state.noEmail ? "" : state.email.trim(), mobile: state.mobile.trim(), phoneCountryCode: state.phoneCountryCode };
+  const common = { name: state.name.trim(), email: state.noEmail ? "" : state.email.trim(), mobile: state.mobile.trim(), phoneCountryCode: state.phoneCountryCode,
+    communicationPreferences: buildPreferencesPayload(state.preferences, state.choice) };
   const dob = dobStatus(state, today);
   return state.choice === "student"
     ? { registrationCategory: "student", ...common, dateOfBirth: dob.kind === "valid" ? dob.value : "", education: education(state) }
@@ -182,7 +204,7 @@ export const buildAccountPayload = (state: JoinFormState, flow: JoinFlowState) =
 export const buildContactPayload = (state: JoinFormState) => ({ details: buildRegistrationDetails(state), companyWebsite: state.companyWebsite });
 export const buildInterestPayload = (state: JoinFormState) => ({
   details: { name: state.name.trim(), email: state.noEmail ? "" : state.email.trim(), mobile: state.mobile.trim(), phoneCountryCode: state.phoneCountryCode,
-    reason: state.reason.trim(), message: "" },
+    reason: state.reason.trim(), message: "", communicationPreferences: buildPreferencesPayload(state.preferences, "interest") },
   companyWebsite: state.companyWebsite,
 });
 
@@ -213,6 +235,7 @@ export type MembershipJoinLayout = Readonly<{
     levelOptions: readonly { value: MathsLevel; label: string }[] }>;
   teacher: Readonly<{ visible: boolean; introduction: FieldView }>;
   interest: Readonly<{ visible: boolean; reason: FieldView; mobileOnlyNote: string | null }>;
+  preferences: PreferencesLayout;
   code: Readonly<{ visible: boolean; email: string; field: FieldView; canResend: boolean; resendInSeconds: number }>;
   submission: Readonly<{ kind: SubmissionKind; label: string; busyLabel: string; notice: string | null }>;
 }>;
@@ -241,7 +264,7 @@ export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowSt
   const codePending = accountRoute && !codeStage && !proofReady && codeIsCurrent(state, flow);
   const submissionKind: SubmissionKind = isInterest ? "interest" : noEmail ? "contact-request" : codeStage ? "verify-code" : proofReady ? "create-account" : codePending ? "resume-code" : "send-code";
   const submission = {
-    interest: { label: "Keep me updated", busyLabel: "Sending…", notice: noEmail ? "No account will be created. Updates are sent by email, so we'll only use your mobile number to follow up on this request." : "Submitting this asks us to email you occasional Puckle updates. No account will be created. You can stop them at any time." },
+    interest: { label: "Keep me updated", busyLabel: "Sending…", notice: noEmail ? "No account will be created. We'll use your mobile number to follow up on this request, and for any text messages you choose above." : "No account will be created. You can change or withdraw your choices at any time." },
     "contact-request": { label: "Send my details", busyLabel: "Sending…", notice: "No account will be created. We'll use your mobile number to contact you about next steps." },
     "send-code": { label: "Email me a verification code", busyLabel: "Sending code…", notice: "We'll email a 6-digit code to confirm your address, then create your account." },
     "resume-code": { label: "Enter my verification code", busyLabel: "One moment…", notice: "We've already emailed you a code." },
@@ -278,8 +301,9 @@ export function buildMembershipJoinLayout(state: JoinFormState, flow: JoinFlowSt
     interest: {
       visible: isInterest,
       reason: field("What brings you to Puckle? (optional)", isInterest, false, errors.reason, "For example: parent, teacher, student or just curious."),
-      mobileOnlyNote: isInterest && noEmail ? "Updates are sent by email, so a mobile-only registration won't receive them. We'll use your number only to follow up on your request. No marketing texts." : null,
+      mobileOnlyNote: isInterest && noEmail ? "We'll use your number to follow up on your request, and for any text messages you choose below." : null,
     },
+    preferences: buildPreferencesLayout(state.preferences, choice, errors, { emailAvailable: emailRoute }),
     code: { visible: codeStage, email: flow.codeEmail ?? "", field: field("Verification code", codeStage, true, errors.code, "The 6-digit code we emailed you. It expires in 10 minutes."),
       canResend: resendInSeconds === 0, resendInSeconds },
     submission: { kind: submissionKind, ...submission },

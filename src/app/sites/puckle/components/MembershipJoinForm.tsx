@@ -6,13 +6,14 @@ import { bindingFrom, currentTimeMs, requestEmailCode, submitAccount, submitInte
 import {
   buildAccountPayload, buildContactPayload, buildInterestPayload, buildMembershipJoinLayout, codeIsCurrent, errorsFromServerCode, FIELD_MESSAGES,
   initialJoinFlowState, initialJoinFormState, normalisedEmail, validateJoinForm, withChoice, withCode, withCodeSent, withCourse,
-  withLevel, withMobile, withNoEmail, withOutcome, withShowPassword, withStage, withText, withVerifiedProof, withoutErrors, withoutProof,
+  withLevel, withMobile, withNoEmail, withOutcome, withPreferenceAnswer, withPreferenceChannel, withShowPassword, withStage, withText, withVerifiedProof, withoutErrors, withoutProof,
   type JoinChoice, type JoinErrors, type JoinFieldKey, type JoinFlowState, type JoinFormState,
 } from "../lib/membershipJoinLayout";
 import { SITE_NAME, CONTACT_EMAIL } from "../siteInfo";
 import buttonStyles from "./PublicButton.module.css";
 import formStyles from "./CreatorInterestForm.module.css";
 import InterestRegistrationForm from "./InterestRegistrationForm";
+import CommunicationPreferences from "./CommunicationPreferences";
 import { JoinTextField, type JoinEditors } from "./JoinFields";
 import styles from "./MembershipJoinForm.module.css";
 import PublicPhoneInput from "./PublicPhoneInput";
@@ -23,7 +24,7 @@ import TeacherRegistrationForm from "./TeacherRegistrationForm";
 type FormError = Readonly<{ text: string; accountLinks?: boolean }>;
 /** Editing a field clears only the errors that edit can resolve. */
 const ERRORS_CLEARED_BY: Readonly<Record<string, readonly JoinFieldKey[]>> = {
-  email: ["email", "contact"], mobile: ["mobile", "contact"], dobDay: ["dob"], dobMonth: ["dob"], dobYear: ["dob"],
+  email: ["email", "contact", "channels"], mobile: ["mobile", "contact", "channels"], dobDay: ["dob"], dobMonth: ["dob"], dobYear: ["dob"],
   course: ["course", "courseOther", "level", "levelOther"], level: ["level", "levelOther"],
 };
 const clearedBy = (key: string): readonly JoinFieldKey[] => ERRORS_CLEARED_BY[key] ?? [key as JoinFieldKey];
@@ -189,9 +190,9 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
             <>
               <h2>You&apos;re on the list.</h2>
               {outcome.byEmail ? (
-                <p>You&apos;ve asked for occasional {SITE_NAME} updates by email, and we&apos;ll send them as {SITE_NAME} develops. No account was created. To stop them at any time, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+                <p>Thanks, we&apos;ve saved your choices. No account was created. To change or withdraw them at any time, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
               ) : (
-                <p>Thanks. We&apos;ll use your mobile number only to follow up on this request. Updates are sent by email, so none will be sent to you, and no marketing texts. No account was created.</p>
+                <p>Thanks, we&apos;ve saved your choices. We&apos;ll use your mobile number to follow up on this request, and for any text messages you chose. To change or withdraw your choices, email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. No account was created.</p>
               )}
             </>
           )}
@@ -267,6 +268,9 @@ export default function MembershipJoinForm({ prelaunch = false }: Readonly<{ pre
             <StudentRegistrationForm edit={edit} form={form} layout={layout.student} />
             <TeacherRegistrationForm edit={edit} form={form} layout={layout.teacher} />
             <InterestRegistrationForm edit={edit} form={form} layout={layout.interest} />
+            <CommunicationPreferences idPrefix="join" layout={layout.preferences}
+              onAnswer={(field, value) => edited(withPreferenceAnswer(form, field, value), [field, "channels"])}
+              onChannel={(channel, checked) => edited(withPreferenceChannel(form, channel, checked), ["channels"])} />
             <div aria-hidden="true" className={formStyles.honeypot}>
               <label htmlFor="join-company-website">Company website</label>
               <input autoComplete="off" id="join-company-website" name="companyWebsite" onChange={event => setForm(withText(form, "companyWebsite", event.target.value))} tabIndex={-1} type="text" value={form.companyWebsite} />

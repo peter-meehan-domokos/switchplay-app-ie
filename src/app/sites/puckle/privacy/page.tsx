@@ -50,10 +50,24 @@ export default function PrivacyPage() {
             If you tell us you do not have an email address, we save a contact request with your name, mobile number and
             the details you entered, and contact you personally. No account is created from that request. If you ask to
             be kept updated, we save your name, email and/or mobile number and anything you tell us about your interest,
-            separately from accounts, together with the date and the wording you agreed to. By submitting that form you
-            ask us to email you occasional updates; you can stop them at any time by emailing {CONTACT_EMAIL}. A mobile
-            number given without an email is used only to follow up on your request. We do not send promotional text
-            messages.
+            separately from accounts.
+          </p>
+          <h3>Communication choices</h3>
+          <p>
+            When you join, we ask you to answer Yes or No to each optional communication: Puckle Updates (a fortnightly
+            roundup of new maths content and activities), News and offers (major new features, special offers and
+            promotions), Occasional personal contact (we may get in touch to offer help or ask for feedback) and, for
+            students, invitations to guided maths programmes or, for teachers, invitations to collaborate. If you say Yes
+            to updates, offers or invitations, you also choose whether we send them by email, text message or both. We
+            record your answers with the date and the wording you saw, and only send optional messages you have said Yes
+            to, by the channels you chose. Answering No is fine and does not affect joining. Saying Yes to one choice is
+            not permission for another. People who joined before these choices existed have not been asked, and we treat
+            that as no.
+          </p>
+          <p>
+            Whatever you choose, we still send the messages needed to run your account (such as verification codes,
+            password resets, parent or guardian approval emails and important service notices) and we reply to
+            questions and support requests you send us. To change or withdraw your choices, email {CONTACT_EMAIL}.
           </p>
         </section>
 

@@ -34,7 +34,10 @@ async function fillStudent(page: Page, v: { name?: string; username: string; ema
   await page.locator("#join-dobDay").fill(v.day ?? "14"); await page.locator("#join-dobMonth").fill(v.month ?? "6"); await page.locator("#join-dobYear").fill(v.year ?? String(thisYear - 17));
   await page.locator("#join-course").selectOption(v.course ?? "gcse");
   if ((v.course ?? "gcse") !== "a-level") await page.locator("#join-level").selectOption(v.level ?? "higher-tier");
+  await answerAll(page);
 }
+/** Answers every communication choice No (a complete, consent-free set). Preferences are covered in puckle-preferences.browser.ts. */
+const answerAll = async (page: Page) => { for (const radio of await page.locator('[data-preferences="join"] input[type=radio][value=no]').all()) await radio.check(); };
 const submit = (page: Page) => page.locator("button[type=submit]");
 const noOverflow = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 async function waitFor<T>(read: () => Promise<T | null | undefined>, wait = 15_000): Promise<T> {
@@ -152,7 +155,7 @@ test("teacher: blank introduction is fine, ordinary rights only, confirmation an
   await choose(page, "I'm a teacher");
   await expect(page.locator("#join-dobDay")).toHaveCount(0); await expect(page.locator("#join-course")).toHaveCount(0);
   await page.getByLabel("Your name").fill("Mr Byrne"); await page.getByLabel("Email", { exact: true }).fill(email); await page.getByLabel("Choose a username").fill(username); await page.getByLabel("Choose a password").fill("another good passphrase");
-  await submit(page).click(); await page.locator("#join-code").fill(await codeFor(email)); await submit(page).click();
+  await answerAll(page); await submit(page).click(); await page.locator("#join-code").fill(await codeFor(email)); await submit(page).click();
   await expect(page.getByRole("heading", { name: "Thanks, you're in!" })).toBeVisible(); await expect(page.getByText("will be in touch personally")).toBeVisible();
   expect(new URL(page.url()).pathname).toBe("/join"); await noOverflow(page);
   expect((await page.request.get("/api/auth/me")).status()).toBe(200);
@@ -173,7 +176,7 @@ test("no-email student and teacher: credentials are cleared and hidden, mobile i
   await expect(page.getByLabel("Email", { exact: true })).toHaveValue(""); await expect(page.getByLabel("Choose a username")).toHaveValue(""); await expect(page.getByLabel("Choose a password")).toHaveValue("");
   await page.getByRole("button", { name: "Don't have an email address?" }).click();
   await page.locator("#join-dobDay").fill("3"); await page.locator("#join-dobMonth").fill("3"); await page.locator("#join-dobYear").fill(String(thisYear - 16)); await page.locator("#join-course").selectOption("a-level");
-  await submit(page).click(); await expect(page.getByText("Enter a mobile number so we can contact you.")).toBeVisible(); await expect(page.locator("#join-phone")).toBeFocused();
+  await answerAll(page); await submit(page).click(); await expect(page.getByText("Enter a mobile number so we can contact you.")).toBeVisible(); await expect(page.locator("#join-phone")).toBeFocused();
   await page.locator("#join-phone").fill("871234567"); await submit(page).click();
   await expect(page.getByRole("heading", { name: "Thanks, we have your details." })).toBeVisible(); await expect(page.getByText("No account has been created yet.")).toBeVisible();
   const saved = (await db.collection("puckleJoinContactRequests").findOne({ name }))!;
@@ -184,32 +187,32 @@ test("no-email student and teacher: credentials are cleared and hidden, mobile i
   await waitFor(async () => (await db.collection("puckleJoinContactRequests").findOne({ _id: saved._id }))?.founderNotification?.status === "sent");
   expect((await mailTo("founder@example.invalid", new RegExp(name))).subject).toMatch(/^\[ACTION\] 📱 CALL BACK \(no email, student\): /);
   const teacher = await open(browser); const teacherName = unique("Nomailteach"); await choose(teacher, "I'm a teacher");
-  await teacher.getByLabel("Your name").fill(teacherName); await teacher.getByRole("button", { name: "Don't have an email address?" }).click(); await teacher.locator("#join-phone").fill("871234568"); await submit(teacher).click();
+  await teacher.getByLabel("Your name").fill(teacherName); await teacher.getByRole("button", { name: "Don't have an email address?" }).click(); await teacher.locator("#join-phone").fill("871234568"); await answerAll(teacher); await submit(teacher).click();
   await expect(teacher.getByRole("heading", { name: "Thanks, we have your details." })).toBeVisible();
   expect(await db.collection("puckleJoinContactRequests").findOne({ name: teacherName })).toMatchObject({ registrationCategory: "teacher", mobile: "+353871234568" });
   expect(await db.collection("users").countDocuments()).toBe(before);
 });
-test("interest is an updates sign-up: no checkbox, submitting is the request, mobile-only is follow-up only, never an account", async ({ browser }) => {
+test("interest sign-up: no marketing checkbox until Yes, choices are stored explicitly, mobile-only works, never an account", async ({ browser }) => {
   const page = await open(browser), name = unique("Curious"), email = emailOf("interest"), before = await db.collection("users").countDocuments();
   await choose(page, "I'm interested in Puckle");
   await expect(page.getByText("Interested in Puckle? Leave your details and we'll send you occasional updates as it develops.")).toBeVisible();
   await expect(page.getByRole("checkbox")).toHaveCount(0); await expect(page.locator("#join-phone")).toBeVisible(); await expect(submit(page)).toHaveText("Keep me updated");
-  await submit(page).click(); await expect(page.getByText("Enter an email address or a mobile number.")).toBeVisible(); await expect(page.getByText("Tell us what brings you")).toHaveCount(0);
+  await answerAll(page); await submit(page).click(); await expect(page.getByText("Enter an email address or a mobile number.")).toBeVisible(); await expect(page.getByText("Tell us what brings you")).toHaveCount(0);
   await page.getByLabel("Your name").fill(name); await page.getByLabel("Email", { exact: false }).first().fill(email); await submit(page).click();
-  await expect(page.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(page.getByText(/asked for occasional Puckle updates by email/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(page.getByText(/we've saved your choices/)).toBeVisible();
   await expect(page.getByRole("link", { name: /@/ })).toHaveAttribute("href", /^mailto:/); await expect(page.getByText(/No account was created/)).toBeVisible(); await noOverflow(page);
   const saved = (await db.collection("puckleInterestContacts").findOne({ name }))!;
-  expect(saved).toMatchObject({ email, mobile: null, reason: "", communication: { emailUpdates: true, source: "join-interest-form", wordingVersion: "puckle-updates-signup-v1" } });
-  expect(saved.communication.recordedAt).toBeInstanceOf(Date);
+  expect(saved).toMatchObject({ email, mobile: null, reason: "", communicationPreferences: { channels: { email: false, sms: false }, source: "join-interest-form", wordingVersion: "puckle-communication-preferences-v1" } });
+  expect(saved.communication).toBeUndefined(); expect(saved.communicationPreferences.recordedAt).toBeInstanceOf(Date);
   expect(await db.collection("users").countDocuments()).toBe(before); expect(await db.collection("users").findOne({ email })).toBeNull(); expect(await db.collection("puckleMemberships").findOne({ name })).toBeNull();
   await waitFor(async () => (await db.collection("puckleInterestContacts").findOne({ _id: saved._id }))?.founderNotification?.status === "sent");
   const second = await open(browser), mobileOnly = unique("Mobileonly"); await choose(second, "I'm interested in Puckle");
   await second.getByLabel("Your name").fill(mobileOnly); await second.getByLabel("What brings you to Puckle? (optional)").fill("teacher");
   await second.getByRole("button", { name: "Don't have an email address?" }).click();
-  await expect(second.getByText(/No marketing texts/)).toBeVisible(); await expect(second.getByLabel("Email", { exact: true })).toHaveCount(0);
-  await second.locator("#join-phone").fill("871234569"); await submit(second).click();
+  await expect(second.getByText(/follow up on your request, and for any text messages you choose below/)).toBeVisible(); await expect(second.getByLabel("Email", { exact: true })).toHaveCount(0);
+  await second.locator("#join-phone").fill("871234569"); await answerAll(second); await submit(second).click();
   await expect(second.getByRole("heading", { name: "You're on the list." })).toBeVisible(); await expect(second.getByText(/follow up on this request/)).toBeVisible(); await expect(second.getByText(/asked for occasional/)).toHaveCount(0);
-  expect(await db.collection("puckleInterestContacts").findOne({ name: mobileOnly })).toMatchObject({ email: null, mobile: "+353871234569", reason: "teacher", communication: { emailUpdates: false } });
+  expect(await db.collection("puckleInterestContacts").findOne({ name: mobileOnly })).toMatchObject({ email: null, mobile: "+353871234569", reason: "teacher" });
   expect(await db.collection("users").countDocuments()).toBe(before);
 });
 test("an existing email gets the same on-screen result and only sign-in guidance; no account is created or reused", async ({ browser }) => {
@@ -276,6 +279,6 @@ test("Join is Puckle-only: other websites have no page and refuse the APIs; bad 
 test("contact submissions are rate limited per requester", async ({ playwright }) => {
   const request = await playwright.request.newContext({ baseURL: origin, extraHTTPHeaders: { "x-forwarded-for": "10.88.0.1" } });
   const statuses: number[] = [];
-  for (let index = 0; index < 11; index += 1) statuses.push((await request.post("/api/public/puckle/interest", { headers: { Origin: origin }, data: { details: { name: `Limit ${index}`, email: "", mobile: "+353871234567", reason: "testing", message: "" } } })).status());
+  for (let index = 0; index < 11; index += 1) statuses.push((await request.post("/api/public/puckle/interest", { headers: { Origin: origin }, data: { details: { name: `Limit ${index}`, email: "", mobile: "+353871234567", reason: "testing", message: "", communicationPreferences: { answers: { puckleUpdates: "no", newsAndOffers: "no", occasionalPersonalContact: "no" }, channels: { email: false, sms: false } } } } })).status());
   expect(statuses.slice(0, 10)).toEqual(Array(10).fill(201)); expect(statuses[10]).toBe(429); await request.dispose();
 });

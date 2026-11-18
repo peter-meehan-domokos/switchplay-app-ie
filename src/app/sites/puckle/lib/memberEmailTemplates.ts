@@ -1,4 +1,5 @@
 import type { Education, MembershipCategory } from "@/lib/puckleMemberships";
+import { describePreferences, type StoredPreferences } from "./communicationPreferences";
 
 // Founder alerts carry what is needed to follow up personally. Passwords, hashes and date of birth never appear.
 type Message = { subject: string; text: string };
@@ -18,28 +19,28 @@ export function describeEducation(education: Education | undefined): string | nu
   const level = education.level === null ? "no level (A-level)" : education.level === "other" ? `Other (${education.levelOther})` : education.level;
   return `${course}, level: ${level}`;
 }
-export function founderTeacherRegistrationEmail(input: { id: string; name: string; email: string; mobile: string | null; introduction: string }): Message {
+export function founderTeacherRegistrationEmail(input: { id: string; name: string; email: string; mobile: string | null; introduction: string; preferences?: StoredPreferences }): Message {
   return { subject: subject("ACTION", "🍎", "NEW TEACHER", input.name), text:
     `A teacher has created a Puckle account (ordinary access; no publishing permission).\n\n${line("Name", input.name)}${line("Email", input.email)}${line("Mobile", input.mobile)}`
-    + `${input.introduction ? `\nIntroduction:\n${input.introduction}\n` : "\nNo introduction given.\n"}\nRecord: puckleMemberships _id ${input.id}\nPlease follow up personally.` };
+    + `${input.introduction ? `\nIntroduction:\n${input.introduction}\n` : "\nNo introduction given.\n"}\n${describePreferences(input.preferences)}\nRecord: puckleMemberships _id ${input.id}\nPlease follow up personally.` };
 }
 /** Informational only: students join without approval. No password, hash or date of birth. */
-export function founderStudentRegistrationEmail(input: { id: string; name: string; username: string; email: string; mobile: string | null; education?: Education; registeredAt: Date }): Message {
+export function founderStudentRegistrationEmail(input: { id: string; name: string; username: string; email: string; mobile: string | null; education?: Education; registeredAt: Date; preferences?: StoredPreferences }): Message {
   const course = input.education ? input.education.course === "other" ? `Other (${input.education.courseOther})` : COURSES[input.education.course] : null;
   const level = !input.education ? null : input.education.level === null ? "Not applicable (A-level)" : input.education.level === "other" ? `Other (${input.education.levelOther})` : input.education.level;
   return { subject: subject("FYI", "🎓", "NEW STUDENT", input.name), text:
     `A new student has joined Puckle. No approval is needed.\n\n${line("Name", input.name)}${line("Username", input.username)}${line("Email", input.email)}${line("Mobile", input.mobile)}`
-    + `${line("Course", course)}${line("Level", level)}${line("Registered", `${input.registeredAt.toISOString().slice(0, 16).replace("T", " ")} UTC`)}\nRecord: puckleMemberships _id ${input.id}` };
+    + `${line("Course", course)}${line("Level", level)}${line("Registered", `${input.registeredAt.toISOString().slice(0, 16).replace("T", " ")} UTC`)}\n${describePreferences(input.preferences)}\nRecord: puckleMemberships _id ${input.id}` };
 }
-export function founderNoEmailRequestEmail(input: { id: string; category: MembershipCategory; name: string; mobile: string; education?: Education; introduction?: string }): Message {
+export function founderNoEmailRequestEmail(input: { id: string; category: MembershipCategory; name: string; mobile: string; education?: Education; introduction?: string; preferences?: StoredPreferences }): Message {
   return { subject: subject("ACTION", "📱", `CALL BACK (no email, ${input.category})`, input.name), text:
     `Someone without an email address asked Puckle to contact them. No account was created.\n\n${line("Category", input.category)}${line("Name", input.name)}${line("Mobile", input.mobile)}`
-    + `${line("Course", describeEducation(input.education))}${input.introduction ? `\nIntroduction:\n${input.introduction}\n` : ""}\nRecord: puckleJoinContactRequests _id ${input.id}\nPlease contact them by phone or text.` };
+    + `${line("Course", describeEducation(input.education))}${input.introduction ? `\nIntroduction:\n${input.introduction}\n` : ""}\n${describePreferences(input.preferences)}\nRecord: puckleJoinContactRequests _id ${input.id}\nPlease contact them by phone or text.` };
 }
-export function founderInterestEmail(input: { id: string; name: string; email: string | null; mobile: string | null; reason: string; message: string; emailUpdates: boolean }): Message {
+export function founderInterestEmail(input: { id: string; name: string; email: string | null; mobile: string | null; reason: string; message: string; preferences?: StoredPreferences }): Message {
   return { subject: subject(input.email ? "FYI" : "ACTION", input.email ? "🔔" : "📱", input.email ? "UPDATES SIGN-UP" : "CALL BACK (updates, no email)", input.name), text:
-    `Someone asked for occasional Puckle updates. No account was created.\n\n${line("Name", input.name)}${line("Email", input.email)}${line("Mobile", input.mobile)}${line("Interest", input.reason)}`
-    + `${line("Email updates", input.emailUpdates ? "requested by email" : "none (mobile-only: follow-up only)")}${input.message ? `\nMessage:\n${input.message}\n` : ""}\nRecord: puckleInterestContacts _id ${input.id}` };
+    `Someone left their details to hear about Puckle. No account was created.\n\n${line("Name", input.name)}${line("Email", input.email)}${line("Mobile", input.mobile)}${line("Interest", input.reason)}`
+    + `${input.message ? `\nMessage:\n${input.message}\n` : ""}\n${describePreferences(input.preferences)}\nRecord: puckleInterestContacts _id ${input.id}` };
 }
 export function founderTuitionEnquiryEmail(input: { id: string; linkedAccount: boolean; data: { enquirerType: string; studentName: string; contactName: string; mathsCourse: string; email: string | null; phone: string | null; preferredContactMethod: string; message: string } }): Message {
   const d = input.data;

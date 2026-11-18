@@ -36,9 +36,12 @@ before(async () => {
 });
 after(async () => { await client?.close(); await server?.stop(); fixture?.close(); });
 
+const prefs = (keys: string[], value = "no", channels = { email: false, sms: false }) => ({ answers: Object.fromEntries(keys.map(key => [key, value])), channels });
+const SHARED = ["puckleUpdates", "newsAndOffers", "occasionalPersonalContact"];
+const STUDENT_PREFS = prefs([...SHARED, "guidedMathsInvitations"]), TEACHER_PREFS = prefs([...SHARED, "teacherCollaborationInvitations"]), INTEREST_PREFS = prefs(SHARED);
 const studentDetails = (email: string, extra: Record<string, unknown> = {}) => ({ registrationCategory: "student", name: "Ada", email, mobile: "", phoneCountryCode: "IE",
-  dateOfBirth: "2010-05-01", education: { course: "gcse", courseOther: "", level: "higher-tier", levelOther: "" }, ...extra });
-const teacherDetails = (email: string, extra: Record<string, unknown> = {}) => ({ registrationCategory: "teacher", name: "Mr Byrne", email, mobile: "", phoneCountryCode: "IE", teacherIntroduction: "", ...extra });
+  dateOfBirth: "2010-05-01", education: { course: "gcse", courseOther: "", level: "higher-tier", levelOther: "" }, communicationPreferences: STUDENT_PREFS, ...extra });
+const teacherDetails = (email: string, extra: Record<string, unknown> = {}) => ({ registrationCategory: "teacher", name: "Mr Byrne", email, mobile: "", phoneCountryCode: "IE", teacherIntroduction: "", communicationPreferences: TEACHER_PREFS, ...extra });
 async function proofFor(email: string) {
   const binding = await requestEmailChallenge(db, { email, requester: email }, mail);
   const code = messages.at(-1)!.text.match(/\b\d{6}\b/)![0];
@@ -67,6 +70,7 @@ test("verified student registration creates one ordinary account, one profile an
   assert.equal(membership.registrationCategory, "student"); assert.equal(membership.initialRegistrationSource, "join"); assert.equal(membership.welcome.eligible, true);
   assert.equal(membership.welcome.seenAt, undefined); assert.deepEqual(membership.education, { course: "gcse", courseOther: null, level: "higher-tier", levelOther: null });
   assert.equal(membership.mobile, null); assert.deepEqual(membership.founderNotification, { status: "pending" });
+  assert.deepEqual([membership.communicationPreferences.answers, membership.communicationPreferences.channels, membership.communicationPreferences.source], [STUDENT_PREFS.answers, STUDENT_PREFS.channels, "join-form"]);
   assert.ok(!JSON.stringify(membership).match(/2010|passwordHash|permissions|approval|assurance/), "profile holds no DOB, credentials, permission or approval data");
   const challenge = (await db.collection("accountEmailChallenges").findOne({ challengeId: request.challengeId }))!;
   assert.ok(challenge.usedAt instanceof Date); assert.ok(!JSON.stringify(challenge).match(/2010|passphrase|Ada|gcse/), "proof record keeps no registration data");
@@ -231,8 +235,8 @@ test("registrations leave pre-existing accounts exactly as they were", async () 
 test("no-email requests are contact records only: no account, profile, credential or username reservation", async () => {
   const before = await counts(), usersBefore = JSON.stringify(await db.collection("users").find().sort({ _id: 1 }).toArray());
   const student = await saveNoEmailJoinContact(db, { registrationCategory: "student", name: "Sam", email: "", mobile: "087 123 4567", phoneCountryCode: "IE", dateOfBirth: "2010-05-01",
-    education: { course: "a-level", courseOther: "", level: null, levelOther: "" } });
-  const teacher = await saveNoEmailJoinContact(db, { registrationCategory: "teacher", name: "Ms Lee", email: "", mobile: "+353871234568", teacherIntroduction: "" });
+    education: { course: "a-level", courseOther: "", level: null, levelOther: "" }, communicationPreferences: STUDENT_PREFS });
+  const teacher = await saveNoEmailJoinContact(db, { registrationCategory: "teacher", name: "Ms Lee", email: "", mobile: "+353871234568", teacherIntroduction: "", communicationPreferences: TEACHER_PREFS });
   assert.deepEqual(await counts(), before);
   assert.equal(JSON.stringify(await db.collection("users").find().sort({ _id: 1 }).toArray()), usersBefore);
   const saved = (await db.collection("puckleJoinContactRequests").findOne({ _id: student.id }))!;
@@ -247,37 +251,57 @@ test("no-email requests are contact records only: no account, profile, credentia
 });
 test("no-email requests reject credentials, an email, a missing mobile, under-13s and unexpected fields; nothing is stored", async () => {
   const before = await db.collection("puckleJoinContactRequests").countDocuments();
-  const base = { registrationCategory: "teacher", name: "T", email: "", mobile: "+353871234567", phoneCountryCode: "IE", teacherIntroduction: "" };
+  const base = { registrationCategory: "teacher", name: "T", email: "", mobile: "+353871234567", phoneCountryCode: "IE", teacherIntroduction: "", communicationPreferences: TEACHER_PREFS };
   const reject = async (label: string, body: Record<string, unknown>, code: string) => await assert.rejects(saveNoEmailJoinContact(db, body), new RegExp(code), label);
   await reject("password", { ...base, password: "secret" }, "UNEXPECTED_FIELD"); await reject("username", { ...base, username: "someone" }, "UNEXPECTED_FIELD");
   await reject("passwordHash", { ...base, passwordHash: "x" }, "UNEXPECTED_FIELD"); await reject("email supplied", { ...base, email: "a@b.com" }, "NO_EMAIL_REQUIRES_MOBILE");
   await reject("no mobile", { ...base, mobile: "" }, "NO_EMAIL_REQUIRES_MOBILE"); await reject("bad mobile", { ...base, mobile: "12" }, "INVALID_MOBILE");
-  await reject("under 13", { ...base, registrationCategory: "student", dateOfBirth: "2020-01-01", education: { course: "gcse", level: "higher-tier" }, teacherIntroduction: undefined }, "MINIMUM_AGE_13");
-  await reject("student without course", { ...base, registrationCategory: "student", dateOfBirth: "2010-01-01", teacherIntroduction: undefined }, "SUBMISSION|COURSE");
+  await reject("under 13", { ...base, registrationCategory: "student", dateOfBirth: "2020-01-01", education: { course: "gcse", level: "higher-tier" }, teacherIntroduction: undefined, communicationPreferences: STUDENT_PREFS }, "MINIMUM_AGE_13");
+  await reject("student without course", { ...base, registrationCategory: "student", dateOfBirth: "2010-01-01", teacherIntroduction: undefined, communicationPreferences: STUDENT_PREFS }, "SUBMISSION|COURSE");
   assert.equal(await db.collection("puckleJoinContactRequests").countDocuments(), before);
 });
-test("interest contacts never create accounts and record the email-updates choice only when explicit", async () => {
+test("interest contacts never create accounts and store only the explicit communication choices", async () => {
   const before = await counts(), existing = address();
   await db.collection("users").insertOne({ _id: new ObjectId(), email: existing, username: "InterestedAlready", passwordHash: "x", cardsData: [], decksData: [], createdAt: new Date(), updatedAt: new Date() });
-  const interested = await saveInterestContact(db, { name: "Pat", email: existing, mobile: "", phoneCountryCode: "IE", reason: "parent", message: "" }, new Date("2026-11-14T10:00:00Z"));
-  const declined = await saveInterestContact(db, { name: "Quinn", email: "q@example.invalid", mobile: "+353871234569", phoneCountryCode: "IE", reason: "", message: "" });
-  const mobileOnly = await saveInterestContact(db, { name: "Rae", email: "", mobile: "+353871234570", phoneCountryCode: "IE", reason: "curious", message: "" });
+  const yes = { answers: { puckleUpdates: "yes", newsAndOffers: "no", occasionalPersonalContact: "no" }, channels: { email: true, sms: false } };
+  const interested = await saveInterestContact(db, { name: "Pat", email: existing, mobile: "", phoneCountryCode: "IE", reason: "parent", message: "", communicationPreferences: yes }, new Date("2026-11-14T10:00:00Z"));
+  const declined = await saveInterestContact(db, { name: "Quinn", email: "q@example.invalid", mobile: "+353871234569", phoneCountryCode: "IE", reason: "", message: "", communicationPreferences: INTEREST_PREFS });
+  const mobileOnly = await saveInterestContact(db, { name: "Rae", email: "", mobile: "+353871234570", phoneCountryCode: "IE", reason: "curious", message: "",
+    communicationPreferences: { answers: { puckleUpdates: "no", newsAndOffers: "no", occasionalPersonalContact: "yes" }, channels: { email: false, sms: false } } });
   const rows = Object.fromEntries(await Promise.all([["interested", interested], ["declined", declined], ["mobileOnly", mobileOnly]].map(async ([name, saved]) => [name, (await db.collection("puckleInterestContacts").findOne({ _id: (saved as typeof interested).id }))!])));
   assert.equal((await counts()).users, before.users + 1, "only the fixture user above"); assert.equal((await counts()).memberships, before.memberships);
-  assert.deepEqual([rows.interested.communication.emailUpdates, rows.interested.communication.wordingVersion, rows.interested.communication.recordedAt.toISOString()], [true, "puckle-updates-signup-v1", "2026-11-14T10:00:00.000Z"]);
-  assert.equal(rows.declined.communication.emailUpdates, true, "submitting with an email is the request"); assert.equal(rows.mobileOnly.communication.emailUpdates, false, "mobile-only: follow-up only");
-  assert.deepEqual([rows.interested.communication.source, rows.declined.reason], ["join-interest-form", ""]);
+  assert.deepEqual([rows.interested.communicationPreferences.answers, rows.interested.communicationPreferences.channels, rows.interested.communicationPreferences.wordingVersion, rows.interested.communicationPreferences.recordedAt.toISOString()],
+    [yes.answers, yes.channels, "puckle-communication-preferences-v1", "2026-11-14T10:00:00.000Z"]);
+  assert.equal(rows.declined.communicationPreferences.answers.puckleUpdates, "no", "submitting with an email is not a request for updates");
+  assert.deepEqual(rows.declined.communicationPreferences.channels, { email: false, sms: false });
+  assert.equal(rows.declined.communication, undefined, "the implied email-updates request no longer exists");
+  assert.deepEqual([rows.interested.communicationPreferences.source, rows.declined.reason], ["join-interest-form", ""]);
   assert.deepEqual([rows.mobileOnly.email, rows.mobileOnly.mobile], [null, "+353871234570"]);
-  assert.ok(!JSON.stringify(rows).match(/sms|password|userId/i));
-  await assert.rejects(saveInterestContact(db, { name: "X", email: "", mobile: "+353871234570", reason: "r", emailUpdates: true }), /UNEXPECTED_FIELD/);
-  await assert.rejects(saveInterestContact(db, { name: "X", email: "", mobile: "", reason: "r" }), /CONTACT_REQUIRED/);
-  await saveInterestContact(db, { name: "X", email: "a@b.com", reason: "", mobile: "" }); // reason is optional
-  await assert.rejects(saveInterestContact(db, { name: "X", email: "a@b.com", reason: "r", password: "nope" }), /UNEXPECTED_FIELD/);
+  assert.ok(!JSON.stringify(rows).match(/password|userId/i));
+  await assert.rejects(saveInterestContact(db, { name: "X", email: "", mobile: "+353871234570", reason: "r", emailUpdates: true, communicationPreferences: INTEREST_PREFS }), /UNEXPECTED_FIELD/);
+  await assert.rejects(saveInterestContact(db, { name: "X", email: "", mobile: "", reason: "r", communicationPreferences: INTEREST_PREFS }), /CONTACT_REQUIRED/);
+  await assert.rejects(saveInterestContact(db, { name: "X", email: "a@b.com", reason: "r" }), /PREFERENCES_INVALID/);
+  await assert.rejects(saveInterestContact(db, { name: "X", email: "a@b.com", reason: "r", communicationPreferences: { answers: { puckleUpdates: "yes" }, channels: { email: true, sms: false } } }), /PREFERENCES_INVALID|PREFERENCES_INCOMPLETE/);
+  await assert.rejects(saveInterestContact(db, { name: "X", email: "", mobile: "+353871234570", reason: "r", communicationPreferences: prefs(SHARED, "yes", { email: true, sms: false }) }), /EMAIL_CHANNEL_NEEDS_EMAIL/);
+  await saveInterestContact(db, { name: "X", email: "a@b.com", reason: "", mobile: "", communicationPreferences: INTEREST_PREFS }); // reason is optional
+  await assert.rejects(saveInterestContact(db, { name: "X", email: "a@b.com", reason: "r", password: "nope", communicationPreferences: INTEREST_PREFS }), /UNEXPECTED_FIELD/);
   await mobileOnly.notify();
-  assert.match(captured.at(-1)!.text, /No account was created/); assert.match(captured.at(-1)!.text, /Rae/); assert.match(captured.at(-1)!.text, /follow-up only/);
+  assert.match(captured.at(-1)!.text, /No account was created/); assert.match(captured.at(-1)!.text, /Rae/);
+  assert.match(captured.at(-1)!.text, /Occasional personal contact: Yes/); assert.match(captured.at(-1)!.text, /Delivery: none/);
+});
+test("registration and mobile-only requests keep the communication choices with the record, and nothing is stored without them", async () => {
+  const before = await db.collection("puckleJoinContactRequests").countDocuments();
+  await assert.rejects(saveNoEmailJoinContact(db, { registrationCategory: "teacher", name: "T", email: "", mobile: "+353871234567", teacherIntroduction: "" }), /PREFERENCES_INVALID/);
+  assert.equal(await db.collection("puckleJoinContactRequests").countDocuments(), before, "no orphan record");
+  const withText = await saveNoEmailJoinContact(db, { registrationCategory: "teacher", name: "Tex", email: "", mobile: "+353871234572", teacherIntroduction: "",
+    communicationPreferences: { answers: { ...TEACHER_PREFS.answers, teacherCollaborationInvitations: "yes" }, channels: { email: false, sms: true } } });
+  const row = (await db.collection("puckleJoinContactRequests").findOne({ _id: withText.id }))!;
+  assert.deepEqual([row.communicationPreferences.answers.teacherCollaborationInvitations, row.communicationPreferences.channels, row.communicationPreferences.source], ["yes", { email: false, sms: true }, "join-form"]);
+  await withText.notify();
+  assert.match(captured.at(-1)!.text, /Teacher collaboration invitations: Yes/); assert.match(captured.at(-1)!.text, /Delivery: Text message/);
 });
 test("founder notification outcomes are recorded and never throw or alter the saved record", async () => {
-  const saved = await saveNoEmailJoinContact(db, { registrationCategory: "teacher", name: "N", email: "", mobile: "+353871234571", teacherIntroduction: "" });
+  const saved = await saveNoEmailJoinContact(db, { registrationCategory: "teacher", name: "N", email: "", mobile: "+353871234571", teacherIntroduction: "", communicationPreferences: TEACHER_PREFS });
   const target = { collection: "puckleJoinContactRequests", id: saved.id }, status = async () => (await db.collection("puckleJoinContactRequests").findOne({ _id: saved.id }))!;
   const message = { subject: "s", text: "t" };
   await notifyFounder(db, target, message, async () => ({ status: "failed", attemptedAt: new Date(), reference: "provider-http-500" }));

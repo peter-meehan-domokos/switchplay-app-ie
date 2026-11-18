@@ -259,6 +259,7 @@ test.describe("pre-launch mode on", () => {
       await page.getByLabel("Choose a username").fill(username); await page.getByLabel("Choose a password").fill("a perfectly good passphrase");
       await page.locator("#join-dobDay").fill("14"); await page.locator("#join-dobMonth").fill("6"); await page.locator("#join-dobYear").fill(String(year - 17));
       await page.locator("#join-course").selectOption("gcse"); await page.locator("#join-level").selectOption("higher-tier");
+      for (const radio of await page.locator('[data-preferences="join"] input[type=radio][value=no]').all()) await radio.check();
       await page.locator("button[type=submit]").click();
       const deadline = Date.now() + 15_000; let code = "";
       while (!code && Date.now() < deadline) { code = (await outbox()).filter(m => m.to.includes(email) && /\b\d{6}\b/.test(m.text)).at(-1)?.text.match(/\b\d{6}\b/)?.[0] ?? ""; if (!code) await new Promise(r => setTimeout(r, 200)); }
