@@ -1,6 +1,7 @@
 import { Caveat } from "next/font/google";
 import Image from "next/image";
 import buttonStyles from "./PublicButton.module.css";
+import ExploreVideo from "./ExploreVideo";
 import styles from "./BenefitSections.module.css";
 
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
@@ -60,14 +61,13 @@ function LearningSection() {
             Change graphs, move points and experiment with mathematical ideas for yourself.
           </p>
         </div>
-        <figure className={`${styles.media} ${styles.mediaFeature}`}>
-          <Image
-            alt="Functions and Graphs preview: a parabola with its vertex at (1, −1) and the prompt to drag the point to explore how the graph changes"
-            className={styles.mediaImage}
-            height={1000}
-            sizes="(min-width: 900px) 620px, calc(100vw - 32px)"
-            src="/images/sites/puckle/puckle-functions-graphs.png"
-            width={1440}
+        <figure className={`${styles.media} ${styles.mediaFeature} ${styles.mediaVideo}`}>
+          <ExploreVideo
+            height={696}
+            label="Unroll the cone: an animation showing a cone opening out into a sector, with its measurements and the sector area calculation underneath"
+            poster="/images/sites/puckle/cone-poster-v2.jpg"
+            src="/videos/sites/puckle/cone-unroll-v2.mp4"
+            width={936}
           />
         </figure>
       </div>

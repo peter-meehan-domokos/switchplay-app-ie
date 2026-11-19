@@ -7,7 +7,10 @@ async function open(browser: Browser, width: number, height: number): Promise<Pa
   const context = await browser.newContext({ viewport: { width, height }, locale: "en-IE" });
   const page = await context.newPage(); await page.goto(`${origin}/`, { waitUntil: "networkidle" }); return page;
 }
-const noOverflow = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+const noOverflow = async (page: Page) => {
+  const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
+  expect(scrollWidth, `page scrollWidth ${scrollWidth} vs viewport ${innerWidth}`).toBeLessThanOrEqual(innerWidth + 1);
+};
 
 const heroMetrics = (page: Page) => page.evaluate(() => {
   const copy = document.getElementById("home-hero-title")!.parentElement!, fig = copy.parentElement!.querySelector("figure")!, img = fig.querySelector("img")!;
@@ -157,4 +160,95 @@ test("an early Request a free session button sits centred under the hero bridge 
     expect(Math.abs((await landing(page)).sectionTop), `${width}px: early button reaches the registration section`).toBeLessThanOrEqual(2);
     await page.context().close();
   }
+});
+
+// Explore animation: the cropped 936x696 asset, shown borderless with its own controls beneath. Aspect ratio comes from the asset.
+const ASSET_RATIO = 936 / 696;
+const exploreVideo = (page: Page) => page.locator("video[aria-label^='Unroll the cone']");
+const paused = (page: Page) => exploreVideo(page).evaluate((video: HTMLVideoElement) => video.paused);
+const bringIntoView = (page: Page) => exploreVideo(page).evaluate((video) => video.scrollIntoView({ block: "center" }));
+const scrollAway = (page: Page) => page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+test("the Explore animation keeps the 936 x 696 ratio, sits in the old image position with no frame, and its controls are beneath it", async ({ browser }) => {
+  for (const width of [390, 768, 1024, 1280]) {
+    const page = await open(browser, width, 900), video = exploreVideo(page);
+    await bringIntoView(page);
+    const metrics = await page.evaluate(() => {
+      const element = document.querySelector("video[aria-label^='Unroll the cone']") as HTMLVideoElement, figure = element.closest("figure")!;
+      const box = element.getBoundingClientRect(), strip = element.nextElementSibling!.getBoundingClientRect(), figureBox = figure.getBoundingClientRect(), style = getComputedStyle(figure);
+      return { w: box.width, h: box.height, stripTop: strip.top, videoBottom: box.bottom, figureW: figureBox.width, left: box.left - figureBox.left,
+        border: style.borderTopWidth, nativeControls: element.controls, loop: element.loop, muted: element.muted, inline: element.playsInline, vw: window.innerWidth };
+    });
+    expect(Math.abs(metrics.w / metrics.h - ASSET_RATIO), `${width}px ratio`).toBeLessThan(0.01);
+    expect(metrics.border, `${width}px figure border`).toBe("0px");
+    expect(Math.abs(metrics.w - metrics.figureW)).toBeLessThanOrEqual(1); expect(metrics.left).toBeLessThanOrEqual(1);
+    expect(metrics.stripTop, `${width}px strip below the video`).toBeGreaterThanOrEqual(metrics.videoBottom - 0.5);
+    expect(metrics.nativeControls).toBe(false); expect(metrics.loop).toBe(true); expect(metrics.muted).toBe(true); expect(metrics.inline).toBe(true);
+    await expect(video).toBeVisible(); await noOverflow(page); await page.context().close();
+  }
+});
+
+test("the Explore animation has no frame or corner remnants: the edges are card cream and the corners show the page behind", async ({ browser }) => {
+  const sharp = (await import("sharp")).default;
+  const page = await open(browser, 1280, 900), video = exploreVideo(page);
+  await bringIntoView(page); await video.evaluate((element: HTMLVideoElement) => { element.pause(); element.currentTime = 40; });
+  await page.waitForTimeout(600);
+  const box = (await video.boundingBox())!, pad = 6;
+  const shot = await sharp(await page.screenshot({ clip: { x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad } })).raw().toBuffer({ resolveWithObject: true });
+  const at = (x: number, y: number) => { const scale = shot.info.width / (box.width + 2 * pad), px = (Math.round(y * scale) * shot.info.width + Math.round(x * scale)) * shot.info.channels; return [...shot.data.subarray(px, px + 3)]; };
+  const page_bg = at(2, 2), isCream = (c: number[]) => c[0] > 225 && c[1] > 225 && c[2] > 215;
+  for (const [x, y] of [[pad + 1, pad + box.height / 2], [pad + box.width - 2, pad + box.height / 2], [pad + box.width / 2, pad + 1], [pad + box.width / 2, pad + box.height - 2]]) expect(isCream(at(x, y)), `edge ${x},${y} is cream`).toBe(true);
+  for (const [x, y] of [[pad, pad], [pad + box.width - 1, pad], [pad, pad + box.height - 1], [pad + box.width - 1, pad + box.height - 1]]) {
+    const corner = at(x, y); expect(corner.every((channel, index) => Math.abs(channel - page_bg[index]) <= 12), `corner ${x},${y} shows the page, not a navy remnant: ${corner} vs ${page_bg}`).toBe(true);
+  }
+  await page.context().close();
+});
+
+test("the Explore animation autoplays muted when seen, pauses when left, and a deliberate pause survives scrolling and fullscreen", async ({ browser }) => {
+  const page = await open(browser, 390, 800), video = exploreVideo(page);
+  expect(await paused(page)).toBe(true);
+  await bringIntoView(page); await expect.poll(() => paused(page)).toBe(false);
+  expect(await video.evaluate((element: HTMLVideoElement) => element.muted)).toBe(true);
+  await scrollAway(page); await expect.poll(() => paused(page)).toBe(true);
+  await bringIntoView(page); await expect.poll(() => paused(page)).toBe(false);
+  await video.click(); await expect.poll(() => paused(page)).toBe(true); // tapping the video is a deliberate pause
+  await scrollAway(page); await page.waitForTimeout(400); await bringIntoView(page); await page.waitForTimeout(800);
+  expect(await paused(page), "deliberate pause preserved").toBe(true);
+  await page.getByRole("button", { name: "Play" }).click(); await expect.poll(() => paused(page)).toBe(false);
+  await page.getByRole("button", { name: "Pause" }).click(); await expect.poll(() => paused(page)).toBe(true);
+  const target = await video.evaluate((element: HTMLVideoElement) => element.duration / 2);
+  await page.getByRole("slider", { name: "Seek" }).fill(String(Math.round(target * 10) / 10)); await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(target - 1);
+  expect(await paused(page), "seeking does not change a pause").toBe(true);
+  await page.context().close();
+});
+
+test("fullscreen shows the whole player including the strip, and does not interrupt or change playback", async ({ browser }) => {
+  const page = await open(browser, 1280, 800), video = exploreVideo(page);
+  await bringIntoView(page); await expect.poll(() => paused(page)).toBe(false);
+  await page.getByRole("button", { name: "Enter fullscreen" }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement?.querySelector("video[aria-label^='Unroll the cone']") !== null && document.fullscreenElement !== null)).toBe(true);
+  await page.waitForTimeout(500); expect(await paused(page), "still playing in fullscreen").toBe(false);
+  await expect(page.getByRole("slider", { name: "Seek" })).toBeVisible();
+  await page.getByRole("button", { name: "Exit fullscreen" }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await page.waitForTimeout(500); expect(await paused(page), "still playing after fullscreen").toBe(false);
+  await video.click(); await expect.poll(() => paused(page)).toBe(true);
+  await page.getByRole("button", { name: "Enter fullscreen" }).click(); await page.waitForTimeout(300);
+  await page.getByRole("button", { name: "Exit fullscreen" }).click(); await page.waitForTimeout(800);
+  expect(await paused(page), "a pause survives a fullscreen round trip").toBe(true);
+  await page.context().close();
+});
+
+test("reduced motion never autoplays, and blocked autoplay leaves the poster with working manual controls", async ({ browser }) => {
+  const calm = await browser.newContext({ viewport: { width: 390, height: 800 }, reducedMotion: "reduce" }), calmPage = await calm.newPage();
+  await calmPage.goto(`${origin}/`, { waitUntil: "networkidle" }); await bringIntoView(calmPage); await calmPage.waitForTimeout(1000);
+  expect(await paused(calmPage)).toBe(true);
+  await calmPage.getByRole("button", { name: "Play" }).click(); await expect.poll(() => paused(calmPage)).toBe(false); await calm.close();
+
+  const blocked = await browser.newContext({ viewport: { width: 390, height: 800 } }), blockedPage = await blocked.newPage();
+  await blockedPage.addInitScript(() => { const play = HTMLMediaElement.prototype.play; let first = true;
+    HTMLMediaElement.prototype.play = function () { if (first) { first = false; return Promise.reject(new DOMException("blocked", "NotAllowedError")); } return play.call(this); }; });
+  await blockedPage.goto(`${origin}/`, { waitUntil: "networkidle" }); await bringIntoView(blockedPage); await blockedPage.waitForTimeout(800);
+  expect(await paused(blockedPage)).toBe(true); expect(await exploreVideo(blockedPage).getAttribute("poster")).toContain("cone-poster-v2");
+  await blockedPage.getByRole("button", { name: "Play" }).click(); await expect.poll(() => paused(blockedPage)).toBe(false); await blocked.close();
 });

@@ -104,6 +104,12 @@
   width: 100%;
 }
 
+/* The Explore animation is cropped to the card and sits on the page background, so it carries no frame of its own. */
+.mediaVideo {
+  border: 0;
+  overflow: visible;
+}
+
 .mediaImage {
   display: block;
   width: 100%;
