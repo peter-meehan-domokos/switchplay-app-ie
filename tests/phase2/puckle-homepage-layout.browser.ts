@@ -175,7 +175,7 @@ test("the Explore animation keeps the 936 x 696 ratio, sits in the old image pos
     await bringIntoView(page);
     const metrics = await page.evaluate(() => {
       const element = document.querySelector("video[aria-label^='Unroll the cone']") as HTMLVideoElement, figure = element.closest("figure")!;
-      const box = element.getBoundingClientRect(), strip = element.nextElementSibling!.getBoundingClientRect(), figureBox = figure.getBoundingClientRect(), style = getComputedStyle(figure);
+      const box = element.getBoundingClientRect(), strip = element.parentElement!.nextElementSibling!.getBoundingClientRect(), figureBox = figure.getBoundingClientRect(), style = getComputedStyle(figure);
       return { w: box.width, h: box.height, stripTop: strip.top, videoBottom: box.bottom, figureW: figureBox.width, left: box.left - figureBox.left,
         border: style.borderTopWidth, nativeControls: element.controls, loop: element.loop, muted: element.muted, inline: element.playsInline, vw: window.innerWidth };
     });
@@ -249,6 +249,24 @@ test("reduced motion never autoplays, and blocked autoplay leaves the poster wit
   await blockedPage.addInitScript(() => { const play = HTMLMediaElement.prototype.play; let first = true;
     HTMLMediaElement.prototype.play = function () { if (first) { first = false; return Promise.reject(new DOMException("blocked", "NotAllowedError")); } return play.call(this); }; });
   await blockedPage.goto(`${origin}/`, { waitUntil: "networkidle" }); await bringIntoView(blockedPage); await blockedPage.waitForTimeout(800);
-  expect(await paused(blockedPage)).toBe(true); expect(await exploreVideo(blockedPage).getAttribute("poster")).toContain("cone-poster-v2");
+  expect(await paused(blockedPage)).toBe(true); expect(await blockedPage.locator("img[data-explore-poster]").getAttribute("src"), "poster stays over the video").toContain("cone-poster-v2");
   await blockedPage.getByRole("button", { name: "Play" }).click(); await expect.poll(() => paused(blockedPage)).toBe(false); await blocked.close();
+});
+
+test("the Explore animation never shows the dark page through while its first frame loads: the poster covers it until a frame is painted", async ({ browser }) => {
+  const sharp = (await import("sharp")).default;
+  const context = await browser.newContext({ viewport: { width: 390, height: 800 } }), page = await context.newPage();
+  await page.route("**/cone-unroll-v2.mp4", async (route) => { await new Promise((resolve) => setTimeout(resolve, 700)); await route.continue(); }); // a cold, slow first load
+  await page.goto(`${origin}/`, { waitUntil: "networkidle" });
+  const video = exploreVideo(page), poster = page.locator("img[data-explore-poster]");
+  await expect(poster).toHaveCount(1); await bringIntoView(page);
+  const box = (await video.boundingBox())!, brightness: number[] = [];
+  for (let sample = 0; sample < 16; sample++) {
+    const { data, info } = await sharp(await page.screenshot({ clip: { x: box.x + 20, y: box.y + 10, width: box.width - 40, height: box.height - 20 } })).raw().toBuffer({ resolveWithObject: true });
+    let sum = 0; for (let index = 0; index < data.length; index += info.channels) sum += data[index] + data[index + 1] + data[index + 2];
+    brightness.push(Math.round(sum / (data.length / info.channels) / 3));
+  }
+  expect(Math.min(...brightness), `no dark frames while loading: ${brightness}`).toBeGreaterThan(150);
+  await expect.poll(() => paused(page)).toBe(false); await expect(poster).toHaveCount(0); // removed once a frame is painted
+  await context.close();
 });

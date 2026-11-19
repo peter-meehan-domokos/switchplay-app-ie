@@ -37,6 +37,8 @@ export default function ExploreVideo({ src, poster, width, height, label }: Expl
   const [isPaused, setIsPaused] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullscreenAvailable, setIsFullscreenAvailable] = useState(false);
+  // The poster image stays over the video until its first frame has actually been painted.
+  const [hasFirstFrame, setHasFirstFrame] = useState(false);
 
   const layout = buildExploreVideoLayout({ currentTime, duration, isPaused, isFullscreen, isFullscreenAvailable });
 
@@ -93,7 +95,23 @@ export default function ExploreVideo({ src, poster, width, height, label }: Expl
     );
     observer.observe(container);
 
-    const handlePlay = () => setIsPaused(false);
+    // Start fetching the video data about a screen before it is reached, so the first frame is usually ready on play.
+    const warmUp = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        video.preload = "auto";
+        warmUp.disconnect();
+      },
+      { rootMargin: "150% 0px" }
+    );
+    warmUp.observe(container);
+
+    const handlePlay = () => {
+      setIsPaused(false);
+      // Prefer the exact first painted frame; browsers without it fall back to the "playing" event below.
+      video.requestVideoFrameCallback?.(() => setHasFirstFrame(true));
+    };
+    const handlePlaying = () => setHasFirstFrame(true);
     const handlePause = () => {
       setIsPaused(true);
       const wasAutomatic = automaticPauseRef.current;
@@ -121,6 +139,7 @@ export default function ExploreVideo({ src, poster, width, height, label }: Expl
     };
 
     video.addEventListener("play", handlePlay);
+    video.addEventListener("playing", handlePlaying);
     video.addEventListener("pause", handlePause);
     video.addEventListener("timeupdate", handleTime);
     video.addEventListener("seeked", handleTime);
@@ -134,7 +153,9 @@ export default function ExploreVideo({ src, poster, width, height, label }: Expl
     return () => {
       motion.removeEventListener("change", handleMotion);
       observer.disconnect();
+      warmUp.disconnect();
       video.removeEventListener("play", handlePlay);
+      video.removeEventListener("playing", handlePlaying);
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("timeupdate", handleTime);
       video.removeEventListener("seeked", handleTime);
@@ -186,21 +207,26 @@ export default function ExploreVideo({ src, poster, width, height, label }: Expl
 
   return (
     <div className={styles.player} ref={containerRef} data-fullscreen={isFullscreen ? "true" : "false"}>
-      <video
-        aria-label={label}
-        className={styles.video}
-        height={height}
-        loop
-        muted
-        onClick={togglePlayback}
-        playsInline
-        poster={poster}
-        preload="metadata"
-        ref={videoRef}
-        src={src}
-        style={{ "--explore-video-ratio": `${width} / ${height}` } as CSSProperties}
-        width={width}
-      />
+      <div className={styles.screen}>
+        <video
+          aria-label={label}
+          className={styles.video}
+          height={height}
+          loop
+          muted
+          onClick={togglePlayback}
+          playsInline
+          preload="metadata"
+          ref={videoRef}
+          src={src}
+          style={{ "--explore-video-ratio": `${width} / ${height}` } as CSSProperties}
+          width={width}
+        />
+        {hasFirstFrame ? null : (
+          // eslint-disable-next-line @next/next/no-img-element -- a plain overlay that must match the video's first frame exactly
+          <img alt="" className={styles.poster} data-explore-poster="true" height={height} src={poster} width={width} />
+        )}
+      </div>
       <div className={styles.strip}>
         <button
           aria-label={layout.playbackLabel}
