@@ -291,12 +291,14 @@
   font-size: 1rem;
   line-height: 1.5;
   list-style: none;
+  text-align: center;
 }
 
 .ideas li {
   display: grid;
   gap: 2px;
   align-content: start;
+  text-align: center;
   text-wrap: balance;
 }
 
