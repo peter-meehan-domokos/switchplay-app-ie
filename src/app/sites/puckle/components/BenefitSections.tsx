@@ -2,6 +2,7 @@ import { Caveat } from "next/font/google";
 import Image from "next/image";
 import buttonStyles from "./PublicButton.module.css";
 import ExploreVideo from "./ExploreVideo";
+import TeacherProfile from "./TeacherProfile";
 import styles from "./BenefitSections.module.css";
 
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
@@ -118,10 +119,7 @@ function TuitionSection() {
           src="/images/sites/puckle/puckle-tutor-photo-v2.jpg"
           width={960}
         />
-        <figcaption className={styles.credential}>
-          <span>15+ years teaching secondary maths</span>
-          <span>Thousands of students taught</span>
-        </figcaption>
+        <TeacherProfile />
       </figure>
       <div className={styles.tuitionCopy}>
         <p className={styles.body}>

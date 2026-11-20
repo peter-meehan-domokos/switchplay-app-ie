@@ -233,33 +233,23 @@
 }
 
 /* Section 2 */
+/* The figure spans the text column so the profile beneath the photo has room; the photo itself stays 220px wide on phones. The extra
+   bottom margin sets the profile apart from the paragraphs that follow: it is the gap between "Read more" and the first paragraph on
+   stacked (phone and tablet) layouts, on top of the section's 24px gap and the link's own 44px tap area. Negative, so it pulls the paragraph up. */
 .portrait {
   display: grid;
   gap: 10px;
-  margin: 0;
-  width: 220px;
+  margin: 0 0 -8px;
+  width: 100%;
 }
 
 .portraitImage {
   display: block;
-  width: 100%;
+  width: 220px;
   height: auto;
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: 20px;
-}
-
-.credential {
-  display: grid;
-  justify-items: start;
-  color: var(--sp-site-text-muted);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  text-align: left;
-}
-
-.credential span {
-  white-space: nowrap;
 }
 
 .deliveryNote {
@@ -353,6 +343,38 @@
   }
 }
 
+/* Tablet portrait (iPad mini is 744px wide, so this starts below the site's 760px breakpoint): the heading keeps a full-width row, then the
+   photo and profile sit on the left with the description and call to action beside them, top-aligned. Phones stay stacked. */
+@media (min-width: 720px) {
+  .tuition {
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-areas:
+      "header header"
+      "portrait copy";
+    column-gap: 40px;
+    align-items: start;
+  }
+
+  .tuitionHeader {
+    grid-area: header;
+  }
+
+  .portrait {
+    grid-area: portrait;
+    width: 260px;
+    margin-bottom: 0;
+  }
+
+  .portraitImage {
+    width: 100%;
+  }
+
+  .tuitionCopy {
+    grid-area: copy;
+    align-content: start;
+  }
+}
+
 @media (min-width: 900px) {
   .sections {
     gap: 88px;
@@ -410,29 +432,21 @@
     padding: 20px;
   }
 
+  /* Desktop and tablet landscape: photo and profile on the left, heading and description on the right, both starting at the top of the
+     photo. The first row is only as tall as the heading, so the photo's extra height lands below the description (the second row is
+     flexible) and does not push the right-hand column down. The 286px column is the photo's own width; 30px is the gap. */
   .tuition {
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: 286px minmax(0, 1fr);
     grid-template-areas:
       "portrait header"
       "portrait copy";
-    column-gap: 56px;
+    grid-template-rows: auto 1fr;
+    column-gap: 30px;
     row-gap: 16px;
-    align-items: start;
-  }
-
-  .tuitionHeader {
-    grid-area: header;
-    align-self: end;
   }
 
   .portrait {
-    grid-area: portrait;
     width: 286px;
-  }
-
-  .tuitionCopy {
-    grid-area: copy;
-    align-content: start;
   }
 
   .progress {

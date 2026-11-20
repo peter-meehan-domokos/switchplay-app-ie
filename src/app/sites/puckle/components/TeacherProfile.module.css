@@ -1,0 +1,229 @@
+/* Profile block beneath the teacher's portrait: name, qualifications, experience and the Read more control read as one object. */
+.profile {
+  display: grid;
+  justify-items: start;
+  margin-top: 6px;
+}
+
+.name {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: 1.3125rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.qualifications {
+  margin-top: 5px;
+  color: var(--sp-site-accent-blue);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.experience {
+  display: grid;
+  gap: 4px;
+  margin-top: 11px;
+  color: var(--sp-site-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.readMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  margin: 0 0 -6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sp-site-accent-blue);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgba(168, 214, 228, 0.5);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.readMore:hover {
+  text-decoration-color: var(--sp-site-accent-blue);
+}
+
+.readMore:focus-visible,
+.close:focus-visible {
+  outline: 3px solid var(--sp-site-accent-blue);
+  outline-offset: 3px;
+}
+
+.arrow {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+/* Modal. The dialog is only its panel (no padding of its own), so a click reported on the dialog element is a click on the backdrop. */
+.dialog {
+  width: min(32rem, 100% - 32px);
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+  color: var(--sp-site-text);
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition:
+    opacity 220ms ease-out,
+    transform 220ms ease-out;
+}
+
+.dialog::backdrop {
+  background: rgba(5, 7, 11, 0.72);
+  opacity: 0;
+  transition: opacity 220ms ease-out;
+}
+
+.dialog[data-state="open"] {
+  opacity: 1;
+  transform: none;
+}
+
+.dialog[data-state="open"]::backdrop {
+  opacity: 1;
+}
+
+.dialog[data-state="closing"] {
+  opacity: 0;
+  transform: translateY(6px) scale(0.99);
+  transition-duration: 160ms;
+  transition-timing-function: ease-in;
+}
+
+.dialog[data-state="closing"]::backdrop {
+  opacity: 0;
+  transition-duration: 160ms;
+  transition-timing-function: ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog,
+  .dialog::backdrop {
+    transition: none;
+  }
+}
+
+/* The top row (eyebrow and close button) stays put; only the biography beneath it scrolls, so Close is always reachable. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border: 1px solid rgba(168, 214, 228, 0.2);
+  border-radius: 18px;
+  background: #151b27;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.dialogTop {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: clamp(14px, 4vw, 20px) clamp(14px, 4vw, 20px) 0 clamp(20px, 5vw, 32px);
+}
+
+.eyebrow {
+  color: var(--sp-site-accent-blue);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+.close {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sp-site-text-muted);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: rgba(255, 250, 240, 0.08);
+  color: var(--sp-site-text);
+}
+
+.close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.dialogBody {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 clamp(20px, 5vw, 32px) max(clamp(24px, 6vw, 32px), env(safe-area-inset-bottom));
+}
+
+.dialogBody:focus-visible {
+  outline: 2px solid var(--sp-site-accent-blue);
+  outline-offset: -2px;
+}
+
+.dialogName {
+  color: var(--sp-site-text);
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(1.5rem, 6vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin-top: 6px;
+  color: var(--sp-site-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.divider {
+  margin: 20px 0 4px;
+  border: 0;
+  border-top: 1px solid rgba(255, 250, 240, 0.12);
+}
+
+.dialogSection {
+  margin-top: 20px;
+}
+
+.sectionHeading {
+  color: var(--sp-site-text);
+  font-size: 0.97rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.sectionBody {
+  margin-top: 6px;
+  color: var(--sp-site-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
