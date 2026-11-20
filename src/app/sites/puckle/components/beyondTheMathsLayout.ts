@@ -9,6 +9,8 @@ export type ProjectPreviewLayout = {
   title: string;
   label: string;
   description: string;
+  /** Optional wording for 900px and wider; below that, `description` is shown. */
+  wideDescription?: string;
   art: { src: string; width: number; height: number; alt: string };
 };
 
@@ -40,6 +42,7 @@ const projects: readonly ProjectPreviewLayout[] = [
     title: "Puckle Clubs",
     label: "COMING SOON",
     description: "Structured player development tailored to age and need, built on shared coaching knowledge.",
+    wideDescription: "Player development tailored to age and need, built on shared coaching knowledge.",
     art: {
       src: "/images/sites/puckle/clubs-artwork.png",
       width: 1448,

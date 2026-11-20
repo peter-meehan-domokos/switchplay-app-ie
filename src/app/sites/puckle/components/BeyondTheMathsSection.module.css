@@ -169,6 +169,22 @@
   text-wrap: pretty;
 }
 
+/* Where a project has a shorter wording for wide screens, exactly one paragraph is displayed (display: none also removes the other
+   from assistive technology): narrow below 900px, wide from 900px. */
+.wideOnly {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .narrowOnly {
+    display: none;
+  }
+
+  .wideOnly {
+    display: block;
+  }
+}
+
 .invitation {
   display: flex;
   flex-wrap: wrap;

@@ -77,6 +77,13 @@
   line-height: 1.4;
 }
 
+/* Phones only: from 760px the hero text block has its own button (.heroCta), so this one is not shown. */
+@media (min-width: 760px) {
+  .bridgeCta {
+    display: none;
+  }
+}
+
 /* Portrait phones only: both lines of the bridge text fit (line 2 is ~328px), so break after "your".
    Narrower screens and tablet/desktop wrap naturally. */
 @media (min-width: 375px) and (max-width: 480px) and (orientation: portrait) {

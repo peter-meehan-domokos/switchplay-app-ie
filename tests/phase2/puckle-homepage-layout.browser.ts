@@ -116,7 +116,7 @@ const beyond = (page: Page) => page.evaluate(() => {
   const invite = section.querySelector("a[href='/contact']") as HTMLElement | null, footer = document.querySelector("footer")!;
   return {
     eyebrow: section.querySelector("p")!.textContent, heading: section.querySelector("h2")!.textContent, subtitle: section.querySelectorAll("header > *").length,
-    cards: cards.map(card => { const img = card.querySelector("img")!, title = card.querySelector("h3")!, [label, description] = [...card.querySelectorAll("p")];
+    cards: cards.map(card => { const img = card.querySelector("img")!, title = card.querySelector("h3")!, [label, description] = [...card.querySelectorAll("p")].filter(paragraph => paragraph.getClientRects().length > 0);
       return { title: title.textContent, label: label.textContent, description: description.textContent, links: card.querySelectorAll("a").length, box: rect(card).toJSON(),
         ratio: rect(img).width / rect(img).height, natural: img.naturalWidth / img.naturalHeight, imgWidth: rect(img).width, loaded: img.complete && img.naturalWidth > 0,
         artBottom: rect(img).bottom, artWidth: rect(img).width, panelWidth: rect(card).width, textTop: rect(title).top, titleSize: parseFloat(getComputedStyle(title).fontSize), descSize: parseFloat(getComputedStyle(description).fontSize), titleTop: rect(title).top, labelTop: rect(label).top,
@@ -133,7 +133,7 @@ test("Beyond the Maths shows both projects side by side with the approved copy, 
     const page = await open(browser, width, height); await page.locator("footer").scrollIntoViewIfNeeded(); await page.waitForTimeout(800); const m = await beyond(page), at = `${width}x${height}`;
     expect(m.eyebrow).toBe("BEYOND THE MATHS"); expect(m.heading).toBe("There’s more to Puckle."); expect(m.subtitle, `${at}: eyebrow and heading only`).toBe(2);
     expect(m.cards.map(card => [card.title, card.label, card.description])).toEqual([["Puckle Yard", "COMING SOON", "An experimental space where anyone can create and share projects for others to follow."],
-      ["Puckle Clubs", "COMING SOON", "Structured player development tailored to age and need, built on shared coaching knowledge."]]);
+      ["Puckle Clubs", "COMING SOON", width >= 900 ? "Player development tailored to age and need, built on shared coaching knowledge." : "Structured player development tailored to age and need, built on shared coaching knowledge."]]);
     const [yard, clubs] = m.cards;
     expect(Math.abs(yard.box.top - clubs.box.top), `${at}: side by side`).toBeLessThanOrEqual(1); expect(clubs.box.left, `${at}: second panel to the right`).toBeGreaterThanOrEqual(yard.box.right);
     expect(Math.abs(yard.box.width - clubs.box.width), `${at}: balanced widths`).toBeLessThanOrEqual(1); expect(Math.abs(yard.box.height - clubs.box.height), `${at}: balanced heights`).toBeLessThanOrEqual(1);
@@ -171,6 +171,14 @@ test("the Beyond the Maths section and footer keep to their approved caps: 900px
     expect(Math.abs(m.art - (width < 760 ? 1.22 : 1.12)), `${at}: artwork scale`).toBeLessThanOrEqual(0.03);
     if (width >= 1280) expect(m.innerLeft, `${at}: footer navigation keeps the 1120px alignment`).toBeLessThan(m.left);
     await noOverflow(page); await page.context().close();
+  }
+});
+
+test("the Clubs description loses \"Structured\" from 900px: exactly one wording is shown at 899px and at 900px", async ({ browser }) => {
+  for (const [width, wording] of [[899, "Structured player development tailored to age and need, built on shared coaching knowledge."], [900, "Player development tailored to age and need, built on shared coaching knowledge."]] as const) {
+    const page = await open(browser, width, 900);
+    const shown = await page.evaluate(() => [...document.querySelectorAll("section[aria-labelledby='beyond-title'] li p")].filter(paragraph => paragraph.getClientRects().length > 0 && /player development/i.test(paragraph.textContent!)).map(paragraph => paragraph.textContent));
+    expect(shown, `${width}px`).toEqual([wording]); await page.context().close();
   }
 });
 
@@ -245,16 +253,21 @@ test("the Learning heading introduces all three steps: 56px above Learn from 102
 test("an early Request a free session button sits centred under the hero bridge text, and the Keep / Learn ideas stack on small phones", async ({ browser }) => {
   for (const [width, height] of [[360, 740], [390, 844], [480, 900], [700, 900], [1024, 768], [1280, 800]] as const) {
     const page = await open(browser, width, height);
-    const early = await page.evaluate(() => {
+    if (width >= 760) { // the hero has its own button from here, so the early one must not be shown
+      await expect(page.getByText("Free 20–30 minute online maths session."), `${width}px: early button hidden`).toBeHidden();
+    }
+    const early = width >= 760 ? null : await page.evaluate(() => {
       const bridge = [...document.querySelectorAll("p")].find(p => p.textContent === "Card by Card. Step by step.")!.parentElement!;
       const link = bridge.querySelector("a[href='#early-access']")!, note = bridge.querySelector("a + p, div > p:last-child")!, rect = (e: Element) => e.getBoundingClientRect();
       const text = bridge.querySelector("p:nth-child(2)")!, next = document.querySelector("#learning-title")!.closest("section")!;
       return { label: link.textContent, note: note.textContent, centre: (rect(link).left + rect(link).right) / 2 - (rect(bridge).left + rect(bridge).right) / 2,
         below: rect(link).top - rect(text).bottom, noteGap: rect(note).top - rect(link).bottom, gapAfter: rect(next).top - rect(note).bottom };
     });
-    expect(early.label).toBe("Request a free session"); expect(early.note).toBe("Free 20–30 minute online maths session.");
-    expect(Math.abs(early.centre), `${width}px: button centred in the block`).toBeLessThanOrEqual(2);
-    expect(early.below, `${width}px: space above`).toBeGreaterThanOrEqual(16); expect(early.gapAfter, `${width}px: space before the next section`).toBeGreaterThan(24);
+    if (early) {
+      expect(early.label).toBe("Request a free session"); expect(early.note).toBe("Free 20–30 minute online maths session.");
+      expect(Math.abs(early.centre), `${width}px: button centred in the block`).toBeLessThanOrEqual(2);
+      expect(early.below, `${width}px: space above`).toBeGreaterThanOrEqual(16); expect(early.gapAfter, `${width}px: space before the next section`).toBeGreaterThan(24);
+    }
     const ideas = await page.evaluate(() => {
       const items = [...document.querySelectorAll("li")].filter(li => /^(Keep what helps|Learn from others)\./.test(li.textContent!)).map(li => li.getBoundingClientRect());
       return { sideBySide: Math.abs(items[0].top - items[1].top) < 4, gap: items[1].top - items[0].bottom, overflow: items.some(r => r.left < -1 || r.right > innerWidth + 1) };
@@ -264,9 +277,22 @@ test("an early Request a free session button sits centred under the hero bridge 
     if (width < 480) expect(ideas.gap).toBeGreaterThanOrEqual(8);
     await noOverflow(page);
     await page.screenshot({ path: `phase2-test-results/homepage-early-cta-${width}.png`, fullPage: false });
-    await page.getByText("Free 20–30 minute online maths session.").locator("..").locator("a").click(); await page.waitForTimeout(600);
-    expect(Math.abs((await landing(page)).sectionTop), `${width}px: early button reaches the registration section`).toBeLessThanOrEqual(2);
+    if (early) {
+      await page.getByText("Free 20–30 minute online maths session.").locator("..").locator("a").click(); await page.waitForTimeout(600);
+      expect(Math.abs((await landing(page)).sectionTop), `${width}px: early button reaches the registration section`).toBeLessThanOrEqual(2);
+    }
     await page.context().close();
+  }
+});
+
+test("the hero area shows exactly one Request a free session button at every width: under the image on phones, in the text block from 760px", async ({ browser }) => {
+  for (const [width, height] of [[320, 568], [390, 844], [480, 900], [700, 900], [759, 900], [760, 900], [768, 1024], [834, 1112], [1024, 768], [1280, 800], [1440, 900], [1920, 1080]] as const) {
+    const page = await open(browser, width, height);
+    const visible = await page.evaluate(() => {
+      const hero = document.getElementById("home-hero-title")!.closest("section")!;
+      return [...hero.querySelectorAll("a[href='#early-access']")].filter(link => { const box = link.getBoundingClientRect(); return box.width > 0 && box.height > 0; }).length;
+    });
+    expect(visible, `${width}px: visible hero buttons`).toBe(1); await page.context().close();
   }
 });
 

@@ -49,7 +49,14 @@ function ProjectPreview({ project }: { project: ProjectPreviewLayout }) {
       </div>
       <h3 className={styles.cardTitle}>{project.title}</h3>
       <p className={styles.label}>{project.label}</p>
-      <p className={styles.description}>{project.description}</p>
+      {project.wideDescription ? (
+        <>
+          <p className={`${styles.description} ${styles.narrowOnly}`}>{project.description}</p>
+          <p className={`${styles.description} ${styles.wideOnly}`}>{project.wideDescription}</p>
+        </>
+      ) : (
+        <p className={styles.description}>{project.description}</p>
+      )}
     </li>
   );
 }
