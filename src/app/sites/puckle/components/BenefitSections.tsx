@@ -115,7 +115,7 @@ function TuitionSection() {
           className={styles.portraitImage}
           height={1280}
           sizes="(min-width: 900px) 286px, 220px"
-          src="/images/sites/puckle/puckle-tutor-photo.jpg"
+          src="/images/sites/puckle/puckle-tutor-photo-v2.jpg"
           width={960}
         />
         <figcaption className={styles.credential}>
