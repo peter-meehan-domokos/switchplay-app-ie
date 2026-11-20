@@ -63,11 +63,13 @@
   gap: 20px;
 }
 
-/* All three step illustrations share one width rule when the steps are stacked. */
+/* All three step illustrations share one width rule when the steps are stacked, and none grows past 480px (the Learn size on desktop),
+   so on wide phones and small tablets they stop getting bigger. From 720px the steps sit beside their text instead (see below). */
 .beat .media,
 .beat .feedback {
   justify-self: start;
   width: 94%;
+  max-width: 480px;
 }
 
 .beatCopy {
@@ -288,6 +290,10 @@
 }
 
 /* Section 3 */
+.progressMedia {
+  max-width: 480px;
+}
+
 .ideas {
   display: grid;
   gap: 10px;
@@ -373,6 +379,59 @@
     grid-area: copy;
     align-content: start;
   }
+
+  /* Learn, Explore, Test yourself and Your Learning use the desktop alternating arrangement, text beside the illustration, with a
+     narrower illustration column that grows from about the phone size toward the desktop 480px as the screen widens. The 900px
+     block below restores the full desktop sizes. */
+  .sections {
+    --tablet-media: clamp(340px, 46vw, 480px);
+  }
+
+  .beat {
+    grid-template-columns: minmax(0, 1fr) var(--tablet-media);
+    gap: 40px;
+    align-items: center;
+  }
+
+  .beatReverse {
+    grid-template-columns: var(--tablet-media) minmax(0, 1fr);
+  }
+
+  .beat .media,
+  .beat .feedback {
+    width: 100%;
+    max-width: none;
+  }
+
+  .beatReverse .media {
+    order: -1;
+  }
+
+  .progress {
+    grid-template-columns: minmax(0, 1fr) var(--tablet-media);
+    grid-template-areas:
+      "intro media"
+      "ideas media";
+    column-gap: 40px;
+    row-gap: 24px;
+    align-items: start;
+  }
+
+  .progressIntro {
+    grid-area: intro;
+    align-self: end;
+  }
+
+  .progressMedia {
+    grid-area: media;
+    align-self: center;
+    max-width: none;
+  }
+
+  .ideas {
+    grid-area: ideas;
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (min-width: 900px) {
@@ -424,10 +483,6 @@
     grid-template-columns: minmax(0, min(500px, 60%)) minmax(0, 1fr);
   }
 
-  .beatReverse .media {
-    order: -1;
-  }
-
   .feedback {
     padding: 20px;
   }
@@ -451,26 +506,12 @@
 
   .progress {
     grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
-    grid-template-areas:
-      "intro media"
-      "ideas media";
     column-gap: 56px;
     row-gap: 24px;
-    align-items: start;
-  }
-
-  .progressIntro {
-    grid-area: intro;
-    align-self: end;
-  }
-
-  .progressMedia {
-    grid-area: media;
-    align-self: center;
   }
 
   .ideas {
-    grid-area: ideas;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
 }

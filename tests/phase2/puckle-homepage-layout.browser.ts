@@ -23,15 +23,15 @@ const columns = (page: Page, heading: string) => page.evaluate((start) => {
   return { text: Math.round(copy.getBoundingClientRect().width), media: Math.round(copy.nextElementSibling!.getBoundingClientRect().width) };
 }, heading);
 
-test("the hero headline is centred on the image itself, the caption stays directly beneath, and phones stay stacked", async ({ browser }) => {
-  for (const [width, imageWidth] of [[840, 322], [900, 345], [1024, 392], [1280, 467], [1440, 467]] as const) {
+test("the hero headline is centred on the image itself from 760px, the caption stays directly beneath, and narrower screens stay stacked", async ({ browser }) => {
+  for (const [width, imageWidth] of [[760, 320], [768, 320], [834, 320], [840, 322], [900, 345], [1024, 392], [1280, 467], [1440, 467]] as const) {
     const page = await open(browser, width, 800), hero = await heroMetrics(page);
     expect(Math.abs(hero.dy), `${width}px: headline centre vs image centre`).toBeLessThanOrEqual(3);
     expect(Math.abs(hero.imgW - imageWidth), `${width}px: image keeps its size`).toBeLessThanOrEqual(2);
     expect(hero.captionGap, `${width}px: caption directly beneath`).toBeGreaterThanOrEqual(12); expect(hero.captionGap).toBeLessThanOrEqual(16);
     await noOverflow(page); await page.context().close();
   }
-  for (const width of [390, 768, 834]) {
+  for (const width of [390, 600, 759]) {
     const page = await open(browser, width, 800), hero = await heroMetrics(page);
     expect(hero.copyAboveImage, `${width}px: stacked`).toBe(true); expect(hero.captionGap).toBeGreaterThanOrEqual(12); await noOverflow(page); await page.context().close();
   }
@@ -54,8 +54,43 @@ test("Explore keeps a sensible text width from 900px up now its video is capped 
     expect(Math.abs(learn.text - want.learn), `${width}px Learn text`).toBeLessThanOrEqual(3); expect(test.text).toBe(learn.text); expect(learn.media).toBe(480);
     await noOverflow(page); await page.context().close();
   }
-  for (const width of [840, 899]) { // still stacked: every beat's text is full width
+  for (const width of [600, 719]) { // still stacked: every beat's text is full width
     const page = await open(browser, width, 800), explore = await columns(page, "Interactive"); expect(explore.text).toBeGreaterThan(500); await page.context().close();
+  }
+  for (const width of [720, 768, 834, 899]) { // tablet: text beside a fluid illustration column, clamp(340px, 46vw, 480px)
+    const page = await open(browser, width, 800), steps = [await columns(page, "Explanations"), await columns(page, "Interactive"), await columns(page, "Comments")], want = Math.min(480, Math.max(340, 0.46 * width));
+    for (const step of steps) { expect(Math.abs(step.media - want), `${width}px: illustration column`).toBeLessThanOrEqual(1.5); expect(step.text, `${width}px: text column wide enough`).toBeGreaterThanOrEqual(280); expect(step.text).toBeLessThanOrEqual(width - step.media); }
+    await noOverflow(page); await page.context().close();
+  }
+});
+
+test("Learning and Your Learning: phone sizes unchanged, no illustration over 480px when stacked, side by side from 720px, and the 900px desktop sizes untouched", async ({ browser }) => {
+  const measure = (page: Page) => page.evaluate(() => {
+    const rect = (element: Element) => element.getBoundingClientRect(), learn = document.getElementById("learning-title")!.closest("section")!, beats = [...learn.querySelectorAll(":scope > div")], progress = document.getElementById("progress-title")!.closest("section")!;
+    const ideas = [...progress.querySelectorAll("ul li")].map(rect), intro = progress.querySelector("div[class*='progressIntro']")!;
+    return { media: beats.map(beat => Math.round(rect(beat.children[1]).width)), beatSideBySide: beats.map(beat => Math.abs((rect(beat.children[0]).top + rect(beat.children[0]).bottom) / 2 - (rect(beat.children[1]).top + rect(beat.children[1]).bottom) / 2) < rect(beat).height / 2 && Math.abs(rect(beat.children[0]).left - rect(beat.children[1]).left) > 100),
+      learnH: Math.round(rect(learn).height), progressMedia: Math.round(rect(progress.querySelector("figure")!).width), progressSideBySide: rect(progress.querySelector("figure")!).left > rect(intro).right - 1, progressH: Math.round(rect(progress).height), introW: Math.round(rect(intro).width), ideasSideBySide: ideas.length === 2 && Math.abs(ideas[0].top - ideas[1].top) < 4 };
+  });
+  for (const [width, learnWant, progressWant] of [[390, 337, 358], [430, 372, 396], [480, 415, 442]] as const) { // ordinary phones: exactly as before
+    const page = await open(browser, width, 900), m = await measure(page);
+    expect(m.media.map(value => Math.abs(value - learnWant) <= 1), `${width}px: steps keep their phone size`).toEqual([true, true, true]); expect(Math.abs(m.progressMedia - progressWant)).toBeLessThanOrEqual(1);
+    expect(m.beatSideBySide).toEqual([false, false, false]); await noOverflow(page); await page.context().close();
+  }
+  for (const width of [550, 600, 719]) {
+    const page = await open(browser, width, 900), m = await measure(page);
+    expect(Math.max(...m.media), `${width}px: steps never exceed 480px`).toBeLessThanOrEqual(480.5); expect(m.progressMedia, `${width}px: Your Learning image never exceeds 480px`).toBeLessThanOrEqual(480.5); expect(m.beatSideBySide).toEqual([false, false, false]); expect(m.progressSideBySide).toBe(false);
+    await noOverflow(page); await page.context().close();
+  }
+  for (const width of [720, 768, 834, 899]) {
+    const page = await open(browser, width, 1024), m = await measure(page), want = Math.min(480, Math.max(340, 0.46 * width));
+    expect(m.beatSideBySide, `${width}px: text beside each illustration`).toEqual([true, true, true]); expect(m.progressSideBySide, `${width}px: Your Learning beside its text`).toBe(true); expect(Math.abs(m.progressMedia - want)).toBeLessThanOrEqual(1.5);
+    expect(m.introW, `${width}px: Your Learning text wide enough`).toBeGreaterThanOrEqual(260); expect(m.ideasSideBySide, `${width}px: the two ideas stack in the narrow column`).toBe(false);
+    expect(m.learnH, `${width}px: Learning is far shorter than the old stacked layout`).toBeLessThan(1250); expect(m.progressH).toBeLessThan(340); await noOverflow(page); await page.context().close();
+  }
+  for (const [width, explore, learnH, progressH] of [[900, 497, 1420, 399], [901, 497, 1420, 399], [1024, 500, 1422, 384]] as const) { // desktop: untouched
+    const page = await open(browser, width, 900), m = await measure(page);
+    expect(m.learnH, `${width}px: Learning height as approved`).toBe(learnH); expect(m.progressH, `${width}px: Your Learning height as approved`).toBe(progressH); expect(m.media[0], `${width}px: Learn`).toBe(480); expect(Math.abs(m.media[1] - explore), `${width}px: Explore`).toBeLessThanOrEqual(2); expect(m.media[2]).toBe(480); expect(m.progressMedia).toBe(540); expect(m.beatSideBySide).toEqual([true, true, true]); expect(m.ideasSideBySide, `${width}px: desktop ideas stay in two columns`).toBe(true);
+    await noOverflow(page); await page.context().close();
   }
 });
 
@@ -220,7 +255,8 @@ test("the hero has a Request a free session button that sits inside the centred 
     await expect(button).toHaveText("Request a free session");
     const inside = await page.evaluate(() => {
       const copy = document.getElementById("home-hero-title")!.parentElement!, link = copy.querySelector("a[href='#early-access']")!.getBoundingClientRect();
-      return { fits: link.right <= copy.getBoundingClientRect().right + 1 && link.bottom <= copy.getBoundingClientRect().bottom + 1 };
+      const spill = innerWidth < 900 ? 8 : 1; // the two-column hero centres its text on the image and may spill a few pixels above and below it
+      return { fits: link.right <= copy.getBoundingClientRect().right + 1 && link.bottom <= copy.getBoundingClientRect().bottom + spill };
     });
     expect(inside.fits, `${width}px: button within hero text`).toBe(true);
     if (width >= 840) expect(Math.abs((await heroMetrics(page)).dy), `${width}px: block still centred`).toBeLessThanOrEqual(3);
