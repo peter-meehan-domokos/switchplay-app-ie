@@ -24,7 +24,7 @@ test("the profile shows the supplied text under the unchanged photograph, groupe
     });
     expect(m.src, `${at}: existing photograph`).toContain("puckle-tutor-photo-v2.jpg"); expect(Math.abs(m.ratio - 0.75)).toBeLessThan(0.01); expect(m.radius).toBe("20px");
     expect(m.photoW, `${at}: photo width`).toBeCloseTo(width < 720 ? 220 : width < 900 ? 260 : 286, 0);
-    expect(m.texts).toEqual(["Peter Meehan-Domokos", "PGCE · MSc · Qualified Teacher Status", ["15+ years teaching secondary maths", "Thousands of students taught"], "Read more"]);
+    expect(m.texts).toEqual(["Peter Meehan-Domokos", "PGCE · MSc · Qualified Teacher Status", ["15+ years teaching secondary maths"], "Read more"]);
     expect(m.family, `${at}: Space Grotesk name`).toContain("Space Grotesk"); expect(m.nameSize).toBeGreaterThanOrEqual(20); expect(m.nameSize).toBeLessThanOrEqual(24);
     expect(m.gapName, `${at}: photo to name`).toBeGreaterThanOrEqual(14); expect(m.gapName).toBeLessThanOrEqual(22); expect(m.gapQuals).toBeLessThanOrEqual(7); expect(m.gapExp).toBeGreaterThanOrEqual(9); expect(m.gapExp).toBeLessThanOrEqual(13);
     expect(m.within, `${at}: nothing past the viewport`).toBe(true); expect(m.buttonH, `${at}: comfortable tap target`).toBeGreaterThanOrEqual(44);

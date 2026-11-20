@@ -79,8 +79,9 @@ export default function TeacherProfile() {
       <p className={styles.name}>{layout.name}</p>
       <p className={styles.qualifications}>{layout.qualifications}</p>
       <p className={styles.experience}>
-        <span>{layout.experience[0]}</span>
-        <span>{layout.experience[1]}</span>
+        {layout.experience.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
       </p>
       <button aria-haspopup="dialog" className={styles.readMore} onClick={open} ref={triggerRef} type="button">
         {layout.readMoreLabel}

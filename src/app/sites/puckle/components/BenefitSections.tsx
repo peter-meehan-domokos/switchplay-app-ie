@@ -123,7 +123,7 @@ function TuitionSection() {
       </figure>
       <div className={styles.tuitionCopy}>
         <p className={styles.body}>
-          Learn with an experienced maths teacher who makes tricky ideas clear and relevant — with examples
+          Learn with a teacher who makes tricky ideas clear and relevant — with examples
           from sport, business and everyday life.
         </p>
         <p className={styles.body}>

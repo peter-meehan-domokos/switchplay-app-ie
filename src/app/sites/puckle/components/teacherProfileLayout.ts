@@ -5,7 +5,7 @@
 export type TeacherProfileLayout = {
   name: string;
   qualifications: string;
-  experience: readonly [string, string];
+  experience: readonly string[];
   readMoreLabel: string;
   dialog: {
     eyebrow: string;
@@ -19,7 +19,7 @@ export function buildTeacherProfileLayout(): TeacherProfileLayout {
   return {
     name: "Peter Meehan-Domokos",
     qualifications: "PGCE · MSc · Qualified Teacher Status",
-    experience: ["15+ years teaching secondary maths", "Thousands of students taught"],
+    experience: ["15+ years teaching secondary maths"],
     readMoreLabel: "Read more",
     dialog: {
       eyebrow: "TEACHER PROFILE",
