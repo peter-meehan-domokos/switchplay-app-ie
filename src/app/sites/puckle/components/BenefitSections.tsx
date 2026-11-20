@@ -11,6 +11,11 @@ const progressIdeas = [
   { title: "Learn from others.", body: "Discover explanations and ideas shared by other students." },
 ] as const;
 
+// Trial: swap the Test yourself worksheet for the Kane / Mbappe image. Set to false to bring back the original HTML worksheet.
+const USE_TRIAL_WORKSHEET_IMAGE = true;
+const trialWorksheetLabel =
+  "Illustration: handwritten working comparing the goals scored by Harry Kane and Kylian Mbappé over five seasons, with the averages worked out, a teacher tick for the averages and a note asking about consistency, beside a thumbnail of a personal video feedback clip";
+
 const tuitionOptions = ["One-to-one", "Small groups", "Quick topic check-ins"] as const;
 
 export default function BenefitSections() {
@@ -45,10 +50,10 @@ function LearningSection() {
           <Image
             alt="Example Puckle Card step: a tutor video preview beside a graph asking why the curve turns"
             className={styles.mediaImage}
-            height={1000}
+            height={1039}
             sizes="(min-width: 900px) 560px, calc(100vw - 32px)"
-            src="/images/sites/puckle/puckle-video-explanation.png"
-            width={1440}
+            src="/images/sites/puckle/puckle-video-explanation-v2.png"
+            width={1514}
           />
         </figure>
       </div>
@@ -83,8 +88,23 @@ function LearningSection() {
         <div
           className={styles.feedback}
           role="img"
-          aria-label="Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
+          aria-label={
+            USE_TRIAL_WORKSHEET_IMAGE
+              ? trialWorksheetLabel
+              : "Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
+          }
         >
+          {USE_TRIAL_WORKSHEET_IMAGE ? (
+            <Image
+              alt=""
+              aria-hidden="true"
+              className={styles.worksheetImage}
+              height={678}
+              sizes="(min-width: 390px) 309px, calc(100vw - 80px)"
+              src="/images/sites/puckle/test-yourself-worksheet.png"
+              width={1172}
+            />
+          ) : (
           <div className={`${handwriting.className} ${styles.paper}`} aria-hidden="true">
             <p className={styles.workingTitle}>Solve x² - 5x + 6 = 0</p>
             <div className={styles.workingRow}>
@@ -101,6 +121,7 @@ function LearningSection() {
               <span className={styles.comment}>Check the signs</span>
             </div>
           </div>
+          )}
           <div className={styles.videoFeedback} aria-hidden="true">
             <span className={styles.thumbnail}>
               <Image alt="" height={1280} sizes="112px" src="/images/sites/puckle/puckle-tutor-photo.jpg" width={960} />

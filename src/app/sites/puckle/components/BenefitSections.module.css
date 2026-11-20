@@ -127,6 +127,16 @@
   padding: 14px;
 }
 
+/* Trial worksheet image: 1172 x 678 (1.73:1). Capped at the width where it matches the original worksheet's 179px height, so the card never grows. */
+.worksheetImage {
+  display: block;
+  width: 100%;
+  max-width: 309px;
+  height: auto;
+  justify-self: center;
+  border-radius: 3.5% / 6%;
+}
+
 .paper {
   display: grid;
   gap: 6px;
