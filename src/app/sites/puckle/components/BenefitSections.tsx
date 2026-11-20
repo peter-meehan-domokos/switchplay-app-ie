@@ -52,7 +52,7 @@ function LearningSection() {
             className={styles.mediaImage}
             height={1039}
             sizes="(min-width: 900px) 560px, calc(100vw - 32px)"
-            src="/images/sites/puckle/puckle-video-explanation-v2.png"
+            src="/images/sites/puckle/puckle-video-explanation-v3.png"
             width={1514}
           />
         </figure>
@@ -85,55 +85,16 @@ function LearningSection() {
             Upload a photo of your work and find out what to improve and what to try next.
           </p>
         </div>
-        <div
-          className={styles.feedback}
-          role="img"
-          aria-label={
-            USE_TRIAL_WORKSHEET_IMAGE
-              ? trialWorksheetLabel
-              : "Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
-          }
-        >
-          {USE_TRIAL_WORKSHEET_IMAGE ? (
-            <Image
-              alt=""
-              aria-hidden="true"
-              className={styles.worksheetImage}
-              height={678}
-              sizes="(min-width: 390px) 309px, calc(100vw - 80px)"
-              src="/images/sites/puckle/test-yourself-worksheet.png"
-              width={1172}
-            />
-          ) : (
-          <div className={`${handwriting.className} ${styles.paper}`} aria-hidden="true">
-            <p className={styles.workingTitle}>Solve x² - 5x + 6 = 0</p>
-            <div className={styles.workingRow}>
-              <span className={styles.working}>x² - 5x + 6 = 0</span>
-            </div>
-            <div className={styles.workingRow}>
-              <span className={styles.working}>(x - 2)(x - 3) = 0</span>
-              <span className={`${styles.comment} ${styles.commentGood}`}>✓ Good factorising</span>
-            </div>
-            <div className={styles.workingRow}>
-              <span className={styles.working}>
-                x = <span className={styles.flagged}>-2 or x = -3</span>
-              </span>
-              <span className={styles.comment}>Check the signs</span>
-            </div>
-          </div>
-          )}
-          <div className={styles.videoFeedback} aria-hidden="true">
-            <span className={styles.thumbnail}>
-              <Image alt="" height={1280} sizes="112px" src="/images/sites/puckle/puckle-tutor-photo.jpg" width={960} />
-              <span className={styles.play}>
-                <svg focusable="false" height="12" viewBox="0 0 12 12" width="12">
-                  <path d="M3 1.5v9l7.5-4.5z" />
-                </svg>
-              </span>
-            </span>
-            <span className={styles.videoLabel}>Personal video feedback</span>
-          </div>
-        </div>
+        <figure className={styles.media}>
+          <Image
+            alt={trialWorksheetLabel}
+            className={styles.mediaImage}
+            height={1086}
+            sizes="(min-width: 900px) 480px, calc(100vw - 32px)"
+            src="/images/sites/puckle/test-yourself-v2.png"
+            width={1448}
+          />
+        </figure>
       </div>
     </section>
   );
@@ -219,5 +180,61 @@ function ProgressSection() {
         ))}
       </ul>
     </section>
+  );
+}
+
+// Previous Test yourself illustration, assembled in code (worksheet, video thumbnail, play icon and label inside a panel). Not rendered
+// now that test-yourself-v2.png shows all of it as one image; kept, with its styles and the flag above, in case it is wanted again.
+export function AssembledTestYourselfIllustration() {
+  return (
+    <div
+      className={styles.feedback}
+      role="img"
+      aria-label={
+        USE_TRIAL_WORKSHEET_IMAGE
+          ? trialWorksheetLabel
+          : "Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
+      }
+    >
+      {USE_TRIAL_WORKSHEET_IMAGE ? (
+        <Image
+          alt=""
+          aria-hidden="true"
+          className={styles.worksheetImage}
+          height={678}
+          sizes="(min-width: 390px) 309px, calc(100vw - 80px)"
+          src="/images/sites/puckle/test-yourself-worksheet.png"
+          width={1172}
+        />
+      ) : (
+      <div className={`${handwriting.className} ${styles.paper}`} aria-hidden="true">
+        <p className={styles.workingTitle}>Solve x² - 5x + 6 = 0</p>
+        <div className={styles.workingRow}>
+          <span className={styles.working}>x² - 5x + 6 = 0</span>
+        </div>
+        <div className={styles.workingRow}>
+          <span className={styles.working}>(x - 2)(x - 3) = 0</span>
+          <span className={`${styles.comment} ${styles.commentGood}`}>✓ Good factorising</span>
+        </div>
+        <div className={styles.workingRow}>
+          <span className={styles.working}>
+            x = <span className={styles.flagged}>-2 or x = -3</span>
+          </span>
+          <span className={styles.comment}>Check the signs</span>
+        </div>
+      </div>
+      )}
+      <div className={styles.videoFeedback} aria-hidden="true">
+        <span className={styles.thumbnail}>
+          <Image alt="" height={1280} sizes="112px" src="/images/sites/puckle/puckle-tutor-photo.jpg" width={960} />
+          <span className={styles.play}>
+            <svg focusable="false" height="12" viewBox="0 0 12 12" width="12">
+              <path d="M3 1.5v9l7.5-4.5z" />
+            </svg>
+          </span>
+        </span>
+        <span className={styles.videoLabel}>Personal video feedback</span>
+      </div>
+    </div>
   );
 }

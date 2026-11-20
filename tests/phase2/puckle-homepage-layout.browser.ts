@@ -296,6 +296,28 @@ test("the hero area shows exactly one Request a free session button at every wid
   }
 });
 
+test("Test yourself is one complete 4:3 image: loaded, undistorted, sized like Learn, with no separately rendered worksheet, thumbnail, label or panel", async ({ browser }) => {
+  for (const [width, height] of [[390, 844], [768, 1024], [1024, 768], [1440, 900]] as const) {
+    const page = await open(browser, width, height);
+    const beat = page.locator("h3", { hasText: "Comments on your work" }).locator("xpath=../..");
+    await beat.scrollIntoViewIfNeeded(); await page.waitForTimeout(1500);
+    const m = await page.evaluate(() => {
+      const copy = [...document.querySelectorAll("h3")].find(element => element.textContent!.startsWith("Comments"))!.parentElement!, beatEl = copy.parentElement!, figure = copy.nextElementSibling as HTMLElement;
+      const learnFigure = ([...document.querySelectorAll("h3")].find(element => element.textContent!.startsWith("Explanations"))!.parentElement!.nextElementSibling) as HTMLElement;
+      const image = figure.querySelector("img")!, box = image.getBoundingClientRect();
+      return { tag: figure.tagName, images: beatEl.querySelectorAll("img").length, roleImg: beatEl.querySelectorAll("[role='img']").length, label: beatEl.textContent!.includes("Personal video feedback"),
+        src: decodeURIComponent(image.currentSrc), loaded: image.complete && image.naturalWidth > 0, ratio: box.width / box.height, natural: image.naturalWidth / image.naturalHeight,
+        width: figure.getBoundingClientRect().width, learnWidth: learnFigure.getBoundingClientRect().width, alt: image.alt };
+    });
+    const at = `${width}px`;
+    expect(m.tag).toBe("FIGURE"); expect(m.images, `${at}: one image only`).toBe(1); expect(m.roleImg, `${at}: no wrapper panel`).toBe(0); expect(m.label, `${at}: no separate label`).toBe(false);
+    expect(m.src, `${at}: uses test-yourself-v2`).toContain("test-yourself-v2.png"); expect(m.loaded).toBe(true); expect(m.alt).toContain("Kane");
+    expect(Math.abs(m.ratio - 4 / 3), `${at}: 4:3 ratio`).toBeLessThan(0.02); expect(Math.abs(m.ratio - m.natural)).toBeLessThan(0.01);
+    if (width < 900) expect(Math.abs(m.width - m.learnWidth), `${at}: same width as Learn`).toBeLessThanOrEqual(1); else expect(Math.abs(m.width - 480), `${at}: 480px column`).toBeLessThanOrEqual(1);
+    await noOverflow(page); await beat.screenshot({ path: `phase2-test-results/test-yourself-${width}.png` }); await page.context().close();
+  }
+});
+
 // Explore animation: the cropped 936x696 asset, shown borderless with its own controls beneath. Aspect ratio comes from the asset.
 const ASSET_RATIO = 936 / 696;
 const exploreVideo = (page: Page) => page.locator("video[aria-label^='Unroll the cone']");
