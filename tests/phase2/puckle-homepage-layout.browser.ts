@@ -64,12 +64,12 @@ const landing = (page: Page) => page.evaluate(() => ({ sectionTop: document.getE
   padding: parseFloat(getComputedStyle(document.getElementById("early-access")!).paddingTop), titleTop: document.getElementById("enquiry-title")!.getBoundingClientRect().top,
   spare: document.documentElement.scrollHeight - innerHeight - scrollY }));
 
-test("following a link to the registration form puts its heading at the top, with little spare scroll room on tablet and up", async ({ browser }) => {
-  for (const [width, height] of [[390, 600], [390, 844], [768, 1024], [820, 700], [1024, 768], [1280, 600], [1280, 800], [1440, 1000], [1440, 1300]] as const) {
+test("following a link to the registration form puts its heading at the top at every size, with the content below it supplying the scroll room", async ({ browser }) => {
+  for (const [width, height] of [[320, 568], [390, 600], [390, 844], [768, 1024], [820, 700], [1024, 768], [1280, 600], [1280, 800], [1440, 900], [1440, 1000], [1440, 1300]] as const) {
     const page = await open(browser, width, height); await follow(page); const where = await landing(page);
     expect(Math.abs(where.sectionTop), `${width}x${height}: lands on the top of the section`).toBeLessThanOrEqual(2);
     expect(Math.abs(where.titleTop - where.padding - 1), `${width}x${height}: the section top padding is visible above the heading`).toBeLessThanOrEqual(4);
-    if (width >= 760) expect(where.spare, `${width}x${height}: spare scroll room`).toBeLessThanOrEqual(30); // phones keep their existing room
+    expect(where.spare, `${width}x${height}: Beyond the Maths and the footer sit below the form`).toBeGreaterThan(400);
     await page.context().close();
   }
 });
@@ -80,7 +80,7 @@ test("an expanded registration form is fully reachable and the heading still lan
     await page.locator("#early-access").scrollIntoViewIfNeeded();
     await page.getByRole("radio", { name: "Parent or guardian" }).check();
     await expect(page.getByRole("button", { name: "Request a free session" })).toBeVisible();
-    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(300);
+    await page.getByRole("button", { name: "Request a free session" }).scrollIntoViewIfNeeded(); await page.waitForTimeout(300);
     const button = await page.getByRole("button", { name: "Request a free session" }).boundingBox();
     expect(button!.y + button!.height, `${width}x${height}: submit button reachable`).toBeLessThanOrEqual(height);
     await page.evaluate(() => scrollTo(0, 0)); await follow(page);
@@ -95,9 +95,93 @@ for (const [name, width, height] of [["phone", 390, 844], ["ipad-portrait", 820,
     await page.screenshot({ path: `phase2-test-results/homepage-${name}-top.png` });
     await page.locator("h3", { hasText: "Interactive" }).scrollIntoViewIfNeeded(); await page.screenshot({ path: `phase2-test-results/homepage-${name}-explore.png` });
     await follow(page); await page.screenshot({ path: `phase2-test-results/homepage-${name}-form.png` });
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(500); await page.screenshot({ path: `phase2-test-results/homepage-${name}-bottom.png` });
     await noOverflow(page);
   });
 }
+
+test("a collapsed form leaves no blank gap: Beyond the Maths follows it directly, and the form lands at the top without extra reserved space", async ({ browser }) => {
+  for (const [width, height] of [[320, 568], [390, 844], [768, 1024], [1024, 768], [1280, 800], [1440, 900]] as const) {
+    const page = await open(browser, width, height);
+    const gap = await page.evaluate(() => { const form = document.getElementById("early-access")!, last = form.lastElementChild!.getBoundingClientRect(), next = document.getElementById("beyond-title")!.closest("section")!.getBoundingClientRect();
+      return { blank: next.top - last.bottom, formHeight: form.getBoundingClientRect().height, viewport: innerHeight }; });
+    expect(gap.blank, `${width}x${height}: space between the form's last content and the next section`).toBeLessThanOrEqual(150);
+    expect(gap.formHeight, `${width}x${height}: the collapsed form no longer reserves a full screen`).toBeLessThan(gap.viewport);
+    await page.context().close();
+  }
+});
+
+const beyond = (page: Page) => page.evaluate(() => {
+  const section = document.getElementById("beyond-title")!.closest("section")!, cards = [...section.querySelectorAll("ul > li")] as HTMLElement[], rect = (element: Element) => element.getBoundingClientRect();
+  const invite = section.querySelector("a[href='/contact']") as HTMLElement | null, footer = document.querySelector("footer")!;
+  return {
+    eyebrow: section.querySelector("p")!.textContent, heading: section.querySelector("h2")!.textContent, subtitle: section.querySelectorAll("header > *").length,
+    cards: cards.map(card => { const img = card.querySelector("img")!, title = card.querySelector("h3")!, [label, description] = [...card.querySelectorAll("p")];
+      return { title: title.textContent, label: label.textContent, description: description.textContent, links: card.querySelectorAll("a").length, box: rect(card).toJSON(),
+        ratio: rect(img).width / rect(img).height, natural: img.naturalWidth / img.naturalHeight, imgWidth: rect(img).width, loaded: img.complete && img.naturalWidth > 0,
+        artBottom: rect(img).bottom, artWidth: rect(img).width, panelWidth: rect(card).width, textTop: rect(title).top, titleSize: parseFloat(getComputedStyle(title).fontSize), descSize: parseFloat(getComputedStyle(description).fontSize), titleTop: rect(title).top, labelTop: rect(label).top,
+        clipped: [title, label, description].some(element => element.scrollWidth > element.clientWidth + 1) }; }),
+    invite: invite && { href: invite.getAttribute("href"), text: invite.textContent, top: rect(invite).top, height: rect(invite).height, bg: getComputedStyle(invite).backgroundColor },
+    prompt: section.querySelector("a[href='/contact']")!.previousElementSibling!.textContent, cardsBottom: Math.max(...cards.map(card => rect(card).bottom)),
+    footerLinks: [...footer.querySelectorAll("nav a")].map(link => [link.textContent, link.getAttribute("href")]), footerWidth: rect(footer).width,
+    wordmark: rect(footer.querySelector("[aria-hidden='true']:not(svg)")!).right, navBottom: rect(footer.querySelector("nav")!).bottom, wavesTop: rect(footer.querySelector("svg")!).top, footerBottom: rect(footer).bottom + scrollY, docHeight: document.documentElement.scrollHeight,
+  };
+});
+
+test("Beyond the Maths shows both projects side by side with the approved copy, undistorted artwork and no links, at every size", async ({ browser }) => {
+  for (const [width, height] of [[320, 568], [390, 844], [768, 1024], [1024, 768], [1280, 800], [1440, 900]] as const) {
+    const page = await open(browser, width, height); await page.locator("footer").scrollIntoViewIfNeeded(); await page.waitForTimeout(800); const m = await beyond(page), at = `${width}x${height}`;
+    expect(m.eyebrow).toBe("BEYOND THE MATHS"); expect(m.heading).toBe("There’s more to Puckle."); expect(m.subtitle, `${at}: eyebrow and heading only`).toBe(2);
+    expect(m.cards.map(card => [card.title, card.label, card.description])).toEqual([["Puckle Yard", "COMING SOON", "An experimental space where anyone can create and share projects for others to follow."],
+      ["Puckle Clubs", "COMING SOON", "Structured player development tailored to age and need, built on shared coaching knowledge."]]);
+    const [yard, clubs] = m.cards;
+    expect(Math.abs(yard.box.top - clubs.box.top), `${at}: side by side`).toBeLessThanOrEqual(1); expect(clubs.box.left, `${at}: second panel to the right`).toBeGreaterThanOrEqual(yard.box.right);
+    expect(Math.abs(yard.box.width - clubs.box.width), `${at}: balanced widths`).toBeLessThanOrEqual(1); expect(Math.abs(yard.box.height - clubs.box.height), `${at}: balanced heights`).toBeLessThanOrEqual(1);
+    for (const card of m.cards) {
+      expect(card.loaded, `${at}: ${card.title} artwork loaded`).toBe(true); expect(Math.abs(card.ratio / card.natural - 1), `${at}: ${card.title} artwork keeps its ratio`).toBeLessThanOrEqual(0.01);
+      expect(card.links, `${at}: no links in the project panels`).toBe(0); expect(card.clipped, `${at}: ${card.title} text is not clipped`).toBe(false);
+      expect(card.titleSize, `${at}: title stays readable`).toBeGreaterThanOrEqual(16); expect(card.descSize, `${at}: description stays readable`).toBeGreaterThanOrEqual(13);
+    }
+    expect(Math.abs(yard.labelTop - clubs.labelTop), `${at}: the labels line up`).toBeLessThanOrEqual(1);
+    for (const card of m.cards) { expect(card.artBottom, `${at}: ${card.title} artwork stays clear of the title`).toBeLessThanOrEqual(card.textTop + 1); expect(card.artWidth / card.panelWidth, `${at}: ${card.title} artwork is substantial`).toBeGreaterThan(0.85); }
+    expect(m.navBottom, `${at}: footer links sit above the waves, on the dark background`).toBeLessThanOrEqual(m.wavesTop);
+    expect(m.invite, `${at}: contact invitation link`).toMatchObject({ href: "/contact", text: "Get in touch." }); expect(m.prompt).toBe("Want to know more or be involved?");
+    expect(m.invite!.top, `${at}: invitation sits below the panels`).toBeGreaterThan(m.cardsBottom); expect(m.invite!.height).toBeGreaterThanOrEqual(44); expect(m.invite!.bg).toBe("rgb(255, 250, 240)");
+    expect(m.footerLinks, `${at}: footer navigation`).toEqual([["Home", "/"], ["Contact", "/contact"], ["Privacy", "/privacy"]]);
+    expect(m.footerWidth, `${at}: the footer spans the page`).toBe(width); expect(m.wordmark, `${at}: wordmark inside the viewport`).toBeLessThanOrEqual(width);
+    await noOverflow(page); await page.context().close();
+  }
+});
+
+test("on a very narrow phone the invitation stacks and the panels stay side by side", async ({ browser }) => {
+  const page = await open(browser, 320, 568); await page.locator("footer").scrollIntoViewIfNeeded(); const m = await beyond(page);
+  expect(m.invite!.top).toBeGreaterThan(m.cardsBottom); await noOverflow(page);
+  const prompt = await page.evaluate(() => { const link = document.getElementById("beyond-title")!.closest("section")!.querySelector("a[href='/contact']")!, text = link.previousElementSibling!.getBoundingClientRect(); return link.getBoundingClientRect().top >= text.bottom - 1; });
+  expect(prompt, "button sits beneath the question on a narrow phone").toBe(true);
+});
+
+test("both project artworks load and fill their panels on a 2x retina phone at 320px and 390px", async ({ browser }) => {
+  for (const width of [320, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 700 }, deviceScaleFactor: 2 }), page = await context.newPage(); await page.goto(`${origin}/`, { waitUntil: "networkidle" });
+    await page.locator("footer").scrollIntoViewIfNeeded(); const images = page.locator("section[aria-labelledby='beyond-title'] img");
+    for (const index of [0, 1]) await expect.poll(() => images.nth(index).evaluate(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0), { message: `${width}px: artwork ${index} loads`, timeout: 20000 }).toBe(true);
+    await noOverflow(page); await context.close();
+  }
+});
+
+test("the Beyond the Maths section and footer are homepage only: other Puckle pages keep their plain footer", async ({ browser }) => {
+  const page = await open(browser, 1280, 800); await page.goto(`${origin}/privacy`, { waitUntil: "networkidle" });
+  expect(await page.locator("footer svg").count()).toBe(0); expect(await page.locator("footer nav a").allTextContents()).toEqual(["Home", "Contact", "Privacy"]);
+  expect(await page.locator("footer").evaluate(element => element.getBoundingClientRect().width)).toBeLessThan(1280); await page.context().close();
+});
+
+test("screenshots of Beyond the Maths and the footer for review", async ({ browser }) => {
+  for (const [name, width, height] of [["phone", 390, 844], ["ipad-landscape", 1024, 768], ["laptop", 1440, 900]] as const) {
+    const page = await open(browser, width, height); await page.locator("footer").scrollIntoViewIfNeeded(); await page.waitForTimeout(800);
+    const top = await page.evaluate(() => document.getElementById("beyond-title")!.getBoundingClientRect().top + scrollY - 40);
+    await page.screenshot({ path: `phase2-test-results/beyond-${name}.png`, fullPage: true, clip: { x: 0, y: top, width, height: (await page.evaluate(() => document.documentElement.scrollHeight)) - top } }); await page.context().close();
+  }
+});
 
 test("the hero has a Request a free session button that sits inside the centred text block and scrolls to the registration heading", async ({ browser }) => {
   for (const [width, height] of [[390, 800], [834, 1112], [1024, 768], [1280, 800]] as const) {

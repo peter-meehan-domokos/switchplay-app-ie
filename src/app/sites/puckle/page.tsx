@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { brandFontClassName } from "./components/BrandLink";
 import PublicLayout from "./components/PublicLayout";
 import PublicHeader from "./components/PublicHeader";
-import PublicFooter from "./components/PublicFooter";
+import HomeFooter from "./components/HomeFooter";
 import buttonStyles from "./components/PublicButton.module.css";
 import BenefitSections from "./components/BenefitSections";
+import BeyondTheMathsSection from "./components/BeyondTheMathsSection";
 import TuitionEnquiryForm from "./components/TuitionEnquiryForm";
 import { SITE_TITLE_NAME } from "./siteInfo";
 import styles from "./HomePage.module.css";
@@ -35,16 +35,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <PublicLayout
-      footer={
-        <div className={styles.footerBlock}>
-          <p className={styles.footerInvite}>
-            Interested in contributing to Puckle? <Link href="/contact">Get in touch.</Link>
-          </p>
-          <PublicFooter />
-        </div>
-      }
-    >
+    <PublicLayout footer={<HomeFooter />} fullBleedFooter>
       <PublicHeader />
       <section className={styles.hero} aria-labelledby="home-hero-title">
         <div className={styles.heroCopy}>
@@ -95,6 +86,7 @@ export default function Home() {
       <div className={brandFontClassName}>
         <BenefitSections />
         <TuitionEnquiryForm />
+        <BeyondTheMathsSection />
       </div>
     </PublicLayout>
   );

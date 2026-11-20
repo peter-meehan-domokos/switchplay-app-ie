@@ -177,32 +177,3 @@
   line-height: 1.4;
   opacity: 0.8;
 }
-
-/* Homepage footer: never shorter than this, because the registration section's minimum height assumes 120px of footer
-   (48px of footer padding plus this) when it works out how much room the heading needs to scroll to the top. */
-.footerBlock {
-  min-height: 72px;
-}
-
-.footerInvite {
-  color: var(--sp-site-text-muted);
-  font-size: 0.875rem;
-  line-height: 1.5;
-  margin-bottom: 14px;
-}
-
-.footerInvite a {
-  color: var(--sp-site-text);
-  text-decoration: underline;
-  text-decoration-color: rgba(168, 214, 228, 0.5);
-  text-underline-offset: 3px;
-}
-
-.footerInvite a:hover {
-  text-decoration-color: var(--sp-site-accent-blue);
-}
-
-.footerInvite a:focus-visible {
-  outline: 3px solid var(--sp-site-accent-blue);
-  outline-offset: 3px;
-}
