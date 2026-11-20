@@ -165,7 +165,7 @@ function ProgressSection() {
           className={styles.mediaImage}
           height={1058}
           sizes="(min-width: 900px) 540px, calc(100vw - 32px)"
-          src="/images/sites/puckle/puckle-collaboration-v2.png"
+          src="/images/sites/puckle/puckle-collaboration-v3.png"
           width={1487}
         />
       </figure>
