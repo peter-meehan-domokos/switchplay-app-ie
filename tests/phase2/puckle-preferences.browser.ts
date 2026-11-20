@@ -50,6 +50,28 @@ for (const width of [390, 1280]) {
     await page.screenshot({ path: `phase2-test-results/preferences-${width}.png`, fullPage: true });
   });
 }
+for (const width of [390, 768]) {
+  test(`each description reads as one item with its title, never runs under the Yes | No buttons, and wraps after "invites" and "help" only when it must at ${width}px`, async ({ browser }) => {
+    const page = await open(browser, width);
+    const rows = await section(page).locator("div[class*='row']").evaluateAll(elements => elements.map(row => {
+      const title = row.querySelector("span[id$='-title']")!.getBoundingClientRect(), text = row.querySelector("p")!, box = text.getBoundingClientRect(), buttons = row.querySelector("[role='radiogroup']")!.getBoundingClientRect(), rowBox = row.getBoundingClientRect();
+      const range = document.createRange(), lines: string[] = []; let last: number | null = null;
+      const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT); const marks: [Text, number][] = [];
+      for (let current = walker.nextNode() as Text | null; current; current = walker.nextNode() as Text | null) for (let index = 0; index < current.length; index++) marks.push([current, index]);
+      for (const [textNode, index] of marks) { range.setStart(textNode, index); range.setEnd(textNode, index + 1); const top = Math.round(range.getBoundingClientRect().top); if (top !== last) { lines.push(""); last = top; } lines[lines.length - 1] += textNode.data[index]; }
+      return { lines: lines.map(line => line.trim()), gap: box.top - title.bottom, textRight: box.right, buttonsLeft: buttons.left, buttonsTop: buttons.top - rowBox.top, buttonsRight: rowBox.right - buttons.right };
+    }));
+    expect(rows.length).toBe(2);
+    for (const row of rows) {
+      expect(row.gap, `${width}px: title and description are grouped`).toBeLessThanOrEqual(8); expect(row.textRight, `${width}px: description stays clear of the buttons`).toBeLessThanOrEqual(row.buttonsLeft);
+      expect(row.buttonsRight, `${width}px: buttons stay at the right edge`).toBeLessThanOrEqual(1); expect(row.buttonsTop, `${width}px: buttons stay at the top of the row`).toBeLessThanOrEqual(15.5);
+    }
+    if (width === 390) {
+      expect(rows[0].lines, "Puckle Updates").toEqual(["Maths content, group invites", "and occasional offers"]); expect(rows[1].lines, "Occasional personal contact").toEqual(["We may get in touch to offer help", "or ask for feedback."]);
+    } else { expect(rows[0].lines).toHaveLength(1); expect(rows[1].lines).toHaveLength(1); }
+    await noOverflow(page); await page.screenshot({ path: `phase2-test-results/preferences-rows-${width}.png`, fullPage: true });
+  });
+}
 test("teachers see their own Puckle Updates wording, interested parties keep their three separate choices", async ({ browser }) => {
   const page = await open(browser);
   await page.getByRole("radio", { name: "I'm a teacher" }).check();

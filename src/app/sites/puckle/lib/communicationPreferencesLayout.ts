@@ -92,6 +92,17 @@ export function validatePreferencesState(state: PreferencesState, audience: Pref
   return { ...Object.fromEntries(unanswered.map(field => [field, PREFERENCE_MESSAGES.answer])), ...(channels ? { channels } : {}) };
 }
 
+/**
+ * Presentation only. On narrow screens the description sits beside the Yes | No buttons and wraps; these closing phrases are kept
+ * together so the first line ends after "invites" and after "help". Where the whole text fits on one line nothing changes, and the
+ * text itself is not altered.
+ */
+const KEPT_TAILS = ["and occasional offers", "or ask for feedback."] as const;
+export const splitKeptTail = (text: string): Readonly<{ lead: string; tail: string }> => {
+  const tail = KEPT_TAILS.find(candidate => text.endsWith(` ${candidate}`));
+  return tail ? { lead: text.slice(0, text.length - tail.length), tail } : { lead: text, tail: "" };
+};
+
 export type PreferenceRowView = Readonly<{ field: PreferenceField; title: string; text: string; value: Answer | ""; error?: string }>;
 export type ChannelsView = Readonly<{ visible: boolean; label: string; emailOffered: boolean; email: boolean; sms: boolean; error?: string }>;
 /** Settings only: the update preferences nested under Puckle Updates (with their delivery choice), and personal contact apart. */

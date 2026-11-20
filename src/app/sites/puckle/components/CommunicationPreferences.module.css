@@ -11,9 +11,12 @@
   line-height: 1.2;
 }
 
+/* Title and description read as one item on the left; the Yes | No buttons stay at the right of the row, top-aligned as before.
+   The description lives in the first column, so it never runs under the buttons and wraps beside them when space is short. */
 .row {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
   padding: 14px 0;
   border-top: 1px solid rgba(255, 250, 240, 0.12);
 }
@@ -23,14 +26,14 @@
 }
 
 .head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
+  display: contents;
 }
 
 .title {
+  grid-column: 1;
+  grid-row: 1;
+  /* Centres the title on the 44px buttons: (44px button height - 20px line) / 2. */
+  padding-top: 12px;
   color: var(--sp-site-text);
   font-size: 1rem;
   font-weight: 800;
@@ -38,13 +41,23 @@
 }
 
 .text {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: 2px;
   max-width: 40rem;
   color: var(--sp-site-text-muted);
   font-size: 0.9rem;
   line-height: 1.45;
 }
 
+.keep {
+  white-space: nowrap;
+}
+
 .segmented {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
   display: inline-flex;
   flex: none;
   overflow: hidden;
@@ -128,6 +141,8 @@
 }
 
 .error {
+  grid-column: 1 / -1;
+  margin-top: 6px;
   color: #ffb4a8;
   font-size: 0.9rem;
   line-height: 1.4;
