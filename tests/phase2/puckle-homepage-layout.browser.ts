@@ -311,7 +311,7 @@ test("Test yourself is one complete 4:3 image: loaded, undistorted, sized like L
     });
     const at = `${width}px`;
     expect(m.tag).toBe("FIGURE"); expect(m.images, `${at}: one image only`).toBe(1); expect(m.roleImg, `${at}: no wrapper panel`).toBe(0); expect(m.label, `${at}: no separate label`).toBe(false);
-    expect(m.src, `${at}: uses test-yourself-v2`).toContain("test-yourself-v2.png"); expect(m.loaded).toBe(true); expect(m.alt).toContain("Kane");
+    expect(m.src, `${at}: uses test-yourself-v3`).toContain("test-yourself-v3.png"); expect(m.loaded).toBe(true); expect(m.alt).toContain("Kane");
     expect(Math.abs(m.ratio - 4 / 3), `${at}: 4:3 ratio`).toBeLessThan(0.02); expect(Math.abs(m.ratio - m.natural)).toBeLessThan(0.01);
     if (width < 900) expect(Math.abs(m.width - m.learnWidth), `${at}: same width as Learn`).toBeLessThanOrEqual(1); else expect(Math.abs(m.width - 480), `${at}: 480px column`).toBeLessThanOrEqual(1);
     await noOverflow(page); await beat.screenshot({ path: `phase2-test-results/test-yourself-${width}.png` }); await page.context().close();

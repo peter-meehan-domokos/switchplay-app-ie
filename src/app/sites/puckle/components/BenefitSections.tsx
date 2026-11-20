@@ -91,7 +91,7 @@ function LearningSection() {
             className={styles.mediaImage}
             height={1086}
             sizes="(min-width: 900px) 480px, calc(100vw - 32px)"
-            src="/images/sites/puckle/test-yourself-v2.png"
+            src="/images/sites/puckle/test-yourself-v3.png"
             width={1448}
           />
         </figure>
@@ -184,7 +184,7 @@ function ProgressSection() {
 }
 
 // Previous Test yourself illustration, assembled in code (worksheet, video thumbnail, play icon and label inside a panel). Not rendered
-// now that test-yourself-v2.png shows all of it as one image; kept, with its styles and the flag above, in case it is wanted again.
+// now that test-yourself-v3.png shows all of it as one image; kept, with its styles and the flag above, in case it is wanted again.
 export function AssembledTestYourselfIllustration() {
   return (
     <div
