@@ -11,7 +11,7 @@ export default function HomeFooter() {
         aria-hidden="true"
         className={styles.curves}
         focusable="false"
-        preserveAspectRatio="xMaxYMax slice"
+        preserveAspectRatio="none"
         viewBox="0 0 1440 300"
       >
         <defs>
@@ -37,9 +37,9 @@ export default function HomeFooter() {
           </linearGradient>
         </defs>
         <path d="M-120 300C300 200 900 14 1560 70V300Z" fill="url(#home-footer-blue-fill)" />
-        <path d="M-120 300C300 200 900 14 1560 70" fill="none" stroke="url(#home-footer-blue-edge)" strokeWidth="1.5" />
+        <path d="M-120 300C300 200 900 14 1560 70" fill="none" stroke="url(#home-footer-blue-edge)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
         <path d="M300 300C700 236 1120 130 1560 186V300Z" fill="url(#home-footer-purple-fill)" />
-        <path d="M300 300C700 236 1120 130 1560 186" fill="none" stroke="url(#home-footer-purple-edge)" strokeWidth="1.5" />
+        <path d="M300 300C700 236 1120 130 1560 186" fill="none" stroke="url(#home-footer-purple-edge)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className={styles.inner}>
         <p aria-hidden="true" className={styles.wordmark}>

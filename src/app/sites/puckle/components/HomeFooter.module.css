@@ -2,7 +2,7 @@
    nothing here can cause sideways scrolling. */
 .footer {
   /* The waves have their own band at the bottom, beneath the navigation, so the links sit on the dark background. */
-  --wave-height: clamp(120px, 21vw, 300px);
+  --wave-height: clamp(120px, 15vw, 200px);
 
   position: relative;
   overflow: hidden;
@@ -18,8 +18,10 @@
   position: absolute;
   right: 0;
   bottom: 0;
-  left: 0;
-  width: 100%;
+  left: auto;
+  /* Never narrower than the artwork's own 4.8:1 shape: on phones the SVG is wider than the footer and right-aligned, so its left
+     is cropped as before; on wider screens it stretches to the full width and the waves are never clipped at the top. */
+  width: max(100%, calc(var(--wave-height) * 4.8));
   height: var(--wave-height);
   pointer-events: none;
 }
@@ -40,7 +42,7 @@
   color: rgba(160, 196, 218, 0.75);
   -webkit-text-fill-color: transparent;
   font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
-  font-size: clamp(4.5rem, 19vw, 15rem);
+  font-size: clamp(4.5rem, 19vw, 8.5rem);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 0.95;

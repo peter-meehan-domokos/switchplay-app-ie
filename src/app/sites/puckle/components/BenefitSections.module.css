@@ -63,9 +63,9 @@
   gap: 20px;
 }
 
-/* Explore is the lead demonstration: the other two sit slightly narrower on mobile. */
-.beat:not(.beatReverse) .media,
-.beat:not(.beatReverse) .feedback {
+/* All three step illustrations share one width rule when the steps are stacked. */
+.beat .media,
+.beat .feedback {
   justify-self: start;
   width: 94%;
 }
@@ -364,13 +364,8 @@
     gap: 56px;
   }
 
-  /* Bring the first step closer to the section heading without changing the gap between the steps themselves. */
-  .primary .header {
-    margin-bottom: -40px;
-  }
-
-  .beat:not(.beatReverse) .media,
-  .beat:not(.beatReverse) .feedback {
+  .beat .media,
+  .beat .feedback {
     width: 100%;
   }
 
@@ -401,10 +396,10 @@
     align-items: center;
   }
 
-  /* Explore: the image column is capped at 660px but never takes more than 60% of the row, so the text keeps a sensible width
-     on iPad-sized screens (it was ~120px wide at 900px). From about 1200px the cap applies and nothing changes. */
+  /* Explore: the video column is capped at 500px (Learn and Test yourself use 480px) but never takes more than 60% of the row,
+     so the text keeps a sensible width on iPad-sized screens. */
   .beatReverse {
-    grid-template-columns: minmax(0, min(660px, 60%)) minmax(0, 1fr);
+    grid-template-columns: minmax(0, min(500px, 60%)) minmax(0, 1fr);
   }
 
   .beatReverse .media {

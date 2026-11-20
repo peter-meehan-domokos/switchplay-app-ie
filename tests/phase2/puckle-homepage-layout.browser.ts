@@ -46,8 +46,8 @@ test("the three learning steps are numbered at every size, keeping the uppercase
   }
 });
 
-test("Explore keeps a sensible text width at 900-1100px and is unchanged on wider laptops; Learn and Test yourself are untouched", async ({ browser }) => {
-  const expected: Record<number, { explore: number; learn: number }> = { 900: { explore: 283, learn: 300 }, 1024: { explore: 329, learn: 414 }, 1100: { explore: 357, learn: 484 }, 1280: { explore: 412, learn: 544 }, 1440: { explore: 412, learn: 544 } };
+test("Explore keeps a sensible text width from 900px up now its video is capped at 500px; Learn and Test yourself are untouched", async ({ browser }) => {
+  const expected: Record<number, { explore: number; learn: number }> = { 900: { explore: 283, learn: 300 }, 1024: { explore: 394, learn: 414 }, 1100: { explore: 464, learn: 484 }, 1280: { explore: 544, learn: 544 }, 1440: { explore: 544, learn: 544 } };
   for (const [width, want] of Object.entries(expected)) {
     const page = await open(browser, Number(width), 800), explore = await columns(page, "Interactive"), learn = await columns(page, "Explanations"), test = await columns(page, "Comments");
     expect(Math.abs(explore.text - want.explore), `${width}px Explore text`).toBeLessThanOrEqual(3);
@@ -153,6 +153,27 @@ test("Beyond the Maths shows both projects side by side with the approved copy, 
   }
 });
 
+test("the Beyond the Maths section and footer keep to their approved caps: 900px section, 438px panels, 40px titles, 136px wordmark, 200px waves, full-width waves, artwork scaling", async ({ browser }) => {
+  for (const [width, height] of [[390, 844], [768, 1024], [1024, 768], [1280, 800], [1440, 900], [1920, 1080]] as const) {
+    const page = await open(browser, width, height); await page.locator("footer").scrollIntoViewIfNeeded(); await page.waitForTimeout(800);
+    const m = await page.evaluate(() => {
+      const section = document.getElementById("beyond-title")!.closest("section")!, card = section.querySelector("ul > li") as HTMLElement, footer = document.querySelector("footer")!, svg = footer.querySelector("svg")!;
+      const box = section.getBoundingClientRect(), style = getComputedStyle(card), content = card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      return { sectionW: box.width, left: box.left, right: innerWidth - box.right, panelW: card.getBoundingClientRect().width, title: parseFloat(getComputedStyle(card.querySelector("h3")!).fontSize),
+        art: card.querySelector("img")!.getBoundingClientRect().width / content, wordmark: parseFloat(getComputedStyle(footer.querySelector("[aria-hidden='true']:not(svg)")!).fontSize),
+        waveH: svg.getBoundingClientRect().height, waveW: svg.getBoundingClientRect().width, waveRight: svg.getBoundingClientRect().right, innerLeft: footer.querySelector("nav")!.getBoundingClientRect().left };
+    });
+    const at = `${width}px`;
+    expect(m.sectionW, `${at}: section no wider than 900px`).toBeLessThanOrEqual(900.5); expect(Math.abs(m.left - m.right), `${at}: section is centred`).toBeLessThanOrEqual(1);
+    expect(m.panelW, `${at}: panels no wider than 438px`).toBeLessThanOrEqual(439); expect(m.title, `${at}: titles no larger than 40px`).toBeLessThanOrEqual(40);
+    expect(m.wordmark, `${at}: wordmark no larger than 136px`).toBeLessThanOrEqual(136); expect(m.waveH, `${at}: wave band no taller than 200px`).toBeLessThanOrEqual(200.5);
+    expect(m.waveW, `${at}: waves span the full width`).toBeGreaterThanOrEqual(width - 1); expect(Math.abs(m.waveRight - width), `${at}: waves reach the right edge`).toBeLessThanOrEqual(1);
+    expect(Math.abs(m.art - (width < 760 ? 1.22 : 1.12)), `${at}: artwork scale`).toBeLessThanOrEqual(0.03);
+    if (width >= 1280) expect(m.innerLeft, `${at}: footer navigation keeps the 1120px alignment`).toBeLessThan(m.left);
+    await noOverflow(page); await page.context().close();
+  }
+});
+
 test("on a very narrow phone the invitation stacks and the panels stay side by side", async ({ browser }) => {
   const page = await open(browser, 320, 568); await page.locator("footer").scrollIntoViewIfNeeded(); const m = await beyond(page);
   expect(m.invite!.top).toBeGreaterThan(m.cardsBottom); await noOverflow(page);
@@ -204,16 +225,19 @@ test("the hero has a Request a free session button that sits inside the centred 
   }
 });
 
-test("the Learning heading sits closer to the first step on laptop, with the steps themselves unchanged", async ({ browser }) => {
-  for (const [width, expectMax] of [[1280, 40], [1024, 40], [390, 400]] as const) {
+test("the Learning heading introduces all three steps: 56px above Learn from 1024px, unchanged spacing on phones and tablet portrait, and the Explore video is sized with the others", async ({ browser }) => {
+  for (const [width, heading] of [[390, 36], [768, 36], [1024, 56], [1280, 56], [1440, 56], [1920, 56]] as const) {
     const page = await open(browser, width, 800), gaps = await page.evaluate(() => {
       const top = (element: Element) => element.getBoundingClientRect();
       const h2 = document.getElementById("learning-title")!, beats = [...h2.closest("section")!.querySelectorAll(":scope > div")];
       return { heading: top(beats[0]).top - top(h2).bottom, between: top(beats[1]).top - top(beats[0]).bottom };
     });
-    expect(gaps.heading, `${width}px: heading to first step`).toBeLessThanOrEqual(expectMax);
-    if (width >= 900) expect(gaps.between, `${width}px: gap between steps unchanged`).toBeGreaterThanOrEqual(56);
-    await page.screenshot({ path: `phase2-test-results/homepage-learning-${width}.png` });
+    expect(Math.abs(gaps.heading - heading), `${width}px: heading to first step is about ${heading}px`).toBeLessThanOrEqual(2);
+    if (width >= 900) expect(gaps.between, `${width}px: gap between steps unchanged`).toBeGreaterThanOrEqual(55);
+    const learn = await columns(page, "Explanations"), explore = await columns(page, "Interactive");
+    if (width < 900) expect(Math.abs(explore.media - learn.media), `${width}px: Explore is the same width as Learn`).toBeLessThanOrEqual(1);
+    else expect(explore.media, `${width}px: Explore is capped at 500px`).toBeLessThanOrEqual(500.5);
+    await noOverflow(page); await page.screenshot({ path: `phase2-test-results/homepage-learning-${width}.png` });
     await page.context().close();
   }
 });
