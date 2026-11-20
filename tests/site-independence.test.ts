@@ -15,6 +15,9 @@ const SHARED_ALIASES = ["@/lib/mongodb", "@/lib/auth", "@/lib/phoneCountries", "
 // orchestration its public Join routes call. Other websites gain no access to them.
 const PUCKLE_JOIN_ALIASES = ["@/lib/puckleMemberships", "@/lib/accountCredentials", "@/lib/puckleRegistration", "@/lib/puckleEnquiries", "@/lib/puckleCommunicationPreferences"];
 
+// The Explore animation reuses the app's two presentational fullscreen icons (plain SVG components, no data or infrastructure).
+const PUCKLE_SHARED_ICON_ALIASES = ["@/components/icons/videoControlIcons"];
+
 // Puckle's pre-launch welcome reuses the existing parent approval request and sign-in screen, the pre-launch decision
 // and the sign-out notification instead of duplicating them. Other websites gain no access to them.
 const PUCKLE_PRELAUNCH_ALIASES = [
@@ -70,7 +73,7 @@ test("websites import only their own code and the approved shared infrastructure
           } else if (specifier.startsWith("@/")) {
             const target = join(root, "src", specifier.slice(2));
             allowed = isWithin(target, own) || SHARED_ALIASES.includes(specifier)
-              || site === "puckle" && (PUCKLE_JOIN_ALIASES.includes(specifier) || PUCKLE_PRELAUNCH_ALIASES.includes(specifier));
+              || site === "puckle" && (PUCKLE_JOIN_ALIASES.includes(specifier) || PUCKLE_PRELAUNCH_ALIASES.includes(specifier) || PUCKLE_SHARED_ICON_ALIASES.includes(specifier));
           } else {
             allowed = true;
           }

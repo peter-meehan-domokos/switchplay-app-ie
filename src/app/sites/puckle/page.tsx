@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { brandFontClassName } from "./components/BrandLink";
 import PublicLayout from "./components/PublicLayout";
 import PublicHeader from "./components/PublicHeader";
-import PublicFooter from "./components/PublicFooter";
+import HomeFooter from "./components/HomeFooter";
 import buttonStyles from "./components/PublicButton.module.css";
 import BenefitSections from "./components/BenefitSections";
+import BeyondTheMathsSection from "./components/BeyondTheMathsSection";
 import TuitionEnquiryForm from "./components/TuitionEnquiryForm";
 import { SITE_TITLE_NAME } from "./siteInfo";
 import styles from "./HomePage.module.css";
@@ -35,16 +35,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <PublicLayout
-      footer={
-        <div className={styles.footerBlock}>
-          <p className={styles.footerInvite}>
-            Interested in contributing to Puckle? <Link href="/contact">Get in touch.</Link>
-          </p>
-          <PublicFooter />
-        </div>
-      }
-    >
+    <PublicLayout footer={<HomeFooter />} fullBleedFooter>
       <PublicHeader />
       <section className={styles.hero} aria-labelledby="home-hero-title">
         <div className={styles.heroCopy}>
@@ -71,7 +62,7 @@ export default function Home() {
               height={985}
               priority
               sizes="(min-width: 840px) 540px, min(380px, calc(100vw - 32px))"
-              src="/images/sites/puckle/hero-cropped.png"
+              src="/images/sites/puckle/hero-cropped-v2.png"
               width={1199}
             />
           </figure>
@@ -83,12 +74,19 @@ export default function Home() {
               Every card has three steps. Complete your <br className={styles.bridgeBreak} />
               cards to build exam skills and see your progress.
             </p>
+            <div className={styles.bridgeCta}>
+              <a className={`${buttonStyles.button} ${buttonStyles.primary}`} href="#early-access">
+                Request a free session
+              </a>
+              <p className={styles.bridgeCtaNote}>Free 20–30 minute online maths session.</p>
+            </div>
           </div>
         </div>
       </section>
       <div className={brandFontClassName}>
         <BenefitSections />
         <TuitionEnquiryForm />
+        <BeyondTheMathsSection />
       </div>
     </PublicLayout>
   );

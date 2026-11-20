@@ -63,6 +63,27 @@
   display: none;
 }
 
+/* Early call to action beneath the bridge text: same button and destination as the later one, centred in this block. */
+.bridgeCta {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.bridgeCtaNote {
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* Phones only: from 760px the hero text block has its own button (.heroCta), so this one is not shown. */
+@media (min-width: 760px) {
+  .bridgeCta {
+    display: none;
+  }
+}
+
 /* Portrait phones only: both lines of the bridge text fit (line 2 is ~328px), so break after "your".
    Narrower screens and tablet/desktop wrap naturally. */
 @media (min-width: 375px) and (max-width: 480px) and (orientation: portrait) {
@@ -162,33 +183,4 @@
   letter-spacing: 0.01em;
   line-height: 1.4;
   opacity: 0.8;
-}
-
-/* Homepage footer: never shorter than this, because the registration section's minimum height assumes 120px of footer
-   (48px of footer padding plus this) when it works out how much room the heading needs to scroll to the top. */
-.footerBlock {
-  min-height: 72px;
-}
-
-.footerInvite {
-  color: var(--sp-site-text-muted);
-  font-size: 0.875rem;
-  line-height: 1.5;
-  margin-bottom: 14px;
-}
-
-.footerInvite a {
-  color: var(--sp-site-text);
-  text-decoration: underline;
-  text-decoration-color: rgba(168, 214, 228, 0.5);
-  text-underline-offset: 3px;
-}
-
-.footerInvite a:hover {
-  text-decoration-color: var(--sp-site-accent-blue);
-}
-
-.footerInvite a:focus-visible {
-  outline: 3px solid var(--sp-site-accent-blue);
-  outline-offset: 3px;
 }

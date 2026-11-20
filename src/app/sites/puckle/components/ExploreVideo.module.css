@@ -1,0 +1,126 @@
+.player {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+}
+
+/* The asset is cropped so no frame is baked in; the radius clips the few corner pixels left by the cropped rounded card. */
+.screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  /* The card's cream, so any gap before the first frame is paint-matched rather than the dark page. */
+  background: #faf7ef;
+}
+
+.poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--explore-video-ratio);
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 0 0;
+  color: var(--sp-site-text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stripButton {
+  display: grid;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-width: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sp-site-text);
+  cursor: pointer;
+  padding: 0;
+  touch-action: manipulation;
+}
+
+.stripButton:focus-visible,
+.seek:focus-visible {
+  outline: 2px solid rgba(168, 214, 228, 0.82);
+  outline-offset: 2px;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+.playIcon {
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-block: 8px solid transparent;
+  border-left: 13px solid currentColor;
+}
+
+.pauseIcon {
+  width: 14px;
+  height: 16px;
+  border-inline: 5px solid currentColor;
+}
+
+.time {
+  flex: none;
+  min-width: 2.2em;
+  text-align: center;
+}
+
+.seek {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  accent-color: #a8d6e4;
+  cursor: pointer;
+}
+
+/* Fullscreen shows the whole container, so the strip stays reachable beneath the video. */
+.player[data-fullscreen="true"] {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  background: #05070a;
+}
+
+.player[data-fullscreen="true"] .screen {
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 0;
+  background: #05070a;
+}
+
+.player[data-fullscreen="true"] .video {
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.player[data-fullscreen="true"] .strip {
+  flex: none;
+  padding: 8px 16px;
+}

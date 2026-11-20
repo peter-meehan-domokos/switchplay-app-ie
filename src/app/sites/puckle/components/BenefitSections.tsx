@@ -1,6 +1,7 @@
 import { Caveat } from "next/font/google";
 import Image from "next/image";
 import buttonStyles from "./PublicButton.module.css";
+import ExploreVideo from "./ExploreVideo";
 import styles from "./BenefitSections.module.css";
 
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
@@ -9,6 +10,11 @@ const progressIdeas = [
   { title: "Keep what helps.", body: "Add private notes, videos and photos to your cards." },
   { title: "Learn from others.", body: "Discover explanations and ideas shared by other students." },
 ] as const;
+
+// Trial: swap the Test yourself worksheet for the Kane / Mbappe image. Set to false to bring back the original HTML worksheet.
+const USE_TRIAL_WORKSHEET_IMAGE = true;
+const trialWorksheetLabel =
+  "Illustration: handwritten working comparing the goals scored by Harry Kane and Kylian Mbappé over five seasons, with the averages worked out, a teacher tick for the averages and a note asking about consistency, beside a thumbnail of a personal video feedback clip";
 
 const tuitionOptions = ["One-to-one", "Small groups", "Quick topic check-ins"] as const;
 
@@ -44,10 +50,10 @@ function LearningSection() {
           <Image
             alt="Example Puckle Card step: a tutor video preview beside a graph asking why the curve turns"
             className={styles.mediaImage}
-            height={1000}
+            height={1039}
             sizes="(min-width: 900px) 560px, calc(100vw - 32px)"
-            src="/images/sites/puckle/puckle-video-explanation.png"
-            width={1440}
+            src="/images/sites/puckle/puckle-video-explanation-v3.png"
+            width={1514}
           />
         </figure>
       </div>
@@ -60,14 +66,13 @@ function LearningSection() {
             Change graphs, move points and experiment with mathematical ideas for yourself.
           </p>
         </div>
-        <figure className={`${styles.media} ${styles.mediaFeature}`}>
-          <Image
-            alt="Functions and Graphs preview: a parabola with its vertex at (1, −1) and the prompt to drag the point to explore how the graph changes"
-            className={styles.mediaImage}
-            height={1000}
-            sizes="(min-width: 900px) 620px, calc(100vw - 32px)"
-            src="/images/sites/puckle/puckle-functions-graphs.png"
-            width={1440}
+        <figure className={`${styles.media} ${styles.mediaFeature} ${styles.mediaVideo}`}>
+          <ExploreVideo
+            height={696}
+            label="Unroll the cone: an animation showing a cone opening out into a sector, with its measurements and the sector area calculation underneath"
+            poster="/images/sites/puckle/cone-poster-v2.jpg"
+            src="/videos/sites/puckle/cone-unroll-v2.mp4"
+            width={936}
           />
         </figure>
       </div>
@@ -80,39 +85,16 @@ function LearningSection() {
             Upload a photo of your work and find out what to improve and what to try next.
           </p>
         </div>
-        <div
-          className={styles.feedback}
-          role="img"
-          aria-label="Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
-        >
-          <div className={`${handwriting.className} ${styles.paper}`} aria-hidden="true">
-            <p className={styles.workingTitle}>Solve x² - 5x + 6 = 0</p>
-            <div className={styles.workingRow}>
-              <span className={styles.working}>x² - 5x + 6 = 0</span>
-            </div>
-            <div className={styles.workingRow}>
-              <span className={styles.working}>(x - 2)(x - 3) = 0</span>
-              <span className={`${styles.comment} ${styles.commentGood}`}>✓ Good factorising</span>
-            </div>
-            <div className={styles.workingRow}>
-              <span className={styles.working}>
-                x = <span className={styles.flagged}>-2 or x = -3</span>
-              </span>
-              <span className={styles.comment}>Check the signs</span>
-            </div>
-          </div>
-          <div className={styles.videoFeedback} aria-hidden="true">
-            <span className={styles.thumbnail}>
-              <Image alt="" height={1280} sizes="112px" src="/images/sites/puckle/puckle-tutor-photo.jpg" width={960} />
-              <span className={styles.play}>
-                <svg focusable="false" height="12" viewBox="0 0 12 12" width="12">
-                  <path d="M3 1.5v9l7.5-4.5z" />
-                </svg>
-              </span>
-            </span>
-            <span className={styles.videoLabel}>Personal video feedback</span>
-          </div>
-        </div>
+        <figure className={styles.media}>
+          <Image
+            alt={trialWorksheetLabel}
+            className={styles.mediaImage}
+            height={1086}
+            sizes="(min-width: 900px) 480px, calc(100vw - 32px)"
+            src="/images/sites/puckle/test-yourself-v2.png"
+            width={1448}
+          />
+        </figure>
       </div>
     </section>
   );
@@ -133,7 +115,7 @@ function TuitionSection() {
           className={styles.portraitImage}
           height={1280}
           sizes="(min-width: 900px) 286px, 220px"
-          src="/images/sites/puckle/puckle-tutor-photo.jpg"
+          src="/images/sites/puckle/puckle-tutor-photo-v2.jpg"
           width={960}
         />
         <figcaption className={styles.credential}>
@@ -183,10 +165,10 @@ function ProgressSection() {
         <Image
           alt="Two example Info Cards on quadratics: a handwritten note on completing the square, and a short video explanation"
           className={styles.mediaImage}
-          height={1000}
+          height={1058}
           sizes="(min-width: 900px) 540px, calc(100vw - 32px)"
-          src="/images/sites/puckle/puckle-collaboration.png"
-          width={1440}
+          src="/images/sites/puckle/puckle-collaboration-v2.png"
+          width={1487}
         />
       </figure>
       <ul className={styles.ideas}>
@@ -198,5 +180,61 @@ function ProgressSection() {
         ))}
       </ul>
     </section>
+  );
+}
+
+// Previous Test yourself illustration, assembled in code (worksheet, video thumbnail, play icon and label inside a panel). Not rendered
+// now that test-yourself-v2.png shows all of it as one image; kept, with its styles and the flag above, in case it is wanted again.
+export function AssembledTestYourselfIllustration() {
+  return (
+    <div
+      className={styles.feedback}
+      role="img"
+      aria-label={
+        USE_TRIAL_WORKSHEET_IMAGE
+          ? trialWorksheetLabel
+          : "Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
+      }
+    >
+      {USE_TRIAL_WORKSHEET_IMAGE ? (
+        <Image
+          alt=""
+          aria-hidden="true"
+          className={styles.worksheetImage}
+          height={678}
+          sizes="(min-width: 390px) 309px, calc(100vw - 80px)"
+          src="/images/sites/puckle/test-yourself-worksheet.png"
+          width={1172}
+        />
+      ) : (
+      <div className={`${handwriting.className} ${styles.paper}`} aria-hidden="true">
+        <p className={styles.workingTitle}>Solve x² - 5x + 6 = 0</p>
+        <div className={styles.workingRow}>
+          <span className={styles.working}>x² - 5x + 6 = 0</span>
+        </div>
+        <div className={styles.workingRow}>
+          <span className={styles.working}>(x - 2)(x - 3) = 0</span>
+          <span className={`${styles.comment} ${styles.commentGood}`}>✓ Good factorising</span>
+        </div>
+        <div className={styles.workingRow}>
+          <span className={styles.working}>
+            x = <span className={styles.flagged}>-2 or x = -3</span>
+          </span>
+          <span className={styles.comment}>Check the signs</span>
+        </div>
+      </div>
+      )}
+      <div className={styles.videoFeedback} aria-hidden="true">
+        <span className={styles.thumbnail}>
+          <Image alt="" height={1280} sizes="112px" src="/images/sites/puckle/puckle-tutor-photo.jpg" width={960} />
+          <span className={styles.play}>
+            <svg focusable="false" height="12" viewBox="0 0 12 12" width="12">
+              <path d="M3 1.5v9l7.5-4.5z" />
+            </svg>
+          </span>
+        </span>
+        <span className={styles.videoLabel}>Personal video feedback</span>
+      </div>
+    </div>
   );
 }

@@ -1,0 +1,64 @@
+/* Full-width footer for the homepage. The shapes are clipped to the footer, and the wordmark is capped by the viewport, so
+   nothing here can cause sideways scrolling. */
+.footer {
+  /* The waves have their own band at the bottom, beneath the navigation, so the links sit on the dark background. */
+  --wave-height: clamp(120px, 15vw, 200px);
+
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(8px, 2vw, 24px) calc(var(--wave-height) + 8px);
+  /* Starts exactly on the page colour so the join with the content above is seamless, then deepens to navy. */
+  background:
+    radial-gradient(55% 70% at 88% 100%, rgba(34, 211, 238, 0.16), transparent 72%),
+    radial-gradient(50% 65% at 62% 108%, rgba(139, 92, 246, 0.2), transparent 72%),
+    linear-gradient(180deg, #090b10 0%, #0b1322 55%, #0a1020 100%);
+}
+
+.curves {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  /* Never narrower than the artwork's own 4.8:1 shape: on phones the SVG is wider than the footer and right-aligned, so its left
+     is cropped as before; on wider screens it stretches to the full width and the waves are never clipped at the top. */
+  width: max(100%, calc(var(--wave-height) * 4.8));
+  height: var(--wave-height);
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: min(100% - clamp(32px, 8vw, 96px), var(--sp-site-content-max-width));
+  margin: 0 auto;
+}
+
+.wordmark {
+  width: fit-content;
+  max-width: 100%;
+  background: linear-gradient(180deg, rgba(176, 214, 232, 0.86), rgba(140, 176, 206, 0.62));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: rgba(160, 196, 218, 0.75);
+  -webkit-text-fill-color: transparent;
+  font-family: var(--sp-brand-font-family), Arial, Helvetica, sans-serif;
+  font-size: clamp(4.5rem, 19vw, 8.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  user-select: none;
+}
+
+/* The shared navigation, restyled for this footer only: no rule above it, roomier spacing. */
+.links nav {
+  gap: 10px 28px;
+  margin-top: clamp(12px, 2.4vw, 24px);
+  border-top: 0;
+  padding-top: 0;
+}
+
+.links nav a {
+  color: #d3dae6;
+  font-size: clamp(0.95rem, 3.6vw, 1.125rem);
+  font-weight: 600;
+}
