@@ -40,7 +40,7 @@ export function buildPrelaunchLayout(input: { category: string | null | undefine
     const guardian = guardianLayoutFor({ actorId: "", show: true, student: true, approval: input.approval }, false);
     return {
       audience, kicker: KICKER, heading: HEADING,
-      lead: "New maths content starts arriving in early December.",
+      lead: "Maths content starts arriving in early December.",
       body: "You're here from the beginning. Improve your maths and help shape what we create next.",
       followUp: {
         heading: "Want to get started now?",
@@ -53,7 +53,7 @@ export function buildPrelaunchLayout(input: { category: string | null | undefine
   if (audience === "teacher") {
     return {
       audience, kicker: KICKER, heading: HEADING,
-      lead: "New maths content starts arriving in early December.",
+      lead: "Maths content starts arriving in early December.",
       body: "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.",
       followUp: INTEREST_FOLLOW_UP, parentApproval: null,
     };

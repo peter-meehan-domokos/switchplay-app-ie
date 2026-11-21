@@ -44,7 +44,7 @@ const seenAt = async (id: ObjectId) => (await db.collection("puckleMemberships")
 const noOverflow = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 const myDecks = (page: Page) => page.getByRole("heading", { name: "My Decks", exact: true });
 const MESSAGES = {
-  studentLead: "New maths content starts arriving in early December.",
+  studentLead: "Maths content starts arriving in early December.",
   studentBody: "You're here from the beginning. Improve your maths and help shape what we create next.",
   studentFollow: "Maths lessons with Puckle are available today. Or join us for a free introductory session to see how the platform works and discuss your maths.",
   teacherBody: "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.",
@@ -232,7 +232,7 @@ test.describe("pre-launch mode on", () => {
     const ctx = await context(browser), page = await ctx.newPage(); await page.goto(`${origin}/join`);
     const notice = page.locator('[data-join="prelaunch-notice"]');
     await expect(notice.getByRole("heading", { name: "Join Puckle now" })).toBeVisible();
-    await expect(notice.getByText("New maths content starts arriving in early December. Sign up today to be among the first to use it.", { exact: true })).toBeVisible();
+    await expect(notice.getByText("Maths content starts arriving in early December. Sign up today to be among the first to use it.", { exact: true })).toBeVisible();
     await expect(notice.getByText("Want to get started now? Maths lessons with Puckle are already available, using our interactive learning platform.")).toBeVisible();
     await expect(page.getByLabel("First name")).toBeVisible(); // the existing form is intact
     await expect(page.getByText("Join free to learn maths with Puckle's cards", { exact: false })).toHaveCount(0); // replaced, never shown together
@@ -243,7 +243,7 @@ test.describe("pre-launch mode on", () => {
     await noOverflow(page);
     await page.getByRole("radio", { name: "I'm a teacher" }).check();
     await expect(notice.getByRole("heading", { name: "Join Puckle as a teacher" })).toBeVisible();
-    await expect(notice.getByText("New maths content starts arriving in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", { exact: true })).toBeVisible();
+    await expect(notice.getByText("Maths content starts arriving in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", { exact: true })).toBeVisible();
     await expect(notice.getByText("Want to get started now?")).toHaveCount(0);
     await expect(page.getByText("Teachers are welcome to explore Puckle and help shape it.", { exact: false })).toBeVisible(); // teacher introduction kept
     await page.getByRole("radio", { name: "I'm interested in Puckle" }).check(); await expect(notice).toHaveCount(0);
