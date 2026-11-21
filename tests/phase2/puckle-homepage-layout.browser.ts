@@ -69,27 +69,30 @@ test("Learning and Your Learning: phone sizes unchanged, no illustration over 48
     const rect = (element: Element) => element.getBoundingClientRect(), learn = document.getElementById("learning-title")!.closest("section")!, beats = [...learn.querySelectorAll(":scope > div")], progress = document.getElementById("progress-title")!.closest("section")!;
     const ideas = [...progress.querySelectorAll("ul li")].map(rect), intro = progress.querySelector("div[class*='progressIntro']")!;
     return { media: beats.map(beat => Math.round(rect(beat.children[1]).width)), beatSideBySide: beats.map(beat => Math.abs((rect(beat.children[0]).top + rect(beat.children[0]).bottom) / 2 - (rect(beat.children[1]).top + rect(beat.children[1]).bottom) / 2) < rect(beat).height / 2 && Math.abs(rect(beat.children[0]).left - rect(beat.children[1]).left) > 100),
-      learnH: Math.round(rect(learn).height), progressMedia: Math.round(rect(progress.querySelector("figure")!).width), progressSideBySide: rect(progress.querySelector("figure")!).left > rect(intro).right - 1, progressH: Math.round(rect(progress).height), introW: Math.round(rect(intro).width), ideasSideBySide: ideas.length === 2 && Math.abs(ideas[0].top - ideas[1].top) < 4 };
+      learnH: Math.round(rect(learn).height), progressMedia: Math.round(rect(progress.querySelector("figure")!).width), progressSideBySide: rect(progress.querySelector("figure")!).left > rect(intro).right - 1, progressH: Math.round(rect(progress).height), introW: Math.round(rect(intro).width), ideasSideBySide: ideas.length === 2 && Math.abs(ideas[0].top - ideas[1].top) < 4,
+      mediaLeft: Math.round(rect(progress.querySelector("figure")!).left - rect(progress).left), mediaCentre: Math.round((rect(progress.querySelector("figure")!).left + rect(progress.querySelector("figure")!).right) / 2 - (rect(progress).left + rect(progress).right) / 2),
+      ideasLeftAligned: [...progress.querySelectorAll("ul li")].every(li => getComputedStyle(li).textAlign === "left" && Math.abs(rect(li).left - rect(progress.querySelector("h2")!).left) < 2), ideasCentred: [...progress.querySelectorAll("ul li")].every(li => getComputedStyle(li).textAlign === "center"),
+      captionGaps: ideas.length === 2 ? Math.round(ideas[1].top - ideas[0].bottom) : 0 };
   });
   for (const [width, learnWant, progressWant] of [[390, 337, 358], [430, 372, 396], [480, 415, 442]] as const) { // ordinary phones: exactly as before
     const page = await open(browser, width, 900), m = await measure(page);
     expect(m.media.map(value => Math.abs(value - learnWant) <= 1), `${width}px: steps keep their phone size`).toEqual([true, true, true]); expect(Math.abs(m.progressMedia - progressWant)).toBeLessThanOrEqual(1);
-    expect(m.beatSideBySide).toEqual([false, false, false]); await noOverflow(page); await page.context().close();
+    expect(m.beatSideBySide).toEqual([false, false, false]); expect(m.mediaLeft, `${width}px: Your Learning image aligned with the heading`).toBe(0); expect(m.ideasCentred).toBe(true); await noOverflow(page); await page.context().close();
   }
   for (const width of [550, 600, 719]) {
     const page = await open(browser, width, 900), m = await measure(page);
-    expect(Math.max(...m.media), `${width}px: steps never exceed 480px`).toBeLessThanOrEqual(480.5); expect(m.progressMedia, `${width}px: Your Learning image never exceeds 480px`).toBeLessThanOrEqual(480.5); expect(m.beatSideBySide).toEqual([false, false, false]); expect(m.progressSideBySide).toBe(false);
+    expect(Math.max(...m.media), `${width}px: steps never exceed 480px`).toBeLessThanOrEqual(480.5); expect(Math.abs(m.mediaCentre), `${width}px: Your Learning image centred`).toBeLessThanOrEqual(1); expect(m.mediaLeft, `${width}px: centred, not at the heading edge`).toBeGreaterThan(0); expect(m.ideasSideBySide, `${width}px: captions side by side`).toBe(true); expect(m.ideasCentred).toBe(true); expect(m.progressMedia, `${width}px: Your Learning image never exceeds 480px`).toBeLessThanOrEqual(480.5); expect(m.beatSideBySide).toEqual([false, false, false]); expect(m.progressSideBySide).toBe(false);
     await noOverflow(page); await page.context().close();
   }
   for (const width of [720, 768, 834, 899]) {
     const page = await open(browser, width, 1024), m = await measure(page), want = Math.min(480, Math.max(340, 0.46 * width));
     expect(m.beatSideBySide, `${width}px: text beside each illustration`).toEqual([true, true, true]); expect(m.progressSideBySide, `${width}px: Your Learning beside its text`).toBe(true); expect(Math.abs(m.progressMedia - want)).toBeLessThanOrEqual(1.5);
-    expect(m.introW, `${width}px: Your Learning text wide enough`).toBeGreaterThanOrEqual(260); expect(m.ideasSideBySide, `${width}px: the two ideas stack in the narrow column`).toBe(false);
+    expect(m.introW, `${width}px: Your Learning text wide enough`).toBeGreaterThanOrEqual(260); expect(m.ideasSideBySide, `${width}px: the two captions stack`).toBe(false); expect(m.ideasLeftAligned, `${width}px: captions left-aligned with the heading`).toBe(true); expect(m.captionGaps, `${width}px: consistent gap between the captions`).toBe(20);
     expect(m.learnH, `${width}px: Learning is far shorter than the old stacked layout`).toBeLessThan(1250); expect(m.progressH).toBeLessThan(340); await noOverflow(page); await page.context().close();
   }
-  for (const [width, explore, learnH, progressH] of [[900, 497, 1420, 399], [901, 497, 1420, 399], [1024, 500, 1422, 384]] as const) { // desktop: untouched
+  for (const [width, explore, learnH, progressH] of [[900, 497, 1420, 395], [901, 497, 1420, 395], [1024, 500, 1422, 384], [1280, 500, 1422, 384]] as const) { // desktop: Learning unchanged; Your Learning captions now a left-aligned stack
     const page = await open(browser, width, 900), m = await measure(page);
-    expect(m.learnH, `${width}px: Learning height as approved`).toBe(learnH); expect(m.progressH, `${width}px: Your Learning height as approved`).toBe(progressH); expect(m.media[0], `${width}px: Learn`).toBe(480); expect(Math.abs(m.media[1] - explore), `${width}px: Explore`).toBeLessThanOrEqual(2); expect(m.media[2]).toBe(480); expect(m.progressMedia).toBe(540); expect(m.beatSideBySide).toEqual([true, true, true]); expect(m.ideasSideBySide, `${width}px: desktop ideas stay in two columns`).toBe(true);
+    expect(m.learnH, `${width}px: Learning height as approved`).toBe(learnH); expect(m.progressH, `${width}px: Your Learning height as approved`).toBe(progressH); expect(m.media[0], `${width}px: Learn`).toBe(480); expect(Math.abs(m.media[1] - explore), `${width}px: Explore`).toBeLessThanOrEqual(2); expect(m.media[2]).toBe(480); expect(m.progressMedia).toBe(540); expect(m.beatSideBySide).toEqual([true, true, true]); expect(m.ideasSideBySide, `${width}px: desktop captions are a stack too`).toBe(false); expect(m.ideasLeftAligned).toBe(true);
     await noOverflow(page); await page.context().close();
   }
 });
@@ -309,7 +312,7 @@ test("an early Request a free session button sits centred under the hero bridge 
       return { sideBySide: Math.abs(items[0].top - items[1].top) < 4, gap: items[1].top - items[0].bottom, overflow: items.some(r => r.left < -1 || r.right > innerWidth + 1) };
     });
     expect(ideas.overflow, `${width}px: no overflow`).toBe(false);
-    expect(ideas.sideBySide, `${width}px: ideas ${width < 480 ? "stacked" : "side by side"}`).toBe(width >= 480);
+    expect(ideas.sideBySide, `${width}px: ideas ${width >= 480 && width < 720 ? "side by side" : "stacked"}`).toBe(width >= 480 && width < 720); // a left-aligned stack beside the illustration from 720px
     if (width < 480) expect(ideas.gap).toBeGreaterThanOrEqual(8);
     await noOverflow(page);
     await page.screenshot({ path: `phase2-test-results/homepage-early-cta-${width}.png`, fullPage: false });

@@ -290,8 +290,11 @@
 }
 
 /* Section 3 */
+/* Capped at 480px. Auto side margins centre it once the column is wider than the cap, and change nothing while the image fills the
+   column, so it stays aligned with the heading on phones and moves to the centre smoothly as the screen widens. */
 .progressMedia {
   max-width: 480px;
+  margin-inline: auto;
 }
 
 .ideas {
@@ -428,9 +431,15 @@
     max-width: none;
   }
 
+  /* Beside the illustration the two captions are one left-aligned column, each heading directly above its description. */
   .ideas {
     grid-area: ideas;
     grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .ideas li {
+    text-align: left;
   }
 }
 
@@ -510,8 +519,5 @@
     row-gap: 24px;
   }
 
-  .ideas {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
 }
