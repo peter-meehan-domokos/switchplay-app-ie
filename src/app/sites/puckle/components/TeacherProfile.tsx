@@ -113,14 +113,27 @@ export default function TeacherProfile() {
           {/* Focusable so keyboard users can scroll the biography with the arrow keys when it overflows. */}
           <div className={styles.dialogBody} tabIndex={0}>
             <h2 className={styles.dialogName} id={titleId}>{layout.name}</h2>
-            <p className={styles.subtitle}>{layout.dialog.subtitle}</p>
+            <p className={styles.headline}>{layout.dialog.credentialsHeadline}</p>
+            <p className={styles.credentials}>{layout.dialog.credentials}</p>
             <hr className={styles.divider} />
-            {layout.dialog.sections.map((section) => (
-              <section className={styles.dialogSection} key={section.id}>
-                <h3 className={styles.sectionHeading}>{section.heading}</h3>
-                <p className={styles.sectionBody}>{section.body}</p>
-              </section>
-            ))}
+            {layout.dialog.blocks.map((block) => {
+              if (block.kind === "quote") {
+                return (
+                  <figure className={styles.quote} key={block.id}>
+                    <blockquote>{block.text}</blockquote>
+                    <figcaption>
+                      — <strong>{block.name}</strong>, {block.role}
+                    </figcaption>
+                  </figure>
+                );
+              }
+              if (block.kind === "note") return <p className={styles.note} key={block.id}>{block.text}</p>;
+              return (
+                <p className={styles.paragraph} key={block.id}>
+                  {block.runs.map((run) => (run.strong ? <strong key={run.text}>{run.text}</strong> : run.text))}
+                </p>
+              );
+            })}
           </div>
         </div>
       </dialog>

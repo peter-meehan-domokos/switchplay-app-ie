@@ -70,7 +70,7 @@
 
 /* Modal. The dialog is only its panel (no padding of its own), so a click reported on the dialog element is a click on the backdrop. */
 .dialog {
-  width: min(32rem, 100% - 32px);
+  width: min(36rem, 100% - 32px);
   max-width: none;
   max-height: calc(100dvh - 32px);
   margin: auto;
@@ -197,33 +197,71 @@
   line-height: 1.15;
 }
 
-.subtitle {
-  margin-top: 6px;
-  color: var(--sp-site-text-muted);
+.headline {
+  margin-top: 8px;
+  color: var(--sp-site-accent-blue);
   font-size: 0.95rem;
+  font-weight: 600;
   line-height: 1.4;
 }
 
+.credentials {
+  margin-top: 4px;
+  color: var(--sp-site-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 .divider {
-  margin: 20px 0 4px;
+  margin: 18px 0 2px;
   border: 0;
   border-top: 1px solid rgba(255, 250, 240, 0.12);
 }
 
-.dialogSection {
-  margin-top: 20px;
+.paragraph,
+.quote,
+.note {
+  margin-top: 14px;
 }
 
-.sectionHeading {
+.paragraph {
   color: var(--sp-site-text);
-  font-size: 0.97rem;
-  font-weight: 650;
-  line-height: 1.3;
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
-.sectionBody {
+.paragraph strong {
+  font-weight: 650;
+}
+
+/* Testimonials: set in from the text with a thin accent rule, in italics, with the attribution beneath in muted type. */
+.quote {
+  padding-left: 14px;
+  border-left: 2px solid rgba(168, 214, 228, 0.45);
+}
+
+.quote blockquote {
+  color: var(--sp-site-text-muted);
+  font-size: 0.97rem;
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.quote figcaption {
   margin-top: 6px;
   color: var(--sp-site-text-muted);
-  font-size: 0.9375rem;
-  line-height: 1.55;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.quote figcaption strong {
+  color: var(--sp-site-text);
+  font-weight: 600;
+}
+
+.note {
+  color: var(--sp-site-text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.5;
 }

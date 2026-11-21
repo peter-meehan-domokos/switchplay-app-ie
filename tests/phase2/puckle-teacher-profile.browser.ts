@@ -64,15 +64,22 @@ test("Read more opens a labelled modal dialog with the supplied content, and Esc
   const page = await open(browser, 1024, 768), before = page.url();
   await trigger(page).click(); await expect(dialog(page)).toBeVisible(); await settled(page);
   expect(page.url(), "no navigation").toBe(before);
-  for (const text of ["TEACHER PROFILE", "Qualified secondary mathematics teacher", "PGCE · MSc · Qualified Teacher Status (QTS)", "Over 15 years teaching secondary mathematics, with experience helping students develop conceptual understanding and confidence in their mathematical ability.",
-    "I believe students learn mathematics best when they understand why something works, not simply memorise methods. I use clear explanations, practical examples and opportunities to explore ideas for themselves.", "Evidence of teaching qualifications and professional references is available on request."]) await expect(dialog(page).getByText(text, { exact: true })).toBeVisible();
-  expect(await dialog(page).getByRole("heading", { level: 3 }).allTextContents()).toEqual(["Qualifications", "Teaching experience", "My approach", "Qualifications and references"]);
+  for (const text of ["TEACHER PROFILE", "Qualified secondary maths teacher · 15+ years’ experience", "BSc Mathematics · MSc Learning Technologies · PGCE Secondary Mathematics · Qualified Teacher Status (QTS)",
+    "I help students move beyond memorising to understanding, giving them the confidence to think mathematically about problems.", "I also make maths relevant through real-world connections that students care about.",
+    "In Galway, I ran a data science workshop for Transition Year students.", "With a strong understanding of both Irish and UK maths curricula, I help students strengthen their foundations and confidence, while stretching those ready for the most challenging exam questions.",
+    "Teaching qualifications and professional references are available on request."]) await expect(dialog(page).getByText(text, { exact: true })).toBeVisible();
+  await expect(dialog(page).getByText("One example is Switchplay, which I founded and delivered in secondary schools and football academies. Students' progress in maths was transformed as they learnt how to use data science to improve their performance in sport.")).toBeVisible();
+  expect(await dialog(page).locator("p strong").allTextContents(), "Switchplay is bold").toEqual(["Switchplay"]);
+  const quotes = dialog(page).locator("figure blockquote");
+  expect(await quotes.allTextContents()).toEqual(["“Peter is an outstanding teacher … He has helped to significantly raise standards in Mathematics within the Academy … through his project, Switchplay.”", "“He has an ability to translate complex concepts into an accessible and memorable learning experience.”"]);
+  expect(await dialog(page).locator("figure figcaption").allTextContents()).toEqual(["— Clare Verga, Principal, City of London Academy Islington", "— Yvonne Comer, Senior Innovation Catalyst, PorterShed, Galway"]);
+  expect(await quotes.first().evaluate(element => getComputedStyle(element).fontStyle), "quotations are italic").toBe("italic");
   expect(await page.evaluate(() => document.activeElement?.closest("dialog") !== null), "focus moved into the dialog").toBe(true);
   expect(await page.evaluate(() => document.documentElement.style.overflow), "page scroll locked").toBe("hidden");
   for (let index = 0; index < 5; index++) { await page.keyboard.press("Tab"); expect(await page.evaluate(() => document.activeElement?.closest("dialog") !== null), "Tab stays inside").toBe(true); }
   await page.keyboard.press("Shift+Tab"); expect(await page.evaluate(() => document.activeElement?.closest("dialog") !== null)).toBe(true);
-  const box = (await dialog(page).boundingBox())!; expect(box.width).toBeLessThanOrEqual(512.5); expect(box.width).toBeGreaterThanOrEqual(480);
-  await dialog(page).getByText("Over 15 years teaching").click(); await settled(page); await expect(dialog(page), "click inside does not dismiss").toBeVisible();
+  const box = (await dialog(page).boundingBox())!; expect(box.width).toBeLessThanOrEqual(576.5); expect(box.width).toBeGreaterThanOrEqual(540);
+  await dialog(page).getByText("In Galway, I ran").click(); await settled(page); await expect(dialog(page), "click inside does not dismiss").toBeVisible();
   await page.keyboard.press("Escape"); await expect(dialog(page)).toBeHidden(); await expect(trigger(page), "focus returns to Read more").toBeFocused();
   expect(await page.evaluate(() => document.documentElement.style.overflow), "page scroll restored").toBe("");
   await trigger(page).click(); await expect(dialog(page)).toBeVisible(); await dialog(page).getByRole("button", { name: "Close teacher profile" }).click(); await expect(dialog(page)).toBeHidden(); await expect(trigger(page)).toBeFocused();
