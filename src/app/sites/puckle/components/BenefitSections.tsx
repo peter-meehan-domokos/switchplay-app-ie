@@ -8,8 +8,8 @@ import styles from "./BenefitSections.module.css";
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
 
 const progressIdeas = [
-  { title: "Keep what helps.", body: "Add private notes, videos and photos to your cards." },
-  { title: "Learn from others.", body: "Discover explanations and ideas shared by other students." },
+  { title: "Keep what helps.", body: ["Add private notes, videos", "and photos to your cards."] },
+  { title: "Learn from others.", body: ["Discover explanations and", "ideas shared by other students."] },
 ] as const;
 
 // Trial: swap the Test yourself worksheet for the Kane / Mbappe image. Set to false to bring back the original HTML worksheet.
@@ -173,7 +173,10 @@ function ProgressSection() {
         {progressIdeas.map((idea) => (
           <li key={idea.title}>
             <strong>{idea.title}</strong>
-            <span>{idea.body}</span>
+            <span>
+              {idea.body[0]} <br className={styles.ideaBreak} />
+              {idea.body[1]}
+            </span>
           </li>
         ))}
       </ul>

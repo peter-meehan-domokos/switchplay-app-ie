@@ -326,6 +326,17 @@
   }
 }
 
+/* Below the tablet layout the descriptions always wrap at the same point; from 720px the break is off and the text flows as before. */
+.ideaBreak {
+  display: inline;
+}
+
+@media (min-width: 720px) {
+  .ideaBreak {
+    display: none;
+  }
+}
+
 .ideas strong {
   color: var(--sp-site-text);
   font-weight: 650;
