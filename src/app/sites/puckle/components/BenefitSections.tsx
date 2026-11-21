@@ -123,7 +123,7 @@ function TuitionSection() {
       </figure>
       <div className={styles.tuitionCopy}>
         <p className={styles.body}>
-          Learn with a teacher who makes tricky ideas clear and relevant — with examples
+          Learn with an experienced maths teacher who makes tricky ideas clear and relevant — with examples
           from sport, business and everyday life.
         </p>
         <p className={styles.body}>
@@ -194,7 +194,7 @@ export function AssembledTestYourselfIllustration() {
       aria-label={
         USE_TRIAL_WORKSHEET_IMAGE
           ? trialWorksheetLabel
-          : "Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with a teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
+          : "Illustration: handwritten working for solving x squared minus 5x plus 6 equals 0, with an experienced maths teacher comment praising the factorising and a note to check the signs in the final line, beside a thumbnail of a personal video feedback clip"
       }
     >
       {USE_TRIAL_WORKSHEET_IMAGE ? (
