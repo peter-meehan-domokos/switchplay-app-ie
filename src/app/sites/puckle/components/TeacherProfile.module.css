@@ -25,7 +25,7 @@
 .experience {
   display: grid;
   gap: 4px;
-  margin-top: 11px;
+  margin-top: 0;
   color: var(--sp-site-text-muted);
   font-size: 0.9375rem;
   line-height: 1.45;
@@ -36,7 +36,7 @@
   align-items: center;
   gap: 5px;
   min-height: 44px;
-  margin: 0 0 -6px;
+  margin: -2px 0 -6px;
   padding: 0;
   border: 0;
   background: none;

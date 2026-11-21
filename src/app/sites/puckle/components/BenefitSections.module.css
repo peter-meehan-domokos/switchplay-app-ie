@@ -237,11 +237,11 @@
 /* Section 2 */
 /* The figure spans the text column so the profile beneath the photo has room; the photo itself stays 220px wide on phones. The extra
    bottom margin sets the profile apart from the paragraphs that follow: it is the gap between "Read more" and the first paragraph on
-   stacked (phone and tablet) layouts, on top of the section's 24px gap and the link's own 44px tap area. Negative, so it pulls the paragraph up. */
+   stacked (phone and tablet) layouts, on top of the section's 24px gap and the link's own 44px tap area. Negative (-16px), so it pulls the paragraph up. */
 .portrait {
   display: grid;
   gap: 10px;
-  margin: 0 0 -8px;
+  margin: 0 0 -16px;
   width: 100%;
 }
 

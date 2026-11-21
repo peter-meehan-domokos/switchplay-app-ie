@@ -26,9 +26,9 @@ test("the profile shows the supplied text under the unchanged photograph, groupe
     expect(m.photoW, `${at}: photo width`).toBeCloseTo(width < 720 ? 220 : width < 900 ? 260 : 286, 0);
     expect(m.texts).toEqual(["Peter Meehan-Domokos", "PGCE · MSc · Qualified Teacher Status", ["15+ years teaching secondary maths"], "Read more"]);
     expect(m.family, `${at}: Space Grotesk name`).toContain("Space Grotesk"); expect(m.nameSize).toBeGreaterThanOrEqual(20); expect(m.nameSize).toBeLessThanOrEqual(24);
-    expect(m.gapName, `${at}: photo to name`).toBeGreaterThanOrEqual(14); expect(m.gapName).toBeLessThanOrEqual(22); expect(m.gapQuals).toBeLessThanOrEqual(7); expect(m.gapExp).toBeGreaterThanOrEqual(9); expect(m.gapExp).toBeLessThanOrEqual(13);
+    expect(m.gapName, `${at}: photo to name`).toBeGreaterThanOrEqual(14); expect(m.gapName).toBeLessThanOrEqual(22); expect(m.gapQuals).toBeLessThanOrEqual(7); expect(m.gapExp, `${at}: qualifications and experience read as one block`).toBeLessThanOrEqual(1);
     expect(m.within, `${at}: nothing past the viewport`).toBe(true); expect(m.buttonH, `${at}: comfortable tap target`).toBeGreaterThanOrEqual(44);
-    if (width < 720) { expect(m.paragraphGap, `${at}: gap before the description`).toBeGreaterThanOrEqual(15); expect(m.paragraphGap).toBeLessThanOrEqual(17); }
+    if (width < 720) { expect(m.paragraphGap, `${at}: gap before the description`).toBeGreaterThanOrEqual(7); expect(m.paragraphGap).toBeLessThanOrEqual(9); }
     await noOverflow(page); await page.locator("section[aria-labelledby='tuition-title']").screenshot({ path: `phase2-test-results/teacher-profile-${width}.png` }); await page.context().close();
   }
 });
