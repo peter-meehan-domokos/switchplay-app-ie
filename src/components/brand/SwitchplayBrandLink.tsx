@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
+import PuckleBrandLink from "@/app/sites/puckle/components/BrandLink";
 import styles from "./SwitchplayBrandLink.module.css";
 import { siteBrands } from "@/lib/sites/siteBrands";
 import type { SiteId } from "@/lib/sites/siteResolver";
@@ -16,6 +17,10 @@ type SwitchplayBrandLinkProps = {
 };
 
 export default function SwitchplayBrandLink({ className, site = "switchplay" }: SwitchplayBrandLinkProps) {
+  // Puckle shows the same wordmark as its homepage header (one styling source: Puckle's own BrandLink), on both login routes
+  // that use this component: the /login page header and the embedded sign-in screen shown to signed-out visitors.
+  if (site === "puckle") return <PuckleBrandLink className={className} />;
+
   const brand = siteBrands[site];
   const linkClassName = className
     ? `${spaceGrotesk.variable} ${styles.brandLink} ${className}`

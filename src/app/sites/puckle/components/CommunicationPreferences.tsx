@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { Answer } from "../lib/communicationPreferences";
-import type { ChannelsView, PreferenceField, PreferenceRowView, PreferencesLayout } from "../lib/communicationPreferencesLayout";
+import { splitKeptTail, type ChannelsView, type PreferenceField, type PreferenceRowView, type PreferencesLayout } from "../lib/communicationPreferencesLayout";
 import styles from "./CommunicationPreferences.module.css";
 
 type Props = Readonly<{
@@ -16,7 +16,7 @@ type Props = Readonly<{
 /** Compact Yes | No rows plus the conditional delivery box. Renders the layout only; nothing is preselected. */
 export default function CommunicationPreferences({ idPrefix, layout, onAnswer, onChannel, belowChannels }: Props) {
   const renderRow = (row: PreferenceRowView) => {
-    const base = `${idPrefix}-${row.field}`;
+    const base = `${idPrefix}-${row.field}`, { lead, tail } = splitKeptTail(row.text);
     return (
       <div className={styles.row} key={row.field}>
         <div className={styles.head}>
@@ -32,7 +32,7 @@ export default function CommunicationPreferences({ idPrefix, layout, onAnswer, o
             ))}
           </div>
         </div>
-        <p className={styles.text} id={`${base}-text`}>{row.text}</p>
+        <p className={styles.text} id={`${base}-text`}>{lead}{tail ? <span className={styles.keep}>{tail}</span> : null}</p>
         {row.error ? <p className={styles.error} id={`${base}-error`}>{row.error}</p> : null}
       </div>
     );

@@ -63,11 +63,13 @@
   gap: 20px;
 }
 
-/* All three step illustrations share one width rule when the steps are stacked. */
+/* All three step illustrations share one width rule when the steps are stacked, and none grows past 480px (the Learn size on desktop),
+   so on wide phones and small tablets they stop getting bigger. From 720px the steps sit beside their text instead (see below). */
 .beat .media,
 .beat .feedback {
   justify-self: start;
   width: 94%;
+  max-width: 480px;
 }
 
 .beatCopy {
@@ -233,33 +235,23 @@
 }
 
 /* Section 2 */
+/* The figure spans the text column so the profile beneath the photo has room; the photo itself stays 220px wide on phones. The extra
+   bottom margin sets the profile apart from the paragraphs that follow: it is the gap between "Read more" and the first paragraph on
+   stacked (phone and tablet) layouts, on top of the section's 24px gap and the link's own 44px tap area. Negative (-16px), so it pulls the paragraph up. */
 .portrait {
   display: grid;
   gap: 10px;
-  margin: 0;
-  width: 220px;
+  margin: 0 0 -16px;
+  width: 100%;
 }
 
 .portraitImage {
   display: block;
-  width: 100%;
+  width: 220px;
   height: auto;
   aspect-ratio: 3 / 4;
   object-fit: cover;
   border-radius: 20px;
-}
-
-.credential {
-  display: grid;
-  justify-items: start;
-  color: var(--sp-site-text-muted);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  text-align: left;
-}
-
-.credential span {
-  white-space: nowrap;
 }
 
 .deliveryNote {
@@ -298,6 +290,13 @@
 }
 
 /* Section 3 */
+/* Capped at 480px. Auto side margins centre it once the column is wider than the cap, and change nothing while the image fills the
+   column, so it stays aligned with the heading on phones and moves to the centre smoothly as the screen widens. */
+.progressMedia {
+  max-width: 480px;
+  margin-inline: auto;
+}
+
 .ideas {
   display: grid;
   gap: 10px;
@@ -353,6 +352,97 @@
   }
 }
 
+/* Tablet portrait (iPad mini is 744px wide, so this starts below the site's 760px breakpoint): the heading keeps a full-width row, then the
+   photo and profile sit on the left with the description and call to action beside them, top-aligned. Phones stay stacked. */
+@media (min-width: 720px) {
+  .tuition {
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-areas:
+      "header header"
+      "portrait copy";
+    column-gap: 40px;
+    align-items: start;
+  }
+
+  .tuitionHeader {
+    grid-area: header;
+  }
+
+  .portrait {
+    grid-area: portrait;
+    width: 260px;
+    margin-bottom: 0;
+  }
+
+  .portraitImage {
+    width: 100%;
+  }
+
+  .tuitionCopy {
+    grid-area: copy;
+    align-content: start;
+  }
+
+  /* Learn, Explore, Test yourself and Your Learning use the desktop alternating arrangement, text beside the illustration, with a
+     narrower illustration column that grows from about the phone size toward the desktop 480px as the screen widens. The 900px
+     block below restores the full desktop sizes. */
+  .sections {
+    --tablet-media: clamp(340px, 46vw, 480px);
+  }
+
+  .beat {
+    grid-template-columns: minmax(0, 1fr) var(--tablet-media);
+    gap: 40px;
+    align-items: center;
+  }
+
+  .beatReverse {
+    grid-template-columns: var(--tablet-media) minmax(0, 1fr);
+  }
+
+  .beat .media,
+  .beat .feedback {
+    width: 100%;
+    max-width: none;
+  }
+
+  .beatReverse .media {
+    order: -1;
+  }
+
+  .progress {
+    grid-template-columns: minmax(0, 1fr) var(--tablet-media);
+    grid-template-areas:
+      "intro media"
+      "ideas media";
+    column-gap: 40px;
+    row-gap: 24px;
+    align-items: start;
+  }
+
+  .progressIntro {
+    grid-area: intro;
+    align-self: end;
+  }
+
+  .progressMedia {
+    grid-area: media;
+    align-self: center;
+    max-width: none;
+  }
+
+  /* Beside the illustration the two captions are one left-aligned column, each heading directly above its description. */
+  .ideas {
+    grid-area: ideas;
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .ideas li {
+    text-align: left;
+  }
+}
+
 @media (min-width: 900px) {
   .sections {
     gap: 88px;
@@ -402,61 +492,32 @@
     grid-template-columns: minmax(0, min(500px, 60%)) minmax(0, 1fr);
   }
 
-  .beatReverse .media {
-    order: -1;
-  }
-
   .feedback {
     padding: 20px;
   }
 
+  /* Desktop and tablet landscape: photo and profile on the left, heading and description on the right, both starting at the top of the
+     photo. The first row is only as tall as the heading, so the photo's extra height lands below the description (the second row is
+     flexible) and does not push the right-hand column down. The 286px column is the photo's own width; 30px is the gap. */
   .tuition {
-    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-columns: 286px minmax(0, 1fr);
     grid-template-areas:
       "portrait header"
       "portrait copy";
-    column-gap: 56px;
+    grid-template-rows: auto 1fr;
+    column-gap: 30px;
     row-gap: 16px;
-    align-items: start;
-  }
-
-  .tuitionHeader {
-    grid-area: header;
-    align-self: end;
   }
 
   .portrait {
-    grid-area: portrait;
     width: 286px;
-  }
-
-  .tuitionCopy {
-    grid-area: copy;
-    align-content: start;
   }
 
   .progress {
     grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
-    grid-template-areas:
-      "intro media"
-      "ideas media";
     column-gap: 56px;
     row-gap: 24px;
-    align-items: start;
   }
 
-  .progressIntro {
-    grid-area: intro;
-    align-self: end;
-  }
-
-  .progressMedia {
-    grid-area: media;
-    align-self: center;
-  }
-
-  .ideas {
-    grid-area: ideas;
-  }
 
 }

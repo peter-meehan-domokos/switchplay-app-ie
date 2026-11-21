@@ -2,6 +2,7 @@ import { Caveat } from "next/font/google";
 import Image from "next/image";
 import buttonStyles from "./PublicButton.module.css";
 import ExploreVideo from "./ExploreVideo";
+import TeacherProfile from "./TeacherProfile";
 import styles from "./BenefitSections.module.css";
 
 const handwriting = Caveat({ subsets: ["latin"], display: "swap" });
@@ -118,14 +119,11 @@ function TuitionSection() {
           src="/images/sites/puckle/puckle-tutor-photo-v2.jpg"
           width={960}
         />
-        <figcaption className={styles.credential}>
-          <span>15+ years teaching secondary maths</span>
-          <span>Thousands of students taught</span>
-        </figcaption>
+        <TeacherProfile />
       </figure>
       <div className={styles.tuitionCopy}>
         <p className={styles.body}>
-          Learn with an experienced maths teacher who makes tricky ideas clear and relevant — with examples
+          Learn with a teacher who makes tricky ideas clear and relevant — with examples
           from sport, business and everyday life.
         </p>
         <p className={styles.body}>
@@ -167,7 +165,7 @@ function ProgressSection() {
           className={styles.mediaImage}
           height={1058}
           sizes="(min-width: 900px) 540px, calc(100vw - 32px)"
-          src="/images/sites/puckle/puckle-collaboration-v2.png"
+          src="/images/sites/puckle/puckle-collaboration-v3.png"
           width={1487}
         />
       </figure>

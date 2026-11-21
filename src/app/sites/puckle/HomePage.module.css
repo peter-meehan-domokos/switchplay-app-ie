@@ -106,7 +106,7 @@
   height: auto;
 }
 
-@media (min-width: 840px) {
+@media (min-width: 760px) {
   /* The artwork wrapper stops being a box, so the image and its caption become separate grid items: the headline is centred
      against the image row only, and the caption sits in the row beneath the image. */
   .hero {
