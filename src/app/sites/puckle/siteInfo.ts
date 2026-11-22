@@ -1,3 +1,8 @@
+// Two spellings of the brand name. Changing them does NOT change the page titles or descriptions Google and browsers show:
+//   - Page title / description wording is typed directly in src/app/sites/puckle/page.tsx (homepage) and
+//     src/app/sites/puckle/layout.tsx (other pages). See the comments at the top of those files for which one wins.
+//   - SITE_NAME ("Puckle", normal case) is used in running text and in the homepage's Open Graph `og:site_name` (link previews).
+//   - SITE_TITLE_NAME ("PUCKLE", all caps) is used only for the on-page brand link's accessible label ("PUCKLE home").
 export const SITE_NAME = "Puckle";
 export const SITE_TITLE_NAME = "PUCKLE";
 /** General contact address (contact page, privacy questions, unsubscribing). */

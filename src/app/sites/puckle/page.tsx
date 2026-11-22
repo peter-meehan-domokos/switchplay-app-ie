@@ -8,25 +8,43 @@ import buttonStyles from "./components/PublicButton.module.css";
 import BenefitSections from "./components/BenefitSections";
 import BeyondTheMathsSection from "./components/BeyondTheMathsSection";
 import TuitionEnquiryForm from "./components/TuitionEnquiryForm";
-import { SITE_TITLE_NAME } from "./siteInfo";
+import { SITE_NAME } from "./siteInfo";
 import styles from "./HomePage.module.css";
 
-const homeTitle = `${SITE_TITLE_NAME} — The unofficial way to get there.`;
+// ======================================================================================================================================
+// PUCKLE HOMEPAGE METADATA (what puckleup.com shows in Google results, browser tabs and link previews such as WhatsApp / Facebook / X).
+//
+// THIS IS THE FILE THAT WINS FOR THE HOMEPAGE ("/"). A page's own `metadata` overrides the layout files above it, so changing the
+// title or description in src/app/sites/puckle/layout.tsx or src/app/layout.tsx will NOT change the homepage. Edit it here.
+//
+// There are three separate places that set metadata, from lowest to highest priority:
+//   1. src/app/layout.tsx               - root fallback for the whole app. Puckle never uses it for "/" (overridden twice below).
+//   2. src/app/sites/puckle/layout.tsx  - Puckle default, used by Puckle pages that set no title/description of their own.
+//   3. THIS FILE                        - Puckle homepage only. Overrides 1 and 2 for "/".
+// If you change the wording here, also update (2) so the other Puckle pages stay consistent with it.
+//
+// Note: `title.absolute` below deliberately ignores the "%s | Puckle" template in layout.tsx, so the homepage tab shows exactly this text.
+// Open Graph (og:) and Twitter values are NOT inherited from the title/description above; they are set separately in this file, so
+// keep all three blocks (main, openGraph, twitter) in step.
+// ======================================================================================================================================
+const homeTitle = "Puckle — Unpickle your maths.";
 const homeDescription =
-  "A clear path, not just another video. Follow the steps of someone who's done it.";
+  "Your maths progress, your way. Puckle's student-centred platform combines expert online tuition, video explanations, hands-on visuals and examples from real-life activities such as sport and business.";
 
 export const metadata: Metadata = {
   title: {
-    absolute: homeTitle,
+    absolute: homeTitle, // Browser tab, Google result title. `absolute` = ignore the layout's "%s | Puckle" template.
   },
-  description: homeDescription,
+  description: homeDescription, // Google result snippet.
   openGraph: {
+    // Link previews (WhatsApp, Facebook, LinkedIn, iMessage...).
     title: homeTitle,
     description: homeDescription,
-    siteName: SITE_TITLE_NAME,
+    siteName: SITE_NAME, // From ./siteInfo.ts. NOT SITE_TITLE_NAME (that is the all-caps "PUCKLE" used in the on-page brand link).
     type: "website",
   },
   twitter: {
+    // Link previews on X / Twitter.
     card: "summary",
     title: homeTitle,
     description: homeDescription,
