@@ -3,10 +3,10 @@ import { SITE_TITLE_NAME } from "./siteInfo";
 
 export const metadata: Metadata = {
   title: {
-    default: `${SITE_TITLE_NAME} — The unofficial way to get there.`,
-    template: `%s | ${SITE_TITLE_NAME}`,
+    default: "Puckle — Unpickle your maths.",
+    template: "%s | Puckle",
   },
-  description: "A clear path, not just another video. Follow the steps of someone who's done it.",
+  description: "Your maths progress, your way. Puckle's student-centred platform combines expert online tuition, video explanations, hands-on visuals and examples from real-life activities such as sport and business.",
 };
 
 export default function PuckleSiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
