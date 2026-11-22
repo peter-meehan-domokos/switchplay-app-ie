@@ -140,15 +140,15 @@ test("public Puckle pages, login and the registration and sign-in APIs are never
 
 test("layout wording: student, teacher and other audiences, exactly as agreed", () => {
   const student = buildPrelaunchLayout({ category: "student" });
-  assert.deepEqual([student.kicker, student.heading, student.lead, student.body, student.followUp.heading, student.followUp.text], ["EARLY ACCESS", "Welcome to Puckle!", "Maths content starts arriving in early December.",
+  assert.deepEqual([student.kicker, student.heading, student.lead, student.body, student.followUp.heading, student.followUp.text], ["EARLY ACCESS", "Welcome to Puckle!", "Maths content starts arriving in December.",
     "You're here from the beginning. Improve your maths and help shape what we create next.", "Want to get started now?", "Maths lessons with Puckle are available today. Or join us for a free introductory session to see how the platform works and discuss your maths."]);
   assert.deepEqual(student.followUp.action, { kind: "enquire", label: "Request a free session", href: TUITION_ENQUIRY_HREF });
   assert.equal(TUITION_ENQUIRY_HREF, "/#early-access");
   const teacher = buildPrelaunchLayout({ category: "teacher" });
-  assert.equal(teacher.lead, "Maths content starts arriving in early December.");
+  assert.equal(teacher.lead, "Maths content starts arriving in December.");
   assert.equal(teacher.body, "You're joining us from the beginning, with an opportunity to help shape how Puckle supports teachers and students.");
   const other = buildPrelaunchLayout({ category: undefined });
-  assert.equal(other.lead, "We're opening in early December.");
+  assert.equal(other.lead, "We're opening in December.");
   assert.equal(other.body, "You're joining Puckle at the beginning. We're creating new ways to learn maths, and we'd love you to be part of what comes next.");
   for (const layout of [teacher, other]) {
     assert.equal(layout.followUp.heading, "Thanks for your interest!");
@@ -179,9 +179,9 @@ test("layout: the parent section is only for a student who still needs approval,
 });
 
 test("Join pre-launch wording: student and teacher only, and only in pre-launch mode", () => {
-  assert.deepEqual(joinPrelaunchNotice("student"), { heading: "Join Puckle now", text: "Maths content starts arriving in early December. Sign up today to be among the first to use it.",
+  assert.deepEqual(joinPrelaunchNotice("student"), { heading: "Join Puckle now", text: "Maths content starts arriving in December. Sign up today to be among the first to use it.",
     tuition: { lead: "Want to get started now?", text: "Maths lessons with Puckle are already available, using our interactive learning platform." } });
-  assert.deepEqual(joinPrelaunchNotice("teacher"), { heading: "Join Puckle as a teacher", text: "Maths content starts arriving in early December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", tuition: null });
+  assert.deepEqual(joinPrelaunchNotice("teacher"), { heading: "Join Puckle as a teacher", text: "Maths content starts arriving in December. Join now to get early access and help shape how Puckle supports maths teaching and learning.", tuition: null });
   assert.equal(joinPrelaunchNotice("interest"), null);
   const layoutOf = (choice: "student" | "teacher" | "interest", prelaunch?: boolean) => buildMembershipJoinLayout(withChoice(initialJoinFormState, choice), initialJoinFlowState, {}, 0, "2026-11-17", prelaunch);
   // The environment decides which student introduction appears; both stay in the code and never show together.
