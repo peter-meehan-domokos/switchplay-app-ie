@@ -30,6 +30,10 @@ const sites = [
   { host: "switchplay.ie", name: "Switchplay", title: "SWITCHPLAY", metaName: "SWITCHPLAY", homeTitle: "SWITCHPLAY — The unofficial way to get there.", email: "info@switchplay.ie", others: ["puckle", "strat17"] },
 ] as const;
 
+// Puckle's "Step Visuals" menu link is hidden for now (SHOW_STEP_VISUALS_LINK in src/app/sites/puckle/components/PublicHeader.tsx); the
+// /step-visuals page itself still works on Puckle only. Set this to true when that link is shown again.
+const STEP_VISUALS_LINK_SHOWN = false;
+
 const visibleText = (html: string) => html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "");
 
 for (const site of sites) {
@@ -40,7 +44,9 @@ for (const site of sites) {
           const reply = await get(path, variant);
           assert.equal(reply.status, 200, `${variant}${path}`);
           const text = visibleText(reply.body).toLowerCase();
-          for (const other of site.others) assert.ok(!text.includes(other), `${variant}${path} must not mention ${other}`);
+          // The Puckle homepage names Switchplay on purpose: the teacher profile credits it as the founder's project and quotes testimonials about it.
+          const permitted = site.name === "Puckle" && path === "/" ? ["switchplay"] : [];
+          for (const other of site.others.filter((name) => !permitted.includes(name))) assert.ok(!text.includes(other), `${variant}${path} must not mention ${other}`);
           assert.ok(text.includes(site.name.toLowerCase()), `${variant}${path} should name ${site.name}`);
           assert.match(reply.body, new RegExp(`aria-label="${site.title} home"`), `${variant}${path} header brand`);
         }
@@ -48,7 +54,7 @@ for (const site of sites) {
       const contact = await get("/contact", variant);
       assert.ok(contact.body.includes(`mailto:${site.email}`), "contact email");
       assert.ok(!contact.body.includes('href="/step-visuals"') || site.host === "puckleup.com", "Step Visuals link only on Puckle");
-      assert.equal((await get("/", variant)).body.includes('href="/step-visuals"'), site.host === "puckleup.com");
+      assert.equal((await get("/", variant)).body.includes('href="/step-visuals"'), STEP_VISUALS_LINK_SHOWN && site.host === "puckleup.com");
     });
   }
 
@@ -71,7 +77,7 @@ for (const site of sites) {
     assert.match(login.body, new RegExp(`<title>Sign in \\| ${site.title}</title>`));
     assert.match(login.body, new RegExp(`aria-label="${site.title} home"`));
     assert.match(login.body, new RegExp(`<p class="eyebrow">${site.name}</p>`));
-    assert.equal(login.body.includes('href="/step-visuals"'), site.host === "puckleup.com");
+    assert.equal(login.body.includes('href="/step-visuals"'), STEP_VISUALS_LINK_SHOWN && site.host === "puckleup.com");
   });
 
   test(`${site.host}: /sites/* is not directly reachable and /step-visuals is Puckle-only`, { skip }, async () => {
@@ -83,14 +89,15 @@ for (const site of sites) {
   });
 }
 
-test("logged-out application screens keep their existing Switchplay branding on every host", { skip }, async () => {
+// Since the Puckle rebrand, the embedded sign-in shown on these application routes is Puckle-branded on every host.
+test("logged-out application screens show the Puckle sign-in branding on every host", { skip }, async () => {
   const routes = ["/decks", "/library", "/progress", "/creator/new"];
   for (const { host } of sites) {
     for (const path of routes) {
       const reply = await get(path, host);
       assert.equal(reply.status, 200, `${host}${path}`);
-      assert.match(reply.body, /aria-label="SWITCHPLAY home"/, `${host}${path}`);
-      assert.match(reply.body, /<p class="eyebrow">Switchplay<\/p>/, `${host}${path}`);
+      assert.match(reply.body, /aria-label="PUCKLE home"/, `${host}${path}`);
+      assert.match(reply.body, /<p class="eyebrow">Puckle<\/p>/, `${host}${path}`);
     }
   }
 });
