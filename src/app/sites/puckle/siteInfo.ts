@@ -26,7 +26,7 @@ export const PHONE_LINES = [
  * in layout.tsx.
  */
 export const SHARE_IMAGE = {
-  url: "/images/sites/puckle/puckle-og-hero-v1.jpg",
+  url: "/images/sites/puckle/puckle-og-hero-v2.jpg",
   width: 1200,
   height: 630,
   alt: "Three Puckle Cards showing a maths lesson on integration, with a video, an interactive graph, and Learn, Explore and Test yourself steps",
