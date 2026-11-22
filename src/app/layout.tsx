@@ -6,10 +6,10 @@ import OnboardingHost from "@/components/onboarding/OnboardingHost";
 
 export const metadata: Metadata = {
   title: {
-    default: "PUCKLE — The unofficial way to get there.",
-    template: "%s | PUCKLE",
+    default: "Puckle — Unpickle your maths.",
+    template: "%s | Puckle",
   },
-  description: "A clear path, not just another video. Follow the steps of someone who's done it.",
+  description: "Your maths progress, your way. Puckle's student-centred platform combines expert online tuition, video explanations, hands-on visuals and examples from real-life activities such as sport and business.",
 };
 
 export default function RootLayout({
