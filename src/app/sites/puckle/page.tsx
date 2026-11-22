@@ -8,7 +8,7 @@ import buttonStyles from "./components/PublicButton.module.css";
 import BenefitSections from "./components/BenefitSections";
 import BeyondTheMathsSection from "./components/BeyondTheMathsSection";
 import TuitionEnquiryForm from "./components/TuitionEnquiryForm";
-import { SITE_NAME } from "./siteInfo";
+import { SHARE_IMAGE, SITE_NAME } from "./siteInfo";
 import styles from "./HomePage.module.css";
 
 // ======================================================================================================================================
@@ -40,14 +40,16 @@ export const metadata: Metadata = {
     // Link previews (WhatsApp, Facebook, LinkedIn, iMessage...).
     title: homeTitle,
     description: homeDescription,
+    images: [SHARE_IMAGE], // The picture in the link preview (defined once in ./siteInfo.ts). Set separately from `twitter.images` below.
     siteName: SITE_NAME, // From ./siteInfo.ts. NOT SITE_TITLE_NAME (that is the all-caps "PUCKLE" used in the on-page brand link).
     type: "website",
   },
   twitter: {
     // Link previews on X / Twitter.
-    card: "summary",
+    card: "summary_large_image", // Wide picture above the text. ("summary" would show a small square thumbnail instead.)
     title: homeTitle,
     description: homeDescription,
+    images: [SHARE_IMAGE.url], // Same picture, from ./siteInfo.ts.
   },
 };
 

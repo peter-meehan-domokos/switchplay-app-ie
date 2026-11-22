@@ -16,3 +16,18 @@ export const PHONE_LINES = [
   { country: "Ireland", display: "+353 85 207 6241", e164: "+353852076241" },
   { country: "UK", display: "+44 7547 196642", e164: "+447547196642" },
 ] as const;
+
+/**
+ * THE LINK-PREVIEW IMAGE for every Puckle page (the picture WhatsApp, Facebook, LinkedIn, iMessage and X show when the site is shared).
+ * Edit it HERE, once. It is used by src/app/sites/puckle/layout.tsx (all pages) and src/app/sites/puckle/page.tsx (the homepage, which
+ * must repeat it because a page's own openGraph/twitter blocks replace the layout's rather than adding to them).
+ * 1200x630, made from the hero artwork. The file lives in public/. Social platforms cache previews hard, so when you change the picture
+ * save it under a NEW filename (-v2, -v3...) and update `url`. The relative url becomes https://puckleup.com/... via `metadataBase`
+ * in layout.tsx.
+ */
+export const SHARE_IMAGE = {
+  url: "/images/sites/puckle/puckle-og-hero-v1.jpg",
+  width: 1200,
+  height: 630,
+  alt: "Three Puckle Cards showing a maths lesson on integration, with a video, an interactive graph, and Learn, Explore and Test yourself steps",
+};

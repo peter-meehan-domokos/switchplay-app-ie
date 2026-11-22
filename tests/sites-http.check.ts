@@ -22,10 +22,12 @@ function get(path: string, host: string, extraHeaders: Record<string, string> = 
   });
 }
 
+// `title` is the all-caps brand in the on-page header link and the /login title. `metaName` is the name as written in the page metadata
+// (title suffix and og:site_name), and `homeTitle` is the exact homepage <title>; Puckle's are mixed case, the other two use the all-caps brand.
 const sites = [
-  { host: "strat17.com", name: "Strat17", title: "STRAT17", email: "info@strat17.com", others: ["switchplay", "puckle"] },
-  { host: "puckleup.com", name: "Puckle", title: "PUCKLE", email: "hello@puckleup.com", others: ["switchplay", "strat17"] },
-  { host: "switchplay.ie", name: "Switchplay", title: "SWITCHPLAY", email: "info@switchplay.ie", others: ["puckle", "strat17"] },
+  { host: "strat17.com", name: "Strat17", title: "STRAT17", metaName: "STRAT17", homeTitle: "STRAT17 — The unofficial way to get there.", email: "info@strat17.com", others: ["switchplay", "puckle"] },
+  { host: "puckleup.com", name: "Puckle", title: "PUCKLE", metaName: "Puckle", homeTitle: "Puckle — Unpickle your maths.", email: "hello@puckleup.com", others: ["switchplay", "strat17"] },
+  { host: "switchplay.ie", name: "Switchplay", title: "SWITCHPLAY", metaName: "SWITCHPLAY", homeTitle: "SWITCHPLAY — The unofficial way to get there.", email: "info@switchplay.ie", others: ["puckle", "strat17"] },
 ] as const;
 
 const visibleText = (html: string) => html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "");
@@ -52,13 +54,15 @@ for (const site of sites) {
 
   test(`${site.host}: titles, descriptions and social metadata use ${site.name}`, { skip }, async () => {
     const home = (await get("/", site.host)).body;
-    assert.match(home, new RegExp(`<title>${site.title} — The unofficial way to get there\\.</title>`));
-    assert.match(home, new RegExp(`property="og:site_name" content="${site.title}"`));
+    assert.ok(home.includes(`<title>${site.homeTitle}</title>`), "homepage title");
+    assert.ok(home.includes(`property="og:title" content="${site.homeTitle}"`), "homepage og:title");
+    assert.ok(home.includes(`name="twitter:title" content="${site.homeTitle}"`), "homepage twitter:title");
+    assert.match(home, new RegExp(`property="og:site_name" content="${site.metaName}"`));
     const contact = (await get("/contact", site.host)).body;
-    assert.match(contact, new RegExp(`<title>Contact and support \\| ${site.title}</title>`));
+    assert.match(contact, new RegExp(`<title>Contact and support \\| ${site.metaName}</title>`));
     assert.match(contact, new RegExp(`name="description" content="Contact ${site.name} for support`));
     const privacy = (await get("/privacy", site.host)).body;
-    assert.match(privacy, new RegExp(`<title>Privacy Policy \\| ${site.title}</title>`));
+    assert.match(privacy, new RegExp(`<title>Privacy Policy \\| ${site.metaName}</title>`));
   });
 
   test(`${site.host}: /login shows ${site.name} branding and the right support email`, { skip }, async () => {
