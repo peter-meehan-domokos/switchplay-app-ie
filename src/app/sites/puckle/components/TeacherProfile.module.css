@@ -177,6 +177,7 @@
 }
 
 .dialogBody {
+  container: profile / inline-size;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -205,11 +206,67 @@
   line-height: 1.4;
 }
 
+.unit {
+  white-space: nowrap;
+}
+
+/* Primary credentials: one line with a dot when there is room, otherwise two stacked lines with no dot. */
+.headlineDot {
+  display: none;
+}
+
+.headline .unit {
+  display: block;
+}
+
+/* Qualifications: narrow = one per line, no dots; medium = first two share a line; wide = first three share a line. Dots are shown only
+   between units on the same line. The last qualification always sits on its own line. */
+.dotAB,
+.dotBC {
+  display: none;
+}
+
+.breakA,
+.breakB,
+.breakC {
+  display: inline;
+}
+
+@container profile (min-width: 27.5rem) {
+  .headline .unit {
+    display: inline;
+  }
+
+  .headlineDot {
+    display: inline;
+  }
+}
+
 .credentials {
   margin-top: 4px;
   color: var(--sp-site-text-muted);
   font-size: 0.875rem;
   line-height: 1.5;
+}
+
+@container profile (min-width: 18.5rem) {
+  .dotAB {
+    display: inline;
+  }
+
+  .breakA {
+    display: none;
+  }
+}
+
+@container profile (min-width: 31.5rem) {
+  .dotBC {
+    display: inline;
+  }
+
+  .breakB {
+    display: none;
+  }
 }
 
 .divider {

@@ -113,8 +113,24 @@ export default function TeacherProfile() {
           {/* Focusable so keyboard users can scroll the biography with the arrow keys when it overflows. */}
           <div className={styles.dialogBody} tabIndex={0}>
             <h2 className={styles.dialogName} id={titleId}>{layout.name}</h2>
-            <p className={styles.headline}>{layout.dialog.credentialsHeadline}</p>
-            <p className={styles.credentials}>{layout.dialog.credentials}</p>
+            <p className={styles.headline}>
+              <span className={styles.unit}>{layout.dialog.headline[0]}</span>
+              <span aria-hidden="true" className={styles.headlineDot}> · </span>
+              <span className={styles.unit}>{layout.dialog.headline[1]}</span>
+            </p>
+            {/* Each qualification is an unbreakable unit. Line breaks and the dots between units are switched by width in the CSS, so a
+                dot only ever appears between two qualifications that share a line. */}
+            <p className={styles.credentials}>
+              <span className={styles.unit}>{layout.dialog.credentials[0]}</span>
+              <span aria-hidden="true" className={styles.dotAB}> · </span>
+              <br className={styles.breakA} />
+              <span className={styles.unit}>{layout.dialog.credentials[1]}</span>
+              <span aria-hidden="true" className={styles.dotBC}> · </span>
+              <br className={styles.breakB} />
+              <span className={styles.unit}>{layout.dialog.credentials[2]}</span>
+              <br className={styles.breakC} />
+              <span className={styles.unit}>{layout.dialog.credentials[3]}</span>
+            </p>
             <hr className={styles.divider} />
             {layout.dialog.blocks.map((block) => {
               if (block.kind === "quote") {

@@ -17,8 +17,10 @@ export type TeacherProfileLayout = {
   readMoreLabel: string;
   dialog: {
     eyebrow: string;
-    credentialsHeadline: string;
-    credentials: string;
+    /** The two primary credentials; shown on one line with a dot when wide, stacked without it when narrow. */
+    headline: readonly [string, string];
+    /** The four qualifications, each an unbreakable unit; the component decides where lines and dots fall. */
+    credentials: readonly [string, string, string, string];
     closeLabel: string;
     blocks: readonly ProfileBlock[];
   };
@@ -32,14 +34,14 @@ export function buildTeacherProfileLayout(): TeacherProfileLayout {
     readMoreLabel: "Read more",
     dialog: {
       eyebrow: "TEACHER PROFILE",
-      credentialsHeadline: "Qualified secondary maths teacher · 15+ years’ experience",
-      credentials: "BSc Mathematics · MSc Learning Technologies · PGCE Secondary Mathematics · Qualified Teacher Status (QTS)",
+      headline: ["Qualified secondary maths teacher", "15+ years’ experience"],
+      credentials: ["BSc Mathematics", "MSc Learning Technologies", "PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"],
       closeLabel: "Close teacher profile",
       blocks: [
         {
           kind: "paragraph",
           id: "understanding",
-          runs: [{ text: "I help students move beyond memorising to understanding, giving them the confidence to think mathematically about problems." }],
+          runs: [{ text: "I help students move from memorising rules to understanding why they work, building the confidence to think mathematically about problems." }],
         },
         { kind: "paragraph", id: "relevance", runs: [{ text: "I also make maths relevant through real-world connections that students care about." }] },
         {

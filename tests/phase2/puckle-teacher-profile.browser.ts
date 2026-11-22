@@ -64,8 +64,8 @@ test("Read more opens a labelled modal dialog with the supplied content, and Esc
   const page = await open(browser, 1024, 768), before = page.url();
   await trigger(page).click(); await expect(dialog(page)).toBeVisible(); await settled(page);
   expect(page.url(), "no navigation").toBe(before);
-  for (const text of ["TEACHER PROFILE", "Qualified secondary maths teacher · 15+ years’ experience", "BSc Mathematics · MSc Learning Technologies · PGCE Secondary Mathematics · Qualified Teacher Status (QTS)",
-    "I help students move beyond memorising to understanding, giving them the confidence to think mathematically about problems.", "I also make maths relevant through real-world connections that students care about.",
+  for (const text of ["TEACHER PROFILE", "Qualified secondary maths teacher · 15+ years’ experience", 
+    "I help students move from memorising rules to understanding why they work, building the confidence to think mathematically about problems.", "I also make maths relevant through real-world connections that students care about.",
     "In Galway, I ran a data science workshop for Transition Year students.", "With a strong understanding of both Irish and UK maths curricula, I help students strengthen their foundations and confidence, while stretching those ready for the most challenging exam questions.",
     "Teaching qualifications and professional references are available on request."]) await expect(dialog(page).getByText(text, { exact: true })).toBeVisible();
   await expect(dialog(page).getByText("One example is Switchplay, which I founded and delivered in secondary schools and football academies. Students' progress in maths was transformed as they learnt how to use data science to improve their performance in sport.")).toBeVisible();
@@ -85,6 +85,40 @@ test("Read more opens a labelled modal dialog with the supplied content, and Esc
   await trigger(page).click(); await expect(dialog(page)).toBeVisible(); await dialog(page).getByRole("button", { name: "Close teacher profile" }).click(); await expect(dialog(page)).toBeHidden(); await expect(trigger(page)).toBeFocused();
   await trigger(page).click(); await expect(dialog(page)).toBeVisible(); await settled(page); await page.mouse.click(6, 6); await expect(dialog(page), "backdrop click closes").toBeHidden(); await expect(trigger(page)).toBeFocused();
   await page.context().close();
+});
+
+// The visible lines of an element, in order, counting only rendered text (hidden separators and breaks are skipped).
+async function visibleLines(page: Page, selector: string) {
+  return page.evaluate((sel) => {
+    const out: { y: number; t: string }[] = [], range = document.createRange();
+    const walk = (node: Node) => {
+      if (node.nodeType === 3) {
+        const text = node as Text;
+        for (let i = 0; i < text.length; i++) {
+          range.setStart(text, i); range.setEnd(text, i + 1);
+          const rect = range.getClientRects()[0]; if (!rect || !rect.width) continue;
+          const y = Math.round(rect.top), line = out.find(l => l.y === y) ?? (out.push({ y, t: "" }), out[out.length - 1]); line.t += text.data[i];
+        }
+      } else if (!(node instanceof Element && getComputedStyle(node).display === "none")) node.childNodes.forEach(walk);
+    };
+    walk(document.querySelector(`dialog[open] ${sel}`)!);
+    return out.map(l => l.t.trim());
+  }, selector);
+}
+
+test("credentials wrap by whole units with a dot only between items that share a line, at every width", async ({ browser }) => {
+  const stackedHeadline = ["Qualified secondary maths teacher", "15+ years’ experience"], oneHeadline = ["Qualified secondary maths teacher · 15+ years’ experience"];
+  const single = ["BSc Mathematics", "MSc Learning Technologies", "PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"];
+  const pair = ["BSc Mathematics · MSc Learning Technologies", "PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"];
+  const triple = ["BSc Mathematics · MSc Learning Technologies · PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"];
+  const expected: [number, number, string[], string[]][] = [[320, 640, stackedHeadline, single], [375, 667, stackedHeadline, pair], [390, 844, stackedHeadline, pair], [430, 932, stackedHeadline, pair],
+    [768, 1024, oneHeadline, triple], [1024, 768, oneHeadline, triple], [1280, 800, oneHeadline, triple], [1440, 900, oneHeadline, triple], [390, 520, stackedHeadline, pair]];
+  for (const [width, height, headline, credentials] of expected) {
+    const page = await open(browser, width, height); await trigger(page).click(); await expect(dialog(page)).toBeVisible(); await settled(page);
+    expect(await visibleLines(page, "[class*='headline']"), `headline at ${width}`).toEqual(headline);
+    expect(await visibleLines(page, "[class*='credentials']"), `qualifications at ${width}`).toEqual(credentials);
+    await noOverflow(page); await page.context().close();
+  }
 });
 
 test("rapid interaction leaves the dialog in a consistent state: repeated clicks, repeated Escape and reopening straight after closing", async ({ browser }) => {
