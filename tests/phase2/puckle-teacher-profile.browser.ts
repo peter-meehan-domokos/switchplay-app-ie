@@ -110,7 +110,7 @@ test("credentials wrap by whole units with a dot only between items that share a
   const stackedHeadline = ["Qualified secondary maths teacher", "15+ years’ experience"], oneHeadline = ["Qualified secondary maths teacher · 15+ years’ experience"];
   const single = ["BSc Mathematics", "MSc Learning Technologies", "PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"];
   const pair = ["BSc Mathematics · MSc Learning Technologies", "PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"];
-  const triple = ["BSc Mathematics · MSc Learning Technologies · PGCE Secondary Mathematics", "Qualified Teacher Status (QTS)"];
+  const triple = ["BSc Mathematics · MSc Learning Technologies", "PGCE Secondary Mathematics · Qualified Teacher Status (QTS)"];
   const expected: [number, number, string[], string[]][] = [[320, 640, stackedHeadline, single], [375, 667, stackedHeadline, pair], [390, 844, stackedHeadline, pair], [430, 932, stackedHeadline, pair],
     [768, 1024, oneHeadline, triple], [1024, 768, oneHeadline, triple], [1280, 800, oneHeadline, triple], [1440, 900, oneHeadline, triple], [390, 520, stackedHeadline, pair]];
   for (const [width, height, headline, credentials] of expected) {

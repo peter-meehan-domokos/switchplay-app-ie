@@ -125,9 +125,9 @@ export default function TeacherProfile() {
               <span aria-hidden="true" className={styles.dotAB}> · </span>
               <br className={styles.breakA} />
               <span className={styles.unit}>{layout.dialog.credentials[1]}</span>
-              <span aria-hidden="true" className={styles.dotBC}> · </span>
               <br className={styles.breakB} />
               <span className={styles.unit}>{layout.dialog.credentials[2]}</span>
+              <span aria-hidden="true" className={styles.dotCD}> · </span>
               <br className={styles.breakC} />
               <span className={styles.unit}>{layout.dialog.credentials[3]}</span>
             </p>

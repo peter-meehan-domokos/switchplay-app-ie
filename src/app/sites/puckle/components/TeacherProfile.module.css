@@ -219,10 +219,10 @@
   display: block;
 }
 
-/* Qualifications: narrow = one per line, no dots; medium = first two share a line; wide = first three share a line. Dots are shown only
-   between units on the same line. The last qualification always sits on its own line. */
+/* Qualifications are two pairs: the degrees (BSc, MSc) and the teaching qualifications (PGCE, QTS). Wide = one line per pair. Narrower,
+   a pair that no longer fits splits onto two lines. Dots are shown only between units on the same line, and the two pairs never share one. */
 .dotAB,
-.dotBC {
+.dotCD {
   display: none;
 }
 
@@ -259,12 +259,12 @@
   }
 }
 
-@container profile (min-width: 31.5rem) {
-  .dotBC {
+@container profile (min-width: 25.5rem) {
+  .dotCD {
     display: inline;
   }
 
-  .breakB {
+  .breakC {
     display: none;
   }
 }
